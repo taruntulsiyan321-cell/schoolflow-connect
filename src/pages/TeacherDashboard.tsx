@@ -138,6 +138,7 @@ export default function TeacherDashboard() {
       <Routes>
         <Route index element={<Overview />} />
         <Route path="attendance" element={<Attendance />} />
+        <Route path="exams" element={<ExamsPage />} />
         <Route path="notices" element={<NoticesPage canPost />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
