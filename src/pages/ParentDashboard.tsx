@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
-import { PageHeader, StatCard } from "@/components/ui-bits";
+import { PageHeader } from "@/components/ui-bits";
 import NoticesPage from "./shared/NoticesPage";
+import MyFeesPage from "./shared/MyFeesPage";
+import MyMarksPage from "./shared/MyMarksPage";
 
 const nav = [
   { to: "/parent", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/parent/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/parent/attendance", label: "Attend", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/parent/marks", label: "Marks", icon: <FileText className="w-4 h-4" /> },
+  { to: "/parent/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/parent/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
 ];
 
@@ -29,7 +33,7 @@ const Home = () => {
       <PageHeader title="Parent Dashboard" subtitle="Track your child's progress" />
       {children.length === 0 ? (
         <Card className="p-5 border-warning/30 bg-warning/5">
-          <p className="text-sm">No children linked. Ask your school admin to link your account to your child's record.</p>
+          <p className="text-sm">No children linked. Ask admin to link your account ({user?.email}).</p>
         </Card>
       ) : (
         <div className="grid gap-4">
@@ -51,9 +55,10 @@ const ChildAttendance = () => {
   useEffect(() => {
     (async () => {
       if (!user) return;
-      const { data } = await supabase.from("attendance").select("*, students(full_name)").in("student_id",
-        (await supabase.from("students").select("id").eq("parent_user_id", user.id)).data?.map(s => s.id) ?? []
-      ).order("date", { ascending: false }).limit(60);
+      const { data: ss } = await supabase.from("students").select("id").eq("parent_user_id", user.id);
+      const ids = ss?.map(s => s.id) ?? [];
+      if (!ids.length) return;
+      const { data } = await supabase.from("attendance").select("*, students(full_name)").in("student_id", ids).order("date", { ascending: false }).limit(60);
       setRows(data ?? []);
     })();
   }, [user]);
@@ -83,6 +88,8 @@ export default function ParentDashboard() {
       <Routes>
         <Route index element={<Home />} />
         <Route path="attendance" element={<ChildAttendance />} />
+        <Route path="marks" element={<MyMarksPage asParent />} />
+        <Route path="fees" element={<MyFeesPage asParent />} />
         <Route path="notices" element={<NoticesPage />} />
         <Route path="*" element={<Navigate to="/parent" replace />} />
       </Routes>
