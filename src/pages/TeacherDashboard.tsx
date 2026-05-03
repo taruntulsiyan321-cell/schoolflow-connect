@@ -1,20 +1,21 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader, StatCard } from "@/components/ui-bits";
-import { Check, X, Coffee } from "lucide-react";
 import { toast } from "sonner";
 import NoticesPage from "./shared/NoticesPage";
+import ExamsPage from "./shared/ExamsPage";
 
 const nav = [
-  { to: "/teacher", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/teacher", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
   { to: "/teacher/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
   { to: "/teacher/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
 ];
 
