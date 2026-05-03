@@ -83,6 +83,139 @@ export type Database = {
         }
         Relationships: []
       }
+      exams: {
+        Row: {
+          class_id: string
+          created_at: string
+          created_by: string | null
+          exam_date: string | null
+          exam_type: Database["public"]["Enums"]["exam_type"]
+          id: string
+          max_marks: number
+          name: string
+          subject: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          exam_date?: string | null
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          max_marks?: number
+          name: string
+          subject: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          exam_date?: string | null
+          exam_type?: Database["public"]["Enums"]["exam_type"]
+          id?: string
+          max_marks?: number
+          name?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "exams_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fees: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string | null
+          id: string
+          month: string
+          notes: string | null
+          paid_amount: number
+          status: Database["public"]["Enums"]["fee_status"]
+          student_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          month: string
+          notes?: string | null
+          paid_amount?: number
+          status?: Database["public"]["Enums"]["fee_status"]
+          student_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          month?: string
+          notes?: string | null
+          paid_amount?: number
+          status?: Database["public"]["Enums"]["fee_status"]
+          student_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fees_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      marks: {
+        Row: {
+          created_at: string
+          exam_id: string
+          id: string
+          marks_obtained: number
+          remarks: string | null
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          exam_id: string
+          id?: string
+          marks_obtained?: number
+          remarks?: string | null
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          exam_id?: string
+          id?: string
+          marks_obtained?: number
+          remarks?: string | null
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marks_exam_id_fkey"
+            columns: ["exam_id"]
+            isOneToOne: false
+            referencedRelation: "exams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marks_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notices: {
         Row: {
           audience: Database["public"]["Enums"]["notice_audience"]
@@ -319,6 +452,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_link_user_to_student: {
+        Args: { _as: string; _email: string; _student_id: string }
+        Returns: undefined
+      }
+      admin_link_user_to_teacher: {
+        Args: { _email: string; _teacher_id: string }
+        Returns: undefined
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -339,6 +480,8 @@ export type Database = {
     Enums: {
       app_role: "admin" | "teacher" | "student" | "parent"
       attendance_status: "present" | "absent" | "leave"
+      exam_type: "class_test" | "unit_test" | "half_yearly" | "final" | "other"
+      fee_status: "paid" | "unpaid" | "partial"
       notice_audience:
         | "all"
         | "class"
@@ -475,6 +618,8 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "teacher", "student", "parent"],
       attendance_status: ["present", "absent", "leave"],
+      exam_type: ["class_test", "unit_test", "half_yearly", "final", "other"],
+      fee_status: ["paid", "unpaid", "partial"],
       notice_audience: [
         "all",
         "class",
