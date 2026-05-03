@@ -1,0 +1,110 @@
+import { useEffect, useState } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AppLayout } from "@/components/AppLayout";
+import { LayoutDashboard, ClipboardCheck, Bell, User } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Card } from "@/components/ui/card";
+import { PageHeader, StatCard } from "@/components/ui-bits";
+import NoticesPage from "./shared/NoticesPage";
+
+const nav = [
+  { to: "/student", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/student/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+];
+
+const Home = () => {
+  const { user } = useAuth();
+  const [student, setStudent] = useState<any>(null);
+  const [pct, setPct] = useState(0);
+  const [latestNotices, setLatestNotices] = useState<any[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      const { data: s } = await supabase.from("students").select("*, classes(name,section)").eq("user_id", user.id).maybeSingle();
+      setStudent(s);
+      if (s) {
+        const { data: att } = await supabase.from("attendance").select("status").eq("student_id", s.id);
+        if (att && att.length) {
+          const present = att.filter(a => a.status === "present").length;
+          setPct(Math.round((present / att.length) * 100));
+        }
+      }
+      const { data: n } = await supabase.from("notices").select("*").order("created_at", { ascending: false }).limit(3);
+      setLatestNotices(n ?? []);
+    })();
+  }, [user]);
+
+  return (
+    <>
+      <PageHeader title={`Hi, ${student?.full_name?.split(" ")[0] || "Student"} 👋`}
+        subtitle={student?.classes ? `Class ${student.classes.name}-${student.classes.section} · Roll ${student.roll_number || "-"}` : "Profile not linked yet"} />
+
+      {!student && (
+        <Card className="p-5 mb-4 border-warning/30 bg-warning/5">
+          <p className="text-sm">Your account isn't linked to a student record yet. Ask your school admin to link your email <strong>{user?.email}</strong>.</p>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${pct}%`} tone={pct >= 75 ? "accent" : "warning"} />
+        <StatCard icon={<User className="w-5 h-5" />} label="Adm #" value={student?.admission_number || "-"} />
+      </div>
+
+      <h3 className="font-semibold mb-3">Latest notices</h3>
+      <div className="space-y-2">
+        {latestNotices.map(n => (
+          <Card key={n.id} className="p-4 shadow-card">
+            <div className="font-medium">{n.title}</div>
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{n.body}</p>
+          </Card>
+        ))}
+        {latestNotices.length === 0 && <p className="text-muted-foreground text-sm">No notices.</p>}
+      </div>
+    </>
+  );
+};
+
+const MyAttendance = () => {
+  const { user } = useAuth();
+  const [rows, setRows] = useState<any[]>([]);
+  useEffect(() => {
+    (async () => {
+      if (!user) return;
+      const { data: s } = await supabase.from("students").select("id").eq("user_id", user.id).maybeSingle();
+      if (!s) return;
+      const { data } = await supabase.from("attendance").select("*").eq("student_id", s.id).order("date", { ascending: false }).limit(60);
+      setRows(data ?? []);
+    })();
+  }, [user]);
+  const colors: any = { present: "bg-accent/10 text-accent", absent: "bg-destructive/10 text-destructive", leave: "bg-warning/10 text-warning" };
+  return (
+    <>
+      <PageHeader title="My Attendance" subtitle={`Last ${rows.length} days`} />
+      <div className="space-y-2">
+        {rows.map(r => (
+          <Card key={r.id} className="p-3 flex items-center justify-between shadow-card">
+            <span className="font-medium">{new Date(r.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</span>
+            <span className={`text-xs px-2.5 py-1 rounded-full capitalize font-medium ${colors[r.status]}`}>{r.status}</span>
+          </Card>
+        ))}
+        {rows.length === 0 && <p className="text-muted-foreground text-center py-8">No attendance records yet.</p>}
+      </div>
+    </>
+  );
+};
+
+export default function StudentDashboard() {
+  return (
+    <AppLayout nav={nav} title="Student">
+      <Routes>
+        <Route index element={<Home />} />
+        <Route path="attendance" element={<MyAttendance />} />
+        <Route path="notices" element={<NoticesPage />} />
+        <Route path="*" element={<Navigate to="/student" replace />} />
+      </Routes>
+    </AppLayout>
+  );
+}
