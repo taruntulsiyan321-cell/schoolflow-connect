@@ -1,16 +1,22 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, User } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import NoticesPage from "./shared/NoticesPage";
+import MyFeesPage from "./shared/MyFeesPage";
+import MyMarksPage from "./shared/MyMarksPage";
+import LeaderboardPage from "./shared/LeaderboardPage";
 
 const nav = [
   { to: "/student", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/student/attendance", label: "Attend", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/student/marks", label: "Marks", icon: <FileText className="w-4 h-4" /> },
+  { to: "/student/leaderboard", label: "Rank", icon: <Trophy className="w-4 h-4" /> },
+  { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/student/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
 ];
 
@@ -18,6 +24,7 @@ const Home = () => {
   const { user } = useAuth();
   const [student, setStudent] = useState<any>(null);
   const [pct, setPct] = useState(0);
+  const [pendingFees, setPendingFees] = useState(0);
   const [latestNotices, setLatestNotices] = useState<any[]>([]);
 
   useEffect(() => {
@@ -27,10 +34,10 @@ const Home = () => {
       setStudent(s);
       if (s) {
         const { data: att } = await supabase.from("attendance").select("status").eq("student_id", s.id);
-        if (att && att.length) {
-          const present = att.filter(a => a.status === "present").length;
-          setPct(Math.round((present / att.length) * 100));
-        }
+        if (att?.length) setPct(Math.round((att.filter(a => a.status === "present").length / att.length) * 100));
+        const { data: f } = await supabase.from("fees").select("amount,paid_amount,status").eq("student_id", s.id);
+        const owed = (f ?? []).filter(r => r.status !== "paid").reduce((sum, r) => sum + (Number(r.amount) - Number(r.paid_amount)), 0);
+        setPendingFees(owed);
       }
       const { data: n } = await supabase.from("notices").select("*").order("created_at", { ascending: false }).limit(3);
       setLatestNotices(n ?? []);
@@ -41,18 +48,15 @@ const Home = () => {
     <>
       <PageHeader title={`Hi, ${student?.full_name?.split(" ")[0] || "Student"} 👋`}
         subtitle={student?.classes ? `Class ${student.classes.name}-${student.classes.section} · Roll ${student.roll_number || "-"}` : "Profile not linked yet"} />
-
       {!student && (
         <Card className="p-5 mb-4 border-warning/30 bg-warning/5">
-          <p className="text-sm">Your account isn't linked to a student record yet. Ask your school admin to link your email <strong>{user?.email}</strong>.</p>
+          <p className="text-sm">Your account isn't linked yet. Ask admin to link <strong>{user?.email}</strong> from the Link Users panel.</p>
         </Card>
       )}
-
       <div className="grid grid-cols-2 gap-4 mb-6">
         <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${pct}%`} tone={pct >= 75 ? "accent" : "warning"} />
-        <StatCard icon={<User className="w-5 h-5" />} label="Adm #" value={student?.admission_number || "-"} />
+        <StatCard icon={<Wallet className="w-5 h-5" />} label="Pending Fees" value={pendingFees ? `₹${pendingFees}` : "₹0"} tone={pendingFees > 0 ? "warning" : "accent"} />
       </div>
-
       <h3 className="font-semibold mb-3">Latest notices</h3>
       <div className="space-y-2">
         {latestNotices.map(n => (
@@ -90,7 +94,7 @@ const MyAttendance = () => {
             <span className={`text-xs px-2.5 py-1 rounded-full capitalize font-medium ${colors[r.status]}`}>{r.status}</span>
           </Card>
         ))}
-        {rows.length === 0 && <p className="text-muted-foreground text-center py-8">No attendance records yet.</p>}
+        {rows.length === 0 && <p className="text-muted-foreground text-center py-8">No records yet.</p>}
       </div>
     </>
   );
@@ -102,6 +106,9 @@ export default function StudentDashboard() {
       <Routes>
         <Route index element={<Home />} />
         <Route path="attendance" element={<MyAttendance />} />
+        <Route path="marks" element={<MyMarksPage />} />
+        <Route path="leaderboard" element={<LeaderboardPage />} />
+        <Route path="fees" element={<MyFeesPage />} />
         <Route path="notices" element={<NoticesPage />} />
         <Route path="*" element={<Navigate to="/student" replace />} />
       </Routes>
