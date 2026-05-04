@@ -42,7 +42,7 @@ const stats = [
   { k: "100%", v: "Cloud + Secure" },
 ];
 
-export default function Landing() {
+export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boolean } = {}) {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
