@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, Link2 } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, Link2, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import TeachersAdmin from "./admin/TeachersAdmin";
 import ClassesAdmin from "./admin/ClassesAdmin";
 import FeesAdmin from "./admin/FeesAdmin";
 import LinkUsersAdmin from "./admin/LinkUsersAdmin";
+import RolesAdmin from "./admin/RolesAdmin";
 import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 
@@ -21,6 +22,7 @@ const nav = [
   { to: "/admin/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/admin/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
   { to: "/admin/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+  { to: "/admin/roles", label: "Roles", icon: <ShieldCheck className="w-4 h-4" /> },
   { to: "/admin/links", label: "Link Users", icon: <Link2 className="w-4 h-4" /> },
 ];
 
@@ -66,6 +68,7 @@ export default function AdminDashboard() {
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
         <Route path="links" element={<LinkUsersAdmin />} />
+        <Route path="roles" element={<RolesAdmin />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
     </AppLayout>
