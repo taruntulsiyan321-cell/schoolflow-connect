@@ -42,7 +42,7 @@ const stats = [
   { k: "100%", v: "Cloud + Secure" },
 ];
 
-export default function Landing() {
+export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boolean } = {}) {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
@@ -63,10 +63,18 @@ export default function Landing() {
           </nav>
           <Link to="/auth">
             <Button className="bg-gradient-primary text-primary-foreground shadow-card">
-              Launch Demo <ArrowRight className="w-4 h-4 ml-1" />
+              {noRoleBanner ? "Account" : "Launch Demo"} <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
         </div>
+        {noRoleBanner && (
+          <div className="bg-warning/10 border-t border-warning/30 text-warning-foreground">
+            <div className="container mx-auto px-4 py-2.5 text-sm text-foreground flex items-center justify-center gap-2">
+              <Sparkles className="w-4 h-4 text-warning" />
+              You're signed in but don't have a role yet. Explore the features below — your admin will assign your role to unlock your dashboard.
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Hero */}
