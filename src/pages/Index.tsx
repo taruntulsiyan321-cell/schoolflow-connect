@@ -12,7 +12,7 @@ export default function Index() {
     if (loading) return;
     if (!user) return;
     if (!role) return; // show landing — no role assigned yet
-    const map = { admin: "/admin", teacher: "/teacher", student: "/student", parent: "/parent" } as const;
+    const map = { admin: "/admin", principal: "/principal", teacher: "/teacher", student: "/student", parent: "/parent" } as const;
     navigate(map[role], { replace: true });
   }, [user, role, loading, navigate]);
 
