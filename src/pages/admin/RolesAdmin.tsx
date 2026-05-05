@@ -11,11 +11,12 @@ import { ShieldCheck, UserPlus, X, Loader2, Mail, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 
-type Role = "admin" | "teacher" | "student" | "parent";
+type Role = "admin" | "principal" | "teacher" | "student" | "parent";
 type Row = { user_id: string; email: string | null; phone: string | null; created_at: string; roles: Role[] };
 
 const ROLE_COLORS: Record<Role, string> = {
   admin: "bg-primary/15 text-primary border-primary/30",
+  principal: "bg-primary/15 text-primary border-primary/30",
   teacher: "bg-secondary/15 text-secondary border-secondary/30",
   student: "bg-accent/15 text-accent border-accent/30",
   parent: "bg-warning/15 text-warning border-warning/30",
@@ -95,7 +96,8 @@ export default function RolesAdmin() {
             <Select value={role} onValueChange={(v: Role) => setRole(v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin / Principal</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="principal">Principal</SelectItem>
                 <SelectItem value="teacher">Teacher</SelectItem>
                 <SelectItem value="student">Student</SelectItem>
                 <SelectItem value="parent">Parent</SelectItem>
@@ -188,7 +190,7 @@ function UserList({
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5 shrink-0">
-                {(["admin", "teacher", "student", "parent"] as Role[]).map(r => (
+                {(["admin", "principal", "teacher", "student", "parent"] as Role[]).map(r => (
                   <Button
                     key={r}
                     size="sm"

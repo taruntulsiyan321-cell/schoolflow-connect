@@ -59,6 +59,36 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          entity: string | null
+          entity_id: string | null
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          entity?: string | null
+          entity_id?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
       classes: {
         Row: {
           academic_year: string
@@ -201,6 +231,57 @@ export type Database = {
           },
         ]
       }
+      leave_requests: {
+        Row: {
+          applicant_kind: Database["public"]["Enums"]["leave_applicant"]
+          applicant_user_id: string
+          class_id: string | null
+          created_at: string
+          from_date: string
+          id: string
+          leave_type: string
+          reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["leave_status"]
+          student_id: string | null
+          to_date: string
+          updated_at: string
+        }
+        Insert: {
+          applicant_kind: Database["public"]["Enums"]["leave_applicant"]
+          applicant_user_id: string
+          class_id?: string | null
+          created_at?: string
+          from_date: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["leave_status"]
+          student_id?: string | null
+          to_date: string
+          updated_at?: string
+        }
+        Update: {
+          applicant_kind?: Database["public"]["Enums"]["leave_applicant"]
+          applicant_user_id?: string
+          class_id?: string | null
+          created_at?: string
+          from_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["leave_status"]
+          student_id?: string | null
+          to_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       marks: {
         Row: {
           created_at: string
@@ -338,6 +419,33 @@ export type Database = {
           phone?: string | null
           photo_url?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      staff_attendance: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          marked_by: string | null
+          status: Database["public"]["Enums"]["attendance_status"]
+          teacher_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          marked_by?: string | null
+          status: Database["public"]["Enums"]["attendance_status"]
+          teacher_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          marked_by?: string | null
+          status?: Database["public"]["Enums"]["attendance_status"]
+          teacher_id?: string
         }
         Relationships: []
       }
@@ -552,6 +660,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_class_teacher_of_student: {
+        Args: { _student_id: string; _uid: string }
+        Returns: boolean
+      }
+      is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       teacher_teaches_class: {
         Args: { _class_id: string; _user_id: string }
@@ -559,10 +672,12 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "teacher" | "student" | "parent"
+      app_role: "admin" | "teacher" | "student" | "parent" | "principal"
       attendance_status: "present" | "absent" | "leave"
       exam_type: "class_test" | "unit_test" | "half_yearly" | "final" | "other"
       fee_status: "paid" | "unpaid" | "partial"
+      leave_applicant: "student" | "teacher"
+      leave_status: "pending" | "approved" | "rejected"
       notice_audience:
         | "all"
         | "class"
@@ -697,10 +812,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "teacher", "student", "parent"],
+      app_role: ["admin", "teacher", "student", "parent", "principal"],
       attendance_status: ["present", "absent", "leave"],
       exam_type: ["class_test", "unit_test", "half_yearly", "final", "other"],
       fee_status: ["paid", "unpaid", "partial"],
+      leave_applicant: ["student", "teacher"],
+      leave_status: ["pending", "approved", "rejected"],
       notice_audience: [
         "all",
         "class",
