@@ -69,12 +69,20 @@ export default function AdminDashboard() {
     <AppLayout nav={nav} title="Admin Panel">
       <Routes>
         <Route index element={<Overview />} />
+        <Route path="users" element={<PlaceholderPage title="User Management" subtitle="All app users in one place" />} />
         <Route path="students" element={<StudentsAdmin />} />
         <Route path="teachers" element={<TeachersAdmin />} />
         <Route path="classes" element={<ClassesAdmin />} />
         <Route path="fees" element={<FeesAdmin />} />
+        <Route path="attendance" element={<PlaceholderPage title="Attendance Control" subtitle="Configure attendance policies" />} />
+        <Route path="reports" element={<PlaceholderPage title="Reports" subtitle="Cross-school reports & exports" />} />
+        <Route path="timetable" element={<PlaceholderPage title="Timetable Settings" subtitle="Manage period & timetable rules" />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
+        <Route path="permissions" element={<PlaceholderPage title="Permissions" subtitle="Granular access control" />} />
+        <Route path="settings" element={<PlaceholderPage title="App Settings" subtitle="Branding, locale and modules" />} />
+        <Route path="system" element={<PlaceholderPage title="Database / System" subtitle="System health & configuration" />} />
+        <Route path="profile" element={<PlaceholderPage title="Profile" subtitle="Your personal information" />} />
         <Route path="links" element={<LinkUsersAdmin />} />
         <Route path="roles" element={<RolesAdmin />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
