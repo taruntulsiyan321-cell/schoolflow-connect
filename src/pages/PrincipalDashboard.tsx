@@ -102,6 +102,16 @@ export default function PrincipalDashboard() {
       <Routes>
         <Route index element={<Overview />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="classes" element={<PlaceholderPage title="All Classes" subtitle="Every class in the school" />} />
+        <Route path="students" element={<PlaceholderPage title="Total Students" subtitle="School-wide student directory" />} />
+        <Route path="present" element={<PlaceholderPage title="Present Students" subtitle="Live attendance snapshot" />} />
+        <Route path="teachers" element={<PlaceholderPage title="Teacher Analytics" subtitle="Teacher performance & engagement" />} />
+        <Route path="reports" element={<PlaceholderPage title="School Reports" subtitle="Operational and academic reports" />} />
+        <Route path="performance" element={<PlaceholderPage title="Performance Metrics" subtitle="Academic KPIs across grades" />} />
+        <Route path="fees" element={<PlaceholderPage title="Fee Overview" subtitle="School-wide fee collection summary" />} />
+        <Route path="timetable" element={<PlaceholderPage title="Timetable Monitoring" subtitle="Class & teacher schedules" />} />
+        <Route path="activity" element={<PlaceholderPage title="Activity Logs" subtitle="Audit trail of school actions" />} />
+        <Route path="profile" element={<PlaceholderPage title="Profile" subtitle="Your personal information" />} />
         <Route path="leaves" element={<LeaveRequestsPage canReview />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
