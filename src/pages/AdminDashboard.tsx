@@ -16,15 +16,22 @@ import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 
 const nav = [
-  { to: "/admin", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/admin", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/admin/users", label: "Users", icon: <Users className="w-4 h-4" /> },
   { to: "/admin/students", label: "Students", icon: <Users className="w-4 h-4" /> },
   { to: "/admin/teachers", label: "Teachers", icon: <GraduationCap className="w-4 h-4" /> },
   { to: "/admin/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/admin/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
-  { to: "/admin/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
-  { to: "/admin/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+  { to: "/admin/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/admin/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
+  { to: "/admin/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
+  { to: "/admin/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
+  { to: "/admin/permissions", label: "Permissions", icon: <KeyRound className="w-4 h-4" /> },
   { to: "/admin/roles", label: "Roles", icon: <ShieldCheck className="w-4 h-4" /> },
+  { to: "/admin/settings", label: "App Settings", icon: <Settings className="w-4 h-4" /> },
+  { to: "/admin/system", label: "System", icon: <Database className="w-4 h-4" /> },
   { to: "/admin/links", label: "Link Users", icon: <Link2 className="w-4 h-4" /> },
+  { to: "/admin/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
 const Overview = () => {
