@@ -16,11 +16,18 @@ import ExamsPage from "./shared/ExamsPage";
 import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 
 const nav = [
-  { to: "/teacher", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/teacher/my-class", label: "My Class", icon: <Users className="w-4 h-4" /> },
-  { to: "/teacher/my-subjects", label: "Subjects", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/teacher", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/teacher/my-class", label: "My Classes", icon: <Users className="w-4 h-4" /> },
   { to: "/teacher/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/teacher/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
+  { to: "/teacher/performance", label: "Performance", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
+  { to: "/teacher/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
+  { to: "/teacher/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+  { to: "/teacher/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
+  { to: "/teacher/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
   { to: "/teacher/leaves", label: "Leaves", icon: <CalendarOff className="w-4 h-4" /> },
+  { to: "/teacher/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
 // Hook to load teacher's class-teacher class + subject classes
