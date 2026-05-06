@@ -59,12 +59,12 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
       <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-6xl w-full mx-auto">{children}</main>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-card border-t border-border flex justify-around py-2 z-50">
-        {nav.slice(0, 5).map(n => (
+      <nav className="md:hidden fixed bottom-0 inset-x-0 bg-card border-t border-border flex overflow-x-auto py-2 z-50 gap-1 px-2">
+        {nav.map(n => (
           <NavLink key={n.to} to={n.to} end
             className={({ isActive }) =>
-              `flex flex-col items-center gap-1 px-2 py-1 text-xs ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-            {n.icon}<span>{n.label}</span>
+              `flex flex-col items-center gap-1 px-3 py-1 text-[10px] shrink-0 min-w-[64px] ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+            {n.icon}<span className="whitespace-nowrap">{n.label}</span>
           </NavLink>
         ))}
       </nav>
