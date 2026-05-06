@@ -13,12 +13,18 @@ import MyMarksPage from "./shared/MyMarksPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
 
 const nav = [
-  { to: "/student", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/student/attendance", label: "Attend", icon: <ClipboardCheck className="w-4 h-4" /> },
-  { to: "/student/marks", label: "Marks", icon: <FileText className="w-4 h-4" /> },
-  { to: "/student/leaderboard", label: "Rank", icon: <Trophy className="w-4 h-4" /> },
+  { to: "/student", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/student/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
+  { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/student/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
+  { to: "/student/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
+  { to: "/student/results", label: "Results", icon: <Trophy className="w-4 h-4" /> },
+  { to: "/student/notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
-  { to: "/student/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+  { to: "/student/library", label: "Library", icon: <Library className="w-4 h-4" /> },
+  { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
+  { to: "/student/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
 const Home = () => {
