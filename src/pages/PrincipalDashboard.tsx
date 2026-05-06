@@ -12,11 +12,20 @@ import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
 
 const nav = [
-  { to: "/principal", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/principal/analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/principal", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/principal/classes", label: "All Classes", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/principal/students", label: "Students", icon: <Users className="w-4 h-4" /> },
+  { to: "/principal/present", label: "Present", icon: <UserCheck className="w-4 h-4" /> },
+  { to: "/principal/analytics", label: "Attendance", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/principal/teachers", label: "Teachers", icon: <GraduationCap className="w-4 h-4" /> },
+  { to: "/principal/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
+  { to: "/principal/performance", label: "Performance", icon: <TrendingUp className="w-4 h-4" /> },
+  { to: "/principal/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
+  { to: "/principal/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
+  { to: "/principal/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
+  { to: "/principal/activity", label: "Activity Logs", icon: <Activity className="w-4 h-4" /> },
   { to: "/principal/leaves", label: "Leaves", icon: <CalendarOff className="w-4 h-4" /> },
-  { to: "/principal/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
-  { to: "/principal/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+  { to: "/principal/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
 const Overview = () => {
