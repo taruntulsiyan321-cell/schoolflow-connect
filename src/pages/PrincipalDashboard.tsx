@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardCheck, Wallet, FileText, Bell, CalendarOff, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardCheck, Wallet, FileText, Bell, CalendarOff, BarChart3, UserCheck, CalendarDays, Activity, User, TrendingUp } from "lucide-react";
+import PlaceholderPage from "./shared/PlaceholderPage";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui-bits";
