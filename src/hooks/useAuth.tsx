@@ -32,9 +32,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const { data } = await supabase
             .from("user_roles")
             .select("role")
-            .eq("user_id", sess.user.id)
-            .maybeSingle();
-          setRole((data?.role as AppRole) ?? null);
+            .eq("user_id", sess.user.id);
+          // A user may have multiple roles — pick the highest-priority one
+          const priority: AppRole[] = ["admin", "principal", "teacher", "student", "parent"];
+          const owned = (data ?? []).map(r => r.role as AppRole);
+          const best = priority.find(p => owned.includes(p)) ?? null;
+          setRole(best);
           setLoading(false);
         }, 0);
       } else {
