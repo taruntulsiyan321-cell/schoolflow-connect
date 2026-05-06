@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User } from "lucide-react";
+import PlaceholderPage from "./shared/PlaceholderPage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -15,11 +16,18 @@ import ExamsPage from "./shared/ExamsPage";
 import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 
 const nav = [
-  { to: "/teacher", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/teacher/my-class", label: "My Class", icon: <Users className="w-4 h-4" /> },
-  { to: "/teacher/my-subjects", label: "Subjects", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/teacher", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/teacher/my-class", label: "My Classes", icon: <Users className="w-4 h-4" /> },
   { to: "/teacher/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/teacher/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
+  { to: "/teacher/performance", label: "Performance", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
+  { to: "/teacher/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
+  { to: "/teacher/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+  { to: "/teacher/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
+  { to: "/teacher/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
   { to: "/teacher/leaves", label: "Leaves", icon: <CalendarOff className="w-4 h-4" /> },
+  { to: "/teacher/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
 // Hook to load teacher's class-teacher class + subject classes
@@ -276,9 +284,15 @@ export default function TeacherDashboard() {
         <Route path="my-class" element={<MyClass />} />
         <Route path="my-subjects" element={<MySubjects />} />
         <Route path="attendance" element={<Attendance />} />
+        <Route path="homework" element={<PlaceholderPage title="Homework Management" subtitle="Assign, track and grade homework" />} />
+        <Route path="performance" element={<PlaceholderPage title="Student Performance" subtitle="Insights into student progress" />} />
         <Route path="exams" element={<ExamsPage />} />
+        <Route path="timetable" element={<PlaceholderPage title="Timetable" subtitle="Your teaching schedule" />} />
         <Route path="notices" element={<NoticesPage canPost />} />
+        <Route path="reports" element={<PlaceholderPage title="Reports" subtitle="Class and subject reports" />} />
+        <Route path="chat" element={<PlaceholderPage title="Chat" subtitle="Talk to students, parents and staff" />} />
         <Route path="leaves" element={<LeaveRequestsPage canReview applicantKind="teacher" />} />
+        <Route path="profile" element={<PlaceholderPage title="Profile" subtitle="Your personal information" />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
     </AppLayout>

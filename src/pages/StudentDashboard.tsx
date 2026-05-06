@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User } from "lucide-react";
+import PlaceholderPage from "./shared/PlaceholderPage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -12,12 +13,18 @@ import MyMarksPage from "./shared/MyMarksPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
 
 const nav = [
-  { to: "/student", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/student/attendance", label: "Attend", icon: <ClipboardCheck className="w-4 h-4" /> },
-  { to: "/student/marks", label: "Marks", icon: <FileText className="w-4 h-4" /> },
-  { to: "/student/leaderboard", label: "Rank", icon: <Trophy className="w-4 h-4" /> },
+  { to: "/student", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/student/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
+  { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/student/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
+  { to: "/student/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
+  { to: "/student/results", label: "Results", icon: <Trophy className="w-4 h-4" /> },
+  { to: "/student/notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
-  { to: "/student/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+  { to: "/student/library", label: "Library", icon: <Library className="w-4 h-4" /> },
+  { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
+  { to: "/student/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
 const Home = () => {
@@ -105,11 +112,18 @@ export default function StudentDashboard() {
     <AppLayout nav={nav} title="Student">
       <Routes>
         <Route index element={<Home />} />
+        <Route path="classes" element={<PlaceholderPage title="Classes" subtitle="Subjects, schedule, and class info" />} />
+        <Route path="homework" element={<PlaceholderPage title="Homework" subtitle="Assigned tasks and submissions" />} />
         <Route path="attendance" element={<MyAttendance />} />
-        <Route path="marks" element={<MyMarksPage />} />
-        <Route path="leaderboard" element={<LeaderboardPage />} />
+        <Route path="timetable" element={<PlaceholderPage title="Timetable" subtitle="Your weekly schedule" />} />
+        <Route path="exams" element={<PlaceholderPage title="Exams" subtitle="Upcoming exams and date sheet" />} />
+        <Route path="results" element={<MyMarksPage />} />
+        <Route path="notifications" element={<NoticesPage />} />
         <Route path="fees" element={<MyFeesPage />} />
-        <Route path="notices" element={<NoticesPage />} />
+        <Route path="library" element={<PlaceholderPage title="Library" subtitle="Borrowed books and digital resources" />} />
+        <Route path="chat" element={<PlaceholderPage title="Chat" subtitle="Talk to teachers and classmates" />} />
+        <Route path="profile" element={<PlaceholderPage title="Profile" subtitle="Your personal information" />} />
+        <Route path="leaderboard" element={<LeaderboardPage />} />
         <Route path="*" element={<Navigate to="/student" replace />} />
       </Routes>
     </AppLayout>

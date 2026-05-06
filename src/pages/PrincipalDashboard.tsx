@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardCheck, Wallet, FileText, Bell, CalendarOff, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardCheck, Wallet, FileText, Bell, CalendarOff, BarChart3, UserCheck, CalendarDays, Activity, User, TrendingUp } from "lucide-react";
+import PlaceholderPage from "./shared/PlaceholderPage";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui-bits";
@@ -11,11 +12,20 @@ import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
 
 const nav = [
-  { to: "/principal", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/principal/analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/principal", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/principal/classes", label: "All Classes", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/principal/students", label: "Students", icon: <Users className="w-4 h-4" /> },
+  { to: "/principal/present", label: "Present", icon: <UserCheck className="w-4 h-4" /> },
+  { to: "/principal/analytics", label: "Attendance", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/principal/teachers", label: "Teachers", icon: <GraduationCap className="w-4 h-4" /> },
+  { to: "/principal/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
+  { to: "/principal/performance", label: "Performance", icon: <TrendingUp className="w-4 h-4" /> },
+  { to: "/principal/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
+  { to: "/principal/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
+  { to: "/principal/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
+  { to: "/principal/activity", label: "Activity Logs", icon: <Activity className="w-4 h-4" /> },
   { to: "/principal/leaves", label: "Leaves", icon: <CalendarOff className="w-4 h-4" /> },
-  { to: "/principal/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
-  { to: "/principal/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
+  { to: "/principal/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
 const Overview = () => {
@@ -92,6 +102,16 @@ export default function PrincipalDashboard() {
       <Routes>
         <Route index element={<Overview />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="classes" element={<PlaceholderPage title="All Classes" subtitle="Every class in the school" />} />
+        <Route path="students" element={<PlaceholderPage title="Total Students" subtitle="School-wide student directory" />} />
+        <Route path="present" element={<PlaceholderPage title="Present Students" subtitle="Live attendance snapshot" />} />
+        <Route path="teachers" element={<PlaceholderPage title="Teacher Analytics" subtitle="Teacher performance & engagement" />} />
+        <Route path="reports" element={<PlaceholderPage title="School Reports" subtitle="Operational and academic reports" />} />
+        <Route path="performance" element={<PlaceholderPage title="Performance Metrics" subtitle="Academic KPIs across grades" />} />
+        <Route path="fees" element={<PlaceholderPage title="Fee Overview" subtitle="School-wide fee collection summary" />} />
+        <Route path="timetable" element={<PlaceholderPage title="Timetable Monitoring" subtitle="Class & teacher schedules" />} />
+        <Route path="activity" element={<PlaceholderPage title="Activity Logs" subtitle="Audit trail of school actions" />} />
+        <Route path="profile" element={<PlaceholderPage title="Profile" subtitle="Your personal information" />} />
         <Route path="leaves" element={<LeaveRequestsPage canReview />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
