@@ -112,11 +112,18 @@ export default function StudentDashboard() {
     <AppLayout nav={nav} title="Student">
       <Routes>
         <Route index element={<Home />} />
+        <Route path="classes" element={<PlaceholderPage title="Classes" subtitle="Subjects, schedule, and class info" />} />
+        <Route path="homework" element={<PlaceholderPage title="Homework" subtitle="Assigned tasks and submissions" />} />
         <Route path="attendance" element={<MyAttendance />} />
-        <Route path="marks" element={<MyMarksPage />} />
-        <Route path="leaderboard" element={<LeaderboardPage />} />
+        <Route path="timetable" element={<PlaceholderPage title="Timetable" subtitle="Your weekly schedule" />} />
+        <Route path="exams" element={<PlaceholderPage title="Exams" subtitle="Upcoming exams and date sheet" />} />
+        <Route path="results" element={<MyMarksPage />} />
+        <Route path="notifications" element={<NoticesPage />} />
         <Route path="fees" element={<MyFeesPage />} />
-        <Route path="notices" element={<NoticesPage />} />
+        <Route path="library" element={<PlaceholderPage title="Library" subtitle="Borrowed books and digital resources" />} />
+        <Route path="chat" element={<PlaceholderPage title="Chat" subtitle="Talk to teachers and classmates" />} />
+        <Route path="profile" element={<PlaceholderPage title="Profile" subtitle="Your personal information" />} />
+        <Route path="leaderboard" element={<LeaderboardPage />} />
         <Route path="*" element={<Navigate to="/student" replace />} />
       </Routes>
     </AppLayout>
