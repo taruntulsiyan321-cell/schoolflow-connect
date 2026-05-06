@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, Link2, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, Link2, ShieldCheck, ClipboardCheck, CalendarDays, Settings, Database, User, KeyRound } from "lucide-react";
+import PlaceholderPage from "./shared/PlaceholderPage";
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
 import { Card } from "@/components/ui/card";
