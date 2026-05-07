@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, Link2, ShieldCheck, ClipboardCheck, CalendarDays, Settings, Database, User, KeyRound } from "lucide-react";
-import PlaceholderPage from "./shared/PlaceholderPage";
+
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
 import { Card } from "@/components/ui/card";
@@ -14,6 +14,10 @@ import LinkUsersAdmin from "./admin/LinkUsersAdmin";
 import RolesAdmin from "./admin/RolesAdmin";
 import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
+import {
+  UsersDirectory, AttendanceOverview, ReportsPage, TimetablePage,
+  PermissionsMatrix, AppSettingsPage, SystemPage, ProfilePage,
+} from "./shared/SchoolFeatures";
 
 const nav = [
   { to: "/admin", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -69,20 +73,20 @@ export default function AdminDashboard() {
     <AppLayout nav={nav} title="Admin Panel">
       <Routes>
         <Route index element={<Overview />} />
-        <Route path="users" element={<PlaceholderPage title="User Management" subtitle="All app users in one place" />} />
+        <Route path="users" element={<UsersDirectory />} />
         <Route path="students" element={<StudentsAdmin />} />
         <Route path="teachers" element={<TeachersAdmin />} />
         <Route path="classes" element={<ClassesAdmin />} />
         <Route path="fees" element={<FeesAdmin />} />
-        <Route path="attendance" element={<PlaceholderPage title="Attendance Control" subtitle="Configure attendance policies" />} />
-        <Route path="reports" element={<PlaceholderPage title="Reports" subtitle="Cross-school reports & exports" />} />
-        <Route path="timetable" element={<PlaceholderPage title="Timetable Settings" subtitle="Manage period & timetable rules" />} />
+        <Route path="attendance" element={<AttendanceOverview />} />
+        <Route path="reports" element={<ReportsPage />} />
+        <Route path="timetable" element={<TimetablePage title="Timetable" />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
-        <Route path="permissions" element={<PlaceholderPage title="Permissions" subtitle="Granular access control" />} />
-        <Route path="settings" element={<PlaceholderPage title="App Settings" subtitle="Branding, locale and modules" />} />
-        <Route path="system" element={<PlaceholderPage title="Database / System" subtitle="System health & configuration" />} />
-        <Route path="profile" element={<PlaceholderPage title="Profile" subtitle="Your personal information" />} />
+        <Route path="permissions" element={<PermissionsMatrix />} />
+        <Route path="settings" element={<AppSettingsPage />} />
+        <Route path="system" element={<SystemPage />} />
+        <Route path="profile" element={<ProfilePage />} />
         <Route path="links" element={<LinkUsersAdmin />} />
         <Route path="roles" element={<RolesAdmin />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />

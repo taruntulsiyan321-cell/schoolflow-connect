@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardCheck, Wallet, FileText, Bell, CalendarOff, BarChart3, UserCheck, CalendarDays, Activity, User, TrendingUp } from "lucide-react";
-import PlaceholderPage from "./shared/PlaceholderPage";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui-bits";
@@ -10,6 +10,11 @@ import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
+import {
+  ClassesReadOnly, StudentsDirectory, PresentToday, TeachersDirectory,
+  PerformancePage, FeesOverview, ActivityLogPage, ReportsPage,
+  TimetablePage, ProfilePage, AttendanceOverview,
+} from "./shared/SchoolFeatures";
 
 const nav = [
   { to: "/principal", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -70,48 +75,23 @@ const Overview = () => {
   );
 };
 
-const Analytics = () => {
-  const [byClass, setByClass] = useState<any[]>([]);
-  useEffect(() => {
-    (async () => {
-      const { data: classes } = await supabase.from("classes").select("id,name,section");
-      const { data: students } = await supabase.from("students").select("class_id");
-      const counts = new Map<string, number>();
-      students?.forEach(s => counts.set(s.class_id, (counts.get(s.class_id) ?? 0) + 1));
-      setByClass((classes ?? []).map(c => ({ ...c, count: counts.get(c.id) ?? 0 })));
-    })();
-  }, []);
-  return (
-    <>
-      <PageHeader title="Analytics" subtitle="Distribution of students across classes" />
-      <div className="grid sm:grid-cols-2 gap-3">
-        {byClass.map(c => (
-          <Card key={c.id} className="p-4 flex items-center justify-between">
-            <div><div className="font-semibold">Class {c.name}-{c.section}</div><div className="text-xs text-muted-foreground">enrolled</div></div>
-            <div className="text-2xl font-bold text-primary">{c.count}</div>
-          </Card>
-        ))}
-      </div>
-    </>
-  );
-};
 
 export default function PrincipalDashboard() {
   return (
     <AppLayout nav={nav} title="Principal">
       <Routes>
         <Route index element={<Overview />} />
-        <Route path="analytics" element={<Analytics />} />
-        <Route path="classes" element={<PlaceholderPage title="All Classes" subtitle="Every class in the school" />} />
-        <Route path="students" element={<PlaceholderPage title="Total Students" subtitle="School-wide student directory" />} />
-        <Route path="present" element={<PlaceholderPage title="Present Students" subtitle="Live attendance snapshot" />} />
-        <Route path="teachers" element={<PlaceholderPage title="Teacher Analytics" subtitle="Teacher performance & engagement" />} />
-        <Route path="reports" element={<PlaceholderPage title="School Reports" subtitle="Operational and academic reports" />} />
-        <Route path="performance" element={<PlaceholderPage title="Performance Metrics" subtitle="Academic KPIs across grades" />} />
-        <Route path="fees" element={<PlaceholderPage title="Fee Overview" subtitle="School-wide fee collection summary" />} />
-        <Route path="timetable" element={<PlaceholderPage title="Timetable Monitoring" subtitle="Class & teacher schedules" />} />
-        <Route path="activity" element={<PlaceholderPage title="Activity Logs" subtitle="Audit trail of school actions" />} />
-        <Route path="profile" element={<PlaceholderPage title="Profile" subtitle="Your personal information" />} />
+        <Route path="analytics" element={<AttendanceOverview />} />
+        <Route path="classes" element={<ClassesReadOnly />} />
+        <Route path="students" element={<StudentsDirectory />} />
+        <Route path="present" element={<PresentToday />} />
+        <Route path="teachers" element={<TeachersDirectory />} />
+        <Route path="reports" element={<ReportsPage />} />
+        <Route path="performance" element={<PerformancePage />} />
+        <Route path="fees" element={<FeesOverview />} />
+        <Route path="timetable" element={<TimetablePage title="Timetable Monitoring" />} />
+        <Route path="activity" element={<ActivityLogPage />} />
+        <Route path="profile" element={<ProfilePage />} />
         <Route path="leaves" element={<LeaveRequestsPage canReview />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
