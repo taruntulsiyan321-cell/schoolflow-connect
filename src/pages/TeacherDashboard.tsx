@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User } from "lucide-react";
-import PlaceholderPage from "./shared/PlaceholderPage";
 import TeacherProfilePage from "./shared/TeacherProfilePage";
 import StudentPerformancePage from "./shared/StudentPerformancePage";
 import TeacherReportsPage from "./shared/TeacherReportsPage";

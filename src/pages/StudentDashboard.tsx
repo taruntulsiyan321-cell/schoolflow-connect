@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User } from "lucide-react";
-import PlaceholderPage from "./shared/PlaceholderPage";
 import StudentProfilePage from "./shared/StudentProfilePage";
 import StudentClassesPage from "./shared/StudentClassesPage";
 import StudentExamsPage from "./shared/StudentExamsPage";
