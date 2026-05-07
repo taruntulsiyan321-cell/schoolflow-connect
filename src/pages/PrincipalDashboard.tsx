@@ -75,31 +75,6 @@ const Overview = () => {
   );
 };
 
-const Analytics = () => {
-  const [byClass, setByClass] = useState<any[]>([]);
-  useEffect(() => {
-    (async () => {
-      const { data: classes } = await supabase.from("classes").select("id,name,section");
-      const { data: students } = await supabase.from("students").select("class_id");
-      const counts = new Map<string, number>();
-      students?.forEach(s => counts.set(s.class_id, (counts.get(s.class_id) ?? 0) + 1));
-      setByClass((classes ?? []).map(c => ({ ...c, count: counts.get(c.id) ?? 0 })));
-    })();
-  }, []);
-  return (
-    <>
-      <PageHeader title="Analytics" subtitle="Distribution of students across classes" />
-      <div className="grid sm:grid-cols-2 gap-3">
-        {byClass.map(c => (
-          <Card key={c.id} className="p-4 flex items-center justify-between">
-            <div><div className="font-semibold">Class {c.name}-{c.section}</div><div className="text-xs text-muted-foreground">enrolled</div></div>
-            <div className="text-2xl font-bold text-primary">{c.count}</div>
-          </Card>
-        ))}
-      </div>
-    </>
-  );
-};
 
 export default function PrincipalDashboard() {
   return (
