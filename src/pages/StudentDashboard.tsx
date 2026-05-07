@@ -7,6 +7,9 @@ import StudentProfilePage from "./shared/StudentProfilePage";
 import StudentClassesPage from "./shared/StudentClassesPage";
 import StudentExamsPage from "./shared/StudentExamsPage";
 import StudentTimetablePage from "./shared/StudentTimetablePage";
+import StudentHomeworkPage from "./shared/StudentHomeworkPage";
+import StudentLibraryPage from "./shared/StudentLibraryPage";
+import ChatPage from "./shared/ChatPage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -117,15 +120,15 @@ export default function StudentDashboard() {
       <Routes>
         <Route index element={<Home />} />
         <Route path="classes" element={<StudentClassesPage />} />
-        <Route path="homework" element={<PlaceholderPage title="Homework" subtitle="Assigned tasks and submissions" />} />
+        <Route path="homework" element={<StudentHomeworkPage />} />
         <Route path="attendance" element={<MyAttendance />} />
         <Route path="timetable" element={<StudentTimetablePage />} />
         <Route path="exams" element={<StudentExamsPage />} />
         <Route path="results" element={<MyMarksPage />} />
         <Route path="notifications" element={<NoticesPage />} />
         <Route path="fees" element={<MyFeesPage />} />
-        <Route path="library" element={<PlaceholderPage title="Library" subtitle="Borrowed books and digital resources" />} />
-        <Route path="chat" element={<PlaceholderPage title="Chat" subtitle="Talk to teachers and classmates" />} />
+        <Route path="library" element={<StudentLibraryPage />} />
+        <Route path="chat" element={<ChatPage userRole="student" />} />
         <Route path="profile" element={<StudentProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
         <Route path="*" element={<Navigate to="/student" replace />} />

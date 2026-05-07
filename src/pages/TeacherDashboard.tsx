@@ -7,6 +7,8 @@ import TeacherProfilePage from "./shared/TeacherProfilePage";
 import StudentPerformancePage from "./shared/StudentPerformancePage";
 import TeacherReportsPage from "./shared/TeacherReportsPage";
 import TeacherTimetablePage from "./shared/TeacherTimetablePage";
+import HomeworkManagePage from "./shared/HomeworkManagePage";
+import ChatPage from "./shared/ChatPage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -288,13 +290,13 @@ export default function TeacherDashboard() {
         <Route path="my-class" element={<MyClass />} />
         <Route path="my-subjects" element={<MySubjects />} />
         <Route path="attendance" element={<Attendance />} />
-        <Route path="homework" element={<PlaceholderPage title="Homework Management" subtitle="Assign, track and grade homework" />} />
+        <Route path="homework" element={<HomeworkManagePage />} />
         <Route path="performance" element={<StudentPerformancePage />} />
         <Route path="exams" element={<ExamsPage />} />
         <Route path="timetable" element={<TeacherTimetablePage />} />
         <Route path="notices" element={<NoticesPage canPost />} />
         <Route path="reports" element={<TeacherReportsPage />} />
-        <Route path="chat" element={<PlaceholderPage title="Chat" subtitle="Talk to students, parents and staff" />} />
+        <Route path="chat" element={<ChatPage userRole="teacher" />} />
         <Route path="leaves" element={<LeaveRequestsPage canReview applicantKind="teacher" />} />
         <Route path="profile" element={<TeacherProfilePage />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
