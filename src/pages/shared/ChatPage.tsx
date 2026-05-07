@@ -132,6 +132,52 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     })();
   }, [user, selectedContact]);
 
+  // Real-time subscription for new messages
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('chat_messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMsg = payload.new as Message;
+          
+          // If message belongs to currently open chat
+          if (
+            selectedContact &&
+            ((newMsg.sender_id === user.id && newMsg.receiver_id === selectedContact.user_id) ||
+             (newMsg.sender_id === selectedContact.user_id && newMsg.receiver_id === user.id))
+          ) {
+            setMessages((prev) => {
+              if (prev.find((m) => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+
+            // Mark as read if we are receiving it while chat is open
+            if (newMsg.receiver_id === user.id) {
+              supabase.from("messages").update({ is_read: true }).eq("id", newMsg.id).then();
+            }
+          } else if (newMsg.receiver_id === user.id) {
+            // Message from someone else, update unread count and last message
+            setContacts((prev) =>
+              prev.map((c) =>
+                c.user_id === newMsg.sender_id
+                  ? { ...c, unread: c.unread + 1, lastMessage: newMsg.content, lastTime: newMsg.created_at }
+                  : c
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, selectedContact]);
+
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
