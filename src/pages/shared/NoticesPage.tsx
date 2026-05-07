@@ -18,13 +18,17 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
   const [rows, setRows] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", body: "", audience: "all", class_id: "" });
+  const [form, setForm] = useState({ title: "", body: "", audience: "all", class_id: "", expiresIn: "none" });
 
   const effectiveRole = viewerRole || role;
 
   const load = async () => {
     const { data } = await supabase.from("notices").select("*, classes(name,section)").order("created_at", { ascending: false }).limit(100);
     let filtered = data ?? [];
+
+    // Filter out expired notices
+    const now = new Date().toISOString();
+    filtered = filtered.filter(n => !n.expires_at || n.expires_at > now);
 
     // Filter notices by audience based on the viewer's role
     if (effectiveRole && !canPost) {
@@ -62,15 +66,26 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
     if (!form.title || !form.body) return toast.error("Title and body required");
     const needsClass = form.audience === "class" || form.audience === "section";
     if (needsClass && !form.class_id) return toast.error("Select a class");
+    
+    let expiresAt = null;
+    if (form.expiresIn !== "none") {
+      const date = new Date();
+      if (form.expiresIn === "1_hour") date.setHours(date.getHours() + 1);
+      if (form.expiresIn === "1_day") date.setDate(date.getDate() + 1);
+      if (form.expiresIn === "1_week") date.setDate(date.getDate() + 7);
+      expiresAt = date.toISOString();
+    }
+
     const { error } = await supabase.from("notices").insert({
       title: form.title, body: form.body, audience: form.audience as any,
       class_id: needsClass ? form.class_id : null,
       posted_by: user?.id,
+      expires_at: expiresAt,
     });
     if (error) return toast.error(error.message);
     toast.success("Notice posted");
     setOpen(false);
-    setForm({ title: "", body: "", audience: "all", class_id: "" });
+    setForm({ title: "", body: "", audience: "all", class_id: "", expiresIn: "none" });
     load();
   };
 
@@ -95,6 +110,17 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
                       <SelectItem value="parents">Parents only</SelectItem>
                       <SelectItem value="class">Specific class</SelectItem>
                       <SelectItem value="section">Specific section</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div><Label>Time Limit (Expiration)</Label>
+                  <Select value={form.expiresIn} onValueChange={v => setForm({ ...form, expiresIn: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Never expires</SelectItem>
+                      <SelectItem value="1_hour">Expires in 1 Hour</SelectItem>
+                      <SelectItem value="1_day">Expires in 1 Day</SelectItem>
+                      <SelectItem value="1_week">Expires in 1 Week</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -123,9 +149,14 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
                   <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</span>
                 </div>
                 <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{r.body}</p>
-                <div className="mt-2 flex gap-2 text-xs">
+                <div className="mt-2 flex gap-2 text-xs flex-wrap">
                   <span className="px-2 py-0.5 rounded bg-secondary/10 text-secondary capitalize">{r.audience}</span>
                   {r.classes && <span className="px-2 py-0.5 rounded bg-accent/10 text-accent">Class {r.classes.name}-{r.classes.section}</span>}
+                  {r.expires_at && (
+                    <span className="px-2 py-0.5 rounded bg-warning/10 text-warning flex items-center gap-1">
+                      Expires {formatDistanceToNow(new Date(r.expires_at), { addSuffix: true })}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
