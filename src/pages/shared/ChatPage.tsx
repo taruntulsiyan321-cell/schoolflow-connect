@@ -44,41 +44,19 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     (async () => {
       const contactList: Contact[] = [];
 
-      // Get all users with roles that this user can communicate with
-      const { data: allUsers } = await supabase.rpc("admin_list_users_with_roles");
+      // Get allowed contacts based on role
+      const { data: allowedUsers } = await supabase.rpc("get_chat_contacts" as any);
 
-      (allUsers ?? []).forEach((u: any) => {
-        if (u.user_id === user.id) return; // Skip self
-        const roles = u.roles ?? [];
-        // Include relevant contacts based on current user's role
-        const isRelevant =
-          roles.includes("teacher") ||
-          roles.includes("student") ||
-          roles.includes("parent") ||
-          roles.includes("admin") ||
-          roles.includes("principal");
-        if (isRelevant) {
-          contactList.push({
-            user_id: u.user_id,
-            name: u.email || u.phone || "Unknown",
-            role: roles[0] || "user",
-            unread: 0,
-          });
-        }
+      (allowedUsers ?? []).forEach((u: any) => {
+        contactList.push({
+          user_id: u.user_id,
+          name: u.name || "Unknown",
+          role: u.role || "user",
+          unread: 0,
+        });
       });
 
-      // Also fetch profile names
       if (contactList.length > 0) {
-        const ids = contactList.map((c) => c.user_id);
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, full_name")
-          .in("id", ids);
-        profiles?.forEach((p) => {
-          const contact = contactList.find((c) => c.user_id === p.id);
-          if (contact && p.full_name) contact.name = p.full_name;
-        });
-
         // Get unread counts and last messages
         const { data: received } = await supabase
           .from("messages")

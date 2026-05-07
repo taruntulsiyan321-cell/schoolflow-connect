@@ -10,8 +10,10 @@ import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
+import ClassesAdmin from "./admin/ClassesAdmin";
+import StudentsAdmin from "./admin/StudentsAdmin";
 import {
-  ClassesReadOnly, StudentsDirectory, PresentToday, TeachersDirectory,
+  PresentToday, TeachersDirectory,
   PerformancePage, FeesOverview, ActivityLogPage, ReportsPage,
   TimetablePage, ProfilePage, AttendanceOverview,
 } from "./shared/SchoolFeatures";
@@ -82,8 +84,8 @@ export default function PrincipalDashboard() {
       <Routes>
         <Route index element={<Overview />} />
         <Route path="analytics" element={<AttendanceOverview />} />
-        <Route path="classes" element={<ClassesReadOnly />} />
-        <Route path="students" element={<StudentsDirectory />} />
+        <Route path="classes" element={<ClassesAdmin />} />
+        <Route path="students" element={<StudentsAdmin />} />
         <Route path="present" element={<PresentToday />} />
         <Route path="teachers" element={<TeachersDirectory />} />
         <Route path="reports" element={<ReportsPage />} />

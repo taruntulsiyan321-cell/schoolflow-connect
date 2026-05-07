@@ -13,21 +13,50 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { formatDistanceToNow } from "date-fns";
 
-export default function NoticesPage({ canPost = false }: { canPost?: boolean }) {
-  const { user } = useAuth();
+export default function NoticesPage({ canPost = false, viewerRole }: { canPost?: boolean; viewerRole?: string }) {
+  const { user, role } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", body: "", audience: "all", class_id: "" });
 
+  const effectiveRole = viewerRole || role;
+
   const load = async () => {
     const { data } = await supabase.from("notices").select("*, classes(name,section)").order("created_at", { ascending: false }).limit(100);
-    setRows(data ?? []);
+    let filtered = data ?? [];
+
+    // Filter notices by audience based on the viewer's role
+    if (effectiveRole && !canPost) {
+      // Get the student's class_id for class-specific notices
+      let studentClassId: string | null = null;
+      if (effectiveRole === "student" && user) {
+        const { data: s } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
+        studentClassId = s?.class_id || null;
+      } else if (effectiveRole === "parent" && user) {
+        const { data: kids } = await supabase.from("students").select("class_id").eq("parent_user_id", user.id);
+        studentClassId = kids?.[0]?.class_id || null;
+      }
+
+      filtered = filtered.filter((n) => {
+        if (n.audience === "all") return true;
+        if (n.audience === "students" && effectiveRole === "student") return true;
+        if (n.audience === "students" && effectiveRole === "parent") return true; // Parents see student notices
+        if (n.audience === "parents" && effectiveRole === "parent") return true;
+        if (n.audience === "teachers" && effectiveRole === "teacher") return true;
+        if ((n.audience === "class" || n.audience === "section") && n.class_id && studentClassId) {
+          return n.class_id === studentClassId;
+        }
+        return false;
+      });
+    }
+
+    setRows(filtered);
   };
   useEffect(() => {
     load();
     if (canPost) supabase.from("classes").select("*").order("name").then(({ data }) => setClasses(data ?? []));
-  }, [canPost]);
+  }, [canPost, user]);
 
   const post = async () => {
     if (!form.title || !form.body) return toast.error("Title and body required");

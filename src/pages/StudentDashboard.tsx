@@ -124,7 +124,7 @@ export default function StudentDashboard() {
         <Route path="timetable" element={<StudentTimetablePage />} />
         <Route path="exams" element={<StudentExamsPage />} />
         <Route path="results" element={<MyMarksPage />} />
-        <Route path="notifications" element={<NoticesPage />} />
+        <Route path="notifications" element={<NoticesPage viewerRole="student" />} />
         <Route path="fees" element={<MyFeesPage />} />
         <Route path="library" element={<StudentLibraryPage />} />
         <Route path="chat" element={<ChatPage userRole="student" />} />

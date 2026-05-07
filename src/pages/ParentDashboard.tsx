@@ -288,7 +288,7 @@ export default function ParentDashboard() {
         <Route path="homework" element={<ChildHomework />} />
         <Route path="marks" element={<MyMarksPage asParent />} />
         <Route path="fees" element={<MyFeesPage asParent />} />
-        <Route path="notices" element={<NoticesPage />} />
+        <Route path="notices" element={<NoticesPage viewerRole="parent" />} />
         <Route path="chat" element={<ChatPage userRole="parent" />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/parent" replace />} />
