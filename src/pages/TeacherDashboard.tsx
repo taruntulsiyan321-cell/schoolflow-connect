@@ -3,6 +3,10 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User } from "lucide-react";
 import PlaceholderPage from "./shared/PlaceholderPage";
+import TeacherProfilePage from "./shared/TeacherProfilePage";
+import StudentPerformancePage from "./shared/StudentPerformancePage";
+import TeacherReportsPage from "./shared/TeacherReportsPage";
+import TeacherTimetablePage from "./shared/TeacherTimetablePage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -285,14 +289,14 @@ export default function TeacherDashboard() {
         <Route path="my-subjects" element={<MySubjects />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="homework" element={<PlaceholderPage title="Homework Management" subtitle="Assign, track and grade homework" />} />
-        <Route path="performance" element={<PlaceholderPage title="Student Performance" subtitle="Insights into student progress" />} />
+        <Route path="performance" element={<StudentPerformancePage />} />
         <Route path="exams" element={<ExamsPage />} />
-        <Route path="timetable" element={<PlaceholderPage title="Timetable" subtitle="Your teaching schedule" />} />
+        <Route path="timetable" element={<TeacherTimetablePage />} />
         <Route path="notices" element={<NoticesPage canPost />} />
-        <Route path="reports" element={<PlaceholderPage title="Reports" subtitle="Class and subject reports" />} />
+        <Route path="reports" element={<TeacherReportsPage />} />
         <Route path="chat" element={<PlaceholderPage title="Chat" subtitle="Talk to students, parents and staff" />} />
         <Route path="leaves" element={<LeaveRequestsPage canReview applicantKind="teacher" />} />
-        <Route path="profile" element={<PlaceholderPage title="Profile" subtitle="Your personal information" />} />
+        <Route path="profile" element={<TeacherProfilePage />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
     </AppLayout>
