@@ -265,7 +265,15 @@ export type Database = {
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "homework_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       homework_submissions: {
         Row: {
@@ -313,6 +321,13 @@ export type Database = {
             columns: ["homework_id"]
             isOneToOne: false
             referencedRelation: "homework"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hw_sub_student_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -437,6 +452,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "checkout_book_fkey"
+            columns: ["library_books_id"]
+            isOneToOne: false
+            referencedRelation: "library_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_student_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "library_checkouts_book_id_fkey"
             columns: ["library_books_id"]
             isOneToOne: false
@@ -520,6 +549,7 @@ export type Database = {
           body: string
           class_id: string | null
           created_at: string
+          expires_at: string | null
           id: string
           posted_by: string | null
           title: string
@@ -529,6 +559,7 @@ export type Database = {
           body: string
           class_id?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           posted_by?: string | null
           title: string
@@ -538,6 +569,7 @@ export type Database = {
           body?: string
           class_id?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           posted_by?: string | null
           title?: string
