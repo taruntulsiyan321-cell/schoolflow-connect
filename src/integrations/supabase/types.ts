@@ -231,6 +231,107 @@ export type Database = {
           },
         ]
       }
+      homework: {
+        Row: {
+          class_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          due_date: string | null
+          id: string
+          subject: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          due_date?: string | null
+          id?: string
+          subject?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          due_date?: string | null
+          id?: string
+          subject?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      homework_submissions: {
+        Row: {
+          content: string
+          created_at: string
+          grade: string | null
+          graded_at: string | null
+          homework_id: string
+          id: string
+          status: string
+          student_id: string
+          submitted_at: string | null
+          teacher_remarks: string | null
+          updated_at: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          grade?: string | null
+          graded_at?: string | null
+          homework_id: string
+          id?: string
+          status?: string
+          student_id: string
+          submitted_at?: string | null
+          teacher_remarks?: string | null
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          grade?: string | null
+          graded_at?: string | null
+          homework_id?: string
+          id?: string
+          status?: string
+          student_id?: string
+          submitted_at?: string | null
+          teacher_remarks?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "homework_submissions_homework_id_fkey"
+            columns: ["homework_id"]
+            isOneToOne: false
+            referencedRelation: "homework"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hw_sub_student_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leave_requests: {
         Row: {
           applicant_kind: Database["public"]["Enums"]["leave_applicant"]
@@ -282,6 +383,97 @@ export type Database = {
         }
         Relationships: []
       }
+      library_books: {
+        Row: {
+          author: string | null
+          available_copies: number
+          category: string | null
+          created_at: string
+          id: string
+          isbn: string | null
+          title: string
+          total_copies: number
+          updated_at: string
+        }
+        Insert: {
+          author?: string | null
+          available_copies?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          isbn?: string | null
+          title: string
+          total_copies?: number
+          updated_at?: string
+        }
+        Update: {
+          author?: string | null
+          available_copies?: number
+          category?: string | null
+          created_at?: string
+          id?: string
+          isbn?: string | null
+          title?: string
+          total_copies?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      library_checkouts: {
+        Row: {
+          checked_out_at: string
+          created_at: string
+          due_date: string | null
+          id: string
+          library_books_id: string
+          returned_at: string | null
+          status: string
+          student_id: string
+        }
+        Insert: {
+          checked_out_at?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          library_books_id: string
+          returned_at?: string | null
+          status?: string
+          student_id: string
+        }
+        Update: {
+          checked_out_at?: string
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          library_books_id?: string
+          returned_at?: string | null
+          status?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_book_fkey"
+            columns: ["library_books_id"]
+            isOneToOne: false
+            referencedRelation: "library_books"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_student_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "library_checkouts_book_id_fkey"
+            columns: ["library_books_id"]
+            isOneToOne: false
+            referencedRelation: "library_books"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marks: {
         Row: {
           created_at: string
@@ -324,12 +516,40 @@ export type Database = {
           },
         ]
       }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          receiver_id?: string
+          sender_id?: string
+        }
+        Relationships: []
+      }
       notices: {
         Row: {
           audience: Database["public"]["Enums"]["notice_audience"]
           body: string
           class_id: string | null
           created_at: string
+          expires_at: string | null
           id: string
           posted_by: string | null
           title: string
@@ -339,6 +559,7 @@ export type Database = {
           body: string
           class_id?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           posted_by?: string | null
           title: string
@@ -348,6 +569,7 @@ export type Database = {
           body?: string
           class_id?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           posted_by?: string | null
           title?: string
@@ -648,6 +870,14 @@ export type Database = {
           _user_id: string
         }
         Returns: undefined
+      }
+      get_chat_contacts: {
+        Args: never
+        Returns: {
+          name: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
       }
       get_user_role: {
         Args: { _user_id: string }
