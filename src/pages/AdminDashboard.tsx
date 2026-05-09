@@ -31,11 +31,10 @@ const nav = [
   { to: "/admin/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
   { to: "/admin/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/admin/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
+  { to: "/admin/roles", label: "Student Access", icon: <ShieldCheck className="w-4 h-4" /> },
   { to: "/admin/permissions", label: "Permissions", icon: <KeyRound className="w-4 h-4" /> },
-  { to: "/admin/roles", label: "Roles", icon: <ShieldCheck className="w-4 h-4" /> },
   { to: "/admin/settings", label: "App Settings", icon: <Settings className="w-4 h-4" /> },
   { to: "/admin/system", label: "System", icon: <Database className="w-4 h-4" /> },
-  { to: "/admin/links", label: "Link Users", icon: <Link2 className="w-4 h-4" /> },
   { to: "/admin/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
