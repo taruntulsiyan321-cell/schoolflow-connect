@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 
 export default function TeachersAdmin() {
+  const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -108,15 +110,19 @@ export default function TeachersAdmin() {
 
       <div className="space-y-2">
         {rows.map(r => (
-          <Card key={r.id} className="p-4 flex items-center justify-between shadow-card">
-            <div>
-              <div className="font-semibold">{r.full_name}</div>
+          <Card key={r.id} className="p-4 flex items-center justify-between shadow-card cursor-pointer hover:bg-muted/40 transition"
+            onClick={() => nav(`/admin/teachers/${r.id}`)}>
+            <div className="min-w-0">
+              <div className="font-semibold truncate">{r.full_name}</div>
               <div className="text-xs text-muted-foreground">
                 {r.subject || "—"} · {r.mobile || "no mobile"}
                 {r.class_teacher && <> · Class teacher of {r.class_teacher.name}-{r.class_teacher.section}</>}
               </div>
             </div>
-            <Button size="sm" variant="ghost" onClick={() => del(r.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Button size="sm" variant="ghost" onClick={e => { e.stopPropagation(); del(r.id); }}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </div>
           </Card>
         ))}
         {rows.length === 0 && <p className="text-muted-foreground text-center py-8">No teachers yet.</p>}

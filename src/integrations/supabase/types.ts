@@ -552,6 +552,7 @@ export type Database = {
           expires_at: string | null
           id: string
           posted_by: string | null
+          revoked_at: string | null
           title: string
         }
         Insert: {
@@ -562,6 +563,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           posted_by?: string | null
+          revoked_at?: string | null
           title: string
         }
         Update: {
@@ -572,6 +574,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           posted_by?: string | null
+          revoked_at?: string | null
           title?: string
         }
         Relationships: [
@@ -768,40 +771,64 @@ export type Database = {
       }
       teachers: {
         Row: {
+          address: string | null
           class_teacher_of: string | null
           created_at: string
+          department: string | null
           email: string | null
+          employee_id: string | null
           full_name: string
           id: string
           is_class_teacher: boolean
+          joining_date: string | null
           mobile: string | null
+          notes: string | null
+          photo_url: string | null
+          qualification: string | null
           salary: number | null
+          status: string
           subject: string | null
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          address?: string | null
           class_teacher_of?: string | null
           created_at?: string
+          department?: string | null
           email?: string | null
+          employee_id?: string | null
           full_name: string
           id?: string
           is_class_teacher?: boolean
+          joining_date?: string | null
           mobile?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          qualification?: string | null
           salary?: number | null
+          status?: string
           subject?: string | null
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          address?: string | null
           class_teacher_of?: string | null
           created_at?: string
+          department?: string | null
           email?: string | null
+          employee_id?: string | null
           full_name?: string
           id?: string
           is_class_teacher?: boolean
+          joining_date?: string | null
           mobile?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          qualification?: string | null
           salary?: number | null
+          status?: string
           subject?: string | null
           updated_at?: string
           user_id?: string | null

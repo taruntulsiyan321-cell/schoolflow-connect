@@ -61,10 +61,8 @@ const Home = () => {
     <>
       <PageHeader title="Parent Dashboard" subtitle="Track your child's progress" />
       {children.length === 0 ? (
-        <Card className="p-5 border-warning/30 bg-warning/5">
-          <p className="text-sm">
-            No children linked. Ask admin to link your account (<strong>{user?.email}</strong>) from the Link Users panel.
-          </p>
+        <Card className="p-5">
+          <p className="text-sm text-muted-foreground">No children to display yet. Once a student record is associated with your account, their progress will appear here.</p>
         </Card>
       ) : (
         <div className="space-y-4">
@@ -182,7 +180,7 @@ const ChildHomework = () => {
       const { data: kids } = await supabase.from("students").select("id, full_name, class_id").eq("parent_user_id", user.id);
       if (!kids?.length) { setLoading(false); return; }
 
-      const classIds = [...new Set(kids.map((k) => k.class_id).filter(Boolean))];
+      const classIds = [...new Set(kids.map((k) => k.class_id).filter((v): v is string => !!v))];
       if (!classIds.length) { setLoading(false); return; }
 
       // Get homework for children's classes
