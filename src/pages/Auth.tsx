@@ -159,7 +159,7 @@ export default function Auth() {
               </form>
             </TabsContent>
 
-            <TabsContent value="signup" className="mt-5">
+            <TabsContent value="signup" className="mt-0">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label>Full Name</Label>
