@@ -930,6 +930,14 @@ export type Database = {
         }
         Returns: string
       }
+      admin_connect_student_account: {
+        Args: { _identifier: string; _student_id: string }
+        Returns: string
+      }
+      admin_connect_teacher_account: {
+        Args: { _identifier: string; _teacher_id: string }
+        Returns: string
+      }
       admin_link_user_to_student: {
         Args: { _as: string; _email: string; _student_id: string }
         Returns: undefined
@@ -953,6 +961,18 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: undefined
+      }
+      admin_revoke_student_account: {
+        Args: { _student_id: string }
+        Returns: undefined
+      }
+      admin_revoke_teacher_account: {
+        Args: { _teacher_id: string }
+        Returns: undefined
+      }
+      admin_set_teacher_access: {
+        Args: { _active: boolean; _teacher_id: string }
         Returns: undefined
       }
       ensure_default_role: {
