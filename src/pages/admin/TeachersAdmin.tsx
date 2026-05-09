@@ -185,9 +185,108 @@ export default function TeachersAdmin() {
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Teacher</DialogTitle></DialogHeader>
           <Fields f={form} set={setForm} />
+          {editTarget && (
+            <AccountAccess
+              teacher={editTarget}
+              onChanged={() => { load(); /* reflect new status */ }}
+            />
+          )}
           <Button className="w-full bg-gradient-primary text-primary-foreground mt-2" onClick={saveEdit}>Save Changes</Button>
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/* ---------- Account Access (Connect Google email + activate) ---------- */
+function AccountAccess({ teacher, onChanged }: { teacher: any; onChanged: () => void }) {
+  const [email, setEmail] = useState(teacher.email || "");
+  const [busy, setBusy] = useState(false);
+  const [t, setT] = useState(teacher);
+
+  useEffect(() => { setT(teacher); setEmail(teacher.email || ""); }, [teacher]);
+
+  const connect = async () => {
+    if (!email.trim()) return toast.error("Email or phone required");
+    setBusy(true);
+    const { error } = await supabase.rpc("admin_connect_teacher_account", {
+      _teacher_id: t.id, _identifier: email.trim(),
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Account connected — teacher can now sign in with Google");
+    const { data } = await supabase.from("teachers").select("*").eq("id", t.id).single();
+    setT(data); onChanged();
+  };
+
+  const setActive = async (active: boolean) => {
+    setBusy(true);
+    const { error } = await supabase.rpc("admin_set_teacher_access", { _teacher_id: t.id, _active: active });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(active ? "Access activated" : "Access deactivated");
+    const { data } = await supabase.from("teachers").select("*").eq("id", t.id).single();
+    setT(data); onChanged();
+  };
+
+  const revoke = async () => {
+    if (!confirm("Disconnect this teacher's account? They will lose portal access.")) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("admin_revoke_teacher_account", { _teacher_id: t.id });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Account disconnected");
+    const { data } = await supabase.from("teachers").select("*").eq("id", t.id).single();
+    setT(data); onChanged();
+  };
+
+  const connected = !!t.user_id;
+  const active = t.status === "active";
+
+  return (
+    <div className="mt-4 p-4 rounded-xl border bg-gradient-soft">
+      <div className="flex items-center gap-2 mb-3">
+        <ShieldCheck className="w-4 h-4 text-primary" />
+        <h4 className="font-semibold text-sm">Account Access</h4>
+        {connected ? (
+          <Badge variant="outline" className={active ? "bg-accent/15 text-accent border-accent/30" : "text-muted-foreground"}>
+            {active ? "Active" : "Inactive"}
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-muted-foreground">Not connected</Badge>
+        )}
+      </div>
+
+      <p className="text-xs text-muted-foreground mb-3">
+        Connect the teacher's Google account (or mobile) so they can sign in to the Teacher Panel automatically.
+      </p>
+
+      <div className="space-y-2">
+        <Label className="text-xs">Google email or mobile</Label>
+        <div className="flex gap-2">
+          <Input
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="teacher@gmail.com  or  +9198…"
+            disabled={busy}
+          />
+          <Button onClick={connect} disabled={busy} className="bg-gradient-primary text-primary-foreground shrink-0">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+          </Button>
+        </div>
+
+        {connected && (
+          <div className="flex items-center justify-between pt-2">
+            <div className="flex items-center gap-2">
+              <Switch checked={active} onCheckedChange={setActive} disabled={busy} />
+              <span className="text-sm">{active ? "Access enabled" : "Access disabled"}</span>
+            </div>
+            <Button size="sm" variant="ghost" onClick={revoke} disabled={busy}>
+              <UserX className="w-4 h-4 text-destructive mr-1" /> Disconnect
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
