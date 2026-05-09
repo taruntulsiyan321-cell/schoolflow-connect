@@ -12,7 +12,10 @@ import { PageHeader, StatCard } from "@/components/ui-bits";
 import {
   Users, GraduationCap, BookOpen, ClipboardCheck, CalendarDays, FileText,
   Activity, Settings, KeyRound, UserCheck, TrendingUp, Database, Wallet, User as UserIcon,
+  Lock, Unlock, History, Check, X, Coffee,
 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -63,17 +66,30 @@ export function UsersDirectory() {
    ATTENDANCE OVERVIEW (admin & principal)
    ============================================================ */
 export function AttendanceOverview() {
+  const { user } = useAuth();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [classes, setClasses] = useState<any[]>([]);
   const [att, setAtt] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
+  const [locks, setLocks] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [editClass, setEditClass] = useState<any>(null);
+  const [editMarks, setEditMarks] = useState<Record<string, string>>({});
+
   useEffect(() => {
     supabase.from("classes").select("*").order("name").then(({ data }) => setClasses(data ?? []));
-    supabase.from("students").select("id,class_id").then(({ data }) => setStudents(data ?? []));
+    supabase.from("students").select("id,full_name,roll_number,class_id").then(({ data }) => setStudents(data ?? []));
   }, []);
-  useEffect(() => {
-    supabase.from("attendance").select("*").eq("date", date).then(({ data }) => setAtt(data ?? []));
-  }, [date]);
+
+  const reloadDate = async () => {
+    const [a, l, h] = await Promise.all([
+      supabase.from("attendance").select("*").eq("date", date),
+      supabase.from("attendance_locks").select("class_id,locked_at").eq("date", date),
+      supabase.from("attendance_audit").select("*").eq("date", date).order("edited_at", { ascending: false }).limit(100),
+    ]);
+    setAtt(a.data ?? []); setLocks(l.data ?? []); setHistory(h.data ?? []);
+  };
+  useEffect(() => { reloadDate(); }, [date]);
 
   const byClass = classes.map(c => {
     const total = students.filter(s => s.class_id === c.id).length;
@@ -82,16 +98,53 @@ export function AttendanceOverview() {
     const absent = records.filter(r => r.status === "absent").length;
     const leave = records.filter(r => r.status === "leave").length;
     const rate = total ? Math.round((present / total) * 100) : 0;
-    return { ...c, total, present, absent, leave, rate, marked: records.length };
+    const locked = locks.some(l => l.class_id === c.id);
+    return { ...c, total, present, absent, leave, rate, marked: records.length, locked };
   });
   const totals = byClass.reduce((a, c) => ({
     total: a.total + c.total, present: a.present + c.present, absent: a.absent + c.absent,
   }), { total: 0, present: 0, absent: 0 });
   const overall = totals.total ? Math.round((totals.present / totals.total) * 100) : 0;
 
+  const openEdit = (c: any) => {
+    const classStudents = students.filter(s => s.class_id === c.id);
+    const classAtt = att.filter(a => a.class_id === c.id);
+    const m: Record<string, string> = {};
+    classStudents.forEach(s => {
+      const rec = classAtt.find(a => a.student_id === s.id);
+      m[s.id] = rec?.status ?? "present";
+    });
+    setEditMarks(m);
+    setEditClass(c);
+  };
+
+  const saveEdit = async () => {
+    const classStudents = students.filter(s => s.class_id === editClass.id);
+    const rows = classStudents.map(s => ({
+      student_id: s.id, class_id: editClass.id, date,
+      status: (editMarks[s.id] ?? "present") as any,
+      marked_by: user?.id,
+    }));
+    const { error } = await supabase.from("attendance").upsert(rows, { onConflict: "student_id,date" });
+    if (error) return toast.error(error.message);
+    toast.success("Attendance updated");
+    setEditClass(null);
+    reloadDate();
+  };
+
+  const unlock = async (classId: string) => {
+    const { error } = await supabase.from("attendance_locks").delete().eq("class_id", classId).eq("date", date);
+    if (error) return toast.error(error.message);
+    setLocks(l => l.filter(x => x.class_id !== classId));
+    toast.success("Attendance unlocked for this class");
+  };
+
+  const classStudentsForEdit = editClass ? students.filter(s => s.class_id === editClass.id) : [];
+  const studentName = (id: string) => students.find(s => s.id === id)?.full_name ?? id.slice(0, 8);
+
   return (
     <>
-      <PageHeader title="Attendance Overview" subtitle="School-wide attendance for the selected date" />
+      <PageHeader title="Attendance Control" subtitle="Admin view: edit, unlock, and audit attendance" />
       <Card className="p-4 mb-4 flex items-center gap-3">
         <Label className="shrink-0">Date</Label>
         <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="max-w-xs" />
@@ -102,20 +155,109 @@ export function AttendanceOverview() {
         <StatCard icon={<Users className="w-5 h-5" />} label="Total" value={totals.total} tone="secondary" />
         <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Rate" value={`${overall}%`} tone="accent" />
       </div>
-      <div className="grid sm:grid-cols-2 gap-3">
-        {byClass.map(c => (
-          <Card key={c.id} className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="font-semibold">Class {c.name}-{c.section}</div>
-              <Badge variant="outline">{c.rate}%</Badge>
+
+      <Tabs defaultValue="classes">
+        <TabsList className="mb-4">
+          <TabsTrigger value="classes">Classes</TabsTrigger>
+          <TabsTrigger value="history">
+            <History className="w-3.5 h-3.5 mr-1" />Edit History {history.length > 0 && `(${history.length})`}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="classes">
+          <div className="grid sm:grid-cols-2 gap-3">
+            {byClass.map(c => (
+              <Card key={c.id} className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-semibold">Class {c.name}-{c.section}</div>
+                  <div className="flex items-center gap-2">
+                    {c.locked
+                      ? <Badge variant="outline" className="gap-1"><Lock className="w-3 h-3" />Locked</Badge>
+                      : <Badge variant="outline" className="text-muted-foreground gap-1"><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground inline-block" />Open</Badge>}
+                    <Badge variant="outline">{c.rate}%</Badge>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground mb-3">
+                  Present {c.present} · Absent {c.absent} · Leave {c.leave} · of {c.total}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => openEdit(c)}>
+                    Edit Attendance
+                  </Button>
+                  {c.locked && (
+                    <Button size="sm" variant="outline" className="text-xs" onClick={() => unlock(c.id)}>
+                      <Unlock className="w-3 h-3 mr-1" />Unlock
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            ))}
+            {classes.length === 0 && <p className="text-muted-foreground col-span-full text-center py-8">No classes.</p>}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history">
+          {history.length === 0 ? (
+            <Card className="p-8 text-center">
+              <History className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-muted-foreground text-sm">No attendance edits recorded for this date.</p>
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {history.map(h => (
+                <Card key={h.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{studentName(h.student_id)}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        Class {classes.find(c => c.id === h.class_id)?.name ?? "—"} · {h.date}
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 text-xs">
+                        <span className="px-2 py-0.5 rounded-full bg-destructive/15 text-destructive capitalize">{h.prev_status}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className="px-2 py-0.5 rounded-full bg-accent/15 text-accent capitalize">{h.new_status}</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-xs text-muted-foreground">Edited</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {h.edited_at ? new Date(h.edited_at).toLocaleString() : "—"}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
-            <div className="text-xs text-muted-foreground">
-              Present {c.present} · Absent {c.absent} · Leave {c.leave} · of {c.total}
-            </div>
-          </Card>
-        ))}
-        {classes.length === 0 && <p className="text-muted-foreground col-span-full text-center py-8">No classes.</p>}
-      </div>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={!!editClass} onOpenChange={v => !v && setEditClass(null)}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Attendance · Class {editClass?.name}-{editClass?.section} · {date}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 my-2">
+            {classStudentsForEdit.map(s => (
+              <div key={s.id} className="flex items-center justify-between p-2 border rounded-lg">
+                <div>
+                  <div className="text-sm font-medium">{s.full_name}</div>
+                  <div className="text-xs text-muted-foreground">Roll {s.roll_number || "-"}</div>
+                </div>
+                <div className="flex gap-1">
+                  {([["present", Check, "bg-accent text-accent-foreground"], ["absent", X, "bg-destructive text-destructive-foreground"], ["leave", Coffee, "bg-warning text-warning-foreground"]] as const).map(([st, Icon, cls]) => (
+                    <button key={st} onClick={() => setEditMarks(m => ({ ...m, [s.id]: st }))}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-all ${editMarks[s.id] === st ? cls : "bg-muted text-muted-foreground"}`}>
+                      <Icon className="w-3.5 h-3.5" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <Button className="w-full bg-gradient-primary text-primary-foreground" onClick={saveEdit}>Save Changes</Button>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
