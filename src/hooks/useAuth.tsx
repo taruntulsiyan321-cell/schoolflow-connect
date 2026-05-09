@@ -29,11 +29,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (sess?.user) {
         // Defer DB lookup to avoid deadlock
         setTimeout(async () => {
-          const { data } = await supabase
+          let { data } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", sess.user.id);
-          // A user may have multiple roles — pick the highest-priority one
+          if (!data || data.length === 0) {
+            // First sign-in (e.g. Google) — assign a default role
+            await supabase.rpc("ensure_default_role");
+            const r = await supabase
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", sess.user.id);
+            data = r.data ?? [];
+          }
           const priority: AppRole[] = ["admin", "principal", "teacher", "student", "parent"];
           const owned = (data ?? []).map(r => r.role as AppRole);
           const best = priority.find(p => owned.includes(p)) ?? null;
