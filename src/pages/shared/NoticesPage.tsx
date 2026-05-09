@@ -26,13 +26,15 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
 
   const effectiveRole = viewerRole || role;
   const isAdmin = effectiveRole === "admin";
+  const isPrincipal = effectiveRole === "principal";
+  const isManager = isAdmin || isPrincipal;
 
   const load = async () => {
     const { data } = await supabase.from("notices").select("*, classes(name,section)").order("created_at", { ascending: false }).limit(200);
     let filtered = data ?? [];
 
-    if (!isAdmin) {
-      // Hide revoked notices from non-admins
+    if (!isManager) {
+      // Hide revoked notices from non-admins/non-principals
       filtered = filtered.filter(n => !n.revoked_at);
 
       if (!canPost) {
@@ -135,7 +137,7 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
 
   const now = Date.now();
   const isMine = (n: any) => n.posted_by === user?.id;
-  const canManage = (n: any) => isAdmin || isMine(n);
+  const canManage = (n: any) => isManager || isMine(n);
   const isExpired = (n: any) => n.expires_at && new Date(n.expires_at).getTime() <= now;
   const isRevoked = (n: any) => !!n.revoked_at;
 
