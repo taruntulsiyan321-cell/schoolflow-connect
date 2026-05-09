@@ -898,6 +898,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      ensure_default_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       get_chat_contacts: {
         Args: never
         Returns: {
