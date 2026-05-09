@@ -12,7 +12,10 @@ import { PageHeader, StatCard } from "@/components/ui-bits";
 import {
   Users, GraduationCap, BookOpen, ClipboardCheck, CalendarDays, FileText,
   Activity, Settings, KeyRound, UserCheck, TrendingUp, Database, Wallet, User as UserIcon,
+  Lock, Unlock, History, Check, X, Coffee,
 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
