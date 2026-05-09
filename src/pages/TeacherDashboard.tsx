@@ -215,6 +215,8 @@ const Attendance = () => {
   const [students, setStudents] = useState<any[]>([]);
   const [marks, setMarks] = useState<Record<string, "present" | "absent" | "leave">>({});
   const [date] = useState(new Date().toISOString().split("T")[0]);
+  const [isLocked, setIsLocked] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const allClasses = [
     ...(a.classTeacherOf ? [{ id: a.classTeacherOf.id, label: `Class ${a.classTeacherOf.name}-${a.classTeacherOf.section} (Class Teacher)` }] : []),
@@ -222,7 +224,7 @@ const Attendance = () => {
   ];
 
   useEffect(() => {
-    if (!classId) { setStudents([]); return; }
+    if (!classId) { setStudents([]); setIsLocked(false); return; }
     (async () => {
       const { data } = await supabase.from("students").select("*").eq("class_id", classId).order("roll_number");
       setStudents(data ?? []);
@@ -230,17 +232,27 @@ const Attendance = () => {
       const m: Record<string, any> = {};
       existing?.forEach(r => m[r.student_id] = r.status);
       setMarks(m);
+      const { data: lock } = await supabase.from("attendance_locks").select("class_id").eq("class_id", classId).eq("date", date).maybeSingle();
+      setIsLocked(!!lock);
     })();
   }, [classId, date]);
 
-  const setMark = (sid: string, status: "present" | "absent" | "leave") => setMarks(p => ({ ...p, [sid]: status }));
+  const setMark = (sid: string, status: "present" | "absent" | "leave") => {
+    if (isLocked) return;
+    setMarks(p => ({ ...p, [sid]: status }));
+  };
 
   const save = async () => {
+    if (isLocked) return toast.error("Attendance is locked. Contact admin to make changes.");
     const rows = Object.entries(marks).map(([student_id, status]) => ({ student_id, class_id: classId, date, status, marked_by: user?.id }));
     if (!rows.length) return toast.error("Mark at least one student");
+    setSaving(true);
     const { error } = await supabase.from("attendance").upsert(rows, { onConflict: "student_id,date" });
-    if (error) return toast.error(error.message);
-    toast.success("Attendance saved");
+    if (error) { setSaving(false); return toast.error(error.message); }
+    await supabase.from("attendance_locks").insert({ class_id: classId, date, locked_by: user?.id });
+    setIsLocked(true);
+    setSaving(false);
+    toast.success("Attendance saved and locked");
   };
 
   return (
@@ -253,19 +265,28 @@ const Attendance = () => {
         </Select>
       </Card>
 
+      {isLocked && classId && (
+        <Card className="p-4 mb-4 border-warning bg-warning/10">
+          <div className="flex items-center gap-2 text-warning-foreground">
+            <Check className="w-4 h-4" />
+            <span className="text-sm font-medium">Attendance submitted and locked for today. Contact admin for any corrections.</span>
+          </div>
+        </Card>
+      )}
+
       {classId && students.length === 0 && <p className="text-muted-foreground text-center py-8">No students in this class.</p>}
 
       <div className="space-y-2">
         {students.map(s => (
-          <Card key={s.id} className="p-3 flex items-center justify-between shadow-card">
+          <Card key={s.id} className={`p-3 flex items-center justify-between shadow-card ${isLocked ? "opacity-75" : ""}`}>
             <div className="min-w-0">
               <div className="font-medium truncate">{s.full_name}</div>
               <div className="text-xs text-muted-foreground">Roll {s.roll_number || "-"}</div>
             </div>
             <div className="flex gap-1">
               {([["present", Check, "bg-accent text-accent-foreground"], ["absent", X, "bg-destructive text-destructive-foreground"], ["leave", Coffee, "bg-warning text-warning-foreground"]] as const).map(([st, Icon, cls]) => (
-                <button key={st} onClick={() => setMark(s.id, st)}
-                  className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${marks[s.id] === st ? cls : "bg-muted text-muted-foreground"}`}>
+                <button key={st} onClick={() => setMark(s.id, st)} disabled={isLocked}
+                  className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all ${isLocked ? "cursor-not-allowed" : ""} ${marks[s.id] === st ? cls : "bg-muted text-muted-foreground"}`}>
                   <Icon className="w-4 h-4" />
                 </button>
               ))}
@@ -274,8 +295,10 @@ const Attendance = () => {
         ))}
       </div>
 
-      {students.length > 0 && (
-        <Button className="w-full mt-6 bg-gradient-primary text-primary-foreground" onClick={save}>Save Attendance</Button>
+      {students.length > 0 && !isLocked && (
+        <Button className="w-full mt-6 bg-gradient-primary text-primary-foreground" onClick={save} disabled={saving}>
+          {saving ? "Saving…" : "Submit Attendance"}
+        </Button>
       )}
     </>
   );
