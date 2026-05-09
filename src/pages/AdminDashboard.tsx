@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
 import { Card } from "@/components/ui/card";
 import StudentsAdmin from "./admin/StudentsAdmin";
+import TeacherProfile from "./admin/TeacherProfile";
 import TeachersAdmin from "./admin/TeachersAdmin";
 import ClassesAdmin from "./admin/ClassesAdmin";
 import FeesAdmin from "./admin/FeesAdmin";
@@ -76,6 +77,7 @@ export default function AdminDashboard() {
         <Route path="users" element={<UsersDirectory />} />
         <Route path="students" element={<StudentsAdmin />} />
         <Route path="teachers" element={<TeachersAdmin />} />
+        <Route path="teachers/:id" element={<TeacherProfile />} />
         <Route path="classes" element={<ClassesAdmin />} />
         <Route path="fees" element={<FeesAdmin />} />
         <Route path="attendance" element={<AttendanceOverview />} />

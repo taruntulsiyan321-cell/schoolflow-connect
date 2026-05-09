@@ -60,12 +60,8 @@ const Home = () => {
   return (
     <>
       <PageHeader title={`Hi, ${student?.full_name?.split(" ")[0] || "Student"} 👋`}
-        subtitle={student?.classes ? `Class ${student.classes.name}-${student.classes.section} · Roll ${student.roll_number || "-"}` : "Profile not linked yet"} />
-      {!student && (
-        <Card className="p-5 mb-4 border-warning/30 bg-warning/5">
-          <p className="text-sm">Your account isn't linked yet. Ask admin to link <strong>{user?.email}</strong> from the Link Users panel.</p>
-        </Card>
-      )}
+        subtitle={student?.classes ? `Class ${student.classes.name}-${student.classes.section} · Roll ${student.roll_number || "-"}` : "Welcome back"} />
+
       <div className="grid grid-cols-2 gap-4 mb-6">
         <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${pct}%`} tone={pct >= 75 ? "accent" : "warning"} />
         <StatCard icon={<Wallet className="w-5 h-5" />} label="Pending Fees" value={pendingFees ? `₹${pendingFees}` : "₹0"} tone={pendingFees > 0 ? "warning" : "accent"} />
