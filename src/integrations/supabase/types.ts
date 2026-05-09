@@ -59,6 +59,63 @@ export type Database = {
           },
         ]
       }
+      attendance_audit: {
+        Row: {
+          attendance_id: string | null
+          class_id: string | null
+          date: string | null
+          edited_at: string
+          edited_by: string | null
+          id: string
+          new_status: string | null
+          prev_status: string | null
+          student_id: string | null
+        }
+        Insert: {
+          attendance_id?: string | null
+          class_id?: string | null
+          date?: string | null
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          new_status?: string | null
+          prev_status?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          attendance_id?: string | null
+          class_id?: string | null
+          date?: string | null
+          edited_at?: string
+          edited_by?: string | null
+          id?: string
+          new_status?: string | null
+          prev_status?: string | null
+          student_id?: string | null
+        }
+        Relationships: []
+      }
+      attendance_locks: {
+        Row: {
+          class_id: string
+          date: string
+          locked_at: string
+          locked_by: string | null
+        }
+        Insert: {
+          class_id: string
+          date: string
+          locked_at?: string
+          locked_by?: string | null
+        }
+        Update: {
+          class_id?: string
+          date?: string
+          locked_at?: string
+          locked_by?: string | null
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
