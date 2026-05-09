@@ -1,7 +1,22 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, BookOpen, ClipboardCheck, Wallet, FileText, Bell, CalendarOff, BarChart3, UserCheck, CalendarDays, Activity, User, TrendingUp } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  GraduationCap,
+  BookOpen,
+  Wallet,
+  FileText,
+  Bell,
+  CalendarOff,
+  BarChart3,
+  UserCheck,
+  CalendarDays,
+  Activity,
+  User,
+  TrendingUp,
+} from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -10,12 +25,19 @@ import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
-import ClassesAdmin from "./admin/ClassesAdmin";
 import StudentsAdmin from "./admin/StudentsAdmin";
+import PrincipalClasses from "./principal/PrincipalClasses";
+import PrincipalClassDetail from "./principal/PrincipalClassDetail";
 import {
-  PresentToday, TeachersDirectory,
-  PerformancePage, FeesOverview, ActivityLogPage, ReportsPage,
-  TimetablePage, ProfilePage, AttendanceOverview,
+  PresentToday,
+  TeachersDirectory,
+  PerformancePage,
+  FeesOverview,
+  ActivityLogPage,
+  ReportsPage,
+  TimetablePage,
+  ProfilePage,
+  AttendanceOverview,
 } from "./shared/SchoolFeatures";
 
 const nav = [
@@ -84,7 +106,8 @@ export default function PrincipalDashboard() {
       <Routes>
         <Route index element={<Overview />} />
         <Route path="analytics" element={<AttendanceOverview />} />
-        <Route path="classes" element={<ClassesAdmin />} />
+        <Route path="classes" element={<PrincipalClasses />} />
+        <Route path="classes/:classId" element={<PrincipalClassDetail />} />
         <Route path="students" element={<StudentsAdmin />} />
         <Route path="present" element={<PresentToday />} />
         <Route path="teachers" element={<TeachersDirectory />} />
