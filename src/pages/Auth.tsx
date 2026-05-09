@@ -85,6 +85,20 @@ export default function Auth() {
     toast.success("Reset link sent — check your inbox");
   };
 
+  const handleGoogle = async () => {
+    setBusy(true);
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      setBusy(false);
+      return toast.error(result.error.message ?? "Google sign-in failed");
+    }
+    if (result.redirected) return; // browser will navigate
+    setBusy(false);
+    navigate("/");
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-hero p-4">
       <div className="w-full max-w-md">
