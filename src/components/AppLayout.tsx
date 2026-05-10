@@ -56,7 +56,7 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
         </Button>
       </header>
 
-      <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-6xl w-full mx-auto">{children}</main>
+      <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 max-w-7xl w-full mx-auto">{children}</main>
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 bg-card border-t border-border flex overflow-x-auto py-2 z-50 gap-1 px-2">
