@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ShieldCheck, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus, Zap } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ShieldCheck, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
@@ -102,49 +102,55 @@ const Overview = () => {
 
   const attRate = attendance.total ? Math.round((attendance.present / attendance.total) * 100) : 0;
 
+  const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex items-center gap-2 mb-3 mt-2">
+      <div className="h-px flex-1 bg-border" />
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</span>
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+
   return (
-    <>
+    <div className="space-y-8">
       <PageHeader title="Admin Overview" subtitle="Today at a glance — what needs your attention" />
 
       {/* Key institutional stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={<Users className="w-5 h-5" />} label="Students" value={stats.students} />
-        <StatCard icon={<GraduationCap className="w-5 h-5" />} label="Teachers" value={stats.teachers} tone="secondary" />
-        <StatCard icon={<BookOpen className="w-5 h-5" />} label="Classes" value={stats.classes} tone="accent" />
-        <StatCard icon={<Bell className="w-5 h-5" />} label="Active Notices" value={stats.notices} tone="warning" />
-      </div>
+      <section>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard icon={<Users className="w-5 h-5" />} label="Students" value={stats.students} />
+          <StatCard icon={<GraduationCap className="w-5 h-5" />} label="Teachers" value={stats.teachers} tone="secondary" />
+          <StatCard icon={<BookOpen className="w-5 h-5" />} label="Classes" value={stats.classes} tone="accent" />
+          <StatCard icon={<Bell className="w-5 h-5" />} label="Active Notices" value={stats.notices} tone="warning" />
+        </div>
+      </section>
 
       {/* Quick Actions */}
-      <Card className="p-5 shadow-card mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-gradient-primary text-primary-foreground flex items-center justify-center">
-            <Zap className="w-4 h-4" />
+      <section>
+        <SectionLabel>Quick Actions</SectionLabel>
+        <Card className="p-5 shadow-card">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { to: "/admin/students", label: "Add Student", icon: <UserPlus className="w-4 h-4" />, tone: "bg-primary/10 text-primary" },
+              { to: "/admin/teachers", label: "Add Teacher", icon: <GraduationCap className="w-4 h-4" />, tone: "bg-secondary/10 text-secondary" },
+              { to: "/admin/notices", label: "Send Notice", icon: <Send className="w-4 h-4" />, tone: "bg-warning/10 text-warning" },
+              { to: "/admin/exams", label: "Create Exam", icon: <FilePlus className="w-4 h-4" />, tone: "bg-accent/10 text-accent" },
+              { to: "/admin/fees", label: "Generate Fees", icon: <Wallet className="w-4 h-4" />, tone: "bg-primary/10 text-primary" },
+              { to: "/admin/attendance", label: "Open Attendance", icon: <ClipboardCheck className="w-4 h-4" />, tone: "bg-secondary/10 text-secondary" },
+            ].map(a => (
+              <Link key={a.to + a.label} to={a.to}
+                className="group flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/[0.02] hover:shadow-card transition-all">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${a.tone} group-hover:scale-105 transition-transform`}>{a.icon}</div>
+                <span className="text-xs font-medium text-center leading-tight">{a.label}</span>
+              </Link>
+            ))}
           </div>
-          <div>
-            <h3 className="font-semibold text-sm">Quick Actions</h3>
-            <p className="text-xs text-muted-foreground">One-click access to daily operations</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { to: "/admin/students", label: "Add Student", icon: <UserPlus className="w-4 h-4" />, tone: "bg-primary/10 text-primary" },
-            { to: "/admin/teachers", label: "Add Teacher", icon: <GraduationCap className="w-4 h-4" />, tone: "bg-secondary/10 text-secondary" },
-            { to: "/admin/notices", label: "Send Notice", icon: <Send className="w-4 h-4" />, tone: "bg-warning/10 text-warning" },
-            { to: "/admin/exams", label: "Create Exam", icon: <FilePlus className="w-4 h-4" />, tone: "bg-accent/10 text-accent" },
-            { to: "/admin/fees", label: "Generate Fees", icon: <Wallet className="w-4 h-4" />, tone: "bg-primary/10 text-primary" },
-            { to: "/admin/attendance", label: "Open Attendance", icon: <ClipboardCheck className="w-4 h-4" />, tone: "bg-secondary/10 text-secondary" },
-          ].map(a => (
-            <Link key={a.to + a.label} to={a.to}
-              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-border hover:border-primary/40 hover:shadow-card transition-all bg-card">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${a.tone}`}>{a.icon}</div>
-              <span className="text-xs font-medium text-center">{a.label}</span>
-            </Link>
-          ))}
-        </div>
-      </Card>
+        </Card>
+      </section>
 
       {/* Operational alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <section>
+        <SectionLabel>Operations Today</SectionLabel>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Link to="/admin/attendance" className="block">
           <Card className="p-5 shadow-card hover:shadow-elevated transition-shadow h-full">
             <div className="flex items-center justify-between mb-3">
@@ -220,76 +226,80 @@ const Overview = () => {
             </div>
           </Card>
         </Link>
-      </div>
+        </div>
+      </section>
 
       {/* Activity feeds */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-primary" /> Recent Admissions
-            </h3>
-            <Link to="/admin/students" className="text-xs text-primary hover:underline">View all</Link>
-          </div>
-          <div className="space-y-3">
-            {recentStudents.length === 0 && <p className="text-xs text-muted-foreground">No students yet.</p>}
-            {recentStudents.map(s => (
-              <div key={s.id} className="flex items-center justify-between text-sm">
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{s.full_name}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    Adm# {s.admission_number}{s.classes ? ` · Class ${s.classes.name}-${s.classes.section}` : ""}
+      <section>
+        <SectionLabel>Recent Activity</SectionLabel>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-primary" /> Recent Admissions
+              </h3>
+              <Link to="/admin/students" className="text-xs text-primary hover:underline">View all</Link>
+            </div>
+            <div className="space-y-3">
+              {recentStudents.length === 0 && <p className="text-xs text-muted-foreground">No students yet.</p>}
+              {recentStudents.map(s => (
+                <div key={s.id} className="flex items-center justify-between text-sm">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{s.full_name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      Adm# {s.admission_number}{s.classes ? ` · Class ${s.classes.name}-${s.classes.section}` : ""}
+                    </div>
                   </div>
+                  <span className="text-xs text-muted-foreground shrink-0 ml-2">{timeAgo(s.created_at)}</span>
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0 ml-2">{timeAgo(s.created_at)}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+              ))}
+            </div>
+          </Card>
 
-        <Card className="p-5 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-secondary" /> Recently Onboarded Teachers
-            </h3>
-            <Link to="/admin/teachers" className="text-xs text-primary hover:underline">View all</Link>
-          </div>
-          <div className="space-y-3">
-            {recentTeachers.length === 0 && <p className="text-xs text-muted-foreground">No teachers yet.</p>}
-            {recentTeachers.map(t => (
-              <div key={t.id} className="flex items-center justify-between text-sm">
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{t.full_name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{t.subject || "Subject not set"}</div>
+          <Card className="p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-secondary" /> New Teachers
+              </h3>
+              <Link to="/admin/teachers" className="text-xs text-primary hover:underline">View all</Link>
+            </div>
+            <div className="space-y-3">
+              {recentTeachers.length === 0 && <p className="text-xs text-muted-foreground">No teachers yet.</p>}
+              {recentTeachers.map(t => (
+                <div key={t.id} className="flex items-center justify-between text-sm">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{t.full_name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{t.subject || "Subject not set"}</div>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0 ml-2">{timeAgo(t.created_at)}</span>
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0 ml-2">{timeAgo(t.created_at)}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+              ))}
+            </div>
+          </Card>
 
-        <Card className="p-5 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Bell className="w-4 h-4 text-warning" /> Latest Notices
-            </h3>
-            <Link to="/admin/notices" className="text-xs text-primary hover:underline">View all</Link>
-          </div>
-          <div className="space-y-3">
-            {recentNotices.length === 0 && <p className="text-xs text-muted-foreground">No notices posted.</p>}
-            {recentNotices.map(n => (
-              <div key={n.id} className="flex items-start justify-between text-sm gap-2">
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{n.title}</div>
-                  <div className="text-xs text-muted-foreground capitalize">{n.audience}</div>
+          <Card className="p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <Bell className="w-4 h-4 text-warning" /> Latest Notices
+              </h3>
+              <Link to="/admin/notices" className="text-xs text-primary hover:underline">View all</Link>
+            </div>
+            <div className="space-y-3">
+              {recentNotices.length === 0 && <p className="text-xs text-muted-foreground">No notices posted.</p>}
+              {recentNotices.map(n => (
+                <div key={n.id} className="flex items-start justify-between text-sm gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{n.title}</div>
+                    <div className="text-xs text-muted-foreground capitalize">{n.audience}</div>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">{timeAgo(n.created_at)}</span>
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0">{timeAgo(n.created_at)}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-    </>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </section>
+    </div>
   );
 };
 
