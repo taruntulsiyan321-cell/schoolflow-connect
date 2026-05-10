@@ -74,25 +74,25 @@ export default function StudentsAdmin() {
     r.admission_number?.includes(search)
   );
 
-  const Fields = ({ f, set }: { f: any; set: (v: any) => void }) => (
+  const fields = (
     <div className="space-y-3">
-      <div><Label>Full Name *</Label><Input value={f.full_name} onChange={e => set({ ...f, full_name: e.target.value })} /></div>
+      <div><Label>Full Name *</Label><Input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></div>
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Admission # *</Label><Input value={f.admission_number} onChange={e => set({ ...f, admission_number: e.target.value })} /></div>
-        <div><Label>Roll #</Label><Input value={f.roll_number} onChange={e => set({ ...f, roll_number: e.target.value })} /></div>
+        <div><Label>Admission # *</Label><Input value={form.admission_number} onChange={e => setForm({ ...form, admission_number: e.target.value })} /></div>
+        <div><Label>Roll #</Label><Input value={form.roll_number} onChange={e => setForm({ ...form, roll_number: e.target.value })} /></div>
       </div>
       <div><Label>Class</Label>
-        <Select value={f.class_id} onValueChange={v => set({ ...f, class_id: v })}>
+        <Select value={form.class_id} onValueChange={v => setForm({ ...form, class_id: v })}>
           <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
           <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>Class {c.name} - {c.section}</SelectItem>)}</SelectContent>
         </Select>
       </div>
-      <div><Label>Date of Birth</Label><Input type="date" value={f.date_of_birth} onChange={e => set({ ...f, date_of_birth: e.target.value })} /></div>
+      <div><Label>Date of Birth</Label><Input type="date" value={form.date_of_birth} onChange={e => setForm({ ...form, date_of_birth: e.target.value })} /></div>
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Parent Name</Label><Input value={f.parent_name} onChange={e => set({ ...f, parent_name: e.target.value })} /></div>
-        <div><Label>Parent Mobile</Label><Input value={f.parent_mobile} onChange={e => set({ ...f, parent_mobile: e.target.value })} /></div>
+        <div><Label>Parent Name</Label><Input value={form.parent_name} onChange={e => setForm({ ...form, parent_name: e.target.value })} /></div>
+        <div><Label>Parent Mobile</Label><Input value={form.parent_mobile} onChange={e => setForm({ ...form, parent_mobile: e.target.value })} /></div>
       </div>
-      <div><Label>Address</Label><Input value={f.address} onChange={e => set({ ...f, address: e.target.value })} /></div>
+      <div><Label>Address</Label><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></div>
     </div>
   );
 
@@ -106,7 +106,7 @@ export default function StudentsAdmin() {
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>New Student</DialogTitle></DialogHeader>
-              <Fields f={form} set={setForm} />
+              {fields}
               <Button className="w-full bg-gradient-primary text-primary-foreground mt-2" onClick={add}>Create Student</Button>
             </DialogContent>
           </Dialog>
@@ -138,7 +138,7 @@ export default function StudentsAdmin() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Student</DialogTitle></DialogHeader>
-          <Fields f={form} set={setForm} />
+          {fields}
           <Button className="w-full bg-gradient-primary text-primary-foreground mt-2" onClick={saveEdit}>Save Changes</Button>
         </DialogContent>
       </Dialog>

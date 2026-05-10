@@ -101,22 +101,22 @@ export default function TeachersAdmin() {
     r.subject?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const Fields = ({ f, set }: { f: any; set: (v: any) => void }) => (
+  const fields = (
     <div className="space-y-3">
-      <div><Label>Full Name *</Label><Input value={f.full_name} onChange={e => set({ ...f, full_name: e.target.value })} /></div>
+      <div><Label>Full Name *</Label><Input value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></div>
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>Subject</Label><Input value={f.subject} onChange={e => set({ ...f, subject: e.target.value })} /></div>
-        <div><Label>Mobile</Label><Input value={f.mobile} onChange={e => set({ ...f, mobile: e.target.value })} /></div>
+        <div><Label>Subject</Label><Input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} /></div>
+        <div><Label>Mobile</Label><Input value={form.mobile} onChange={e => setForm({ ...form, mobile: e.target.value })} /></div>
       </div>
-      <div><Label>Email</Label><Input value={f.email} onChange={e => set({ ...f, email: e.target.value })} /></div>
-      <div><Label>Salary (admin only)</Label><Input type="number" value={f.salary} onChange={e => set({ ...f, salary: e.target.value })} /></div>
+      <div><Label>Email</Label><Input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
+      <div><Label>Salary (admin only)</Label><Input type="number" value={form.salary} onChange={e => setForm({ ...form, salary: e.target.value })} /></div>
       <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
         <Label>Is Class Teacher?</Label>
-        <Switch checked={f.is_class_teacher} onCheckedChange={v => set({ ...f, is_class_teacher: v })} />
+        <Switch checked={form.is_class_teacher} onCheckedChange={v => setForm({ ...form, is_class_teacher: v })} />
       </div>
-      {f.is_class_teacher && (
+      {form.is_class_teacher && (
         <div><Label>Class Teacher of</Label>
-          <Select value={f.class_teacher_of} onValueChange={v => set({ ...f, class_teacher_of: v })}>
+          <Select value={form.class_teacher_of} onValueChange={v => setForm({ ...form, class_teacher_of: v })}>
             <SelectTrigger><SelectValue placeholder="Choose class" /></SelectTrigger>
             <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>Class {c.name}-{c.section}</SelectItem>)}</SelectContent>
           </Select>
@@ -126,13 +126,13 @@ export default function TeachersAdmin() {
         <Label>Teaches classes (subject)</Label>
         <div className="grid grid-cols-3 gap-1.5 mt-2 max-h-32 overflow-y-auto">
           {classes.map(c => (
-            <button key={c.id} type="button" onClick={() => set({
-              ...f,
-              teaching_class_ids: f.teaching_class_ids.includes(c.id)
-                ? f.teaching_class_ids.filter((x: string) => x !== c.id)
-                : [...f.teaching_class_ids, c.id],
+            <button key={c.id} type="button" onClick={() => setForm({
+              ...form,
+              teaching_class_ids: form.teaching_class_ids.includes(c.id)
+                ? form.teaching_class_ids.filter((x: string) => x !== c.id)
+                : [...form.teaching_class_ids, c.id],
             })}
-              className={`text-xs px-2 py-1.5 rounded border ${f.teaching_class_ids.includes(c.id) ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>
+              className={`text-xs px-2 py-1.5 rounded border ${form.teaching_class_ids.includes(c.id) ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>
               {c.name}-{c.section}
             </button>
           ))}
@@ -151,7 +151,7 @@ export default function TeachersAdmin() {
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>New Teacher</DialogTitle></DialogHeader>
-              <Fields f={form} set={setForm} />
+              {fields}
               <Button className="w-full bg-gradient-primary text-primary-foreground mt-2" onClick={add}>Create Teacher</Button>
             </DialogContent>
           </Dialog>
@@ -184,7 +184,7 @@ export default function TeachersAdmin() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Teacher</DialogTitle></DialogHeader>
-          <Fields f={form} set={setForm} />
+          {fields}
           {editTarget && (
             <AccountAccess
               teacher={editTarget}
