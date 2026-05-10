@@ -151,7 +151,7 @@ export default function TeachersAdmin() {
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>New Teacher</DialogTitle></DialogHeader>
-              <Fields f={form} set={setForm} />
+              {fields}
               <Button className="w-full bg-gradient-primary text-primary-foreground mt-2" onClick={add}>Create Teacher</Button>
             </DialogContent>
           </Dialog>
@@ -184,7 +184,7 @@ export default function TeachersAdmin() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Teacher</DialogTitle></DialogHeader>
-          <Fields f={form} set={setForm} />
+          {fields}
           {editTarget && (
             <AccountAccess
               teacher={editTarget}
