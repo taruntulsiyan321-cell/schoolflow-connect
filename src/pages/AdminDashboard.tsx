@@ -136,7 +136,7 @@ const Overview = () => {
                 <div className="flex gap-3 text-xs">
                   <span className="flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-accent" />{attendance.present} Present</span>
                   <span className="flex items-center gap-1"><AlertCircle className="w-3 h-3 text-destructive" />{attendance.absent} Absent</span>
-                  <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-warning" />{attendance.late} Late</span>
+                  <span className="flex items-center gap-1"><Clock className="w-3 h-3 text-warning" />{attendance.late} Leave</span>
                 </div>
               </>
             )}
