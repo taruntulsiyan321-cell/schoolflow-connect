@@ -106,7 +106,7 @@ export default function StudentsAdmin() {
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>New Student</DialogTitle></DialogHeader>
-              <Fields f={form} set={setForm} />
+              {fields}
               <Button className="w-full bg-gradient-primary text-primary-foreground mt-2" onClick={add}>Create Student</Button>
             </DialogContent>
           </Dialog>
@@ -138,7 +138,7 @@ export default function StudentsAdmin() {
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Edit Student</DialogTitle></DialogHeader>
-          <Fields f={form} set={setForm} />
+          {fields}
           <Button className="w-full bg-gradient-primary text-primary-foreground mt-2" onClick={saveEdit}>Save Changes</Button>
         </DialogContent>
       </Dialog>
