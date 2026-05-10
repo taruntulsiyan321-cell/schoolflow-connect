@@ -17,7 +17,7 @@ import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 import {
   UsersDirectory, AttendanceOverview, ReportsPage, TimetablePage,
-  PermissionsMatrix, AppSettingsPage, SystemPage, ProfilePage,
+  AppSettingsPage, SystemPage, ProfilePage,
 } from "./shared/SchoolFeatures";
 
 const nav = [
