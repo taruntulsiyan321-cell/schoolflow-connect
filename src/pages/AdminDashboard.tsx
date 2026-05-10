@@ -102,49 +102,55 @@ const Overview = () => {
 
   const attRate = attendance.total ? Math.round((attendance.present / attendance.total) * 100) : 0;
 
+  const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex items-center gap-2 mb-3 mt-2">
+      <div className="h-px flex-1 bg-border" />
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{children}</span>
+      <div className="h-px flex-1 bg-border" />
+    </div>
+  );
+
   return (
-    <>
+    <div className="space-y-8">
       <PageHeader title="Admin Overview" subtitle="Today at a glance — what needs your attention" />
 
       {/* Key institutional stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={<Users className="w-5 h-5" />} label="Students" value={stats.students} />
-        <StatCard icon={<GraduationCap className="w-5 h-5" />} label="Teachers" value={stats.teachers} tone="secondary" />
-        <StatCard icon={<BookOpen className="w-5 h-5" />} label="Classes" value={stats.classes} tone="accent" />
-        <StatCard icon={<Bell className="w-5 h-5" />} label="Active Notices" value={stats.notices} tone="warning" />
-      </div>
+      <section>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatCard icon={<Users className="w-5 h-5" />} label="Students" value={stats.students} />
+          <StatCard icon={<GraduationCap className="w-5 h-5" />} label="Teachers" value={stats.teachers} tone="secondary" />
+          <StatCard icon={<BookOpen className="w-5 h-5" />} label="Classes" value={stats.classes} tone="accent" />
+          <StatCard icon={<Bell className="w-5 h-5" />} label="Active Notices" value={stats.notices} tone="warning" />
+        </div>
+      </section>
 
       {/* Quick Actions */}
-      <Card className="p-5 shadow-card mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-gradient-primary text-primary-foreground flex items-center justify-center">
-            <Zap className="w-4 h-4" />
+      <section>
+        <SectionLabel>Quick Actions</SectionLabel>
+        <Card className="p-5 shadow-card">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { to: "/admin/students", label: "Add Student", icon: <UserPlus className="w-4 h-4" />, tone: "bg-primary/10 text-primary" },
+              { to: "/admin/teachers", label: "Add Teacher", icon: <GraduationCap className="w-4 h-4" />, tone: "bg-secondary/10 text-secondary" },
+              { to: "/admin/notices", label: "Send Notice", icon: <Send className="w-4 h-4" />, tone: "bg-warning/10 text-warning" },
+              { to: "/admin/exams", label: "Create Exam", icon: <FilePlus className="w-4 h-4" />, tone: "bg-accent/10 text-accent" },
+              { to: "/admin/fees", label: "Generate Fees", icon: <Wallet className="w-4 h-4" />, tone: "bg-primary/10 text-primary" },
+              { to: "/admin/attendance", label: "Open Attendance", icon: <ClipboardCheck className="w-4 h-4" />, tone: "bg-secondary/10 text-secondary" },
+            ].map(a => (
+              <Link key={a.to + a.label} to={a.to}
+                className="group flex flex-col items-center justify-center gap-2 p-4 rounded-xl border border-border hover:border-primary/40 hover:bg-primary/[0.02] hover:shadow-card transition-all">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${a.tone} group-hover:scale-105 transition-transform`}>{a.icon}</div>
+                <span className="text-xs font-medium text-center leading-tight">{a.label}</span>
+              </Link>
+            ))}
           </div>
-          <div>
-            <h3 className="font-semibold text-sm">Quick Actions</h3>
-            <p className="text-xs text-muted-foreground">One-click access to daily operations</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            { to: "/admin/students", label: "Add Student", icon: <UserPlus className="w-4 h-4" />, tone: "bg-primary/10 text-primary" },
-            { to: "/admin/teachers", label: "Add Teacher", icon: <GraduationCap className="w-4 h-4" />, tone: "bg-secondary/10 text-secondary" },
-            { to: "/admin/notices", label: "Send Notice", icon: <Send className="w-4 h-4" />, tone: "bg-warning/10 text-warning" },
-            { to: "/admin/exams", label: "Create Exam", icon: <FilePlus className="w-4 h-4" />, tone: "bg-accent/10 text-accent" },
-            { to: "/admin/fees", label: "Generate Fees", icon: <Wallet className="w-4 h-4" />, tone: "bg-primary/10 text-primary" },
-            { to: "/admin/attendance", label: "Open Attendance", icon: <ClipboardCheck className="w-4 h-4" />, tone: "bg-secondary/10 text-secondary" },
-          ].map(a => (
-            <Link key={a.to + a.label} to={a.to}
-              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-border hover:border-primary/40 hover:shadow-card transition-all bg-card">
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${a.tone}`}>{a.icon}</div>
-              <span className="text-xs font-medium text-center">{a.label}</span>
-            </Link>
-          ))}
-        </div>
-      </Card>
+        </Card>
+      </section>
 
       {/* Operational alerts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <section>
+        <SectionLabel>Operations Today</SectionLabel>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Link to="/admin/attendance" className="block">
           <Card className="p-5 shadow-card hover:shadow-elevated transition-shadow h-full">
             <div className="flex items-center justify-between mb-3">
