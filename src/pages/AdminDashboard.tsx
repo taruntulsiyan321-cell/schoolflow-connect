@@ -32,7 +32,6 @@ const nav = [
   { to: "/admin/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/admin/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/admin/roles", label: "Student Access", icon: <ShieldCheck className="w-4 h-4" /> },
-  { to: "/admin/permissions", label: "Permissions", icon: <KeyRound className="w-4 h-4" /> },
   { to: "/admin/settings", label: "App Settings", icon: <Settings className="w-4 h-4" /> },
   { to: "/admin/system", label: "System", icon: <Database className="w-4 h-4" /> },
   { to: "/admin/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
@@ -84,7 +83,6 @@ export default function AdminDashboard() {
         <Route path="timetable" element={<TimetablePage title="Timetable" />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
-        <Route path="permissions" element={<PermissionsMatrix />} />
         <Route path="settings" element={<AppSettingsPage />} />
         <Route path="system" element={<SystemPage />} />
         <Route path="profile" element={<ProfilePage />} />
