@@ -226,76 +226,80 @@ const Overview = () => {
             </div>
           </Card>
         </Link>
-      </div>
+        </div>
+      </section>
 
       {/* Activity feeds */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-        <Card className="p-5 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-primary" /> Recent Admissions
-            </h3>
-            <Link to="/admin/students" className="text-xs text-primary hover:underline">View all</Link>
-          </div>
-          <div className="space-y-3">
-            {recentStudents.length === 0 && <p className="text-xs text-muted-foreground">No students yet.</p>}
-            {recentStudents.map(s => (
-              <div key={s.id} className="flex items-center justify-between text-sm">
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{s.full_name}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    Adm# {s.admission_number}{s.classes ? ` · Class ${s.classes.name}-${s.classes.section}` : ""}
+      <section>
+        <SectionLabel>Recent Activity</SectionLabel>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-primary" /> Recent Admissions
+              </h3>
+              <Link to="/admin/students" className="text-xs text-primary hover:underline">View all</Link>
+            </div>
+            <div className="space-y-3">
+              {recentStudents.length === 0 && <p className="text-xs text-muted-foreground">No students yet.</p>}
+              {recentStudents.map(s => (
+                <div key={s.id} className="flex items-center justify-between text-sm">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{s.full_name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      Adm# {s.admission_number}{s.classes ? ` · Class ${s.classes.name}-${s.classes.section}` : ""}
+                    </div>
                   </div>
+                  <span className="text-xs text-muted-foreground shrink-0 ml-2">{timeAgo(s.created_at)}</span>
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0 ml-2">{timeAgo(s.created_at)}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+              ))}
+            </div>
+          </Card>
 
-        <Card className="p-5 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-secondary" /> Recently Onboarded Teachers
-            </h3>
-            <Link to="/admin/teachers" className="text-xs text-primary hover:underline">View all</Link>
-          </div>
-          <div className="space-y-3">
-            {recentTeachers.length === 0 && <p className="text-xs text-muted-foreground">No teachers yet.</p>}
-            {recentTeachers.map(t => (
-              <div key={t.id} className="flex items-center justify-between text-sm">
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{t.full_name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{t.subject || "Subject not set"}</div>
+          <Card className="p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-secondary" /> New Teachers
+              </h3>
+              <Link to="/admin/teachers" className="text-xs text-primary hover:underline">View all</Link>
+            </div>
+            <div className="space-y-3">
+              {recentTeachers.length === 0 && <p className="text-xs text-muted-foreground">No teachers yet.</p>}
+              {recentTeachers.map(t => (
+                <div key={t.id} className="flex items-center justify-between text-sm">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{t.full_name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{t.subject || "Subject not set"}</div>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0 ml-2">{timeAgo(t.created_at)}</span>
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0 ml-2">{timeAgo(t.created_at)}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+              ))}
+            </div>
+          </Card>
 
-        <Card className="p-5 shadow-card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold flex items-center gap-2">
-              <Bell className="w-4 h-4 text-warning" /> Latest Notices
-            </h3>
-            <Link to="/admin/notices" className="text-xs text-primary hover:underline">View all</Link>
-          </div>
-          <div className="space-y-3">
-            {recentNotices.length === 0 && <p className="text-xs text-muted-foreground">No notices posted.</p>}
-            {recentNotices.map(n => (
-              <div key={n.id} className="flex items-start justify-between text-sm gap-2">
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{n.title}</div>
-                  <div className="text-xs text-muted-foreground capitalize">{n.audience}</div>
+          <Card className="p-5 shadow-card">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-sm flex items-center gap-2">
+                <Bell className="w-4 h-4 text-warning" /> Latest Notices
+              </h3>
+              <Link to="/admin/notices" className="text-xs text-primary hover:underline">View all</Link>
+            </div>
+            <div className="space-y-3">
+              {recentNotices.length === 0 && <p className="text-xs text-muted-foreground">No notices posted.</p>}
+              {recentNotices.map(n => (
+                <div key={n.id} className="flex items-start justify-between text-sm gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate">{n.title}</div>
+                    <div className="text-xs text-muted-foreground capitalize">{n.audience}</div>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">{timeAgo(n.created_at)}</span>
                 </div>
-                <span className="text-xs text-muted-foreground shrink-0">{timeAgo(n.created_at)}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-    </>
+              ))}
+            </div>
+          </Card>
+        </div>
+      </section>
+    </div>
   );
 };
 
