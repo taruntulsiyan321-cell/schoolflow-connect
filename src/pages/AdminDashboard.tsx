@@ -82,7 +82,7 @@ const Overview = () => {
       setAttendance({
         present: rows.filter(r => r.status === "present").length,
         absent: rows.filter(r => r.status === "absent").length,
-        late: rows.filter(r => r.status === "late").length,
+        late: rows.filter(r => r.status === "leave").length,
         total: rows.length,
       });
 
