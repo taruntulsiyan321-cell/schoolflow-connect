@@ -209,12 +209,12 @@ function AccountAccess({ teacher, onChanged }: { teacher: any; onChanged: () => 
   const connect = async () => {
     if (!email.trim()) return toast.error("Email or phone required");
     setBusy(true);
-    const { error } = await supabase.rpc("admin_connect_teacher_account", {
-      _teacher_id: t.id, _identifier: email.trim(),
+    const { error } = await supabase.functions.invoke("admin-link-account", {
+      body: { kind: "teacher", target_id: t.id, identifier: email.trim() },
     });
     setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account connected — teacher can now sign in with Google");
+    if (error) return toast.error(error.message || "Could not link account");
+    toast.success("Account linked — teacher can now sign in");
     const { data } = await supabase.from("teachers").select("*").eq("id", t.id).single();
     setT(data); onChanged();
   };

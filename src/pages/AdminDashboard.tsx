@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ShieldCheck, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
@@ -11,28 +11,28 @@ import StudentsAdmin from "./admin/StudentsAdmin";
 import TeacherProfile from "./admin/TeacherProfile";
 import TeachersAdmin from "./admin/TeachersAdmin";
 import ClassesAdmin from "./admin/ClassesAdmin";
+import ClassDetail from "./admin/ClassDetail";
 import FeesAdmin from "./admin/FeesAdmin";
-import LinkUsersAdmin from "./admin/LinkUsersAdmin";
+import ReportsAdmin from "./admin/ReportsAdmin";
 import RolesAdmin from "./admin/RolesAdmin";
 import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 import {
-  UsersDirectory, AttendanceOverview, ReportsPage, TimetablePage,
+  UsersDirectory, AttendanceOverview, TimetablePage,
   AppSettingsPage, ProfilePage,
 } from "./shared/SchoolFeatures";
 
 const nav = [
   { to: "/admin", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/admin/users", label: "Users", icon: <Users className="w-4 h-4" /> },
   { to: "/admin/students", label: "Students", icon: <Users className="w-4 h-4" /> },
   { to: "/admin/teachers", label: "Teachers", icon: <GraduationCap className="w-4 h-4" /> },
-  { to: "/admin/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/admin/classes", label: "Classes & Batches", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/admin/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/admin/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/admin/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
   { to: "/admin/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/admin/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
-  { to: "/admin/roles", label: "Student Access", icon: <ShieldCheck className="w-4 h-4" /> },
+  { to: "/admin/users", label: "Users", icon: <Users className="w-4 h-4" /> },
   { to: "/admin/settings", label: "App Settings", icon: <Settings className="w-4 h-4" /> },
   { to: "/admin/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
@@ -313,15 +313,15 @@ export default function AdminDashboard() {
         <Route path="teachers" element={<TeachersAdmin />} />
         <Route path="teachers/:id" element={<TeacherProfile />} />
         <Route path="classes" element={<ClassesAdmin />} />
+        <Route path="classes/:id" element={<ClassDetail />} />
         <Route path="fees" element={<FeesAdmin />} />
         <Route path="attendance" element={<AttendanceOverview />} />
-        <Route path="reports" element={<ReportsPage />} />
+        <Route path="reports" element={<ReportsAdmin />} />
         <Route path="timetable" element={<TimetablePage title="Timetable" />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
         <Route path="settings" element={<AppSettingsPage />} />
         <Route path="profile" element={<ProfilePage />} />
-        <Route path="links" element={<LinkUsersAdmin />} />
         <Route path="roles" element={<RolesAdmin />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
