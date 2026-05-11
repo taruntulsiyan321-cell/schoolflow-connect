@@ -149,24 +149,33 @@ export type Database = {
       classes: {
         Row: {
           academic_year: string
+          category: string | null
           created_at: string
+          display_name: string | null
           id: string
-          name: string
-          section: string
+          kind: string
+          name: string | null
+          section: string | null
         }
         Insert: {
           academic_year?: string
+          category?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
-          name: string
-          section: string
+          kind?: string
+          name?: string | null
+          section?: string | null
         }
         Update: {
           academic_year?: string
+          category?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
-          name?: string
-          section?: string
+          kind?: string
+          name?: string | null
+          section?: string | null
         }
         Relationships: []
       }
