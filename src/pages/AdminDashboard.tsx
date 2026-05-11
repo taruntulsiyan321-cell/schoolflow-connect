@@ -313,15 +313,15 @@ export default function AdminDashboard() {
         <Route path="teachers" element={<TeachersAdmin />} />
         <Route path="teachers/:id" element={<TeacherProfile />} />
         <Route path="classes" element={<ClassesAdmin />} />
+        <Route path="classes/:id" element={<ClassDetail />} />
         <Route path="fees" element={<FeesAdmin />} />
         <Route path="attendance" element={<AttendanceOverview />} />
-        <Route path="reports" element={<ReportsPage />} />
+        <Route path="reports" element={<ReportsAdmin />} />
         <Route path="timetable" element={<TimetablePage title="Timetable" />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
         <Route path="settings" element={<AppSettingsPage />} />
         <Route path="profile" element={<ProfilePage />} />
-        <Route path="links" element={<LinkUsersAdmin />} />
         <Route path="roles" element={<RolesAdmin />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Routes>
