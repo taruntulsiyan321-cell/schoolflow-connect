@@ -21,6 +21,7 @@ import LeaderboardPage from "./shared/LeaderboardPage";
 
 const nav = [
   { to: "/student", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
   { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/student/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
   { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
