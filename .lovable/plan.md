@@ -1,114 +1,102 @@
-## Goal
+## Battleground — Premium Academic Competition Feature
 
-Refine the Adarsh Campus Admin Panel across four areas: account access, reports, batch management, and class workflows.
+A new gamified section in the Student Panel where students join live quiz battles, challenge classmates, climb leaderboards, earn XP/badges, and track subject-wise performance. Built mobile-first with animated, premium visuals.
 
----
+### Scope (V1)
 
-## 1. Account Access — Remove standalone page, move into Student/Teacher workflows
+A complete, working battleground with real backend persistence — not a mock. Students can create/join MCQ battles tied to their class, answer timed questions, see live leaderboards, earn XP & badges, and view a gamified profile with subject insights.
 
-**Remove**
-- Delete `src/pages/admin/LinkUsersAdmin.tsx` and its route/sidebar entry in `AdminDashboard.tsx`.
+### User Flow
 
-**Move into Student workflow**
-- In `StudentsAdmin.tsx`, add an "Account Access" section to:
-  - The **Add Student** dialog (optional during admission).
-  - A new **Edit Student** dialog (per-row "Edit" action).
-- Fields & actions: linked email, status badge (Linked / Not linked / Inactive), buttons: **Link Account**, **Unlink**, **Activate / Deactivate**.
+```
+Student Dashboard
+   └─ "Battleground" (new nav item)
+        ├─ Arena (Home)         → Live & upcoming battles, daily challenge, hero stats
+        ├─ Challenges            → Create/Challenge classmates, browse public class battles
+        ├─ Battle Room           → Live MCQ battle with timer + live leaderboard
+        ├─ Leaderboard           → Class & global rankings, top 3 podium
+        ├─ Achievements          → Badges (Bronze→Platinum), XP level, streaks
+        └─ My Stats              → Subject strengths/weaknesses, win history, progress rings
+```
 
-**Move into Teacher workflow**
-- Same treatment in `TeachersAdmin.tsx` (already has access toggle — extend with inline link/unlink dialog using email or phone).
+### Backend (Lovable Cloud)
 
-**Remove "login-first" limitation (server-side)**
-- Create edge function `admin-link-account` (verify_jwt true, admin-only) that:
-  1. Receives `{ kind: 'student'|'teacher'|'parent', target_id, email|phone }`.
-  2. Uses the service-role key to look up the user via `auth.admin.listUsers` / `getUserByEmail`.
-  3. If the user does not exist **and** an email was provided, calls `auth.admin.inviteUserByEmail` (or `createUser` with email) so the account is provisioned without requiring the user to sign in first.
-  4. Calls existing `admin_connect_student_account` / `admin_link_user_to_teacher` RPCs with the resolved UID.
-  5. Returns clear errors: `"Invalid Google account"` when the email format is bad or the invite fails.
-- Frontend calls this function instead of the existing direct RPC, so admins can link by typing an email/phone with no prior sign-in.
+New tables:
+- **battles** — id, class_id, creator_id, title, subject, topic, type (mcq/rapid/timed), status (scheduled/live/finished), starts_at, duration_sec, question_count, is_public, created_at
+- **battle_questions** — id, battle_id, order_index, question, options (jsonb), correct_index, points
+- **battle_participants** — id, battle_id, student_id, joined_at, score, correct_count, time_taken_ms, finished_at, rank
+- **battle_answers** — id, participant_id, question_id, selected_index, is_correct, time_ms
+- **student_xp** — student_id (PK), xp, level, current_streak, longest_streak, total_battles, wins, last_battle_at
+- **student_badges** — id, student_id, badge_code, tier (bronze/silver/gold/platinum), earned_at
+- **daily_challenges** — id, date, title, subject, target_type, target_value (seeded daily; per-student progress derived)
 
----
+Views/RPCs:
+- `rpc_join_battle(battle_id)` — inserts participant, validates class membership
+- `rpc_submit_answer(participant_id, question_id, selected_index, time_ms)` — scores, updates leaderboard
+- `rpc_finish_battle(participant_id)` — finalizes rank, awards XP, checks badge unlocks
+- `rpc_subject_insights(student_id)` — returns per-subject accuracy from battle_answers + marks
+- Realtime enabled on `battle_participants` & `battle_answers` for live leaderboard
 
-## 2. Reports — Practical institutional reporting
+RLS:
+- battles: SELECT for classmates if `is_public=true` and same class; admin/teacher full
+- participants/answers: student manages own; classmates can read scores of public battles in their class
+- xp/badges: self read, admin write via RPC
 
-Rewrite `src/pages/shared/TeacherReportsPage.tsx` usage on the admin route into a new `src/pages/admin/ReportsAdmin.tsx` with a tabbed layout (sidebar list on the left, content on the right). Each tab is a focused, table-style report with date filters, a summary strip, and a CSV export button.
+Question seeding: For V1, battle creator picks subject + topic and we generate a small built-in question bank stored in `battle_questions` (creator-supplied via a simple form, or auto-pulled from a seed table). Keeps it self-contained.
 
-Tabs:
-1. **Students** — roster by class, gender mix, admission counts.
-2. **Attendance** — daily/range %, class breakdown, absentees list.
-3. **Fees** — collected vs pending, defaulters list.
-4. **Pending Dues** — student-wise unpaid invoices.
-5. **Teacher Salary** — pending salary placeholder (uses `teachers.salary`, status flag).
-6. **Exams & Marks** — averages per class/subject, top scorers.
-7. **Class Performance** — combined attendance + marks rollup per class.
-8. **Admissions** — new admissions per month.
-9. **Leave Requests** — by status, applicant kind.
-10. **Notices** — delivery counts (created, audience).
+### Frontend
 
-Inquiries / complaints / timetable / notification-delivery reports are stubbed as "Coming soon" cards (no schema yet) so the section is visually complete without faking data.
+Routes (all under student panel):
+- `/student/battleground` — Arena home
+- `/student/battleground/challenges`
+- `/student/battleground/create`
+- `/student/battleground/battle/:id` — battle room (live)
+- `/student/battleground/leaderboard`
+- `/student/battleground/achievements`
+- `/student/battleground/stats`
 
-Visual rules:
-- Consistent header with title + date range + export.
-- Compact dense tables, subtle dividers, no oversized hero cards.
-- Empty states are short single-line messages, not large illustrations.
+Key components:
+- `BattleCard` — animated gradient card, glow, countdown timer, join button
+- `LeaderboardLive` — realtime ranks with rank-change animation, top 3 podium, current-user highlight
+- `BattleRoom` — full-screen quiz UI: timer ring, question, 4 option cards, instant feedback
+- `XPRing` / `LevelBadge` — animated SVG progress ring
+- `BadgeCard` — tier-colored (bronze/silver/gold/platinum) with shine
+- `SubjectInsightCard` — strong/weak bars per subject from `marks` + battle accuracy
+- `StreakFlame` — daily streak indicator
+- `DailyChallengeBanner` — hero call-to-action
 
----
+Design system:
+- Reuse existing semantic tokens; add battleground-specific gradients + tier colors as CSS vars in `index.css`
+- Animations: fade-in, scale-in, custom keyframes for rank-up pulse, glow, countdown
+- Mobile-first; bottom-sheet style modals for join/create on small screens
 
-## 3. Batch Management inside Classes
+### Files
 
-Schema change (migration):
-- Add `kind text not null default 'class'` to `classes` (values: `class`, `batch`).
-- Add `display_name text` for free-form names (e.g. "NEET Morning Batch").
-- `name` and `section` become nullable when `kind = 'batch'`.
+**New**:
+- `supabase/migrations/<timestamp>_battleground.sql`
+- `src/pages/student/Battleground.tsx` (Arena home)
+- `src/pages/student/battleground/Challenges.tsx`
+- `src/pages/student/battleground/CreateBattle.tsx`
+- `src/pages/student/battleground/BattleRoom.tsx`
+- `src/pages/student/battleground/Leaderboard.tsx`
+- `src/pages/student/battleground/Achievements.tsx`
+- `src/pages/student/battleground/MyStats.tsx`
+- `src/components/battleground/BattleCard.tsx`
+- `src/components/battleground/LeaderboardLive.tsx`
+- `src/components/battleground/XPRing.tsx`
+- `src/components/battleground/BadgeCard.tsx`
+- `src/components/battleground/SubjectInsightCard.tsx`
+- `src/components/battleground/CountdownTimer.tsx`
+- `src/components/battleground/StreakFlame.tsx`
 
-`ClassesAdmin.tsx` rewrite:
-- Two tabs: **School Classes** and **Batches & Programs**.
-- "Add Class" keeps the existing class/section dropdowns.
-- "Add Batch" uses free-text `display_name` + optional category (free text) + academic year. No fixed list.
-- Both render in the same grid with a `kind` badge, edit + delete actions.
+**Edited**:
+- `src/pages/StudentDashboard.tsx` — add Battleground nav entry + routes, hero "Enter Battleground" tile
+- `src/index.css` / `tailwind.config.ts` — gradients, tier colors, battleground keyframes
 
-Downstream code that currently reads `classes.name`/`section` continues to work for `kind='class'` rows; batch cards display `display_name` directly.
+### Out of scope for V1 (can extend later)
+- Class-vs-class team battles (single-player ranked battles only in V1)
+- Push notifications for battle invites
+- AI-generated questions (creator supplies questions in V1)
+- Anti-cheat / proctoring
 
----
-
-## 4. Class / Batch Detail Page
-
-New route: `/admin/classes/:id` rendered by `src/pages/admin/ClassDetail.tsx`.
-
-Sections:
-- **Header**: class/batch name, academic year, total students, class teacher (link to teacher profile).
-- **Students table**: roll, name, parent contact, account status, "View Profile" → opens existing student detail.
-- **Today's attendance**: small summary (Present / Absent / Leave) with link to Attendance page filtered to this class.
-- **Recent exams & averages**: pulls from `exams` + `marks`, simple table.
-- **Quick actions**: Mark Attendance, Add Notice (class), Create Exam — pre-filtered to this class.
-
-Each class card in `ClassesAdmin` becomes clickable, navigating into this detail page so the flow is Class → Students → Student Profile.
-
----
-
-## Technical Notes
-
-- Existing RPCs (`admin_connect_student_account`, `admin_link_user_to_teacher`, `admin_set_teacher_access`, `admin_revoke_*`) are reused; the new edge function is a thin wrapper that adds the "create/invite if missing" step using service-role admin APIs.
-- New edge function deploys automatically; secret `SUPABASE_SERVICE_ROLE_KEY` is already configured.
-- Migration only adds nullable/default columns to `classes` so existing data is untouched. RLS unchanged.
-- CSV export uses a tiny in-file helper (no new dependency).
-- Sidebar entries in `AdminDashboard.tsx` updated: remove "Account Access", reorder to Students / Teachers / Classes & Batches / Fees / Reports.
-
----
-
-## File Plan
-
-**New**
-- `src/pages/admin/ReportsAdmin.tsx`
-- `src/pages/admin/ClassDetail.tsx`
-- `supabase/functions/admin-link-account/index.ts`
-- Migration: add `kind`, `display_name`, relax `name`/`section` on `classes`.
-
-**Edited**
-- `src/pages/AdminDashboard.tsx` (routes + sidebar)
-- `src/pages/admin/StudentsAdmin.tsx` (Edit dialog + Account Access block + onboarding link)
-- `src/pages/admin/TeachersAdmin.tsx` (inline link dialog using new edge function)
-- `src/pages/admin/ClassesAdmin.tsx` (tabs, batches)
-
-**Deleted**
-- `src/pages/admin/LinkUsersAdmin.tsx`
+Approve to proceed and I'll run the migration, then build the UI.

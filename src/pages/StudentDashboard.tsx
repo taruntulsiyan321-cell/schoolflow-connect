@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword } from "lucide-react";
+import Battleground from "./student/Battleground";
 import StudentProfilePage from "./shared/StudentProfilePage";
 import StudentClassesPage from "./shared/StudentClassesPage";
 import StudentExamsPage from "./shared/StudentExamsPage";
@@ -20,6 +21,7 @@ import LeaderboardPage from "./shared/LeaderboardPage";
 
 const nav = [
   { to: "/student", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
   { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/student/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
   { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
@@ -61,6 +63,21 @@ const Home = () => {
     <>
       <PageHeader title={`Hi, ${student?.full_name?.split(" ")[0] || "Student"} 👋`}
         subtitle={student?.classes ? `Class ${student.classes.name}-${student.classes.section} · Roll ${student.roll_number || "-"}` : "Welcome back"} />
+
+      <a href="/student/battleground" className="block mb-6 group">
+        <Card className="relative overflow-hidden bg-gradient-arena text-white border-0 p-5 hover:shadow-battle transition-all">
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-gradient-victory blur-3xl opacity-40" />
+          <div className="relative flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl">⚔️</div>
+            <div className="flex-1">
+              <div className="text-[10px] uppercase tracking-widest opacity-80 font-semibold">New</div>
+              <div className="font-bold text-lg">Enter the Battleground</div>
+              <div className="text-sm opacity-80">Live quiz battles · XP · Badges · Class leaderboards</div>
+            </div>
+            <span className="text-xs px-3 py-1.5 rounded-full bg-gradient-victory font-bold shadow-glow">PLAY</span>
+          </div>
+        </Card>
+      </a>
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${pct}%`} tone={pct >= 75 ? "accent" : "warning"} />
@@ -126,6 +143,7 @@ export default function StudentDashboard() {
         <Route path="chat" element={<ChatPage userRole="student" />} />
         <Route path="profile" element={<StudentProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
+        <Route path="battleground/*" element={<Battleground />} />
         <Route path="*" element={<Navigate to="/student" replace />} />
       </Routes>
     </AppLayout>

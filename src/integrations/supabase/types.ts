@@ -146,6 +146,208 @@ export type Database = {
         }
         Relationships: []
       }
+      battle_answers: {
+        Row: {
+          created_at: string
+          id: string
+          is_correct: boolean
+          participant_id: string
+          question_id: string
+          selected_index: number
+          time_ms: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_correct: boolean
+          participant_id: string
+          question_id: string
+          selected_index: number
+          time_ms?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_correct?: boolean
+          participant_id?: string
+          question_id?: string
+          selected_index?: number
+          time_ms?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_answers_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "battle_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "battle_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      battle_participants: {
+        Row: {
+          answered_count: number
+          battle_id: string
+          correct_count: number
+          display_name: string
+          finished_at: string | null
+          id: string
+          joined_at: string
+          rank: number | null
+          score: number
+          student_id: string | null
+          total_time_ms: number
+          user_id: string
+        }
+        Insert: {
+          answered_count?: number
+          battle_id: string
+          correct_count?: number
+          display_name?: string
+          finished_at?: string | null
+          id?: string
+          joined_at?: string
+          rank?: number | null
+          score?: number
+          student_id?: string | null
+          total_time_ms?: number
+          user_id: string
+        }
+        Update: {
+          answered_count?: number
+          battle_id?: string
+          correct_count?: number
+          display_name?: string
+          finished_at?: string | null
+          id?: string
+          joined_at?: string
+          rank?: number | null
+          score?: number
+          student_id?: string | null
+          total_time_ms?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_participants_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_participants_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      battle_questions: {
+        Row: {
+          battle_id: string
+          correct_index: number
+          id: string
+          options: Json
+          order_index: number
+          points: number
+          question: string
+        }
+        Insert: {
+          battle_id: string
+          correct_index: number
+          id?: string
+          options: Json
+          order_index: number
+          points?: number
+          question: string
+        }
+        Update: {
+          battle_id?: string
+          correct_index?: number
+          id?: string
+          options?: Json
+          order_index?: number
+          points?: number
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_questions_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      battles: {
+        Row: {
+          class_id: string | null
+          created_at: string
+          creator_user_id: string
+          duration_sec: number
+          id: string
+          is_public: boolean
+          per_question_sec: number
+          question_count: number
+          starts_at: string
+          status: Database["public"]["Enums"]["battle_status"]
+          subject: string
+          title: string
+          topic: string | null
+          type: Database["public"]["Enums"]["battle_type"]
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string
+          creator_user_id: string
+          duration_sec?: number
+          id?: string
+          is_public?: boolean
+          per_question_sec?: number
+          question_count?: number
+          starts_at?: string
+          status?: Database["public"]["Enums"]["battle_status"]
+          subject: string
+          title: string
+          topic?: string | null
+          type?: Database["public"]["Enums"]["battle_type"]
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string
+          creator_user_id?: string
+          duration_sec?: number
+          id?: string
+          is_public?: boolean
+          per_question_sec?: number
+          question_count?: number
+          starts_at?: string
+          status?: Database["public"]["Enums"]["battle_status"]
+          subject?: string
+          title?: string
+          topic?: string | null
+          type?: Database["public"]["Enums"]["battle_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battles_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       classes: {
         Row: {
           academic_year: string
@@ -740,6 +942,66 @@ export type Database = {
         }
         Relationships: []
       }
+      student_badges: {
+        Row: {
+          badge_code: string
+          earned_at: string
+          id: string
+          tier: Database["public"]["Enums"]["badge_tier"]
+          user_id: string
+        }
+        Insert: {
+          badge_code: string
+          earned_at?: string
+          id?: string
+          tier?: Database["public"]["Enums"]["badge_tier"]
+          user_id: string
+        }
+        Update: {
+          badge_code?: string
+          earned_at?: string
+          id?: string
+          tier?: Database["public"]["Enums"]["badge_tier"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      student_xp: {
+        Row: {
+          current_streak: number
+          last_battle_at: string | null
+          level: number
+          longest_streak: number
+          total_battles: number
+          updated_at: string
+          user_id: string
+          wins: number
+          xp: number
+        }
+        Insert: {
+          current_streak?: number
+          last_battle_at?: string | null
+          level?: number
+          longest_streak?: number
+          total_battles?: number
+          updated_at?: string
+          user_id: string
+          wins?: number
+          xp?: number
+        }
+        Update: {
+          current_streak?: number
+          last_battle_at?: string | null
+          level?: number
+          longest_streak?: number
+          total_battles?: number
+          updated_at?: string
+          user_id?: string
+          wins?: number
+          xp?: number
+        }
+        Relationships: []
+      }
       students: {
         Row: {
           address: string | null
@@ -1012,6 +1274,10 @@ export type Database = {
         Returns: boolean
       }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
+      rpc_finish_battle: {
+        Args: { _participant_id: string }
+        Returns: undefined
+      }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       teacher_teaches_class: {
         Args: { _class_id: string; _user_id: string }
@@ -1021,6 +1287,9 @@ export type Database = {
     Enums: {
       app_role: "admin" | "teacher" | "student" | "parent" | "principal"
       attendance_status: "present" | "absent" | "leave"
+      badge_tier: "bronze" | "silver" | "gold" | "platinum"
+      battle_status: "scheduled" | "live" | "finished" | "cancelled"
+      battle_type: "mcq" | "rapid" | "timed" | "daily"
       exam_type: "class_test" | "unit_test" | "half_yearly" | "final" | "other"
       fee_status: "paid" | "unpaid" | "partial"
       leave_applicant: "student" | "teacher"
@@ -1161,6 +1430,9 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "teacher", "student", "parent", "principal"],
       attendance_status: ["present", "absent", "leave"],
+      badge_tier: ["bronze", "silver", "gold", "platinum"],
+      battle_status: ["scheduled", "live", "finished", "cancelled"],
+      battle_type: ["mcq", "rapid", "timed", "daily"],
       exam_type: ["class_test", "unit_test", "half_yearly", "final", "other"],
       fee_status: ["paid", "unpaid", "partial"],
       leave_applicant: ["student", "teacher"],
