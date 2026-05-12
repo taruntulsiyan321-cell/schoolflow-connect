@@ -128,6 +128,7 @@ export default function StudentDashboard() {
         <Route path="chat" element={<ChatPage userRole="student" />} />
         <Route path="profile" element={<StudentProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
+        <Route path="battleground/*" element={<Battleground />} />
         <Route path="*" element={<Navigate to="/student" replace />} />
       </Routes>
     </AppLayout>
