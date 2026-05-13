@@ -85,16 +85,22 @@ function Arena() {
         </div>
       </Card>
 
+      {/* Quick Play — instant battle from question bank */}
+      <QuickPlay defaultClassId={student?.class_id} />
+
+      {/* Pending invites from classmates */}
+      <MyInvites />
+
       {/* Daily challenge */}
-      <Card className="p-5 bg-gradient-battle text-white border-0 shadow-battle">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center">
-            <Sparkles className="w-7 h-7" />
+      <Card className="p-4 border bg-card">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-warning/15 text-warning flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5" />
           </div>
-          <div className="flex-1">
-            <div className="text-[10px] uppercase tracking-widest opacity-80 font-semibold">Daily Mission</div>
-            <div className="font-bold text-lg">Win 1 battle today · Earn 50 XP</div>
-            <Progress value={Math.min(100, (xp.total_battles % 5) * 20)} className="mt-2 h-2 bg-white/20" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Daily Mission</div>
+            <div className="font-semibold text-sm">Win 1 battle today · Earn 50 XP</div>
+            <Progress value={Math.min(100, (xp.total_battles % 5) * 20)} className="mt-2 h-1.5" />
           </div>
         </div>
       </Card>
