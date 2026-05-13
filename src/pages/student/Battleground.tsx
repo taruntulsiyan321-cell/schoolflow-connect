@@ -11,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
-import { Sword, Trophy, Sparkles, Plus, Users, Clock, Target, ArrowLeft, TrendingUp, Award, Flame, ChevronRight, Zap } from "lucide-react";
+import { Sword, Trophy, Sparkles, Plus, Users, Clock, Target, ArrowLeft, TrendingUp, Award, Flame, ChevronRight, Zap, Loader2, BookOpen } from "lucide-react";
 import { XPRing, StreakFlame, BadgeCard, BattleCard, PodiumRow, Countdown } from "@/components/battleground/bg-bits";
+import { QuickPlay } from "@/components/battleground/QuickPlay";
+import { InviteFriends, MyInvites } from "@/components/battleground/Invites";
+import { BADGES } from "@/lib/badges";
 import { cn } from "@/lib/utils";
 
 // =================== ARENA (HOME) ===================
