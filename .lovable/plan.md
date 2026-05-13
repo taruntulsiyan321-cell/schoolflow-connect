@@ -1,102 +1,129 @@
-## Battleground — Premium Academic Competition Feature
+# Refinement Plan — Student & Teacher Panels + Battleground Scale-Up
 
-A new gamified section in the Student Panel where students join live quiz battles, challenge classmates, climb leaderboards, earn XP/badges, and track subject-wise performance. Built mobile-first with animated, premium visuals.
+This refines the existing ecosystem (no rebuild). Three workstreams shipped together.
 
-### Scope (V1)
+---
 
-A complete, working battleground with real backend persistence — not a mock. Students can create/join MCQ battles tied to their class, answer timed questions, see live leaderboards, earn XP & badges, and view a gamified profile with subject insights.
+## 1. Battleground Infrastructure (biggest backend change)
 
-### User Flow
+### New tables
+- `question_bank` — `id, class_level (int 1-12, nullable for "any"), subject, chapter, topic, difficulty (easy|medium|hard), question, options (jsonb), correct_index, explanation, source, created_by, is_approved (bool)`
+- `battle_topics` — curated `subject → chapters → topics` taxonomy used by the Create Battle picker.
+- `battle_invites` — `battle_id, invited_user_id, status (pending|accepted|declined)` for class invites.
+- Add to `battles`: `mode (solo|class|invite|teacher)`, `source (manual|bank)`, `class_level`, `chapter`, `difficulty`.
 
-```
-Student Dashboard
-   └─ "Battleground" (new nav item)
-        ├─ Arena (Home)         → Live & upcoming battles, daily challenge, hero stats
-        ├─ Challenges            → Create/Challenge classmates, browse public class battles
-        ├─ Battle Room           → Live MCQ battle with timer + live leaderboard
-        ├─ Leaderboard           → Class & global rankings, top 3 podium
-        ├─ Achievements          → Badges (Bronze→Platinum), XP level, streaks
-        └─ My Stats              → Subject strengths/weaknesses, win history, progress rings
-```
+### New RPC
+- `rpc_generate_battle(_battle_id uuid)` — pulls N random approved questions from `question_bank` matching class/subject/chapter/topic/difficulty filters, inserts into `battle_questions`. Called when creator chooses "Auto pool" mode.
+- `rpc_create_quick_battle(_subject, _chapter, _difficulty, _count)` — creates battle + auto-fills questions in one shot for instant play.
 
-### Backend (Lovable Cloud)
+### Seed content
+Insert ~400-600 curated MCQs across:
+- Math, Science, English, Social Studies, GK, Computer
+- Class levels 6–12
+- Easy/Medium/Hard
+Stored via `supabase--insert`. This gives instant replayability without manual creation.
 
-New tables:
-- **battles** — id, class_id, creator_id, title, subject, topic, type (mcq/rapid/timed), status (scheduled/live/finished), starts_at, duration_sec, question_count, is_public, created_at
-- **battle_questions** — id, battle_id, order_index, question, options (jsonb), correct_index, points
-- **battle_participants** — id, battle_id, student_id, joined_at, score, correct_count, time_taken_ms, finished_at, rank
-- **battle_answers** — id, participant_id, question_id, selected_index, is_correct, time_ms
-- **student_xp** — student_id (PK), xp, level, current_streak, longest_streak, total_battles, wins, last_battle_at
-- **student_badges** — id, student_id, badge_code, tier (bronze/silver/gold/platinum), earned_at
-- **daily_challenges** — id, date, title, subject, target_type, target_value (seeded daily; per-student progress derived)
-
-Views/RPCs:
-- `rpc_join_battle(battle_id)` — inserts participant, validates class membership
-- `rpc_submit_answer(participant_id, question_id, selected_index, time_ms)` — scores, updates leaderboard
-- `rpc_finish_battle(participant_id)` — finalizes rank, awards XP, checks badge unlocks
-- `rpc_subject_insights(student_id)` — returns per-subject accuracy from battle_answers + marks
-- Realtime enabled on `battle_participants` & `battle_answers` for live leaderboard
-
-RLS:
-- battles: SELECT for classmates if `is_public=true` and same class; admin/teacher full
-- participants/answers: student manages own; classmates can read scores of public battles in their class
-- xp/badges: self read, admin write via RPC
-
-Question seeding: For V1, battle creator picks subject + topic and we generate a small built-in question bank stored in `battle_questions` (creator-supplied via a simple form, or auto-pulled from a seed table). Keeps it self-contained.
+### RLS
+- `question_bank`: read = authenticated; write = admin/teacher; approve = admin/principal.
+- `battle_invites`: insert = battle creator; read = invitee or creator; update status = invitee.
 
 ### Frontend
+- **Create Battle** revamp: tabs `[Quick Play] [Custom Pool] [Manual Questions] [Invite Friends]`.
+  - Quick Play: pick subject + difficulty → instant battle from bank.
+  - Custom Pool: subject → chapter → topic → difficulty → count.
+  - Invite: multi-select classmates.
+- **Arena**: separate "Live Now", "Open to join", "My invites", "Recent results" rails.
+- **Results screen**: speed, accuracy, rank, weak-topic chips, class comparison bar.
+- **Teacher Battleground tab** in Teacher Dashboard: launch class competition, view aggregate results, weak topics across class.
 
-Routes (all under student panel):
-- `/student/battleground` — Arena home
-- `/student/battleground/challenges`
-- `/student/battleground/create`
-- `/student/battleground/battle/:id` — battle room (live)
-- `/student/battleground/leaderboard`
-- `/student/battleground/achievements`
-- `/student/battleground/stats`
+---
 
-Key components:
-- `BattleCard` — animated gradient card, glow, countdown timer, join button
-- `LeaderboardLive` — realtime ranks with rank-change animation, top 3 podium, current-user highlight
-- `BattleRoom` — full-screen quiz UI: timer ring, question, 4 option cards, instant feedback
-- `XPRing` / `LevelBadge` — animated SVG progress ring
-- `BadgeCard` — tier-colored (bronze/silver/gold/platinum) with shine
-- `SubjectInsightCard` — strong/weak bars per subject from `marks` + battle accuracy
-- `StreakFlame` — daily streak indicator
-- `DailyChallengeBanner` — hero call-to-action
+## 2. Student Panel Polish
 
-Design system:
-- Reuse existing semantic tokens; add battleground-specific gradients + tier colors as CSS vars in `index.css`
-- Animations: fade-in, scale-in, custom keyframes for rank-up pulse, glow, countdown
-- Mobile-first; bottom-sheet style modals for join/create on small screens
+### Dashboard (`StudentDashboard.tsx`)
+- Reorganize into intelligent priority rails:
+  1. **Today** — pending homework due today, upcoming exam, attendance status
+  2. **Battleground hero** — current XP ring, streak, "Quick Battle" CTA, active invites count
+  3. **Academic pulse** — recent marks, class rank delta, attendance %
+  4. **Notices & alerts** — unread notices, fee dues
+  5. **Class activity** — recent battle wins by classmates, new homework
+- Reduce gradient/glow density: keep one hero gradient, switch other cards to `bg-card` + subtle border.
 
-### Files
+### Leaderboards (new `LeaderboardPage` enhancement)
+Tabs: Overall · Attendance · Marks · Battleground Wins · Streak · Homework · Improvement · Consistency.
+Each tab queries existing tables (attendance, marks, student_xp, homework_submissions) and ranks classmates.
 
-**New**:
-- `supabase/migrations/<timestamp>_battleground.sql`
-- `src/pages/student/Battleground.tsx` (Arena home)
-- `src/pages/student/battleground/Challenges.tsx`
-- `src/pages/student/battleground/CreateBattle.tsx`
-- `src/pages/student/battleground/BattleRoom.tsx`
-- `src/pages/student/battleground/Leaderboard.tsx`
-- `src/pages/student/battleground/Achievements.tsx`
-- `src/pages/student/battleground/MyStats.tsx`
-- `src/components/battleground/BattleCard.tsx`
-- `src/components/battleground/LeaderboardLive.tsx`
-- `src/components/battleground/XPRing.tsx`
-- `src/components/battleground/BadgeCard.tsx`
-- `src/components/battleground/SubjectInsightCard.tsx`
-- `src/components/battleground/CountdownTimer.tsx`
-- `src/components/battleground/StreakFlame.tsx`
+### Badges & Profile
+- Expand badge catalog (config in `src/lib/badges.ts`): ~25 badges across tiers (bronze/silver/gold/platinum/legendary) — Attendance King, Homework Warrior, Quiz Champion, Battleground Master, Subject Topper, Fast Solver, Streak Legend, etc.
+- Add `equipped_badge` column to `student_xp`.
+- Profile page shows: equipped badge prominently, badge collection grid, battle stats, attendance ring, subject strengths bar chart, class rank, streak flame.
 
-**Edited**:
-- `src/pages/StudentDashboard.tsx` — add Battleground nav entry + routes, hero "Enter Battleground" tile
-- `src/index.css` / `tailwind.config.ts` — gradients, tier colors, battleground keyframes
+### Class Ecosystem
+- `StudentClassesPage` upgrade: classmates grid (avatars + equipped badges), class teacher card, mini-leaderboard, recent class battles, class notices.
 
-### Out of scope for V1 (can extend later)
-- Class-vs-class team battles (single-player ranked battles only in V1)
-- Push notifications for battle invites
-- AI-generated questions (creator supplies questions in V1)
+### Visual maturity pass
+- In `index.css` tone down `--shadow-battle` and `--shadow-glow` (lower opacity).
+- Replace `bg-gradient-battle` on non-hero cards with `bg-card`.
+- Standardize spacing scale: `p-4 / p-6` cards, `gap-4` grids, `space-y-6` sections.
+
+---
+
+## 3. Teacher Panel Polish
+
+### Dashboard (`TeacherDashboard.tsx`)
+Contextual cards in priority order:
+1. **Today's classes** — timetable strip
+2. **Action queue** — pending homework to grade, ungraded exams, leave requests count
+3. **Battleground tab** — launch competition, recent class battle results
+4. **Class pulse** — attendance % today, students absent, top performers, students needing attention
+5. **Quick actions** — Mark Attendance, Upload Homework, Create Exam, Post Notice, Launch Battle
+
+### Class Management
+- Class detail page: students grid → click → student academic snapshot (attendance, marks trend, battle stats, homework status).
+- Add "Launch Battle for this class" button.
+
+### Visual polish
+- Calm professional palette (less gradient), structured tables, consistent card sizing, breadcrumbs on detail pages.
+
+---
+
+## Technical / Files
+
+### Migration (one)
+- New tables: `question_bank`, `battle_topics`, `battle_invites`
+- Alter `battles`: add `mode`, `source`, `class_level`, `chapter`, `difficulty`
+- Alter `student_xp`: add `equipped_badge text`
+- New RPCs: `rpc_generate_battle`, `rpc_create_quick_battle`
+- RLS policies for all new tables
+
+### Seed
+- Bulk insert ~500 MCQs via `supabase--insert`
+
+### New files
+- `src/lib/badges.ts` — badge catalog + helpers
+- `src/components/leaderboards/LeaderboardTabs.tsx`
+- `src/components/student/DashboardRails.tsx`
+- `src/components/teacher/ActionQueue.tsx`
+- `src/pages/teacher/TeacherBattleground.tsx`
+- `src/components/battleground/QuickPlay.tsx`, `InviteFriends.tsx`, `ResultsScreen.tsx`
+
+### Edited files
+- `src/index.css` — tone shadows
+- `src/pages/StudentDashboard.tsx`, `TeacherDashboard.tsx`
+- `src/pages/student/Battleground.tsx` (add Quick Play, invites, richer results)
+- `src/pages/shared/LeaderboardPage.tsx`
+- `src/pages/shared/StudentClassesPage.tsx`
+- `src/pages/shared/StudentProfilePage.tsx`
+
+---
+
+## Out of scope (V1)
+- AI question generation (bank is curated/seeded)
+- Push notifications for invites (in-app only)
+- Cross-class tournaments
 - Anti-cheat / proctoring
+- Custom badge artwork (use icon + tier color)
 
-Approve to proceed and I'll run the migration, then build the UI.
+## Risks
+- Question bank seeding is large — keeping it curated to ~500 to stay within migration size; can expand later.
+- Existing `battles.creator_user_id` and RLS preserved; new columns are nullable with defaults.
