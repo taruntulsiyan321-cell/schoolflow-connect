@@ -191,6 +191,33 @@ export type Database = {
           },
         ]
       }
+      battle_invites: {
+        Row: {
+          battle_id: string
+          created_at: string
+          id: string
+          invited_user_id: string
+          inviter_user_id: string
+          status: string
+        }
+        Insert: {
+          battle_id: string
+          created_at?: string
+          id?: string
+          invited_user_id: string
+          inviter_user_id: string
+          status?: string
+        }
+        Update: {
+          battle_id?: string
+          created_at?: string
+          id?: string
+          invited_user_id?: string
+          inviter_user_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       battle_participants: {
         Row: {
           answered_count: number
@@ -291,14 +318,19 @@ export type Database = {
       }
       battles: {
         Row: {
+          chapter: string | null
           class_id: string | null
+          class_level: number | null
           created_at: string
           creator_user_id: string
+          difficulty: string | null
           duration_sec: number
           id: string
           is_public: boolean
+          mode: string
           per_question_sec: number
           question_count: number
+          source: string
           starts_at: string
           status: Database["public"]["Enums"]["battle_status"]
           subject: string
@@ -307,14 +339,19 @@ export type Database = {
           type: Database["public"]["Enums"]["battle_type"]
         }
         Insert: {
+          chapter?: string | null
           class_id?: string | null
+          class_level?: number | null
           created_at?: string
           creator_user_id: string
+          difficulty?: string | null
           duration_sec?: number
           id?: string
           is_public?: boolean
+          mode?: string
           per_question_sec?: number
           question_count?: number
+          source?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["battle_status"]
           subject: string
@@ -323,14 +360,19 @@ export type Database = {
           type?: Database["public"]["Enums"]["battle_type"]
         }
         Update: {
+          chapter?: string | null
           class_id?: string | null
+          class_level?: number | null
           created_at?: string
           creator_user_id?: string
+          difficulty?: string | null
           duration_sec?: number
           id?: string
           is_public?: boolean
+          mode?: string
           per_question_sec?: number
           question_count?: number
+          source?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["battle_status"]
           subject?: string
@@ -915,6 +957,57 @@ export type Database = {
         }
         Relationships: []
       }
+      question_bank: {
+        Row: {
+          chapter: string | null
+          class_level: number | null
+          correct_index: number
+          created_at: string
+          created_by: string | null
+          difficulty: string
+          explanation: string | null
+          id: string
+          is_approved: boolean
+          options: Json
+          question: string
+          source: string | null
+          subject: string
+          topic: string | null
+        }
+        Insert: {
+          chapter?: string | null
+          class_level?: number | null
+          correct_index: number
+          created_at?: string
+          created_by?: string | null
+          difficulty?: string
+          explanation?: string | null
+          id?: string
+          is_approved?: boolean
+          options: Json
+          question: string
+          source?: string | null
+          subject: string
+          topic?: string | null
+        }
+        Update: {
+          chapter?: string | null
+          class_level?: number | null
+          correct_index?: number
+          created_at?: string
+          created_by?: string | null
+          difficulty?: string
+          explanation?: string | null
+          id?: string
+          is_approved?: boolean
+          options?: Json
+          question?: string
+          source?: string | null
+          subject?: string
+          topic?: string | null
+        }
+        Relationships: []
+      }
       staff_attendance: {
         Row: {
           created_at: string
@@ -969,6 +1062,7 @@ export type Database = {
       student_xp: {
         Row: {
           current_streak: number
+          equipped_badge: string | null
           last_battle_at: string | null
           level: number
           longest_streak: number
@@ -980,6 +1074,7 @@ export type Database = {
         }
         Insert: {
           current_streak?: number
+          equipped_badge?: string | null
           last_battle_at?: string | null
           level?: number
           longest_streak?: number
@@ -991,6 +1086,7 @@ export type Database = {
         }
         Update: {
           current_streak?: number
+          equipped_badge?: string | null
           last_battle_at?: string | null
           level?: number
           longest_streak?: number
@@ -1274,9 +1370,24 @@ export type Database = {
         Returns: boolean
       }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
+      rpc_create_quick_battle: {
+        Args: {
+          _chapter?: string
+          _class_id?: string
+          _count?: number
+          _difficulty?: string
+          _per_q?: number
+          _subject: string
+        }
+        Returns: string
+      }
       rpc_finish_battle: {
         Args: { _participant_id: string }
         Returns: undefined
+      }
+      rpc_generate_battle: {
+        Args: { _battle_id: string; _count?: number }
+        Returns: number
       }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       teacher_teaches_class: {
