@@ -28,6 +28,7 @@ const nav = [
   { to: "/teacher/my-class", label: "My Classes", icon: <Users className="w-4 h-4" /> },
   { to: "/teacher/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/teacher/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
+  { to: "/teacher/dpp", label: "Daily Practice", icon: <Target className="w-4 h-4" /> },
   { to: "/teacher/performance", label: "Performance", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
   { to: "/teacher/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
