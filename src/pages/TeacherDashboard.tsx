@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User, Target } from "lucide-react";
+import DppList from "./teacher/DppList";
+import DppEditor from "./teacher/DppEditor";
+import DppAnalytics from "./teacher/DppAnalytics";
 import TeacherProfilePage from "./shared/TeacherProfilePage";
 import StudentPerformancePage from "./shared/StudentPerformancePage";
 import TeacherReportsPage from "./shared/TeacherReportsPage";
@@ -25,6 +28,7 @@ const nav = [
   { to: "/teacher/my-class", label: "My Classes", icon: <Users className="w-4 h-4" /> },
   { to: "/teacher/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/teacher/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
+  { to: "/teacher/dpp", label: "Daily Practice", icon: <Target className="w-4 h-4" /> },
   { to: "/teacher/performance", label: "Performance", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
   { to: "/teacher/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
@@ -321,6 +325,9 @@ export default function TeacherDashboard() {
         <Route path="chat" element={<ChatPage userRole="teacher" />} />
         <Route path="leaves" element={<LeaveRequestsPage canReview applicantKind="teacher" />} />
         <Route path="profile" element={<TeacherProfilePage />} />
+        <Route path="dpp" element={<DppList />} />
+        <Route path="dpp/:id" element={<DppEditor />} />
+        <Route path="dpp/:id/analytics" element={<DppAnalytics />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
     </AppLayout>

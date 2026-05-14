@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword, Target } from "lucide-react";
 import Battleground from "./student/Battleground";
+import DppHub from "./student/DppHub";
+import DppAttempt from "./student/DppAttempt";
+import DppResult from "./student/DppResult";
 import StudentProfilePage from "./shared/StudentProfilePage";
 import StudentClassesPage from "./shared/StudentClassesPage";
 import StudentExamsPage from "./shared/StudentExamsPage";
@@ -23,6 +26,7 @@ const nav = [
   { to: "/student", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
   { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
   { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
+  { to: "/student/dpp", label: "Daily Practice", icon: <Target className="w-4 h-4" /> },
   { to: "/student/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
   { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/student/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
@@ -144,6 +148,9 @@ export default function StudentDashboard() {
         <Route path="profile" element={<StudentProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
         <Route path="battleground/*" element={<Battleground />} />
+        <Route path="dpp" element={<DppHub />} />
+        <Route path="dpp/:id/attempt" element={<DppAttempt />} />
+        <Route path="dpp/:id/result" element={<DppResult />} />
         <Route path="*" element={<Navigate to="/student" replace />} />
       </Routes>
     </AppLayout>

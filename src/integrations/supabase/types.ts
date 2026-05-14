@@ -450,6 +450,214 @@ export type Database = {
         }
         Relationships: []
       }
+      dpp_answers: {
+        Row: {
+          attempt_id: string
+          created_at: string
+          id: string
+          is_correct: boolean | null
+          marks_awarded: number
+          question_id: string
+          response: Json
+          time_ms: number
+        }
+        Insert: {
+          attempt_id: string
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          marks_awarded?: number
+          question_id: string
+          response?: Json
+          time_ms?: number
+        }
+        Update: {
+          attempt_id?: string
+          created_at?: string
+          id?: string
+          is_correct?: boolean | null
+          marks_awarded?: number
+          question_id?: string
+          response?: Json
+          time_ms?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dpp_answers_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "dpp_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dpp_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "dpp_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dpp_attempts: {
+        Row: {
+          correct_count: number
+          dpp_id: string
+          id: string
+          max_score: number
+          score: number
+          started_at: string
+          status: Database["public"]["Enums"]["dpp_attempt_status"]
+          student_id: string | null
+          submitted_at: string | null
+          time_spent_sec: number
+          total_count: number
+          user_id: string
+        }
+        Insert: {
+          correct_count?: number
+          dpp_id: string
+          id?: string
+          max_score?: number
+          score?: number
+          started_at?: string
+          status?: Database["public"]["Enums"]["dpp_attempt_status"]
+          student_id?: string | null
+          submitted_at?: string | null
+          time_spent_sec?: number
+          total_count?: number
+          user_id: string
+        }
+        Update: {
+          correct_count?: number
+          dpp_id?: string
+          id?: string
+          max_score?: number
+          score?: number
+          started_at?: string
+          status?: Database["public"]["Enums"]["dpp_attempt_status"]
+          student_id?: string | null
+          submitted_at?: string | null
+          time_spent_sec?: number
+          total_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dpp_attempts_dpp_id_fkey"
+            columns: ["dpp_id"]
+            isOneToOne: false
+            referencedRelation: "dpps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dpp_questions: {
+        Row: {
+          correct: Json
+          created_at: string
+          dpp_id: string
+          explanation: string | null
+          id: string
+          kind: Database["public"]["Enums"]["dpp_question_kind"]
+          marks: number
+          options: Json
+          order_index: number
+          question: string
+        }
+        Insert: {
+          correct?: Json
+          created_at?: string
+          dpp_id: string
+          explanation?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["dpp_question_kind"]
+          marks?: number
+          options?: Json
+          order_index?: number
+          question: string
+        }
+        Update: {
+          correct?: Json
+          created_at?: string
+          dpp_id?: string
+          explanation?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["dpp_question_kind"]
+          marks?: number
+          options?: Json
+          order_index?: number
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dpp_questions_dpp_id_fkey"
+            columns: ["dpp_id"]
+            isOneToOne: false
+            referencedRelation: "dpps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dpps: {
+        Row: {
+          chapter: string | null
+          class_id: string
+          created_at: string
+          created_by: string
+          difficulty: string
+          due_at: string | null
+          duration_sec: number
+          id: string
+          instructions: string | null
+          is_published: boolean
+          negative_marking: number
+          question_count: number
+          subject: string
+          title: string
+          topic: string | null
+          total_marks: number
+          updated_at: string
+        }
+        Insert: {
+          chapter?: string | null
+          class_id: string
+          created_at?: string
+          created_by: string
+          difficulty?: string
+          due_at?: string | null
+          duration_sec?: number
+          id?: string
+          instructions?: string | null
+          is_published?: boolean
+          negative_marking?: number
+          question_count?: number
+          subject: string
+          title: string
+          topic?: string | null
+          total_marks?: number
+          updated_at?: string
+        }
+        Update: {
+          chapter?: string | null
+          class_id?: string
+          created_at?: string
+          created_by?: string
+          difficulty?: string
+          due_at?: string | null
+          duration_sec?: number
+          id?: string
+          instructions?: string | null
+          is_published?: boolean
+          negative_marking?: number
+          question_count?: number
+          subject?: string
+          title?: string
+          topic?: string | null
+          total_marks?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       exams: {
         Row: {
           class_id: string
@@ -1381,6 +1589,12 @@ export type Database = {
         }
         Returns: string
       }
+      rpc_dpp_pick_from_bank: {
+        Args: { _count?: number; _difficulty?: string; _dpp_id: string }
+        Returns: number
+      }
+      rpc_dpp_start: { Args: { _dpp_id: string }; Returns: string }
+      rpc_dpp_submit: { Args: { _attempt_id: string }; Returns: undefined }
       rpc_finish_battle: {
         Args: { _participant_id: string }
         Returns: undefined
@@ -1401,6 +1615,8 @@ export type Database = {
       badge_tier: "bronze" | "silver" | "gold" | "platinum"
       battle_status: "scheduled" | "live" | "finished" | "cancelled"
       battle_type: "mcq" | "rapid" | "timed" | "daily"
+      dpp_attempt_status: "in_progress" | "submitted"
+      dpp_question_kind: "mcq" | "multi" | "numerical" | "short"
       exam_type: "class_test" | "unit_test" | "half_yearly" | "final" | "other"
       fee_status: "paid" | "unpaid" | "partial"
       leave_applicant: "student" | "teacher"
@@ -1544,6 +1760,8 @@ export const Constants = {
       badge_tier: ["bronze", "silver", "gold", "platinum"],
       battle_status: ["scheduled", "live", "finished", "cancelled"],
       battle_type: ["mcq", "rapid", "timed", "daily"],
+      dpp_attempt_status: ["in_progress", "submitted"],
+      dpp_question_kind: ["mcq", "multi", "numerical", "short"],
       exam_type: ["class_test", "unit_test", "half_yearly", "final", "other"],
       fee_status: ["paid", "unpaid", "partial"],
       leave_applicant: ["student", "teacher"],
