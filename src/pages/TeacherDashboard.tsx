@@ -325,6 +325,9 @@ export default function TeacherDashboard() {
         <Route path="chat" element={<ChatPage userRole="teacher" />} />
         <Route path="leaves" element={<LeaveRequestsPage canReview applicantKind="teacher" />} />
         <Route path="profile" element={<TeacherProfilePage />} />
+        <Route path="dpp" element={<DppList />} />
+        <Route path="dpp/:id" element={<DppEditor />} />
+        <Route path="dpp/:id/analytics" element={<DppAnalytics />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
     </AppLayout>
