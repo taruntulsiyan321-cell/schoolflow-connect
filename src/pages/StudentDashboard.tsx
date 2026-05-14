@@ -148,6 +148,9 @@ export default function StudentDashboard() {
         <Route path="profile" element={<StudentProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
         <Route path="battleground/*" element={<Battleground />} />
+        <Route path="dpp" element={<DppHub />} />
+        <Route path="dpp/:id/attempt" element={<DppAttempt />} />
+        <Route path="dpp/:id/result" element={<DppResult />} />
         <Route path="*" element={<Navigate to="/student" replace />} />
       </Routes>
     </AppLayout>
