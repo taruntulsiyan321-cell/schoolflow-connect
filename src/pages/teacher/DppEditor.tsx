@@ -131,6 +131,45 @@ export default function DppEditor() {
     reload();
   };
 
+  const generateWithAI = async () => {
+    if (!id || !dpp) return;
+    if (!aiTopic.trim() && !aiSource.trim()) {
+      return toast.error("Enter a topic or paste source material");
+    }
+    setAiBusy(true);
+    const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
+      body: {
+        topic: aiTopic.trim(),
+        subject: dpp.subject,
+        chapter: dpp.chapter ?? "",
+        difficulty: dpp.difficulty ?? "medium",
+        count: aiCount,
+        source_text: aiSource.trim(),
+      },
+    });
+    setAiBusy(false);
+    if (error) return toast.error(error.message ?? "AI generation failed");
+    const arr = (data?.questions ?? []) as Array<{
+      question: string; options: string[]; correct_index: number; explanation?: string;
+    }>;
+    if (arr.length === 0) return toast.error("No questions returned");
+    setQuestions(qs => {
+      const start = qs.length;
+      const added: Q[] = arr.map((a, k) => ({
+        order_index: start + k,
+        kind: "mcq",
+        question: a.question,
+        options: (a.options ?? []).slice(0, 4),
+        correct: { indexes: [Math.max(0, Math.min(3, a.correct_index ?? 0))] },
+        marks: 1,
+        explanation: a.explanation ?? "",
+      }));
+      return [...qs, ...added];
+    });
+    toast.success(`Generated ${arr.length} questions — review & save`);
+    setTab("questions");
+  };
+
   if (!dpp) return <p className="text-muted-foreground">Loading…</p>;
 
   return (
