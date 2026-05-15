@@ -47,19 +47,19 @@ export type EmailValidation = {
 
 export function validateEmail(input: string): EmailValidation {
   const email = (input ?? "").trim().toLowerCase();
-  if (!email) return { ok: false, message: "Please enter an email address" };
-  if (email.length > 255) return { ok: false, message: "Email is too long" };
+  if (!email) return { ok: false, email: "", message: "Please enter an email address" };
+  if (email.length > 255) return { ok: false, email: "", message: "Email is too long" };
   if (!STRICT_EMAIL_RE.test(email)) {
-    return { ok: false, message: "Please enter a valid email address" };
+    return { ok: false, email: "", message: "Please enter a valid email address" };
   }
 
   const domain = email.split("@")[1];
-  if (!domain) return { ok: false, message: "Please enter a valid email address" };
+  if (!domain) return { ok: false, email: "", message: "Please enter a valid email address" };
 
   // Catch common typos for popular providers with a friendly suggestion
   if (PROVIDER_TYPOS[domain]) {
     const suggestion = email.replace(`@${domain}`, `@${PROVIDER_TYPOS[domain]}`);
-    return { ok: false, message: `Did you mean ${suggestion}?` };
+    return { ok: false, email: "", message: `Did you mean ${suggestion}?` };
   }
 
   // Verify the TLD is real (or a recognized two-level TLD like co.in / ac.uk)
@@ -70,8 +70,9 @@ export function validateEmail(input: string): EmailValidation {
     return {
       ok: false,
       message: `"${"." + last}" is not a recognized domain extension. Check for typos.`,
+      email: "",
     };
   }
 
-  return { ok: true, email };
+  return { ok: true, email, message: "" };
 }
