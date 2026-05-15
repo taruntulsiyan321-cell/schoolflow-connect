@@ -44,6 +44,11 @@ export default function DppEditor() {
   const [saving, setSaving] = useState(false);
   const [pickCount, setPickCount] = useState(5);
   const [pickDiff, setPickDiff] = useState<string>("any");
+  // AI generation state
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiCount, setAiCount] = useState(5);
+  const [aiSource, setAiSource] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
 
   const reload = async () => {
     if (!id) return;
