@@ -276,6 +276,44 @@ export default function DppEditor() {
             </div>
           </Card>
 
+          <Card className="p-4 mb-4 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">Generate from the internet (AI)</span>
+              <Badge variant="secondary" className="text-[10px]">Powered by Lovable AI</Badge>
+            </div>
+            <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
+              <div>
+                <Label className="text-xs">Topic</Label>
+                <Input
+                  value={aiTopic}
+                  onChange={e => setAiTopic(e.target.value)}
+                  placeholder={`e.g. ${dpp.subject ?? "Newton's Laws of Motion"}`}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Count</Label>
+                <Input type="number" min={1} max={20} value={aiCount}
+                  onChange={e => setAiCount(Number(e.target.value))} className="w-20 h-9" />
+              </div>
+              <Button size="sm" onClick={generateWithAI} disabled={aiBusy}>
+                {aiBusy ? "Generating…" : "Generate"}
+              </Button>
+            </div>
+            <div className="mt-3">
+              <Label className="text-xs">Optional: paste reference text or notes</Label>
+              <Textarea
+                value={aiSource}
+                onChange={e => setAiSource(e.target.value)}
+                placeholder="Paste an article, chapter excerpt, or notes here. AI will frame questions strictly from this material."
+                rows={3}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Questions are added as drafts — review them and click <b>Save questions</b> below.
+            </p>
+          </Card>
+
           <div className="space-y-4">
             {questions.map((q, i) => (
               <Card key={i} className="p-4 space-y-3">
