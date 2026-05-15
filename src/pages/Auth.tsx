@@ -12,16 +12,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { validateEmail } from "@/lib/emailValidation";
 
-// Strict email: requires local@domain.tld with valid TLD (2+ letters), no consecutive dots
-const STRICT_EMAIL_RE = /^(?!.*\.\.)[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$/;
-const emailSchema = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .max(255)
-  .email({ message: "Please enter a valid email address" })
-  .regex(STRICT_EMAIL_RE, { message: "Please enter a valid email address" });
 const pwSchema = z.string().min(8, { message: "Min 8 chars" }).max(72);
 const nameSchema = z.string().trim().min(1).max(100);
 
@@ -46,10 +38,10 @@ export default function Auth() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ev = emailSchema.safeParse(siEmail);
-    if (!ev.success) return toast.error(ev.error.issues[0].message);
+    const ev = validateEmail(siEmail);
+    if (!ev.ok) { toast.error(ev.message); return; }
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: ev.data, password: siPw });
+    const { error } = await supabase.auth.signInWithPassword({ email: ev.email, password: siPw });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Welcome back!");
@@ -59,14 +51,14 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     const nv = nameSchema.safeParse(suName);
-    const ev = emailSchema.safeParse(suEmail);
+    const ev = validateEmail(suEmail);
     const pv = pwSchema.safeParse(suPw);
     if (!nv.success) return toast.error("Enter your full name");
-    if (!ev.success) return toast.error(ev.error.issues[0].message);
+    if (!ev.ok) { toast.error(ev.message); return; }
     if (!pv.success) return toast.error(pv.error.issues[0].message);
     setBusy(true);
     const { data, error } = await supabase.auth.signUp({
-      email: ev.data,
+      email: ev.email,
       password: pv.data,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
@@ -84,9 +76,9 @@ export default function Auth() {
   };
 
   const handleReset = async () => {
-    const ev = emailSchema.safeParse(siEmail);
-    if (!ev.success) return toast.error("Enter your email above first");
-    const { error } = await supabase.auth.resetPasswordForEmail(ev.data, {
+    const ev = validateEmail(siEmail);
+    if (!ev.ok) { toast.error(ev.message); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(ev.email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) return toast.error(error.message);

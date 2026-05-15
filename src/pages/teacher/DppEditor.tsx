@@ -44,6 +44,11 @@ export default function DppEditor() {
   const [saving, setSaving] = useState(false);
   const [pickCount, setPickCount] = useState(5);
   const [pickDiff, setPickDiff] = useState<string>("any");
+  // AI generation state
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiCount, setAiCount] = useState(5);
+  const [aiSource, setAiSource] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
 
   const reload = async () => {
     if (!id) return;
@@ -124,6 +129,45 @@ export default function DppEditor() {
     if (error) return toast.error(error.message);
     toast.success(`Added ${data} questions from bank`);
     reload();
+  };
+
+  const generateWithAI = async () => {
+    if (!id || !dpp) return;
+    if (!aiTopic.trim() && !aiSource.trim()) {
+      return toast.error("Enter a topic or paste source material");
+    }
+    setAiBusy(true);
+    const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
+      body: {
+        topic: aiTopic.trim(),
+        subject: dpp.subject,
+        chapter: dpp.chapter ?? "",
+        difficulty: dpp.difficulty ?? "medium",
+        count: aiCount,
+        source_text: aiSource.trim(),
+      },
+    });
+    setAiBusy(false);
+    if (error) return toast.error(error.message ?? "AI generation failed");
+    const arr = (data?.questions ?? []) as Array<{
+      question: string; options: string[]; correct_index: number; explanation?: string;
+    }>;
+    if (arr.length === 0) return toast.error("No questions returned");
+    setQuestions(qs => {
+      const start = qs.length;
+      const added: Q[] = arr.map((a, k) => ({
+        order_index: start + k,
+        kind: "mcq",
+        question: a.question,
+        options: (a.options ?? []).slice(0, 4),
+        correct: { indexes: [Math.max(0, Math.min(3, a.correct_index ?? 0))] },
+        marks: 1,
+        explanation: a.explanation ?? "",
+      }));
+      return [...qs, ...added];
+    });
+    toast.success(`Generated ${arr.length} questions — review & save`);
+    setTab("questions");
   };
 
   if (!dpp) return <p className="text-muted-foreground">Loading…</p>;
@@ -230,6 +274,44 @@ export default function DppEditor() {
               <Button size="sm" onClick={pickFromBank}>Add</Button>
               <Button size="sm" variant="outline" onClick={addQuestion}><Plus className="w-4 h-4" /> Manual</Button>
             </div>
+          </Card>
+
+          <Card className="p-4 mb-4 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">Generate from the internet (AI)</span>
+              <Badge variant="secondary" className="text-[10px]">Powered by Lovable AI</Badge>
+            </div>
+            <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
+              <div>
+                <Label className="text-xs">Topic</Label>
+                <Input
+                  value={aiTopic}
+                  onChange={e => setAiTopic(e.target.value)}
+                  placeholder={`e.g. ${dpp.subject ?? "Newton's Laws of Motion"}`}
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Count</Label>
+                <Input type="number" min={1} max={20} value={aiCount}
+                  onChange={e => setAiCount(Number(e.target.value))} className="w-20 h-9" />
+              </div>
+              <Button size="sm" onClick={generateWithAI} disabled={aiBusy}>
+                {aiBusy ? "Generating…" : "Generate"}
+              </Button>
+            </div>
+            <div className="mt-3">
+              <Label className="text-xs">Optional: paste reference text or notes</Label>
+              <Textarea
+                value={aiSource}
+                onChange={e => setAiSource(e.target.value)}
+                placeholder="Paste an article, chapter excerpt, or notes here. AI will frame questions strictly from this material."
+                rows={3}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Questions are added as drafts — review them and click <b>Save questions</b> below.
+            </p>
           </Card>
 
           <div className="space-y-4">
