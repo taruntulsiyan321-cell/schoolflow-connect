@@ -39,9 +39,11 @@ const PROVIDER_TYPOS: Record<string, string> = {
   "rediffmail.con": "rediffmail.com", "protonmail.con": "protonmail.com",
 };
 
-export type EmailValidation =
-  | { ok: true; email: string }
-  | { ok: false; message: string };
+export type EmailValidation = {
+  ok: boolean;
+  email: string;
+  message: string;
+};
 
 export function validateEmail(input: string): EmailValidation {
   const email = (input ?? "").trim().toLowerCase();
