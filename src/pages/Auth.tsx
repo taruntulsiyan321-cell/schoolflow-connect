@@ -38,10 +38,10 @@ export default function Auth() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    const ev = emailSchema.safeParse(siEmail);
-    if (!ev.success) return toast.error(ev.error.issues[0].message);
+    const ev = validateEmail(siEmail);
+    if (!ev.ok) return toast.error(ev.message);
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: ev.data, password: siPw });
+    const { error } = await supabase.auth.signInWithPassword({ email: ev.email, password: siPw });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Welcome back!");
@@ -51,14 +51,14 @@ export default function Auth() {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     const nv = nameSchema.safeParse(suName);
-    const ev = emailSchema.safeParse(suEmail);
+    const ev = validateEmail(suEmail);
     const pv = pwSchema.safeParse(suPw);
     if (!nv.success) return toast.error("Enter your full name");
-    if (!ev.success) return toast.error(ev.error.issues[0].message);
+    if (!ev.ok) return toast.error(ev.message);
     if (!pv.success) return toast.error(pv.error.issues[0].message);
     setBusy(true);
     const { data, error } = await supabase.auth.signUp({
-      email: ev.data,
+      email: ev.email,
       password: pv.data,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
@@ -76,9 +76,9 @@ export default function Auth() {
   };
 
   const handleReset = async () => {
-    const ev = emailSchema.safeParse(siEmail);
-    if (!ev.success) return toast.error("Enter your email above first");
-    const { error } = await supabase.auth.resetPasswordForEmail(ev.data, {
+    const ev = validateEmail(siEmail);
+    if (!ev.ok) return toast.error(ev.message);
+    const { error } = await supabase.auth.resetPasswordForEmail(ev.email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) return toast.error(error.message);
