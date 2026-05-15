@@ -39,7 +39,7 @@ export default function Auth() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     const ev = validateEmail(siEmail);
-    if (!ev.ok) return toast.error(ev.message);
+    if (!ev.ok) { toast.error(ev.message); return; }
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email: ev.email, password: siPw });
     setBusy(false);
@@ -54,7 +54,7 @@ export default function Auth() {
     const ev = validateEmail(suEmail);
     const pv = pwSchema.safeParse(suPw);
     if (!nv.success) return toast.error("Enter your full name");
-    if (!ev.ok) return toast.error(ev.message);
+    if (!ev.ok) { toast.error(ev.message); return; }
     if (!pv.success) return toast.error(pv.error.issues[0].message);
     setBusy(true);
     const { data, error } = await supabase.auth.signUp({
@@ -77,7 +77,7 @@ export default function Auth() {
 
   const handleReset = async () => {
     const ev = validateEmail(siEmail);
-    if (!ev.ok) return toast.error(ev.message);
+    if (!ev.ok) { toast.error(ev.message); return; }
     const { error } = await supabase.auth.resetPasswordForEmail(ev.email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
