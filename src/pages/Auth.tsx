@@ -12,16 +12,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GraduationCap, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { validateEmail } from "@/lib/emailValidation";
 
-// Strict email: requires local@domain.tld with valid TLD (2+ letters), no consecutive dots
-const STRICT_EMAIL_RE = /^(?!.*\.\.)[A-Za-z0-9._%+-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*\.[A-Za-z]{2,}$/;
-const emailSchema = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .max(255)
-  .email({ message: "Please enter a valid email address" })
-  .regex(STRICT_EMAIL_RE, { message: "Please enter a valid email address" });
 const pwSchema = z.string().min(8, { message: "Min 8 chars" }).max(72);
 const nameSchema = z.string().trim().min(1).max(100);
 
