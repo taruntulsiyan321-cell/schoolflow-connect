@@ -4,39 +4,39 @@
 
 @layer base {
   :root {
-    /* Professional, restrained palette — softer surfaces, deeper ink */
-    --background: 220 24% 98%;
-    --foreground: 222 32% 12%;
+    /* Professional but colorful — institutional indigo with vivid accents */
+    --background: 220 30% 99%;
+    --foreground: 222 47% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 32% 12%;
+    --card-foreground: 222 47% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 32% 12%;
+    --popover-foreground: 222 47% 8%;
 
-    /* Refined indigo as primary (less saturated than vivid blue) */
-    --primary: 222 47% 24%;
+    /* Vivid indigo primary — strong, visible, not flat */
+    --primary: 231 75% 42%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 222 60% 45%;
+    --primary-glow: 231 90% 60%;
 
-    --secondary: 220 16% 96%;
-    --secondary-foreground: 222 32% 18%;
+    --secondary: 231 40% 95%;
+    --secondary-foreground: 231 60% 25%;
 
-    --accent: 162 47% 38%;
+    --accent: 173 70% 38%;
     --accent-foreground: 0 0% 100%;
 
-    --warning: 32 92% 48%;
+    --warning: 32 95% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --muted: 220 18% 95%;
-    --muted-foreground: 220 10% 42%;
+    --muted: 220 22% 94%;
+    --muted-foreground: 222 20% 32%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 78% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 16% 90%;
-    --input: 220 16% 90%;
-    --ring: 222 47% 24%;
+    --border: 220 18% 86%;
+    --input: 220 18% 86%;
+    --ring: 231 75% 42%;
     --radius: 0.625rem;
 
     --gradient-primary: linear-gradient(135deg, hsl(222 47% 24%), hsl(222 60% 38%));
