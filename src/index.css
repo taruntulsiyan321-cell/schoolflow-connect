@@ -39,33 +39,32 @@
     --ring: 231 75% 42%;
     --radius: 0.625rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(222 47% 24%), hsl(222 60% 38%));
-    --gradient-soft: linear-gradient(180deg, hsl(220 24% 98%), hsl(220 24% 96%));
-    --gradient-hero: linear-gradient(135deg, hsl(222 47% 24%) 0%, hsl(262 45% 35%) 100%);
-    --gradient-battle: linear-gradient(135deg, hsl(262 60% 40%) 0%, hsl(330 55% 48%) 50%, hsl(20 80% 52%) 100%);
-    --gradient-victory: linear-gradient(135deg, hsl(45 90% 52%) 0%, hsl(20 85% 52%) 100%);
-    --gradient-arena: linear-gradient(135deg, hsl(240 40% 10%) 0%, hsl(262 45% 18%) 50%, hsl(330 45% 22%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(231 75% 42%), hsl(262 70% 55%));
+    --gradient-soft: linear-gradient(180deg, hsl(231 40% 98%), hsl(220 30% 96%));
+    --gradient-hero: linear-gradient(135deg, hsl(231 75% 42%) 0%, hsl(280 65% 48%) 100%);
+    --gradient-battle: linear-gradient(135deg, hsl(262 70% 50%) 0%, hsl(330 70% 55%) 50%, hsl(20 90% 55%) 100%);
+    --gradient-victory: linear-gradient(135deg, hsl(45 95% 55%) 0%, hsl(20 90% 55%) 100%);
+    --gradient-arena: linear-gradient(135deg, hsl(240 50% 14%) 0%, hsl(262 55% 22%) 50%, hsl(330 55% 28%) 100%);
 
-    /* Tighter, layered shadows for institutional feel */
-    --shadow-card: 0 1px 2px hsl(222 32% 12% / 0.04), 0 1px 3px hsl(222 32% 12% / 0.04);
-    --shadow-elevated: 0 4px 12px -2px hsl(222 32% 12% / 0.08), 0 2px 4px hsl(222 32% 12% / 0.04);
-    --shadow-battle: 0 6px 20px -8px hsl(262 60% 40% / 0.25);
-    --shadow-glow: 0 0 0 4px hsl(222 47% 24% / 0.08);
+    --shadow-card: 0 1px 2px hsl(231 50% 15% / 0.06), 0 1px 3px hsl(231 50% 15% / 0.05);
+    --shadow-elevated: 0 6px 16px -4px hsl(231 50% 15% / 0.12), 0 2px 4px hsl(231 50% 15% / 0.06);
+    --shadow-battle: 0 8px 24px -8px hsl(262 70% 50% / 0.35);
+    --shadow-glow: 0 0 0 4px hsl(231 75% 42% / 0.12);
 
-    --tier-bronze: 25 70% 42%;
-    --tier-silver: 220 8% 55%;
-    --tier-gold: 42 88% 48%;
-    --tier-platinum: 200 60% 60%;
+    --tier-bronze: 25 80% 48%;
+    --tier-silver: 220 10% 55%;
+    --tier-gold: 42 92% 52%;
+    --tier-platinum: 200 70% 60%;
 
-    /* Sidebar — deep slate, refined contrast */
-    --sidebar-background: 222 38% 10%;
-    --sidebar-foreground: 220 14% 88%;
-    --sidebar-primary: 222 60% 50%;
+    /* Sidebar — deep indigo, richer than slate */
+    --sidebar-background: 231 55% 12%;
+    --sidebar-foreground: 220 22% 92%;
+    --sidebar-primary: 231 90% 65%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 32% 16%;
+    --sidebar-accent: 231 45% 20%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 222 32% 18%;
-    --sidebar-ring: 222 60% 50%;
+    --sidebar-border: 231 40% 22%;
+    --sidebar-ring: 231 90% 65%;
   }
 
   .dark {
