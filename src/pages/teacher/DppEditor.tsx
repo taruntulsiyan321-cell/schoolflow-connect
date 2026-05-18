@@ -48,6 +48,7 @@ export default function DppEditor() {
   const [aiTopic, setAiTopic] = useState("");
   const [aiCount, setAiCount] = useState(5);
   const [aiSource, setAiSource] = useState("");
+  const [aiUrl, setAiUrl] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
 
   const reload = async () => {
@@ -133,8 +134,11 @@ export default function DppEditor() {
 
   const generateWithAI = async () => {
     if (!id || !dpp) return;
-    if (!aiTopic.trim() && !aiSource.trim()) {
-      return toast.error("Enter a topic or paste source material");
+    if (!aiTopic.trim() && !aiSource.trim() && !aiUrl.trim()) {
+      return toast.error("Enter a topic, paste a URL, or add source text");
+    }
+    if (aiUrl.trim() && !/^https?:\/\//i.test(aiUrl.trim())) {
+      return toast.error("URL must start with http:// or https://");
     }
     setAiBusy(true);
     const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
@@ -145,6 +149,7 @@ export default function DppEditor() {
         difficulty: dpp.difficulty ?? "medium",
         count: aiCount,
         source_text: aiSource.trim(),
+        source_url: aiUrl.trim(),
       },
     });
     setAiBusy(false);
@@ -152,7 +157,7 @@ export default function DppEditor() {
     const arr = (data?.questions ?? []) as Array<{
       question: string; options: string[]; correct_index: number; explanation?: string;
     }>;
-    if (arr.length === 0) return toast.error("No questions returned");
+    if (arr.length === 0) return toast.error(data?.error ?? "No questions returned");
     setQuestions(qs => {
       const start = qs.length;
       const added: Q[] = arr.map((a, k) => ({
@@ -301,11 +306,23 @@ export default function DppEditor() {
               </Button>
             </div>
             <div className="mt-3">
-              <Label className="text-xs">Optional: paste reference text or notes</Label>
+              <Label className="text-xs">Source URL (article, Wikipedia, NCERT page…)</Label>
+              <Input
+                type="url"
+                value={aiUrl}
+                onChange={e => setAiUrl(e.target.value)}
+                placeholder="https://en.wikipedia.org/wiki/Newton%27s_laws_of_motion"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                We fetch the page server-side and use the cleaned text as context.
+              </p>
+            </div>
+            <div className="mt-3">
+              <Label className="text-xs">Or paste reference text / notes</Label>
               <Textarea
                 value={aiSource}
                 onChange={e => setAiSource(e.target.value)}
-                placeholder="Paste an article, chapter excerpt, or notes here. AI will frame questions strictly from this material."
+                placeholder="Paste an article, chapter excerpt, or notes here."
                 rows={3}
               />
             </div>
