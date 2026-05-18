@@ -88,7 +88,8 @@ Deno.serve(async (req) => {
       `Topic: ${topic || "(derive from source)"}`,
       `Difficulty: ${difficulty}`,
       `Count: ${n}`,
-      source_text ? `\nReference material:\n${source_text.slice(0, 6000)}` : "",
+      source_url ? `Source URL: ${source_url}` : "",
+      combined_source ? `\nReference material:\n${combined_source}` : "",
       "\nReturn ONLY a JSON object via the provided tool — no prose.",
     ].filter(Boolean).join("\n");
 
