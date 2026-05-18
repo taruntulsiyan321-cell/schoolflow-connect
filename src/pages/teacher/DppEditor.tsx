@@ -306,11 +306,23 @@ export default function DppEditor() {
               </Button>
             </div>
             <div className="mt-3">
-              <Label className="text-xs">Optional: paste reference text or notes</Label>
+              <Label className="text-xs">Source URL (article, Wikipedia, NCERT page…)</Label>
+              <Input
+                type="url"
+                value={aiUrl}
+                onChange={e => setAiUrl(e.target.value)}
+                placeholder="https://en.wikipedia.org/wiki/Newton%27s_laws_of_motion"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                We fetch the page server-side and use the cleaned text as context.
+              </p>
+            </div>
+            <div className="mt-3">
+              <Label className="text-xs">Or paste reference text / notes</Label>
               <Textarea
                 value={aiSource}
                 onChange={e => setAiSource(e.target.value)}
-                placeholder="Paste an article, chapter excerpt, or notes here. AI will frame questions strictly from this material."
+                placeholder="Paste an article, chapter excerpt, or notes here."
                 rows={3}
               />
             </div>
