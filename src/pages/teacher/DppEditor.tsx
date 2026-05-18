@@ -134,8 +134,11 @@ export default function DppEditor() {
 
   const generateWithAI = async () => {
     if (!id || !dpp) return;
-    if (!aiTopic.trim() && !aiSource.trim()) {
-      return toast.error("Enter a topic or paste source material");
+    if (!aiTopic.trim() && !aiSource.trim() && !aiUrl.trim()) {
+      return toast.error("Enter a topic, paste a URL, or add source text");
+    }
+    if (aiUrl.trim() && !/^https?:\/\//i.test(aiUrl.trim())) {
+      return toast.error("URL must start with http:// or https://");
     }
     setAiBusy(true);
     const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
@@ -146,6 +149,7 @@ export default function DppEditor() {
         difficulty: dpp.difficulty ?? "medium",
         count: aiCount,
         source_text: aiSource.trim(),
+        source_url: aiUrl.trim(),
       },
     });
     setAiBusy(false);
@@ -153,7 +157,7 @@ export default function DppEditor() {
     const arr = (data?.questions ?? []) as Array<{
       question: string; options: string[]; correct_index: number; explanation?: string;
     }>;
-    if (arr.length === 0) return toast.error("No questions returned");
+    if (arr.length === 0) return toast.error(data?.error ?? "No questions returned");
     setQuestions(qs => {
       const start = qs.length;
       const added: Q[] = arr.map((a, k) => ({
