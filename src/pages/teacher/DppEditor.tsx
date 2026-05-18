@@ -48,6 +48,7 @@ export default function DppEditor() {
   const [aiTopic, setAiTopic] = useState("");
   const [aiCount, setAiCount] = useState(5);
   const [aiSource, setAiSource] = useState("");
+  const [aiUrl, setAiUrl] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
 
   const reload = async () => {
