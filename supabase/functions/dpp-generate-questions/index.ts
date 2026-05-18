@@ -23,12 +23,47 @@ Deno.serve(async (req) => {
       difficulty = "medium",
       count = 5,
       source_text = "",
+      source_url = "",
     } = body ?? {};
 
     const n = Math.max(1, Math.min(20, Number(count) || 5));
-    if (!topic && !source_text) {
+
+    // If a URL is supplied, fetch the page and strip to readable text.
+    let fetchedText = "";
+    if (source_url && /^https?:\/\//i.test(source_url)) {
+      try {
+        const res = await fetch(source_url, {
+          headers: { "User-Agent": "Mozilla/5.0 (Vidyalaya DPP Bot)" },
+          signal: AbortSignal.timeout(15000),
+        });
+        if (res.ok) {
+          const html = await res.text();
+          fetchedText = html
+            .replace(/<script[\s\S]*?<\/script>/gi, " ")
+            .replace(/<style[\s\S]*?<\/style>/gi, " ")
+            .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+            .replace(/<\/(p|div|section|article|li|h[1-6]|br)>/gi, "\n")
+            .replace(/<[^>]+>/g, " ")
+            .replace(/&nbsp;/g, " ")
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, '"')
+            .replace(/[ \t]+/g, " ")
+            .replace(/\n{3,}/g, "\n\n")
+            .trim()
+            .slice(0, 8000);
+        }
+      } catch (_) {
+        // Ignore — fall through with whatever the teacher typed
+      }
+    }
+
+    const combined_source = [source_text, fetchedText].filter(Boolean).join("\n\n").slice(0, 9000);
+
+    if (!topic && !combined_source) {
       return new Response(
-        JSON.stringify({ error: "Provide a topic or source text" }),
+        JSON.stringify({ error: "Provide a topic, URL, or source text" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
