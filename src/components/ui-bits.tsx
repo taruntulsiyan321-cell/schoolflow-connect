@@ -23,9 +23,9 @@ export const StatCard = ({
   trend?: { value: string; up?: boolean };
 }) => {
   return (
-    <Card className="p-4 sm:p-5 shadow-card hover:shadow-elevated transition-shadow border-border/70">
+    <Card className="p-4 sm:p-5 shadow-card hover:shadow-elevated transition-all duration-300 hover:-translate-y-0.5 border-border/70 animate-rise group">
       <div className="flex items-start justify-between gap-3">
-        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center ${toneMap[tone]}`}>
+        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${toneMap[tone]}`}>
           {icon}
         </div>
         {trend && (
@@ -47,7 +47,7 @@ export const StatCard = ({
 export const PageHeader = ({
   title, subtitle, action, eyebrow,
 }: { title: string; subtitle?: string; action?: ReactNode; eyebrow?: string }) => (
-  <div className="flex items-start justify-between gap-4 mb-5 sm:mb-6 pb-4 border-b border-border/60">
+  <div className="flex items-start justify-between gap-4 mb-5 sm:mb-6 pb-4 border-b border-border/60 animate-fade-in">
     <div className="min-w-0">
       {eyebrow && (
         <div className="text-[11px] font-semibold uppercase tracking-wider text-primary mb-1.5">{eyebrow}</div>
