@@ -127,7 +127,7 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
         </Button>
       </header>
 
-      <main className="flex-1 px-3 py-4 sm:px-4 sm:py-6 md:px-8 md:py-8 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-10 max-w-[1400px] w-full mx-auto">{children}</main>
+      <main key={typeof window !== "undefined" ? window.location.pathname : ""} className="flex-1 px-3 py-4 sm:px-4 sm:py-6 md:px-8 md:py-8 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-10 max-w-[1400px] w-full mx-auto animate-fade-in">{children}</main>
 
       {/* Mobile bottom nav — equal-width, safe-area aware */}
       <nav
