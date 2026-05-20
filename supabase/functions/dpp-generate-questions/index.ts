@@ -78,18 +78,25 @@ Deno.serve(async (req) => {
 
     const sys =
       "You are an expert academic question setter for Indian school students. " +
-      "Generate accurate, curriculum-aligned multiple-choice questions. " +
-      "Each question must have exactly 4 options, one unambiguously correct answer, " +
-      "and a one-line explanation. Avoid trick questions and ambiguity.";
+      "You have TWO modes:\n" +
+      "1) EXTRACT mode — If the reference material already contains existing MCQs / quiz questions " +
+      "(numbered items, options like A/B/C/D or 1/2/3/4, answer keys, 'Ans:' markers), extract them VERBATIM. " +
+      "Preserve the original wording, options, and indicated correct answer. Do NOT invent new questions.\n" +
+      "2) GENERATE mode — If the source is prose (an article, chapter, Wikipedia page, notes) without ready-made " +
+      "questions, GENERATE fresh curriculum-aligned MCQs grounded in that material.\n" +
+      "Always: exactly 4 options per question, one unambiguously correct answer, a one-line explanation, " +
+      "and clear question text. Skip duplicates and ambiguous items.";
 
     const user = [
-      `Subject: ${subject || "General"}`,
+      `Subject: ${subject || "(infer from source)"}`,
       chapter ? `Chapter: ${chapter}` : "",
       `Topic: ${topic || "(derive from source)"}`,
       `Difficulty: ${difficulty}`,
-      `Count: ${n}`,
+      `Count: up to ${n} questions (fewer is fine if source has fewer good items)`,
       source_url ? `Source URL: ${source_url}` : "",
-      combined_source ? `\nReference material:\n${combined_source}` : "",
+      combined_source
+        ? `\nReference material (decide EXTRACT vs GENERATE based on content):\n${combined_source}`
+        : "",
       "\nReturn ONLY a JSON object via the provided tool — no prose.",
     ].filter(Boolean).join("\n");
 
