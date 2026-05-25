@@ -83,19 +83,21 @@ export default function ReportsAdmin() {
         </aside>
 
         <main className="col-span-12 lg:col-span-9 space-y-4">
-          <Card className="p-3 shadow-card flex flex-wrap items-end gap-3">
-            <div>
-              <label className="text-[11px] text-muted-foreground">From</label>
-              <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 w-40" />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground">To</label>
-              <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40" />
-            </div>
-            <div className="ml-auto text-xs text-muted-foreground">
-              Date range applies to time-based reports.
-            </div>
-          </Card>
+          {tab !== "financial" && (
+            <Card className="p-3 shadow-card flex flex-wrap items-end gap-3">
+              <div>
+                <label className="text-[11px] text-muted-foreground">From</label>
+                <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 w-40" />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground">To</label>
+                <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40" />
+              </div>
+              <div className="ml-auto text-xs text-muted-foreground">
+                Date range applies to time-based reports.
+              </div>
+            </Card>
+          )}
 
           <ReportPanel tab={tab} from={from} to={to} />
         </main>
