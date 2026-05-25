@@ -52,7 +52,7 @@ function downloadCSV(filename: string, rows: any[]) {
 }
 
 export default function ReportsAdmin() {
-  const [tab, setTab] = useState<TabKey>("students");
+  const [tab, setTab] = useState<TabKey>("financial");
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthAgo);
