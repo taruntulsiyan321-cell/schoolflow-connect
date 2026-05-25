@@ -8,13 +8,17 @@ import { PageHeader } from "@/components/ui-bits";
 import {
   Users, ClipboardCheck, Wallet, AlertCircle, BadgeDollarSign, FileText,
   TrendingUp, UserPlus, CalendarDays, Bell, Download, BookOpen, MessageSquare,
+  IndianRupee,
 } from "lucide-react";
+import FinancialReportsPage from "./FinancialReportsPage";
 
 type TabKey =
+  | "financial"
   | "students" | "attendance" | "fees" | "dues" | "salary" | "exams"
   | "performance" | "admissions" | "leaves" | "notices" | "inquiries" | "complaints";
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode; live: boolean }[] = [
+  { key: "financial", label: "Financial Overview", icon: <IndianRupee className="w-4 h-4" />, live: true },
   { key: "students", label: "Students", icon: <Users className="w-4 h-4" />, live: true },
   { key: "attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" />, live: true },
   { key: "fees", label: "Fees", icon: <Wallet className="w-4 h-4" />, live: true },
