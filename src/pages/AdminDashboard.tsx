@@ -318,7 +318,7 @@ export default function AdminDashboard() {
         <Route path="fees" element={<FeesAdmin />} />
         <Route path="attendance" element={<AttendanceOverview />} />
         <Route path="reports" element={<ReportsAdmin />} />
-        <Route path="financial-reports" element={<FinancialReportsPage />} />
+        <Route path="financial-reports" element={<Navigate to="/admin/reports" replace />} />
         <Route path="timetable" element={<TimetablePage title="Timetable" />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
