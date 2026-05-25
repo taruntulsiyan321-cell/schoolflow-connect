@@ -108,6 +108,7 @@ export default function ReportsAdmin() {
 
 function ReportPanel({ tab, from, to }: { tab: TabKey; from: string; to: string }) {
   switch (tab) {
+    case "financial": return <FinancialReportsPage />;
     case "students": return <StudentsReport />;
     case "attendance": return <AttendanceReport from={from} to={to} />;
     case "fees": return <FeesReport from={from} to={to} />;
