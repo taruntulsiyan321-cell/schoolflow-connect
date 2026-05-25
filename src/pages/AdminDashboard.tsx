@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus, IndianRupee } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
@@ -15,6 +15,7 @@ import ClassDetail from "./admin/ClassDetail";
 import FeesAdmin from "./admin/FeesAdmin";
 import ReportsAdmin from "./admin/ReportsAdmin";
 import RolesAdmin from "./admin/RolesAdmin";
+import FinancialReportsPage from "./admin/FinancialReportsPage";
 import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 import {
@@ -30,6 +31,7 @@ const nav = [
   { to: "/admin/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/admin/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/admin/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
+  { to: "/admin/financial-reports", label: "Financial Reports", icon: <IndianRupee className="w-4 h-4" /> },
   { to: "/admin/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/admin/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/admin/users", label: "Users", icon: <Users className="w-4 h-4" /> },
@@ -317,6 +319,7 @@ export default function AdminDashboard() {
         <Route path="fees" element={<FeesAdmin />} />
         <Route path="attendance" element={<AttendanceOverview />} />
         <Route path="reports" element={<ReportsAdmin />} />
+        <Route path="financial-reports" element={<FinancialReportsPage />} />
         <Route path="timetable" element={<TimetablePage title="Timetable" />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
