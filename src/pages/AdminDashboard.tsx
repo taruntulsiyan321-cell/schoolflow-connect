@@ -30,8 +30,7 @@ const nav = [
   { to: "/admin/classes", label: "Classes & Batches", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/admin/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/admin/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
-  { to: "/admin/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
-  { to: "/admin/financial-reports", label: "Financial Reports", icon: <IndianRupee className="w-4 h-4" /> },
+  { to: "/admin/reports", label: "Reports & Financials", icon: <FileText className="w-4 h-4" /> },
   { to: "/admin/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/admin/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/admin/users", label: "Users", icon: <Users className="w-4 h-4" /> },
@@ -319,7 +318,7 @@ export default function AdminDashboard() {
         <Route path="fees" element={<FeesAdmin />} />
         <Route path="attendance" element={<AttendanceOverview />} />
         <Route path="reports" element={<ReportsAdmin />} />
-        <Route path="financial-reports" element={<FinancialReportsPage />} />
+        <Route path="financial-reports" element={<Navigate to="/admin/reports" replace />} />
         <Route path="timetable" element={<TimetablePage title="Timetable" />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />

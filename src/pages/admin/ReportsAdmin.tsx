@@ -8,13 +8,17 @@ import { PageHeader } from "@/components/ui-bits";
 import {
   Users, ClipboardCheck, Wallet, AlertCircle, BadgeDollarSign, FileText,
   TrendingUp, UserPlus, CalendarDays, Bell, Download, BookOpen, MessageSquare,
+  IndianRupee,
 } from "lucide-react";
+import FinancialReportsPage from "./FinancialReportsPage";
 
 type TabKey =
+  | "financial"
   | "students" | "attendance" | "fees" | "dues" | "salary" | "exams"
   | "performance" | "admissions" | "leaves" | "notices" | "inquiries" | "complaints";
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode; live: boolean }[] = [
+  { key: "financial", label: "Financial Overview", icon: <IndianRupee className="w-4 h-4" />, live: true },
   { key: "students", label: "Students", icon: <Users className="w-4 h-4" />, live: true },
   { key: "attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" />, live: true },
   { key: "fees", label: "Fees", icon: <Wallet className="w-4 h-4" />, live: true },
@@ -48,7 +52,7 @@ function downloadCSV(filename: string, rows: any[]) {
 }
 
 export default function ReportsAdmin() {
-  const [tab, setTab] = useState<TabKey>("students");
+  const [tab, setTab] = useState<TabKey>("financial");
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthAgo);
@@ -79,19 +83,21 @@ export default function ReportsAdmin() {
         </aside>
 
         <main className="col-span-12 lg:col-span-9 space-y-4">
-          <Card className="p-3 shadow-card flex flex-wrap items-end gap-3">
-            <div>
-              <label className="text-[11px] text-muted-foreground">From</label>
-              <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 w-40" />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground">To</label>
-              <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40" />
-            </div>
-            <div className="ml-auto text-xs text-muted-foreground">
-              Date range applies to time-based reports.
-            </div>
-          </Card>
+          {tab !== "financial" && (
+            <Card className="p-3 shadow-card flex flex-wrap items-end gap-3">
+              <div>
+                <label className="text-[11px] text-muted-foreground">From</label>
+                <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 w-40" />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground">To</label>
+                <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40" />
+              </div>
+              <div className="ml-auto text-xs text-muted-foreground">
+                Date range applies to time-based reports.
+              </div>
+            </Card>
+          )}
 
           <ReportPanel tab={tab} from={from} to={to} />
         </main>
@@ -102,6 +108,7 @@ export default function ReportsAdmin() {
 
 function ReportPanel({ tab, from, to }: { tab: TabKey; from: string; to: string }) {
   switch (tab) {
+    case "financial": return <FinancialReportsPage />;
     case "students": return <StudentsReport />;
     case "attendance": return <AttendanceReport from={from} to={to} />;
     case "fees": return <FeesReport from={from} to={to} />;
