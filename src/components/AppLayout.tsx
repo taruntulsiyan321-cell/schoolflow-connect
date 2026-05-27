@@ -21,21 +21,22 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
   const hasOverflow = overflow.length > 0;
 
   const renderNavList = (items: NavItem[], onClick?: () => void) => (
-    <nav className="flex flex-col gap-0.5">
+    <nav className="flex flex-col gap-1">
       {items.map(n => (
         <NavLink key={n.to} to={n.to} end onClick={onClick}
           className={({ isActive }) =>
-            `group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+            `group flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
               isActive
-                ? "bg-sidebar-primary/15 text-white shadow-[inset_2px_0_0_0_hsl(var(--sidebar-primary))]"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white"
+                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             }`}>
-          <span className="[&_svg]:w-[18px] [&_svg]:h-[18px] shrink-0 opacity-90">{n.icon}</span>
+          <span className="[&_svg]:w-[18px] [&_svg]:h-[18px] shrink-0">{n.icon}</span>
           <span className="truncate">{n.label}</span>
         </NavLink>
       ))}
     </nav>
   );
+
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
