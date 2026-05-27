@@ -21,21 +21,22 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
   const hasOverflow = overflow.length > 0;
 
   const renderNavList = (items: NavItem[], onClick?: () => void) => (
-    <nav className="flex flex-col gap-0.5">
+    <nav className="flex flex-col gap-1">
       {items.map(n => (
         <NavLink key={n.to} to={n.to} end onClick={onClick}
           className={({ isActive }) =>
-            `group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+            `group flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
               isActive
-                ? "bg-sidebar-primary/15 text-white shadow-[inset_2px_0_0_0_hsl(var(--sidebar-primary))]"
-                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white"
+                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
             }`}>
-          <span className="[&_svg]:w-[18px] [&_svg]:h-[18px] shrink-0 opacity-90">{n.icon}</span>
+          <span className="[&_svg]:w-[18px] [&_svg]:h-[18px] shrink-0">{n.icon}</span>
           <span className="truncate">{n.label}</span>
         </NavLink>
       ))}
     </nav>
   );
+
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
@@ -58,18 +59,19 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
         </div>
         <div className="p-3 border-t border-sidebar-border shrink-0">
           <div className="flex items-center gap-2.5 px-2 py-2 mb-1">
-            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-semibold text-white shrink-0">
+            <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center text-xs font-semibold text-sidebar-primary-foreground shrink-0">
               {user?.email?.[0]?.toUpperCase() ?? "U"}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-medium text-white truncate">{user?.email?.split("@")[0]}</div>
-              <div className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email}</div>
+              <div className="text-xs font-medium text-sidebar-foreground truncate">{user?.email?.split("@")[0]}</div>
+              <div className="text-[10px] text-sidebar-foreground/60 truncate">{user?.email}</div>
             </div>
           </div>
-          <Button onClick={handleSignOut} variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white h-8 text-xs">
+          <Button onClick={handleSignOut} variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-8 text-xs">
             <LogOut className="w-3.5 h-3.5 mr-2" /> Sign out
           </Button>
         </div>
+
       </aside>
 
       {/* Mobile top bar */}
@@ -86,30 +88,31 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
                 <GraduationCap className="w-[18px] h-[18px] text-primary-foreground" />
               </div>
               <div className="min-w-0 text-left">
-                <SheetTitle className="text-white text-base leading-tight">Vidyalaya</SheetTitle>
-                <div className="text-[11px] text-sidebar-foreground/55 uppercase tracking-wider font-medium">{title}</div>
+                <SheetTitle className="text-sidebar-foreground text-base leading-tight">Vidyalaya</SheetTitle>
+                <div className="text-[11px] text-sidebar-foreground/60 uppercase tracking-wider font-medium">{title}</div>
               </div>
             </SheetHeader>
             <div className="px-3 pt-4 pb-2">
-              <div className="text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-2 mb-1.5">Workspace</div>
+              <div className="text-[10px] font-semibold text-sidebar-foreground/50 uppercase tracking-wider px-2 mb-1.5">Workspace</div>
             </div>
             <div className="px-3 overflow-y-auto max-h-[calc(100vh-9rem)]">
               {renderNavList(nav, () => setMenuOpen(false))}
             </div>
             <div className="absolute bottom-0 inset-x-0 p-3 border-t border-sidebar-border bg-sidebar">
               <div className="flex items-center gap-2.5 px-2 py-2 mb-1">
-                <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-semibold text-white shrink-0">
+                <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center text-xs font-semibold text-sidebar-primary-foreground shrink-0">
                   {user?.email?.[0]?.toUpperCase() ?? "U"}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium text-white truncate">{user?.email?.split("@")[0]}</div>
-                  <div className="text-[10px] text-sidebar-foreground/50 truncate">{user?.email}</div>
+                  <div className="text-xs font-medium text-sidebar-foreground truncate">{user?.email?.split("@")[0]}</div>
+                  <div className="text-[10px] text-sidebar-foreground/60 truncate">{user?.email}</div>
                 </div>
               </div>
-              <Button onClick={handleSignOut} variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-white h-8 text-xs">
+              <Button onClick={handleSignOut} variant="ghost" size="sm" className="w-full justify-start text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground h-8 text-xs">
                 <LogOut className="w-3.5 h-3.5 mr-2" /> Sign out
               </Button>
             </div>
+
           </SheetContent>
         </Sheet>
 
