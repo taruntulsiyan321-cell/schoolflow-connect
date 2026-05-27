@@ -13,7 +13,7 @@ const toneMap: Record<Tone, string> = {
 };
 
 export const StatCard = ({
-  icon, label, value, tone = "primary", hint, trend,
+  icon, label, value, tone = "primary", hint, trend, featured,
 }: {
   icon: ReactNode;
   label: string;
@@ -21,28 +21,55 @@ export const StatCard = ({
   tone?: Tone;
   hint?: string;
   trend?: { value: string; up?: boolean };
+  featured?: boolean;
 }) => {
+  const isFeatured = !!featured;
   return (
-    <Card className="p-4 sm:p-5 shadow-card hover:shadow-elevated transition-all duration-300 hover:-translate-y-0.5 border-border/70 animate-rise group">
+    <Card
+      className={`p-5 sm:p-6 rounded-3xl shadow-card hover:shadow-elevated transition-all duration-300 hover:-translate-y-0.5 animate-rise group ${
+        isFeatured
+          ? "bg-primary text-primary-foreground border-primary"
+          : "bg-card border-border/70"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
-        <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg flex items-center justify-center transition-transform duration-300 group-hover:scale-110 ${toneMap[tone]}`}>
-          {icon}
+        <div className={`text-sm font-medium ${isFeatured ? "text-primary-foreground/90" : "text-muted-foreground"}`}>
+          {label}
         </div>
-        {trend && (
-          <span className={`inline-flex items-center gap-0.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${trend.up ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive"}`}>
-            {trend.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-            {trend.value}
-          </span>
-        )}
+        <div
+          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 ${
+            isFeatured
+              ? "bg-primary-foreground/15 text-primary-foreground ring-1 ring-primary-foreground/25"
+              : "bg-primary text-primary-foreground"
+          }`}
+        >
+          <ArrowUpRight className="w-4 h-4" />
+        </div>
       </div>
-      <div className="mt-3">
-        <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</div>
-        <div className="text-2xl sm:text-[28px] font-bold leading-tight tracking-tight mt-1 font-mono tabular-nums">{value}</div>
-        {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
+      <div className="mt-8">
+        <div className={`text-4xl sm:text-[44px] font-bold leading-none tracking-tight font-mono tabular-nums ${isFeatured ? "text-primary-foreground" : "text-foreground"}`}>
+          {value}
+        </div>
+      </div>
+      <div className={`mt-6 flex items-center gap-1.5 text-xs ${isFeatured ? "text-primary-foreground/85" : "text-muted-foreground"}`}>
+        {trend ? (
+          <>
+            {trend.up ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+            <span className="font-medium">{trend.value}</span>
+            {hint && <span className="opacity-80">· {hint}</span>}
+          </>
+        ) : (
+          <>
+            <ArrowUpRight className="w-3.5 h-3.5" />
+            <span>{hint ?? "Updated recently"}</span>
+          </>
+        )}
+        <span className="sr-only">{icon}</span>
       </div>
     </Card>
   );
 };
+
 
 export const PageHeader = ({
   title, subtitle, action, eyebrow,
