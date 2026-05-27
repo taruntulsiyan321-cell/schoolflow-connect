@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/ui-bits";
 import {
   Users, ClipboardCheck, Wallet, AlertCircle, BadgeDollarSign, FileText,
   TrendingUp, UserPlus, CalendarDays, Bell, Download, BookOpen, MessageSquare,
-  IndianRupee,
+  IndianRupee, ArrowUpRight, RefreshCw, Search, Sparkles,
 } from "lucide-react";
 import FinancialReportsPage from "./FinancialReportsPage";
 
@@ -51,56 +51,128 @@ function downloadCSV(filename: string, rows: any[]) {
   URL.revokeObjectURL(url);
 }
 
+const PRESETS: { key: string; label: string; days: number }[] = [
+  { key: "7d", label: "7D", days: 7 },
+  { key: "30d", label: "30D", days: 30 },
+  { key: "90d", label: "90D", days: 90 },
+  { key: "365d", label: "1Y", days: 365 },
+];
+
 export default function ReportsAdmin() {
   const [tab, setTab] = useState<TabKey>("financial");
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
   const [from, setFrom] = useState(monthAgo);
   const [to, setTo] = useState(today);
+  const [preset, setPreset] = useState<string>("30d");
+  const [nonce, setNonce] = useState(0);
+  const activeTab = TABS.find(t => t.key === tab)!;
+
+  const applyPreset = (days: number, key: string) => {
+    const t = new Date();
+    const f = new Date(Date.now() - days * 86400000);
+    setFrom(f.toISOString().slice(0, 10));
+    setTo(t.toISOString().slice(0, 10));
+    setPreset(key);
+  };
 
   return (
     <>
-      <PageHeader title="Reports" subtitle="Institutional reports for daily school operations" />
+      <PageHeader
+        title="Reports & Financials"
+        subtitle="Live operational insights across your school"
+        action={
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setNonce(n => n + 1)}
+            className="rounded-full hover-scale"
+          >
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Refresh
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-12 gap-4">
-        <aside className="col-span-12 lg:col-span-3">
-          <Card className="p-2 shadow-card">
-            <nav className="space-y-0.5">
-              {TABS.map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md text-sm transition-colors ${
-                    tab === t.key ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted text-foreground"
-                  }`}
-                >
-                  <span className="flex items-center gap-2">{t.icon} {t.label}</span>
-                  {!t.live && <Badge variant="outline" className="text-[9px]">Soon</Badge>}
-                </button>
-              ))}
-            </nav>
-          </Card>
-        </aside>
+      {/* Horizontal pill tab bar — interactive, scrollable, animated */}
+      <div className="relative -mx-1 mb-4 animate-fade-in">
+        <div className="flex gap-2 overflow-x-auto px-1 pb-2 [&::-webkit-scrollbar]:h-1.5">
+          {TABS.map(t => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
+                  active
+                    ? "bg-primary text-primary-foreground border-primary shadow-elevated scale-[1.02]"
+                    : "bg-card text-foreground border-border hover:border-primary/40 hover:-translate-y-0.5 hover:shadow-card"
+                }`}
+              >
+                <span className={`flex items-center justify-center w-5 h-5 rounded-full transition-colors ${active ? "bg-primary-foreground/15" : "text-primary"}`}>
+                  {t.icon}
+                </span>
+                <span className="whitespace-nowrap">{t.label}</span>
+                {!t.live && (
+                  <Badge variant="outline" className={`text-[9px] ml-0.5 ${active ? "border-primary-foreground/40 text-primary-foreground" : ""}`}>
+                    Soon
+                  </Badge>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-        <main className="col-span-12 lg:col-span-9 space-y-4">
-          {tab !== "financial" && (
-            <Card className="p-3 shadow-card flex flex-wrap items-end gap-3">
-              <div>
-                <label className="text-[11px] text-muted-foreground">From</label>
-                <Input type="date" value={from} onChange={e => setFrom(e.target.value)} className="h-9 w-40" />
-              </div>
-              <div>
-                <label className="text-[11px] text-muted-foreground">To</label>
-                <Input type="date" value={to} onChange={e => setTo(e.target.value)} className="h-9 w-40" />
-              </div>
-              <div className="ml-auto text-xs text-muted-foreground">
-                Date range applies to time-based reports.
-              </div>
-            </Card>
-          )}
+      {/* Context bar — active tab name + quick-range chips + custom dates */}
+      {tab !== "financial" && (
+        <Card className="p-3 sm:p-4 mb-4 rounded-2xl shadow-card flex flex-wrap items-center gap-3 animate-fade-in">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+              {activeTab.icon}
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold leading-tight truncate">{activeTab.label}</div>
+              <div className="text-[11px] text-muted-foreground">Showing {from} → {to}</div>
+            </div>
+          </div>
 
-          <ReportPanel tab={tab} from={from} to={to} />
-        </main>
+          <div className="flex items-center gap-1 ml-auto bg-muted rounded-full p-1">
+            {PRESETS.map(p => (
+              <button
+                key={p.key}
+                onClick={() => applyPreset(p.days, p.key)}
+                className={`px-3 py-1 text-xs font-medium rounded-full transition-all ${
+                  preset === p.key
+                    ? "bg-card text-primary shadow-card"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="date"
+              value={from}
+              onChange={e => { setFrom(e.target.value); setPreset("custom"); }}
+              className="h-9 w-[140px] rounded-full text-xs"
+            />
+            <span className="text-muted-foreground text-xs">to</span>
+            <Input
+              type="date"
+              value={to}
+              onChange={e => { setTo(e.target.value); setPreset("custom"); }}
+              className="h-9 w-[140px] rounded-full text-xs"
+            />
+          </div>
+        </Card>
+      )}
+
+      {/* Animated panel swap */}
+      <div key={`${tab}-${nonce}`} className="animate-fade-in">
+        <ReportPanel tab={tab} from={from} to={to} />
       </div>
     </>
   );
@@ -121,35 +193,52 @@ function ReportPanel({ tab, from, to }: { tab: TabKey; from: string; to: string 
     case "notices": return <NoticesReport from={from} to={to} />;
     default:
       return (
-        <Card className="p-10 text-center shadow-card">
-          <p className="text-sm text-muted-foreground">This report module will be available once the matching workflow is enabled.</p>
+        <Card className="p-12 text-center rounded-2xl shadow-card border-dashed">
+          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-3">
+            <Sparkles className="w-5 h-5" />
+          </div>
+          <p className="text-sm font-medium">Coming soon</p>
+          <p className="text-xs text-muted-foreground mt-1">This report unlocks once the matching workflow is enabled.</p>
         </Card>
       );
   }
 }
 
 const Section = ({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) => (
-  <Card className="p-0 shadow-card overflow-hidden">
-    <div className="px-4 py-3 border-b flex items-center justify-between">
-      <h3 className="font-semibold text-sm">{title}</h3>
+  <Card className="p-0 rounded-2xl shadow-card hover:shadow-elevated transition-shadow overflow-hidden animate-fade-in">
+    <div className="px-5 py-3.5 border-b border-border/70 flex items-center justify-between bg-gradient-to-r from-muted/40 to-transparent">
+      <h3 className="font-semibold text-sm tracking-tight">{title}</h3>
       {action}
     </div>
     {children}
   </Card>
 );
+
 const Stat = ({ label, value, tone }: { label: string; value: string | number; tone?: string }) => (
-  <Card className="p-3 shadow-card">
-    <div className="text-[11px] text-muted-foreground">{label}</div>
-    <div className={`text-xl font-bold mt-0.5 ${tone || ""}`}>{value}</div>
+  <Card className="group p-5 rounded-2xl shadow-card hover:shadow-elevated hover:-translate-y-0.5 transition-all duration-300 animate-fade-in">
+    <div className="flex items-start justify-between gap-2">
+      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      <span className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center group-hover:scale-110 transition-transform">
+        <ArrowUpRight className="w-4 h-4" />
+      </span>
+    </div>
+    <div className={`text-3xl font-bold mt-5 font-mono tabular-nums tracking-tight ${tone || ""}`}>{value}</div>
   </Card>
 );
+
 const ExportBtn = ({ rows, name }: { rows: any[]; name: string }) => (
-  <Button size="sm" variant="outline" onClick={() => downloadCSV(name, rows)} disabled={!rows.length}>
-    <Download className="w-3.5 h-3.5 mr-1" /> CSV
+  <Button size="sm" variant="outline" onClick={() => downloadCSV(name, rows)} disabled={!rows.length} className="rounded-full hover-scale">
+    <Download className="w-3.5 h-3.5 mr-1" /> Export CSV
   </Button>
 );
+
 const Empty = ({ msg = "No data for this range." }: { msg?: string }) => (
-  <p className="text-sm text-muted-foreground text-center py-8">{msg}</p>
+  <div className="py-12 text-center">
+    <div className="mx-auto w-10 h-10 rounded-full bg-muted text-muted-foreground flex items-center justify-center mb-2">
+      <Search className="w-4 h-4" />
+    </div>
+    <p className="text-sm text-muted-foreground">{msg}</p>
+  </div>
 );
 
 /* ---------- Reports ---------- */
