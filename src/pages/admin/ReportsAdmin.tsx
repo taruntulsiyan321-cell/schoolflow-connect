@@ -581,17 +581,17 @@ function NoticesReport({ from, to }: { from: string; to: string }) {
 function SimpleTable({ rows }: { rows: any[] }) {
   const cols = Object.keys(rows[0]);
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto max-h-[520px]">
       <table className="w-full text-sm">
-        <thead>
-          <tr className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            {cols.map(c => <th key={c} className="px-4 py-2 font-medium">{c.replace(/_/g, " ")}</th>)}
+        <thead className="sticky top-0 z-10">
+          <tr className="bg-muted/80 backdrop-blur text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+            {cols.map(c => <th key={c} className="px-5 py-2.5 font-semibold whitespace-nowrap">{c.replace(/_/g, " ")}</th>)}
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className="border-t hover:bg-muted/30">
-              {cols.map(c => <td key={c} className="px-4 py-2 truncate max-w-[240px]">{String(r[c] ?? "")}</td>)}
+            <tr key={i} className={`border-t border-border/60 transition-colors hover:bg-primary/5 ${i % 2 ? "bg-muted/20" : ""}`}>
+              {cols.map(c => <td key={c} className="px-5 py-2.5 truncate max-w-[240px]">{String(r[c] ?? "")}</td>)}
             </tr>
           ))}
         </tbody>
