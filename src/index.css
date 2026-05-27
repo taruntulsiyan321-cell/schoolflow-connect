@@ -4,68 +4,69 @@
 
 @layer base {
   :root {
-    /* Professional but colorful — institutional indigo with vivid accents */
-    --background: 220 30% 99%;
-    --foreground: 222 47% 8%;
+    /* Tasko-inspired — clean white surfaces, vivid emerald primary */
+    --background: 0 0% 100%;
+    --foreground: 150 15% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 8%;
+    --card-foreground: 150 15% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 8%;
+    --popover-foreground: 150 15% 10%;
 
-    /* Vivid indigo primary — strong, visible, not flat */
-    --primary: 231 75% 42%;
+    /* Emerald green primary */
+    --primary: 152 72% 32%;
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 231 90% 60%;
+    --primary-glow: 150 65% 48%;
 
-    --secondary: 231 40% 95%;
-    --secondary-foreground: 231 60% 25%;
+    --secondary: 150 30% 95%;
+    --secondary-foreground: 152 60% 22%;
 
-    --accent: 173 70% 38%;
+    --accent: 152 65% 42%;
     --accent-foreground: 0 0% 100%;
 
     --warning: 32 95% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --muted: 220 22% 94%;
-    --muted-foreground: 222 20% 32%;
+    --muted: 150 15% 96%;
+    --muted-foreground: 150 8% 38%;
 
     --destructive: 0 78% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 18% 86%;
-    --input: 220 18% 86%;
-    --ring: 231 75% 42%;
-    --radius: 0.625rem;
+    --border: 150 12% 90%;
+    --input: 150 12% 90%;
+    --ring: 152 72% 32%;
+    --radius: 1rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(231 75% 42%), hsl(262 70% 55%));
-    --gradient-soft: linear-gradient(180deg, hsl(231 40% 98%), hsl(220 30% 96%));
-    --gradient-hero: linear-gradient(135deg, hsl(231 75% 42%) 0%, hsl(280 65% 48%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(152 72% 32%), hsl(150 65% 45%));
+    --gradient-soft: linear-gradient(180deg, hsl(150 30% 98%), hsl(0 0% 100%));
+    --gradient-hero: linear-gradient(135deg, hsl(152 72% 28%) 0%, hsl(150 65% 42%) 100%);
     --gradient-battle: linear-gradient(135deg, hsl(262 70% 50%) 0%, hsl(330 70% 55%) 50%, hsl(20 90% 55%) 100%);
     --gradient-victory: linear-gradient(135deg, hsl(45 95% 55%) 0%, hsl(20 90% 55%) 100%);
-    --gradient-arena: linear-gradient(135deg, hsl(240 50% 14%) 0%, hsl(262 55% 22%) 50%, hsl(330 55% 28%) 100%);
+    --gradient-arena: linear-gradient(135deg, hsl(150 50% 14%) 0%, hsl(152 55% 22%) 50%, hsl(170 55% 28%) 100%);
 
-    --shadow-card: 0 1px 2px hsl(231 50% 15% / 0.06), 0 1px 3px hsl(231 50% 15% / 0.05);
-    --shadow-elevated: 0 6px 16px -4px hsl(231 50% 15% / 0.12), 0 2px 4px hsl(231 50% 15% / 0.06);
-    --shadow-battle: 0 8px 24px -8px hsl(262 70% 50% / 0.35);
-    --shadow-glow: 0 0 0 4px hsl(231 75% 42% / 0.12);
+    --shadow-card: 0 1px 2px hsl(150 30% 15% / 0.04), 0 1px 3px hsl(150 30% 15% / 0.04);
+    --shadow-elevated: 0 8px 24px -8px hsl(150 30% 15% / 0.10), 0 2px 6px hsl(150 30% 15% / 0.05);
+    --shadow-battle: 0 8px 24px -8px hsl(152 70% 35% / 0.35);
+    --shadow-glow: 0 0 0 4px hsl(152 72% 32% / 0.12);
 
     --tier-bronze: 25 80% 48%;
     --tier-silver: 220 10% 55%;
     --tier-gold: 42 92% 52%;
     --tier-platinum: 200 70% 60%;
 
-    /* Sidebar — deep indigo, richer than slate */
-    --sidebar-background: 231 55% 12%;
-    --sidebar-foreground: 220 22% 92%;
-    --sidebar-primary: 231 90% 65%;
+    /* Sidebar — light cream surface, emerald pill for active */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 150 15% 25%;
+    --sidebar-primary: 152 72% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 231 45% 20%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 231 40% 22%;
-    --sidebar-ring: 231 90% 65%;
+    --sidebar-accent: 150 30% 95%;
+    --sidebar-accent-foreground: 152 60% 22%;
+    --sidebar-border: 150 12% 92%;
+    --sidebar-ring: 152 72% 32%;
   }
+
 
   .dark {
     --background: 222 32% 7%;
