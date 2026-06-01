@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus, IndianRupee } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus, IndianRupee, Sparkles, Activity } from "lucide-react";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import StudentsAdmin from "./admin/StudentsAdmin";
 import TeacherProfile from "./admin/TeacherProfile";
 import TeachersAdmin from "./admin/TeachersAdmin";
