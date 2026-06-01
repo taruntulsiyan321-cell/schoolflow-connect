@@ -37,13 +37,13 @@ export const StatCard = ({
           {label}
         </div>
         <div
-          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 ${
+          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 ${
             isFeatured
               ? "bg-primary-foreground/15 text-primary-foreground ring-1 ring-primary-foreground/25"
-              : "bg-primary text-primary-foreground"
+              : toneMap[tone]
           }`}
         >
-          <ArrowUpRight className="w-4 h-4" />
+          <span className="[&_svg]:w-[18px] [&_svg]:h-[18px]">{icon}</span>
         </div>
       </div>
       <div className="mt-8">
