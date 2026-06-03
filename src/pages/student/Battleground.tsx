@@ -17,6 +17,9 @@ import { QuickPlay } from "@/components/battleground/QuickPlay";
 import { InviteFriends, MyInvites } from "@/components/battleground/Invites";
 import { BADGES } from "@/lib/badges";
 import { cn } from "@/lib/utils";
+import { EquippedBadge } from "@/components/battleground/EquippedBadge";
+import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
+import { fetchEquippedBadgesByUserIds } from "@/hooks/useStudentBadges";
 
 // =================== ARENA (HOME) ===================
 function Arena() {
@@ -71,7 +74,10 @@ function Arena() {
             <div className="flex items-center gap-2 text-xs uppercase tracking-widest opacity-80">
               <Sword className="w-3.5 h-3.5" /> Battleground
             </div>
-            <h1 className="text-3xl font-black mt-1">Welcome back, {student?.full_name?.split(" ")[0] || "Champion"}</h1>
+            <h1 className="text-3xl font-black mt-1 flex flex-wrap items-center gap-2">
+              Welcome back, {student?.full_name?.split(" ")[0] || "Champion"}
+              <EquippedBadge code={xp.equipped_badge} size="sm" showLabel />
+            </h1>
             <p className="text-sm opacity-80 mt-1">Compete. Conquer. Climb the leaderboard.</p>
             <div className="flex flex-wrap gap-2 mt-3">
               <StreakFlame streak={xp.current_streak} />
@@ -492,6 +498,7 @@ function Achievements() {
           return <BadgeCard key={b.code} code={b.code} tier={(found?.tier ?? b.tier) as any} earned={earned} />;
         })}
       </div>
+      {user && <BadgeEquipPanel userId={user.id} compact />}
     </div>
   );
 }
@@ -630,11 +637,13 @@ function LeaderboardPage() {
   const [tab, setTab] = useState("class");
   const [classRows, setClassRows] = useState<any[]>([]);
   const [globalRows, setGlobalRows] = useState<any[]>([]);
+  const [badgeMap, setBadgeMap] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data: stu } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
+      let classList: { uid: string; name: string; score: number }[] = [];
       if (stu?.class_id) {
         const { data: cb } = await supabase.from("battles").select("id").eq("class_id", stu.class_id);
         const ids = (cb ?? []).map((r: any) => r.id);
@@ -645,11 +654,14 @@ function LeaderboardPage() {
             if (!agg[p.user_id]) agg[p.user_id] = { name: p.display_name || "Student", score: 0 };
             agg[p.user_id].score += p.score;
           });
-          setClassRows(Object.entries(agg).map(([uid, v]) => ({ uid, ...v })).sort((a, b) => b.score - a.score));
+          classList = Object.entries(agg).map(([uid, v]) => ({ uid, ...v })).sort((a, b) => b.score - a.score);
+          setClassRows(classList);
         }
       }
-      const { data: x } = await supabase.from("student_xp").select("user_id, xp, level, wins").order("xp", { ascending: false }).limit(50);
+      const { data: x } = await supabase.from("student_xp").select("user_id, xp, level, wins, equipped_badge").order("xp", { ascending: false }).limit(50);
       setGlobalRows(x ?? []);
+      const ids = [...new Set([...classList.map((r) => r.uid), ...(x ?? []).map((r) => r.user_id)])];
+      setBadgeMap(await fetchEquippedBadgesByUserIds(ids));
     })();
   }, [user]);
 
@@ -666,10 +678,21 @@ function LeaderboardPage() {
         </TabsList>
         <TabsContent value="class" className="space-y-2 mt-3">
           {classRows.length === 0 ? <p className="text-center py-8 text-muted-foreground text-sm">No battles in your class yet.</p>
-            : classRows.map((p, i) => <PodiumRow key={p.uid} rank={i + 1} name={p.name} score={p.score} isMe={p.uid === user?.id} />)}
+            : classRows.map((p, i) => (
+              <PodiumRow key={p.uid} rank={i + 1} name={p.name} score={p.score} isMe={p.uid === user?.id} equippedBadge={badgeMap[p.uid]} />
+            ))}
         </TabsContent>
         <TabsContent value="global" className="space-y-2 mt-3">
-          {globalRows.map((p, i) => <PodiumRow key={p.user_id} rank={i + 1} name={`Lvl ${p.level} · ${p.wins} wins`} score={p.xp} isMe={p.user_id === user?.id} />)}
+          {globalRows.map((p, i) => (
+            <PodiumRow
+              key={p.user_id}
+              rank={i + 1}
+              name={`Lvl ${p.level} · ${p.wins} wins`}
+              score={p.xp}
+              isMe={p.user_id === user?.id}
+              equippedBadge={p.equipped_badge ?? badgeMap[p.user_id]}
+            />
+          ))}
         </TabsContent>
       </Tabs>
     </div>

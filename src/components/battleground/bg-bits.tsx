@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Trophy, Flame, Zap, Crown, Medal, Target, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 
 export const XPRing = ({ xp, level, size = 120 }: { xp: number; level: number; size?: number }) => {
   const xpInLevel = xp % 100;
@@ -116,7 +117,19 @@ export const BattleCard = ({ battle, onJoin }: { battle: any; onJoin: () => void
   );
 };
 
-export const PodiumRow = ({ rank, name, score, isMe }: { rank: number; name: string; score: number; isMe?: boolean }) => {
+export const PodiumRow = ({
+  rank,
+  name,
+  score,
+  isMe,
+  equippedBadge,
+}: {
+  rank: number;
+  name: string;
+  score: number;
+  isMe?: boolean;
+  equippedBadge?: string | null;
+}) => {
   const tier = rank === 1 ? "text-tier-gold" : rank === 2 ? "text-tier-silver" : rank === 3 ? "text-tier-bronze" : "text-muted-foreground";
   return (
     <div className={cn("flex items-center gap-3 p-3 rounded-xl transition-all", isMe ? "bg-primary/10 ring-2 ring-primary shadow-card animate-pulse-glow" : "bg-muted/40")}>
@@ -124,7 +137,11 @@ export const PodiumRow = ({ rank, name, score, isMe }: { rank: number; name: str
         {rank <= 3 ? <Crown className="w-5 h-5" /> : `#${rank}`}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold truncate">{name} {isMe && <span className="text-xs text-primary">(you)</span>}</div>
+        <div className="font-semibold truncate flex items-center gap-2">
+          <span className="truncate">{name}</span>
+          {equippedBadge && <EquippedBadge code={equippedBadge} size="xs" />}
+          {isMe && <span className="text-xs text-primary shrink-0">(you)</span>}
+        </div>
       </div>
       <div className="font-bold text-lg tabular-nums">{score}</div>
     </div>

@@ -11,6 +11,8 @@ import {
   IndianRupee, ArrowUpRight, RefreshCw, Search, Sparkles,
 } from "lucide-react";
 import FinancialReportsPage from "./FinancialReportsPage";
+import { InquiriesReport, ComplaintsReport } from "@/pages/shared/OperationalCases";
+import { downloadCSV, downloadExcel } from "@/lib/exportData";
 
 type TabKey =
   | "financial"
@@ -29,27 +31,12 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode; live: boolean }
   { key: "admissions", label: "Admissions", icon: <UserPlus className="w-4 h-4" />, live: true },
   { key: "leaves", label: "Leave Requests", icon: <CalendarDays className="w-4 h-4" />, live: true },
   { key: "notices", label: "Notices", icon: <Bell className="w-4 h-4" />, live: true },
-  { key: "inquiries", label: "Inquiries", icon: <BookOpen className="w-4 h-4" />, live: false },
-  { key: "complaints", label: "Complaints", icon: <MessageSquare className="w-4 h-4" />, live: false },
+  { key: "inquiries", label: "Inquiries", icon: <BookOpen className="w-4 h-4" />, live: true },
+  { key: "complaints", label: "Complaints", icon: <MessageSquare className="w-4 h-4" />, live: true },
 ];
 
 const fmtMoney = (n: number) =>
   new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n || 0);
-
-function downloadCSV(filename: string, rows: any[]) {
-  if (!rows.length) return;
-  const cols = Object.keys(rows[0]);
-  const escape = (v: any) => {
-    const s = v == null ? "" : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv = [cols.join(","), ...rows.map(r => cols.map(c => escape(r[c])).join(","))].join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
 
 const PRESETS: { key: string; label: string; days: number }[] = [
   { key: "7d", label: "7D", days: 7 },
@@ -191,6 +178,8 @@ function ReportPanel({ tab, from, to }: { tab: TabKey; from: string; to: string 
     case "admissions": return <AdmissionsReport from={from} to={to} />;
     case "leaves": return <LeavesReport from={from} to={to} />;
     case "notices": return <NoticesReport from={from} to={to} />;
+    case "inquiries": return <InquiriesReport />;
+    case "complaints": return <ComplaintsReport />;
     default:
       return (
         <Card className="p-12 text-center rounded-2xl shadow-card border-dashed">
@@ -225,11 +214,15 @@ const Stat = ({ label, value, tone }: { label: string; value: string | number; t
     <div className={`text-3xl font-bold mt-5 font-mono tabular-nums tracking-tight ${tone || ""}`}>{value}</div>
   </Card>
 );
-
-const ExportBtn = ({ rows, name }: { rows: any[]; name: string }) => (
-  <Button size="sm" variant="outline" onClick={() => downloadCSV(name, rows)} disabled={!rows.length} className="rounded-full hover-scale">
-    <Download className="w-3.5 h-3.5 mr-1" /> Export CSV
-  </Button>
+const ExportBtn = ({ rows, name }: { rows: Record<string, unknown>[]; name: string }) => (
+  <div className="flex gap-2">
+    <Button size="sm" variant="outline" onClick={() => downloadCSV(name, rows)} disabled={!rows.length} className="rounded-full hover-scale">
+      <Download className="w-3.5 h-3.5 mr-1" /> CSV
+    </Button>
+    <Button size="sm" variant="outline" onClick={() => downloadExcel(name, rows)} disabled={!rows.length} className="rounded-full hover-scale">
+      <Download className="w-3.5 h-3.5 mr-1" /> Excel
+    </Button>
+  </div>
 );
 
 const Empty = ({ msg = "No data for this range." }: { msg?: string }) => (

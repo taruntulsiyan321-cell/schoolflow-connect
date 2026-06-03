@@ -9,9 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { User, ClipboardCheck, Wallet, BookOpen, Phone, Mail, MapPin, Calendar, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
+import { EquippedBadge } from "@/components/battleground/EquippedBadge";
+import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
+import { useStudentBadges } from "@/hooks/useStudentBadges";
 
 export default function StudentProfilePage() {
   const { user } = useAuth();
+  const { equipped } = useStudentBadges(user?.id);
   const [student, setStudent] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [editName, setEditName] = useState("");
@@ -112,6 +116,7 @@ export default function StudentProfilePage() {
                   Class {student.classes.name}-{student.classes.section}
                 </Badge>
               )}
+              <EquippedBadge code={equipped} size="sm" showLabel />
             </div>
           </div>
         </div>
@@ -178,6 +183,10 @@ export default function StudentProfilePage() {
           </div>
         </Card>
       )}
+
+      {user && <BadgeEquipPanel userId={user.id} />}
+
+      <div className="h-4" />
 
       {/* Account & edit */}
       <Card className="p-5">

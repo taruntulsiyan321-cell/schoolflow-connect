@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui-bits";
-import { Bell, AlertCircle } from "lucide-react";
+import { Bell, AlertCircle, CreditCard } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export default function MyFeesPage({ asParent = false }: { asParent?: boolean }) {
   const { user } = useAuth();
@@ -23,6 +25,17 @@ export default function MyFeesPage({ asParent = false }: { asParent?: boolean })
   const overdue = rows.filter(r => r.status !== "paid" && r.due_date && new Date(r.due_date) < new Date());
 
   const tone = (s: string) => s === "paid" ? "bg-accent/10 text-accent" : s === "partial" ? "bg-warning/10 text-warning" : "bg-destructive/10 text-destructive";
+
+  const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY as string | undefined;
+
+  const payOnline = (fee: { id: string; amount: number; paid_amount: number; month: string; students?: { full_name?: string } }) => {
+    if (!razorpayKey) {
+      toast.info("Online payments are not configured yet. Contact the school office.");
+      return;
+    }
+    const due = Number(fee.amount) - Number(fee.paid_amount || 0);
+    toast.info(`Razorpay checkout for ₹${due} (${fee.month}) will open here once the payment edge function is connected.`);
+  };
 
   return (
     <>
@@ -48,7 +61,15 @@ export default function MyFeesPage({ asParent = false }: { asParent?: boolean })
                 {r.due_date && <> · Due {new Date(r.due_date).toLocaleDateString()}</>}
               </div>
             </div>
-            <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${tone(r.status)}`}>{r.status}</span>
+            <div className="flex flex-col items-end gap-2 shrink-0">
+              <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${tone(r.status)}`}>{r.status}</span>
+              {r.status !== "paid" && (
+                <Button size="sm" variant="outline" onClick={() => payOnline(r)} className="h-8">
+                  <CreditCard className="w-3.5 h-3.5 mr-1" />
+                  {razorpayKey ? "Pay online" : "Pay (soon)"}
+                </Button>
+              )}
+            </div>
           </Card>
         ))}
         {rows.length === 0 && <p className="text-muted-foreground text-center py-8 flex items-center justify-center gap-2"><Bell className="w-4 h-4" /> No fee records yet.</p>}

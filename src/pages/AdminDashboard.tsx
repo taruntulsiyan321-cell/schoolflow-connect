@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus, IndianRupee, Sparkles, Activity } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus, Shield, IndianRupee, Sparkles, Activity } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,7 @@ const nav = [
   { to: "/admin/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/admin/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/admin/users", label: "Users", icon: <Users className="w-4 h-4" /> },
+  { to: "/admin/roles", label: "Roles", icon: <Shield className="w-4 h-4" /> },
   { to: "/admin/settings", label: "App Settings", icon: <Settings className="w-4 h-4" /> },
   { to: "/admin/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];

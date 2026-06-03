@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, MessageSquare, User, NotebookPen, Trophy } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, MessageSquare, User, NotebookPen, Trophy, BarChart3, MessageSquareWarning } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -18,6 +18,8 @@ const nav = [
   { to: "/parent/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/parent/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
   { to: "/parent/marks", label: "Marks", icon: <Trophy className="w-4 h-4" /> },
+  { to: "/parent/insights", label: "Insights", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/parent/complaints", label: "Complaints", icon: <MessageSquareWarning className="w-4 h-4" /> },
   { to: "/parent/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/parent/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
   { to: "/parent/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
@@ -285,6 +287,8 @@ export default function ParentDashboard() {
         <Route path="attendance" element={<ChildAttendance />} />
         <Route path="homework" element={<ChildHomework />} />
         <Route path="marks" element={<MyMarksPage asParent />} />
+        <Route path="insights" element={<ParentInsights />} />
+        <Route path="complaints" element={<ComplaintsReport allowSubmit />} />
         <Route path="fees" element={<MyFeesPage asParent />} />
         <Route path="notices" element={<NoticesPage viewerRole="parent" />} />
         <Route path="chat" element={<ChatPage userRole="parent" />} />

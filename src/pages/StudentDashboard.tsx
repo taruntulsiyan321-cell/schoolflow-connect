@@ -36,6 +36,7 @@ const nav = [
   { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/student/library", label: "Library", icon: <Library className="w-4 h-4" /> },
   { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
+  { to: "/student/leaderboard", label: "Leaderboard", icon: <Trophy className="w-4 h-4" /> },
   { to: "/student/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
