@@ -641,15 +641,21 @@ export function ProfilePage() {
   const { user, role } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     if (!user) return;
     supabase.from("profiles").select("*").eq("id", user.id).maybeSingle().then(({ data }) => {
-      setProfile(data); setName(data?.full_name ?? "");
+      setProfile(data);
+      setName(data?.full_name ?? "");
+      setPhone(data?.phone ?? user.phone ?? "");
     });
   }, [user]);
   const save = async () => {
     if (!user) return;
-    const { error } = await supabase.from("profiles").update({ full_name: name }).eq("id", user.id);
+    setSaving(true);
+    const { error } = await supabase.from("profiles").update({ full_name: name, phone: phone || null }).eq("id", user.id);
+    setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Profile updated");
   };
@@ -668,8 +674,8 @@ export function ProfilePage() {
         </div>
         <div><Label>Full name</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
         <div><Label>Email</Label><Input value={user?.email ?? ""} disabled /></div>
-        <div><Label>Phone</Label><Input value={profile?.phone ?? user?.phone ?? ""} disabled /></div>
-        <Button onClick={save} className="bg-gradient-primary text-primary-foreground">Save</Button>
+        <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Contact number" /></div>
+        <Button onClick={save} disabled={saving} className="bg-gradient-primary text-primary-foreground">{saving ? "Saving…" : "Save"}</Button>
       </Card>
     </>
   );
