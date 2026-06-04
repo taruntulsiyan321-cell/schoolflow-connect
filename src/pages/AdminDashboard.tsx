@@ -9,6 +9,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
 import { classLabel } from "@/lib/utils";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,7 +42,7 @@ const nav = [
   { to: "/admin/question-bank", label: "Question Bank", icon: <Database className="w-4 h-4" /> },
   { to: "/admin/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/admin/users", label: "Users", icon: <Users className="w-4 h-4" /> },
-  { to: "/admin/roles", label: "Roles", icon: <Shield className="w-4 h-4" /> },
+  { to: "/admin/roles", label: "Student Access", icon: <Shield className="w-4 h-4" /> },
   { to: "/admin/settings", label: "App Settings", icon: <Settings className="w-4 h-4" /> },
   { to: "/admin/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
@@ -89,6 +90,9 @@ const Overview = () => {
         supabase.from("attendance").select("date, status").gte("date", sevenAgo),
         supabase.from("fees").select("paid_amount, updated_at").eq("status", "paid").gte("updated_at", sevenAgo),
       ]);
+
+      const firstError = [s, t, c, n, att, unpaid, paidMonth, leaves, rs, rt, rn, att7, paid7].find((r: any) => r?.error)?.error;
+      if (firstError) toast.error(`Couldn't load some dashboard data: ${firstError.message}`);
 
       setStats({ students: s.count ?? 0, teachers: t.count ?? 0, classes: c.count ?? 0, notices: n.count ?? 0 });
 
