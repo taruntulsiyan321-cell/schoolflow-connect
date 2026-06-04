@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/ui-bits";
 import { BattleCard } from "@/components/battleground/bg-bits";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Sword, Radio } from "lucide-react";
+import { ArrowLeft, Plus, Sword, Radio, Zap, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ClassOption = { id: string; label: string };
@@ -35,6 +35,8 @@ export default function TeacherBattleground() {
   const [questions, setQuestions] = useState<QuestionDraft[]>([
     { question: "", options: ["", "", "", ""], correct_index: 0 },
   ]);
+  const [quickDifficulty, setQuickDifficulty] = useState("medium");
+  const [quickBusy, setQuickBusy] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -81,6 +83,26 @@ export default function TeacherBattleground() {
     );
   const addQ = () => setQuestions((qs) => [...qs, { question: "", options: ["", "", "", ""], correct_index: 0 }]);
   const removeQ = (i: number) => setQuestions((qs) => qs.filter((_, idx) => idx !== i));
+
+  const quickHost = async () => {
+    if (!user || !classId) return;
+    setQuickBusy(true);
+    const { data, error } = await supabase.rpc("rpc_create_quick_battle", {
+      _subject: subject,
+      _difficulty: quickDifficulty,
+      _count: 5,
+      _per_q: perQ,
+      _topic: topic.trim() || undefined,
+      _class_id: classId,
+    });
+    setQuickBusy(false);
+    if (error) {
+      toast({ title: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Live battle published from question bank" });
+    nav(`/teacher/battleground/monitor/${data}`);
+  };
 
   const create = async () => {
     if (!user || !classId) {
@@ -156,12 +178,52 @@ export default function TeacherBattleground() {
             </Select>
           </Card>
 
-          <Card className="p-5 bg-gradient-battle text-white border-0">
-            <div>
-              <Sword className="w-3.5 h-3.5" /> Host a battle
+          <Card className="p-5 space-y-4 border-2 border-primary/20 bg-gradient-to-br from-card to-primary/5">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-warning" />
+              <div>
+                <div className="font-bold">Instant class battle</div>
+                <p className="text-xs text-muted-foreground">Auto-pick questions from the bank — no manual entry.</p>
+              </div>
             </div>
-            <h2 className="text-xl font-bold mt-1">Create class quiz</h2>
-            <p className="text-sm opacity-80">Students in the selected class can join immediately.</p>
+            <div className="grid md:grid-cols-3 gap-3">
+              <div>
+                <Label>Subject</Label>
+                <Select value={subject} onValueChange={setSubject}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "General Knowledge"].map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Difficulty</Label>
+                <Select value={quickDifficulty} onValueChange={setQuickDifficulty}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["easy", "medium", "hard"].map((d) => (
+                      <SelectItem key={d} value={d} className="capitalize">{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Seconds / Q</Label>
+                <Input type="number" min={5} max={120} value={perQ} onChange={(e) => setPerQ(Number(e.target.value))} />
+              </div>
+            </div>
+            <Button onClick={quickHost} disabled={quickBusy} className="w-full bg-gradient-victory text-white font-bold">
+              {quickBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
+              Publish live battle
+            </Button>
+          </Card>
+
+          <Card className="p-5 bg-gradient-battle text-white border-0">
+            <div><Sword className="w-3.5 h-3.5 inline" /> Custom battle (optional)</div>
+            <h2 className="text-xl font-bold mt-1">Write your own questions</h2>
+            <p className="text-sm opacity-80">Use only when you need fully custom items.</p>
           </Card>
 
           <Card className="p-5 space-y-4">

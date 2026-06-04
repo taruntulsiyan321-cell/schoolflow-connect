@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
-import { Users, Search, Send, Inbox, Check, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Users, Search, Send, Inbox, Check, X, Swords } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 /** Multi-select classmates and send invites for a battle the current user created. */
 export function InviteFriends({ battleId, classId }: { battleId: string; classId: string }) {
@@ -19,8 +20,11 @@ export function InviteFriends({ battleId, classId }: { battleId: string; classId
 
   useEffect(() => {
     if (!classId) return;
-    supabase.from("students").select("id, full_name, user_id, roll_number").eq("class_id", classId)
-      .then(({ data }) => setClassmates((data ?? []).filter((s: any) => s.user_id && s.user_id !== user?.id)));
+    supabase.rpc("rpc_classmates").then(({ data }) => {
+      setClassmates((data ?? []).map((m: any) => ({
+        id: m.student_id, full_name: m.full_name, user_id: m.user_id, roll_number: m.roll_number,
+      })));
+    });
   }, [classId, user]);
 
   const send = async () => {
@@ -65,43 +69,75 @@ export function InviteFriends({ battleId, classId }: { battleId: string; classId
   );
 }
 
-/** Show pending battle invites for the current user. */
+/** Pending battle invites with accept / decline animations. */
 export function MyInvites() {
   const { user } = useAuth();
+  const nav = useNavigate();
   const [invites, setInvites] = useState<any[]>([]);
+  const [accepting, setAccepting] = useState<string | null>(null);
 
   const refresh = async () => {
     if (!user) return;
     const { data } = await supabase.from("battle_invites")
-      .select("id, status, battle_id, battles(id,title,subject,topic,question_count,per_question_sec,status,starts_at)")
+      .select("id, status, battle_id, battles(id,title,subject,topic,chapter,question_count,per_question_sec,status,starts_at)")
       .eq("invited_user_id", user.id).eq("status", "pending").order("created_at", { ascending: false });
     setInvites(data ?? []);
   };
   useEffect(() => { refresh(); }, [user]);
 
-  const respond = async (id: string, status: "accepted" | "declined") => {
-    await supabase.from("battle_invites").update({ status }).eq("id", id);
+  const accept = async (invite: any) => {
+    setAccepting(invite.id);
+    await supabase.from("battle_invites").update({ status: "accepted" }).eq("id", invite.id);
+    toast({ title: "Challenge accepted!", description: "Entering the arena…" });
+    setAccepting(null);
+    nav(`/student/battleground/battle/${invite.battle_id}`);
+  };
+
+  const decline = async (id: string) => {
+    await supabase.from("battle_invites").update({ status: "declined" }).eq("id", id);
+    toast({ title: "Challenge declined" });
     refresh();
   };
 
   if (!invites.length) return null;
   return (
-    <Card className="p-4">
+    <Card className="p-4 border-2 border-primary/15 animate-rise">
       <div className="flex items-center gap-2 mb-3">
         <Inbox className="w-4 h-4 text-primary" />
-        <h3 className="font-semibold text-sm">Battle invites · {invites.length}</h3>
+        <h3 className="font-semibold text-sm">Incoming challenges · {invites.length}</h3>
       </div>
       <div className="space-y-2">
         {invites.map((i: any) => (
-          <div key={i.id} className="flex items-center gap-2 p-3 rounded-lg border bg-card">
+          <div
+            key={i.id}
+            className={cn(
+              "flex items-center gap-2 p-3 rounded-lg border bg-card transition-all",
+              accepting === i.id && "animate-pop border-primary shadow-glow",
+            )}
+          >
+            <div className="w-9 h-9 rounded-lg bg-gradient-battle text-white flex items-center justify-center shrink-0">
+              <Swords className="w-4 h-4" />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">{i.battles?.title}</div>
-              <div className="text-[11px] text-muted-foreground">{i.battles?.subject}{i.battles?.topic ? ` · ${i.battles.topic}` : ""} · {i.battles?.question_count}Q</div>
+              <div className="text-[11px] text-muted-foreground">
+                {i.battles?.subject}
+                {i.battles?.chapter ? ` · ${i.battles.chapter}` : ""}
+                {i.battles?.topic ? ` · ${i.battles.topic}` : ""}
+                {" · "}{i.battles?.question_count}Q
+              </div>
             </div>
-            <Button size="sm" variant="outline" onClick={() => respond(i.id, "declined")}><X className="w-3.5 h-3.5" /></Button>
-            <Link to={`/student/battleground/battle/${i.battle_id}`} onClick={() => respond(i.id, "accepted")}>
-              <Button size="sm" className="bg-gradient-battle text-white"><Check className="w-3.5 h-3.5 mr-1" /> Join</Button>
-            </Link>
+            <Button size="sm" variant="outline" disabled={accepting !== null} onClick={() => decline(i.id)}>
+              <X className="w-3.5 h-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              className="bg-gradient-victory text-white shrink-0"
+              disabled={accepting !== null}
+              onClick={() => accept(i)}
+            >
+              {accepting === i.id ? "…" : <><Check className="w-3.5 h-3.5 mr-1" /> Accept</>}
+            </Button>
           </div>
         ))}
       </div>

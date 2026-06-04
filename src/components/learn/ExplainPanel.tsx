@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, Brain, Lightbulb, TrendingUp, AlertTriangle } from "lucide-react";
@@ -47,9 +47,11 @@ export function ExplainPanel(props: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(autoLoad);
+  const fetched = useRef(false);
 
   const load = async () => {
-    if (loading || data) return;
+    if (loading || data || fetched.current) return;
+    fetched.current = true;
     setLoading(true);
     setError(null);
     const cacheKey = hashKey([question, correctIndex, selectedIndex, correctText, selectedText]);
@@ -91,6 +93,7 @@ export function ExplainPanel(props: Props) {
       }).then(() => {}, () => {});
     } catch (e: any) {
       setError(e?.message ?? "Could not load explanation");
+      fetched.current = false;
     } finally {
       setLoading(false);
     }

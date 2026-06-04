@@ -76,9 +76,10 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
   };
 
   useEffect(() => {
-    if (data && !data.expired && !data.ai_insights) fetchAI();
+    // Auto-generate for students only; teachers trigger manually to control AI cost
+    if (data && !data.expired && !data.ai_insights && !forTeacher) fetchAI();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.participant_id, data?.ai_insights, data?.expired]);
+  }, [data?.participant_id, data?.ai_insights, data?.expired, forTeacher]);
 
   if (loading) {
     return (

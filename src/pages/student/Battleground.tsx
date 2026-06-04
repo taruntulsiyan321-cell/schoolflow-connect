@@ -4,16 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { Sword, Trophy, Sparkles, Plus, Users, Clock, Target, ArrowLeft, TrendingUp, Award, Flame, ChevronRight, Zap, Loader2, BookOpen } from "lucide-react";
 import { XPRing, StreakFlame, BadgeCard, BattleCard, PodiumRow, Countdown } from "@/components/battleground/bg-bits";
-import { QuickPlay } from "@/components/battleground/QuickPlay";
-import { ChallengeClassmates } from "@/components/battleground/ChallengeClassmates";
+import { FrictionlessChallenge } from "@/components/battleground/FrictionlessChallenge";
 import { InviteFriends, MyInvites } from "@/components/battleground/Invites";
 import { BattleFeed } from "@/components/battleground/BattleFeed";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
@@ -89,16 +85,13 @@ function Arena() {
             </div>
           </div>
           <Button onClick={() => nav("create")} size="lg" className="bg-gradient-victory hover:opacity-90 text-white font-bold shadow-glow">
-            <Plus className="w-5 h-5 mr-1" /> New Battle
+            <Sword className="w-5 h-5 mr-1" /> Challenge
           </Button>
         </div>
       </Card>
 
-      {/* Quick Play — instant battle from question bank */}
-      <QuickPlay defaultClassId={student?.class_id} />
-
-      {/* Direct 1-tap challenge */}
-      <ChallengeClassmates classId={student?.class_id} />
+      {/* Frictionless challenge — subject → chapter → topic → start */}
+      <FrictionlessChallenge classId={student?.class_id} />
 
       {/* Pending invites from classmates */}
       <MyInvites />
@@ -126,7 +119,7 @@ function Arena() {
           { to: "achievements", icon: Award, label: "Badges", color: "bg-gradient-victory" },
           { to: "stats", icon: TrendingUp, label: "My Stats", color: "bg-gradient-primary" },
           { to: "leaderboard", icon: Trophy, label: "Leaderboard", color: "bg-gradient-battle" },
-          { to: "create", icon: Plus, label: "Challenge", color: "bg-gradient-hero" },
+          { to: "create", icon: Sword, label: "Challenge", color: "bg-gradient-hero" },
         ].map((q) => (
           <Link key={q.to} to={q.to}>
             <Card className="p-4 hover:shadow-elevated transition-all hover:-translate-y-0.5 cursor-pointer">
@@ -174,98 +167,27 @@ function Arena() {
   );
 }
 
-// =================== CREATE BATTLE ===================
+// =================== CREATE / CHALLENGE (frictionless) ===================
 function CreateBattle() {
-  const { user } = useAuth();
   const nav = useNavigate();
+  const { user } = useAuth();
   const [student, setStudent] = useState<any>(null);
-  const [title, setTitle] = useState("Algebra Quick Battle");
-  const [subject, setSubject] = useState("Mathematics");
-  const [topic, setTopic] = useState("");
-  const [perQ, setPerQ] = useState(20);
-  const [questions, setQuestions] = useState<any[]>([
-    { question: "", options: ["", "", "", ""], correct_index: 0 },
-  ]);
-
   useEffect(() => {
     if (!user) return;
-    supabase.from("students").select("id, class_id, full_name").eq("user_id", user.id).maybeSingle().then(({ data }) => setStudent(data));
+    supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle().then(({ data }) => setStudent(data));
   }, [user]);
 
-  const updateQ = (i: number, patch: any) => setQuestions((qs) => qs.map((q, idx) => idx === i ? { ...q, ...patch } : q));
-  const updateOpt = (i: number, oi: number, v: string) => setQuestions((qs) => qs.map((q, idx) => idx === i ? { ...q, options: q.options.map((o: string, j: number) => j === oi ? v : o) } : q));
-  const addQ = () => setQuestions((qs) => [...qs, { question: "", options: ["", "", "", ""], correct_index: 0 }]);
-  const removeQ = (i: number) => setQuestions((qs) => qs.filter((_, idx) => idx !== i));
-
-  const create = async () => {
-    if (!user || !student?.class_id) {
-      toast({ title: "You need to be in a class to create battles", variant: "destructive" });
-      return;
-    }
-    const valid = questions.every((q) => q.question.trim() && q.options.every((o: string) => o.trim()));
-    if (!valid) { toast({ title: "Fill in every question and option", variant: "destructive" }); return; }
-    const { data: b, error } = await supabase.from("battles").insert({
-      title, subject, topic: topic || null, type: "mcq", status: "live",
-      class_id: student.class_id, creator_user_id: user.id,
-      per_question_sec: perQ, question_count: questions.length, duration_sec: perQ * questions.length, is_public: true,
-    }).select().single();
-    if (error) { toast({ title: error.message, variant: "destructive" }); return; }
-    const rows = questions.map((q, i) => ({ battle_id: b.id, order_index: i, question: q.question, options: q.options, correct_index: q.correct_index, points: 10 }));
-    const { error: e2 } = await supabase.from("battle_questions").insert(rows);
-    if (e2) { toast({ title: e2.message, variant: "destructive" }); return; }
-    toast({ title: "Battle created — let the games begin!" });
-    nav(`/student/battleground/battle/${b.id}`);
-  };
-
   return (
-    <div className="space-y-4 animate-rise max-w-3xl">
-      <button onClick={() => nav(-1)} className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground"><ArrowLeft className="w-4 h-4" /> Back</button>
+    <div className="space-y-4 animate-rise">
+      <button type="button" onClick={() => nav(-1)} className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground">
+        <ArrowLeft className="w-4 h-4" /> Back to Arena
+      </button>
       <Card className="p-5 bg-gradient-battle text-white border-0">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-widest opacity-80"><Sword className="w-3.5 h-3.5" /> Create Battle</div>
-        <h1 className="text-2xl font-bold mt-1">Challenge your class</h1>
-        <p className="text-sm opacity-80 mt-1">Set up a quiz, invite classmates, dominate the leaderboard.</p>
+        <div className="flex items-center gap-2 text-xs uppercase tracking-widest opacity-80"><Sword className="w-3.5 h-3.5" /> Matchmaking</div>
+        <h1 className="text-2xl font-black mt-1">Challenge</h1>
+        <p className="text-sm opacity-80 mt-1">Pick a friend, subject, and topic — the arena handles the rest.</p>
       </Card>
-
-      <Card className="p-5 space-y-4">
-        <div className="grid md:grid-cols-2 gap-3">
-          <div><Label>Battle title</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-          <div><Label>Subject</Label>
-            <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "History", "Geography", "Computer Science", "General Knowledge"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div><Label>Topic (optional)</Label><Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. Algebra" /></div>
-          <div><Label>Seconds per question</Label><Input type="number" min={5} max={120} value={perQ} onChange={(e) => setPerQ(Number(e.target.value))} /></div>
-        </div>
-      </Card>
-
-      <div className="space-y-3">
-        {questions.map((q, i) => (
-          <Card key={i} className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="font-bold text-sm flex items-center gap-2"><div className="w-7 h-7 rounded-lg bg-gradient-battle text-white flex items-center justify-center text-xs font-black">Q{i + 1}</div> Question</div>
-              {questions.length > 1 && <button onClick={() => removeQ(i)} className="text-xs text-destructive">Remove</button>}
-            </div>
-            <Textarea value={q.question} onChange={(e) => updateQ(i, { question: e.target.value })} placeholder="Enter the question..." />
-            <div className="grid md:grid-cols-2 gap-2">
-              {q.options.map((opt: string, oi: number) => (
-                <label key={oi} className={cn("flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-all", q.correct_index === oi ? "border-accent bg-accent/10" : "border-border")}>
-                  <input type="radio" name={`c-${i}`} checked={q.correct_index === oi} onChange={() => updateQ(i, { correct_index: oi })} />
-                  <Input value={opt} onChange={(e) => updateOpt(i, oi, e.target.value)} placeholder={`Option ${oi + 1}`} className="border-0 focus-visible:ring-0 h-8 px-1" />
-                </label>
-              ))}
-            </div>
-          </Card>
-        ))}
-        <Button variant="outline" onClick={addQ} className="w-full"><Plus className="w-4 h-4 mr-1" /> Add Question</Button>
-      </div>
-
-      <Button onClick={create} size="lg" className="w-full bg-gradient-victory text-white font-bold shadow-glow">
-        <Sword className="w-5 h-5 mr-2" /> Launch Battle
-      </Button>
+      <FrictionlessChallenge classId={student?.class_id} variant="page" />
     </div>
   );
 }
@@ -287,6 +209,8 @@ function BattleRoom() {
   const [finished, setFinished] = useState(false);
   const [me, setMe] = useState<any>({ score: 0, correct_count: 0, total_time_ms: 0, answered_count: 0 });
   const [reviewAnswers, setReviewAnswers] = useState<Record<string, any>>({});
+  const [readyCount, setReadyCount] = useState<number | null>(null);
+  const [pointsFlash, setPointsFlash] = useState<number | null>(null);
 
   // Load
   useEffect(() => {
@@ -316,8 +240,20 @@ function BattleRoom() {
       setParticipantId(pid);
       setQuestionStart(Date.now());
       if (b) setTimeLeft(b.per_question_sec);
+      if ((qs ?? []).length > 0) setReadyCount(3);
     })();
   }, [id, user]);
+
+  // Pre-battle 3-2-1 countdown
+  useEffect(() => {
+    if (readyCount === null || finished) return;
+    if (readyCount > 0) {
+      const t = setTimeout(() => setReadyCount(readyCount - 1), 1000);
+      return () => clearTimeout(t);
+    }
+    setReadyCount(null);
+    setQuestionStart(Date.now());
+  }, [readyCount, finished]);
 
   // Realtime participants
   useEffect(() => {
@@ -345,16 +281,16 @@ function BattleRoom() {
 
   // Per-question timer
   useEffect(() => {
-    if (finished || showResult || !battle) return;
+    if (finished || showResult || !battle || readyCount !== null) return;
     if (timeLeft <= 0) { handleAnswer(-1); return; }
     const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
     return () => clearTimeout(t);
-  }, [timeLeft, showResult, finished, battle]);
+  }, [timeLeft, showResult, finished, battle, readyCount]);
 
   const currentQ = questions[qIdx];
 
   const handleAnswer = async (idx: number) => {
-    if (showResult || !currentQ || !participantId) return;
+    if (showResult || !currentQ || !participantId || readyCount !== null) return;
     setSelected(idx);
     setShowResult(true);
     const elapsed = Date.now() - questionStart;
@@ -367,6 +303,10 @@ function BattleRoom() {
       total_time_ms: me.total_time_ms + elapsed,
     };
     setMe(newMe);
+    if (pts > 0) {
+      setPointsFlash(pts);
+      setTimeout(() => setPointsFlash(null), 900);
+    }
     await supabase.from("battle_answers").insert({
       participant_id: participantId, question_id: currentQ.id,
       selected_index: idx, is_correct: correct, time_ms: elapsed,
@@ -395,10 +335,10 @@ function BattleRoom() {
     const myRank = sorted.findIndex((p) => p.user_id === user?.id) + 1;
     return (
       <div className="space-y-4 animate-rise max-w-2xl mx-auto">
-        <Card className="p-8 bg-gradient-arena text-white border-0 text-center relative overflow-hidden">
+        <Card className="p-8 bg-gradient-arena text-white border-0 text-center relative overflow-hidden animate-pop">
           <div className="absolute inset-0 bg-gradient-victory opacity-20" />
           <div className="relative">
-            <Trophy className="w-20 h-20 mx-auto text-tier-gold drop-shadow-[0_0_24px_rgba(255,200,0,0.6)]" />
+            <Trophy className="w-20 h-20 mx-auto text-tier-gold drop-shadow-[0_0_24px_rgba(255,200,0,0.6)] animate-badge-unlock" />
             <h1 className="text-3xl font-black mt-3">{myRank === 1 ? "Victory!" : "Battle Complete"}</h1>
             <p className="opacity-80 mt-1">You ranked #{myRank} of {sorted.length}</p>
             <div className="grid grid-cols-3 gap-3 mt-6">
@@ -472,10 +412,32 @@ function BattleRoom() {
 
   if (!currentQ) return <div className="p-8 text-center text-muted-foreground">No questions in this battle.</div>;
 
+  if (readyCount !== null) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+        <div className="text-center animate-pop">
+          <div className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold mb-2">Get ready</div>
+          <div className={cn(
+            "font-black tabular-nums text-white rounded-2xl px-8 py-6 bg-gradient-battle shadow-glow",
+            readyCount === 0 ? "text-4xl" : "text-7xl",
+          )}>
+            {readyCount === 0 ? "FIGHT!" : readyCount}
+          </div>
+          <p className="text-sm text-muted-foreground mt-4">{battle.subject} · {questions.length} questions</p>
+        </div>
+      </div>
+    );
+  }
+
   const pct = (timeLeft / battle.per_question_sec) * 100;
 
   return (
-    <div className="space-y-4 animate-rise max-w-3xl mx-auto">
+    <div className="space-y-4 animate-rise max-w-3xl mx-auto relative">
+      {pointsFlash != null && (
+        <div className="pointer-events-none fixed top-1/3 left-1/2 -translate-x-1/2 z-40 text-3xl font-black text-accent animate-score-float">
+          +{pointsFlash}
+        </div>
+      )}
       <div className="flex items-center justify-between text-sm">
         <button onClick={() => nav(-1)} className="text-muted-foreground flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> Exit</button>
         <span className="font-semibold">Question {qIdx + 1} / {questions.length}</span>

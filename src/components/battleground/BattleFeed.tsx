@@ -34,8 +34,19 @@ export function BattleFeed({ limit = 25, className }: { limit?: number; classNam
   const flashRef = useRef<Set<string>>(new Set());
 
   const load = async () => {
-    const { data } = await (supabase as any).rpc("rpc_battle_feed", { _limit: limit });
-    setEvents((data ?? []) as FeedEvent[]);
+    const { data, error } = await (supabase as any).rpc("rpc_battle_feed", { _limit: limit });
+    if (!error && data) {
+      setEvents((data ?? []) as FeedEvent[]);
+      setLoading(false);
+      return;
+    }
+    // Fallback if migration not applied yet
+    const { data: rows } = await supabase
+      .from("battle_events")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    setEvents((rows ?? []) as FeedEvent[]);
     setLoading(false);
   };
 

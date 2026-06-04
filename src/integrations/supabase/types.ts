@@ -1752,6 +1752,26 @@ export type Database = {
         Returns: boolean
       }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
+      rpc_battle_curriculum: {
+        Args: { _subject: string }
+        Returns: Json
+      }
+      rpc_battle_monitor: {
+        Args: { _battle_id: string }
+        Returns: Json
+      }
+      rpc_battle_feed: {
+        Args: { _limit?: number }
+        Returns: Json
+      }
+      rpc_get_battle_report: {
+        Args: { _participant_id: string }
+        Returns: Json
+      }
+      rpc_teacher_battle_reports: {
+        Args: { _battle_id: string }
+        Returns: Json
+      }
       rpc_challenge_student: {
         Args: {
           _chapter?: string
@@ -1760,6 +1780,7 @@ export type Database = {
           _opponent_user_id: string
           _per_q?: number
           _subject: string
+          _topic?: string
         }
         Returns: string
       }
@@ -1785,6 +1806,7 @@ export type Database = {
           _difficulty?: string
           _per_q?: number
           _subject: string
+          _topic?: string
         }
         Returns: string
       }
