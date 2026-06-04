@@ -187,6 +187,12 @@ export default function StudentPerformancePage() {
         </Select>
       </Card>
 
+      {!classes.length && (
+        <Card className="p-6 text-center text-sm text-muted-foreground">
+          You are not assigned to any classes yet. Once classes are linked to your teacher profile, performance insights will appear here.
+        </Card>
+      )}
+
       {classId && (
         <div className="grid grid-cols-2 gap-4 mb-4">
           <StatCard

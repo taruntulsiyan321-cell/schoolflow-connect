@@ -14,11 +14,35 @@ export default function DppAnalytics() {
   const [questions, setQuestions] = useState<any[]>([]);
   const [answers, setAnswers] = useState<any[]>([]);
   const [classmates, setClassmates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     (async () => {
-      const { data: d } = await supabase.from("dpps").select("*").eq("id", id).maybeSingle();
+      setLoading(true);
+      setError(null);
+      const { data: d, error: dErr } = await supabase.from("dpps").select("*").eq("id", id).maybeSingle();
+      if (dErr) {
+        setError(dErr.message);
+        setDpp(null);
+        setQuestions([]);
+        setAttempts([]);
+        setAnswers([]);
+        setClassmates([]);
+        setLoading(false);
+        return;
+      }
+      if (!d) {
+        setError("This DPP was not found or you don't have access to it.");
+        setDpp(null);
+        setQuestions([]);
+        setAttempts([]);
+        setAnswers([]);
+        setClassmates([]);
+        setLoading(false);
+        return;
+      }
       setDpp(d);
       const { data: qs } = await supabase.from("dpp_questions").select("id, order_index, question, marks").eq("dpp_id", id).order("order_index");
       setQuestions(qs ?? []);
@@ -28,11 +52,16 @@ export default function DppAnalytics() {
       if (ids.length) {
         const { data: ans } = await supabase.from("dpp_answers").select("*").in("attempt_id", ids);
         setAnswers(ans ?? []);
+      } else {
+        setAnswers([]);
       }
-      if (d?.class_id) {
+      if (d.class_id) {
         const { data: cm } = await supabase.from("students").select("id").eq("class_id", d.class_id);
         setClassmates(cm ?? []);
+      } else {
+        setClassmates([]);
       }
+      setLoading(false);
     })();
   }, [id]);
 
@@ -53,7 +82,36 @@ export default function DppAnalytics() {
 
   const hardest = [...qStats].sort((a, b) => a.accuracy - b.accuracy).slice(0, 3);
 
-  if (!dpp) return <p className="text-muted-foreground">Loading…</p>;
+  if (loading) {
+    return <p className="text-muted-foreground">Loading DPP analytics…</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-3">
+        <Button variant="ghost" size="sm" asChild className="mb-2">
+          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+        </Button>
+        <Card className="p-6">
+          <p className="text-sm text-destructive font-medium">Unable to load analytics.</p>
+          <p className="text-sm text-muted-foreground mt-1">{error}</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!dpp) {
+    return (
+      <div className="space-y-3">
+        <Button variant="ghost" size="sm" asChild className="mb-2">
+          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+        </Button>
+        <Card className="p-6">
+          <p className="text-sm text-muted-foreground">This DPP is not available.</p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <>

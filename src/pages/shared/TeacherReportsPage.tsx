@@ -189,6 +189,12 @@ export default function TeacherReportsPage() {
         </Select>
       </Card>
 
+      {!classes.length && (
+        <Card className="p-6 text-center text-sm text-muted-foreground">
+          You are not assigned to any classes yet. Once classes are linked to your teacher profile, reports will appear here.
+        </Card>
+      )}
+
       {loading ? (
         <p className="text-muted-foreground text-center py-8">Generating report…</p>
       ) : report ? (
@@ -197,8 +203,12 @@ export default function TeacherReportsPage() {
             <StatCard icon={<Users className="w-5 h-5" />} label="Students" value={report.totalStudents} />
             <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Avg Attendance" value={`${report.classAvgAtt}%`} tone={report.classAvgAtt >= 75 ? "accent" : "warning"} />
             <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Avg Marks" value={`${report.classAvgMarks}%`} tone={report.classAvgMarks >= 50 ? "accent" : "warning"} />
-            <StatCard icon={<FileText className="w-5 h-5" />} label="Exams" value={report.totalExams} tone="secondary" />
+            <StatCard icon={<FileText className="w-5 h-5" />} label="Fee Due" value={`₹${report.totalFeeDue}`} tone="secondary" />
           </div>
+
+          <p className="text-xs text-muted-foreground mb-4">
+            Exams this term: <span className="font-medium">{report.totalExams}</span>
+          </p>
 
           {/* Top performers */}
           {report.top3.length > 0 && (
