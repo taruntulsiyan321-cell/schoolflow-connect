@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/ui-bits";
 import { BattleCard } from "@/components/battleground/bg-bits";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Sword } from "lucide-react";
+import { ArrowLeft, Plus, Sword, Radio } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type ClassOption = { id: string; label: string };
@@ -126,8 +126,8 @@ export default function TeacherBattleground() {
       toast({ title: e2.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Battle published for your class" });
-    setBattles((prev) => [b, ...prev]);
+    toast({ title: "Battle published — monitoring live" });
+    nav(`/teacher/battleground/monitor/${b.id}`);
   };
 
   return (
@@ -245,24 +245,18 @@ export default function TeacherBattleground() {
 
           {battles.length > 0 && (
             <div>
-              <h3 className="font-semibold mb-3">Your recent battles</h3>
+              <h3 className="font-semibold mb-3 flex items-center gap-1.5"><Radio className="w-4 h-4 text-primary" /> Your battles — tap to monitor live</h3>
               <div className="grid md:grid-cols-2 gap-3">
                 {battles.map((b) => (
                   <BattleCard
                     key={String(b.id)}
                     battle={b}
-                onJoin={() =>
-                  toast({
-                    title: "Preview is student-only",
-                    description: "Ask a student to join this battle from their Battleground view.",
-                    variant: "default",
-                  })
-                }
+                    onJoin={() => nav(`/teacher/battleground/monitor/${String(b.id)}`)}
                   />
                 ))}
               </div>
           <p className="text-xs text-muted-foreground mt-2">
-            Students join from their Battleground. Teachers see setup and summary here.
+            Students join from their Battleground. Open any battle to watch live scores, accuracy and who's struggling.
           </p>
             </div>
           )}
