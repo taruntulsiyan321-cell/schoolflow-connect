@@ -1,8 +1,9 @@
-import { ReactNode, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Trophy, Flame, Zap, Crown, Medal, Target, Star } from "lucide-react";
+import { Crown, Lock, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
+import { BADGES, TIER_CLASS, RARITY_LABEL, type BadgeTier } from "@/lib/badges";
 
 export const XPRing = ({ xp, level, size = 120 }: { xp: number; level: number; size?: number }) => {
   const xpInLevel = xp % 100;
@@ -61,25 +62,45 @@ export const Countdown = ({ to, onEnd }: { to: string | Date; onEnd?: () => void
   );
 };
 
-export const BadgeCard = ({ code, tier, earned }: { code: string; tier: "bronze" | "silver" | "gold" | "platinum"; earned?: boolean }) => {
-  const meta: Record<string, { label: string; icon: ReactNode; desc: string }> = {
-    first_win: { label: "First Victory", icon: <Trophy className="w-6 h-6" />, desc: "Win your first battle" },
-    sharp_shooter: { label: "Sharp Shooter", icon: <Target className="w-6 h-6" />, desc: "5+ correct in one battle" },
-    speed_master: { label: "Speed Master", icon: <Zap className="w-6 h-6" />, desc: "Fastest solver" },
-    consistency: { label: "Consistency Warrior", icon: <Flame className="w-6 h-6" />, desc: "7-day streak" },
-    topper: { label: "Subject Topper", icon: <Crown className="w-6 h-6" />, desc: "Top of class" },
-    quiz_winner: { label: "Quiz Winner", icon: <Medal className="w-6 h-6" />, desc: "Win 5 battles" },
-  };
-  const m = meta[code] ?? { label: code, icon: <Star className="w-6 h-6" />, desc: "" };
-  const tierBg = { bronze: "bg-tier-bronze", silver: "bg-tier-silver", gold: "bg-tier-gold", platinum: "bg-tier-platinum" }[tier];
+export const BadgeCard = ({
+  code,
+  tier,
+  earned,
+}: {
+  code: string;
+  tier?: BadgeTier;
+  earned?: boolean;
+}) => {
+  const meta = BADGES[code];
+  const effectiveTier: BadgeTier = tier ?? meta?.tier ?? "bronze";
+  const t = TIER_CLASS[effectiveTier];
+  // Hidden + not earned => mystery card
+  const mystery = !earned && meta?.hidden;
+  const Icon = meta?.icon ?? Crown;
+
   return (
-    <Card className={cn("p-4 text-center transition-all", earned ? "shadow-elevated" : "opacity-50 grayscale")}>
-      <div className={cn("w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-white shadow-glow", tierBg)}>
-        {m.icon}
+    <Card
+      className={cn(
+        "p-4 text-center transition-all duration-300 hover:-translate-y-0.5",
+        earned ? "shadow-elevated" : "opacity-60 grayscale hover:grayscale-0 hover:opacity-90",
+      )}
+    >
+      <div className={cn("relative w-14 h-14 rounded-2xl mx-auto flex items-center justify-center text-white", earned ? "shadow-glow" : "", t.bg)}>
+        {mystery ? <HelpCircle className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
+        {!earned && (
+          <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-muted text-muted-foreground flex items-center justify-center ring-2 ring-card">
+            <Lock className="w-2.5 h-2.5" />
+          </span>
+        )}
       </div>
-      <div className="mt-3 font-semibold text-sm">{m.label}</div>
-      <div className="text-[11px] text-muted-foreground mt-0.5">{m.desc}</div>
-      <div className={cn("mt-2 inline-block text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full text-white", tierBg)}>{tier}</div>
+      <div className="mt-3 font-semibold text-sm leading-tight">{mystery ? "Hidden Badge" : meta?.label ?? code}</div>
+      <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{mystery ? "Keep playing to reveal" : meta?.desc ?? ""}</div>
+      <div className="mt-2 flex items-center justify-center gap-1">
+        <span className={cn("inline-block text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full text-white", t.bg)}>{effectiveTier}</span>
+        {meta && !mystery && (
+          <span className="inline-block text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{RARITY_LABEL[meta.rarity]}</span>
+        )}
+      </div>
     </Card>
   );
 };

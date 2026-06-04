@@ -8,18 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { Sword, Trophy, Sparkles, Plus, Users, Clock, Target, ArrowLeft, TrendingUp, Award, Flame, ChevronRight, Zap, Loader2, BookOpen } from "lucide-react";
 import { XPRing, StreakFlame, BadgeCard, BattleCard, PodiumRow, Countdown } from "@/components/battleground/bg-bits";
 import { QuickPlay } from "@/components/battleground/QuickPlay";
+import { ChallengeClassmates } from "@/components/battleground/ChallengeClassmates";
 import { InviteFriends, MyInvites } from "@/components/battleground/Invites";
-import { BADGES } from "@/lib/badges";
+import { BADGES, badgesByGroup, GROUP_LABEL, GROUP_ORDER } from "@/lib/badges";
 import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
-import { fetchEquippedBadgesByUserIds } from "@/hooks/useStudentBadges";
+import SharedLeaderboard from "@/pages/shared/LeaderboardPage";
 
 // =================== ARENA (HOME) ===================
 function Arena() {
@@ -93,6 +93,9 @@ function Arena() {
 
       {/* Quick Play — instant battle from question bank */}
       <QuickPlay defaultClassId={student?.class_id} />
+
+      {/* Direct 1-tap challenge */}
+      <ChallengeClassmates classId={student?.class_id} />
 
       {/* Pending invites from classmates */}
       <MyInvites />
@@ -472,33 +475,52 @@ function Achievements() {
     supabase.from("student_badges").select("*").eq("user_id", user.id).then(({ data }) => setBadges(data ?? []));
     supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => data && setXp(data));
   }, [user]);
+
   const earnedCodes = new Set(badges.map((b) => b.badge_code));
-  const all = [
-    { code: "first_win", tier: "bronze" as const },
-    { code: "sharp_shooter", tier: "silver" as const },
-    { code: "speed_master", tier: "gold" as const },
-    { code: "consistency", tier: "gold" as const },
-    { code: "topper", tier: "platinum" as const },
-    { code: "quiz_winner", tier: "gold" as const },
-  ];
+  const grouped = useMemo(() => badgesByGroup(), []);
+  const totalBadges = Object.keys(BADGES).length;
+  const earnedCount = Object.keys(BADGES).filter((c) => earnedCodes.has(c)).length;
+  const pct = Math.round((earnedCount / totalBadges) * 100);
+
   return (
     <div className="space-y-5 animate-rise">
-      <Card className="p-5 bg-gradient-arena text-white border-0 flex items-center gap-5">
+      <Card className="p-5 bg-gradient-arena text-white border-0 flex items-center gap-5 flex-wrap">
         <XPRing xp={xp.xp} level={xp.level} size={100} />
-        <div>
+        <div className="flex-1 min-w-[220px]">
           <div className="text-xs uppercase tracking-widest opacity-80 font-semibold">Achievements</div>
-          <h1 className="text-2xl font-black mt-1">{badges.length} Badges Unlocked</h1>
+          <h1 className="text-2xl font-black mt-1">{earnedCount} / {totalBadges} Badges</h1>
           <div className="text-sm opacity-80">{xp.wins} wins · {xp.total_battles} battles · {xp.current_streak} day streak</div>
+          <div className="mt-3 max-w-sm">
+            <div className="h-2 rounded-full bg-white/20 overflow-hidden">
+              <div className="h-full rounded-full bg-gradient-victory transition-all duration-700" style={{ width: `${pct}%` }} />
+            </div>
+            <div className="text-[11px] opacity-70 mt-1">{pct}% of the collection unlocked</div>
+          </div>
         </div>
       </Card>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-        {all.map((b) => {
-          const earned = earnedCodes.has(b.code);
-          const found = badges.find((x) => x.badge_code === b.code);
-          return <BadgeCard key={b.code} code={b.code} tier={(found?.tier ?? b.tier) as any} earned={earned} />;
-        })}
-      </div>
+
       {user && <BadgeEquipPanel userId={user.id} compact />}
+
+      {GROUP_ORDER.map((g) => {
+        const items = grouped[g];
+        if (!items?.length) return null;
+        const got = items.filter((b) => earnedCodes.has(b.code)).length;
+        return (
+          <div key={g}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-lg">{GROUP_LABEL[g]}</h2>
+              <span className="text-xs text-muted-foreground font-semibold">{got}/{items.length}</span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {items.map((b) => {
+                const earned = earnedCodes.has(b.code);
+                const found = badges.find((x) => x.badge_code === b.code);
+                return <BadgeCard key={b.code} code={b.code} tier={found?.tier ?? b.tier} earned={earned} />;
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -551,6 +573,21 @@ function MyStats() {
   const strongest = subjectStats[0];
   const weakest = subjectStats[subjectStats.length - 1];
 
+  const analytics = useMemo(() => {
+    const totalCorrect = history.reduce((a, h) => a + (h.correct_count || 0), 0);
+    const totalAnswered = history.reduce((a, h) => a + (h.answered_count || 0), 0);
+    const accuracy = totalAnswered ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+    const avgScore = history.length ? Math.round(history.reduce((a, h) => a + (h.score || 0), 0) / history.length) : 0;
+    // last 12 battles oldest→newest as accuracy %
+    const trend = [...history]
+      .slice(0, 12)
+      .reverse()
+      .map((h) => (h.answered_count ? Math.round((h.correct_count / h.answered_count) * 100) : 0));
+    // consistency: distinct active days in history window
+    const days = new Set(history.map((h) => new Date(h.joined_at).toDateString()));
+    return { accuracy, avgScore, trend, activeDays: days.size };
+  }, [history]);
+
   return (
     <div className="space-y-5 animate-rise">
       <Card className="p-5 bg-gradient-arena text-white border-0 flex flex-wrap items-center gap-5">
@@ -565,6 +602,32 @@ function MyStats() {
           </div>
         </div>
       </Card>
+
+      {/* Analytics tiles + accuracy trend */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="p-4"><div className="text-2xl font-black text-accent">{analytics.accuracy}%</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Accuracy</div></Card>
+        <Card className="p-4"><div className="text-2xl font-black text-primary">{analytics.avgScore}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Avg score</div></Card>
+        <Card className="p-4"><div className="text-2xl font-black text-warning">{xp.best_win_streak ?? xp.current_streak ?? 0}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Best streak</div></Card>
+        <Card className="p-4"><div className="text-2xl font-black">{analytics.activeDays}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Active days</div></Card>
+      </div>
+
+      {analytics.trend.length > 1 && (
+        <Card className="p-5">
+          <h2 className="font-bold mb-3 flex items-center gap-2"><TrendingUp className="w-4 h-4" /> Accuracy Trend</h2>
+          <div className="flex items-end gap-1.5 h-28">
+            {analytics.trend.map((v, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1 group">
+                <div
+                  className={cn("w-full rounded-t-md transition-all", v >= 75 ? "bg-accent" : v >= 50 ? "bg-primary" : "bg-warning")}
+                  style={{ height: `${Math.max(v, 4)}%` }}
+                  title={`${v}%`}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="text-[11px] text-muted-foreground mt-2 text-center">Per-battle accuracy (oldest → latest)</div>
+        </Card>
+      )}
 
       {subjectStats.length > 0 && (
         <div className="grid md:grid-cols-2 gap-3">
@@ -631,74 +694,6 @@ function MyStats() {
   );
 }
 
-// =================== LEADERBOARD ===================
-function LeaderboardPage() {
-  const { user } = useAuth();
-  const [tab, setTab] = useState("class");
-  const [classRows, setClassRows] = useState<any[]>([]);
-  const [globalRows, setGlobalRows] = useState<any[]>([]);
-  const [badgeMap, setBadgeMap] = useState<Record<string, string | null>>({});
-
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data: stu } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
-      let classList: { uid: string; name: string; score: number }[] = [];
-      if (stu?.class_id) {
-        const { data: cb } = await supabase.from("battles").select("id").eq("class_id", stu.class_id);
-        const ids = (cb ?? []).map((r: any) => r.id);
-        if (ids.length) {
-          const { data: parts } = await supabase.from("battle_participants").select("user_id, display_name, score").in("battle_id", ids);
-          const agg: Record<string, { name: string; score: number }> = {};
-          (parts ?? []).forEach((p: any) => {
-            if (!agg[p.user_id]) agg[p.user_id] = { name: p.display_name || "Student", score: 0 };
-            agg[p.user_id].score += p.score;
-          });
-          classList = Object.entries(agg).map(([uid, v]) => ({ uid, ...v })).sort((a, b) => b.score - a.score);
-          setClassRows(classList);
-        }
-      }
-      const { data: x } = await supabase.from("student_xp").select("user_id, xp, level, wins, equipped_badge").order("xp", { ascending: false }).limit(50);
-      setGlobalRows(x ?? []);
-      const ids = [...new Set([...classList.map((r) => r.uid), ...(x ?? []).map((r) => r.user_id)])];
-      setBadgeMap(await fetchEquippedBadgesByUserIds(ids));
-    })();
-  }, [user]);
-
-  return (
-    <div className="space-y-5 animate-rise">
-      <Card className="p-5 bg-gradient-arena text-white border-0">
-        <div className="text-xs uppercase tracking-widest opacity-80 font-semibold flex items-center gap-2"><Trophy className="w-3.5 h-3.5" /> Leaderboard</div>
-        <h1 className="text-2xl font-black mt-1">Top Champions</h1>
-      </Card>
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="class">My Class</TabsTrigger>
-          <TabsTrigger value="global">Global XP</TabsTrigger>
-        </TabsList>
-        <TabsContent value="class" className="space-y-2 mt-3">
-          {classRows.length === 0 ? <p className="text-center py-8 text-muted-foreground text-sm">No battles in your class yet.</p>
-            : classRows.map((p, i) => (
-              <PodiumRow key={p.uid} rank={i + 1} name={p.name} score={p.score} isMe={p.uid === user?.id} equippedBadge={badgeMap[p.uid]} />
-            ))}
-        </TabsContent>
-        <TabsContent value="global" className="space-y-2 mt-3">
-          {globalRows.map((p, i) => (
-            <PodiumRow
-              key={p.user_id}
-              rank={i + 1}
-              name={`Lvl ${p.level} · ${p.wins} wins`}
-              score={p.xp}
-              isMe={p.user_id === user?.id}
-              equippedBadge={p.equipped_badge ?? badgeMap[p.user_id]}
-            />
-          ))}
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
-}
-
 // =================== ROOT ===================
 export default function Battleground() {
   return (
@@ -708,7 +703,7 @@ export default function Battleground() {
       <Route path="battle/:id" element={<BattleRoom />} />
       <Route path="achievements" element={<Achievements />} />
       <Route path="stats" element={<MyStats />} />
-      <Route path="leaderboard" element={<LeaderboardPage />} />
+      <Route path="leaderboard" element={<SharedLeaderboard />} />
     </Routes>
   );
 }
