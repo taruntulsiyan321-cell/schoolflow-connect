@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { classLabel } from "@/lib/utils";
@@ -22,7 +22,9 @@ export default function ExamsPage({ isAdmin = false }: Props) {
   const [marks, setMarks] = useState<Record<string, string>>({});
   const [activeExam, setActiveExam] = useState<any>(null);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", exam_type: "class_test", class_id: "", subject: "", max_marks: "100", exam_date: "" });
+  const [editId, setEditId] = useState<string | null>(null);
+  const emptyForm = { name: "", exam_type: "class_test", class_id: "", subject: "", max_marks: "100", exam_date: "" };
+  const [form, setForm] = useState(emptyForm);
 
   const loadClasses = async () => {
     if (isAdmin) {
@@ -48,15 +50,36 @@ export default function ExamsPage({ isAdmin = false }: Props) {
   };
   useEffect(() => { loadClasses(); loadExams(); /* eslint-disable-next-line */ }, [user, isAdmin]);
 
-  const create = async () => {
-    if (!form.name || !form.class_id || !form.subject) return toast.error("Name, class and subject required");
-    const { error } = await supabase.from("exams").insert({
-      name: form.name, exam_type: form.exam_type as any, class_id: form.class_id,
-      subject: form.subject, max_marks: Number(form.max_marks),
-      exam_date: form.exam_date || null, created_by: user?.id,
+  const openCreate = () => { setEditId(null); setForm(emptyForm); setOpen(true); };
+  const openEdit = (e: any) => {
+    setEditId(e.id);
+    setForm({
+      name: e.name ?? "", exam_type: e.exam_type ?? "class_test", class_id: e.class_id ?? "",
+      subject: e.subject ?? "", max_marks: String(e.max_marks ?? "100"), exam_date: e.exam_date ?? "",
     });
+    setOpen(true);
+  };
+
+  const submit = async () => {
+    if (!form.name || !form.class_id || !form.subject) return toast.error("Name, class and subject required");
+    const payload = {
+      name: form.name, exam_type: form.exam_type as any, class_id: form.class_id,
+      subject: form.subject, max_marks: Number(form.max_marks), exam_date: form.exam_date || null,
+    };
+    const { error } = editId
+      ? await supabase.from("exams").update(payload).eq("id", editId)
+      : await supabase.from("exams").insert({ ...payload, created_by: user?.id });
     if (error) return toast.error(error.message);
-    toast.success("Exam created"); setOpen(false); loadExams();
+    toast.success(editId ? "Exam updated" : "Exam created");
+    setOpen(false); setEditId(null); setForm(emptyForm); loadExams();
+  };
+
+  const remove = async (e: any) => {
+    if (!window.confirm(`Delete "${e.name}"? This also removes all marks entered for it.`)) return;
+    await supabase.from("marks").delete().eq("exam_id", e.id);
+    const { error } = await supabase.from("exams").delete().eq("id", e.id);
+    if (error) return toast.error(error.message);
+    toast.success("Exam deleted"); loadExams();
   };
 
   const openMarks = async (exam: any) => {
@@ -83,10 +106,10 @@ export default function ExamsPage({ isAdmin = false }: Props) {
     <>
       <PageHeader title="Exams & Marks" subtitle="Create tests and enter results"
         action={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button className="bg-gradient-primary text-primary-foreground"><Plus className="w-4 h-4 mr-1" /> New Exam</Button></DialogTrigger>
+          <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
+            <DialogTrigger asChild><Button className="bg-gradient-primary text-primary-foreground" onClick={openCreate}><Plus className="w-4 h-4 mr-1" /> New Exam</Button></DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Create exam</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{editId ? "Edit exam" : "Create exam"}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div><Label>Name</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="e.g. Maths Unit Test 1" /></div>
                 <div className="grid grid-cols-2 gap-3">
@@ -114,7 +137,7 @@ export default function ExamsPage({ isAdmin = false }: Props) {
                   <div><Label>Max Marks</Label><Input type="number" value={form.max_marks} onChange={e => setForm({ ...form, max_marks: e.target.value })} /></div>
                   <div><Label>Date</Label><Input type="date" value={form.exam_date} onChange={e => setForm({ ...form, exam_date: e.target.value })} /></div>
                 </div>
-                <Button className="w-full bg-gradient-primary text-primary-foreground" onClick={create}>Create</Button>
+                <Button className="w-full bg-gradient-primary text-primary-foreground" onClick={submit}>{editId ? "Save changes" : "Create"}</Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -130,7 +153,11 @@ export default function ExamsPage({ isAdmin = false }: Props) {
                 <div className="text-xs text-muted-foreground">{e.subject} · {classLabel(e.classes)} · /{e.max_marks}</div>
               </div>
             </div>
-            <Button size="sm" variant="outline" onClick={() => openMarks(e)}>Enter Marks</Button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Button size="sm" variant="outline" onClick={() => openMarks(e)}>Enter Marks</Button>
+              <Button size="icon" variant="ghost" className="h-9 w-9" onClick={() => openEdit(e)} title="Edit exam"><Pencil className="w-4 h-4" /></Button>
+              <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive hover:text-destructive" onClick={() => remove(e)} title="Delete exam"><Trash2 className="w-4 h-4" /></Button>
+            </div>
           </Card>
         ))}
         {exams.length === 0 && <p className="text-muted-foreground text-center py-8">No exams yet.</p>}
