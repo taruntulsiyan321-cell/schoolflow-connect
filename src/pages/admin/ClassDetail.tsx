@@ -17,9 +17,11 @@ export default function ClassDetail() {
   const [students, setStudents] = useState<any[]>([]);
   const [att, setAtt] = useState({ present: 0, absent: 0, leave: 0, total: 0 });
   const [exams, setExams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) { setLoading(false); return; }
+    setLoading(true);
     (async () => {
       const [c, t, s, a, e] = await Promise.all([
         supabase.from("classes").select("*").eq("id", id).maybeSingle(),
@@ -37,10 +39,20 @@ export default function ClassDetail() {
         total: rows.length,
       });
       setExams(e.data ?? []);
+      setLoading(false);
     })();
   }, [id]);
 
-  if (!cls) return <p className="text-muted-foreground py-12 text-center">Loading…</p>;
+  if (loading) return <p className="text-muted-foreground py-12 text-center">Loading…</p>;
+  if (!cls) return (
+    <div className="py-16 text-center">
+      <p className="text-lg font-semibold">Class not found</p>
+      <p className="text-sm text-muted-foreground mt-1">This class or batch may have been deleted.</p>
+      <Button variant="outline" className="mt-4" onClick={() => nav("/admin/classes")}>
+        <ArrowLeft className="w-4 h-4 mr-1.5" /> Back to Classes
+      </Button>
+    </div>
+  );
 
   const isBatch = cls.kind === "batch";
   const title = isBatch ? cls.display_name : `Class ${cls.name}-${cls.section}`;
