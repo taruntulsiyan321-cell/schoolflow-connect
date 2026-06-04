@@ -12,6 +12,7 @@ import { Plus, Trash2, ChevronRight, Pencil, Link2, ShieldCheck, UserX, Loader2 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
+import { classLabel } from "@/lib/utils";
 
 const EMPTY = {
   full_name: "", subject: "", mobile: "", email: "",
@@ -118,7 +119,7 @@ export default function TeachersAdmin() {
         <div><Label>Class Teacher of</Label>
           <Select value={form.class_teacher_of} onValueChange={v => setForm({ ...form, class_teacher_of: v })}>
             <SelectTrigger><SelectValue placeholder="Choose class" /></SelectTrigger>
-            <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>Class {c.name}-{c.section}</SelectItem>)}</SelectContent>
+            <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{classLabel(c)}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       )}
@@ -133,7 +134,7 @@ export default function TeachersAdmin() {
                 : [...form.teaching_class_ids, c.id],
             })}
               className={`text-xs px-2 py-1.5 rounded border ${form.teaching_class_ids.includes(c.id) ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>
-              {c.name}-{c.section}
+              {classLabel(c)}
             </button>
           ))}
         </div>

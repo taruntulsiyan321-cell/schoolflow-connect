@@ -8,6 +8,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 
 import { supabase } from "@/integrations/supabase/client";
 import { StatCard, PageHeader } from "@/components/ui-bits";
+import { classLabel } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -341,7 +342,7 @@ const Overview = () => {
                   <div className="min-w-0 flex-1">
                     <div className="font-medium truncate">{s.full_name}</div>
                     <div className="text-xs text-muted-foreground truncate">
-                      Adm# {s.admission_number}{s.classes ? ` · ${s.classes.name}-${s.classes.section}` : ""}
+                      Adm# {s.admission_number}{s.classes ? ` · ${classLabel(s.classes)}` : ""}
                     </div>
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0">{timeAgo(s.created_at)}</span>

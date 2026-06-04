@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { classLabel } from "@/lib/utils";
 
 /* ============================================================
    USERS DIRECTORY (admin)
@@ -225,7 +226,7 @@ export function AttendanceOverview() {
             {byClass.map(c => (
               <Card key={c.id} className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="font-semibold">Class {c.name}-{c.section}</div>
+                  <div className="font-semibold">{classLabel(c)}</div>
                   <div className="flex items-center gap-2">
                     {c.locked
                       ? <Badge variant="outline" className="gap-1"><Lock className="w-3 h-3" />Locked</Badge>
@@ -291,7 +292,7 @@ export function AttendanceOverview() {
       <Dialog open={!!editClass} onOpenChange={v => !v && setEditClass(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Attendance · Class {editClass?.name}-{editClass?.section} · {date}</DialogTitle>
+            <DialogTitle>Edit Attendance · {classLabel(editClass)} · {date}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 my-2">
             {classStudentsForEdit.map(s => (
@@ -436,7 +437,7 @@ export function TimetablePage({ title = "Timetable" }: { title?: string }) {
       <Card className="p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
         <Select value={classId} onValueChange={setClassId}>
           <SelectTrigger className="max-w-xs"><SelectValue placeholder="Pick a class" /></SelectTrigger>
-          <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>Class {c.name}-{c.section}</SelectItem>)}</SelectContent>
+          <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{classLabel(c)}</SelectItem>)}</SelectContent>
         </Select>
         <Button onClick={save} disabled={saving || !dirty}>{saving ? "Saving…" : dirty ? "Save timetable" : "Saved"}</Button>
       </Card>

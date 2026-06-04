@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Save, Trash2, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
+import { classLabel } from "@/lib/utils";
 
 const EMPTY = {
   full_name: "", subject: "", mobile: "", email: "", address: "",
@@ -205,7 +206,7 @@ export default function TeacherProfile() {
                 {classes.map(c => (
                   <button key={c.id} type="button" onClick={() => toggleTeaching(c.id)}
                     className={`text-xs px-2 py-1.5 rounded border ${teaching.includes(c.id) ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>
-                    {c.name}-{c.section}
+                    {classLabel(c)}
                   </button>
                 ))}
                 {classes.length === 0 && <p className="text-xs text-muted-foreground col-span-full">No classes yet — create them first.</p>}
@@ -230,7 +231,7 @@ export default function TeacherProfile() {
                 <Select value={form.class_teacher_of || ""} onValueChange={v => set("class_teacher_of", v)}>
                   <SelectTrigger><SelectValue placeholder="Choose class" /></SelectTrigger>
                   <SelectContent>
-                    {classes.map(c => <SelectItem key={c.id} value={c.id}>Class {c.name}-{c.section}</SelectItem>)}
+                    {classes.map(c => <SelectItem key={c.id} value={c.id}>{classLabel(c)}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-2">

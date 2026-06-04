@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
+import { classLabel } from "@/lib/utils";
 
 const monthNow = () => new Date().toISOString().slice(0, 7);
 
@@ -83,7 +84,7 @@ export default function FeesAdmin() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Select value={classId} onValueChange={setClassId}>
             <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
-            <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>Class {c.name}-{c.section}</SelectItem>)}</SelectContent>
+            <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{classLabel(c)}</SelectItem>)}</SelectContent>
           </Select>
           <Input type="month" value={month} onChange={e => setMonth(e.target.value)} />
         </div>

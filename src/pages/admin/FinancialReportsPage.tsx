@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, StatCard } from "@/components/ui-bits";
+import { classLabel } from "@/lib/utils";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, LineChart, Line,
@@ -100,7 +101,7 @@ export default function FinancialReportsPage() {
   // ── class-wise breakdown ──
   const classBreakdown = useMemo(() => {
     const stuMap = new Map(students.map((s) => [s.id, s.class_id]));
-    const classMap = new Map(classes.map((c) => [c.id, `${c.name}-${c.section}`]));
+    const classMap = new Map(classes.map((c) => [c.id, classLabel(c)]));
     const agg: Record<string, { name: string; collected: number; due: number }> = {};
     filtered.forEach((f) => {
       const cid = stuMap.get(f.student_id) || "unknown";
@@ -131,7 +132,7 @@ export default function FinancialReportsPage() {
   // ── defaulters ──
   const defaulters = useMemo(() => {
     const stuMap = new Map(students.map((s) => [s.id, s]));
-    const classMap = new Map(classes.map((c) => [c.id, `${c.name}-${c.section}`]));
+    const classMap = new Map(classes.map((c) => [c.id, classLabel(c)]));
     const agg: Record<string, { name: string; admission: string; cls: string; owed: number }> = {};
     filtered.filter((f) => f.status !== "paid").forEach((f) => {
       const s = stuMap.get(f.student_id);
@@ -348,7 +349,7 @@ export default function FinancialReportsPage() {
                     const rate = c.due > 0 ? Math.round((c.collected / c.due) * 100) : 0;
                     return (
                       <tr key={c.name} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                        <td className="p-2 font-medium">Class {c.name}</td>
+                        <td className="p-2 font-medium">{c.name}</td>
                         <td className="p-2 text-right">{fmt(c.due)}</td>
                         <td className="p-2 text-right text-accent font-medium">{fmt(c.collected)}</td>
                         <td className="p-2 text-right text-destructive">{fmt(out)}</td>

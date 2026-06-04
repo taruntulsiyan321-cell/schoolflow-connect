@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Loader2, ShieldCheck, Mail, Phone, Link2, UserX, Search, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
+import { classLabel } from "@/lib/utils";
 
 type Student = {
   id: string;
@@ -108,7 +109,7 @@ export default function RolesAdmin() {
                   <div className="font-semibold truncate">{s.full_name}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">
                     Adm# {s.admission_number}
-                    {s.classes && <> · Class {s.classes.name}-{s.classes.section}</>}
+                    {s.classes && <> · {classLabel(s.classes)}</>}
                   </div>
                   <div className="mt-2">
                     {s.user_id ? (

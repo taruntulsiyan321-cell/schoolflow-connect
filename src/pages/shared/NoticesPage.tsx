@@ -13,6 +13,7 @@ import { Plus, Bell, Pencil, Trash2, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { formatDistanceToNow } from "date-fns";
+import { classLabel } from "@/lib/utils";
 
 const EMPTY = { title: "", body: "", audience: "all", class_id: "", expiresIn: "none", customExpiry: "" };
 
@@ -159,7 +160,7 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
               <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{r.body}</p>
               <div className="mt-2 flex gap-2 text-xs flex-wrap items-center">
                 <span className="px-2 py-0.5 rounded bg-secondary/10 text-secondary capitalize">{r.audience}</span>
-                {r.classes && <span className="px-2 py-0.5 rounded bg-accent/10 text-accent">Class {r.classes.name}-{r.classes.section}</span>}
+                {r.classes && <span className="px-2 py-0.5 rounded bg-accent/10 text-accent">{classLabel(r.classes)}</span>}
                 {showState === "expired" && <span className="px-2 py-0.5 rounded bg-muted">Expired</span>}
                 {showState === "revoked" && <span className="px-2 py-0.5 rounded bg-destructive/10 text-destructive">Revoked</span>}
                 {!showState && r.expires_at && (
@@ -232,7 +233,7 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
                   <div><Label>Class</Label>
                     <Select value={form.class_id} onValueChange={v => setForm({ ...form, class_id: v })}>
                       <SelectTrigger><SelectValue placeholder="Choose" /></SelectTrigger>
-                      <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>Class {c.name}-{c.section}</SelectItem>)}</SelectContent>
+                      <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{classLabel(c)}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 )}
