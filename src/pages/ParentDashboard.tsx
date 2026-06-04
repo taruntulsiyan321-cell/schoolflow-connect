@@ -12,6 +12,8 @@ import MyFeesPage from "./shared/MyFeesPage";
 import MyMarksPage from "./shared/MyMarksPage";
 import ChatPage from "./shared/ChatPage";
 import { ProfilePage } from "./shared/SchoolFeatures";
+import ParentInsights from "./parent/ParentInsights";
+import { ComplaintsReport } from "./shared/OperationalCases";
 
 const nav = [
   { to: "/parent", label: "Home", icon: <LayoutDashboard className="w-4 h-4" /> },
