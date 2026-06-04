@@ -516,26 +516,63 @@ export function PermissionsMatrix() {
    APP SETTINGS (local storage)
    ============================================================ */
 export function AppSettingsPage() {
+  const { user } = useAuth();
   const [settings, setSettings] = useState({
     schoolName: "Vidyalaya Public School", locale: "en-IN", currency: "INR",
     enableNotices: true, enableFees: true, enableLeaves: true,
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
-    const s = localStorage.getItem("app-settings");
-    if (s) setSettings(JSON.parse(s));
+    (async () => {
+      const { data, error } = await supabase.from("app_settings" as any).select("*").eq("id", true).maybeSingle();
+      if (error) {
+        // Fall back to any locally cached settings if the table is unavailable.
+        const s = localStorage.getItem("app-settings");
+        if (s) setSettings(JSON.parse(s));
+      } else if (data) {
+        const d = data as any;
+        setSettings({
+          schoolName: d.school_name ?? "Vidyalaya Public School",
+          locale: d.locale ?? "en-IN",
+          currency: d.currency ?? "INR",
+          enableNotices: d.enable_notices ?? true,
+          enableFees: d.enable_fees ?? true,
+          enableLeaves: d.enable_leaves ?? true,
+        });
+      }
+      setLoading(false);
+    })();
   }, []);
-  const save = () => {
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase.from("app_settings" as any).upsert({
+      id: true,
+      school_name: settings.schoolName,
+      locale: settings.locale,
+      currency: settings.currency,
+      enable_notices: settings.enableNotices,
+      enable_fees: settings.enableFees,
+      enable_leaves: settings.enableLeaves,
+      updated_at: new Date().toISOString(),
+      updated_by: user?.id ?? null,
+    } as any);
+    setSaving(false);
+    if (error) return toast.error(error.message);
     localStorage.setItem("app-settings", JSON.stringify(settings));
     toast.success("Settings saved");
   };
+
   return (
     <>
-      <PageHeader title="App Settings" subtitle="Branding, locale and modules" />
+      <PageHeader title="App Settings" subtitle="Branding, locale and modules — shared across the school" />
       <Card className="p-5 max-w-2xl space-y-4">
-        <div><Label>School name</Label><Input value={settings.schoolName} onChange={e => setSettings({ ...settings, schoolName: e.target.value })} /></div>
+        <div><Label>School name</Label><Input value={settings.schoolName} disabled={loading} onChange={e => setSettings({ ...settings, schoolName: e.target.value })} /></div>
         <div className="grid grid-cols-2 gap-3">
-          <div><Label>Locale</Label><Input value={settings.locale} onChange={e => setSettings({ ...settings, locale: e.target.value })} /></div>
-          <div><Label>Currency</Label><Input value={settings.currency} onChange={e => setSettings({ ...settings, currency: e.target.value })} /></div>
+          <div><Label>Locale</Label><Input value={settings.locale} disabled={loading} onChange={e => setSettings({ ...settings, locale: e.target.value })} /></div>
+          <div><Label>Currency</Label><Input value={settings.currency} disabled={loading} onChange={e => setSettings({ ...settings, currency: e.target.value })} /></div>
         </div>
         <div className="space-y-2">
           {[
@@ -545,11 +582,13 @@ export function AppSettingsPage() {
           ].map(([k, label]) => (
             <div key={k} className="flex items-center justify-between p-3 rounded-lg bg-muted">
               <Label>{label}</Label>
-              <Switch checked={(settings as any)[k]} onCheckedChange={v => setSettings({ ...settings, [k]: v })} />
+              <Switch checked={(settings as any)[k]} disabled={loading} onCheckedChange={v => setSettings({ ...settings, [k]: v })} />
             </div>
           ))}
         </div>
-        <Button onClick={save} className="bg-gradient-primary text-primary-foreground">Save settings</Button>
+        <Button onClick={save} disabled={loading || saving} className="bg-gradient-primary text-primary-foreground">
+          {saving ? "Saving…" : "Save settings"}
+        </Button>
       </Card>
     </>
   );
