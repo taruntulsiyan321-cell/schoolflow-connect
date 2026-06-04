@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
 import SharedLeaderboard from "@/pages/shared/LeaderboardPage";
+import BattleReportPage from "./BattleReportPage";
 
 // =================== ARENA (HOME) ===================
 function Arena() {
@@ -456,8 +457,13 @@ function BattleRoom() {
           })}
         </div>
 
-        <div className="flex gap-2">
-          <Button onClick={() => nav("/student/battleground")} className="flex-1">Back to Arena</Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          {participantId && (
+            <Button onClick={() => nav(`report/${participantId}`)} className="flex-1 bg-gradient-primary text-white font-bold">
+              <Sparkles className="w-4 h-4 mr-1" /> Full analytics (24h)
+            </Button>
+          )}
+          <Button onClick={() => nav("/student/battleground")} variant="outline" className="flex-1">Back to Arena</Button>
           <Button onClick={() => nav("/student/battleground/create")} variant="outline" className="flex-1">New Battle</Button>
         </div>
       </div>
@@ -737,7 +743,11 @@ function MyStats() {
         ) : (
           <div className="space-y-2">
             {history.map((h) => (
-              <div key={h.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/40">
+              <Link
+                key={h.id}
+                to={`/student/battleground/report/${h.id}`}
+                className="flex items-center justify-between p-3 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors"
+              >
                 <div>
                   <div className="font-semibold text-sm">{h.battles?.title}</div>
                   <div className="text-xs text-muted-foreground">{h.battles?.subject}{h.battles?.topic ? ` · ${h.battles.topic}` : ""}</div>
@@ -745,8 +755,9 @@ function MyStats() {
                 <div className="text-right">
                   <div className="font-bold tabular-nums">{h.score} pts</div>
                   <div className="text-[10px] text-muted-foreground">{h.correct_count}/{h.answered_count} correct{h.rank ? ` · #${h.rank}` : ""}</div>
+                  <div className="text-[10px] text-primary font-semibold mt-0.5">View report →</div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}
@@ -765,6 +776,7 @@ export default function Battleground() {
       <Route path="achievements" element={<Achievements />} />
       <Route path="stats" element={<MyStats />} />
       <Route path="leaderboard" element={<SharedLeaderboard />} />
+      <Route path="report/:participantId" element={<BattleReportPage />} />
     </Routes>
   );
 }

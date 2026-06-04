@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft, Users, Trophy, Clock, Target, AlertTriangle, Activity,
-  Zap, CheckCircle2, Radio, Flag, BarChart3, Loader2,
+  Zap, CheckCircle2, Radio, Flag, BarChart3, Loader2, FileBarChart, Sparkles,
 } from "lucide-react";
 
 type Participant = {
@@ -28,10 +28,20 @@ type Monitor = {
   questions: QuestionStat[];
 };
 
+type ReportRow = {
+  participant_id: string;
+  user_id: string;
+  display_name: string;
+  expires_at: string;
+  expired: boolean;
+  summary: { score?: number; rank?: number; accuracy_pct?: number };
+  has_ai: boolean;
+};
+
 export default function BattleMonitor() {
   const { id } = useParams<{ id: string }>();
-  const nav = useNavigate();
   const [data, setData] = useState<Monitor | null>(null);
+  const [reports, setReports] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -45,6 +55,8 @@ export default function BattleMonitor() {
     setData(res as Monitor);
     setError(null);
     setLoading(false);
+    const { data: reps } = await (supabase as any).rpc("rpc_teacher_battle_reports", { _battle_id: id });
+    setReports((reps ?? []) as ReportRow[]);
   }, [id]);
 
   // Initial + poll every 3s
@@ -260,6 +272,43 @@ export default function BattleMonitor() {
           ))}
         </div>
       </Card>
+
+      {/* Per-student analytics (24h) */}
+      {reports.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+            <FileBarChart className="w-4 h-4 text-primary" />
+            <h2 className="font-bold text-sm">Student performance reports</h2>
+            <span className="ml-auto text-[10px] text-muted-foreground font-semibold">Available 24h</span>
+          </div>
+          <div className="divide-y divide-border/60">
+            {reports.map((r) => (
+              <Link
+                key={r.participant_id}
+                to={`/teacher/battleground/monitor/${id}/report/${r.participant_id}`}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors",
+                  r.expired && "opacity-60",
+                )}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm">{r.display_name}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {r.summary?.score ?? 0} pts · #{r.summary?.rank ?? "—"} · {r.summary?.accuracy_pct ?? 0}% accuracy
+                    {r.expired ? " · expired" : ""}
+                  </div>
+                </div>
+                <span className={cn(
+                  "text-xs font-semibold shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-md border",
+                  r.expired ? "text-muted-foreground border-border" : "text-primary border-primary/30",
+                )}>
+                  <Sparkles className="w-3.5 h-3.5" /> {r.expired ? "Expired" : "Deep report →"}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

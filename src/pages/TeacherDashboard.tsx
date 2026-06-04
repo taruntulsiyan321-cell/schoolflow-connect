@@ -24,6 +24,7 @@ import ExamsPage from "./shared/ExamsPage";
 import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 import TeacherBattleground from "./teacher/TeacherBattleground";
 import BattleMonitor from "./teacher/BattleMonitor";
+import BattleTeacherReport from "./teacher/BattleTeacherReport";
 import QuestionBankPage from "./shared/QuestionBankPage";
 
 const nav = [
@@ -348,6 +349,7 @@ export default function TeacherDashboard() {
         <Route path="dpp/:id/analytics" element={<DppAnalytics />} />
         <Route path="battleground" element={<TeacherBattleground />} />
         <Route path="battleground/monitor/:id" element={<BattleMonitor />} />
+        <Route path="battleground/monitor/:battleId/report/:participantId" element={<BattleTeacherReport />} />
         <Route path="question-bank" element={<QuestionBankPage />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
