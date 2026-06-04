@@ -8,6 +8,7 @@ import { ArrowLeft, Target, Timer } from "lucide-react";
 import { ScoreRing } from "@/components/dpp/ScoreRing";
 import { QuestionRenderer, DppQuestion } from "@/components/dpp/QuestionRenderer";
 import { PageHeader } from "@/components/ui-bits";
+import { ExplainPanel } from "@/components/learn/ExplainPanel";
 
 export default function DppResult() {
   const { id } = useParams<{ id: string }>();
@@ -74,14 +75,31 @@ export default function DppResult() {
       <div className="space-y-4">
         {questions.map((q, i) => {
           const a = answers[q.id];
+          const resp = (a?.response as any) ?? {};
+          const opts: string[] = Array.isArray(q.options) ? q.options : [];
+          const correctIdx = Array.isArray(q.correct?.indexes) ? q.correct.indexes[0] ?? null : null;
+          const selectedIdx = Array.isArray(resp.indexes) ? resp.indexes[0] ?? null : null;
+          const correctText = q.correct?.text ?? (q.correct?.value !== undefined ? String(q.correct.value) : "");
+          const selectedText = resp.text ?? (resp.value !== undefined ? String(resp.value) : "");
           return (
             <Card key={q.id} className="p-5">
               <div className="text-xs text-muted-foreground mb-2">Q{i + 1}</div>
               <QuestionRenderer
                 question={q}
                 mode="review"
-                value={(a?.response as any) ?? {}}
+                value={resp}
                 isCorrect={a?.is_correct ?? null}
+              />
+              <ExplainPanel
+                question={q.question}
+                options={opts}
+                correctIndex={correctIdx}
+                selectedIndex={selectedIdx}
+                correctText={correctText}
+                selectedText={selectedText}
+                subject={dpp?.subject}
+                topic={(q as any).topic ?? ""}
+                wasCorrect={a?.is_correct ?? null}
               />
             </Card>
           );

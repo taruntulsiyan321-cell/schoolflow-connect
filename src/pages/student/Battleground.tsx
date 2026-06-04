@@ -15,6 +15,8 @@ import { XPRing, StreakFlame, BadgeCard, BattleCard, PodiumRow, Countdown } from
 import { QuickPlay } from "@/components/battleground/QuickPlay";
 import { ChallengeClassmates } from "@/components/battleground/ChallengeClassmates";
 import { InviteFriends, MyInvites } from "@/components/battleground/Invites";
+import { BattleFeed } from "@/components/battleground/BattleFeed";
+import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { BADGES, badgesByGroup, GROUP_LABEL, GROUP_ORDER } from "@/lib/badges";
 import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
@@ -99,6 +101,9 @@ function Arena() {
 
       {/* Pending invites from classmates */}
       <MyInvites />
+
+      {/* Live competitive activity timeline */}
+      <BattleFeed />
 
       {/* Daily challenge */}
       <Card className="p-4 border bg-card">
@@ -280,6 +285,7 @@ function BattleRoom() {
   const [questionStart, setQuestionStart] = useState(Date.now());
   const [finished, setFinished] = useState(false);
   const [me, setMe] = useState<any>({ score: 0, correct_count: 0, total_time_ms: 0, answered_count: 0 });
+  const [reviewAnswers, setReviewAnswers] = useState<Record<string, any>>({});
 
   // Load
   useEffect(() => {
@@ -325,6 +331,16 @@ function BattleRoom() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [id]);
+
+  // Load my per-question answers for the post-battle review
+  useEffect(() => {
+    if (!finished || !participantId) return;
+    supabase.from("battle_answers").select("*").eq("participant_id", participantId).then(({ data }) => {
+      const m: Record<string, any> = {};
+      (data ?? []).forEach((x: any) => { m[x.question_id] = x; });
+      setReviewAnswers(m);
+    });
+  }, [finished, participantId]);
 
   // Per-question timer
   useEffect(() => {
@@ -395,6 +411,51 @@ function BattleRoom() {
           <h3 className="font-bold px-2 py-1">Final Leaderboard</h3>
           {sorted.map((p, i) => <PodiumRow key={p.id} rank={i + 1} name={p.display_name} score={p.score} isMe={p.user_id === user?.id} />)}
         </Card>
+
+        {/* Question-wise review + AI insights */}
+        <div className="space-y-3">
+          <h3 className="font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Question Review & AI Insights</h3>
+          {questions.map((q, i) => {
+            const ans = reviewAnswers[q.id];
+            const sel = ans ? ans.selected_index : null;
+            const wasCorrect = ans ? ans.is_correct : null;
+            return (
+              <Card key={q.id} className="p-4">
+                <div className="text-xs text-muted-foreground mb-1">Q{i + 1}</div>
+                <div className="font-medium text-sm leading-snug">{q.question}</div>
+                <div className="grid sm:grid-cols-2 gap-2 mt-3">
+                  {(q.options as string[]).map((opt: string, oi: number) => {
+                    const isCorrect = oi === q.correct_index;
+                    const isSel = oi === sel;
+                    return (
+                      <div key={oi} className={cn(
+                        "px-3 py-2 rounded-lg border text-sm flex items-center gap-2",
+                        isCorrect && "border-accent bg-accent/10",
+                        isSel && !isCorrect && "border-destructive bg-destructive/10",
+                        !isCorrect && !isSel && "border-border opacity-70",
+                      )}>
+                        <span className="w-5 h-5 rounded bg-muted flex items-center justify-center text-[11px] font-bold shrink-0">{String.fromCharCode(65 + oi)}</span>
+                        <span className="flex-1">{opt}</span>
+                        {isCorrect && <span className="text-[10px] font-semibold text-accent uppercase">Correct</span>}
+                        {isSel && !isCorrect && <span className="text-[10px] font-semibold text-destructive uppercase">You</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+                <ExplainPanel
+                  question={q.question}
+                  options={q.options as string[]}
+                  correctIndex={q.correct_index}
+                  selectedIndex={sel}
+                  subject={battle.subject}
+                  topic={battle.topic ?? ""}
+                  wasCorrect={wasCorrect}
+                />
+              </Card>
+            );
+          })}
+        </div>
+
         <div className="flex gap-2">
           <Button onClick={() => nav("/student/battleground")} className="flex-1">Back to Arena</Button>
           <Button onClick={() => nav("/student/battleground/create")} variant="outline" className="flex-1">New Battle</Button>
