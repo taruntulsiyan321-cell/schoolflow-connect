@@ -22,39 +22,95 @@ import { formatDistanceToNow } from "date-fns";
 /* ============================================================
    USERS DIRECTORY (admin)
    ============================================================ */
+const ALL_ROLES = ["admin", "principal", "teacher", "student", "parent"] as const;
+const ROLE_TONE: Record<string, string> = {
+  admin: "bg-primary/10 text-primary border-primary/30",
+  principal: "bg-accent/10 text-accent border-accent/30",
+  teacher: "bg-secondary text-secondary-foreground",
+  student: "bg-warning/10 text-warning border-warning/30",
+  parent: "bg-muted text-muted-foreground",
+};
+
 export function UsersDirectory() {
   const [rows, setRows] = useState<any[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.rpc("admin_list_users_with_roles");
-      setRows((data as any[]) ?? []);
-      setLoading(false);
-    })();
-  }, []);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const load = async () => {
+    const { data, error } = await supabase.rpc("admin_list_users_with_roles");
+    if (error) toast.error(error.message);
+    setRows((data as any[]) ?? []);
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const assign = async (u: any, role: string) => {
+    if (!role || u.roles?.includes(role)) return;
+    const identifier = u.email || u.phone;
+    if (!identifier) return toast.error("User has no email or phone to identify.");
+    setBusy(u.user_id);
+    const { error } = await supabase.rpc("admin_assign_role", { _identifier: identifier, _role: role as any });
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success(`Granted ${role}`);
+    setRows(prev => prev.map(r => r.user_id === u.user_id ? { ...r, roles: [...(r.roles ?? []), role] } : r));
+  };
+
+  const remove = async (u: any, role: string) => {
+    setBusy(u.user_id);
+    const { error } = await supabase.rpc("admin_remove_role", { _user_id: u.user_id, _role: role as any });
+    setBusy(null);
+    if (error) return toast.error(error.message);
+    toast.success(`Removed ${role}`);
+    setRows(prev => prev.map(r => r.user_id === u.user_id ? { ...r, roles: (r.roles ?? []).filter((x: string) => x !== role) } : r));
+  };
+
   const filtered = rows.filter(r => !q || r.email?.toLowerCase().includes(q.toLowerCase()) || r.phone?.includes(q));
   return (
     <>
-      <PageHeader title="User Management" subtitle={`${rows.length} registered users`} />
+      <PageHeader title="User Management" subtitle={`${rows.length} registered users · assign or revoke roles`} />
       <div className="flex gap-3 mb-4">
         <Input placeholder="Search by email or phone…" value={q} onChange={e => setQ(e.target.value)} />
       </div>
       {loading ? <p className="text-muted-foreground text-center py-8">Loading…</p> : (
         <div className="space-y-2">
-          {filtered.map(u => (
-            <Card key={u.user_id} className="p-4 flex items-center justify-between shadow-card">
-              <div className="min-w-0">
-                <div className="font-medium truncate">{u.email || u.phone}</div>
-                <div className="text-xs text-muted-foreground">Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</div>
-              </div>
-              <div className="flex gap-1.5 flex-wrap justify-end">
-                {u.roles.length === 0
-                  ? <Badge variant="outline" className="text-muted-foreground">No role</Badge>
-                  : u.roles.map((r: string) => <Badge key={r} variant="outline" className="capitalize">{r}</Badge>)}
-              </div>
-            </Card>
-          ))}
+          {filtered.map(u => {
+            const available = ALL_ROLES.filter(r => !(u.roles ?? []).includes(r));
+            return (
+              <Card key={u.user_id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-card">
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{u.email || u.phone || "Unknown user"}</div>
+                  <div className="text-xs text-muted-foreground">Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}</div>
+                </div>
+                <div className="flex gap-1.5 flex-wrap items-center sm:justify-end">
+                  {(u.roles ?? []).length === 0
+                    ? <Badge variant="outline" className="text-muted-foreground">No role</Badge>
+                    : u.roles.map((r: string) => (
+                        <Badge key={r} variant="outline" className={`capitalize gap-1 ${ROLE_TONE[r] ?? ""}`}>
+                          {r}
+                          <button
+                            onClick={() => remove(u, r)}
+                            disabled={busy === u.user_id}
+                            className="hover:text-destructive disabled:opacity-50"
+                            title={`Remove ${r}`}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                  {available.length > 0 && (
+                    <Select value="" onValueChange={(v) => assign(u, v)} disabled={busy === u.user_id}>
+                      <SelectTrigger className="h-7 w-[120px] text-xs"><SelectValue placeholder="+ Add role" /></SelectTrigger>
+                      <SelectContent>
+                        {available.map(r => <SelectItem key={r} value={r} className="capitalize">{r}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
           {filtered.length === 0 && <p className="text-muted-foreground text-center py-8">No users match.</p>}
         </div>
       )}
