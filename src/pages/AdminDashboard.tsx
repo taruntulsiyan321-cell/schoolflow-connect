@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus, Shield, IndianRupee, Sparkles, Activity, Database } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, UserPlus, ArrowRight, Send, FilePlus, Shield, IndianRupee, Sparkles, Activity, Database, CalendarOff } from "lucide-react";
 import QuestionBankPage from "./shared/QuestionBankPage";
+import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -18,7 +19,6 @@ import ClassDetail from "./admin/ClassDetail";
 import FeesAdmin from "./admin/FeesAdmin";
 import ReportsAdmin from "./admin/ReportsAdmin";
 import RolesAdmin from "./admin/RolesAdmin";
-import FinancialReportsPage from "./admin/FinancialReportsPage";
 import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 import {
@@ -33,6 +33,8 @@ const nav = [
   { to: "/admin/classes", label: "Classes & Batches", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/admin/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/admin/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
+  { to: "/admin/leave-requests", label: "Leaves", icon: <CalendarOff className="w-4 h-4" /> },
+  { to: "/admin/exams", label: "Exams", icon: <FilePlus className="w-4 h-4" /> },
   { to: "/admin/reports", label: "Reports & Financials", icon: <FileText className="w-4 h-4" /> },
   { to: "/admin/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/admin/question-bank", label: "Question Bank", icon: <Database className="w-4 h-4" /> },
@@ -414,6 +416,7 @@ export default function AdminDashboard() {
         <Route path="classes/:id" element={<ClassDetail />} />
         <Route path="fees" element={<FeesAdmin />} />
         <Route path="attendance" element={<AttendanceOverview />} />
+        <Route path="leave-requests" element={<LeaveRequestsPage canReview />} />
         <Route path="reports" element={<ReportsAdmin />} />
         <Route path="financial-reports" element={<Navigate to="/admin/reports" replace />} />
         <Route path="timetable" element={<TimetablePage title="Timetable" />} />
