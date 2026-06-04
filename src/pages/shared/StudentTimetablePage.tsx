@@ -34,11 +34,11 @@ export default function StudentTimetablePage() {
       );
 
       const { data: tt } = await supabase
-        .from("class_timetables" as any)
+        .from("class_timetables")
         .select("grid")
         .eq("class_id", s.class_id)
         .maybeSingle();
-      if ((tt as any)?.grid) setGrid((tt as any).grid as Record<string, string>);
+      if (tt?.grid) setGrid(tt.grid as unknown as Record<string, string>);
 
       setLoading(false);
     })();

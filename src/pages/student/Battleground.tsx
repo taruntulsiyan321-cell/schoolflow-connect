@@ -362,7 +362,7 @@ function BattleRoom() {
     setSelected(null);
     if (qIdx + 1 >= questions.length) {
       // finish
-      await supabase.rpc("rpc_finish_battle" as any, { _participant_id: participantId });
+      await supabase.rpc("rpc_finish_battle", { _participant_id: participantId });
       setFinished(true);
       return;
     }

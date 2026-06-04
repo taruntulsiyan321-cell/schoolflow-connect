@@ -65,7 +65,7 @@ const Home = () => {
       }
       const { data: x } = await supabase.from("student_xp").select("xp, level, current_streak").eq("user_id", user.id).maybeSingle();
       setXp(x);
-      const { data: lb } = await supabase.rpc("rpc_leaderboard" as any, { _scope: "class", _category: "xp", _subject: null, _limit: 200 });
+      const { data: lb } = await supabase.rpc("rpc_leaderboard", { _scope: "class", _category: "xp", _subject: undefined, _limit: 200 });
       if (Array.isArray(lb)) {
         const i = lb.findIndex((r: any) => r.user_id === user.id);
         setRank(i >= 0 ? i + 1 : null);

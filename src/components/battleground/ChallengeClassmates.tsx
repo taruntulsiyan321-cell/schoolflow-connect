@@ -30,7 +30,7 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
 
   useEffect(() => {
     if (!classId) return;
-    supabase.rpc("rpc_classmates" as any).then(({ data }) => {
+    supabase.rpc("rpc_classmates").then(({ data }) => {
       const mates = (data ?? []).map((m: any) => ({
         id: m.student_id, full_name: m.full_name, user_id: m.user_id,
         roll_number: m.roll_number, equipped_badge: m.equipped_badge,
@@ -41,13 +41,13 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
 
   const challenge = async (opponent: Classmate) => {
     setChallenging(opponent.user_id);
-    const { data, error } = await supabase.rpc("rpc_challenge_student" as any, {
+    const { data, error } = await supabase.rpc("rpc_challenge_student", {
       _opponent_user_id: opponent.user_id,
       _subject: subject,
       _difficulty: difficulty,
       _count: count,
       _per_q: perQ,
-      _chapter: null,
+      _chapter: undefined,
     });
     setChallenging(null);
     if (error) {

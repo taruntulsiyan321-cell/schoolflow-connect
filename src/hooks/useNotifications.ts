@@ -21,11 +21,11 @@ export function useNotifications() {
   const reload = useCallback(async () => {
     if (!user) { setItems([]); setLoading(false); return; }
     const { data } = await supabase
-      .from("notifications" as any)
+      .from("notifications")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
-    setItems((data as any) ?? []);
+    setItems(data ?? []);
     setLoading(false);
   }, [user]);
 
@@ -49,18 +49,18 @@ export function useNotifications() {
 
   const markRead = useCallback(async (id: string) => {
     setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    await supabase.from("notifications" as any).update({ read: true }).eq("id", id);
+    await supabase.from("notifications").update({ read: true }).eq("id", id);
   }, []);
 
   const markAllRead = useCallback(async () => {
     if (!user) return;
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-    await supabase.from("notifications" as any).update({ read: true }).eq("user_id", user.id).eq("read", false);
+    await supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false);
   }, [user]);
 
   const remove = useCallback(async (id: string) => {
     setItems((prev) => prev.filter((n) => n.id !== id));
-    await supabase.from("notifications" as any).delete().eq("id", id);
+    await supabase.from("notifications").delete().eq("id", id);
   }, []);
 
   return { items, unread, loading, reload, markRead, markAllRead, remove };

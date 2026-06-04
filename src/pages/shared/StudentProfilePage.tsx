@@ -62,7 +62,7 @@ export default function StudentProfilePage() {
       setXp(x);
 
       // Class XP rank via leaderboard RPC
-      const { data: lb } = await supabase.rpc("rpc_leaderboard" as any, { _scope: "class", _category: "xp", _subject: null, _limit: 200 });
+      const { data: lb } = await supabase.rpc("rpc_leaderboard", { _scope: "class", _category: "xp", _subject: undefined, _limit: 200 });
       if (Array.isArray(lb)) {
         const i = lb.findIndex((r: any) => r.user_id === user.id);
         setClassRank(i >= 0 ? i + 1 : null);

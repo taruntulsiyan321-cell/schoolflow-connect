@@ -40,7 +40,7 @@ export default function StudentClassesPage() {
       }
 
       // Classmates via SECURITY DEFINER RPC (RLS blocks direct peer reads)
-      const { data: mates } = await supabase.rpc("rpc_classmates" as any);
+      const { data: mates } = await supabase.rpc("rpc_classmates");
       const rows = (mates ?? []).map((m: any) => ({
         id: m.student_id, full_name: m.full_name, roll_number: m.roll_number,
         user_id: m.user_id, equipped_badge: m.equipped_badge,

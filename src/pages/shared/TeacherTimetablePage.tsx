@@ -61,7 +61,7 @@ export default function TeacherTimetablePage() {
       const timetables: Record<string, Record<string, string>> = {};
       if (classIds.size) {
         const { data: tts } = await supabase
-          .from("class_timetables" as any)
+          .from("class_timetables")
           .select("class_id, grid")
           .in("class_id", Array.from(classIds));
         (tts ?? []).forEach((r: any) => { timetables[r.class_id] = r.grid ?? {}; });

@@ -77,10 +77,10 @@ export default function LeaderboardPage() {
 
       // ---- Gamification leaderboards via SECURITY DEFINER RPC ----
       if (meta.mode === "rpc") {
-        const { data, error } = await supabase.rpc("rpc_leaderboard" as any, {
+        const { data, error } = await supabase.rpc("rpc_leaderboard", {
           _scope: scope,
           _category: category,
-          _subject: category === "subject" ? subject : null,
+          _subject: category === "subject" ? subject : undefined,
           _limit: 100,
         });
         if (cancelled) return;

@@ -410,8 +410,8 @@ export function TimetablePage({ title = "Timetable" }: { title?: string }) {
   useEffect(() => {
     if (!classId) return;
     setDirty(false);
-    supabase.from("class_timetables" as any).select("grid").eq("class_id", classId).maybeSingle()
-      .then(({ data }) => setGrid(((data as any)?.grid as Record<string, string>) ?? {}));
+    supabase.from("class_timetables").select("grid").eq("class_id", classId).maybeSingle()
+      .then(({ data }) => setGrid((data?.grid as unknown as Record<string, string>) ?? {}));
   }, [classId]);
 
   const update = (d: string, p: string, v: string) => {
@@ -422,7 +422,7 @@ export function TimetablePage({ title = "Timetable" }: { title?: string }) {
   const save = async () => {
     if (!classId) return;
     setSaving(true);
-    const { error } = await supabase.from("class_timetables" as any).upsert({
+    const { error } = await supabase.from("class_timetables").upsert({
       class_id: classId, grid, updated_at: new Date().toISOString(),
     }, { onConflict: "class_id" });
     setSaving(false);
@@ -526,13 +526,13 @@ export function AppSettingsPage() {
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase.from("app_settings" as any).select("*").eq("id", true).maybeSingle();
+      const { data, error } = await supabase.from("app_settings").select("*").eq("id", true).maybeSingle();
       if (error) {
         // Fall back to any locally cached settings if the table is unavailable.
         const s = localStorage.getItem("app-settings");
         if (s) setSettings(JSON.parse(s));
       } else if (data) {
-        const d = data as any;
+        const d = data;
         setSettings({
           schoolName: d.school_name ?? "Vidyalaya Public School",
           locale: d.locale ?? "en-IN",
@@ -548,7 +548,7 @@ export function AppSettingsPage() {
 
   const save = async () => {
     setSaving(true);
-    const { error } = await supabase.from("app_settings" as any).upsert({
+    const { error } = await supabase.from("app_settings").upsert({
       id: true,
       school_name: settings.schoolName,
       locale: settings.locale,
@@ -558,7 +558,7 @@ export function AppSettingsPage() {
       enable_leaves: settings.enableLeaves,
       updated_at: new Date().toISOString(),
       updated_by: user?.id ?? null,
-    } as any);
+    });
     setSaving(false);
     if (error) return toast.error(error.message);
     localStorage.setItem("app-settings", JSON.stringify(settings));
