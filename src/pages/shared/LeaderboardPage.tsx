@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
-import { fetchEquippedBadgesByUserIds } from "@/hooks/useStudentBadges";
 
 type Scope = "class" | "school";
 type Category =
@@ -36,10 +35,10 @@ const CATS: { key: Category; label: string; icon: React.ReactNode; mode: "rpc" |
   { key: "weekly", label: "This Week", icon: <CalendarDays className="w-3.5 h-3.5" />, mode: "rpc" },
   { key: "monthly", label: "This Month", icon: <CalendarRange className="w-3.5 h-3.5" />, mode: "rpc" },
   { key: "subject", label: "By Subject", icon: <Star className="w-3.5 h-3.5" />, mode: "rpc" },
-  { key: "marks", label: "Marks", icon: <Trophy className="w-3.5 h-3.5" />, mode: "client", classOnly: true },
-  { key: "attendance", label: "Attendance", icon: <ClipboardCheck className="w-3.5 h-3.5" />, mode: "client", classOnly: true },
-  { key: "homework", label: "Homework", icon: <NotebookPen className="w-3.5 h-3.5" />, mode: "client", classOnly: true },
-  { key: "dpp", label: "DPP", icon: <Target className="w-3.5 h-3.5" />, mode: "client", classOnly: true },
+  { key: "marks", label: "Marks", icon: <Trophy className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
+  { key: "attendance", label: "Attendance", icon: <ClipboardCheck className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
+  { key: "homework", label: "Homework", icon: <NotebookPen className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
+  { key: "dpp", label: "DPP", icon: <Target className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
 ];
 
 export default function LeaderboardPage() {
@@ -97,6 +96,8 @@ export default function LeaderboardPage() {
             category === "xp" ? `${Number(r.score)} XP`
             : category === "streak" ? `${Number(r.score)} days`
             : category === "wins" ? `${Number(r.score)} wins`
+            : category === "marks" || category === "attendance" || category === "homework" ? `${Number(r.score)}%`
+            : category === "dpp" ? `${Number(r.score)}% avg`
             : `${Number(r.score)} pts`,
         }));
         const bm: Record<string, string | null> = {};
@@ -107,86 +108,7 @@ export default function LeaderboardPage() {
         return;
       }
 
-      // ---- Academic leaderboards (class scope, client-side) ----
-      if (!classId) { setRows([]); setLoading(false); return; }
-      const { data: classmates } = await supabase
-        .from("students").select("id, full_name, roll_number, user_id").eq("class_id", classId);
-      const students = classmates ?? [];
-      const studentIds = students.map((s) => s.id);
-      const userIds = students.map((s) => s.user_id).filter(Boolean) as string[];
-      let ranked: RankRow[] = [];
-
-      if (category === "marks") {
-        const { data: exams } = await supabase.from("exams").select("id, max_marks").eq("class_id", classId);
-        const examIds = exams?.map((e) => e.id) ?? [];
-        const maxByExam: Record<string, number> = {};
-        exams?.forEach((e) => { maxByExam[e.id] = Number(e.max_marks); });
-        const { data: marks } = examIds.length
-          ? await supabase.from("marks").select("student_id, exam_id, marks_obtained").in("exam_id", examIds)
-          : { data: [] };
-        const totals: Record<string, { total: number; max: number }> = {};
-        marks?.forEach((m) => {
-          if (!totals[m.student_id]) totals[m.student_id] = { total: 0, max: 0 };
-          totals[m.student_id].total += Number(m.marks_obtained);
-          totals[m.student_id].max += maxByExam[m.exam_id] ?? 0;
-        });
-        ranked = students.map((s) => {
-          const t = totals[s.id] ?? { total: 0, max: 0 };
-          const pct = t.max ? (t.total / t.max) * 100 : 0;
-          return { key: s.id, userId: s.user_id, full_name: s.full_name, roll_number: s.roll_number, score: pct, label: `${pct.toFixed(1)}%` };
-        });
-      } else if (category === "attendance") {
-        const { data: att } = studentIds.length
-          ? await supabase.from("attendance").select("student_id, status").in("student_id", studentIds)
-          : { data: [] };
-        const stats: Record<string, { present: number; total: number }> = {};
-        att?.forEach((a) => {
-          if (!stats[a.student_id]) stats[a.student_id] = { present: 0, total: 0 };
-          stats[a.student_id].total += 1;
-          if (a.status === "present") stats[a.student_id].present += 1;
-        });
-        ranked = students.map((s) => {
-          const st = stats[s.id] ?? { present: 0, total: 0 };
-          const pct = st.total ? (st.present / st.total) * 100 : 0;
-          return { key: s.id, userId: s.user_id, full_name: s.full_name, roll_number: s.roll_number, score: pct, label: `${pct.toFixed(0)}%` };
-        });
-      } else if (category === "homework") {
-        const { data: hw } = await supabase.from("homework").select("id").eq("class_id", classId);
-        const hwIds = hw?.map((h) => h.id) ?? [];
-        const totalHw = hwIds.length;
-        const { data: subs } = hwIds.length && studentIds.length
-          ? await supabase.from("homework_submissions").select("student_id, status").in("homework_id", hwIds).in("student_id", studentIds)
-          : { data: [] };
-        const done: Record<string, number> = {};
-        subs?.forEach((sub) => {
-          if (sub.status === "submitted" || sub.status === "graded") done[sub.student_id] = (done[sub.student_id] ?? 0) + 1;
-        });
-        ranked = students.map((s) => {
-          const n = done[s.id] ?? 0;
-          const pct = totalHw ? (n / totalHw) * 100 : 0;
-          return { key: s.id, userId: s.user_id, full_name: s.full_name, roll_number: s.roll_number, score: pct, label: totalHw ? `${n}/${totalHw}` : "—" };
-        });
-      } else if (category === "dpp") {
-        const { data: dpps } = await supabase.from("dpps").select("id").eq("class_id", classId).eq("is_published", true);
-        const dppIds = dpps?.map((d) => d.id) ?? [];
-        const { data: attempts } = dppIds.length && userIds.length
-          ? await supabase.from("dpp_attempts").select("user_id, score, max_score, status").in("dpp_id", dppIds).in("user_id", userIds).eq("status", "submitted")
-          : { data: [] };
-        const best: Record<string, number> = {};
-        attempts?.forEach((a) => {
-          const pct = a.max_score ? (Number(a.score) / Number(a.max_score)) * 100 : 0;
-          best[a.user_id] = Math.max(best[a.user_id] ?? 0, pct);
-        });
-        ranked = students.map((s) => {
-          const pct = s.user_id ? (best[s.user_id] ?? 0) : 0;
-          return { key: s.id, userId: s.user_id, full_name: s.full_name, roll_number: s.roll_number, score: pct, label: `${pct.toFixed(0)}% avg` };
-        });
-      }
-
-      ranked.sort((a, b) => b.score - a.score);
-      if (cancelled) return;
-      setRows(ranked);
-      if (userIds.length) setBadgeMap(await fetchEquippedBadgesByUserIds(userIds));
+      setRows([]);
       setLoading(false);
     })();
 

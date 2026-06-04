@@ -16,6 +16,7 @@ export default function DppResult() {
   const [attempt, setAttempt] = useState<any>(null);
   const [questions, setQuestions] = useState<DppQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -32,10 +33,24 @@ export default function DppResult() {
         (ans ?? []).forEach(x => m[x.question_id] = x);
         setAnswers(m);
       }
+      setLoading(false);
     })();
   }, [id, user]);
 
-  if (!dpp || !attempt) return <p className="text-muted-foreground">Loading…</p>;
+  if (loading) return <p className="text-muted-foreground text-center py-8">Loading…</p>;
+
+  if (!attempt) {
+    return (
+      <>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
+        <Card className="p-8 text-center">
+          <Target className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
+          <p className="text-muted-foreground">You haven't submitted this DPP yet.</p>
+          <Button asChild className="mt-4"><Link to={`/student/dpp/${id}/attempt`}>Start attempt</Link></Button>
+        </Card>
+      </>
+    );
+  }
 
   const accuracy = attempt.total_count ? Math.round((attempt.correct_count / attempt.total_count) * 100) : 0;
   const mins = Math.round(attempt.time_spent_sec / 60);

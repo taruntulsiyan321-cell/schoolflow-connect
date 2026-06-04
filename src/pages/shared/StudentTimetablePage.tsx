@@ -33,11 +33,12 @@ export default function StudentTimetablePage() {
         s.classes ? `Class ${(s.classes as any).name}-${(s.classes as any).section}` : ""
       );
 
-      // Load timetable from localStorage (matches admin/teacher timetable storage)
-      const stored = localStorage.getItem(`tt-${s.class_id}`);
-      if (stored) {
-        setGrid(JSON.parse(stored));
-      }
+      const { data: tt } = await supabase
+        .from("class_timetables" as any)
+        .select("grid")
+        .eq("class_id", s.class_id)
+        .maybeSingle();
+      if ((tt as any)?.grid) setGrid((tt as any).grid as Record<string, string>);
 
       setLoading(false);
     })();

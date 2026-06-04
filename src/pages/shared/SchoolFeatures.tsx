@@ -340,6 +340,8 @@ export function TimetablePage({ title = "Timetable" }: { title?: string }) {
   const [classes, setClasses] = useState<any[]>([]);
   const [classId, setClassId] = useState<string>("");
   const [grid, setGrid] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     supabase.from("classes").select("*").order("name").then(({ data }) => {
@@ -350,24 +352,37 @@ export function TimetablePage({ title = "Timetable" }: { title?: string }) {
 
   useEffect(() => {
     if (!classId) return;
-    const stored = localStorage.getItem(`tt-${classId}`);
-    setGrid(stored ? JSON.parse(stored) : {});
+    setDirty(false);
+    supabase.from("class_timetables" as any).select("grid").eq("class_id", classId).maybeSingle()
+      .then(({ data }) => setGrid(((data as any)?.grid as Record<string, string>) ?? {}));
   }, [classId]);
 
   const update = (d: string, p: string, v: string) => {
-    const next = { ...grid, [`${d}-${p}`]: v };
-    setGrid(next);
-    if (classId) localStorage.setItem(`tt-${classId}`, JSON.stringify(next));
+    setGrid((g) => ({ ...g, [`${d}-${p}`]: v }));
+    setDirty(true);
+  };
+
+  const save = async () => {
+    if (!classId) return;
+    setSaving(true);
+    const { error } = await supabase.from("class_timetables" as any).upsert({
+      class_id: classId, grid, updated_at: new Date().toISOString(),
+    }, { onConflict: "class_id" });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    setDirty(false);
+    toast.success("Timetable saved for the class");
   };
 
   return (
     <>
-      <PageHeader title={title} subtitle="Weekly class timetable (saved locally for preview)" />
-      <Card className="p-4 mb-4">
+      <PageHeader title={title} subtitle="Weekly class timetable — shared with the whole class" />
+      <Card className="p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
         <Select value={classId} onValueChange={setClassId}>
           <SelectTrigger className="max-w-xs"><SelectValue placeholder="Pick a class" /></SelectTrigger>
           <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>Class {c.name}-{c.section}</SelectItem>)}</SelectContent>
         </Select>
+        <Button onClick={save} disabled={saving || !dirty}>{saving ? "Saving…" : dirty ? "Save timetable" : "Saved"}</Button>
       </Card>
       {classId && (
         <Card className="p-4 overflow-x-auto">

@@ -166,27 +166,27 @@ export default function StudentProfilePage() {
       </Card>
 
       {/* Battle identity card */}
-      {xp && (
+      {student && (
         <Card className="p-5 mb-4 bg-gradient-arena text-white border-0 overflow-hidden relative">
           <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
           <div className="absolute -left-10 -bottom-10 w-36 h-36 rounded-full bg-white/5" />
           <div className="relative flex flex-col sm:flex-row items-center gap-5">
-            <XPRing xp={Number(xp.xp) || 0} level={Number(xp.level) || 1} size={120} />
+            <XPRing xp={Number(xp?.xp) || 0} level={Number(xp?.level) || 1} size={120} />
             <div className="flex-1 w-full">
               <div className="text-xs uppercase tracking-widest opacity-80 font-semibold mb-2">Academic Identity</div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <IdentityStat icon={<Crown className="w-4 h-4" />} label="Class Rank" value={classRank ? `#${classRank}` : "—"} />
-                <IdentityStat icon={<Sword className="w-4 h-4" />} label="Wins" value={`${xp.wins ?? 0}`} />
-                <IdentityStat icon={<Flame className="w-4 h-4" />} label="Streak" value={`${xp.current_streak ?? 0}d`} />
+                <IdentityStat icon={<Sword className="w-4 h-4" />} label="Wins" value={`${xp?.wins ?? 0}`} />
+                <IdentityStat icon={<Flame className="w-4 h-4" />} label="Streak" value={`${xp?.current_streak ?? 0}d`} />
                 <IdentityStat icon={<Award className="w-4 h-4" />} label="Badges" value={`${earned?.length ?? 0}`} />
-                <IdentityStat icon={<Trophy className="w-4 h-4" />} label="Best Score" value={`${xp.best_score ?? 0}`} />
-                <IdentityStat icon={<TrendingUp className="w-4 h-4" />} label="Battles" value={`${xp.total_battles ?? 0}`} />
+                <IdentityStat icon={<Trophy className="w-4 h-4" />} label="Best Score" value={`${xp?.best_score ?? 0}`} />
+                <IdentityStat icon={<TrendingUp className="w-4 h-4" />} label="Battles" value={`${xp?.total_battles ?? 0}`} />
                 <IdentityStat
                   icon={<Target className="w-4 h-4" />}
                   label="Win Rate"
-                  value={xp.total_battles ? `${Math.round((Number(xp.wins) / Number(xp.total_battles)) * 100)}%` : "—"}
+                  value={xp?.total_battles ? `${Math.round((Number(xp.wins) / Number(xp.total_battles)) * 100)}%` : "—"}
                 />
-                <IdentityStat icon={<Flame className="w-4 h-4" />} label="Best Streak" value={`${xp.best_win_streak ?? 0}`} />
+                <IdentityStat icon={<Flame className="w-4 h-4" />} label="Best Streak" value={`${xp?.best_win_streak ?? 0}`} />
               </div>
             </div>
           </div>

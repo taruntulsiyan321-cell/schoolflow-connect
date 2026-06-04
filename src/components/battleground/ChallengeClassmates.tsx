@@ -10,19 +10,17 @@ import { toast } from "@/hooks/use-toast";
 import { Swords, Search, Loader2, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
-import { fetchEquippedBadgesByUserIds } from "@/hooks/useStudentBadges";
 
 const SUBJECTS = ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "Social Studies", "General Knowledge", "Computer Science", "Economics", "Accountancy", "Business Studies"];
 const DIFFICULTIES = ["easy", "medium", "hard"];
 
-type Classmate = { id: string; full_name: string; user_id: string; roll_number: string | null };
+type Classmate = { id: string; full_name: string; user_id: string; roll_number: string | null; equipped_badge: string | null };
 
 /** Direct, one-tap academic challenge: auto-picks questions from the bank and invites a classmate. */
 export function ChallengeClassmates({ classId }: { classId?: string | null }) {
   const { user } = useAuth();
   const nav = useNavigate();
   const [classmates, setClassmates] = useState<Classmate[]>([]);
-  const [badgeMap, setBadgeMap] = useState<Record<string, string | null>>({});
   const [filter, setFilter] = useState("");
   const [subject, setSubject] = useState("Mathematics");
   const [difficulty, setDifficulty] = useState("medium");
@@ -32,15 +30,13 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
 
   useEffect(() => {
     if (!classId) return;
-    supabase
-      .from("students")
-      .select("id, full_name, user_id, roll_number")
-      .eq("class_id", classId)
-      .then(async ({ data }) => {
-        const mates = (data ?? []).filter((s: any) => s.user_id && s.user_id !== user?.id) as Classmate[];
-        setClassmates(mates);
-        setBadgeMap(await fetchEquippedBadgesByUserIds(mates.map((m) => m.user_id)));
-      });
+    supabase.rpc("rpc_classmates" as any).then(({ data }) => {
+      const mates = (data ?? []).map((m: any) => ({
+        id: m.student_id, full_name: m.full_name, user_id: m.user_id,
+        roll_number: m.roll_number, equipped_badge: m.equipped_badge,
+      })) as Classmate[];
+      setClassmates(mates);
+    });
   }, [classId, user]);
 
   const challenge = async (opponent: Classmate) => {
@@ -125,7 +121,7 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate flex items-center gap-1.5">
                     <span className="truncate">{c.full_name}</span>
-                    {badgeMap[c.user_id] && <EquippedBadge code={badgeMap[c.user_id]} size="xs" />}
+                    {c.equipped_badge && <EquippedBadge code={c.equipped_badge} size="xs" />}
                   </div>
                   <div className="text-[10px] text-muted-foreground">Roll {c.roll_number || "-"}</div>
                 </div>

@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { BookOpen, GraduationCap, Users, User } from "lucide-react";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
-import { fetchEquippedBadgesByUserIds } from "@/hooks/useStudentBadges";
 import { Link } from "react-router-dom";
 
 interface SubjectTeacher {
@@ -21,8 +20,7 @@ export default function StudentClassesPage() {
   const [classTeacher, setClassTeacher] = useState<any>(null);
   const [subjects, setSubjects] = useState<SubjectTeacher[]>([]);
   const [classmates, setClassmates] = useState(0);
-  const [classmateRows, setClassmateRows] = useState<{ id: string; full_name: string; roll_number: string | null; user_id: string | null }[]>([]);
-  const [badgeMap, setBadgeMap] = useState<Record<string, string | null>>({});
+  const [classmateRows, setClassmateRows] = useState<{ id: string; full_name: string; roll_number: string | null; user_id: string | null; equipped_badge: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,17 +39,14 @@ export default function StudentClassesPage() {
         return;
       }
 
-      // Get classmates count
-      const { data: mates, count } = await supabase
-        .from("students")
-        .select("id, full_name, roll_number, user_id", { count: "exact" })
-        .eq("class_id", s.class_id)
-        .order("roll_number");
-      setClassmates(count ?? 0);
-      const rows = (mates ?? []).filter((m) => m.id !== s.id);
+      // Classmates via SECURITY DEFINER RPC (RLS blocks direct peer reads)
+      const { data: mates } = await supabase.rpc("rpc_classmates" as any);
+      const rows = (mates ?? []).map((m: any) => ({
+        id: m.student_id, full_name: m.full_name, roll_number: m.roll_number,
+        user_id: m.user_id, equipped_badge: m.equipped_badge,
+      }));
       setClassmateRows(rows);
-      const uids = rows.map((m) => m.user_id).filter(Boolean) as string[];
-      if (uids.length) setBadgeMap(await fetchEquippedBadgesByUserIds(uids));
+      setClassmates(rows.length + 1); // include self
 
       // Get class teacher
       const { data: ct } = await supabase
@@ -193,7 +188,7 @@ export default function StudentClassesPage() {
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate flex items-center gap-2">
                     {m.full_name}
-                    {m.user_id && <EquippedBadge code={badgeMap[m.user_id]} size="xs" />}
+                    {m.equipped_badge && <EquippedBadge code={m.equipped_badge} size="xs" />}
                   </div>
                   <div className="text-xs text-muted-foreground">Roll {m.roll_number || "—"}</div>
                 </div>

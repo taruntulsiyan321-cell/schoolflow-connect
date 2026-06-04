@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword, Target, Megaphone } from "lucide-react";
 import Battleground from "./student/Battleground";
@@ -48,6 +48,8 @@ const Home = () => {
   const [pct, setPct] = useState(0);
   const [pendingFees, setPendingFees] = useState(0);
   const [latestNotices, setLatestNotices] = useState<any[]>([]);
+  const [xp, setXp] = useState<any>(null);
+  const [rank, setRank] = useState<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -61,6 +63,13 @@ const Home = () => {
         const owed = (f ?? []).filter(r => r.status !== "paid").reduce((sum, r) => sum + (Number(r.amount) - Number(r.paid_amount)), 0);
         setPendingFees(owed);
       }
+      const { data: x } = await supabase.from("student_xp").select("xp, level, current_streak").eq("user_id", user.id).maybeSingle();
+      setXp(x);
+      const { data: lb } = await supabase.rpc("rpc_leaderboard" as any, { _scope: "class", _category: "xp", _subject: null, _limit: 200 });
+      if (Array.isArray(lb)) {
+        const i = lb.findIndex((r: any) => r.user_id === user.id);
+        setRank(i >= 0 ? i + 1 : null);
+      }
       const { data: n } = await supabase.from("notices").select("*").order("created_at", { ascending: false }).limit(3);
       setLatestNotices(n ?? []);
     })();
@@ -71,7 +80,7 @@ const Home = () => {
       <PageHeader title={`Hi, ${student?.full_name?.split(" ")[0] || "Student"} 👋`}
         subtitle={student?.classes ? `Class ${student.classes.name}-${student.classes.section} · Roll ${student.roll_number || "-"}` : "Welcome back"} />
 
-      <a href="/student/battleground" className="block mb-6 group">
+      <Link to="/student/battleground" className="block mb-6 group">
         <Card className="relative overflow-hidden bg-gradient-arena text-white border-0 p-5 hover:shadow-battle transition-all">
           <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-gradient-victory blur-3xl opacity-40" />
           <div className="relative flex items-center gap-4">
@@ -84,11 +93,13 @@ const Home = () => {
             <span className="text-xs px-3 py-1.5 rounded-full bg-gradient-victory font-bold shadow-glow">PLAY</span>
           </div>
         </Card>
-      </a>
+      </Link>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${pct}%`} tone={pct >= 75 ? "accent" : "warning"} />
         <StatCard icon={<Wallet className="w-5 h-5" />} label="Pending Fees" value={pendingFees ? `₹${pendingFees}` : "₹0"} tone={pendingFees > 0 ? "warning" : "accent"} />
+        <Link to="/student/battleground/stats"><StatCard icon={<Sword className="w-5 h-5" />} label="Level / XP" value={xp ? `L${xp.level} · ${xp.xp}` : "L1 · 0"} /></Link>
+        <Link to="/student/leaderboard"><StatCard icon={<Trophy className="w-5 h-5" />} label="Class Rank" value={rank ? `#${rank}` : "—"} tone="accent" /></Link>
       </div>
       <h3 className="font-semibold mb-3">Latest notices</h3>
       <div className="space-y-2">

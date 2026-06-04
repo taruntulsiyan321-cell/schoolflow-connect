@@ -53,16 +53,19 @@ export default function TeacherTimetablePage() {
       }));
       setAssignments(assigns);
 
-      // Load timetables from localStorage for all relevant classes
+      // Load timetables from DB for all relevant classes
       const classIds = new Set<string>();
       if (t.class_teacher_of) classIds.add(t.class_teacher_of);
       assigns.forEach((a: any) => a.classId && classIds.add(a.classId));
 
       const timetables: Record<string, Record<string, string>> = {};
-      classIds.forEach((cid) => {
-        const stored = localStorage.getItem(`tt-${cid}`);
-        if (stored) timetables[cid] = JSON.parse(stored);
-      });
+      if (classIds.size) {
+        const { data: tts } = await supabase
+          .from("class_timetables" as any)
+          .select("class_id, grid")
+          .in("class_id", Array.from(classIds));
+        (tts ?? []).forEach((r: any) => { timetables[r.class_id] = r.grid ?? {}; });
+      }
       setAllTimetables(timetables);
       setLoading(false);
     })();
