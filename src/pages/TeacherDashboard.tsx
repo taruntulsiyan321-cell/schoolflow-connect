@@ -126,7 +126,13 @@ const MyClass = () => {
     })();
   }, [a.classTeacherOf]);
 
-  if (a.loading) return null;
+  if (a.loading) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-muted-foreground text-sm">Loading your class…</p>
+      </Card>
+    );
+  }
   if (!a.classTeacherOf) return (
     <Card className="p-8 text-center">
       <Users className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
@@ -188,7 +194,13 @@ const MyClass = () => {
 
 const MySubjects = () => {
   const a = useTeacherAssignments();
-  if (a.loading) return null;
+  if (a.loading) {
+    return (
+      <Card className="p-8 text-center">
+        <p className="text-muted-foreground text-sm">Loading your subject assignments…</p>
+      </Card>
+    );
+  }
   if (a.subjectClasses.length === 0) return (
     <Card className="p-8 text-center">
       <BookOpen className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
@@ -327,7 +339,8 @@ export default function TeacherDashboard() {
         <Route path="notices" element={<NoticesPage canPost />} />
         <Route path="reports" element={<TeacherReportsPage />} />
         <Route path="chat" element={<ChatPage userRole="teacher" />} />
-        <Route path="leaves" element={<LeaveRequestsPage canReview applicantKind="teacher" />} />
+        {/* Teachers submit their own leave requests; approvals happen via class teacher / principal views */}
+        <Route path="leaves" element={<LeaveRequestsPage applicantKind="teacher" />} />
         <Route path="profile" element={<TeacherProfilePage />} />
         <Route path="dpp" element={<DppList />} />
         <Route path="dpp/:id" element={<DppEditor />} />

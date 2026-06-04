@@ -251,11 +251,19 @@ export default function TeacherBattleground() {
                   <BattleCard
                     key={String(b.id)}
                     battle={b}
-                    onJoin={() => nav(`/student/battleground/battle/${b.id}`)}
+                onJoin={() =>
+                  toast({
+                    title: "Preview is student-only",
+                    description: "Ask a student to join this battle from their Battleground view.",
+                    variant: "default",
+                  })
+                }
                   />
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">Preview opens the student battle room (read-only for teachers).</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Students join from their Battleground. Teachers see setup and summary here.
+          </p>
             </div>
           )}
         </>

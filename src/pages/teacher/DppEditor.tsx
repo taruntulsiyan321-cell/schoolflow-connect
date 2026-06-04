@@ -50,10 +50,28 @@ export default function DppEditor() {
   const [aiSource, setAiSource] = useState("");
   const [aiUrl, setAiUrl] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const reload = async () => {
     if (!id) return;
-    const { data: d } = await supabase.from("dpps").select("*").eq("id", id).maybeSingle();
+    setLoading(true);
+    setError(null);
+    const { data: d, error } = await supabase.from("dpps").select("*").eq("id", id).maybeSingle();
+    if (error) {
+      setDpp(null);
+      setQuestions([]);
+      setError(error.message);
+      setLoading(false);
+      return;
+    }
+    if (!d) {
+      setDpp(null);
+      setQuestions([]);
+      setError("This DPP was not found or you don't have access to it.");
+      setLoading(false);
+      return;
+    }
     setDpp(d);
     const { data: qs } = await supabase.from("dpp_questions").select("*").eq("dpp_id", id).order("order_index");
     setQuestions((qs ?? []).map(q => ({
@@ -61,6 +79,7 @@ export default function DppEditor() {
       question: q.question, options: Array.isArray(q.options) ? (q.options as string[]) : [],
       correct: q.correct as any, marks: Number(q.marks), explanation: q.explanation ?? "",
     })));
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -174,12 +193,57 @@ export default function DppEditor() {
     toast.success(`Generated ${arr.length} questions — review & save`);
     setTab("questions");
   };
+  const deleteDpp = async () => {
+    if (!id || !dpp) return;
+    if (!window.confirm("Delete this DPP and all of its questions?")) return;
+    await supabase.from("dpp_questions").delete().eq("dpp_id", id);
+    const { error } = await supabase.from("dpps").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("DPP deleted");
+    nav("/teacher/dpp");
+  };
 
-  if (!dpp) return <p className="text-muted-foreground">Loading…</p>;
+  if (loading) {
+    return <p className="text-muted-foreground">Loading DPP…</p>;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-3">
+        <Button variant="ghost" size="sm" asChild className="mb-2">
+          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+        </Button>
+        <Card className="p-6">
+          <p className="text-sm text-destructive font-medium">Unable to open this DPP.</p>
+          <p className="text-sm text-muted-foreground mt-1">{error}</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!dpp) {
+    return (
+      <div className="space-y-3">
+        <Button variant="ghost" size="sm" asChild className="mb-2">
+          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+        </Button>
+        <Card className="p-6">
+          <p className="text-sm text-muted-foreground">This DPP is not available.</p>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <>
-      <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
+      <div className="flex items-center justify-between mb-2 gap-2">
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+        </Button>
+        <Button variant="outline" size="sm" onClick={deleteDpp}>
+          <Trash2 className="w-4 h-4 mr-1 text-destructive" /> Delete
+        </Button>
+      </div>
       <PageHeader
         title={dpp.title || "Untitled DPP"}
         subtitle={`${dpp.subject} · ${dpp.question_count} questions · ${dpp.is_published ? "Published" : "Draft"}`}

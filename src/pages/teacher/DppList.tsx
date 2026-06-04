@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/ui-bits";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, BarChart3, FileText } from "lucide-react";
+import { Plus, BarChart3, FileText, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function DppList() {
@@ -17,11 +17,16 @@ export default function DppList() {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("dpps")
       .select("*, classes(name,section)")
       .order("created_at", { ascending: false });
-    setRows(data ?? []);
+    if (error) {
+      toast.error(error.message);
+      setRows([]);
+    } else {
+      setRows(data ?? []);
+    }
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -46,6 +51,15 @@ export default function DppList() {
     }).select("id").single();
     if (error) return toast.error(error.message);
     nav(`/teacher/dpp/${data.id}`);
+  };
+
+  const remove = async (d: any) => {
+    if (!window.confirm(`Delete "${d.title}" and all its questions?`)) return;
+    await supabase.from("dpp_questions").delete().eq("dpp_id", d.id);
+    const { error } = await supabase.from("dpps").delete().eq("id", d.id);
+    if (error) return toast.error(error.message);
+    toast.success("DPP deleted");
+    setRows(prev => prev.filter(row => row.id !== d.id));
   };
 
   return (
@@ -90,6 +104,9 @@ export default function DppList() {
                   </Button>
                   <Button variant="outline" size="sm" asChild>
                     <Link to={`/teacher/dpp/${d.id}`}>Edit</Link>
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => remove(d)}>
+                    <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
                 </div>
               </div>
