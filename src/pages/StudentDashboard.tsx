@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword, Target } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword, Target, Megaphone } from "lucide-react";
 import Battleground from "./student/Battleground";
 import DppHub from "./student/DppHub";
 import DppAttempt from "./student/DppAttempt";
@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import NoticesPage from "./shared/NoticesPage";
+import NotificationsPage from "./shared/NotificationsPage";
 import MyFeesPage from "./shared/MyFeesPage";
 import MyMarksPage from "./shared/MyMarksPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
@@ -33,6 +34,7 @@ const nav = [
   { to: "/student/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
   { to: "/student/results", label: "Results", icon: <Trophy className="w-4 h-4" /> },
   { to: "/student/notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
+  { to: "/student/notices", label: "Notices", icon: <Megaphone className="w-4 h-4" /> },
   { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/student/library", label: "Library", icon: <Library className="w-4 h-4" /> },
   { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
@@ -142,7 +144,8 @@ export default function StudentDashboard() {
         <Route path="timetable" element={<StudentTimetablePage />} />
         <Route path="exams" element={<StudentExamsPage />} />
         <Route path="results" element={<MyMarksPage />} />
-        <Route path="notifications" element={<NoticesPage viewerRole="student" />} />
+        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="notices" element={<NoticesPage viewerRole="student" />} />
         <Route path="fees" element={<MyFeesPage />} />
         <Route path="library" element={<StudentLibraryPage />} />
         <Route path="chat" element={<ChatPage userRole="student" />} />

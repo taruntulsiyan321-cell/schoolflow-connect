@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus, Shield, IndianRupee, Sparkles, Activity } from "lucide-react";
+import { LayoutDashboard, Users, GraduationCap, Bell, BookOpen, Wallet, FileText, ClipboardCheck, CalendarDays, Settings, User, AlertCircle, TrendingUp, UserPlus, ArrowRight, CheckCircle2, Clock, Send, FilePlus, Shield, IndianRupee, Sparkles, Activity, Database } from "lucide-react";
+import QuestionBankPage from "./shared/QuestionBankPage";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -34,6 +35,7 @@ const nav = [
   { to: "/admin/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/admin/reports", label: "Reports & Financials", icon: <FileText className="w-4 h-4" /> },
   { to: "/admin/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
+  { to: "/admin/question-bank", label: "Question Bank", icon: <Database className="w-4 h-4" /> },
   { to: "/admin/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/admin/users", label: "Users", icon: <Users className="w-4 h-4" /> },
   { to: "/admin/roles", label: "Roles", icon: <Shield className="w-4 h-4" /> },
@@ -415,6 +417,7 @@ export default function AdminDashboard() {
         <Route path="reports" element={<ReportsAdmin />} />
         <Route path="financial-reports" element={<Navigate to="/admin/reports" replace />} />
         <Route path="timetable" element={<TimetablePage title="Timetable" />} />
+        <Route path="question-bank" element={<QuestionBankPage />} />
         <Route path="exams" element={<ExamsPage isAdmin />} />
         <Route path="notices" element={<NoticesPage canPost />} />
         <Route path="settings" element={<AppSettingsPage />} />

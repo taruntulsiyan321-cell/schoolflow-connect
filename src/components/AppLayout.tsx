@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { GraduationCap, LogOut, Menu, MoreHorizontal } from "lucide-react";
+import { NotificationBell } from "@/components/NotificationBell";
 
 interface NavItem { to: string; label: string; icon: ReactNode; }
 
@@ -46,10 +47,11 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
           <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-sm ring-1 ring-white/10">
             <GraduationCap className="w-[18px] h-[18px] text-primary-foreground" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="font-semibold leading-tight tracking-tight">Vidyalaya</div>
             <div className="text-[11px] text-sidebar-foreground/55 uppercase tracking-wider font-medium">{title}</div>
           </div>
+          <NotificationBell className="text-sidebar-foreground hover:bg-sidebar-accent" />
         </div>
         <div className="px-3 pt-4 pb-2">
           <div className="text-[10px] font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-2 mb-1.5">Workspace</div>
@@ -125,9 +127,12 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
             <div className="text-[10px] text-sidebar-foreground/55 uppercase tracking-wider mt-0.5 truncate">{title}</div>
           </div>
         </div>
-        <Button onClick={handleSignOut} variant="ghost" size="icon" className="text-sidebar-foreground hover:bg-sidebar-accent h-9 w-9 shrink-0">
-          <LogOut className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-1 shrink-0">
+          <NotificationBell className="text-sidebar-foreground hover:bg-sidebar-accent" />
+          <Button onClick={handleSignOut} variant="ghost" size="icon" className="text-sidebar-foreground hover:bg-sidebar-accent h-9 w-9 shrink-0">
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
       </header>
 
       <main key={typeof window !== "undefined" ? window.location.pathname : ""} className="flex-1 px-3 py-4 sm:px-4 sm:py-6 md:px-8 md:py-8 pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-10 max-w-[1400px] w-full mx-auto animate-fade-in">{children}</main>

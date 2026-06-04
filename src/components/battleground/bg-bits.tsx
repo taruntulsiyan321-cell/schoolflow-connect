@@ -55,8 +55,9 @@ export const Countdown = ({ to, onEnd }: { to: string | Date; onEnd?: () => void
   const h = Math.floor(diff / 3600000);
   const m = Math.floor((diff % 3600000) / 60000);
   const s = Math.floor((diff % 60000) / 1000);
+  const urgent = diff > 0 && diff <= 5000;
   return (
-    <span className="font-mono font-bold tabular-nums">
+    <span className={cn("font-mono font-bold tabular-nums inline-block", urgent && "text-destructive animate-count-pulse")}>
       {h > 0 && `${h}h `}{String(m).padStart(2, "0")}:{String(s).padStart(2, "0")}
     </span>
   );

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User, Target, Sword } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User, Target, Sword, Database } from "lucide-react";
 import DppList from "./teacher/DppList";
 import DppEditor from "./teacher/DppEditor";
 import DppAnalytics from "./teacher/DppAnalytics";
@@ -23,6 +23,7 @@ import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
 import LeaveRequestsPage from "./shared/LeaveRequestsPage";
 import TeacherBattleground from "./teacher/TeacherBattleground";
+import QuestionBankPage from "./shared/QuestionBankPage";
 
 const nav = [
   { to: "/teacher", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -31,6 +32,7 @@ const nav = [
   { to: "/teacher/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
   { to: "/teacher/dpp", label: "Daily Practice", icon: <Target className="w-4 h-4" /> },
   { to: "/teacher/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
+  { to: "/teacher/question-bank", label: "Question Bank", icon: <Database className="w-4 h-4" /> },
   { to: "/teacher/performance", label: "Performance", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
   { to: "/teacher/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
@@ -331,6 +333,7 @@ export default function TeacherDashboard() {
         <Route path="dpp/:id" element={<DppEditor />} />
         <Route path="dpp/:id/analytics" element={<DppAnalytics />} />
         <Route path="battleground" element={<TeacherBattleground />} />
+        <Route path="question-bank" element={<QuestionBankPage />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
       </Routes>
     </AppLayout>

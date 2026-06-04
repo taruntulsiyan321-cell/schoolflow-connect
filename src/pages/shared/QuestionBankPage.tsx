@@ -1,0 +1,341 @@
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHeader } from "@/components/ui-bits";
+import { Sparkles, Database, Upload, Check, Trash2, Library } from "lucide-react";
+import { toast } from "sonner";
+
+const SUBJECTS = ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "Social Studies", "General Knowledge", "Computer Science", "Economics", "Accountancy", "Business Studies"];
+const DIFFS = ["easy", "medium", "hard"];
+
+type DraftQ = {
+  question: string;
+  options: string[];
+  correct_index: number;
+  explanation?: string;
+  include: boolean;
+};
+
+export default function QuestionBankPage() {
+  const { user } = useAuth();
+  const [tab, setTab] = useState("generate");
+
+  // shared meta
+  const [subject, setSubject] = useState("Mathematics");
+  const [classLevel, setClassLevel] = useState<string>("10");
+  const [chapter, setChapter] = useState("");
+  const [difficulty, setDifficulty] = useState("medium");
+
+  // AI generation
+  const [topic, setTopic] = useState("");
+  const [url, setUrl] = useState("");
+  const [sourceText, setSourceText] = useState("");
+  const [count, setCount] = useState(8);
+  const [busy, setBusy] = useState(false);
+  const [drafts, setDrafts] = useState<DraftQ[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // CSV
+  const [csv, setCsv] = useState("");
+  const [csvBusy, setCsvBusy] = useState(false);
+
+  // Bank summary
+  const [summary, setSummary] = useState<{ subject: string; count: number }[]>([]);
+  const [total, setTotal] = useState(0);
+
+  const loadSummary = async () => {
+    const { data, count: c } = await supabase
+      .from("question_bank")
+      .select("subject", { count: "exact" });
+    const map: Record<string, number> = {};
+    (data ?? []).forEach((r: any) => { map[r.subject] = (map[r.subject] ?? 0) + 1; });
+    setSummary(Object.entries(map).map(([subject, count]) => ({ subject, count })).sort((a, b) => b.count - a.count));
+    setTotal(c ?? (data?.length ?? 0));
+  };
+  useEffect(() => { loadSummary(); }, []);
+
+  const generate = async () => {
+    if (!topic.trim() && !url.trim() && !sourceText.trim()) {
+      return toast.error("Enter a topic, paste a URL, or add source text");
+    }
+    if (url.trim() && !/^https?:\/\//i.test(url.trim())) {
+      return toast.error("URL must start with http:// or https://");
+    }
+    setBusy(true);
+    const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
+      body: {
+        topic: topic.trim(), subject, chapter: chapter.trim(),
+        difficulty, count, source_text: sourceText.trim(), source_url: url.trim(),
+      },
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message ?? "AI generation failed");
+    const arr = (data?.questions ?? []) as Array<{ question: string; options: string[]; correct_index: number; explanation?: string }>;
+    if (arr.length === 0) return toast.error(data?.error ?? "No questions returned");
+    setDrafts(arr.map((a) => ({
+      question: a.question,
+      options: (a.options ?? []).slice(0, 4),
+      correct_index: Math.max(0, Math.min(3, a.correct_index ?? 0)),
+      explanation: a.explanation ?? "",
+      include: true,
+    })));
+    toast.success(`Generated ${arr.length} questions — review & save`);
+  };
+
+  const saveDrafts = async () => {
+    const chosen = drafts.filter((d) => d.include && d.question.trim() && d.options.filter(Boolean).length >= 2);
+    if (chosen.length === 0) return toast.error("Nothing selected to save");
+    setSaving(true);
+    const rows = chosen.map((d) => ({
+      class_level: classLevel ? Number(classLevel) : null,
+      subject, chapter: chapter.trim() || null, topic: topic.trim() || null,
+      difficulty, question: d.question.trim(), options: d.options as any,
+      correct_index: d.correct_index, explanation: d.explanation?.trim() || null,
+      source: "ai", created_by: user?.id ?? null,
+    }));
+    const { error } = await supabase.from("question_bank").insert(rows);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Saved ${rows.length} questions to the bank`);
+    setDrafts([]);
+    loadSummary();
+  };
+
+  const importCsv = async () => {
+    const rows = parseCsv(csv, { subject, classLevel, chapter, difficulty, userId: user?.id ?? null });
+    if (rows.length === 0) return toast.error("No valid rows found. Check the format below.");
+    setCsvBusy(true);
+    const { error } = await supabase.from("question_bank").insert(rows as any);
+    setCsvBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Imported ${rows.length} questions`);
+    setCsv("");
+    loadSummary();
+  };
+
+  const metaBar = (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div>
+        <Label className="text-xs">Subject</Label>
+        <Select value={subject} onValueChange={setSubject}>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>{SUBJECTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label className="text-xs">Class</Label>
+        <Select value={classLevel} onValueChange={setClassLevel}>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="">Any</SelectItem>
+            {[6, 7, 8, 9, 10, 11, 12].map((c) => <SelectItem key={c} value={String(c)}>Class {c}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label className="text-xs">Chapter</Label>
+        <Input className="h-9" value={chapter} onChange={(e) => setChapter(e.target.value)} placeholder="Optional" />
+      </div>
+      <div>
+        <Label className="text-xs">Difficulty</Label>
+        <Select value={difficulty} onValueChange={setDifficulty}>
+          <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+          <SelectContent>{DIFFS.map((d) => <SelectItem key={d} value={d} className="capitalize">{d}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <PageHeader title="Question Bank" subtitle="Grow the battle & DPP question pool with AI or CSV import" />
+
+      {/* Bank summary */}
+      <Card className="p-4 mb-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Database className="w-4 h-4 text-primary" />
+          <span className="font-semibold text-sm">Bank contains</span>
+          <Badge variant="secondary">{total} questions</Badge>
+        </div>
+        {summary.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Empty — generate or import to get started.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {summary.map((s) => (
+              <span key={s.subject} className="text-xs px-2.5 py-1 rounded-full bg-muted font-medium">
+                {s.subject}: <b>{s.count}</b>
+              </span>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card className="p-4 mb-4">{metaBar}</Card>
+
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="generate"><Sparkles className="w-4 h-4 mr-1.5" /> AI Generate</TabsTrigger>
+          <TabsTrigger value="csv"><Upload className="w-4 h-4 mr-1.5" /> CSV Import</TabsTrigger>
+        </TabsList>
+
+        {/* AI GENERATE */}
+        <TabsContent value="generate" className="space-y-4">
+          <Card className="p-4 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">Generate from a topic, URL, or notes</span>
+              <Badge variant="secondary" className="text-[10px]">Powered by AI</Badge>
+            </div>
+            <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
+              <div>
+                <Label className="text-xs">Topic</Label>
+                <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={`e.g. ${subject} — ${chapter || "chapter"}`} />
+              </div>
+              <div>
+                <Label className="text-xs">Count</Label>
+                <Input type="number" min={1} max={20} value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-20 h-9" />
+              </div>
+              <Button size="sm" onClick={generate} disabled={busy}>{busy ? "Generating…" : "Generate"}</Button>
+            </div>
+            <div>
+              <Label className="text-xs">Source URL (Wikipedia, NCERT page, article…)</Label>
+              <Input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://en.wikipedia.org/wiki/..." />
+            </div>
+            <div>
+              <Label className="text-xs">Or paste reference text / notes</Label>
+              <Textarea value={sourceText} onChange={(e) => setSourceText(e.target.value)} rows={3} placeholder="Paste a chapter excerpt or existing MCQs to extract." />
+            </div>
+          </Card>
+
+          {drafts.length > 0 && (
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-sm">{drafts.filter((d) => d.include).length} of {drafts.length} selected</span>
+                <Button size="sm" onClick={saveDrafts} disabled={saving}>
+                  <Check className="w-4 h-4 mr-1.5" /> {saving ? "Saving…" : "Save to bank"}
+                </Button>
+              </div>
+              <div className="space-y-3">
+                {drafts.map((d, i) => (
+                  <div key={i} className={`p-3 rounded-lg border ${d.include ? "border-primary/30 bg-primary/5" : "border-border opacity-60"}`}>
+                    <div className="flex items-start gap-2">
+                      <input type="checkbox" checked={d.include} onChange={(e) => setDrafts((p) => p.map((q, k) => k === i ? { ...q, include: e.target.checked } : q))} className="mt-1.5" />
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <Textarea value={d.question} onChange={(e) => setDrafts((p) => p.map((q, k) => k === i ? { ...q, question: e.target.value } : q))} rows={2} className="text-sm" />
+                        <div className="grid sm:grid-cols-2 gap-2">
+                          {d.options.map((opt, oi) => (
+                            <div key={oi} className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setDrafts((p) => p.map((q, k) => k === i ? { ...q, correct_index: oi } : q))}
+                                className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs shrink-0 ${d.correct_index === oi ? "bg-accent text-accent-foreground border-accent" : ""}`}
+                              >
+                                {String.fromCharCode(65 + oi)}
+                              </button>
+                              <Input value={opt} onChange={(e) => setDrafts((p) => p.map((q, k) => {
+                                if (k !== i) return q;
+                                const next = [...q.options]; next[oi] = e.target.value; return { ...q, options: next };
+                              }))} className="h-8 text-sm" />
+                            </div>
+                          ))}
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive" onClick={() => setDrafts((p) => p.filter((_, k) => k !== i))}>
+                          <Trash2 className="w-3.5 h-3.5 mr-1" /> Discard
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* CSV IMPORT */}
+        <TabsContent value="csv" className="space-y-4">
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Library className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">Paste CSV rows</span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              One question per line. Columns: <code className="bg-muted px-1 rounded">question, optionA, optionB, optionC, optionD, correctIndex(0-3), explanation</code>.
+              Subject / class / chapter / difficulty above are applied to all rows. A header row is auto-skipped.
+            </p>
+            <Textarea
+              value={csv}
+              onChange={(e) => setCsv(e.target.value)}
+              rows={8}
+              className="font-mono text-xs"
+              placeholder={`What is 2+2?,2,3,4,5,2,Basic addition\nCapital of India?,Mumbai,New Delhi,Chennai,Kolkata,1,New Delhi is the capital`}
+            />
+            <Button size="sm" onClick={importCsv} disabled={csvBusy || !csv.trim()}>
+              <Upload className="w-4 h-4 mr-1.5" /> {csvBusy ? "Importing…" : "Import to bank"}
+            </Button>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </>
+  );
+}
+
+// Minimal CSV parser supporting quoted fields.
+function parseCsv(
+  text: string,
+  meta: { subject: string; classLevel: string; chapter: string; difficulty: string; userId: string | null },
+) {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rows: any[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const cells = splitCsvLine(lines[i]);
+    if (cells.length < 6) continue;
+    // skip header
+    if (i === 0 && /question/i.test(cells[0]) && /option/i.test(cells[1])) continue;
+    const [q, a, b, c, d, idxRaw, explanation] = cells;
+    const options = [a, b, c, d].map((x) => (x ?? "").trim());
+    const correct_index = Math.max(0, Math.min(3, parseInt(idxRaw, 10) || 0));
+    if (!q?.trim() || options.filter(Boolean).length < 2) continue;
+    rows.push({
+      class_level: meta.classLevel ? Number(meta.classLevel) : null,
+      subject: meta.subject,
+      chapter: meta.chapter.trim() || null,
+      difficulty: meta.difficulty,
+      question: q.trim(),
+      options,
+      correct_index,
+      explanation: explanation?.trim() || null,
+      source: "csv",
+      created_by: meta.userId,
+    });
+  }
+  return rows;
+}
+
+function splitCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = false;
+      } else cur += ch;
+    } else {
+      if (ch === '"') inQ = true;
+      else if (ch === ",") { out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map((s) => s.trim());
+}

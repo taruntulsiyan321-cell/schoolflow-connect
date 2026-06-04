@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -8,14 +9,22 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
-import AdminDashboard from "./pages/AdminDashboard";
-import PrincipalDashboard from "./pages/PrincipalDashboard";
-import TeacherDashboard from "./pages/TeacherDashboard";
-import StudentDashboard from "./pages/StudentDashboard";
-import ParentDashboard from "./pages/ParentDashboard";
 import NotFound from "./pages/NotFound";
 
+// Route-level code splitting keeps the initial bundle lean.
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const PrincipalDashboard = lazy(() => import("./pages/PrincipalDashboard"));
+const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
+const StudentDashboard = lazy(() => import("./pages/StudentDashboard"));
+const ParentDashboard = lazy(() => import("./pages/ParentDashboard"));
+
 const queryClient = new QueryClient();
+
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+    <span className="animate-pulse">Loading…</span>
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -24,17 +33,19 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/admin/*" element={<ProtectedRoute allow={["admin"]}><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/principal/*" element={<ProtectedRoute allow={["principal", "admin"]}><PrincipalDashboard /></ProtectedRoute>} />
-            <Route path="/teacher/*" element={<ProtectedRoute allow={["teacher"]}><TeacherDashboard /></ProtectedRoute>} />
-            <Route path="/student/*" element={<ProtectedRoute allow={["student"]}><StudentDashboard /></ProtectedRoute>} />
-            <Route path="/parent/*" element={<ProtectedRoute allow={["parent"]}><ParentDashboard /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/admin/*" element={<ProtectedRoute allow={["admin"]}><AdminDashboard /></ProtectedRoute>} />
+              <Route path="/principal/*" element={<ProtectedRoute allow={["principal", "admin"]}><PrincipalDashboard /></ProtectedRoute>} />
+              <Route path="/teacher/*" element={<ProtectedRoute allow={["teacher"]}><TeacherDashboard /></ProtectedRoute>} />
+              <Route path="/student/*" element={<ProtectedRoute allow={["student"]}><StudentDashboard /></ProtectedRoute>} />
+              <Route path="/parent/*" element={<ProtectedRoute allow={["parent"]}><ParentDashboard /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
