@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader, StatCard } from "@/components/ui-bits";
-import { FileText, Users, ClipboardCheck, TrendingUp, Download } from "lucide-react";
+import { FileText, Users, ClipboardCheck, TrendingUp, Download, Trophy } from "lucide-react";
 
 export default function TeacherReportsPage() {
   const { user } = useAuth();
@@ -214,7 +214,7 @@ export default function TeacherReportsPage() {
           {report.top3.length > 0 && (
             <Card className="p-4 mb-4">
               <h3 className="font-semibold mb-3 flex items-center gap-2">
-                🏆 Top Performers
+                <Trophy className="w-4 h-4 text-primary" /> Top Performers
               </h3>
               <div className="space-y-2">
                 {report.top3.map((s: any, i: number) => (

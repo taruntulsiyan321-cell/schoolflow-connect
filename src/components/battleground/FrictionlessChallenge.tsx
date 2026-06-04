@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Swords, Zap, Search, Loader2, User, Users, Sparkles } from "lucide-react";
+import { Swords, Search, Loader2, User, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 
@@ -24,7 +24,6 @@ type CurriculumRow = { chapter: string; topic: string | null };
 
 type Props = {
   classId?: string | null;
-  /** Full-page layout (create route) vs compact card on arena home */
   variant?: "page" | "card";
 };
 
@@ -104,7 +103,7 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
           _class_id: classId ?? undefined,
         });
         if (error) throw error;
-        toast({ title: "Battle ready — good luck!" });
+        toast({ title: "Battle ready" });
         nav(`/student/battleground/battle/${data}`);
       } else {
         const { data, error } = await supabase.rpc("rpc_challenge_student", {
@@ -117,10 +116,7 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
           _topic: top,
         });
         if (error) throw error;
-        toast({
-          title: `Challenge sent to ${opponent!.full_name.split(" ")[0]}!`,
-          description: "Your battle is live — jump in now.",
-        });
+        toast({ title: `Challenge sent to ${opponent!.full_name.split(" ")[0]}` });
         nav(`/student/battleground/battle/${data}`);
       }
     } catch (e: any) {
@@ -133,64 +129,57 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
   const inner = (
     <>
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-battle text-white flex items-center justify-center shrink-0">
+        <div className="icon-tile">
           <Swords className="w-5 h-5" />
         </div>
         <div>
-          <div className="font-bold flex items-center gap-2">
-            {variant === "page" ? "Start a battle" : "Challenge"}
-            <Sparkles className="w-3.5 h-3.5 text-warning" />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Pick subject & topic — questions auto-load from the bank. No manual setup.
-          </div>
+          <div className="font-semibold text-sm">{variant === "page" ? "Start a battle" : "Quick challenge"}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Questions are selected automatically from the bank.</div>
         </div>
       </div>
 
-      {/* Mode toggle */}
-      <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-muted/50">
+      <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-muted/50 border border-border/60">
         <button
           type="button"
           onClick={() => setMode("duel")}
           className={cn(
-            "flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all",
-            mode === "duel" ? "bg-card shadow-card text-foreground" : "text-muted-foreground",
+            "flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors",
+            mode === "duel" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground",
           )}
         >
-          <Users className="w-4 h-4" /> Challenge friend
+          <Users className="w-4 h-4" /> Classmate
         </button>
         <button
           type="button"
           onClick={() => { setMode("solo"); setOpponent(null); }}
           className={cn(
-            "flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all",
-            mode === "solo" ? "bg-card shadow-card text-foreground" : "text-muted-foreground",
+            "flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors",
+            mode === "solo" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground",
           )}
         >
-          <User className="w-4 h-4" /> Solo battle
+          <User className="w-4 h-4" /> Solo
         </button>
       </div>
 
-      {/* Curriculum picks */}
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 sm:col-span-1">
-          <Label className="text-xs">Subject</Label>
+          <Label className="text-xs text-muted-foreground">Subject</Label>
           <Select value={subject} onValueChange={setSubject}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>{SUBJECTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Difficulty</Label>
+          <Label className="text-xs text-muted-foreground">Difficulty</Label>
           <Select value={difficulty} onValueChange={setDifficulty}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
             <SelectContent>{DIFFICULTIES.map((d) => <SelectItem key={d} value={d} className="capitalize">{d}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Chapter</Label>
+          <Label className="text-xs text-muted-foreground">Chapter</Label>
           <Select value={chapter} onValueChange={(v) => { setChapter(v); setTopic(ANY); }}>
-            <SelectTrigger><SelectValue placeholder="Any chapter" /></SelectTrigger>
+            <SelectTrigger className="mt-1"><SelectValue placeholder="Any" /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ANY}>Any chapter</SelectItem>
               {chapters.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -198,9 +187,9 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
           </Select>
         </div>
         <div>
-          <Label className="text-xs">Topic</Label>
+          <Label className="text-xs text-muted-foreground">Topic</Label>
           <Select value={topic} onValueChange={setTopic} disabled={chapter === ANY}>
-            <SelectTrigger><SelectValue placeholder="Any topic" /></SelectTrigger>
+            <SelectTrigger className="mt-1"><SelectValue placeholder="Any" /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ANY}>Any topic</SelectItem>
               {topics.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
@@ -209,39 +198,33 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
         </div>
       </div>
 
-      {/* Classmate picker (duel only) */}
       {mode === "duel" && (
         <div className="space-y-2">
-          <Label className="text-xs">Classmate</Label>
+          <Label className="text-xs text-muted-foreground">Opponent</Label>
           {!classId ? (
             <p className="text-xs text-muted-foreground py-2">Join a class to challenge friends.</p>
           ) : (
             <>
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search classmates…" className="pl-9 h-9" />
+                <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search classmates" className="pl-9 h-9" />
               </div>
-              <div className="max-h-48 overflow-y-auto space-y-1.5 rounded-lg border p-1">
+              <div className="max-h-44 overflow-y-auto space-y-1 rounded-lg border border-border/60 p-1">
                 {filtered.map((c) => (
                   <button
                     key={c.id}
                     type="button"
                     onClick={() => setOpponent(c)}
                     className={cn(
-                      "w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-all",
-                      opponent?.id === c.id ? "bg-primary/10 border-2 border-primary" : "hover:bg-muted/50 border-2 border-transparent",
+                      "w-full flex items-center gap-3 p-2.5 rounded-md text-left transition-colors",
+                      opponent?.id === c.id ? "bg-primary/8 border border-primary/30" : "hover:bg-muted/50 border border-transparent",
                     )}
                   >
-                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-bold shrink-0">
+                    <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-sm font-medium shrink-0">
                       {c.full_name?.[0]?.toUpperCase() ?? "?"}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate flex items-center gap-1">
-                        {c.full_name}
-                        {c.equipped_badge && <EquippedBadge code={c.equipped_badge} size="xs" />}
-                      </div>
-                    </div>
-                    {opponent?.id === c.id && <Zap className="w-4 h-4 text-primary shrink-0" />}
+                    <div className="flex-1 min-w-0 text-sm font-medium truncate">{c.full_name}</div>
+                    {c.equipped_badge && <EquippedBadge code={c.equipped_badge} size="xs" />}
                   </button>
                 ))}
               </div>
@@ -250,13 +233,8 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
         </div>
       )}
 
-      <Button
-        onClick={start}
-        disabled={loading || (mode === "duel" && !opponent)}
-        size="lg"
-        className="w-full bg-gradient-victory text-white font-bold shadow-glow"
-      >
-        {loading ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Swords className="w-5 h-5 mr-2" />}
+      <Button onClick={start} disabled={loading || (mode === "duel" && !opponent)} size="lg" className="w-full btn-cta">
+        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Swords className="w-4 h-4 mr-2" />}
         Start battle
       </Button>
     </>
@@ -266,9 +244,5 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
     return <div className="space-y-4 animate-rise max-w-xl mx-auto">{inner}</div>;
   }
 
-  return (
-    <Card className="p-5 space-y-4 border-2 border-primary/20 bg-gradient-to-br from-card to-primary/5">
-      {inner}
-    </Card>
-  );
-}
+  return <Card className="p-5 space-y-4 surface-card">{inner}</Card>;
+};

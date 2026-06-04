@@ -101,10 +101,10 @@ export function MyInvites() {
 
   if (!invites.length) return null;
   return (
-    <Card className="p-4 border-2 border-primary/15 animate-rise">
+    <Card className="p-4 surface-card animate-rise">
       <div className="flex items-center gap-2 mb-3">
         <Inbox className="w-4 h-4 text-primary" />
-        <h3 className="font-semibold text-sm">Incoming challenges · {invites.length}</h3>
+        <h3 className="font-medium text-sm">Incoming challenges · {invites.length}</h3>
       </div>
       <div className="space-y-2">
         {invites.map((i: any) => (
@@ -112,10 +112,10 @@ export function MyInvites() {
             key={i.id}
             className={cn(
               "flex items-center gap-2 p-3 rounded-lg border bg-card transition-all",
-              accepting === i.id && "animate-pop border-primary shadow-glow",
+              accepting === i.id && "border-primary bg-primary/5",
             )}
           >
-            <div className="w-9 h-9 rounded-lg bg-gradient-battle text-white flex items-center justify-center shrink-0">
+            <div className="icon-tile shrink-0">
               <Swords className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
@@ -132,7 +132,7 @@ export function MyInvites() {
             </Button>
             <Button
               size="sm"
-              className="bg-gradient-victory text-white shrink-0"
+              className="btn-cta shrink-0"
               disabled={accepting !== null}
               onClick={() => accept(i)}
             >

@@ -32,9 +32,9 @@ export function QuickPlay({ defaultClassId }: { defaultClassId?: string | null }
   };
 
   return (
-    <Card className="p-5 space-y-4 border-2 border-primary/20 bg-gradient-to-br from-card to-primary/5">
+    <Card className="p-5 space-y-4 surface-card">
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-battle text-white flex items-center justify-center shrink-0">
+        <div className="icon-tile shrink-0">
           <Zap className="w-5 h-5" />
         </div>
         <div>
@@ -72,7 +72,7 @@ export function QuickPlay({ defaultClassId }: { defaultClassId?: string | null }
           </Select>
         </div>
       </div>
-      <Button onClick={launch} disabled={loading} className="w-full bg-gradient-battle text-white font-bold">
+      <Button onClick={launch} disabled={loading} className="w-full btn-cta">
         {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sword className="w-4 h-4 mr-2" />}
         Launch Quick Battle
       </Button>

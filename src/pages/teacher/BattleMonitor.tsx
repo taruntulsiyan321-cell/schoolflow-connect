@@ -140,26 +140,20 @@ export default function BattleMonitor() {
       <Button variant="ghost" size="sm" asChild className="mb-1"><Link to="/teacher/battleground"><ArrowLeft className="w-4 h-4" /> Battleground</Link></Button>
 
       {/* Hero */}
-      <Card className="relative overflow-hidden bg-gradient-arena text-white border-0">
-        <div className="absolute -top-16 -right-16 w-52 h-52 rounded-full bg-gradient-battle blur-3xl opacity-30" />
-        <div className="relative p-5 flex flex-wrap items-center gap-4">
+      <Card className="hero-panel p-5">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex-1 min-w-[220px]">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest opacity-80">
-              {isFinished ? <Flag className="w-3.5 h-3.5" /> : (
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
-                </span>
-              )}
+            <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-white/70">
+              {isFinished ? <Flag className="w-3.5 h-3.5" /> : <span className="live-dot" />}
               {isFinished ? "Battle ended" : "Live monitoring"}
             </div>
-            <h1 className="text-2xl font-black mt-1">{b.title}</h1>
-            <p className="text-sm opacity-80">{b.subject}{b.topic ? ` · ${b.topic}` : ""} · {b.question_count} questions</p>
+            <h1 className="text-xl font-semibold mt-1 text-white">{b.title}</h1>
+            <p className="text-sm text-white/75">{b.subject}{b.topic ? ` · ${b.topic}` : ""} · {b.question_count} questions</p>
           </div>
           {!isFinished && (
             <div className="text-center">
-              <div className="text-3xl font-black font-mono tabular-nums">{mm}:{ss}</div>
-              <div className="text-[10px] uppercase tracking-widest opacity-70">Window left</div>
+              <div className="text-2xl font-semibold font-mono tabular-nums text-white">{mm}:{ss}</div>
+              <div className="text-[11px] uppercase tracking-wide text-white/70">Window left</div>
             </div>
           )}
           {!isFinished && (
@@ -214,8 +208,8 @@ export default function BattleMonitor() {
             {parts.map((p, i) => (
               <div key={p.user_id} className={cn("px-4 py-3 flex items-center gap-3", p.struggling && !p.finished && "bg-destructive/[0.04]")}>
                 <div className={cn(
-                  "w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0",
-                  i === 0 ? "bg-gradient-victory text-white" : i === 1 ? "bg-muted-foreground/20" : i === 2 ? "bg-warning/20" : "bg-muted",
+                  "w-7 h-7 rounded-md flex items-center justify-center text-xs font-semibold shrink-0",
+                  i === 0 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
                 )}>{i + 1}</div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -234,7 +228,7 @@ export default function BattleMonitor() {
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="font-black tabular-nums">{p.score}</div>
+                  <div className="font-semibold tabular-nums">{p.score}</div>
                   <div className="text-[10px] text-muted-foreground uppercase">pts</div>
                 </div>
               </div>
@@ -322,7 +316,7 @@ function Stat({ icon, label, value, tone }: { icon: React.ReactNode; label: stri
       <div className={cn("flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-semibold", tones[tone])}>
         {icon} {label}
       </div>
-      <div className="text-2xl font-black mt-1">{value}</div>
+      <div className="text-2xl font-semibold mt-1">{value}</div>
     </Card>
   );
 }

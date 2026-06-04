@@ -26,10 +26,10 @@ export const StatCard = ({
   const isFeatured = !!featured;
   return (
     <Card
-      className={`p-5 sm:p-6 rounded-3xl shadow-card hover:shadow-elevated transition-all duration-300 hover:-translate-y-0.5 animate-rise group ${
+      className={`p-5 sm:p-6 rounded-xl shadow-card transition-shadow duration-200 animate-rise group ${
         isFeatured
           ? "bg-primary text-primary-foreground border-primary"
-          : "bg-card border-border/70"
+          : "bg-card border-border/70 hover:shadow-elevated"
       }`}
     >
       <div className="flex items-start justify-between gap-3">
@@ -37,7 +37,7 @@ export const StatCard = ({
           {label}
         </div>
         <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3 ${
+          className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
             isFeatured
               ? "bg-primary-foreground/15 text-primary-foreground ring-1 ring-primary-foreground/25"
               : toneMap[tone]
@@ -47,7 +47,7 @@ export const StatCard = ({
         </div>
       </div>
       <div className="mt-8">
-        <div className={`text-4xl sm:text-[44px] font-bold leading-none tracking-tight font-mono tabular-nums ${isFeatured ? "text-primary-foreground" : "text-foreground"}`}>
+        <div className={`text-3xl sm:text-4xl font-semibold leading-none tracking-tight font-mono tabular-nums ${isFeatured ? "text-primary-foreground" : "text-foreground"}`}>
           {value}
         </div>
       </div>

@@ -99,7 +99,7 @@ export const TIER_CLASS: Record<BadgeTier, { bg: string; ring: string; text: str
   silver:    { bg: "bg-tier-silver",     ring: "ring-tier-silver/40",   text: "text-tier-silver" },
   gold:      { bg: "bg-tier-gold",       ring: "ring-tier-gold/40",     text: "text-tier-gold" },
   platinum:  { bg: "bg-tier-platinum",   ring: "ring-tier-platinum/40", text: "text-tier-platinum" },
-  legendary: { bg: "bg-gradient-victory", ring: "ring-tier-gold/60",    text: "text-tier-gold" },
+  legendary: { bg: "bg-primary", ring: "ring-tier-gold/60",    text: "text-tier-gold" },
 };
 
 export const RARITY_LABEL: Record<BadgeRarity, string> = {

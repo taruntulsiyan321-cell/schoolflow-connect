@@ -162,7 +162,7 @@ export default function LeaderboardPage() {
                 onClick={() => setCategory(c.key)}
                 className={cn(
                   "shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium border transition-all",
-                  active ? "bg-gradient-battle text-white border-transparent shadow-card scale-[1.02]" : "bg-card border-border hover:border-primary/40 hover:-translate-y-0.5",
+                  active ? "bg-primary text-primary-foreground border-transparent" : "bg-card border-border hover:border-primary/40",
                 )}
               >
                 {c.icon}{c.label}
@@ -230,8 +230,8 @@ function Podium({ rows, meUserId, badgeMap }: { rows: RankRow[]; meUserId?: stri
       {order.map((r, i) => r && (
         <div key={r.key} className="text-center">
           <div className="flex flex-col items-center gap-1 mb-2">
-            <div className={cn("w-12 h-12 rounded-full bg-gradient-primary text-primary-foreground flex items-center justify-center text-lg font-black",
-              ranks[i] === 1 && "ring-4 ring-warning/50 w-14 h-14")}>
+            <div className={cn("w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-lg font-semibold",
+              ranks[i] === 1 && "ring-2 ring-primary/30 w-14 h-14")}>
               {r.full_name?.[0]?.toUpperCase() ?? "?"}
             </div>
             <div className="text-xs font-semibold truncate max-w-full px-1 flex items-center gap-1">

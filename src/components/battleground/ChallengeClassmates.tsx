@@ -61,9 +61,9 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
   const filtered = classmates.filter((c) => c.full_name?.toLowerCase().includes(filter.toLowerCase()));
 
   return (
-    <Card className="p-5 space-y-4 border-2 border-destructive/20 bg-gradient-to-br from-card to-destructive/5">
+    <Card className="p-5 space-y-4 surface-card">
       <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-battle text-white flex items-center justify-center shrink-0">
+        <div className="icon-tile shrink-0">
           <Swords className="w-5 h-5" />
         </div>
         <div>
@@ -127,7 +127,7 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
                 </div>
                 <Button
                   size="sm"
-                  className="bg-gradient-battle text-white shrink-0"
+                  className="btn-cta shrink-0"
                   disabled={challenging !== null}
                   onClick={() => challenge(c)}
                 >

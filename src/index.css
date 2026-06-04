@@ -39,16 +39,18 @@
     --ring: 231 75% 42%;
     --radius: 0.625rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(231 75% 42%), hsl(262 70% 55%));
-    --gradient-soft: linear-gradient(180deg, hsl(231 40% 98%), hsl(220 30% 96%));
-    --gradient-hero: linear-gradient(135deg, hsl(231 75% 42%) 0%, hsl(280 65% 48%) 100%);
-    --gradient-battle: linear-gradient(135deg, hsl(262 70% 50%) 0%, hsl(330 70% 55%) 50%, hsl(20 90% 55%) 100%);
-    --gradient-victory: linear-gradient(135deg, hsl(45 95% 55%) 0%, hsl(20 90% 55%) 100%);
-    --gradient-arena: linear-gradient(135deg, hsl(240 50% 14%) 0%, hsl(262 55% 22%) 50%, hsl(330 55% 28%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(231 62% 40%), hsl(245 52% 46%));
+    --gradient-soft: linear-gradient(180deg, hsl(220 30% 99%), hsl(220 24% 96%));
+    --gradient-hero: linear-gradient(135deg, hsl(231 62% 40%) 0%, hsl(245 52% 46%) 100%);
+    /* Restrained accents — no rainbow gaming gradients */
+    --gradient-battle: linear-gradient(135deg, hsl(231 55% 36%) 0%, hsl(245 48% 42%) 100%);
+    --gradient-victory: linear-gradient(135deg, hsl(231 62% 40%) 0%, hsl(245 52% 46%) 100%);
+    --gradient-arena: linear-gradient(165deg, hsl(231 42% 12%) 0%, hsl(231 38% 18%) 100%);
+    --gradient-highlight: linear-gradient(135deg, hsl(38 72% 48%) 0%, hsl(32 78% 52%) 100%);
 
     --shadow-card: 0 1px 2px hsl(231 50% 15% / 0.06), 0 1px 3px hsl(231 50% 15% / 0.05);
     --shadow-elevated: 0 6px 16px -4px hsl(231 50% 15% / 0.12), 0 2px 4px hsl(231 50% 15% / 0.06);
-    --shadow-battle: 0 8px 24px -8px hsl(262 70% 50% / 0.35);
+    --shadow-battle: 0 8px 24px -8px hsl(231 50% 25% / 0.18);
     --shadow-glow: 0 0 0 4px hsl(231 75% 42% / 0.12);
 
     --tier-bronze: 25 80% 48%;
@@ -125,6 +127,27 @@
   .bg-gradient-battle { background: var(--gradient-battle); }
   .bg-gradient-victory { background: var(--gradient-victory); }
   .bg-gradient-arena { background: var(--gradient-arena); }
+  .bg-gradient-highlight { background: var(--gradient-highlight); }
+  .hero-panel {
+    background: var(--gradient-arena);
+    @apply relative overflow-hidden rounded-xl border border-white/10 text-white;
+  }
+  .section-label {
+    @apply text-[11px] font-medium uppercase tracking-wide text-muted-foreground;
+  }
+  .btn-cta {
+    @apply bg-primary text-primary-foreground font-semibold shadow-sm hover:bg-primary/90 transition-colors;
+  }
+  .icon-tile {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-primary/10 text-primary ring-1 ring-primary/15;
+  }
+  .icon-tile-muted {
+    @apply w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-muted text-muted-foreground;
+  }
+  .live-dot {
+    @apply inline-flex h-2 w-2 rounded-full bg-destructive;
+    box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.25);
+  }
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-elevated { box-shadow: var(--shadow-elevated); }
   .shadow-battle { box-shadow: var(--shadow-battle); }
@@ -173,7 +196,7 @@
   .surface-card {
     @apply bg-card border border-border/70 rounded-xl shadow-card transition-all duration-300;
   }
-  .surface-card:hover { box-shadow: var(--shadow-elevated); transform: translateY(-1px); }
+  .surface-card:hover { box-shadow: var(--shadow-elevated); }
   .surface-elevated {
     @apply bg-card border border-border/70 rounded-xl shadow-elevated;
   }
@@ -218,8 +241,7 @@
   50% { background-position: 100% 50%; }
 }
 @keyframes pop {
-  0% { opacity: 0; transform: scale(0.4); }
-  60% { transform: scale(1.15); }
+  0% { opacity: 0; transform: scale(0.97); }
   100% { opacity: 1; transform: scale(1); }
 }
 @keyframes badge-unlock {

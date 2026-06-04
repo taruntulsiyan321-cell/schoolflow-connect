@@ -153,7 +153,7 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
               }`}>
             {({ isActive }) => (
               <>
-                <span className={`[&_svg]:w-[20px] [&_svg]:h-[20px] ${isActive ? "scale-110" : ""} transition-transform`}>{n.icon}</span>
+                <span className="[&_svg]:w-[20px] [&_svg]:h-[20px]">{n.icon}</span>
                 <span className="truncate max-w-[64px]">{n.label}</span>
               </>
             )}

@@ -123,12 +123,12 @@ export function ExplainPanel(props: Props) {
           {wasCorrect ? "Go deeper with AI" : "Explain my mistake"}
         </Button>
       ) : (
-        <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/[0.04] to-accent/[0.04] p-4 animate-rise">
+        <div className="rounded-xl border border-border/70 bg-muted/30 p-4 animate-rise">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-lg bg-gradient-primary text-white flex items-center justify-center shrink-0">
+            <div className="icon-tile w-8 h-8">
               <Sparkles className="w-4 h-4" />
             </div>
-            <span className="text-xs uppercase tracking-widest font-semibold text-primary">AI Tutor</span>
+            <span className="section-label text-primary">Learning insight</span>
             {!autoLoad && (
               <button onClick={() => setOpen(false)} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
                 Hide

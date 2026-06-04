@@ -134,12 +134,11 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
       </div>
 
       {/* Hero */}
-      <Card className="p-6 bg-gradient-arena text-white border-0 relative overflow-hidden">
-        <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-gradient-victory blur-3xl opacity-30" />
+      <Card className="p-6 hero-panel relative overflow-hidden">
         <div className="relative">
           {forTeacher && <div className="text-xs uppercase tracking-widest opacity-70 mb-1">{data.display_name}</div>}
-          <h1 className="text-2xl font-black">{b.title ?? "Battle Report"}</h1>
-          <p className="text-sm opacity-80 mt-1">
+          <h1 className="text-2xl font-semibold text-white">{b.title ?? "Battle report"}</h1>
+          <p className="text-sm text-white/75 mt-1">
             {b.subject}{b.chapter ? ` · ${b.chapter}` : ""}{b.topic ? ` · ${b.topic}` : ""}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
@@ -152,7 +151,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
       </Card>
 
       {/* AI coach */}
-      <Card className="p-5 border-primary/20 bg-gradient-to-br from-primary/[0.03] to-accent/[0.03]">
+      <Card className="p-5 surface-card">
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="w-5 h-5 text-primary" />
           <h2 className="font-bold">AI Performance Coach</h2>
@@ -272,8 +271,8 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
 function MiniStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xl font-black">{value}</div>
-      <div className="text-[10px] uppercase opacity-70">{label}</div>
+      <div className="text-xl font-semibold text-white">{value}</div>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">{label}</div>
     </div>
   );
 }
@@ -285,7 +284,7 @@ function Tile({ icon, label, value, tone }: { icon: React.ReactNode; label: stri
       <div className={cn("flex items-center gap-1.5 text-[11px] uppercase font-semibold [&_svg]:w-3.5 [&_svg]:h-3.5", c)}>
         {icon}{label}
       </div>
-      <div className="text-lg font-black mt-1">{value}</div>
+      <div className="text-lg font-semibold mt-1">{value}</div>
     </Card>
   );
 }

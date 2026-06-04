@@ -77,20 +77,24 @@ const Home = () => {
 
   return (
     <>
-      <PageHeader title={`Hi, ${student?.full_name?.split(" ")[0] || "Student"} 👋`}
-        subtitle={student?.classes ? `Class ${student.classes.name}-${student.classes.section} · Roll ${student.roll_number || "-"}` : "Welcome back"} />
+      <PageHeader
+        eyebrow="Student workspace"
+        title={`Welcome, ${student?.full_name?.split(" ")[0] || "Student"}`}
+        subtitle={student?.classes ? `Class ${student.classes.name}-${student.classes.section} · Roll ${student.roll_number || "—"}` : "Your academic hub"}
+      />
 
       <Link to="/student/battleground" className="block mb-6 group">
-        <Card className="relative overflow-hidden bg-gradient-arena text-white border-0 p-5 hover:shadow-battle transition-all">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-gradient-victory blur-3xl opacity-40" />
-          <div className="relative flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl">⚔️</div>
-            <div className="flex-1">
-              <div className="text-[10px] uppercase tracking-widest opacity-80 font-semibold">New</div>
-              <div className="font-bold text-lg">Enter the Battleground</div>
-              <div className="text-sm opacity-80">Live quiz battles · XP · Badges · Class leaderboards</div>
+        <Card className="hero-panel p-5 transition-shadow hover:shadow-elevated">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center ring-1 ring-white/15">
+              <Sword className="w-6 h-6" />
             </div>
-            <span className="text-xs px-3 py-1.5 rounded-full bg-gradient-victory font-bold shadow-glow">PLAY</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">Competition</div>
+              <div className="font-semibold text-lg mt-0.5">Battleground</div>
+              <div className="text-sm text-white/75 mt-0.5">Live quizzes, class rankings, and progress analytics</div>
+            </div>
+            <span className="text-xs px-3 py-2 rounded-lg bg-primary text-primary-foreground font-semibold shrink-0">Open</span>
           </div>
         </Card>
       </Link>

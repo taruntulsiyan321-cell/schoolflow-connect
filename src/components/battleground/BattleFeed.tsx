@@ -16,12 +16,12 @@ type FeedEvent = {
 };
 
 const ICONS: Record<string, { Icon: any; ring: string }> = {
-  sword: { Icon: Sword, ring: "bg-gradient-battle" },
-  swords: { Icon: Swords, ring: "bg-gradient-hero" },
-  trophy: { Icon: Trophy, ring: "bg-gradient-victory" },
-  target: { Icon: Target, ring: "bg-accent" },
-  flame: { Icon: Flame, ring: "bg-warning" },
-  badge: { Icon: Award, ring: "bg-gradient-primary" },
+  sword: { Icon: Sword, ring: "icon-tile" },
+  swords: { Icon: Swords, ring: "icon-tile" },
+  trophy: { Icon: Trophy, ring: "icon-tile" },
+  target: { Icon: Target, ring: "icon-tile" },
+  flame: { Icon: Flame, ring: "icon-tile" },
+  badge: { Icon: Award, ring: "icon-tile" },
 };
 
 function pick(ev: FeedEvent) {
@@ -72,16 +72,13 @@ export function BattleFeed({ limit = 25, className }: { limit?: number; classNam
   }, [limit]);
 
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
-        <span className="relative flex h-2.5 w-2.5">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
-          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-destructive" />
-        </span>
-        <h2 className="font-bold text-sm flex items-center gap-1.5">
-          <Radio className="w-4 h-4 text-primary" /> Activity Feed
+    <Card className={cn("overflow-hidden surface-card", className)}>
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60 bg-muted/20">
+        <span className="live-dot" />
+        <h2 className="font-medium text-sm flex items-center gap-1.5">
+          <Radio className="w-4 h-4 text-primary" /> Class activity
         </h2>
-        <span className="ml-auto text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Live</span>
+        <span className="ml-auto section-label">Live</span>
       </div>
 
       <div className="max-h-[360px] overflow-y-auto divide-y divide-border/60">
@@ -104,7 +101,7 @@ export function BattleFeed({ limit = 25, className }: { limit?: number; classNam
                   isNew && "animate-rise bg-primary/[0.04]",
                 )}
               >
-                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0", ring)}>
+                <div className={cn("shrink-0", ring)}>
                   <Icon className="w-4 h-4" />
                 </div>
                 <div className="min-w-0 flex-1">

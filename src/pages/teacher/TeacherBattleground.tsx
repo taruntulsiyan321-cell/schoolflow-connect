@@ -178,7 +178,7 @@ export default function TeacherBattleground() {
             </Select>
           </Card>
 
-          <Card className="p-5 space-y-4 border-2 border-primary/20 bg-gradient-to-br from-card to-primary/5">
+          <Card className="p-5 space-y-4 surface-card">
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-warning" />
               <div>
@@ -214,16 +214,18 @@ export default function TeacherBattleground() {
                 <Input type="number" min={5} max={120} value={perQ} onChange={(e) => setPerQ(Number(e.target.value))} />
               </div>
             </div>
-            <Button onClick={quickHost} disabled={quickBusy} className="w-full bg-gradient-victory text-white font-bold">
+            <Button onClick={quickHost} disabled={quickBusy} className="w-full btn-cta">
               {quickBusy ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
               Publish live battle
             </Button>
           </Card>
 
-          <Card className="p-5 bg-gradient-battle text-white border-0">
-            <div><Sword className="w-3.5 h-3.5 inline" /> Custom battle (optional)</div>
-            <h2 className="text-xl font-bold mt-1">Write your own questions</h2>
-            <p className="text-sm opacity-80">Use only when you need fully custom items.</p>
+          <Card className="p-5 hero-panel">
+            <div className="text-[11px] font-medium uppercase tracking-wide text-white/70 flex items-center gap-1.5">
+              <Sword className="w-3.5 h-3.5" /> Custom battle (optional)
+            </div>
+            <h2 className="text-lg font-semibold mt-1 text-white">Write your own questions</h2>
+            <p className="text-sm text-white/75">Use only when you need fully custom items.</p>
           </Card>
 
           <Card className="p-5 space-y-4">
@@ -301,7 +303,7 @@ export default function TeacherBattleground() {
             </Button>
           </div>
 
-          <Button onClick={create} size="lg" className="w-full bg-gradient-victory text-white font-bold">
+          <Button onClick={create} size="lg" className="w-full btn-cta">
             <Sword className="w-5 h-5 mr-2" /> Publish battle
           </Button>
 

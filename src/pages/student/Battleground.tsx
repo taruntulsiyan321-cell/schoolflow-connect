@@ -62,30 +62,26 @@ function Arena() {
   return (
     <div className="space-y-6 animate-rise">
       {/* Hero */}
-      <Card className="relative overflow-hidden bg-gradient-arena text-white border-0">
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-gradient-victory blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 w-60 h-60 rounded-full bg-gradient-battle blur-3xl" />
-        </div>
-        <div className="relative p-6 flex items-center gap-6 flex-wrap">
+      <Card className="hero-panel p-6">
+        <div className="flex items-center gap-6 flex-wrap">
           <XPRing xp={xp.xp} level={xp.level} />
           <div className="flex-1 min-w-[200px]">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-widest opacity-80">
+            <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-white/70">
               <Sword className="w-3.5 h-3.5" /> Battleground
             </div>
-            <h1 className="text-3xl font-black mt-1 flex flex-wrap items-center gap-2">
-              Welcome back, {student?.full_name?.split(" ")[0] || "Champion"}
+            <h1 className="text-2xl font-semibold mt-1 flex flex-wrap items-center gap-2 text-white">
+              {student?.full_name?.split(" ")[0] || "Student"}
               <EquippedBadge code={xp.equipped_badge} size="sm" showLabel />
             </h1>
-            <p className="text-sm opacity-80 mt-1">Compete. Conquer. Climb the leaderboard.</p>
+            <p className="text-sm text-white/75 mt-1">Compete with classmates and track your academic progress.</p>
             <div className="flex flex-wrap gap-2 mt-3">
               <StreakFlame streak={xp.current_streak} />
-              <span className="text-xs px-3 py-1.5 rounded-full bg-white/15 font-semibold">🏆 {xp.wins} wins</span>
-              <span className="text-xs px-3 py-1.5 rounded-full bg-white/15 font-semibold">⚔️ {xp.total_battles} battles</span>
+              <span className="text-xs px-2.5 py-1 rounded-md bg-white/10 text-white/90 font-medium">{xp.wins} wins</span>
+              <span className="text-xs px-2.5 py-1 rounded-md bg-white/10 text-white/90 font-medium">{xp.total_battles} battles</span>
             </div>
           </div>
-          <Button onClick={() => nav("create")} size="lg" className="bg-gradient-victory hover:opacity-90 text-white font-bold shadow-glow">
-            <Sword className="w-5 h-5 mr-1" /> Challenge
+          <Button onClick={() => nav("create")} size="lg" className="btn-cta shrink-0">
+            <Sword className="w-4 h-4 mr-2" /> New challenge
           </Button>
         </div>
       </Card>
@@ -100,14 +96,14 @@ function Arena() {
       <BattleFeed />
 
       {/* Daily challenge */}
-      <Card className="p-4 border bg-card">
+      <Card className="p-4 surface-card">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-warning/15 text-warning flex items-center justify-center shrink-0">
+          <div className="icon-tile">
             <Sparkles className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Daily Mission</div>
-            <div className="font-semibold text-sm">Win 1 battle today · Earn 50 XP</div>
+            <div className="section-label">Daily goal</div>
+            <div className="font-medium text-sm mt-0.5">Win one battle today for bonus XP</div>
             <Progress value={Math.min(100, (xp.total_battles % 5) * 20)} className="mt-2 h-1.5" />
           </div>
         </div>
@@ -116,17 +112,17 @@ function Arena() {
       {/* Quick nav */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { to: "achievements", icon: Award, label: "Badges", color: "bg-gradient-victory" },
-          { to: "stats", icon: TrendingUp, label: "My Stats", color: "bg-gradient-primary" },
-          { to: "leaderboard", icon: Trophy, label: "Leaderboard", color: "bg-gradient-battle" },
-          { to: "create", icon: Sword, label: "Challenge", color: "bg-gradient-hero" },
+          { to: "achievements", icon: Award, label: "Badges" },
+          { to: "stats", icon: TrendingUp, label: "Analytics" },
+          { to: "leaderboard", icon: Trophy, label: "Leaderboard" },
+          { to: "create", icon: Sword, label: "Challenge" },
         ].map((q) => (
           <Link key={q.to} to={q.to}>
-            <Card className="p-4 hover:shadow-elevated transition-all hover:-translate-y-0.5 cursor-pointer">
-              <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center text-white", q.color)}>
+            <Card className="p-4 surface-card cursor-pointer">
+              <div className="icon-tile mb-3">
                 <q.icon className="w-5 h-5" />
               </div>
-              <div className="font-semibold text-sm mt-2">{q.label}</div>
+              <div className="font-medium text-sm">{q.label}</div>
             </Card>
           </Link>
         ))}
@@ -135,7 +131,7 @@ function Arena() {
       {/* Live & upcoming battles */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold text-lg flex items-center gap-2"><Zap className="w-5 h-5 text-warning" /> Live & Upcoming</h2>
+          <h2 className="text-base font-semibold flex items-center gap-2"><Zap className="w-4 h-4 text-primary" /> Live & upcoming</h2>
           <Link to="create" className="text-xs text-primary font-semibold">+ Create</Link>
         </div>
         {battles.length === 0 ? (
@@ -143,7 +139,7 @@ function Arena() {
             <Sword className="w-10 h-10 mx-auto text-muted-foreground/50" />
             <div className="font-semibold mt-3">No active battles</div>
             <p className="text-sm text-muted-foreground mt-1">Be the first to challenge your class!</p>
-            <Button onClick={() => nav("create")} className="mt-4 bg-gradient-battle text-white">Start Battle</Button>
+            <Button onClick={() => nav("create")} className="mt-4 btn-cta">Start battle</Button>
           </Card>
         ) : (
           <div className="grid md:grid-cols-2 gap-3">
@@ -154,7 +150,7 @@ function Arena() {
 
       {/* Class top */}
       <div>
-        <h2 className="font-bold text-lg mb-3 flex items-center gap-2"><Trophy className="w-5 h-5 text-tier-gold" /> Class Top 5</h2>
+        <h2 className="text-base font-semibold mb-3 flex items-center gap-2"><Trophy className="w-4 h-4 text-tier-gold" /> Class leaderboard</h2>
         <Card className="p-3 space-y-2">
           {topClass.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">Play a battle to start ranking.</p>
@@ -182,10 +178,10 @@ function CreateBattle() {
       <button type="button" onClick={() => nav(-1)} className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground">
         <ArrowLeft className="w-4 h-4" /> Back to Arena
       </button>
-      <Card className="p-5 bg-gradient-battle text-white border-0">
-        <div className="flex items-center gap-2 text-xs uppercase tracking-widest opacity-80"><Sword className="w-3.5 h-3.5" /> Matchmaking</div>
-        <h1 className="text-2xl font-black mt-1">Challenge</h1>
-        <p className="text-sm opacity-80 mt-1">Pick a friend, subject, and topic — the arena handles the rest.</p>
+      <Card className="p-5 hero-panel">
+        <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-white/70"><Sword className="w-3.5 h-3.5" /> Matchmaking</div>
+        <h1 className="text-xl font-semibold mt-1 text-white">Challenge</h1>
+        <p className="text-sm text-white/75 mt-1">Pick a friend, subject, and topic — the arena handles the rest.</p>
       </Card>
       <FrictionlessChallenge classId={student?.class_id} variant="page" />
     </div>
@@ -335,16 +331,15 @@ function BattleRoom() {
     const myRank = sorted.findIndex((p) => p.user_id === user?.id) + 1;
     return (
       <div className="space-y-4 animate-rise max-w-2xl mx-auto">
-        <Card className="p-8 bg-gradient-arena text-white border-0 text-center relative overflow-hidden animate-pop">
-          <div className="absolute inset-0 bg-gradient-victory opacity-20" />
+        <Card className="p-8 hero-panel text-center animate-fade-in">
           <div className="relative">
-            <Trophy className="w-20 h-20 mx-auto text-tier-gold drop-shadow-[0_0_24px_rgba(255,200,0,0.6)] animate-badge-unlock" />
-            <h1 className="text-3xl font-black mt-3">{myRank === 1 ? "Victory!" : "Battle Complete"}</h1>
+            <Trophy className={cn("w-16 h-16 mx-auto", myRank === 1 ? "text-tier-gold" : "text-white/80")} />
+            <h1 className="text-2xl font-semibold mt-4 text-white">{myRank === 1 ? "You won" : "Battle complete"}</h1>
             <p className="opacity-80 mt-1">You ranked #{myRank} of {sorted.length}</p>
             <div className="grid grid-cols-3 gap-3 mt-6">
-              <div><div className="text-3xl font-black">{me.score}</div><div className="text-xs uppercase opacity-70">Score</div></div>
-              <div><div className="text-3xl font-black">{me.correct_count}/{questions.length}</div><div className="text-xs uppercase opacity-70">Correct</div></div>
-              <div><div className="text-3xl font-black">{Math.round(me.total_time_ms / 1000)}s</div><div className="text-xs uppercase opacity-70">Time</div></div>
+              <div><div className="text-3xl font-semibold">{me.score}</div><div className="text-xs uppercase opacity-70">Score</div></div>
+              <div><div className="text-3xl font-semibold">{me.correct_count}/{questions.length}</div><div className="text-xs uppercase opacity-70">Correct</div></div>
+              <div><div className="text-3xl font-semibold">{Math.round(me.total_time_ms / 1000)}s</div><div className="text-xs uppercase opacity-70">Time</div></div>
             </div>
           </div>
         </Card>
@@ -399,7 +394,7 @@ function BattleRoom() {
 
         <div className="flex flex-col sm:flex-row gap-2">
           {participantId && (
-            <Button onClick={() => nav(`report/${participantId}`)} className="flex-1 bg-gradient-primary text-white font-bold">
+            <Button onClick={() => nav(`report/${participantId}`)} className="flex-1 btn-cta">
               <Sparkles className="w-4 h-4 mr-1" /> Full analytics (24h)
             </Button>
           )}
@@ -418,7 +413,7 @@ function BattleRoom() {
         <div className="text-center animate-pop">
           <div className="text-[10px] uppercase tracking-[0.3em] text-muted-foreground font-semibold mb-2">Get ready</div>
           <div className={cn(
-            "font-black tabular-nums text-white rounded-2xl px-8 py-6 bg-gradient-battle shadow-glow",
+            "font-semibold tabular-nums text-white rounded-xl px-8 py-6 bg-primary/90",
             readyCount === 0 ? "text-4xl" : "text-7xl",
           )}>
             {readyCount === 0 ? "FIGHT!" : readyCount}
@@ -434,7 +429,7 @@ function BattleRoom() {
   return (
     <div className="space-y-4 animate-rise max-w-3xl mx-auto relative">
       {pointsFlash != null && (
-        <div className="pointer-events-none fixed top-1/3 left-1/2 -translate-x-1/2 z-40 text-3xl font-black text-accent animate-score-float">
+        <div className="pointer-events-none fixed top-1/3 left-1/2 -translate-x-1/2 z-40 text-3xl font-semibold text-accent animate-score-float">
           +{pointsFlash}
         </div>
       )}
@@ -447,9 +442,9 @@ function BattleRoom() {
       </div>
       <Progress value={pct} className={cn("h-2", timeLeft <= 5 && "[&>div]:bg-destructive")} />
 
-      <Card className="p-6 bg-gradient-battle text-white border-0">
-        <div className="text-[10px] uppercase tracking-widest opacity-80 font-semibold">{battle.subject}</div>
-        <h2 className="text-xl md:text-2xl font-bold mt-2 leading-snug">{currentQ.question}</h2>
+      <Card className="p-6 border border-border/70 bg-card">
+        <div className="section-label">{battle.subject}</div>
+        <h2 className="text-lg md:text-xl font-semibold mt-2 leading-snug text-foreground">{currentQ.question}</h2>
       </Card>
 
       <div className="grid md:grid-cols-2 gap-3">
@@ -477,7 +472,7 @@ function BattleRoom() {
           <div className={cn("font-bold", selected === currentQ.correct_index ? "text-accent" : "text-destructive")}>
             {selected === currentQ.correct_index ? "✓ Correct! +" + (currentQ.points + Math.max(0, Math.floor((battle.per_question_sec * 1000 - (Date.now() - questionStart)) / 200))) + " XP" : selected === -1 ? "⏱ Time's up" : "✗ Wrong"}
           </div>
-          <Button onClick={next} className="bg-gradient-battle text-white">
+          <Button onClick={next} className="btn-cta">
             {qIdx + 1 >= questions.length ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
@@ -513,15 +508,15 @@ function Achievements() {
 
   return (
     <div className="space-y-5 animate-rise">
-      <Card className="p-5 bg-gradient-arena text-white border-0 flex items-center gap-5 flex-wrap">
+      <Card className="p-5 hero-panel flex items-center gap-5 flex-wrap">
         <XPRing xp={xp.xp} level={xp.level} size={100} />
         <div className="flex-1 min-w-[220px]">
-          <div className="text-xs uppercase tracking-widest opacity-80 font-semibold">Achievements</div>
-          <h1 className="text-2xl font-black mt-1">{earnedCount} / {totalBadges} Badges</h1>
-          <div className="text-sm opacity-80">{xp.wins} wins · {xp.total_battles} battles · {xp.current_streak} day streak</div>
+          <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">Achievements</div>
+          <h1 className="text-2xl font-semibold mt-1 text-white">{earnedCount} / {totalBadges} badges</h1>
+          <div className="text-sm text-white/75">{xp.wins} wins · {xp.total_battles} battles · {xp.current_streak} day streak</div>
           <div className="mt-3 max-w-sm">
             <div className="h-2 rounded-full bg-white/20 overflow-hidden">
-              <div className="h-full rounded-full bg-gradient-victory transition-all duration-700" style={{ width: `${pct}%` }} />
+              <div className="h-full rounded-full bg-primary transition-all duration-700" style={{ width: `${pct}%` }} />
             </div>
             <div className="text-[11px] opacity-70 mt-1">{pct}% of the collection unlocked</div>
           </div>
@@ -619,25 +614,25 @@ function MyStats() {
 
   return (
     <div className="space-y-5 animate-rise">
-      <Card className="p-5 bg-gradient-arena text-white border-0 flex flex-wrap items-center gap-5">
+      <Card className="p-5 hero-panel flex flex-wrap items-center gap-5">
         <XPRing xp={xp.xp} level={xp.level} />
         <div className="flex-1 min-w-[200px]">
-          <div className="text-xs uppercase tracking-widest opacity-80 font-semibold">Performance</div>
-          <h1 className="text-2xl font-black mt-1">Your Battle Profile</h1>
+          <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">Performance</div>
+          <h1 className="text-2xl font-semibold mt-1 text-white">Your battle profile</h1>
           <div className="grid grid-cols-3 gap-3 mt-3 max-w-md">
-            <div><div className="text-xl font-black">{xp.total_battles}</div><div className="text-[10px] uppercase opacity-70">Battles</div></div>
-            <div><div className="text-xl font-black">{xp.wins}</div><div className="text-[10px] uppercase opacity-70">Wins</div></div>
-            <div><div className="text-xl font-black">{xp.total_battles ? Math.round((xp.wins / xp.total_battles) * 100) : 0}%</div><div className="text-[10px] uppercase opacity-70">Win rate</div></div>
+            <div><div className="text-xl font-semibold">{xp.total_battles}</div><div className="text-[10px] uppercase opacity-70">Battles</div></div>
+            <div><div className="text-xl font-semibold">{xp.wins}</div><div className="text-[10px] uppercase opacity-70">Wins</div></div>
+            <div><div className="text-xl font-semibold">{xp.total_battles ? Math.round((xp.wins / xp.total_battles) * 100) : 0}%</div><div className="text-[10px] uppercase opacity-70">Win rate</div></div>
           </div>
         </div>
       </Card>
 
       {/* Analytics tiles + accuracy trend */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-4"><div className="text-2xl font-black text-accent">{analytics.accuracy}%</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Accuracy</div></Card>
-        <Card className="p-4"><div className="text-2xl font-black text-primary">{analytics.avgScore}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Avg score</div></Card>
-        <Card className="p-4"><div className="text-2xl font-black text-warning">{xp.best_win_streak ?? xp.current_streak ?? 0}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Best streak</div></Card>
-        <Card className="p-4"><div className="text-2xl font-black">{analytics.activeDays}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Active days</div></Card>
+        <Card className="p-4"><div className="text-2xl font-semibold text-accent">{analytics.accuracy}%</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Accuracy</div></Card>
+        <Card className="p-4"><div className="text-2xl font-semibold text-primary">{analytics.avgScore}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Avg score</div></Card>
+        <Card className="p-4"><div className="text-2xl font-semibold text-warning">{xp.best_win_streak ?? xp.current_streak ?? 0}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Best streak</div></Card>
+        <Card className="p-4"><div className="text-2xl font-semibold">{analytics.activeDays}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Active days</div></Card>
       </div>
 
       {analytics.trend.length > 1 && (

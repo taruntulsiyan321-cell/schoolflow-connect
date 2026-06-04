@@ -167,10 +167,8 @@ export default function StudentProfilePage() {
 
       {/* Battle identity card */}
       {student && (
-        <Card className="p-5 mb-4 bg-gradient-arena text-white border-0 overflow-hidden relative">
-          <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5" />
-          <div className="absolute -left-10 -bottom-10 w-36 h-36 rounded-full bg-white/5" />
-          <div className="relative flex flex-col sm:flex-row items-center gap-5">
+        <Card className="p-5 mb-4 hero-panel">
+          <div className="flex flex-col sm:flex-row items-center gap-5">
             <XPRing xp={Number(xp?.xp) || 0} level={Number(xp?.level) || 1} size={120} />
             <div className="flex-1 w-full">
               <div className="text-xs uppercase tracking-widest opacity-80 font-semibold mb-2">Academic Identity</div>
@@ -309,7 +307,7 @@ function IdentityStat({ icon, label, value }: { icon: React.ReactNode; label: st
   return (
     <div className="rounded-xl bg-white/10 backdrop-blur-sm px-3 py-2">
       <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide opacity-80">{icon}{label}</div>
-      <div className="text-lg font-black mt-0.5">{value}</div>
+      <div className="text-lg font-semibold mt-0.5">{value}</div>
     </div>
   );
 }
