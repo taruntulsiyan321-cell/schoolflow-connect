@@ -51,19 +51,19 @@ BEGIN
     WHERE id = _id;
   END IF;
 
-  INSERT INTO auth.identities (
-    id, user_id, identity_data, provider, provider_id,
-    last_sign_in_at, created_at, updated_at
-  ) VALUES (
-    _id, _id,
-    jsonb_build_object('sub', _id::text, 'email', lower(_email)),
-    'email', _id::text,
-    now(), now(), now()
-  )
-  ON CONFLICT (provider, provider_id) DO UPDATE SET
-    user_id = EXCLUDED.user_id,
-    identity_data = EXCLUDED.identity_data,
-    updated_at = now();
+  IF NOT EXISTS (
+    SELECT 1 FROM auth.identities WHERE user_id = _id AND provider = 'email'
+  ) THEN
+    INSERT INTO auth.identities (
+      id, user_id, identity_data, provider, provider_id,
+      last_sign_in_at, created_at, updated_at
+    ) VALUES (
+      _id, _id,
+      jsonb_build_object('sub', _id::text, 'email', lower(_email)),
+      'email', _id::text,
+      now(), now(), now()
+    );
+  END IF;
 END;
 $$;
 
@@ -161,9 +161,9 @@ BEGIN
   INSERT INTO public.classes (id, name, section, academic_year, kind, display_name, category) VALUES
     (c10a, '10', 'A', _yr, 'class', 'Class 10-A', 'Secondary'),
     (c9a,  '9',  'A', _yr, 'class', 'Class 9-A',  'Secondary')
-  ON CONFLICT (name, section, academic_year) DO UPDATE SET
-    display_name = EXCLUDED.display_name,
-    category = EXCLUDED.category;
+  ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name, section = EXCLUDED.section, academic_year = EXCLUDED.academic_year,
+    display_name = EXCLUDED.display_name, category = EXCLUDED.category;
 
   -- ===================== TEACHERS =====================
   INSERT INTO public.teachers (
@@ -214,11 +214,10 @@ BEGIN
 
   INSERT INTO public.attendance_locks (class_id, date, locked_by) VALUES
     (c10a, _today - 2, u_t_math)
-  ON CONFLICT DO NOTHING;
+  ON CONFLICT (class_id, date) DO NOTHING;
 
-  INSERT INTO public.attendance_audit (class_id, date, student_id, old_status, new_status, edited_by, reason) VALUES
-    (c10a, _today - 2, st3, 'absent', 'present', u_principal, 'Medical certificate submitted')
-  ON CONFLICT DO NOTHING;
+  INSERT INTO public.attendance_audit (class_id, date, student_id, prev_status, new_status, edited_by) VALUES
+    (c10a, _today - 2, st3, 'absent', 'present', u_principal);
 
   -- ===================== FEES =====================
   INSERT INTO public.fees (student_id, month, amount, paid_amount, due_date, status, notes) VALUES
@@ -480,7 +479,7 @@ BEGIN
     school_name = EXCLUDED.school_name,
     enable_notices = EXCLUDED.enable_notices,
     enable_fees = EXCLUDED.enable_fees,
-    enable_leaves = EXCLUDED.leaves,
+    enable_leaves = EXCLUDED.enable_leaves,
     updated_by = EXCLUDED.updated_by;
 
   -- ===================== AUDIT LOGS =====================
