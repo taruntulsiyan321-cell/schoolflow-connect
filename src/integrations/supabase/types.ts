@@ -1987,6 +1987,7 @@ export type Database = {
         Returns: boolean
       }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
+      rpc_battle_curriculum: { Args: { _subject: string }; Returns: Json }
       rpc_battle_feed: {
         Args: { _limit?: number }
         Returns: {
@@ -2010,17 +2011,30 @@ export type Database = {
         }
       }
       rpc_battle_monitor: { Args: { _battle_id: string }; Returns: Json }
-      rpc_challenge_student: {
-        Args: {
-          _chapter?: string
-          _count?: number
-          _difficulty?: string
-          _opponent_user_id: string
-          _per_q?: number
-          _subject: string
-        }
-        Returns: string
-      }
+      rpc_challenge_student:
+        | {
+            Args: {
+              _chapter?: string
+              _count?: number
+              _difficulty?: string
+              _opponent_user_id: string
+              _per_q?: number
+              _subject: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _chapter?: string
+              _count?: number
+              _difficulty?: string
+              _opponent_user_id: string
+              _per_q?: number
+              _subject: string
+              _topic?: string
+            }
+            Returns: string
+          }
       rpc_classmates: {
         Args: never
         Returns: {
@@ -2035,17 +2049,30 @@ export type Database = {
           xp: number
         }[]
       }
-      rpc_create_quick_battle: {
-        Args: {
-          _chapter?: string
-          _class_id?: string
-          _count?: number
-          _difficulty?: string
-          _per_q?: number
-          _subject: string
-        }
-        Returns: string
-      }
+      rpc_create_quick_battle:
+        | {
+            Args: {
+              _chapter?: string
+              _class_id?: string
+              _count?: number
+              _difficulty?: string
+              _per_q?: number
+              _subject: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _chapter?: string
+              _class_id?: string
+              _count?: number
+              _difficulty?: string
+              _per_q?: number
+              _subject: string
+              _topic?: string
+            }
+            Returns: string
+          }
       rpc_dpp_pick_from_bank: {
         Args: { _count?: number; _difficulty?: string; _dpp_id: string }
         Returns: number
