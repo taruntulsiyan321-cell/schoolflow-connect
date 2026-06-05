@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_explanations: {
+        Row: {
+          cache_key: string
+          created_at: string
+          payload: Json
+          subject: string | null
+          topic: string | null
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          payload: Json
+          subject?: string | null
+          topic?: string | null
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          payload?: Json
+          subject?: string | null
+          topic?: string | null
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           currency: string
@@ -227,6 +251,56 @@ export type Database = {
           },
         ]
       }
+      battle_events: {
+        Row: {
+          actor_name: string
+          actor_user_id: string
+          battle_id: string | null
+          class_id: string | null
+          created_at: string
+          detail: string
+          icon: string | null
+          id: string
+          kind: string
+          opponent_name: string | null
+          subject: string | null
+        }
+        Insert: {
+          actor_name?: string
+          actor_user_id: string
+          battle_id?: string | null
+          class_id?: string | null
+          created_at?: string
+          detail: string
+          icon?: string | null
+          id?: string
+          kind: string
+          opponent_name?: string | null
+          subject?: string | null
+        }
+        Update: {
+          actor_name?: string
+          actor_user_id?: string
+          battle_id?: string | null
+          class_id?: string | null
+          created_at?: string
+          detail?: string
+          icon?: string | null
+          id?: string
+          kind?: string
+          opponent_name?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_events_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       battle_invites: {
         Row: {
           battle_id: string
@@ -358,6 +432,57 @@ export type Database = {
             columns: ["battle_id"]
             isOneToOne: false
             referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      battle_reports: {
+        Row: {
+          ai_insights: Json | null
+          battle_id: string
+          created_at: string
+          display_name: string
+          expires_at: string
+          id: string
+          participant_id: string
+          report: Json
+          user_id: string
+        }
+        Insert: {
+          ai_insights?: Json | null
+          battle_id: string
+          created_at?: string
+          display_name?: string
+          expires_at: string
+          id?: string
+          participant_id: string
+          report: Json
+          user_id: string
+        }
+        Update: {
+          ai_insights?: Json | null
+          battle_id?: string
+          created_at?: string
+          display_name?: string
+          expires_at?: string
+          id?: string
+          participant_id?: string
+          report?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_reports_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_reports_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: true
+            referencedRelation: "battle_participants"
             referencedColumns: ["id"]
           },
         ]
@@ -1327,6 +1452,98 @@ export type Database = {
         }
         Relationships: []
       }
+      school_complaints: {
+        Row: {
+          body: string
+          category: string
+          complainant_name: string
+          created_at: string
+          id: string
+          resolution_notes: string | null
+          status: Database["public"]["Enums"]["case_status"]
+          student_id: string | null
+          subject: string
+          submitted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          category?: string
+          complainant_name?: string
+          created_at?: string
+          id?: string
+          resolution_notes?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          student_id?: string | null
+          subject: string
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          complainant_name?: string
+          created_at?: string
+          id?: string
+          resolution_notes?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          student_id?: string | null
+          subject?: string
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_complaints_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_inquiries: {
+        Row: {
+          contact_email: string | null
+          contact_name: string
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          grade_interest: string | null
+          id: string
+          message: string
+          notes: string | null
+          status: Database["public"]["Enums"]["case_status"]
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name: string
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          grade_interest?: string | null
+          id?: string
+          message: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          grade_interest?: string | null
+          id?: string
+          message?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_attendance: {
         Row: {
           created_at: string
@@ -1661,6 +1878,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      _battle_event: {
+        Args: {
+          _battle?: string
+          _class?: string
+          _detail: string
+          _icon?: string
+          _kind: string
+          _name: string
+          _opponent?: string
+          _subject?: string
+          _uid: string
+        }
+        Returns: undefined
+      }
       _notify: {
         Args: {
           _body?: string
@@ -1671,6 +1902,10 @@ export type Database = {
           _uid: string
         }
         Returns: undefined
+      }
+      _snapshot_battle_report: {
+        Args: { _participant_id: string }
+        Returns: string
       }
       admin_assign_role: {
         Args: {
@@ -1752,38 +1987,54 @@ export type Database = {
         Returns: boolean
       }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
-      rpc_battle_curriculum: {
-        Args: { _subject: string }
-        Returns: Json
-      }
-      rpc_battle_monitor: {
-        Args: { _battle_id: string }
-        Returns: Json
-      }
+      rpc_battle_curriculum: { Args: { _subject: string }; Returns: Json }
       rpc_battle_feed: {
         Args: { _limit?: number }
-        Returns: Json
-      }
-      rpc_get_battle_report: {
-        Args: { _participant_id: string }
-        Returns: Json
-      }
-      rpc_teacher_battle_reports: {
-        Args: { _battle_id: string }
-        Returns: Json
-      }
-      rpc_challenge_student: {
-        Args: {
-          _chapter?: string
-          _count?: number
-          _difficulty?: string
-          _opponent_user_id: string
-          _per_q?: number
-          _subject: string
-          _topic?: string
+        Returns: {
+          actor_name: string
+          actor_user_id: string
+          battle_id: string | null
+          class_id: string | null
+          created_at: string
+          detail: string
+          icon: string | null
+          id: string
+          kind: string
+          opponent_name: string | null
+          subject: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "battle_events"
+          isOneToOne: false
+          isSetofReturn: true
         }
-        Returns: string
       }
+      rpc_battle_monitor: { Args: { _battle_id: string }; Returns: Json }
+      rpc_challenge_student:
+        | {
+            Args: {
+              _chapter?: string
+              _count?: number
+              _difficulty?: string
+              _opponent_user_id: string
+              _per_q?: number
+              _subject: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _chapter?: string
+              _count?: number
+              _difficulty?: string
+              _opponent_user_id: string
+              _per_q?: number
+              _subject: string
+              _topic?: string
+            }
+            Returns: string
+          }
       rpc_classmates: {
         Args: never
         Returns: {
@@ -1798,18 +2049,30 @@ export type Database = {
           xp: number
         }[]
       }
-      rpc_create_quick_battle: {
-        Args: {
-          _chapter?: string
-          _class_id?: string
-          _count?: number
-          _difficulty?: string
-          _per_q?: number
-          _subject: string
-          _topic?: string
-        }
-        Returns: string
-      }
+      rpc_create_quick_battle:
+        | {
+            Args: {
+              _chapter?: string
+              _class_id?: string
+              _count?: number
+              _difficulty?: string
+              _per_q?: number
+              _subject: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _chapter?: string
+              _class_id?: string
+              _count?: number
+              _difficulty?: string
+              _per_q?: number
+              _subject: string
+              _topic?: string
+            }
+            Returns: string
+          }
       rpc_dpp_pick_from_bank: {
         Args: { _count?: number; _difficulty?: string; _dpp_id: string }
         Returns: number
@@ -1823,6 +2086,10 @@ export type Database = {
       rpc_generate_battle: {
         Args: { _battle_id: string; _count?: number }
         Returns: number
+      }
+      rpc_get_battle_report: {
+        Args: { _participant_id: string }
+        Returns: Json
       }
       rpc_leaderboard: {
         Args: {
@@ -1841,6 +2108,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      rpc_teacher_battle_reports: {
+        Args: { _battle_id: string }
+        Returns: Json
+      }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       teacher_teaches_class: {
         Args: { _class_id: string; _user_id: string }
@@ -1853,6 +2124,7 @@ export type Database = {
       badge_tier: "bronze" | "silver" | "gold" | "platinum"
       battle_status: "scheduled" | "live" | "finished" | "cancelled"
       battle_type: "mcq" | "rapid" | "timed" | "daily"
+      case_status: "open" | "in_progress" | "resolved" | "closed"
       dpp_attempt_status: "in_progress" | "submitted"
       dpp_question_kind: "mcq" | "multi" | "numerical" | "short"
       exam_type: "class_test" | "unit_test" | "half_yearly" | "final" | "other"
@@ -1998,6 +2270,7 @@ export const Constants = {
       badge_tier: ["bronze", "silver", "gold", "platinum"],
       battle_status: ["scheduled", "live", "finished", "cancelled"],
       battle_type: ["mcq", "rapid", "timed", "daily"],
+      case_status: ["open", "in_progress", "resolved", "closed"],
       dpp_attempt_status: ["in_progress", "submitted"],
       dpp_question_kind: ["mcq", "multi", "numerical", "short"],
       exam_type: ["class_test", "unit_test", "half_yearly", "final", "other"],
