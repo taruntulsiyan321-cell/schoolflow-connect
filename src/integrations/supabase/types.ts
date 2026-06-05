@@ -1327,6 +1327,98 @@ export type Database = {
         }
         Relationships: []
       }
+      school_complaints: {
+        Row: {
+          body: string
+          category: string
+          complainant_name: string
+          created_at: string
+          id: string
+          resolution_notes: string | null
+          status: Database["public"]["Enums"]["case_status"]
+          student_id: string | null
+          subject: string
+          submitted_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          category?: string
+          complainant_name?: string
+          created_at?: string
+          id?: string
+          resolution_notes?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          student_id?: string | null
+          subject: string
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          complainant_name?: string
+          created_at?: string
+          id?: string
+          resolution_notes?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          student_id?: string | null
+          subject?: string
+          submitted_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "school_complaints_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      school_inquiries: {
+        Row: {
+          contact_email: string | null
+          contact_name: string
+          contact_phone: string | null
+          created_at: string
+          created_by: string | null
+          grade_interest: string | null
+          id: string
+          message: string
+          notes: string | null
+          status: Database["public"]["Enums"]["case_status"]
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name: string
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          grade_interest?: string | null
+          id?: string
+          message: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string
+          contact_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          grade_interest?: string | null
+          id?: string
+          message?: string
+          notes?: string | null
+          status?: Database["public"]["Enums"]["case_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       staff_attendance: {
         Row: {
           created_at: string
@@ -1831,6 +1923,7 @@ export type Database = {
       badge_tier: "bronze" | "silver" | "gold" | "platinum"
       battle_status: "scheduled" | "live" | "finished" | "cancelled"
       battle_type: "mcq" | "rapid" | "timed" | "daily"
+      case_status: "open" | "in_progress" | "resolved" | "closed"
       dpp_attempt_status: "in_progress" | "submitted"
       dpp_question_kind: "mcq" | "multi" | "numerical" | "short"
       exam_type: "class_test" | "unit_test" | "half_yearly" | "final" | "other"
@@ -1976,6 +2069,7 @@ export const Constants = {
       badge_tier: ["bronze", "silver", "gold", "platinum"],
       battle_status: ["scheduled", "live", "finished", "cancelled"],
       battle_type: ["mcq", "rapid", "timed", "daily"],
+      case_status: ["open", "in_progress", "resolved", "closed"],
       dpp_attempt_status: ["in_progress", "submitted"],
       dpp_question_kind: ["mcq", "multi", "numerical", "short"],
       exam_type: ["class_test", "unit_test", "half_yearly", "final", "other"],
