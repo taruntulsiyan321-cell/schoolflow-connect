@@ -1954,6 +1954,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      rpc_battle_monitor: { Args: { _battle_id: string }; Returns: Json }
       rpc_challenge_student: {
         Args: {
           _chapter?: string
