@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_explanations: {
+        Row: {
+          cache_key: string
+          created_at: string
+          payload: Json
+          subject: string | null
+          topic: string | null
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          payload: Json
+          subject?: string | null
+          topic?: string | null
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          payload?: Json
+          subject?: string | null
+          topic?: string | null
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           currency: string
@@ -223,6 +247,56 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "battle_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      battle_events: {
+        Row: {
+          actor_name: string
+          actor_user_id: string
+          battle_id: string | null
+          class_id: string | null
+          created_at: string
+          detail: string
+          icon: string | null
+          id: string
+          kind: string
+          opponent_name: string | null
+          subject: string | null
+        }
+        Insert: {
+          actor_name?: string
+          actor_user_id: string
+          battle_id?: string | null
+          class_id?: string | null
+          created_at?: string
+          detail: string
+          icon?: string | null
+          id?: string
+          kind: string
+          opponent_name?: string | null
+          subject?: string | null
+        }
+        Update: {
+          actor_name?: string
+          actor_user_id?: string
+          battle_id?: string | null
+          class_id?: string | null
+          created_at?: string
+          detail?: string
+          icon?: string | null
+          id?: string
+          kind?: string
+          opponent_name?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_events_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
             referencedColumns: ["id"]
           },
         ]
@@ -1753,6 +1827,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      _battle_event: {
+        Args: {
+          _battle?: string
+          _class?: string
+          _detail: string
+          _icon?: string
+          _kind: string
+          _name: string
+          _opponent?: string
+          _subject?: string
+          _uid: string
+        }
+        Returns: undefined
+      }
       _notify: {
         Args: {
           _body?: string
@@ -1844,6 +1932,28 @@ export type Database = {
         Returns: boolean
       }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
+      rpc_battle_feed: {
+        Args: { _limit?: number }
+        Returns: {
+          actor_name: string
+          actor_user_id: string
+          battle_id: string | null
+          class_id: string | null
+          created_at: string
+          detail: string
+          icon: string | null
+          id: string
+          kind: string
+          opponent_name: string | null
+          subject: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "battle_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       rpc_challenge_student: {
         Args: {
           _chapter?: string
