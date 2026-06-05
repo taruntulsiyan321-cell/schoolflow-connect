@@ -436,6 +436,57 @@ export type Database = {
           },
         ]
       }
+      battle_reports: {
+        Row: {
+          ai_insights: Json | null
+          battle_id: string
+          created_at: string
+          display_name: string
+          expires_at: string
+          id: string
+          participant_id: string
+          report: Json
+          user_id: string
+        }
+        Insert: {
+          ai_insights?: Json | null
+          battle_id: string
+          created_at?: string
+          display_name?: string
+          expires_at: string
+          id?: string
+          participant_id: string
+          report: Json
+          user_id: string
+        }
+        Update: {
+          ai_insights?: Json | null
+          battle_id?: string
+          created_at?: string
+          display_name?: string
+          expires_at?: string
+          id?: string
+          participant_id?: string
+          report?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "battle_reports_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_reports_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: true
+            referencedRelation: "battle_participants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       battles: {
         Row: {
           chapter: string | null
@@ -1852,6 +1903,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _snapshot_battle_report: {
+        Args: { _participant_id: string }
+        Returns: string
+      }
       admin_assign_role: {
         Args: {
           _identifier: string
@@ -2005,6 +2060,10 @@ export type Database = {
         Args: { _battle_id: string; _count?: number }
         Returns: number
       }
+      rpc_get_battle_report: {
+        Args: { _participant_id: string }
+        Returns: Json
+      }
       rpc_leaderboard: {
         Args: {
           _category?: string
@@ -2021,6 +2080,10 @@ export type Database = {
           score: number
           user_id: string
         }[]
+      }
+      rpc_teacher_battle_reports: {
+        Args: { _battle_id: string }
+        Returns: Json
       }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       teacher_teaches_class: {
