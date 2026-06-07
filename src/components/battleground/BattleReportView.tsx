@@ -8,7 +8,7 @@ import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { invokeEdgeFunction, isAiUnavailableError } from "@/lib/edgeFunction";
 import { buildRuleBattleInsights, type BattleAiInsights } from "@/lib/battleReportInsights";
 import {
-  Trophy, Target, Clock, TrendingUp, TrendingDown, Sparkles, Loader2,
+  Target, Clock, TrendingUp, TrendingDown, Sparkles, Loader2,
   AlertTriangle, Brain, CheckCircle2, XCircle, Timer, BarChart3,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";

@@ -99,7 +99,11 @@ export default function DppResult() {
           const a = answers[q.id];
           const resp = (a?.response as any) ?? {};
           const opts: string[] = Array.isArray(q.options) ? q.options : [];
-          const correctIdx = Array.isArray(q.correct?.indexes) ? q.correct.indexes[0] ?? null : null;
+          const correctIdx =
+            Array.isArray(q.correct?.indexes) ? q.correct.indexes[0] ?? null
+            : typeof (q.correct as { correct_index?: number })?.correct_index === "number"
+              ? (q.correct as { correct_index: number }).correct_index
+              : null;
           const selectedIdx = Array.isArray(resp.indexes) ? resp.indexes[0] ?? null : null;
           const correctText = q.correct?.text ?? (q.correct?.value !== undefined ? String(q.correct.value) : "");
           const selectedText = resp.text ?? (resp.value !== undefined ? String(resp.value) : "");
