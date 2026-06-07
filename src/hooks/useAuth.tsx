@@ -27,26 +27,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess?.user) {
+        setLoading(true);
         // Defer DB lookup to avoid deadlock
         setTimeout(async () => {
-          let { data } = await supabase
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", sess.user.id);
-          if (!data || data.length === 0) {
-            // First sign-in (e.g. Google) — assign a default role
-            await supabase.rpc("ensure_default_role");
-            const r = await supabase
+          try {
+            await supabase.rpc("link_portal_on_auth", { _uid: sess.user.id });
+
+            let { data } = await supabase
               .from("user_roles")
               .select("role")
               .eq("user_id", sess.user.id);
-            data = r.data ?? [];
+            if (!data || data.length === 0) {
+              // First sign-in (e.g. Google) — assign a default role
+              await supabase.rpc("ensure_default_role");
+              const r = await supabase
+                .from("user_roles")
+                .select("role")
+                .eq("user_id", sess.user.id);
+              data = r.data ?? [];
+            }
+            const priority: AppRole[] = ["admin", "principal", "teacher", "student", "parent"];
+            const owned = (data ?? []).map(r => r.role as AppRole);
+            const best = priority.find(p => owned.includes(p)) ?? null;
+            setRole(best);
+          } finally {
+            setLoading(false);
           }
-          const priority: AppRole[] = ["admin", "principal", "teacher", "student", "parent"];
-          const owned = (data ?? []).map(r => r.role as AppRole);
-          const best = priority.find(p => owned.includes(p)) ?? null;
-          setRole(best);
-          setLoading(false);
         }, 0);
       } else {
         setRole(null);

@@ -19,6 +19,7 @@ import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
 import SharedLeaderboard from "@/pages/shared/LeaderboardPage";
 import BattleReportPage from "./BattleReportPage";
+import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
 
 // =================== ARENA (HOME) ===================
 function Arena() {
@@ -29,16 +30,28 @@ function Arena() {
   const [battles, setBattles] = useState<any[]>([]);
   const [topClass, setTopClass] = useState<any[]>([]);
 
+  const refreshXp = async () => {
+    if (!user) return;
+    const { data: x } = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
+    if (x) setXp(x);
+  };
+
   useEffect(() => {
     if (!user) return;
     (async () => {
       const { data: s } = await supabase.from("students").select("*, classes(name,section,display_name)").eq("user_id", user.id).maybeSingle();
       setStudent(s);
-      const { data: x } = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
-      if (x) setXp(x);
-      const { data: b } = await supabase.from("battles")
-        .select("*").eq("is_public", true).neq("status", "finished")
-        .order("starts_at", { ascending: true }).limit(8);
+      await refreshXp();
+      let battleQuery = supabase.from("battles")
+        .select("*")
+        .eq("status", "live")
+        .in("mode", ["open", "lobby"]);
+      if (s?.class_id) {
+        battleQuery = battleQuery.or(`mode.eq.open,and(mode.eq.lobby,class_id.eq.${s.class_id})`);
+      } else {
+        battleQuery = battleQuery.eq("mode", "open");
+      }
+      const { data: b } = await battleQuery.order("starts_at", { ascending: true }).limit(8);
       setBattles(b ?? []);
       // Top performers in class
       if (s?.class_id) {
@@ -57,6 +70,12 @@ function Arena() {
         }
       }
     })();
+  }, [user]);
+
+  useEffect(() => {
+    const onXp = () => refreshXp();
+    window.addEventListener("student-xp-updated", onXp);
+    return () => window.removeEventListener("student-xp-updated", onXp);
   }, [user]);
 
   return (
@@ -87,7 +106,10 @@ function Arena() {
       </Card>
 
       {/* Frictionless challenge — subject → chapter → topic → start */}
-      <FrictionlessChallenge classId={student?.class_id} />
+      <FrictionlessChallenge
+        classId={student?.class_id}
+        className={student?.classes?.name ?? student?.classes?.display_name}
+      />
 
       {/* Pending invites from classmates */}
       <MyInvites />
@@ -183,7 +205,11 @@ function CreateBattle() {
         <h1 className="text-xl font-semibold mt-1 text-white">Challenge</h1>
         <p className="text-sm text-white/75 mt-1">Pick a friend, subject, and topic — the arena handles the rest.</p>
       </Card>
-      <FrictionlessChallenge classId={student?.class_id} variant="page" />
+      <FrictionlessChallenge
+        classId={student?.class_id}
+        className={student?.classes?.name}
+        variant="page"
+      />
     </div>
   );
 }
@@ -316,6 +342,7 @@ function BattleRoom() {
     if (qIdx + 1 >= questions.length) {
       // finish
       await supabase.rpc("rpc_finish_battle", { _participant_id: participantId });
+      notifyStudentXpUpdated();
       setFinished(true);
       return;
     }

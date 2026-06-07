@@ -21,9 +21,9 @@ export function QuickPlay({ defaultClassId }: { defaultClassId?: string | null }
 
   const launch = async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc("rpc_create_quick_battle" as any, {
+    const { data, error } = await supabase.rpc("rpc_create_quick_battle", {
       _subject: subject, _difficulty: difficulty, _count: count, _per_q: perQ,
-      _chapter: null, _class_id: defaultClassId ?? null,
+      _chapter: null, _class_id: defaultClassId ?? null, _topic: null,
     });
     setLoading(false);
     if (error) { toast({ title: error.message, variant: "destructive" }); return; }

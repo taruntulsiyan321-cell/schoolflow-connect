@@ -8,60 +8,93 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Swords, Search, Loader2, User, Users } from "lucide-react";
+import {
+  filterCurriculumByNcert,
+  getNcertSubjects,
+  parseClassGrade,
+} from "@/lib/ncertSyllabus";
+import { Globe, Loader2, Search, User, Users, UsersRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 
-const SUBJECTS = [
-  "Mathematics", "Science", "Physics", "Chemistry", "Biology", "English",
-  "Social Studies", "General Knowledge", "Computer Science", "Economics", "Accountancy", "Business Studies",
-];
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 const ANY = "__any__";
 
-type Classmate = { id: string; full_name: string; user_id: string; roll_number: string | null; equipped_badge: string | null };
+type BattleMode = "solo" | "duel" | "class" | "open";
+
+type Classmate = {
+  id: string;
+  full_name: string;
+  user_id: string;
+  roll_number: string | null;
+  equipped_badge: string | null;
+};
 type CurriculumRow = { chapter: string; topic: string | null };
 
 type Props = {
   classId?: string | null;
+  className?: string | null;
   variant?: "page" | "card";
 };
 
-export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
+const MODE_META: Record<BattleMode, { label: string; icon: typeof User; hint: string }> = {
+  solo: { label: "Solo", icon: User, hint: "Private practice — not listed publicly" },
+  duel: { label: "Challenge", icon: Users, hint: "1v1 with a classmate" },
+  class: { label: "Class lobby", icon: UsersRound, hint: "Your class can join this battle" },
+  open: { label: "Open", icon: Globe, hint: "Anyone in school can join" },
+};
+
+export function FrictionlessChallenge({ classId, className, variant = "card" }: Props) {
   const { user } = useAuth();
   const nav = useNavigate();
-  const [mode, setMode] = useState<"duel" | "solo">("duel");
+  const grade = useMemo(() => parseClassGrade(className), [className]);
+  const subjects = useMemo(() => getNcertSubjects(grade), [grade]);
+
+  const [mode, setMode] = useState<BattleMode>("solo");
   const [classmates, setClassmates] = useState<Classmate[]>([]);
   const [filter, setFilter] = useState("");
   const [opponent, setOpponent] = useState<Classmate | null>(null);
-  const [subject, setSubject] = useState("Mathematics");
+  const [subject, setSubject] = useState(subjects[0] ?? "Mathematics");
   const [chapter, setChapter] = useState(ANY);
   const [topic, setTopic] = useState(ANY);
   const [difficulty, setDifficulty] = useState<string>("medium");
-  const [curriculum, setCurriculum] = useState<CurriculumRow[]>([]);
+  const [bankRows, setBankRows] = useState<CurriculumRow[]>([]);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (subjects.length && !subjects.includes(subject)) setSubject(subjects[0]);
+  }, [subjects, subject]);
 
   useEffect(() => {
     if (!classId) return;
     supabase.rpc("rpc_classmates").then(({ data }) => {
-      setClassmates((data ?? []).map((m) => ({
-        id: m.student_id,
-        full_name: m.full_name,
-        user_id: m.user_id,
-        roll_number: m.roll_number,
-        equipped_badge: m.equipped_badge,
-      })));
+      setClassmates(
+        (data ?? []).map((m) => ({
+          id: m.student_id,
+          full_name: m.full_name,
+          user_id: m.user_id,
+          roll_number: m.roll_number,
+          equipped_badge: m.equipped_badge,
+        })),
+      );
     });
   }, [classId]);
 
   useEffect(() => {
-    supabase.rpc("rpc_battle_curriculum", { _subject: subject }).then(({ data }) => {
-      const rows = data as CurriculumRow[] | null;
-      setCurriculum(Array.isArray(rows) ? rows : []);
-      setChapter(ANY);
-      setTopic(ANY);
-    });
-  }, [subject]);
+    supabase
+      .rpc("rpc_battle_curriculum", { _subject: subject, _class_id: classId ?? null })
+      .then(({ data }) => {
+        const rows = (Array.isArray(data) ? data : []) as CurriculumRow[];
+        setBankRows(rows);
+        setChapter(ANY);
+        setTopic(ANY);
+      });
+  }, [subject, classId]);
+
+  const curriculum = useMemo(
+    () => filterCurriculumByNcert(grade, subject, bankRows),
+    [grade, subject, bankRows],
+  );
 
   const chapters = useMemo(() => {
     const set = new Set<string>();
@@ -87,26 +120,33 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
       toast({ title: "Pick a classmate to challenge", variant: "destructive" });
       return;
     }
+    if ((mode === "class" || mode === "open") && !classId && mode === "class") {
+      toast({ title: "Join a class to host a class lobby", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     const chap = chapter === ANY ? undefined : chapter;
     const top = topic === ANY ? undefined : topic;
+    const base = {
+      _subject: subject,
+      _difficulty: difficulty,
+      _count: 5,
+      _per_q: 20,
+      _chapter: chap,
+      _topic: top,
+      _class_id: classId ?? undefined,
+    };
 
     try {
+      let battleId: string | null = null;
+      let error: { message: string } | null = null;
+
       if (mode === "solo") {
-        const { data, error } = await supabase.rpc("rpc_create_quick_battle", {
-          _subject: subject,
-          _difficulty: difficulty,
-          _count: 5,
-          _per_q: 20,
-          _chapter: chap,
-          _topic: top,
-          _class_id: classId ?? undefined,
-        });
-        if (error) throw error;
-        toast({ title: "Battle ready" });
-        nav(`/student/battleground/battle/${data}`);
-      } else {
-        const { data, error } = await supabase.rpc("rpc_challenge_student", {
+        const res = await supabase.rpc("rpc_create_quick_battle", base);
+        battleId = res.data as string;
+        error = res.error;
+      } else if (mode === "duel") {
+        const res = await supabase.rpc("rpc_challenge_student", {
           _opponent_user_id: opponent!.user_id,
           _subject: subject,
           _difficulty: difficulty,
@@ -115,12 +155,30 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
           _chapter: chap,
           _topic: top,
         });
-        if (error) throw error;
-        toast({ title: `Challenge sent to ${opponent!.full_name.split(" ")[0]}` });
-        nav(`/student/battleground/battle/${data}`);
+        battleId = res.data as string;
+        error = res.error;
+      } else if (mode === "class") {
+        const res = await supabase.rpc("rpc_create_class_battle" as never, base as never);
+        battleId = res.data as string;
+        error = res.error;
+      } else {
+        const res = await supabase.rpc("rpc_create_open_battle" as never, base as never);
+        battleId = res.data as string;
+        error = res.error;
       }
-    } catch (e: any) {
-      toast({ title: e?.message ?? "Could not start battle", variant: "destructive" });
+
+      if (error) throw error;
+      const labels: Record<BattleMode, string> = {
+        solo: "Solo practice ready",
+        duel: `Challenge sent to ${opponent!.full_name.split(" ")[0]}`,
+        class: "Class lobby is live — classmates can join",
+        open: "Open battle is live — anyone can join",
+      };
+      toast({ title: labels[mode] });
+      nav(`/student/battleground/battle/${battleId}`);
+    } catch (e: unknown) {
+      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not start battle";
+      toast({ title: msg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -130,43 +188,44 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
     <>
       <div className="flex items-start gap-3">
         <div className="icon-tile">
-          <Swords className="w-5 h-5" />
+          <Users className="w-5 h-5" />
         </div>
         <div>
-          <div className="font-semibold text-sm">{variant === "page" ? "Start a battle" : "Quick challenge"}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">Questions are selected automatically from the bank.</div>
+          <div className="font-semibold text-sm">{variant === "page" ? "Start a battle" : "Battleground"}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {grade ? `Class ${grade} · NCERT chapters only` : "Pick subject and chapter from your syllabus"}
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 p-1 rounded-lg bg-muted/50 border border-border/60">
-        <button
-          type="button"
-          onClick={() => setMode("duel")}
-          className={cn(
-            "flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors",
-            mode === "duel" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground",
-          )}
-        >
-          <Users className="w-4 h-4" /> Classmate
-        </button>
-        <button
-          type="button"
-          onClick={() => { setMode("solo"); setOpponent(null); }}
-          className={cn(
-            "flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors",
-            mode === "solo" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground",
-          )}
-        >
-          <User className="w-4 h-4" /> Solo
-        </button>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1 rounded-lg bg-muted/50 border border-border/60">
+        {(Object.keys(MODE_META) as BattleMode[]).map((m) => {
+          const Meta = MODE_META[m];
+          const Icon = Meta.icon;
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => { setMode(m); if (m !== "duel") setOpponent(null); }}
+              className={cn(
+                "flex flex-col items-center gap-1 py-2 px-1 rounded-md text-xs font-medium transition-colors",
+                mode === m ? "bg-card shadow-sm text-foreground" : "text-muted-foreground",
+              )}
+            >
+              <Icon className="w-4 h-4" />
+              {Meta.label}
+            </button>
+          );
+        })}
       </div>
+      <p className="text-[11px] text-muted-foreground -mt-2">{MODE_META[mode].hint}</p>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 sm:col-span-1">
           <Label className="text-xs text-muted-foreground">Subject</Label>
           <Select value={subject} onValueChange={setSubject}>
             <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-            <SelectContent>{SUBJECTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            <SelectContent>{subjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>
@@ -177,7 +236,7 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
           </Select>
         </div>
         <div>
-          <Label className="text-xs text-muted-foreground">Chapter</Label>
+          <Label className="text-xs text-muted-foreground">Chapter (NCERT)</Label>
           <Select value={chapter} onValueChange={(v) => { setChapter(v); setTopic(ANY); }}>
             <SelectTrigger className="mt-1"><SelectValue placeholder="Any" /></SelectTrigger>
             <SelectContent>
@@ -233,9 +292,14 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
         </div>
       )}
 
-      <Button onClick={start} disabled={loading || (mode === "duel" && !opponent)} size="lg" className="w-full btn-cta">
-        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Swords className="w-4 h-4 mr-2" />}
-        Start battle
+      <Button
+        onClick={start}
+        disabled={loading || (mode === "duel" && !opponent) || (mode === "class" && !classId)}
+        size="lg"
+        className="w-full btn-cta"
+      >
+        {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
+        {mode === "solo" ? "Start solo practice" : mode === "duel" ? "Send challenge" : "Host battle"}
       </Button>
     </>
   );
@@ -245,4 +309,4 @@ export function FrictionlessChallenge({ classId, variant = "card" }: Props) {
   }
 
   return <Card className="p-5 space-y-4 surface-card">{inner}</Card>;
-};
+}

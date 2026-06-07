@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useParentWeeklyDigest, type ParentAlert } from "@/hooks/useParentWeeklyDigest";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { Progress } from "@/components/ui/progress";
-import { ClipboardCheck, NotebookPen, Trophy, Wallet } from "lucide-react";
+import { ClipboardCheck, NotebookPen, Trophy, Wallet, Bell, TrendingUp, AlertTriangle } from "lucide-react";
 
 type ChildInsight = {
   id: string;
@@ -17,8 +19,16 @@ type ChildInsight = {
   pendingFees: number;
 };
 
+const alertTone: Record<ParentAlert["kind"], string> = {
+  weakness: "bg-destructive/10 text-destructive border-destructive/30",
+  consistency: "bg-warning/10 text-warning border-warning/30",
+  improvement: "bg-accent/10 text-accent border-accent/30",
+  participation: "bg-primary/10 text-primary border-primary/30",
+};
+
 export default function ParentInsights() {
   const { user } = useAuth();
+  const { data: digest, loading: digestLoading, reload: reloadDigest } = useParentWeeklyDigest();
   const [kids, setKids] = useState<ChildInsight[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -106,10 +116,12 @@ export default function ParentInsights() {
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n || 0);
 
+  const digestByStudent = new Map((digest?.children ?? []).map((c) => [c.student_id, c]));
+
   return (
     <>
-      <PageHeader title="Engagement insights" subtitle="Attendance, homework, marks, and fees at a glance" />
-      {loading ? (
+      <PageHeader title="Engagement insights" subtitle="Attendance, homework, marks, fees, and weekly academic digest" />
+      {loading || digestLoading ? (
         <p className="text-sm text-muted-foreground text-center py-10">Loading insights…</p>
       ) : kids.length === 0 ? (
         <Card className="p-6 text-sm text-muted-foreground text-center">Link a student to your account to see insights.</Card>
@@ -117,6 +129,13 @@ export default function ParentInsights() {
         <div className="space-y-6">
           {kids.map((k) => {
             const hwPct = k.homeworkTotal ? Math.round((k.homeworkDone / k.homeworkTotal) * 100) : 0;
+            const weekly = digestByStudent.get(k.id);
+            const snap = weekly?.snapshot as {
+              exam_readiness?: { score?: number; label?: string; active_days_14d?: number };
+              mistake_count?: number;
+            } | undefined;
+            const alerts = weekly?.alerts ?? [];
+
             return (
               <Card key={k.id} className="p-5 shadow-card space-y-4">
                 <div>
@@ -130,14 +149,54 @@ export default function ParentInsights() {
                   <StatCard icon={<Wallet className="w-5 h-5" />} label="Pending fees" value={fmt(k.pendingFees)} tone={k.pendingFees > 0 ? "warning" : undefined} />
                 </div>
                 <div>
-                  <div>
-                    Homework completion ({k.homeworkDone}/{k.homeworkTotal})
-                  </div>
+                  <div>Homework completion ({k.homeworkDone}/{k.homeworkTotal})</div>
                   <Progress value={hwPct} className="h-2" />
                 </div>
+
+                {snap && (
+                  <div className="rounded-lg border p-3 space-y-2 bg-muted/40">
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <Bell className="w-4 h-4" /> Weekly academic summary
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Exam readiness: <strong>{snap.exam_readiness?.score ?? 0}%</strong>
+                      {snap.exam_readiness?.label ? ` (${snap.exam_readiness.label})` : ""}
+                      · Active study days (14d): <strong>{snap.exam_readiness?.active_days_14d ?? 0}</strong>
+                      · Mistake book: <strong>{snap.mistake_count ?? 0}</strong> open
+                    </p>
+                  </div>
+                )}
+
+                {alerts.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-sm font-semibold flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-warning" /> Alerts (last 7 days)
+                    </div>
+                    {alerts.map((a) => (
+                      <div key={a.id} className="rounded-lg border p-3 text-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className={alertTone[a.kind]}>{a.kind}</Badge>
+                          <span className="font-medium">{a.title}</span>
+                        </div>
+                        <p className="text-muted-foreground">{a.body}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {alerts.length === 0 && snap && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-accent" /> No new alerts this week — keep encouraging daily practice.
+                  </p>
+                )}
               </Card>
             );
           })}
+          <p className="text-xs text-muted-foreground text-center">
+            Digest refreshed {digest?.generated_at ? new Date(digest.generated_at).toLocaleString("en-IN") : "—"}
+            {" · "}
+            <button type="button" className="underline" onClick={() => reloadDigest()}>Refresh</button>
+          </p>
         </div>
       )}
     </>

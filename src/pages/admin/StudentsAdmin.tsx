@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Pencil, ShieldCheck, Link2, Loader2, UserX, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
+import { parseLoginIdentifier, portalFieldsFromIdentifier } from "@/lib/loginIdentifier";
 
 const EMPTY = {
   full_name: "", admission_number: "", roll_number: "", class_id: "",
@@ -37,16 +38,28 @@ export default function StudentsAdmin() {
   const add = async () => {
     if (!form.full_name || !form.admission_number) return toast.error("Name and admission number required");
     const { link_email, ...rest } = form;
-    const payload = { ...rest, class_id: form.class_id || null, date_of_birth: form.date_of_birth || null };
+    const portal = link_email?.trim() ? portalFieldsFromIdentifier(link_email.trim()) : {};
+    if (link_email?.trim() && !parseLoginIdentifier(link_email.trim())) {
+      return toast.error("Enter a valid email or mobile number");
+    }
+    const payload = {
+      ...rest,
+      ...portal,
+      class_id: form.class_id || null,
+      date_of_birth: form.date_of_birth || null,
+    };
     const { data: created, error } = await supabase.from("students").insert(payload).select().single();
     if (error) return toast.error(error.message);
 
     if (link_email?.trim()) {
-      const { error: linkErr } = await supabase.functions.invoke("admin-link-account", {
-        body: { kind: "student", target_id: created.id, identifier: link_email.trim(), as: "student" },
+      const { data: uid, error: linkErr } = await supabase.rpc("admin_connect_student_account", {
+        _student_id: created.id,
+        _identifier: link_email.trim(),
+        _as: "student",
       });
-      if (linkErr) toast.warning("Student created, but account linking failed: " + linkErr.message);
-      else toast.success("Student created and account linked");
+      if (linkErr) toast.warning("Student created, but login setup failed: " + linkErr.message);
+      else if (uid) toast.success("Student created and portal linked");
+      else toast.success("Student created — they can sign in with that email/phone anytime");
     } else {
       toast.success("Student added");
     }
@@ -132,7 +145,7 @@ export default function StudentsAdmin() {
                   onChange={e => setForm({ ...form, link_email: e.target.value })}
                 />
                 <p className="text-[11px] text-muted-foreground mt-1.5">
-                  We'll create the student account immediately — no need to wait for them to sign in first.
+                  Save their email or mobile here. When they sign up or sign in with it (Google or password), they are linked automatically — no prior sign-in needed.
                 </p>
               </div>
               <Button className="w-full bg-gradient-primary text-primary-foreground mt-3" onClick={add}>Create Student</Button>
@@ -154,9 +167,13 @@ export default function StudentsAdmin() {
                   <Badge variant="outline" className="bg-accent/10 text-accent border-accent/30 text-[10px]">
                     <ShieldCheck className="w-3 h-3 mr-0.5" /> Linked
                   </Badge>
+                ) : r.portal_email || r.portal_phone ? (
+                  <Badge variant="outline" className="text-[10px] text-amber-700 border-amber-300 bg-amber-50">
+                    <ShieldAlert className="w-3 h-3 mr-0.5" /> Login reserved
+                  </Badge>
                 ) : (
                   <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                    <ShieldAlert className="w-3 h-3 mr-0.5" /> No account
+                    <ShieldAlert className="w-3 h-3 mr-0.5" /> No login
                   </Badge>
                 )}
               </div>
@@ -201,13 +218,17 @@ function StudentAccountAccess({ student, onChanged }: { student: any; onChanged:
 
   const link = async () => {
     if (!identifier.trim()) return toast.error("Email or mobile required");
+    if (!parseLoginIdentifier(identifier.trim())) return toast.error("Enter a valid email or mobile number");
     setBusy(true);
-    const { error } = await supabase.functions.invoke("admin-link-account", {
-      body: { kind: "student", target_id: s.id, identifier: identifier.trim(), as },
+    const { data: uid, error } = await supabase.rpc("admin_connect_student_account", {
+      _student_id: s.id,
+      _identifier: identifier.trim(),
+      _as: as,
     });
     setBusy(false);
-    if (error) return toast.error(error.message || "Could not link account");
-    toast.success("Account linked");
+    if (error) return toast.error(error.message || "Could not set up login");
+    if (uid) toast.success("Account linked — user can sign in now");
+    else toast.success("Login saved — will activate when they sign in with that email or phone");
     setIdentifier(""); refresh();
   };
 
@@ -222,7 +243,9 @@ function StudentAccountAccess({ student, onChanged }: { student: any; onChanged:
   };
 
   const linked = !!s.user_id;
+  const pending = !linked && (s.portal_email || s.portal_phone);
   const parentLinked = !!s.parent_user_id;
+  const parentPending = !parentLinked && (s.parent_portal_email || s.parent_mobile);
 
   return (
     <div className="mt-4 p-4 rounded-xl border bg-gradient-soft">
@@ -232,10 +255,10 @@ function StudentAccountAccess({ student, onChanged }: { student: any; onChanged:
       </div>
       <div className="flex items-center gap-2 text-xs mb-3">
         <Badge variant="outline" className={linked ? "bg-accent/10 text-accent border-accent/30" : "text-muted-foreground"}>
-          Student: {linked ? "Linked" : "Not linked"}
+          Student: {linked ? "Linked" : pending ? `Pending (${s.portal_email || s.portal_phone})` : "Not set"}
         </Badge>
         <Badge variant="outline" className={parentLinked ? "bg-accent/10 text-accent border-accent/30" : "text-muted-foreground"}>
-          Parent: {parentLinked ? "Linked" : "Not linked"}
+          Parent: {parentLinked ? "Linked" : parentPending ? "Pending" : "Not set"}
         </Badge>
       </div>
       <div className="grid grid-cols-3 gap-2">
@@ -264,7 +287,7 @@ function StudentAccountAccess({ student, onChanged }: { student: any; onChanged:
         )}
       </div>
       <p className="text-[11px] text-muted-foreground mt-2">
-        The account is created immediately if it doesn't exist. The user can sign in via Google or magic link with this email.
+        No need for the student to sign in first. Their email or phone is saved on the record; the first login with that credential links them to this student profile.
       </p>
     </div>
   );

@@ -39,6 +39,7 @@ import {
   ProfilePage,
   AttendanceOverview,
 } from "./shared/SchoolFeatures";
+import SchoolEngagement from "./principal/SchoolEngagement";
 
 const nav = [
   { to: "/principal", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -49,6 +50,7 @@ const nav = [
   { to: "/principal/teachers", label: "Teachers", icon: <GraduationCap className="w-4 h-4" /> },
   { to: "/principal/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
   { to: "/principal/performance", label: "Performance", icon: <TrendingUp className="w-4 h-4" /> },
+  { to: "/principal/engagement", label: "Engagement", icon: <Activity className="w-4 h-4" /> },
   { to: "/principal/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/principal/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/principal/notices", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
@@ -113,6 +115,7 @@ export default function PrincipalDashboard() {
         <Route path="teachers" element={<TeachersDirectory />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="performance" element={<PerformancePage />} />
+        <Route path="engagement" element={<SchoolEngagement />} />
         <Route path="fees" element={<FeesOverview />} />
         <Route path="timetable" element={<TimetablePage title="Timetable Monitoring" />} />
         <Route path="activity" element={<ActivityLogPage />} />

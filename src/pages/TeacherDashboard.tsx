@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User, Target, Sword, Database } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User, Target, Sword, Database, TrendingUp } from "lucide-react";
 import DppList from "./teacher/DppList";
 import DppEditor from "./teacher/DppEditor";
 import DppAnalytics from "./teacher/DppAnalytics";
@@ -26,6 +26,7 @@ import TeacherBattleground from "./teacher/TeacherBattleground";
 import BattleMonitor from "./teacher/BattleMonitor";
 import BattleTeacherReport from "./teacher/BattleTeacherReport";
 import QuestionBankPage from "./shared/QuestionBankPage";
+import ClassInsights from "./teacher/ClassInsights";
 
 const nav = [
   { to: "/teacher", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -36,6 +37,7 @@ const nav = [
   { to: "/teacher/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
   { to: "/teacher/question-bank", label: "Question Bank", icon: <Database className="w-4 h-4" /> },
   { to: "/teacher/performance", label: "Performance", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/teacher/insights", label: "Class insights", icon: <TrendingUp className="w-4 h-4" /> },
   { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
   { to: "/teacher/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/teacher/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
@@ -336,6 +338,7 @@ export default function TeacherDashboard() {
         <Route path="attendance" element={<Attendance />} />
         <Route path="homework" element={<HomeworkManagePage />} />
         <Route path="performance" element={<StudentPerformancePage />} />
+        <Route path="insights" element={<ClassInsights />} />
         <Route path="exams" element={<ExamsPage />} />
         <Route path="timetable" element={<TeacherTimetablePage />} />
         <Route path="notices" element={<NoticesPage canPost />} />

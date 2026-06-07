@@ -19,7 +19,7 @@ const nameSchema = z.string().trim().min(1).max(100);
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const [tab, setTab] = useState("signin");
   const [busy, setBusy] = useState(false);
 
@@ -33,8 +33,8 @@ export default function Auth() {
   const [suRole, setSuRole] = useState<"admin" | "teacher" | "student" | "parent">("student");
 
   useEffect(() => {
-    if (!loading && user) navigate("/");
-  }, [user, loading, navigate]);
+    if (!loading && user && role) navigate(`/${role}`, { replace: true });
+  }, [user, role, loading, navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +45,6 @@ export default function Auth() {
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Welcome back!");
-    navigate("/");
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -72,7 +71,6 @@ export default function Auth() {
     }
     setBusy(false);
     toast.success("Account created!");
-    navigate("/");
   };
 
   const handleReset = async () => {
@@ -96,7 +94,6 @@ export default function Auth() {
     }
     if (result.redirected) return; // browser will navigate
     setBusy(false);
-    navigate("/");
   };
 
   return (

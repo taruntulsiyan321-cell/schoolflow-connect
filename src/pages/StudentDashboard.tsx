@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword, Target, Megaphone } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword, Target, Megaphone, Brain, BookMarked, ListChecks, BarChart3, Sparkles } from "lucide-react";
+import StudentSuccessHome from "./student/StudentSuccessHome";
+import MistakeBank from "./student/MistakeBank";
+import RevisionQueue from "./student/RevisionQueue";
+import ImprovementPlans from "./student/ImprovementPlans";
+import AcademicAnalytics from "./student/AcademicAnalytics";
+import AcademicReport from "./student/AcademicReport";
 import Battleground from "./student/Battleground";
 import DppHub from "./student/DppHub";
+import Class12MathPractice from "./student/Class12MathPractice";
+import Class12MathSession from "./student/Class12MathSession";
 import DppAttempt from "./student/DppAttempt";
 import DppResult from "./student/DppResult";
 import StudentProfilePage from "./shared/StudentProfilePage";
@@ -24,7 +32,11 @@ import MyMarksPage from "./shared/MyMarksPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
 
 const nav = [
-  { to: "/student", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/student", label: "Growth", icon: <Brain className="w-4 h-4" /> },
+  { to: "/student/revision", label: "Revision", icon: <ListChecks className="w-4 h-4" /> },
+  { to: "/student/plans", label: "Improvement", icon: <Sparkles className="w-4 h-4" /> },
+  { to: "/student/mistakes", label: "Mistakes", icon: <BookMarked className="w-4 h-4" /> },
+  { to: "/student/analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
   { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/student/dpp", label: "Daily Practice", icon: <Target className="w-4 h-4" /> },
@@ -152,7 +164,12 @@ export default function StudentDashboard() {
   return (
     <AppLayout nav={nav} title="Student">
       <Routes>
-        <Route index element={<Home />} />
+        <Route index element={<StudentSuccessHome />} />
+        <Route path="revision" element={<RevisionQueue />} />
+        <Route path="plans" element={<ImprovementPlans />} />
+        <Route path="mistakes" element={<MistakeBank />} />
+        <Route path="analytics" element={<AcademicAnalytics />} />
+        <Route path="report" element={<AcademicReport />} />
         <Route path="classes" element={<StudentClassesPage />} />
         <Route path="homework" element={<StudentHomeworkPage />} />
         <Route path="attendance" element={<MyAttendance />} />
@@ -168,6 +185,8 @@ export default function StudentDashboard() {
         <Route path="leaderboard" element={<LeaderboardPage />} />
         <Route path="battleground/*" element={<Battleground />} />
         <Route path="dpp" element={<DppHub />} />
+        <Route path="practice/math12" element={<Class12MathPractice />} />
+        <Route path="practice/math12/session" element={<Class12MathSession />} />
         <Route path="dpp/:id/attempt" element={<DppAttempt />} />
         <Route path="dpp/:id/result" element={<DppResult />} />
         <Route path="*" element={<Navigate to="/student" replace />} />

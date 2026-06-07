@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.verify-otp]
 verify_jwt = false
+
+[functions.ai-battle-report]
+verify_jwt = true
+
+[functions.ai-explain]
+verify_jwt = true
+
+[functions.ai-improvement-plan]
+verify_jwt = true

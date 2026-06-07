@@ -10,7 +10,13 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:seed": "node scripts/apply-seed.mjs",
+    "db:migrate": "node scripts/apply-pending-migrations.mjs",
+    "db:migrate:all": "node scripts/apply-pending-migrations.mjs --all",
+    "db:check-migrations": "node scripts/check-pending-migrations.mjs",
+    "seed:math12": "node scripts/seed-class12-math-templates.mjs",
+    "db:setup": "powershell -ExecutionPolicy Bypass -File scripts/run-complete-setup.ps1"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",
@@ -86,6 +92,7 @@
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",
     "lovable-tagger": "^1.1.13",
+    "pg": "^8.21.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",

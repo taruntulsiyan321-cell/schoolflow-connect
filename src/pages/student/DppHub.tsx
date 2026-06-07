@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/ui-bits";
 import { DppCard, DppCardData } from "@/components/dpp/DppCard";
-import { FileText } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Calculator, FileText } from "lucide-react";
 
 export default function DppHub() {
   const { user } = useAuth();
@@ -53,6 +55,13 @@ export default function DppHub() {
   return (
     <>
       <PageHeader title="Daily Practice" subtitle="Sharpen your skills · Build streaks · Earn XP" />
+      <div className="mb-6">
+        <Button asChild variant="outline" className="gap-2">
+          <Link to="/student/practice/math12">
+            <Calculator className="w-4 h-4" /> Class 12 Maths — unlimited NCERT practice
+          </Link>
+        </Button>
+      </div>
       {dpps.length === 0 && (
         <div className="text-center py-10 text-muted-foreground">
           <FileText className="w-10 h-10 mx-auto mb-2" />

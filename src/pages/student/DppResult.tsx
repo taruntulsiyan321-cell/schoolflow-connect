@@ -40,6 +40,17 @@ export default function DppResult() {
 
   if (loading) return <p className="text-muted-foreground text-center py-8">Loading…</p>;
 
+  if (!dpp) {
+    return (
+      <>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
+        <Card className="p-8 text-center">
+          <p className="text-muted-foreground">This DPP could not be found.</p>
+        </Card>
+      </>
+    );
+  }
+
   if (!attempt) {
     return (
       <>
@@ -54,7 +65,7 @@ export default function DppResult() {
   }
 
   const accuracy = attempt.total_count ? Math.round((attempt.correct_count / attempt.total_count) * 100) : 0;
-  const mins = Math.round(attempt.time_spent_sec / 60);
+  const mins = Math.round((attempt.time_spent_sec ?? 0) / 60);
 
   return (
     <>
@@ -70,6 +81,17 @@ export default function DppResult() {
           <div><div className="text-xs text-muted-foreground">Score</div><div className="font-bold text-lg">{Number(attempt.score).toFixed(1)} / {Number(attempt.max_score).toFixed(0)}</div></div>
         </div>
       </Card>
+
+      {accuracy < 100 && (
+        <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
+          <h3 className="font-semibold text-sm mb-2">Improvement focus</h3>
+          <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
+            {accuracy < 60 && <li>Review wrong answers below — they were added to your Mistake Book automatically.</li>}
+            {accuracy < 80 && <li>Revise weak topics from your Growth dashboard before the next DPP.</li>}
+            <li>Use AI Explain on each wrong question to understand the concept, not just the answer.</li>
+          </ul>
+        </Card>
+      )}
 
       <h3 className="font-semibold mb-3">Question review</h3>
       <div className="space-y-4">

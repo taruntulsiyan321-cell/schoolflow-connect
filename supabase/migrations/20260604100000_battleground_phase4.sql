@@ -70,6 +70,8 @@ BEGIN
   RETURN _inserted;
 END $$;
 
+DROP FUNCTION IF EXISTS public.rpc_create_quick_battle(text, text, integer, integer, text, uuid);
+
 CREATE OR REPLACE FUNCTION public.rpc_create_quick_battle(
   _subject text, _difficulty text DEFAULT 'medium', _count int DEFAULT 5,
   _per_q int DEFAULT 20, _chapter text DEFAULT NULL, _class_id uuid DEFAULT NULL,

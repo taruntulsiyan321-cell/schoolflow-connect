@@ -66,7 +66,7 @@ export const BADGES: Record<string, BadgeMeta> = {
   // ── Academic / DPP ────────────────────────────────────────────
   first_dpp:           { code: "first_dpp",           label: "Practice Begins",      desc: "Complete your first DPP",               tier: "bronze",    rarity: "common", group: "dpp", icon: BookOpen },
   dpp_perfect:         { code: "dpp_perfect",         label: "Perfect Practice",     desc: "Score 100% on a DPP",                   tier: "gold",      rarity: "epic",   group: "dpp", icon: CheckCircle2 },
-  homework_warrior:    { code: "homework_warrior",    label: "Homework Warrior",     desc: "Submit 20 homeworks on time",           tier: "silver",    rarity: "rare",   group: "academic", icon: BookOpen },
+  homework_warrior:    { code: "homework_warrior",    label: "Practice Warrior",     desc: "Complete 10 submitted DPPs",            tier: "silver",    rarity: "rare",   group: "dpp", icon: BookOpen },
   topper:              { code: "topper",              label: "Subject Topper",       desc: "Top of your class in a subject",        tier: "gold",      rarity: "epic",   group: "academic", icon: Crown },
   academic_beast:      { code: "academic_beast",      label: "Academic Beast",       desc: "90%+ across all subjects",              tier: "platinum",  rarity: "legendary", group: "academic", icon: Brain },
   rising_star:         { code: "rising_star",         label: "Rising Star",          desc: "Most improved this term",               tier: "silver",    rarity: "rare",   group: "academic", icon: Star },

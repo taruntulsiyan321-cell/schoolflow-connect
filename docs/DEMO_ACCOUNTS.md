@@ -4,11 +4,17 @@ Use these accounts to exercise **every major panel** (admin, principal, teacher,
 
 ## Apply demo data
 
-1. Run all Supabase migrations (including `20260604120000_demo_data.sql`) via:
-   - **Supabase Dashboard** → SQL Editor → paste/run the migration, or
-   - **CLI**: `supabase db push` / `supabase migration up`
-2. Migrations run as the database owner and seed `auth.users` + public tables. No service-role key is stored in the repo.
-3. Re-running the migration is **idempotent** (fixed UUIDs + `ON CONFLICT`).
+**Fastest (no Lovable credits):**
+
+1. Copy `.env.local.example` → `.env.local`
+2. Add a [Supabase access token](https://supabase.com/dashboard/account/tokens) as `SUPABASE_ACCESS_TOKEN=sbp_...`
+3. Run: `npm run db:seed`
+
+**Or manually:** Supabase Dashboard → SQL Editor → open `supabase/SEED_DEMO_DATA.sql` → Run.
+
+**Or CLI:** `supabase link` then `supabase db push` (applies all migrations).
+
+Re-running the seed is **idempotent** (fixed UUIDs + `ON CONFLICT`).
 
 ## Password (all demo users)
 
@@ -35,6 +41,12 @@ Minimum 8 characters — matches app signup rules.
 | **Parent** | `patel.parent@wisdomcampus.demo` | Linked to Priya Patel |
 
 Sign in at `/auth` with **email + password** (not Google OAuth for demo users).
+
+## Student login without signing up first
+
+Admins can add a student and enter **email or mobile** on the student record. The student does **not** need to register first. On first sign-in (password or Google) with that email/phone, they are linked to the student profile automatically.
+
+Apply migration: `20260605000000_student_portal_login.sql`
 
 ## Admission numbers (student signup / auto-link)
 

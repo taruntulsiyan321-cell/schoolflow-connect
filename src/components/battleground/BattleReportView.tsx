@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
+import { invokeEdgeFunction, isAiUnavailableError } from "@/lib/edgeFunction";
+import { buildRuleBattleInsights, type BattleAiInsights } from "@/lib/battleReportInsights";
 import {
   Trophy, Target, Clock, TrendingUp, TrendingDown, Sparkles, Loader2,
   AlertTriangle, Brain, CheckCircle2, XCircle, Timer, BarChart3,
@@ -34,42 +37,78 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSource, setAiSource] = useState<"ai" | "rule" | null>(null);
 
   const load = async () => {
-    const { data: res, error: err } = await (supabase as any).rpc("rpc_get_battle_report", {
+    setLoading(true);
+    setError(null);
+    let res: BattleReportPayload | null = null;
+    let err: { message: string } | null = null;
+
+    ({ data: res, error: err } = await (supabase as any).rpc("rpc_get_battle_report", {
       _participant_id: participantId,
-    });
+    }));
+
+    if (!res && !err) {
+      ({ data: res, error: err } = await (supabase as any).rpc("rpc_ensure_battle_report", {
+        _participant_id: participantId,
+      }));
+    }
+
     if (err) { setError(err.message); setLoading(false); return; }
-    if (!res) { setError("Report not found"); setLoading(false); return; }
+    if (!res) { setError("Report not found — finish the battle and try again."); setLoading(false); return; }
     setData(res as BattleReportPayload);
+    if (res.ai_insights?.source) setAiSource(res.ai_insights.source);
     setLoading(false);
   };
 
   useEffect(() => { load(); }, [participantId]);
 
+  const applyInsights = async (insights: BattleAiInsights) => {
+    setData((d) => d ? { ...d, ai_insights: insights } : d);
+    setAiSource(insights.source ?? "ai");
+    const { error: saveErr } = await (supabase as any).rpc("rpc_save_battle_ai_insights", {
+      _participant_id: participantId,
+      _insights: insights,
+    });
+    if (saveErr) {
+      /* non-fatal — insights still shown in UI */
+    }
+  };
+
   const fetchAI = async () => {
-    if (!data || data.expired || data.ai_insights) return;
+    if (!data || data.expired) return;
     setAiLoading(true);
+    setAiError(null);
     try {
-      const { data: ai, error: fnErr } = await supabase.functions.invoke("ai-battle-report", {
-        body: {
-          participant_id: participantId,
-          display_name: data.display_name,
-          for_teacher: forTeacher,
-          report: data.report,
-        },
+      const { data: ai, error: fnErr } = await invokeEdgeFunction<BattleAiInsights>("ai-battle-report", {
+        participant_id: participantId,
+        display_name: data.display_name,
+        for_teacher: forTeacher,
+        report: data.report,
       });
-      if (fnErr) throw new Error(fnErr.message);
-      if ((ai as any)?.error) throw new Error((ai as any).error);
 
-      await (supabase as any)
-        .from("battle_reports")
-        .update({ ai_insights: ai })
-        .eq("participant_id", participantId);
+      if (ai && !fnErr) {
+        await applyInsights({ ...ai, source: "ai" });
+        return;
+      }
 
-      setData((d) => d ? { ...d, ai_insights: ai } : d);
-    } catch (e: any) {
-      setError(e?.message ?? "AI insights failed");
+      const fallback = buildRuleBattleInsights(data.report ?? {});
+      await applyInsights(fallback);
+      if (fnErr) {
+        setAiError(
+          isAiUnavailableError(fnErr)
+            ? "Using offline coach — AI credits unavailable."
+            : fnErr,
+        );
+      }
+      return;
+    } catch (e: unknown) {
+      const msg = (e as Error)?.message ?? "AI insights failed";
+      const fallback = buildRuleBattleInsights(data.report ?? {});
+      await applyInsights(fallback);
+      setAiError(msg);
     } finally {
       setAiLoading(false);
     }
@@ -123,6 +162,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
   const cmp = r.comparison ?? {};
   const questions: any[] = r.questions ?? [];
   const ai = data.ai_insights;
+  const coachSource = aiSource ?? ai?.source ?? null;
   const expiresIn = formatDistanceToNow(new Date(data.expires_at), { addSuffix: true });
 
   return (
@@ -152,10 +192,21 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
 
       {/* AI coach */}
       <Card className="p-5 surface-card">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
           <Sparkles className="w-5 h-5 text-primary" />
-          <h2 className="font-bold">AI Performance Coach</h2>
+          <h2 className="font-bold">Performance Coach</h2>
+          {coachSource === "rule" && (
+            <Badge variant="outline" className="text-xs border-warning/40 text-warning">Offline coach</Badge>
+          )}
+          {coachSource === "ai" && (
+            <Badge variant="outline" className="text-xs border-primary/40 text-primary">AI powered</Badge>
+          )}
         </div>
+        {aiError && !aiLoading && (
+          <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
+            <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" /> {aiError}
+          </p>
+        )}
         {aiLoading && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
             <Loader2 className="w-4 h-4 animate-spin" /> Generating personalized insights…

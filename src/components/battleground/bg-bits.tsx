@@ -108,12 +108,17 @@ export const BadgeCard = ({
 
 export const BattleCard = ({ battle, onJoin }: { battle: any; onJoin: () => void }) => {
   const live = battle.status === "live" || (battle.status === "scheduled" && new Date(battle.starts_at) <= new Date());
+  const modeLabel =
+    battle.mode === "open" ? "Open" : battle.mode === "lobby" ? "Class" : battle.mode === "duel" ? "Duel" : null;
   return (
     <Card className="overflow-hidden surface-card group">
       <div className="px-4 py-3 border-b border-border/60 bg-muted/30">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="section-label">{battle.subject}{battle.topic ? ` · ${battle.topic}` : ""}</div>
+            <div className="section-label">
+              {battle.subject}{battle.topic ? ` · ${battle.topic}` : ""}
+              {modeLabel && <span className="ml-2 text-primary">· {modeLabel}</span>}
+            </div>
             <div className="text-base font-semibold mt-1 truncate text-foreground">{battle.title}</div>
           </div>
           {live ? (

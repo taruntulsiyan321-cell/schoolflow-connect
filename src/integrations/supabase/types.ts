@@ -1689,8 +1689,11 @@ export type Database = {
           id: string
           parent_mobile: string | null
           parent_name: string | null
+          parent_portal_email: string | null
           parent_user_id: string | null
           photo_url: string | null
+          portal_email: string | null
+          portal_phone: string | null
           roll_number: string | null
           updated_at: string
           user_id: string | null
@@ -1705,8 +1708,11 @@ export type Database = {
           id?: string
           parent_mobile?: string | null
           parent_name?: string | null
+          parent_portal_email?: string | null
           parent_user_id?: string | null
           photo_url?: string | null
+          portal_email?: string | null
+          portal_phone?: string | null
           roll_number?: string | null
           updated_at?: string
           user_id?: string | null
@@ -1721,8 +1727,11 @@ export type Database = {
           id?: string
           parent_mobile?: string | null
           parent_name?: string | null
+          parent_portal_email?: string | null
           parent_user_id?: string | null
           photo_url?: string | null
+          portal_email?: string | null
+          portal_phone?: string | null
           roll_number?: string | null
           updated_at?: string
           user_id?: string | null
@@ -1915,8 +1924,12 @@ export type Database = {
         Returns: string
       }
       admin_connect_student_account: {
-        Args: { _identifier: string; _student_id: string }
-        Returns: string
+        Args: { _identifier: string; _student_id: string; _as?: string }
+        Returns: string | null
+      }
+      link_portal_on_auth: {
+        Args: { _uid?: string }
+        Returns: undefined
       }
       admin_connect_teacher_account: {
         Args: { _identifier: string; _teacher_id: string }

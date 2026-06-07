@@ -24,9 +24,19 @@ export const ProtectedRoute = ({ children, allow }: Props) => {
     return <Navigate to="/auth" replace state={{ from: loc.pathname }} />;
   }
 
-  if (allow && allow.length > 0 && role && !allow.includes(role)) {
-    // Redirect to user's own dashboard
-    return <Navigate to={`/${role}`} replace />;
+  if (allow && allow.length > 0) {
+    if (!role) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6 text-center">
+          <p className="text-sm text-muted-foreground max-w-sm">
+            Your account is signed in but has no portal role yet. Ask your school admin to assign access, then sign in again.
+          </p>
+        </div>
+      );
+    }
+    if (!allow.includes(role)) {
+      return <Navigate to={`/${role}`} replace />;
+    }
   }
 
   return <>{children}</>;

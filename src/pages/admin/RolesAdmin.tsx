@@ -10,12 +10,15 @@ import { Loader2, ShieldCheck, Mail, Phone, Link2, UserX, Search, Crown } from "
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { classLabel } from "@/lib/utils";
+import { parseLoginIdentifier } from "@/lib/loginIdentifier";
 
 type Student = {
   id: string;
   full_name: string;
   admission_number: string;
   user_id: string | null;
+  portal_email: string | null;
+  portal_phone: string | null;
   class_id: string | null;
   parent_mobile: string | null;
   classes?: { name: string; section: string } | null;
@@ -33,7 +36,7 @@ export default function RolesAdmin() {
     setLoading(true);
     const { data, error } = await supabase
       .from("students")
-      .select("id, full_name, admission_number, user_id, class_id, parent_mobile, classes(name, section)")
+      .select("id, full_name, admission_number, user_id, portal_email, portal_phone, class_id, parent_mobile, classes(name, section)")
       .order("full_name");
     if (error) toast.error(error.message);
     setStudents((data as any) ?? []);
@@ -43,14 +46,17 @@ export default function RolesAdmin() {
 
   const connect = async () => {
     if (!target || !identifier.trim()) return;
+    if (!parseLoginIdentifier(identifier.trim())) return toast.error("Enter a valid email or mobile number");
     setBusy(true);
-    const { error } = await supabase.rpc("admin_connect_student_account", {
+    const { data: uid, error } = await supabase.rpc("admin_connect_student_account", {
       _student_id: target.id,
       _identifier: identifier.trim(),
+      _as: "student",
     });
     setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success("Account connected — student can now sign in");
+    if (uid) toast.success("Account connected — student can sign in now");
+    else toast.success("Login reserved — activates when they sign in with that email or phone");
     setTarget(null); setIdentifier(""); load();
   };
 
@@ -70,7 +76,7 @@ export default function RolesAdmin() {
     <>
       <PageHeader
         title="Student Access"
-        subtitle="Connect students to their Google account so they can sign in to the student portal"
+        subtitle="Set a student's email or mobile — they are linked automatically on first sign-in"
       />
 
       {/* Hierarchy info card */}
@@ -116,9 +122,13 @@ export default function RolesAdmin() {
                       <Badge variant="outline" className="bg-accent/15 text-accent border-accent/30 gap-1">
                         <ShieldCheck className="w-3 h-3" /> Active — connected
                       </Badge>
+                    ) : s.portal_email || s.portal_phone ? (
+                      <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50 gap-1">
+                        Pending — {s.portal_email || s.portal_phone}
+                      </Badge>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground gap-1">
-                        Not connected
+                        No login set
                       </Badge>
                     )}
                   </div>
@@ -151,7 +161,7 @@ export default function RolesAdmin() {
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Ask the student to sign in once with their Google account or phone, then enter that email or mobile here.
+              Enter the email or mobile they will use to sign in. You do not need them to register first — linking happens automatically on their first login.
             </p>
             <div>
               <Label className="text-xs flex items-center gap-1"><Mail className="w-3 h-3" /> Google email <span className="text-muted-foreground">or</span> <Phone className="w-3 h-3" /> mobile</Label>
