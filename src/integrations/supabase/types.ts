@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      academic_daily_activity: {
+        Row: {
+          activity_date: string
+          battle_count: number
+          dpp_count: number
+          homework_count: number
+          practice_minutes: number
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          battle_count?: number
+          dpp_count?: number
+          homework_count?: number
+          practice_minutes?: number
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          battle_count?: number
+          dpp_count?: number
+          homework_count?: number
+          practice_minutes?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_explanations: {
         Row: {
           cache_key: string
@@ -1452,6 +1479,59 @@ export type Database = {
         }
         Relationships: []
       }
+      revision_queue: {
+        Row: {
+          chapter: string | null
+          completed: boolean
+          completed_at: string | null
+          created_at: string
+          due_date: string
+          id: string
+          priority: number
+          reason: string
+          student_id: string | null
+          subject: string
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          chapter?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          priority?: number
+          reason?: string
+          student_id?: string | null
+          subject: string
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          chapter?: string | null
+          completed?: boolean
+          completed_at?: string | null
+          created_at?: string
+          due_date?: string
+          id?: string
+          priority?: number
+          reason?: string
+          student_id?: string | null
+          subject?: string
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revision_queue_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       school_complaints: {
         Row: {
           body: string
@@ -1594,6 +1674,77 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      student_mistakes: {
+        Row: {
+          chapter: string | null
+          correct_answer: Json | null
+          created_at: string
+          explanation: string | null
+          id: string
+          last_wrong_at: string
+          mastered: boolean
+          options: Json | null
+          question_id: string | null
+          question_text: string
+          source: string
+          source_id: string | null
+          student_answer: Json | null
+          student_id: string | null
+          subject: string
+          times_wrong: number
+          topic: string | null
+          user_id: string
+        }
+        Insert: {
+          chapter?: string | null
+          correct_answer?: Json | null
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          last_wrong_at?: string
+          mastered?: boolean
+          options?: Json | null
+          question_id?: string | null
+          question_text: string
+          source: string
+          source_id?: string | null
+          student_answer?: Json | null
+          student_id?: string | null
+          subject?: string
+          times_wrong?: number
+          topic?: string | null
+          user_id: string
+        }
+        Update: {
+          chapter?: string | null
+          correct_answer?: Json | null
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          last_wrong_at?: string
+          mastered?: boolean
+          options?: Json | null
+          question_id?: string | null
+          question_text?: string
+          source?: string
+          source_id?: string | null
+          student_answer?: Json | null
+          student_id?: string | null
+          subject?: string
+          times_wrong?: number
+          topic?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_mistakes_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_question_history: {
         Row: {
@@ -1901,6 +2052,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      _bump_academic_activity: {
+        Args: {
+          _battle?: number
+          _dpp?: number
+          _hw?: number
+          _mins?: number
+          _uid: string
+        }
+        Returns: undefined
+      }
+      _capture_dpp_mistakes: {
+        Args: { _attempt_id: string }
+        Returns: undefined
+      }
+      _exam_readiness: {
+        Args: { _student_id: string; _uid: string }
+        Returns: Json
+      }
       _notify: {
         Args: {
           _body?: string
@@ -1912,9 +2081,24 @@ export type Database = {
         }
         Returns: undefined
       }
+      _rebuild_revision_queue: {
+        Args: { _student_id: string; _uid: string }
+        Returns: undefined
+      }
       _snapshot_battle_report: {
         Args: { _participant_id: string }
         Returns: string
+      }
+      _weak_topics_for_user: {
+        Args: { _uid: string }
+        Returns: {
+          accuracy: number
+          attempts: number
+          chapter: string
+          correct: number
+          subject: string
+          topic: string
+        }[]
       }
       admin_assign_role: {
         Args: {
@@ -1924,12 +2108,8 @@ export type Database = {
         Returns: string
       }
       admin_connect_student_account: {
-        Args: { _identifier: string; _student_id: string; _as?: string }
-        Returns: string | null
-      }
-      link_portal_on_auth: {
-        Args: { _uid?: string }
-        Returns: undefined
+        Args: { _as?: string; _identifier: string; _student_id: string }
+        Returns: string
       }
       admin_connect_teacher_account: {
         Args: { _identifier: string; _teacher_id: string }
@@ -2000,6 +2180,8 @@ export type Database = {
         Returns: boolean
       }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
+      link_portal_on_auth: { Args: { _uid?: string }; Returns: undefined }
+      normalize_phone: { Args: { _raw: string }; Returns: string }
       rpc_battle_curriculum: { Args: { _subject: string }; Returns: Json }
       rpc_battle_feed: {
         Args: { _limit?: number }
@@ -2062,6 +2244,7 @@ export type Database = {
           xp: number
         }[]
       }
+      rpc_complete_revision: { Args: { _id: string }; Returns: undefined }
       rpc_create_quick_battle:
         | {
             Args: {
@@ -2121,10 +2304,21 @@ export type Database = {
           user_id: string
         }[]
       }
+      rpc_parent_child_snapshot: {
+        Args: { _student_id?: string }
+        Returns: Json
+      }
+      rpc_principal_school_health: { Args: never; Returns: Json }
+      rpc_student_academic_snapshot: { Args: never; Returns: Json }
+      rpc_student_academic_snapshot_internal: {
+        Args: { _student_id: string; _uid: string }
+        Returns: Json
+      }
       rpc_teacher_battle_reports: {
         Args: { _battle_id: string }
         Returns: Json
       }
+      rpc_teacher_class_insights: { Args: { _class_id: string }; Returns: Json }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       teacher_teaches_class: {
         Args: { _class_id: string; _user_id: string }

@@ -38,4 +38,4 @@ export type GeneratedQuestion = {
 export type GeneratorFn = (
   data: Record<string, unknown>,
   rng: () => number,
-) => Omit<GeneratedQuestion, "correctIndex"> & { correctAnswer: string };
+) => Omit<GeneratedQuestion, "correctIndex" | "options"> & { correctAnswer: string };
