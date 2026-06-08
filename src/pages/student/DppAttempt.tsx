@@ -21,17 +21,20 @@ export default function DppAttempt() {
   const [submitting, setSubmitting] = useState(false);
   const startRef = useRef<number>(Date.now());
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   useEffect(() => {
     (async () => {
       if (!id || !user) return;
+      setLoadError(null);
       const { data: d } = await supabase.from("dpps").select("*").eq("id", id).maybeSingle();
-      if (!d) return;
+      if (!d) { setLoadError("DPP not found"); return; }
       setDpp(d);
       const { data: qs } = await supabase.from("dpp_questions").select("id, order_index, kind, question, options, marks").eq("dpp_id", id).order("order_index");
       setQuestions((qs ?? []) as any);
 
       const { data: aid, error } = await supabase.rpc("rpc_dpp_start", { _dpp_id: id });
-      if (error) { toast.error(error.message); return; }
+      if (error) { setLoadError(error.message); toast.error(error.message); return; }
       setAttemptId(aid as any);
 
       const { data: existing } = await supabase.from("dpp_answers").select("*").eq("attempt_id", aid as any);
@@ -70,6 +73,12 @@ export default function DppAttempt() {
     nav(`/student/dpp/${id}/result`);
   };
 
+  if (loadError) return (
+    <div className="max-w-md mx-auto p-4 text-center">
+      <p className="text-sm text-destructive mb-3">{loadError}</p>
+      <Button variant="outline" size="sm" asChild><Link to="/student/dpp">Back to DPP list</Link></Button>
+    </div>
+  );
   if (!dpp) return <p className="text-muted-foreground p-4">Loading…</p>;
   if (questions.length === 0) return <p className="text-muted-foreground p-4">No questions in this DPP.</p>;
 

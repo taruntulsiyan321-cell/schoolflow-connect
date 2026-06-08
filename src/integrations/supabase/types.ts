@@ -2182,7 +2182,10 @@ export type Database = {
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
       link_portal_on_auth: { Args: { _uid?: string }; Returns: undefined }
       normalize_phone: { Args: { _raw: string }; Returns: string }
-      rpc_battle_curriculum: { Args: { _subject: string }; Returns: Json }
+      rpc_battle_curriculum: {
+        Args: { _subject: string; _class_id?: string | null }
+        Returns: Json
+      }
       rpc_battle_feed: {
         Args: { _limit?: number }
         Returns: {
@@ -2269,6 +2272,30 @@ export type Database = {
             }
             Returns: string
           }
+      rpc_create_class_battle: {
+        Args: {
+          _chapter?: string
+          _class_id?: string
+          _count?: number
+          _difficulty?: string
+          _per_q?: number
+          _subject: string
+          _topic?: string
+        }
+        Returns: string
+      }
+      rpc_create_open_battle: {
+        Args: {
+          _chapter?: string
+          _class_id?: string
+          _count?: number
+          _difficulty?: string
+          _per_q?: number
+          _subject: string
+          _topic?: string
+        }
+        Returns: string
+      }
       rpc_dpp_pick_from_bank: {
         Args: { _count?: number; _difficulty?: string; _dpp_id: string }
         Returns: number
@@ -2278,6 +2305,56 @@ export type Database = {
       rpc_finish_battle: {
         Args: { _participant_id: string }
         Returns: undefined
+      }
+      rpc_finish_practice_session: {
+        Args: { _session_id: string }
+        Returns: Json
+      }
+      rpc_get_recovery_assignment: {
+        Args: { _assignment_id: string }
+        Returns: Json
+      }
+      rpc_pick_question_templates: {
+        Args: {
+          _class: number
+          _chapter: string
+          _count?: number
+          _subject: string
+        }
+        Returns: Json
+      }
+      rpc_record_question_attempt: {
+        Args: {
+          _correct_answer: Json
+          _generated_question: Json
+          _is_correct?: boolean
+          _score?: number
+          _selected_answer?: Json
+          _session_id: string
+          _template_id: string
+        }
+        Returns: string
+      }
+      rpc_start_practice_session: {
+        Args: {
+          _chapter: string
+          _count?: number
+          _subject: string
+        }
+        Returns: string
+      }
+      rpc_student_concept_mastery: { Args: never; Returns: Json }
+      rpc_student_improvement_plans: { Args: never; Returns: Json }
+      rpc_student_performance_charts: { Args: never; Returns: Json }
+      rpc_student_recovery_zone: { Args: never; Returns: Json }
+      rpc_student_revision_queue: { Args: never; Returns: Json }
+      rpc_submit_recovery_answer: {
+        Args: {
+          _is_correct: boolean
+          _question_id: string
+          _student_answer: Json
+        }
+        Returns: Json
       }
       rpc_generate_battle: {
         Args: { _battle_id: string; _count?: number }

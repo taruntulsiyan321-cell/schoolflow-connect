@@ -105,6 +105,23 @@ function Arena() {
         </div>
       </Card>
 
+      {/* Class 12 Math practice — works when question bank is empty */}
+      <Card className="p-4 surface-card border-primary/20">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="icon-tile">
+            <BookOpen className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-[180px]">
+            <div className="section-label">Solo practice</div>
+            <div className="font-medium text-sm mt-0.5">Class 12 Mathematics — unlimited NCERT MCQs</div>
+            <p className="text-xs text-muted-foreground mt-0.5">Use when battles have no bank questions yet</p>
+          </div>
+          <Button asChild size="sm" className="btn-cta shrink-0">
+            <Link to="/student/practice/math12">Start practice</Link>
+          </Button>
+        </div>
+      </Card>
+
       {/* Frictionless challenge — subject → chapter → topic → start */}
       <FrictionlessChallenge
         classId={student?.class_id}
@@ -192,7 +209,7 @@ function CreateBattle() {
   const [student, setStudent] = useState<any>(null);
   useEffect(() => {
     if (!user) return;
-    supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle().then(({ data }) => setStudent(data));
+    supabase.from("students").select("class_id, classes(name, section, display_name)").eq("user_id", user.id).maybeSingle().then(({ data }) => setStudent(data));
   }, [user]);
 
   return (
@@ -207,7 +224,7 @@ function CreateBattle() {
       </Card>
       <FrictionlessChallenge
         classId={student?.class_id}
-        className={student?.classes?.name}
+        className={student?.classes?.name ?? student?.classes?.display_name}
         variant="page"
       />
     </div>
@@ -340,8 +357,15 @@ function BattleRoom() {
     setShowResult(false);
     setSelected(null);
     if (qIdx + 1 >= questions.length) {
-      // finish
-      await supabase.rpc("rpc_finish_battle", { _participant_id: participantId });
+      if (!participantId) {
+        toast({ title: "Could not finish battle — try rejoining the room", variant: "destructive" });
+        return;
+      }
+      const { error: finishErr } = await supabase.rpc("rpc_finish_battle", { _participant_id: participantId });
+      if (finishErr) {
+        toast({ title: finishErr.message, variant: "destructive" });
+        return;
+      }
       notifyStudentXpUpdated();
       setFinished(true);
       return;
@@ -432,7 +456,15 @@ function BattleRoom() {
     );
   }
 
-  if (!currentQ) return <div className="p-8 text-center text-muted-foreground">No questions in this battle.</div>;
+  if (!currentQ) return (
+    <Card className="p-8 text-center max-w-md mx-auto space-y-4">
+      <p className="text-muted-foreground">No questions in this battle — the question bank may be empty for this subject.</p>
+      <div className="flex gap-2 justify-center flex-wrap">
+        <Button asChild><Link to="/student/practice/math12">Class 12 Math practice</Link></Button>
+        <Button asChild variant="outline"><Link to="/student/battleground">Back to Arena</Link></Button>
+      </div>
+    </Card>
+  );
 
   if (readyCount !== null) {
     return (
@@ -475,7 +507,7 @@ function BattleRoom() {
       </Card>
 
       <div className="grid md:grid-cols-2 gap-3">
-        {currentQ.options.map((opt: string, i: number) => {
+        {(Array.isArray(currentQ.options) ? currentQ.options : []).map((opt: string, i: number) => {
           const isCorrect = i === currentQ.correct_index;
           const isSelected = i === selected;
           let style = "border-border hover:border-primary hover:shadow-card";

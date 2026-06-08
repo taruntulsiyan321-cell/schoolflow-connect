@@ -14,7 +14,7 @@ const severityTone: Record<string, string> = {
 };
 
 export default function RecoveryZone() {
-  const { data, loading, error } = useRecoveryZone();
+  const { data, loading, error, reload } = useRecoveryZone();
 
   if (loading) return <p className="text-muted-foreground text-center py-12">Loading recovery zone…</p>;
 
@@ -22,7 +22,8 @@ export default function RecoveryZone() {
     return (
       <Card className="p-8 text-center max-w-md mx-auto">
         <p className="text-sm text-muted-foreground mb-2">Recovery Zone needs the concept mastery migration.</p>
-        <p className="text-xs text-destructive">{error}</p>
+        <p className="text-xs text-destructive mb-4">{error}</p>
+        <Button size="sm" variant="outline" onClick={() => reload()}>Try again</Button>
       </Card>
     );
   }

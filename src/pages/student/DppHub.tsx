@@ -11,10 +11,17 @@ export default function DppHub() {
   const { user } = useAuth();
   const [dpps, setDpps] = useState<DppCardData[]>([]);
   const [attempts, setAttempts] = useState<Record<string, any>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const { data: d } = await supabase.from("dpps").select("*").eq("is_published", true).order("created_at", { ascending: false });
+      setLoading(true);
+      let dppQuery = supabase.from("dpps").select("*").eq("is_published", true).order("created_at", { ascending: false });
+      if (user) {
+        const { data: s } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
+        if (s?.class_id) dppQuery = dppQuery.eq("class_id", s.class_id);
+      }
+      const { data: d } = await dppQuery;
       setDpps((d ?? []) as any);
       if (user) {
         const { data: a } = await supabase.from("dpp_attempts").select("*").eq("user_id", user.id);
@@ -22,6 +29,7 @@ export default function DppHub() {
         (a ?? []).forEach(x => m[x.dpp_id] = x);
         setAttempts(m);
       }
+      setLoading(false);
     })();
   }, [user]);
 
@@ -62,7 +70,8 @@ export default function DppHub() {
           </Link>
         </Button>
       </div>
-      {dpps.length === 0 && (
+      {loading && <p className="text-center text-muted-foreground py-8">Loading DPPs…</p>}
+      {!loading && dpps.length === 0 && (
         <div className="text-center py-10 text-muted-foreground">
           <FileText className="w-10 h-10 mx-auto mb-2" />
           <p>No DPPs published yet for your class.</p>

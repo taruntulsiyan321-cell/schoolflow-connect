@@ -109,8 +109,14 @@ export default function Class12MathSession() {
     setRevealed(false);
     setSelected(null);
     if (idx + 1 >= items.length) {
-      const { data: sum } = await supabase.rpc("rpc_finish_practice_session", { _session_id: sessionId });
-      setSummary(sum);
+      const { data: sum, error: finErr } = await supabase.rpc("rpc_finish_practice_session", { _session_id: sessionId });
+      if (finErr) toast.error(finErr.message);
+      setSummary(sum ?? {
+        correct_count: correctN,
+        question_count: items.length,
+        chapter,
+        subject: "Mathematics",
+      });
       setDone(true);
       return;
     }

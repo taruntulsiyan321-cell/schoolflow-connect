@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,13 @@ import {
   getNcertSubjects,
   parseClassGrade,
 } from "@/lib/ncertSyllabus";
-import { Globe, Loader2, Search, User, Users, UsersRound } from "lucide-react";
+import {
+  canUseMath12TemplateSolo,
+  createMath12TemplateSoloBattle,
+  isEmptyQuestionBankError,
+  NO_BANK_MSG,
+} from "@/lib/battleTemplateSolo";
+import { Globe, Loader2, Search, User, Users, UsersRound, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 
@@ -60,6 +67,8 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
   const [difficulty, setDifficulty] = useState<string>("medium");
   const [bankRows, setBankRows] = useState<CurriculumRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [bankEmptyHint, setBankEmptyHint] = useState(false);
+  const math12Solo = canUseMath12TemplateSolo(subject, grade);
 
   useEffect(() => {
     if (subjects.length && !subjects.includes(subject)) setSubject(subjects[0]);
@@ -67,7 +76,8 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
 
   useEffect(() => {
     if (!classId) return;
-    supabase.rpc("rpc_classmates").then(({ data }) => {
+    supabase.rpc("rpc_classmates").then(({ data, error }) => {
+      if (error) return;
       setClassmates(
         (data ?? []).map((m) => ({
           id: m.student_id,
@@ -81,15 +91,37 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
   }, [classId]);
 
   useEffect(() => {
-    supabase
-      .rpc("rpc_battle_curriculum", { _subject: subject, _class_id: classId ?? null })
-      .then(({ data }) => {
-        const rows = (Array.isArray(data) ? data : []) as CurriculumRow[];
-        setBankRows(rows);
-        setChapter(ANY);
-        setTopic(ANY);
+    (async () => {
+      const { data, error } = await supabase.rpc("rpc_battle_curriculum", {
+        _subject: subject,
+        _class_id: classId ?? null,
       });
-  }, [subject, classId]);
+
+      if (error) {
+        setBankRows([]);
+        setBankEmptyHint(true);
+        return;
+      }
+
+      let rows = (Array.isArray(data) ? data : []) as CurriculumRow[];
+
+      if (rows.length === 0 && canUseMath12TemplateSolo(subject, grade)) {
+        const { data: tpl } = await supabase
+          .from("question_templates")
+          .select("chapter")
+          .eq("class", 12)
+          .eq("subject", "Mathematics")
+          .eq("is_active", true);
+        const chapters = [...new Set((tpl ?? []).map((r) => r.chapter).filter(Boolean))].sort();
+        rows = chapters.map((c) => ({ chapter: c, topic: null }));
+      }
+
+      setBankRows(rows);
+      setBankEmptyHint(rows.length === 0);
+      setChapter(ANY);
+      setTopic(ANY);
+    })();
+  }, [subject, classId, grade]);
 
   const curriculum = useMemo(
     () => filterCurriculumByNcert(grade, subject, bankRows),
@@ -125,6 +157,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       return;
     }
     setLoading(true);
+    setBankEmptyHint(false);
     const chap = chapter === ANY ? undefined : chapter;
     const top = topic === ANY ? undefined : topic;
     const base = {
@@ -141,10 +174,27 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       let battleId: string | null = null;
       let error: { message: string } | null = null;
 
-      if (mode === "solo") {
+      if (mode === "solo" && math12Solo) {
+        const result = await createMath12TemplateSoloBattle({
+          chapter: chap,
+          difficulty,
+          count: 5,
+          perQ: 20,
+          classId,
+        });
+        if ("redirectTo" in result) {
+          toast({ title: "Starting Class 12 Math practice session" });
+          nav(result.redirectTo);
+          return;
+        }
+        battleId = result.battleId;
+      } else if (mode === "solo") {
         const res = await supabase.rpc("rpc_create_quick_battle", base);
         battleId = res.data as string;
         error = res.error;
+        if (error && isEmptyQuestionBankError(error.message)) {
+          setBankEmptyHint(true);
+        }
       } else if (mode === "duel") {
         const res = await supabase.rpc("rpc_challenge_student", {
           _opponent_user_id: opponent!.user_id,
@@ -178,6 +228,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       nav(`/student/battleground/battle/${battleId}`);
     } catch (e: unknown) {
       const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not start battle";
+      if (isEmptyQuestionBankError(msg)) setBankEmptyHint(true);
       toast({ title: msg, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -256,6 +307,26 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
           </Select>
         </div>
       </div>
+
+      {bankEmptyHint && (
+        <Card className="p-4 border-warning/30 bg-warning/5 space-y-2">
+          <p className="text-sm text-muted-foreground">
+            {NO_BANK_MSG}. The question bank for this subject is empty — use Class 12 Math practice or ask your teacher to publish questions.
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" asChild variant="default">
+              <Link to="/student/practice/math12"><Calculator className="w-4 h-4 mr-1" /> Class 12 Math practice</Link>
+            </Button>
+            <Button size="sm" asChild variant="outline"><Link to="/student/dpp">Daily practice (DPP)</Link></Button>
+          </div>
+        </Card>
+      )}
+
+      {math12Solo && mode === "solo" && (
+        <p className="text-[11px] text-muted-foreground -mt-1">
+          Solo Math uses the Class 12 template engine — unlimited fresh NCERT questions.
+        </p>
+      )}
 
       {mode === "duel" && (
         <div className="space-y-2">

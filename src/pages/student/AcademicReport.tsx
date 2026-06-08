@@ -16,11 +16,12 @@ import { buildRuleConceptReport } from "@/lib/conceptReportFallback";
 const barConfig = { accuracy: { label: "Accuracy %", color: "hsl(var(--primary))" } };
 const lineConfig = { total: { label: "Activity", color: "hsl(var(--accent))" } };
 const areaConfig = { score_pct: { label: "DPP score %", color: "hsl(var(--primary))" } };
+const practiceAreaConfig = { score_pct: { label: "Practice score %", color: "hsl(var(--accent))" } };
 
 export default function AcademicReport() {
   const printRef = useRef<HTMLDivElement>(null);
-  const { data: snap, loading: snapLoading } = useStudentAcademicSnapshot();
-  const { data: charts, loading: chartsLoading } = useStudentPerformanceCharts();
+  const { data: snap, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
+  const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
   const { items: masteryItems } = useConceptMastery();
   const conceptInsights = masteryItems.length > 0
     ? buildRuleConceptReport({
@@ -47,6 +48,7 @@ export default function AcademicReport() {
     : null;
 
   const loading = snapLoading || chartsLoading;
+  const loadError = snapError || chartsError;
   const generated = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 
   const handlePrint = () => window.print();
@@ -70,6 +72,12 @@ export default function AcademicReport() {
 
         {loading ? (
           <p className="text-center text-muted-foreground py-8">Preparing report…</p>
+        ) : loadError ? (
+          <Card className="p-6 text-center">
+            <p className="text-sm text-muted-foreground mb-2">Report data could not be loaded. Apply pending Supabase migrations if this is a new environment.</p>
+            <p className="text-xs text-destructive mb-3">{loadError}</p>
+            <Button size="sm" variant="outline" onClick={() => { reloadSnap(); reloadCharts(); }}>Try again</Button>
+          </Card>
         ) : (
           <>
             <Card className="p-5 shadow-card">
@@ -162,6 +170,21 @@ export default function AcademicReport() {
                 <h2 className="font-semibold mb-3">DPP score trend</h2>
                 <ChartContainer config={areaConfig} className="h-[220px] w-full">
                   <AreaChart data={charts?.dpp_trend ?? []}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
+                    <XAxis dataKey="date" className="text-xs" tickFormatter={(d) => String(d).slice(5)} />
+                    <YAxis domain={[0, 100]} className="text-xs" />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Area type="monotone" dataKey="score_pct" fill="var(--color-score_pct)" fillOpacity={0.2} stroke="var(--color-score_pct)" />
+                  </AreaChart>
+                </ChartContainer>
+              </Card>
+            )}
+
+            {(charts?.practice_trend?.length ?? 0) > 0 && (
+              <Card className="p-5 shadow-card break-inside-avoid">
+                <h2 className="font-semibold mb-3">Self-practice score trend</h2>
+                <ChartContainer config={practiceAreaConfig} className="h-[220px] w-full">
+                  <AreaChart data={charts?.practice_trend ?? []}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                     <XAxis dataKey="date" className="text-xs" tickFormatter={(d) => String(d).slice(5)} />
                     <YAxis domain={[0, 100]} className="text-xs" />

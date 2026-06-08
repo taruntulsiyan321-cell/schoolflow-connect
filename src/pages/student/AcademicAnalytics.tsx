@@ -12,6 +12,8 @@ import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts
 
 import { AcademicHeatmap } from "@/components/student/AcademicHeatmap";
 
+import { AnalyticsEmptyState } from "@/components/student/AnalyticsEmptyState";
+
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -30,9 +32,25 @@ const lineConfig = {
 
   battles: { label: "Battles", color: "hsl(var(--warning))" },
 
+  self_practice: { label: "Self-practice", color: "hsl(var(--chart-4))" },
+
 };
 
 const areaConfig = { score_pct: { label: "Score %", color: "hsl(var(--primary))" } };
+
+const practiceAreaConfig = { score_pct: { label: "Practice score %", color: "hsl(var(--accent))" } };
+
+
+
+function ErrorCard({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <Card className="p-6 text-center mb-4">
+      <p className="text-sm text-muted-foreground mb-2">Part of analytics could not be loaded. Apply pending Supabase migrations if this is a new environment.</p>
+      <p className="text-xs text-destructive mb-3">{message}</p>
+      <Button size="sm" variant="outline" onClick={onRetry}>Try again</Button>
+    </Card>
+  );
+}
 
 
 
@@ -42,7 +60,18 @@ export default function AcademicAnalytics() {
   const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
 
   const busy = loading || chartsLoading;
-  const loadError = snapError || chartsError;
+
+  const hasHeatmapActivity = (data?.activity_heatmap ?? []).some(
+    (d) => (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0,
+  );
+
+  const hasChartData =
+    (charts?.subjects?.length ?? 0) > 0 ||
+    (charts?.weekly_activity?.length ?? 0) > 0 ||
+    (charts?.dpp_trend?.length ?? 0) > 0 ||
+    (charts?.practice_trend?.length ?? 0) > 0;
+
+  const showEmpty = !busy && !snapError && !chartsError && !hasChartData && !hasHeatmapActivity;
 
 
 
@@ -68,29 +97,37 @@ export default function AcademicAnalytics() {
 
       </div>
 
-      {!busy && loadError && (
-        <Card className="p-6 text-center mb-4">
-          <p className="text-sm text-muted-foreground mb-2">Analytics could not be loaded. Run pending Supabase migrations if this is a new environment.</p>
-          <p className="text-xs text-destructive mb-3">{loadError}</p>
-          <Button size="sm" variant="outline" onClick={() => { reloadSnap(); reloadCharts(); }}>Try again</Button>
-        </Card>
-      )}
+      {busy && <p className="text-center text-muted-foreground py-8">Loading…</p>}
 
-      {busy ? <p className="text-center text-muted-foreground py-8">Loading…</p> : !loadError && (
+      {!busy && snapError && <ErrorCard message={snapError} onRetry={reloadSnap} />}
+
+      {!busy && chartsError && <ErrorCard message={chartsError} onRetry={reloadCharts} />}
+
+      {!busy && showEmpty && <AnalyticsEmptyState />}
+
+      {!busy && (
 
         <div className="space-y-4">
 
-          <Card className="p-5 shadow-card">
+          {!snapError && (
 
-            <h3 className="font-semibold flex items-center gap-2 mb-3"><BarChart3 className="w-4 h-4" /> Activity consistency (28 days)</h3>
+            <Card className="p-5 shadow-card">
 
-            <AcademicHeatmap days={data?.activity_heatmap ?? []} />
+              <h3 className="font-semibold flex items-center gap-2 mb-3"><BarChart3 className="w-4 h-4" /> Activity consistency (28 days)</h3>
 
-          </Card>
+              {!hasHeatmapActivity ? (
+                <p className="text-sm text-muted-foreground">No activity recorded yet. Complete a DPP or practice session to start tracking.</p>
+              ) : (
+                <AcademicHeatmap days={data?.activity_heatmap ?? []} />
+              )}
+
+            </Card>
+
+          )}
 
 
 
-          {(charts?.subjects?.length ?? 0) > 0 && (
+          {!chartsError && (charts?.subjects?.length ?? 0) > 0 && (
 
             <Card className="p-5 shadow-card">
 
@@ -120,7 +157,7 @@ export default function AcademicAnalytics() {
 
 
 
-          {(charts?.weekly_activity?.length ?? 0) > 0 && (
+          {!chartsError && (charts?.weekly_activity?.length ?? 0) > 0 && (
 
             <Card className="p-5 shadow-card">
 
@@ -144,6 +181,8 @@ export default function AcademicAnalytics() {
 
                   <Line type="monotone" dataKey="battles" stroke="var(--color-battles)" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
 
+                  <Line type="monotone" dataKey="self_practice" stroke="var(--color-self_practice)" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
+
                 </LineChart>
 
               </ChartContainer>
@@ -154,7 +193,7 @@ export default function AcademicAnalytics() {
 
 
 
-          {(charts?.dpp_trend?.length ?? 0) > 0 && (
+          {!chartsError && (charts?.dpp_trend?.length ?? 0) > 0 && (
 
             <Card className="p-5 shadow-card">
 
@@ -184,23 +223,61 @@ export default function AcademicAnalytics() {
 
 
 
-          <Card className="p-5 shadow-card">
+          {!chartsError && (charts?.practice_trend?.length ?? 0) > 0 && (
 
-            <h3 className="font-semibold mb-2">Personal academic report</h3>
+            <Card className="p-5 shadow-card">
 
-            <p className="text-sm text-muted-foreground mb-3">
+              <h3 className="font-semibold mb-3">Self-practice score trend (30 days)</h3>
 
-              Exam readiness: <strong>{data?.exam_readiness?.score ?? 0}%</strong> — {data?.exam_readiness?.label}
+              <ChartContainer config={practiceAreaConfig} className="h-[260px] w-full">
 
-            </p>
+                <AreaChart data={charts?.practice_trend ?? []}>
 
-            <p className="text-sm text-muted-foreground">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
 
-              Battles played: {data?.xp?.total_battles ?? 0} · Wins: {data?.xp?.wins ?? 0} · XP: {data?.xp?.xp ?? 0}
+                  <XAxis dataKey="date" className="text-xs" tickFormatter={(d) => String(d).slice(5)} />
 
-            </p>
+                  <YAxis domain={[0, 100]} className="text-xs" />
 
-          </Card>
+                  <ChartTooltip content={<ChartTooltipContent />} />
+
+                  <Area type="monotone" dataKey="score_pct" fill="var(--color-score_pct)" fillOpacity={0.2} stroke="var(--color-score_pct)" strokeWidth={2} />
+
+                </AreaChart>
+
+              </ChartContainer>
+
+            </Card>
+
+          )}
+
+
+
+          {!snapError && (
+
+            <Card className="p-5 shadow-card">
+
+              <h3 className="font-semibold mb-2">Personal academic report</h3>
+
+              <p className="text-sm text-muted-foreground mb-3">
+
+                Exam readiness: <strong>{data?.exam_readiness?.score ?? 0}%</strong> — {data?.exam_readiness?.label}
+
+              </p>
+
+              <p className="text-sm text-muted-foreground">
+
+                Battles played: {data?.xp?.total_battles ?? 0} · Wins: {data?.xp?.wins ?? 0} · XP: {data?.xp?.xp ?? 0}
+
+                {(data?.self_practice?.sessions_completed ?? 0) > 0 && (
+                  <> · Self-practice sessions: {data?.self_practice?.sessions_completed}</>
+                )}
+
+              </p>
+
+            </Card>
+
+          )}
 
         </div>
 
@@ -211,4 +288,3 @@ export default function AcademicAnalytics() {
   );
 
 }
-

@@ -47,13 +47,15 @@ export default function RevisionQueue() {
   const [rows, setRows] = useState<RevisionItem[]>([]);
   const [sortNote, setSortNote] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
+    setLoadError(null);
     const { data, error } = await supabase.rpc("rpc_student_revision_queue");
 
     if (error) {
-      toast.error(error.message);
+      setLoadError(error.message);
       setLoading(false);
       return;
     }
@@ -122,6 +124,12 @@ export default function RevisionQueue() {
 
       {loading ? (
         <p className="text-muted-foreground text-center py-8">Loading revision queue…</p>
+      ) : loadError ? (
+        <Card className="p-8 text-center">
+          <p className="text-sm text-muted-foreground mb-2">Could not load revision queue.</p>
+          <p className="text-xs text-destructive mb-4">{loadError}</p>
+          <Button size="sm" variant="outline" onClick={() => load()}>Try again</Button>
+        </Card>
       ) : rows.length === 0 ? (
 
         <Card className="p-8 text-center">
