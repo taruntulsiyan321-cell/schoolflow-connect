@@ -15,6 +15,7 @@ const FILES = [
   "20260608000000_student_success_phase3.sql",
   "20260607033426_44e6c2c6-c95e-4dc5-9444-9cf9ce5a4758.sql",
   "20260614000000_unify_practice_analytics.sql",
+  "20260615000000_battle_template_fallback.sql",
 ];
 
 const parts = [

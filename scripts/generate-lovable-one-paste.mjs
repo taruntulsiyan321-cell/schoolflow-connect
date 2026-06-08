@@ -26,6 +26,8 @@ const PENDING_FILES = [
   "20260611000000_question_template_engine.sql",
   "20260612000000_ai_and_audit_fixes.sql",
   "20260613000000_concept_mastery_recovery.sql",
+  "20260614000000_unify_practice_analytics.sql",
+  "20260615000000_battle_template_fallback.sql",
 ];
 
 const OUT = join(ROOT, "supabase", "LOVABLE_PASTE_ALL_PENDING.sql");
