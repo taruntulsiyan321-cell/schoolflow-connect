@@ -47,6 +47,8 @@ export function isAiUnavailableError(msg: string | null): boolean {
   const m = msg.toLowerCase();
   return (
     m.includes("ai gateway") ||
+    m.includes("google_gemini") ||
+    m.includes("gemini api") ||
     m.includes("not configured") ||
     m.includes("credits") ||
     m.includes("rate limit") ||

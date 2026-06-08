@@ -4,7 +4,7 @@ export type BattleAiInsights = {
   focus_areas: string[];
   praise: string;
   recommendation: string;
-  source?: "ai" | "rule";
+  source?: "ai" | "gemini" | "rule" | "lovable";
 };
 
 export function buildRuleBattleInsights(report: Record<string, unknown>): BattleAiInsights {

@@ -91,7 +91,8 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
       });
 
       if (ai && !fnErr) {
-        await applyInsights({ ...ai, source: "ai" });
+        const src = ai.source === "gemini" ? "gemini" : "ai";
+        await applyInsights({ ...ai, source: src });
         return;
       }
 
@@ -100,7 +101,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
       if (fnErr) {
         setAiError(
           isAiUnavailableError(fnErr)
-            ? "Using offline coach — AI credits unavailable."
+            ? "Using offline coach — add GOOGLE_GEMINI_API_KEY to enable Gemini Flash."
             : fnErr,
         );
       }
@@ -207,8 +208,10 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
           {coachSource === "rule" && (
             <Badge variant="outline" className="text-xs border-warning/40 text-warning">Offline coach</Badge>
           )}
-          {coachSource === "ai" && (
-            <Badge variant="outline" className="text-xs border-primary/40 text-primary">AI powered</Badge>
+          {(coachSource === "ai" || coachSource === "gemini") && (
+            <Badge variant="outline" className="text-xs border-primary/40 text-primary">
+              {coachSource === "gemini" ? "Gemini Flash" : "AI powered"}
+            </Badge>
           )}
         </div>
         {aiError && !aiLoading && (

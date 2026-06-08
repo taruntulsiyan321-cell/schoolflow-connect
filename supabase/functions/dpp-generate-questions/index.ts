@@ -1,15 +1,5 @@
-// Edge function: generate DPP questions using Lovable AI Gateway.
-// Input: { topic, subject, chapter?, difficulty, count, source_text? }
-// Output: { questions: [{ question, options[4], correct_index, explanation }] }
-//
-// LOVABLE_API_KEY is auto-provisioned — no user setup required.
-
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Generate DPP MCQs — Google Gemini Flash (primary).
+import { corsHeaders, generateStructured, jsonResponse } from "../_shared/gemini.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -28,12 +18,11 @@ Deno.serve(async (req) => {
 
     const n = Math.max(1, Math.min(20, Number(count) || 5));
 
-    // If a URL is supplied, fetch the page and strip to readable text.
     let fetchedText = "";
     if (source_url && /^https?:\/\//i.test(source_url)) {
       try {
         const res = await fetch(source_url, {
-          headers: { "User-Agent": "Mozilla/5.0 (Vidyalaya DPP Bot)" },
+          headers: { "User-Agent": "Mozilla/5.0 (SchoolFlow DPP Bot)" },
           signal: AbortSignal.timeout(15000),
         });
         if (res.ok) {
@@ -54,138 +43,68 @@ Deno.serve(async (req) => {
             .trim()
             .slice(0, 8000);
         }
-      } catch (_) {
-        // Ignore — fall through with whatever the teacher typed
+      } catch {
+        /* ignore fetch errors */
       }
     }
 
     const combined_source = [source_text, fetchedText].filter(Boolean).join("\n\n").slice(0, 9000);
 
     if (!topic && !combined_source) {
-      return new Response(
-        JSON.stringify({ error: "Provide a topic, URL, or source text" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return jsonResponse({ error: "Provide a topic, URL, or source text" }, 400);
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "AI gateway not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const sys =
+    const system =
       "You are an expert academic question setter for Indian school students. " +
       "You have TWO modes:\n" +
-      "1) EXTRACT mode — If the reference material already contains existing MCQs / quiz questions " +
-      "(numbered items, options like A/B/C/D or 1/2/3/4, answer keys, 'Ans:' markers), extract them VERBATIM. " +
-      "Preserve the original wording, options, and indicated correct answer. Do NOT invent new questions.\n" +
-      "2) GENERATE mode — If the source is prose (an article, chapter, Wikipedia page, notes) without ready-made " +
-      "questions, GENERATE fresh curriculum-aligned MCQs grounded in that material.\n" +
-      "Always: exactly 4 options per question, one unambiguously correct answer, a one-line explanation, " +
-      "and clear question text. Skip duplicates and ambiguous items.";
+      "1) EXTRACT mode — If the reference material already contains existing MCQs, extract them VERBATIM.\n" +
+      "2) GENERATE mode — If the source is prose without ready-made questions, GENERATE fresh curriculum-aligned MCQs.\n" +
+      "Always: exactly 4 options per question, one unambiguously correct answer, a one-line explanation.";
 
     const user = [
       `Subject: ${subject || "(infer from source)"}`,
       chapter ? `Chapter: ${chapter}` : "",
       `Topic: ${topic || "(derive from source)"}`,
       `Difficulty: ${difficulty}`,
-      `Count: up to ${n} questions (fewer is fine if source has fewer good items)`,
+      `Count: up to ${n} questions`,
       source_url ? `Source URL: ${source_url}` : "",
       combined_source
-        ? `\nReference material (decide EXTRACT vs GENERATE based on content):\n${combined_source}`
+        ? `\nReference material:\n${combined_source}`
         : "",
-      "\nReturn ONLY a JSON object via the provided tool — no prose.",
     ].filter(Boolean).join("\n");
 
-    const tool = {
-      type: "function",
-      function: {
-        name: "emit_questions",
-        description: "Emit the generated MCQs",
-        parameters: {
-          type: "object",
-          additionalProperties: false,
-          properties: {
-            questions: {
-              type: "array",
-              minItems: 1,
-              items: {
-                type: "object",
-                additionalProperties: false,
-                required: ["question", "options", "correct_index", "explanation"],
-                properties: {
-                  question: { type: "string" },
-                  options: { type: "array", minItems: 4, maxItems: 4, items: { type: "string" } },
-                  correct_index: { type: "integer", minimum: 0, maximum: 3 },
-                  explanation: { type: "string" },
-                },
-              },
+    const schema = {
+      type: "object",
+      properties: {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              question: { type: "string" },
+              options: { type: "array", items: { type: "string" } },
+              correct_index: { type: "integer" },
+              explanation: { type: "string" },
             },
+            required: ["question", "options", "correct_index", "explanation"],
           },
-          required: ["questions"],
         },
       },
+      required: ["questions"],
     };
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: user },
-        ],
-        tools: [tool],
-        tool_choice: { type: "function", function: { name: "emit_questions" } },
-      }),
-    });
+    const result = await generateStructured<{ questions: Array<{
+      question: string;
+      options: string[];
+      correct_index: number;
+      explanation: string;
+    }> }>({ system, user, schema, toolName: "emit_questions" });
 
-    if (aiRes.status === 429) {
-      return new Response(
-        JSON.stringify({ error: "Rate limit reached — try again in a moment." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-    if (aiRes.status === 402) {
-      return new Response(
-        JSON.stringify({ error: "AI credits exhausted. Top up in Lovable AI settings." }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-    if (!aiRes.ok) {
-      const txt = await aiRes.text();
-      return new Response(
-        JSON.stringify({ error: `AI gateway error: ${txt.slice(0, 300)}` }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    if (!result.ok) return jsonResponse({ error: result.error }, result.status);
 
-    const json = await aiRes.json();
-    const call = json?.choices?.[0]?.message?.tool_calls?.[0];
-    const args = call?.function?.arguments;
-    if (!args) {
-      return new Response(
-        JSON.stringify({ error: "AI returned no questions" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-    const parsed = typeof args === "string" ? JSON.parse(args) : args;
-    const questions = (parsed?.questions ?? []).slice(0, n);
-
-    return new Response(JSON.stringify({ questions }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const questions = (result.data.questions ?? []).slice(0, n);
+    return jsonResponse({ questions, source: result.source });
   } catch (err) {
-    return new Response(
-      JSON.stringify({ error: (err as Error).message ?? "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return jsonResponse({ error: (err as Error).message ?? "Unknown error" }, 500);
   }
 });
