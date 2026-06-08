@@ -1689,8 +1689,11 @@ export type Database = {
           id: string
           parent_mobile: string | null
           parent_name: string | null
+          parent_portal_email: string | null
           parent_user_id: string | null
           photo_url: string | null
+          portal_email: string | null
+          portal_phone: string | null
           roll_number: string | null
           updated_at: string
           user_id: string | null
@@ -1705,8 +1708,11 @@ export type Database = {
           id?: string
           parent_mobile?: string | null
           parent_name?: string | null
+          parent_portal_email?: string | null
           parent_user_id?: string | null
           photo_url?: string | null
+          portal_email?: string | null
+          portal_phone?: string | null
           roll_number?: string | null
           updated_at?: string
           user_id?: string | null
@@ -1721,8 +1727,11 @@ export type Database = {
           id?: string
           parent_mobile?: string | null
           parent_name?: string | null
+          parent_portal_email?: string | null
           parent_user_id?: string | null
           photo_url?: string | null
+          portal_email?: string | null
+          portal_phone?: string | null
           roll_number?: string | null
           updated_at?: string
           user_id?: string | null
@@ -1915,7 +1924,7 @@ export type Database = {
         Returns: string
       }
       admin_connect_student_account: {
-        Args: { _identifier: string; _student_id: string }
+        Args: { _as?: string; _identifier: string; _student_id: string }
         Returns: string
       }
       admin_connect_teacher_account: {
@@ -1987,6 +1996,8 @@ export type Database = {
         Returns: boolean
       }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
+      link_portal_on_auth: { Args: { _uid?: string }; Returns: undefined }
+      normalize_phone: { Args: { _raw: string }; Returns: string }
       rpc_battle_curriculum: { Args: { _subject: string }; Returns: Json }
       rpc_battle_feed: {
         Args: { _limit?: number }
