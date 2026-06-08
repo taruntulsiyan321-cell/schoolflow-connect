@@ -34,4 +34,6 @@ jobs:
 
       - name: Deploy AI edge functions
         run: |
-          supabase functions deploy ai-explain ai-battle-report ai-improvement-plan ai-concept-report dpp-generate-questions --project-ref $PROJECT_ID --use-api
+          for func in ai-explain ai-battle-report ai-improvement-plan ai-concept-report dpp-generate-questions; do
+            npx supabase functions deploy $func --project-ref $PROJECT_ID --use-api
+          done
