@@ -1,4 +1,7 @@
--- Fix revision queue: "Done" must stick; do not rebuild queue on every page load.
+-- Paste this ONLY if LOVABLE_REMAINING.sql failed on rpc_complete_revision.
+-- Safe to run after a partial paste.
+
+DROP FUNCTION IF EXISTS public.rpc_complete_revision(uuid);
 
 CREATE OR REPLACE FUNCTION public._revision_recently_completed(
   _uid uuid, _subject text, _chapter text, _topic text, _days int DEFAULT 7
@@ -12,58 +15,6 @@ CREATE OR REPLACE FUNCTION public._revision_recently_completed(
       AND completed_at >= now() - make_interval(days => _days)
   );
 $$;
-
-CREATE OR REPLACE FUNCTION public._rebuild_revision_queue(_uid uuid, _student_id uuid)
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-DECLARE
-  _row record;
-  _prio int;
-  _existing uuid;
-  _due date;
-BEGIN
-  FOR _row IN
-    SELECT * FROM public._weak_topics_for_user(_uid) WHERE accuracy < 60 ORDER BY accuracy ASC LIMIT 8
-  LOOP
-    IF public._revision_recently_completed(_uid, _row.subject, _row.chapter, _row.topic, 7) THEN
-      CONTINUE;
-    END IF;
-
-    SELECT p.priority INTO _prio
-    FROM public._revision_topic_priority(_uid, _row.subject, _row.chapter, _row.topic, _row.accuracy) p;
-
-    SELECT id INTO _existing FROM public.revision_queue
-    WHERE user_id = _uid AND NOT completed
-      AND subject = _row.subject
-      AND COALESCE(chapter, '') = COALESCE(_row.chapter, '')
-      AND COALESCE(topic, '') = COALESCE(_row.topic, '')
-    LIMIT 1;
-
-    _due := CURRENT_DATE + CASE WHEN _row.accuracy < 40 THEN 0 WHEN _row.accuracy < 50 THEN 1 ELSE 2 END;
-
-    IF _existing IS NOT NULL THEN
-      UPDATE public.revision_queue SET
-        priority = _prio, reason = 'weak_topic', due_date = LEAST(due_date, _due), student_id = _student_id
-      WHERE id = _existing;
-    ELSE
-      INSERT INTO public.revision_queue (user_id, student_id, subject, chapter, topic, reason, priority, due_date)
-      VALUES (_uid, _student_id, _row.subject, _row.chapter, _row.topic, 'weak_topic', _prio, _due);
-    END IF;
-  END LOOP;
-
-  FOR _row IN
-    SELECT rq.*, w.accuracy
-    FROM public.revision_queue rq
-    LEFT JOIN public._weak_topics_for_user(_uid) w
-      ON w.subject = rq.subject
-     AND COALESCE(w.chapter, '') = COALESCE(rq.chapter, '')
-     AND COALESCE(w.topic, '') = COALESCE(rq.topic, '')
-    WHERE rq.user_id = _uid AND NOT rq.completed AND rq.reason = 'dpp_wrong'
-  LOOP
-    SELECT p.priority INTO _prio
-    FROM public._revision_topic_priority(_uid, _row.subject, _row.chapter, _row.topic, _row.accuracy) p;
-    UPDATE public.revision_queue SET priority = _prio WHERE id = _row.id;
-  END LOOP;
-END; $$;
 
 CREATE OR REPLACE FUNCTION public.rpc_student_revision_queue()
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
@@ -105,8 +56,6 @@ BEGIN
 END; $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_student_revision_queue() TO authenticated;
-
-DROP FUNCTION IF EXISTS public.rpc_complete_revision(uuid);
 
 CREATE FUNCTION public.rpc_complete_revision(_id uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$

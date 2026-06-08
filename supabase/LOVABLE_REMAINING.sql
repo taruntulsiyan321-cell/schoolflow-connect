@@ -2029,8 +2029,10 @@ END; $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_student_revision_queue() TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.rpc_complete_revision(_id uuid)
-RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DROP FUNCTION IF EXISTS public.rpc_complete_revision(uuid);
+
+CREATE FUNCTION public.rpc_complete_revision(_id uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE _n int;
 BEGIN
   IF auth.uid() IS NULL THEN RAISE EXCEPTION 'auth required'; END IF;
@@ -2044,7 +2046,6 @@ BEGIN
   END IF;
 
   PERFORM public._bump_academic_activity(auth.uid(), 0, 0, 0, 5);
-  RETURN true;
 END; $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_complete_revision(uuid) TO authenticated;

@@ -2247,7 +2247,7 @@ export type Database = {
           xp: number
         }[]
       }
-      rpc_complete_revision: { Args: { _id: string }; Returns: boolean }
+      rpc_complete_revision: { Args: { _id: string }; Returns: undefined }
       rpc_create_quick_battle:
         | {
             Args: {
