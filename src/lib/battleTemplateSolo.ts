@@ -12,6 +12,16 @@ export function canUseMath12TemplateSolo(subject: string, grade: number | null) 
   return grade === 12 && subject.toLowerCase() === "mathematics";
 }
 
+/** Mathematics solo can use templates even when class grade is unknown or bank is empty. */
+export function shouldPreferMathTemplateSolo(
+  subject: string,
+  grade: number | null,
+  bankEmpty: boolean,
+) {
+  if (subject.toLowerCase() !== "mathematics") return false;
+  return canUseMath12TemplateSolo(subject, grade) || bankEmpty || grade === null;
+}
+
 export function resolveMath12Chapter(chapter: string | undefined) {
   if (chapter && chapter !== "__any__") return chapter;
   return CLASS12_MATH_CHAPTERS[Math.floor(Math.random() * CLASS12_MATH_CHAPTERS.length)];

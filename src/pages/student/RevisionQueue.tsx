@@ -48,6 +48,7 @@ export default function RevisionQueue() {
   const [sortNote, setSortNote] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -73,15 +74,20 @@ export default function RevisionQueue() {
 
 
   const complete = async (id: string) => {
+    if (completingId) return;
+    setCompletingId(id);
 
     const { error } = await supabase.rpc("rpc_complete_revision", { _id: id });
 
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      setCompletingId(null);
+      return;
+    }
 
+    setRows((prev) => prev.filter((r) => r.id !== id));
     toast.success("Revision done!");
-
-    load();
-
+    setCompletingId(null);
   };
 
 
@@ -183,10 +189,13 @@ export default function RevisionQueue() {
 
               </div>
 
-              <Button size="sm" className="shrink-0" onClick={() => complete(r.id)}>
-
-                <Check className="w-4 h-4 mr-1" /> Done
-
+              <Button
+                size="sm"
+                className="shrink-0"
+                disabled={completingId === r.id}
+                onClick={() => complete(r.id)}
+              >
+                <Check className="w-4 h-4 mr-1" /> {completingId === r.id ? "Saving…" : "Done"}
               </Button>
 
             </Card>

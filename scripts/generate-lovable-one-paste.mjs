@@ -28,6 +28,7 @@ const PENDING_FILES = [
   "20260613000000_concept_mastery_recovery.sql",
   "20260614000000_unify_practice_analytics.sql",
   "20260615000000_battle_template_fallback.sql",
+  "20260616000000_fix_revision_complete.sql",
 ];
 
 const OUT = join(ROOT, "supabase", "LOVABLE_PASTE_ALL_PENDING.sql");

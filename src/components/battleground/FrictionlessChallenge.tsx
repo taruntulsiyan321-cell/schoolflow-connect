@@ -19,6 +19,7 @@ import {
   createMath12TemplateSoloBattle,
   isEmptyQuestionBankError,
   NO_BANK_MSG,
+  shouldPreferMathTemplateSolo,
 } from "@/lib/battleTemplateSolo";
 import { Globe, Loader2, Search, User, Users, UsersRound, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -174,26 +175,59 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       let battleId: string | null = null;
       let error: { message: string } | null = null;
 
-      if (mode === "solo" && math12Solo) {
-        const result = await createMath12TemplateSoloBattle({
-          chapter: chap,
-          difficulty,
-          count: 5,
-          perQ: 20,
-          classId,
-        });
-        if ("redirectTo" in result) {
-          toast({ title: "Starting Class 12 Math practice session" });
-          nav(result.redirectTo);
-          return;
+      const preferMathTemplates =
+        mode === "solo" && shouldPreferMathTemplateSolo(subject, grade, bankRows.length === 0);
+
+      if (preferMathTemplates) {
+        try {
+          const result = await createMath12TemplateSoloBattle({
+            chapter: chap,
+            difficulty,
+            count: 5,
+            perQ: 20,
+            classId,
+          });
+          if ("redirectTo" in result) {
+            toast({ title: "Starting Class 12 Math practice session" });
+            nav(result.redirectTo);
+            return;
+          }
+          battleId = result.battleId;
+        } catch (templateErr: unknown) {
+          const msg =
+            templateErr && typeof templateErr === "object" && "message" in templateErr
+              ? String((templateErr as { message: string }).message)
+              : "";
+          if (!msg.toLowerCase().includes("no templates")) {
+            throw templateErr;
+          }
         }
-        battleId = result.battleId;
-      } else if (mode === "solo") {
+      }
+
+      if (mode === "solo" && !battleId) {
         const res = await supabase.rpc("rpc_create_quick_battle", base);
         battleId = res.data as string;
         error = res.error;
         if (error && isEmptyQuestionBankError(error.message)) {
           setBankEmptyHint(true);
+          try {
+            const result = await createMath12TemplateSoloBattle({
+              chapter: chap,
+              difficulty,
+              count: 5,
+              perQ: 20,
+              classId,
+            });
+            if ("redirectTo" in result) {
+              toast({ title: "Starting Class 12 Math practice session" });
+              nav(result.redirectTo);
+              return;
+            }
+            battleId = result.battleId;
+            error = null;
+          } catch {
+            /* keep original bank-empty error */
+          }
         }
       } else if (mode === "duel") {
         const res = await supabase.rpc("rpc_challenge_student", {
