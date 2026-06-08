@@ -1,5 +1,5 @@
 // Battle performance AI report — Google Gemini Flash (primary).
-import { corsHeaders, generateStructured, jsonResponse } from "../_shared/gemini.ts";
+import { corsHeaders, generateStructured, jsonResponse } from "./gemini.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
