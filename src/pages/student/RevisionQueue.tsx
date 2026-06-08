@@ -130,7 +130,10 @@ export default function RevisionQueue() {
 
           <p className="text-muted-foreground">Nothing queued yet. Complete DPPs or check your dashboard after practice.</p>
 
-          <Button asChild className="mt-4"><Link to="/student/dpp">Start a DPP</Link></Button>
+          <div className="flex gap-2 justify-center mt-4">
+            <Button asChild><Link to="/student/dpp">Start a DPP</Link></Button>
+            <Button asChild variant="outline"><Link to="/student/recovery">Recovery zone</Link></Button>
+          </div>
 
         </Card>
 

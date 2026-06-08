@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type Day = { date: string; dpp?: number; homework?: number; battles?: number; minutes?: number };
+type Day = { date: string; dpp?: number; homework?: number; battles?: number; self_practice?: number; minutes?: number };
 
 function localDateKey(d: Date) {
   const y = d.getFullYear();
@@ -10,7 +10,7 @@ function localDateKey(d: Date) {
 }
 
 export function AcademicHeatmap({ days }: { days: Day[] }) {
-  const map = new Map(days.map((d) => [d.date, (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0)]));
+  const map = new Map(days.map((d) => [d.date, (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0)]));
   const cells: { date: string; score: number }[] = [];
   for (let i = 27; i >= 0; i--) {
     const d = new Date();

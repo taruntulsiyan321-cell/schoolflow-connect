@@ -59,19 +59,17 @@ function ClassTrendBadge({ trend }: { trend?: string }) {
 export default function SchoolEngagement() {
 
   const [data, setData] = useState<any>(null);
-
-
+  const [concepts, setConcepts] = useState<any>(null);
 
   useEffect(() => {
-
     (async () => {
-
-      const { data: h } = await supabase.rpc("rpc_principal_school_health");
-
+      const [{ data: h }, { data: c }] = await Promise.all([
+        supabase.rpc("rpc_principal_school_health"),
+        (supabase as any).rpc("rpc_principal_concept_analytics"),
+      ]);
       setData(h);
-
+      setConcepts(c);
     })();
-
   }, []);
 
 
@@ -169,6 +167,34 @@ export default function SchoolEngagement() {
         ))}
 
       </div>
+
+      {concepts && (
+        <>
+          <h3 className="font-semibold mb-3 mt-6">School-wide concept health</h3>
+          <div className="grid sm:grid-cols-2 gap-4 mb-4">
+            <StatCard icon={<Target className="w-5 h-5" />} label="Recovery rate" value={`${concepts.recovery_rate ?? 0}%`} />
+            <StatCard icon={<Activity className="w-5 h-5" />} label="Recovery participation (30d)" value={String(concepts.recovery_participation ?? 0)} />
+          </div>
+          <Card className="p-4 shadow-card mb-4">
+            <h4 className="font-semibold mb-2">Weakest concepts (school-wide)</h4>
+            {(concepts.school_weak_concepts ?? []).map((c: any, i: number) => (
+              <div key={i} className="flex justify-between text-sm py-1">
+                <span>{c.subject} · {c.concept}</span>
+                <span>{c.avg_mastery}% · {c.students_affected} students</span>
+              </div>
+            ))}
+          </Card>
+          <Card className="p-4 shadow-card">
+            <h4 className="font-semibold mb-2">Subject mastery averages</h4>
+            {(concepts.subject_performance ?? []).map((s: any, i: number) => (
+              <div key={i} className="flex justify-between text-sm py-1">
+                <span>{s.subject}</span>
+                <span>{s.avg_mastery}% ({s.concepts_tracked} concepts)</span>
+              </div>
+            ))}
+          </Card>
+        </>
+      )}
 
     </>
 

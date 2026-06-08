@@ -37,7 +37,7 @@ export default function ClassInsights() {
     if (!classId) return;
     (async () => {
       setLoading(true);
-      const { data: ins, error } = await supabase.rpc("rpc_teacher_class_insights", { _class_id: classId });
+      const { data: ins, error } = await supabase.rpc("rpc_teacher_concept_analytics", { _class_id: classId });
       if (error) setData(null);
       else setData(ins);
       setLoading(false);
@@ -96,6 +96,37 @@ export default function ClassInsights() {
           </div>
         ))}
       </Card>
+
+      <div className="grid lg:grid-cols-2 gap-4 mt-4">
+        <Card className="p-4 shadow-card">
+          <h3 className="font-semibold mb-2">Class weak concepts</h3>
+          {(data?.class_weak_concepts ?? []).length === 0 && (
+            <p className="text-sm text-muted-foreground">Concept mastery data builds as students practice.</p>
+          )}
+          {(data?.class_weak_concepts ?? []).map((t: any, i: number) => (
+            <div key={i} className="flex justify-between text-sm py-1">
+              <span>{t.subject} · {t.concept}</span>
+              <span>{t.avg_mastery}% · {t.students} students</span>
+            </div>
+          ))}
+        </Card>
+        <Card className="p-4 shadow-card">
+          <h3 className="font-semibold mb-2">Mastery distribution</h3>
+          {data?.mastery_distribution ? (
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="p-2 rounded bg-destructive/10">&lt;40%: {data.mastery_distribution.below_40 ?? 0}</div>
+              <div className="p-2 rounded bg-warning/10">40–60%: {data.mastery_distribution["40_60"] ?? 0}</div>
+              <div className="p-2 rounded bg-primary/10">60–80%: {data.mastery_distribution["60_80"] ?? 0}</div>
+              <div className="p-2 rounded bg-accent/10">&gt;80%: {data.mastery_distribution.above_80 ?? 0}</div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No mastery records yet.</p>
+          )}
+          {typeof data?.recovery_completion_rate === "number" && (
+            <p className="text-xs text-muted-foreground mt-3">Recovery completion rate: {data.recovery_completion_rate}%</p>
+          )}
+        </Card>
+      </div>
 
       <Card className="p-4 mt-4 shadow-card">
         <h3 className="font-semibold flex items-center gap-2 mb-3">

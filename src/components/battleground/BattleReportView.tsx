@@ -12,6 +12,7 @@ import {
   AlertTriangle, Brain, CheckCircle2, XCircle, Timer, BarChart3,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 
 export type BattleReportPayload = {
   id: string;
@@ -189,6 +190,14 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
           </div>
         </div>
       </Card>
+
+      {!forTeacher && (
+        <ConceptRecoveryReport
+          sourceType="battle_participant"
+          sourceId={participantId}
+          title="Battle concept recovery report"
+        />
+      )}
 
       {/* AI coach */}
       <Card className="p-5 surface-card">

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword, Target, Megaphone, Brain, BookMarked, ListChecks, BarChart3, Sparkles } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword, Target, Megaphone, Brain, BookMarked, ListChecks, BarChart3, Sparkles, Wrench } from "lucide-react";
+import RecoveryZone from "./student/RecoveryZone";
+import RecoverySession from "./student/RecoverySession";
 import StudentSuccessHome from "./student/StudentSuccessHome";
 import MistakeBank from "./student/MistakeBank";
 import RevisionQueue from "./student/RevisionQueue";
@@ -35,6 +37,7 @@ const nav = [
   { to: "/student", label: "Growth", icon: <Brain className="w-4 h-4" /> },
   { to: "/student/revision", label: "Revision", icon: <ListChecks className="w-4 h-4" /> },
   { to: "/student/plans", label: "Improvement", icon: <Sparkles className="w-4 h-4" /> },
+  { to: "/student/recovery", label: "Recovery", icon: <Wrench className="w-4 h-4" /> },
   { to: "/student/mistakes", label: "Mistakes", icon: <BookMarked className="w-4 h-4" /> },
   { to: "/student/analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
@@ -167,6 +170,8 @@ export default function StudentDashboard() {
         <Route index element={<StudentSuccessHome />} />
         <Route path="revision" element={<RevisionQueue />} />
         <Route path="plans" element={<ImprovementPlans />} />
+        <Route path="recovery" element={<RecoveryZone />} />
+        <Route path="recovery/:id" element={<RecoverySession />} />
         <Route path="mistakes" element={<MistakeBank />} />
         <Route path="analytics" element={<AcademicAnalytics />} />
         <Route path="report" element={<AcademicReport />} />

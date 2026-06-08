@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft, CheckCircle2, Loader2, Sparkles, XCircle } from "lucide-react";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { toast } from "sonner";
+import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 
 type SessionItem = {
   template: QuestionTemplateRow;
@@ -126,17 +127,27 @@ export default function Class12MathSession() {
 
   if (done && summary) {
     return (
-      <Card className="p-8 max-w-md mx-auto text-center shadow-card">
-        <CheckCircle2 className="w-12 h-12 mx-auto text-accent mb-3" />
-        <h2 className="text-xl font-semibold">Session complete</h2>
-        <p className="text-muted-foreground mt-2">{chapter}</p>
-        <div className="text-3xl font-bold mt-4">{summary.correct_count}/{summary.question_count}</div>
-        <p className="text-sm text-muted-foreground">correct answers</p>
-        <div className="flex gap-2 mt-6 justify-center">
-          <Button asChild variant="outline"><Link to="/student/practice/math12">New chapter</Link></Button>
-          <Button onClick={() => nav(`/student/practice/math12/session?chapter=${encodeURIComponent(chapter)}&count=${count}`)}>Same chapter again</Button>
-        </div>
-      </Card>
+      <div className="max-w-2xl mx-auto space-y-4">
+        <Card className="p-8 text-center shadow-card">
+          <CheckCircle2 className="w-12 h-12 mx-auto text-accent mb-3" />
+          <h2 className="text-xl font-semibold">Session complete</h2>
+          <p className="text-muted-foreground mt-2">{chapter}</p>
+          <div className="text-3xl font-bold mt-4">{summary.correct_count}/{summary.question_count}</div>
+          <p className="text-sm text-muted-foreground">correct answers</p>
+          <div className="flex gap-2 mt-6 justify-center flex-wrap">
+            <Button asChild variant="outline"><Link to="/student/practice/math12">New chapter</Link></Button>
+            <Button onClick={() => nav(`/student/practice/math12/session?chapter=${encodeURIComponent(chapter)}&count=${count}`)}>Same chapter again</Button>
+          </div>
+          <div className="flex gap-2 mt-3 justify-center flex-wrap text-sm">
+            <Button asChild size="sm" variant="ghost"><Link to="/student/mistakes">Mistake book</Link></Button>
+            <Button asChild size="sm" variant="ghost"><Link to="/student/plans">Improvement plans</Link></Button>
+            <Button asChild size="sm" variant="ghost"><Link to="/student">Growth dashboard</Link></Button>
+          </div>
+        </Card>
+        {sessionId && (
+          <ConceptRecoveryReport sourceType="practice_session" sourceId={sessionId} title="Practice concept recovery report" />
+        )}
+      </div>
     );
   }
 

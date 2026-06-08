@@ -39,10 +39,13 @@
 | 13 | `20260610000000_battleground_overhaul.sql` | Lobbies, auto-finish, NCERT curriculum RPC |
 | 14 | `20260611000000_question_template_engine.sql` | Class 12 Math template engine tables + RPCs |
 | 15 | `20260612000000_ai_and_audit_fixes.sql` | Battle report ensure/snapshot + secure AI insights save |
+| 16 | `20260613000000_concept_mastery_recovery.sql` | Concept tagging, mastery scores, recovery zone, analytics RPCs |
 
 **After migration 14:** `npm run seed:math12` → seeds 1300+ question templates.
 
 **Migration 15** adds `rpc_ensure_battle_report` and `rpc_save_battle_ai_insights` (required for AI/offline battle reports).
+
+**Migration 16** adds concept mastery, recovery assignments, post-assessment concept reports, and teacher/parent/principal concept analytics. Deploy edge function `ai-concept-report` for optional AI insights.
 
 All paths: `supabase/migrations/`
 

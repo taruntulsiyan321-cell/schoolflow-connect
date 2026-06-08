@@ -1,38 +1,22 @@
-Apply all pending database migrations for SchoolFlow Connect (project kdmjipeksjdyojjdokbi).
-
-OPTION A — One paste (recommended):
-Run the full SQL in: supabase/LOVABLE_PASTE_ALL_PENDING.sql
-Then append and run these newer files if not already in the bundle:
-- supabase/migrations/20260609000000_fix_quick_battle_overload.sql
-- supabase/migrations/20260610000000_battleground_overhaul.sql
-- supabase/migrations/20260611000000_question_template_engine.sql
-- supabase/migrations/20260612000000_ai_and_audit_fixes.sql
-
-OPTION B — Run each file in order from supabase/migrations/:
-1. 20260509065137_35bec001-c627-426a-bdd6-dc992c1d3693.sql — admin connect student/teacher
-2. 20260516000000_inquiries_complaints.sql
-3. 20260604030000_student_panel_fixes.sql
-4. 20260604060340_60f4721e-63fc-4ef7-8c92-450cfa872f39.sql
-5. 20260604080000_battle_monitor.sql
-6. 20260604100000_battleground_phase4.sql
-7. 20260605000000_student_portal_login.sql
-8. 20260606000000_student_success_platform.sql
-9. 20260607000000_student_success_phase2.sql
-10. 20260608000000_student_success_phase3.sql
-11. 20260604120000_demo_data.sql
-12. 20260609000000_fix_quick_battle_overload.sql
-13. 20260610000000_battleground_overhaul.sql
-14. 20260611000000_question_template_engine.sql
-15. 20260612000000_ai_and_audit_fixes.sql
-Then run: supabase/seeds/class12_math_templates.sql (1373 Class 12 Math templates)
-
-Run every statement. Migrations are idempotent where possible.
-
-When finished, confirm:
-- students.portal_email column exists
-- rpc_create_open_battle and rpc_create_class_battle exist
-- rpc_ensure_battle_report and rpc_save_battle_ai_insights exist
-- student_mistakes and student_improvement_plans tables exist
-- auth user arjun.mehta@wisdomcampus.demo exists with password DemoPass123!
-
-Do not skip the demo data block.
+Apply ALL pending database updates for SchoolFlow Connect in ONE go.
+
+Use the Lovable project's Supabase database (kdmjipeksjdyojjdokbi). Do NOT split into batches.
+
+Steps:
+1. Open the file: supabase/LOVABLE_PASTE_ALL_PENDING.sql
+2. Copy the ENTIRE file (Ctrl+A, Ctrl+C)
+3. In Lovable: Project → Supabase → SQL Editor → New query
+4. Paste and click RUN once
+
+That single file includes:
+- All 16 pending migrations (student success, battleground, concept mastery, etc.)
+- Demo school data (demo login accounts)
+- 1373 Class 12 Mathematics practice templates
+
+Do NOT use AI credits. Run the SQL directly.
+
+After it finishes, confirm:
+- Demo login works: arjun.mehta@wisdomcampus.demo / DemoPass123!
+- SELECT count(*) FROM question_templates; returns about 1373
+
+If the paste is too large for the editor, tell me and I will split only the math templates into a second paste — everything else stays in one file.

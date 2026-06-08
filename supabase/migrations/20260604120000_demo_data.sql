@@ -8,6 +8,9 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
+-- Lovable library schema: books may lack shelf_location; checkouts use library_books_id
+ALTER TABLE public.library_books ADD COLUMN IF NOT EXISTS shelf_location TEXT DEFAULT '';
+
 -- ---------------------------------------------------------------------------
 -- Helper: upsert demo auth user (email/password). Runs as migration owner.
 -- ---------------------------------------------------------------------------
@@ -276,15 +279,15 @@ BEGIN
     (hw1, st2, 'Submitted — pending review', 'submitted', now() - interval '2 hours')
   ON CONFLICT (homework_id, student_id) DO NOTHING;
 
-  -- ===================== LIBRARY =====================
-  INSERT INTO public.library_books (id, title, author, isbn, category, total_copies, available_copies, shelf_location) VALUES
-    (lib_book1, 'Mathematics — Class X (NCERT)', 'NCERT', '978-81-7450-634-4', 'Textbook', 5, 4, 'A-12'),
-    ('d7000001-0002-4000-8000-000000000002', 'Science — Class X (NCERT)', 'NCERT', '978-81-7450-636-8', 'Textbook', 5, 5, 'A-13'),
-    ('d7000001-0003-4000-8000-000000000003', 'Physics Refresher', 'H.C. Verma', '978-8177091878', 'Reference', 2, 2, 'B-02')
+  -- ===================== LIBRARY (Lovable schema: optional shelf_location; library_books_id) =====================
+  INSERT INTO public.library_books (id, title, author, isbn, category, total_copies, available_copies) VALUES
+    (lib_book1, 'Mathematics — Class X (NCERT)', 'NCERT', '978-81-7450-634-4', 'Textbook', 5, 4),
+    ('d7000001-0002-4000-8000-000000000002', 'Science — Class X (NCERT)', 'NCERT', '978-81-7450-636-8', 'Textbook', 5, 5),
+    ('d7000001-0003-4000-8000-000000000003', 'Physics Refresher', 'H.C. Verma', '978-8177091878', 'Reference', 2, 2)
   ON CONFLICT (id) DO UPDATE SET available_copies = EXCLUDED.available_copies;
 
-  INSERT INTO public.library_checkouts (id, book_id, student_id, due_date, status, issued_by) VALUES
-    (lib_co1, lib_book1, st1, _today + 10, 'borrowed', u_t_math)
+  INSERT INTO public.library_checkouts (id, library_books_id, student_id, due_date, status) VALUES
+    (lib_co1, lib_book1, st1, _today + 10, 'borrowed')
   ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status;
 
   -- ===================== MESSAGES (chat) =====================

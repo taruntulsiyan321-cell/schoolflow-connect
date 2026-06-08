@@ -10,7 +10,10 @@ export type AcademicSnapshot = {
   strong_topics?: { subject: string; chapter?: string; topic?: string; accuracy: number }[];
   revision_queue?: { id: string; subject: string; topic?: string; chapter?: string; priority: number; due_date: string }[];
   mistake_count?: number;
-  activity_heatmap?: { date: string; dpp: number; homework: number; battles: number; minutes: number }[];
+  recovery_pending?: number;
+  weak_concepts?: { subject: string; concept: string; mastery_score: number }[];
+  self_practice?: { sessions_completed: number };
+  activity_heatmap?: { date: string; dpp: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
   exam_readiness?: { score: number; label: string; tone: string; attendance_pct?: number; accuracy_pct?: number };
 };
 

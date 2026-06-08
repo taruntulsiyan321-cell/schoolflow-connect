@@ -9,6 +9,7 @@ import { ScoreRing } from "@/components/dpp/ScoreRing";
 import { QuestionRenderer, DppQuestion } from "@/components/dpp/QuestionRenderer";
 import { PageHeader } from "@/components/ui-bits";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
+import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 
 export default function DppResult() {
   const { id } = useParams<{ id: string }>();
@@ -71,6 +72,10 @@ export default function DppResult() {
     <>
       <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
       <PageHeader title={dpp.title} subtitle={`${dpp.subject} · Submitted ${attempt.submitted_at ? new Date(attempt.submitted_at).toLocaleString() : "—"}`} />
+
+      {attempt?.id && (
+        <ConceptRecoveryReport sourceType="dpp_attempt" sourceId={attempt.id} title="DPP concept recovery report" />
+      )}
 
       <Card className="p-6 mb-6 flex flex-col sm:flex-row items-center gap-6">
         <ScoreRing value={Number(attempt.score)} max={Number(attempt.max_score)} size={140} />

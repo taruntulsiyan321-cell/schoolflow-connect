@@ -33,6 +33,7 @@ const PENDING_FILES = [
   "20260610000000_battleground_overhaul.sql",
   "20260611000000_question_template_engine.sql",
   "20260612000000_ai_and_audit_fixes.sql",
+  "20260613000000_concept_mastery_recovery.sql",
 ];
 
 function loadEnvFile(name) {

@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui-bits";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
-import { BookMarked, CheckCircle2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { BookMarked, CheckCircle2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 export default function MistakeBank() {
@@ -41,12 +42,17 @@ export default function MistakeBank() {
       <PageHeader
         title="My Mistake Book"
         subtitle="Every wrong answer is saved so you can learn from it — not forget it"
+        action={
+          <Button size="sm" asChild>
+            <Link to="/student/recovery"><Wrench className="w-4 h-4 mr-1" /> Recovery zone</Link>
+          </Button>
+        }
       />
       {loading && <p className="text-muted-foreground text-center py-8">Loading…</p>}
       {!loading && rows.length === 0 && (
         <Card className="p-8 text-center">
           <BookMarked className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
-          <p className="text-muted-foreground">No mistakes saved yet. Wrong DPP answers appear here automatically.</p>
+          <p className="text-muted-foreground">No mistakes saved yet. Wrong answers from DPPs, battles, and self-practice appear here automatically.</p>
         </Card>
       )}
       {!loading && (
@@ -55,7 +61,9 @@ export default function MistakeBank() {
           <Card key={m.id} className="p-4 shadow-card">
             <div className="flex flex-wrap gap-2 mb-2">
               <Badge>{m.subject}</Badge>
+              {m.assessment_type && <Badge variant="secondary">{m.assessment_type}</Badge>}
               {m.chapter && <Badge variant="outline">{m.chapter}</Badge>}
+              {(m.concept || m.topic) && <Badge variant="outline">{m.concept ?? m.topic}</Badge>}
               <Badge variant="outline" className="text-warning">×{m.times_wrong}</Badge>
             </div>
             <p className="font-medium">{m.question_text}</p>

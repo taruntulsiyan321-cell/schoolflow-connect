@@ -136,6 +136,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_sender ON public.messages(sender_id, cre
 CREATE INDEX IF NOT EXISTS idx_messages_receiver ON public.messages(receiver_id, created_at DESC);
 
 -- CHAT CONTACTS RPC
+DROP FUNCTION IF EXISTS public.get_chat_contacts();
 CREATE OR REPLACE FUNCTION public.get_chat_contacts()
 RETURNS TABLE(user_id UUID, name TEXT, role public.app_role)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$

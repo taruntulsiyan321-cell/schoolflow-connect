@@ -94,7 +94,7 @@ export default function AcademicAnalytics() {
 
             <Card className="p-5 shadow-card">
 
-              <h3 className="font-semibold mb-3">Subject accuracy (from practice)</h3>
+              <h3 className="font-semibold mb-3">Subject accuracy (DPP + battles + self-practice)</h3>
 
               <ChartContainer config={barConfig} className="h-[260px] w-full">
 

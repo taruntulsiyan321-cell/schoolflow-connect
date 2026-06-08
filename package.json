@@ -14,9 +14,20 @@
     "db:seed": "node scripts/apply-seed.mjs",
     "db:migrate": "node scripts/apply-pending-migrations.mjs",
     "db:migrate:all": "node scripts/apply-pending-migrations.mjs --all",
+    "db:generate-lovable-paste": "node scripts/generate-lovable-one-paste.mjs",
+    "db:generate-lovable-remaining": "node scripts/generate-lovable-remaining.mjs",
+    "db:lovable-paste": "powershell -ExecutionPolicy Bypass -File scripts/open-lovable-migrate.ps1",
+    "db:lovable-remaining": "npm run db:generate-lovable-remaining && powershell -Command \"Get-Content 'supabase/LOVABLE_REMAINING.sql' -Raw -Encoding UTF8 | Set-Clipboard; Write-Host 'Copied LOVABLE_REMAINING.sql to clipboard'\"",
     "db:check-migrations": "node scripts/check-pending-migrations.mjs",
     "seed:math12": "node scripts/seed-class12-math-templates.mjs",
-    "db:setup": "powershell -ExecutionPolicy Bypass -File scripts/run-complete-setup.ps1"
+    "seed:math12:split": "node scripts/split-math12-seed.mjs",
+    "seed:math12:paste": "powershell -ExecutionPolicy Bypass -File scripts/paste-math12-seed.ps1",
+    "seed:math12:next": "powershell -ExecutionPolicy Bypass -File scripts/confirm-math12-seed.ps1",
+    "db:setup": "powershell -ExecutionPolicy Bypass -File scripts/run-complete-setup.ps1",
+    "db:generate-batches": "node scripts/generate-sql-batches.mjs",
+    "db:generate-remaining": "node scripts/generate-remaining-batch.mjs",
+    "db:paste-next": "powershell -ExecutionPolicy Bypass -File scripts/paste-next-migration.ps1",
+    "db:confirm-batch": "powershell -ExecutionPolicy Bypass -File scripts/confirm-migration-batch.ps1"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",

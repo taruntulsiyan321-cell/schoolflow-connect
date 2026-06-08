@@ -1,0 +1,8 @@
+NEW EMPTY SUPABASE — paste in SQL Editor in order:
+
+1. fresh-batch-01.sql
+2. fresh-batch-02.sql
+... through fresh-batch-12.sql
+LAST: fresh-batch-seed-math12.sql
+
+Folder: supabase/sql-batches/fresh/

@@ -9,6 +9,9 @@ import { AcademicHeatmap } from "@/components/student/AcademicHeatmap";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ArrowLeft, Printer } from "lucide-react";
+import { ConceptMastery } from "@/components/student/ConceptMastery";
+import { useConceptMastery } from "@/hooks/useConceptMastery";
+import { buildRuleConceptReport } from "@/lib/conceptReportFallback";
 
 const barConfig = { accuracy: { label: "Accuracy %", color: "hsl(var(--primary))" } };
 const lineConfig = { total: { label: "Activity", color: "hsl(var(--accent))" } };
@@ -18,6 +21,30 @@ export default function AcademicReport() {
   const printRef = useRef<HTMLDivElement>(null);
   const { data: snap, loading: snapLoading } = useStudentAcademicSnapshot();
   const { data: charts, loading: chartsLoading } = useStudentPerformanceCharts();
+  const { items: masteryItems } = useConceptMastery();
+  const conceptInsights = masteryItems.length > 0
+    ? buildRuleConceptReport({
+        source_type: "report",
+        source_id: "snapshot",
+        accuracy_pct: snap?.exam_readiness?.accuracy_pct ?? 0,
+        correct_count: 0,
+        total_count: 0,
+        time_minutes: 0,
+        weak_concepts: masteryItems.filter((m) => m.mastery_score < 55).slice(0, 5).map((m) => ({
+          subject: m.subject,
+          chapter: m.chapter,
+          concept: m.concept,
+          accuracy: Math.round(m.mastery_score),
+        })),
+        strong_concepts: masteryItems.filter((m) => m.mastery_score >= 75).slice(0, 3).map((m) => ({
+          subject: m.subject,
+          concept: m.concept,
+          accuracy: Math.round(m.mastery_score),
+        })),
+        recovery_assignments: [],
+        improvement_areas: masteryItems.filter((m) => m.mastery_score < 55).map((m) => m.concept),
+      })
+    : null;
 
   const loading = snapLoading || chartsLoading;
   const generated = new Date().toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
@@ -56,6 +83,22 @@ export default function AcademicReport() {
                 <p>Battle wins: <strong>{snap?.xp?.wins ?? 0}</strong> ({snap?.xp?.total_battles ?? 0} played)</p>
               </div>
             </Card>
+
+            <ConceptMastery />
+
+            {conceptInsights && (
+              <Card className="p-5 shadow-card">
+                <h2 className="font-semibold mb-2">AI improvement insights (offline)</h2>
+                <p className="font-medium text-sm">{conceptInsights.headline}</p>
+                <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc pl-4">
+                  {conceptInsights.bullets.map((b, i) => <li key={i}>{b}</li>)}
+                </ul>
+                <p className="text-xs font-medium mt-3 mb-1">Recommended next steps</p>
+                <ol className="text-sm text-muted-foreground space-y-1 list-decimal pl-4">
+                  {conceptInsights.next_steps.map((s, i) => <li key={i}>{s}</li>)}
+                </ol>
+              </Card>
+            )}
 
             {(snap?.weak_topics?.length ?? 0) > 0 && (
               <Card className="p-5 shadow-card">

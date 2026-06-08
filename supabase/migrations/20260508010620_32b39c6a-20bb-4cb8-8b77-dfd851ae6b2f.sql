@@ -8,6 +8,13 @@ ALTER TABLE public.homework
 ALTER TABLE public.homework_submissions
   ADD CONSTRAINT hw_sub_student_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
 
-ALTER TABLE public.library_checkouts
-  ADD CONSTRAINT checkout_book_fkey FOREIGN KEY (library_books_id) REFERENCES public.library_books(id) ON DELETE CASCADE,
-  ADD CONSTRAINT checkout_student_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE public.library_checkouts
+    ADD CONSTRAINT checkout_book_fkey FOREIGN KEY (book_id) REFERENCES public.library_books(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE public.library_checkouts
+    ADD CONSTRAINT checkout_student_fkey FOREIGN KEY (student_id) REFERENCES public.students(id) ON DELETE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;

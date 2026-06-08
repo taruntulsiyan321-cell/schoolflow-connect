@@ -30,6 +30,7 @@ export default function ParentInsights() {
   const { user } = useAuth();
   const { data: digest, loading: digestLoading, reload: reloadDigest } = useParentWeeklyDigest();
   const [kids, setKids] = useState<ChildInsight[]>([]);
+  const [conceptData, setConceptData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -109,6 +110,8 @@ export default function ParentInsights() {
         });
       }
       setKids(insights);
+      const { data: concepts } = await (supabase as any).rpc("rpc_parent_concept_analytics");
+      setConceptData(concepts);
       setLoading(false);
     })();
   }, [user]);
@@ -117,6 +120,9 @@ export default function ParentInsights() {
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n || 0);
 
   const digestByStudent = new Map((digest?.children ?? []).map((c) => [c.student_id, c]));
+  const conceptByStudent = new Map(
+    ((conceptData?.children ?? []) as { student_id: string }[]).map((c) => [c.student_id, c]),
+  );
 
   return (
     <>
@@ -135,6 +141,12 @@ export default function ParentInsights() {
               mistake_count?: number;
             } | undefined;
             const alerts = weekly?.alerts ?? [];
+            const concepts = conceptByStudent.get(k.id) as {
+              weak_areas?: { subject: string; concept: string; mastery_score: number }[];
+              recovery_pending?: number;
+              recovery_completed?: number;
+              mastery_trend?: number;
+            } | undefined;
 
             return (
               <Card key={k.id} className="p-5 shadow-card space-y-4">
@@ -181,6 +193,24 @@ export default function ParentInsights() {
                         <p className="text-muted-foreground">{a.body}</p>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {concepts && (
+                  <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
+                    <div className="text-sm font-semibold">Concept mastery (no question detail)</div>
+                    <p className="text-xs text-muted-foreground">
+                      Avg mastery: <strong>{concepts.mastery_trend ?? "—"}%</strong>
+                      · Recovery pending: <strong>{concepts.recovery_pending ?? 0}</strong>
+                      · Completed (30d): <strong>{concepts.recovery_completed ?? 0}</strong>
+                    </p>
+                    {(concepts.weak_areas ?? []).length > 0 && (
+                      <ul className="text-sm space-y-1">
+                        {(concepts.weak_areas ?? []).map((w, i) => (
+                          <li key={i}>{w.subject} — {w.concept} ({Math.round(w.mastery_score)}% mastery)</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 )}
 
