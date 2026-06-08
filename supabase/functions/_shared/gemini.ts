@@ -1,5 +1,6 @@
 /**
  * Google Gemini Flash — primary AI provider for all edge functions.
+ * Deploy: GitHub Action deploy-edge-functions.yml (SUPABASE_ACCESS_TOKEN).
  * Set GOOGLE_GEMINI_API_KEY (or GEMINI_API_KEY) in Supabase Edge Function secrets.
  * Falls back to Lovable AI Gateway if only LOVABLE_API_KEY is set.
  */
