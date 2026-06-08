@@ -13,6 +13,7 @@ import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts
 import { AcademicHeatmap } from "@/components/student/AcademicHeatmap";
 
 import { AnalyticsEmptyState } from "@/components/student/AnalyticsEmptyState";
+import { StudentAnalyticsSkeleton } from "@/components/student/StudentPanelStates";
 
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
@@ -97,7 +98,7 @@ export default function AcademicAnalytics() {
 
       </div>
 
-      {busy && <p className="text-center text-muted-foreground py-8">Loading…</p>}
+      {busy && <StudentAnalyticsSkeleton />}
 
       {!busy && snapError && <ErrorCard message={snapError} onRetry={reloadSnap} />}
 

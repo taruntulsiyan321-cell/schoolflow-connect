@@ -8,10 +8,11 @@ import { Progress } from "@/components/ui/progress";
 import { generateFromTemplate } from "@/engines/class12Math/generate";
 import type { GeneratedQuestion, QuestionTemplateRow } from "@/engines/class12Math/types";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, CheckCircle2, Loader2, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Sparkles, XCircle } from "lucide-react";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { toast } from "sonner";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
+import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 type SessionItem = {
   template: QuestionTemplateRow;
@@ -26,6 +27,7 @@ export default function Class12MathSession() {
   const count = Math.min(20, Math.max(1, Number(params.get("count") ?? 10)));
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [items, setItems] = useState<SessionItem[]>([]);
   const [idx, setIdx] = useState(0);
@@ -41,13 +43,14 @@ export default function Class12MathSession() {
     if (!user) return;
     (async () => {
       setLoading(true);
+      setLoadError(null);
       const { data: sid, error: sErr } = await supabase.rpc("rpc_start_practice_session", {
         _subject: "Mathematics",
         _chapter: chapter,
         _count: count,
       });
       if (sErr) {
-        toast.error(sErr.message);
+        setLoadError(sErr.message);
         setLoading(false);
         return;
       }
@@ -60,13 +63,13 @@ export default function Class12MathSession() {
         _count: count,
       });
       if (tErr) {
-        toast.error(tErr.message);
+        setLoadError(tErr.message);
         setLoading(false);
         return;
       }
       const rows = (templates ?? []) as QuestionTemplateRow[];
       if (rows.length === 0) {
-        toast.error("No templates for this chapter. Run npm run seed:math12 after migration.");
+        setLoadError("No question templates for this chapter yet. Ask your admin to seed Class 12 math templates.");
         setLoading(false);
         return;
       }
@@ -124,9 +127,21 @@ export default function Class12MathSession() {
   };
 
   if (loading) {
+    return <StudentSessionSkeleton label="Generating fresh questions…" />;
+  }
+
+  if (loadError) {
     return (
-      <div className="py-16 text-center text-muted-foreground flex flex-col items-center gap-2">
-        <Loader2 className="w-6 h-6 animate-spin" /> Generating fresh questions…
+      <div className="max-w-md mx-auto space-y-4">
+        <StudentErrorState
+          title="Could not start practice"
+          hint="Apply the question template migration in Supabase, then try again."
+          message={loadError}
+          onRetry={() => window.location.reload()}
+        />
+        <div className="text-center">
+          <Button asChild variant="outline"><Link to="/student/practice/math12">Back to chapter picker</Link></Button>
+        </div>
       </div>
     );
   }

@@ -12,21 +12,23 @@ import {
   TrendingUp, ListChecks, BookMarked, Sword, Sparkles, Wrench,
 } from "lucide-react";
 import { ConceptMastery } from "@/components/student/ConceptMastery";
+import { StudentDashboardSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 export default function StudentSuccessHome() {
   const { data, loading, error, reload } = useStudentAcademicSnapshot();
   const { xp: liveXp } = useStudentXp();
   const xp = liveXp.xp > 0 || liveXp.level > 1 ? liveXp : data?.xp;
 
-  if (loading) return <p className="text-muted-foreground text-center py-12">Loading your academic snapshot…</p>;
+  if (loading) return <StudentDashboardSkeleton />;
 
   if (error) {
     return (
-      <Card className="p-8 text-center max-w-md mx-auto">
-        <p className="text-sm text-muted-foreground mb-4">Could not load your dashboard. Apply the latest database migrations if this is a fresh setup.</p>
-        <p className="text-xs text-destructive mb-4">{error}</p>
-        <Button size="sm" variant="outline" onClick={() => reload()}>Try again</Button>
-      </Card>
+      <StudentErrorState
+        title="Could not load your dashboard"
+        hint="If this is a new setup, apply pending database migrations in Supabase."
+        message={error}
+        onRetry={reload}
+      />
     );
   }
 

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui-bits";
 
 import { ListChecks, Check, Info } from "lucide-react";
+import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 import { toast } from "sonner";
 
@@ -129,13 +130,13 @@ export default function RevisionQueue() {
       )}
 
       {loading ? (
-        <p className="text-muted-foreground text-center py-8">Loading revision queue…</p>
+        <StudentListSkeleton rows={5} />
       ) : loadError ? (
-        <Card className="p-8 text-center">
-          <p className="text-sm text-muted-foreground mb-2">Could not load revision queue.</p>
-          <p className="text-xs text-destructive mb-4">{loadError}</p>
-          <Button size="sm" variant="outline" onClick={() => load()}>Try again</Button>
-        </Card>
+        <StudentErrorState
+          title="Could not load revision queue"
+          message={loadError}
+          onRetry={load}
+        />
       ) : rows.length === 0 ? (
 
         <Card className="p-8 text-center">

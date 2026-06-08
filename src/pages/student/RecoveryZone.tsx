@@ -6,6 +6,7 @@ import { PageHeader, StatCard } from "@/components/ui-bits";
 import { ConceptMastery } from "@/components/student/ConceptMastery";
 import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import { AlertTriangle, BookMarked, ListChecks, Target, Wrench } from "lucide-react";
+import { StudentDashboardSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 const severityTone: Record<string, string> = {
   severe: "destructive",
@@ -16,15 +17,26 @@ const severityTone: Record<string, string> = {
 export default function RecoveryZone() {
   const { data, loading, error, reload } = useRecoveryZone();
 
-  if (loading) return <p className="text-muted-foreground text-center py-12">Loading recovery zone…</p>;
+  if (loading) {
+    return (
+      <>
+        <PageHeader eyebrow="Mistake recovery" title="Recovery Zone" subtitle="Loading…" />
+        <StudentDashboardSkeleton />
+      </>
+    );
+  }
 
   if (error) {
     return (
-      <Card className="p-8 text-center max-w-md mx-auto">
-        <p className="text-sm text-muted-foreground mb-2">Recovery Zone needs the concept mastery migration.</p>
-        <p className="text-xs text-destructive mb-4">{error}</p>
-        <Button size="sm" variant="outline" onClick={() => reload()}>Try again</Button>
-      </Card>
+      <>
+        <PageHeader eyebrow="Mistake recovery" title="Recovery Zone" />
+        <StudentErrorState
+          title="Recovery Zone unavailable"
+          hint="Apply the concept mastery migration in Supabase if this is a new setup."
+          message={error}
+          onRetry={reload}
+        />
+      </>
     );
   }
 

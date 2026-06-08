@@ -9,21 +9,30 @@ import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { Link } from "react-router-dom";
 import { BookMarked, CheckCircle2, Wrench } from "lucide-react";
 import { toast } from "sonner";
+import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 export default function MistakeBank() {
   const { user } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [masteringId, setMasteringId] = useState<string | null>(null);
 
   const load = async () => {
     if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    setLoadError(null);
+    const { data, error } = await supabase
       .from("student_mistakes")
       .select("*")
       .eq("user_id", user.id)
       .eq("mastered", false)
       .order("last_wrong_at", { ascending: false });
+    if (error) {
+      setLoadError(error.message);
+      setLoading(false);
+      return;
+    }
     setRows(data ?? []);
     setLoading(false);
   };
@@ -31,10 +40,17 @@ export default function MistakeBank() {
   useEffect(() => { load(); }, [user]);
 
   const markMastered = async (id: string) => {
+    if (masteringId) return;
+    setMasteringId(id);
     const { error } = await supabase.from("student_mistakes").update({ mastered: true }).eq("id", id);
-    if (error) return toast.error(error.message);
+    if (error) {
+      toast.error(error.message);
+      setMasteringId(null);
+      return;
+    }
+    setRows((prev) => prev.filter((r) => r.id !== id));
     toast.success("Marked as mastered");
-    load();
+    setMasteringId(null);
   };
 
   return (
@@ -48,14 +64,17 @@ export default function MistakeBank() {
           </Button>
         }
       />
-      {loading && <p className="text-muted-foreground text-center py-8">Loading…</p>}
-      {!loading && rows.length === 0 && (
+      {loading && <StudentListSkeleton rows={4} />}
+      {!loading && loadError && (
+        <StudentErrorState title="Could not load mistakes" message={loadError} onRetry={load} />
+      )}
+      {!loading && !loadError && rows.length === 0 && (
         <Card className="p-8 text-center">
           <BookMarked className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">No mistakes saved yet. Wrong answers from DPPs, battles, and self-practice appear here automatically.</p>
         </Card>
       )}
-      {!loading && (
+      {!loading && !loadError && rows.length > 0 && (
       <div className="space-y-4">
         {rows.map((m) => (
           <Card key={m.id} className="p-4 shadow-card">
@@ -84,8 +103,13 @@ export default function MistakeBank() {
                 subject={m.subject}
                 chapter={m.chapter}
               />
-              <Button size="sm" variant="outline" onClick={() => markMastered(m.id)}>
-                <CheckCircle2 className="w-4 h-4 mr-1" /> Mastered
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={masteringId === m.id}
+                onClick={() => markMastered(m.id)}
+              >
+                <CheckCircle2 className="w-4 h-4 mr-1" /> {masteringId === m.id ? "Saving…" : "Mastered"}
               </Button>
             </div>
           </Card>

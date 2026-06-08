@@ -6,32 +6,43 @@ import { DppCard, DppCardData } from "@/components/dpp/DppCard";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Calculator, FileText } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 export default function DppHub() {
   const { user } = useAuth();
   const [dpps, setDpps] = useState<DppCardData[]>([]);
   const [attempts, setAttempts] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      let dppQuery = supabase.from("dpps").select("*").eq("is_published", true).order("created_at", { ascending: false });
-      if (user) {
-        const { data: s } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
-        if (s?.class_id) dppQuery = dppQuery.eq("class_id", s.class_id);
-      }
-      const { data: d } = await dppQuery;
-      setDpps((d ?? []) as any);
-      if (user) {
-        const { data: a } = await supabase.from("dpp_attempts").select("*").eq("user_id", user.id);
-        const m: Record<string, any> = {};
-        (a ?? []).forEach(x => m[x.dpp_id] = x);
-        setAttempts(m);
-      }
+  const load = async () => {
+    if (!user) return;
+    setLoading(true);
+    setLoadError(null);
+    let dppQuery = supabase.from("dpps").select("*").eq("is_published", true).order("created_at", { ascending: false });
+    const { data: s } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
+    if (s?.class_id) dppQuery = dppQuery.eq("class_id", s.class_id);
+    const { data: d, error: dErr } = await dppQuery;
+    if (dErr) {
+      setLoadError(dErr.message);
       setLoading(false);
-    })();
-  }, [user]);
+      return;
+    }
+    setDpps((d ?? []) as DppCardData[]);
+    const { data: a, error: aErr } = await supabase.from("dpp_attempts").select("*").eq("user_id", user.id);
+    if (aErr) {
+      setLoadError(aErr.message);
+      setLoading(false);
+      return;
+    }
+    const m: Record<string, any> = {};
+    (a ?? []).forEach((x) => { m[x.dpp_id] = x; });
+    setAttempts(m);
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [user]);
 
   const now = Date.now();
   const completed = dpps.filter(d => attempts[d.id]?.status === "submitted");
@@ -70,16 +81,26 @@ export default function DppHub() {
           </Link>
         </Button>
       </div>
-      {loading && <p className="text-center text-muted-foreground py-8">Loading DPPs…</p>}
-      {!loading && dpps.length === 0 && (
-        <div className="text-center py-10 text-muted-foreground">
-          <FileText className="w-10 h-10 mx-auto mb-2" />
-          <p>No DPPs published yet for your class.</p>
-        </div>
+      {loading && <StudentListSkeleton rows={3} />}
+      {!loading && loadError && (
+        <StudentErrorState title="Could not load daily practice" message={loadError} onRetry={load} />
       )}
-      {active.length > 0 && <Section title="Active" items={active} emptyText="Nothing pending." />}
-      {overdue.length > 0 && <Section title="Overdue" items={overdue} emptyText="" tone="warning" />}
-      {completed.length > 0 && <Section title="Completed" items={completed} emptyText="" />}
+      {!loading && !loadError && dpps.length === 0 && (
+        <Card className="p-10 text-center shadow-card">
+          <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-muted-foreground">No DPPs published yet for your class.</p>
+          <Button asChild className="mt-4" variant="outline">
+            <Link to="/student/practice/math12"><Calculator className="w-4 h-4 mr-1" /> Try Class 12 Math practice</Link>
+          </Button>
+        </Card>
+      )}
+      {!loading && !loadError && dpps.length > 0 && (
+        <>
+          {active.length > 0 && <Section title="Active" items={active} emptyText="Nothing pending." />}
+          {overdue.length > 0 && <Section title="Overdue" items={overdue} emptyText="" tone="warning" />}
+          {completed.length > 0 && <Section title="Completed" items={completed} emptyText="" />}
+        </>
+      )}
     </>
   );
 }

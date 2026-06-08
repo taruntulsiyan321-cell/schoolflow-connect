@@ -32,6 +32,7 @@ import NotificationsPage from "./shared/NotificationsPage";
 import MyFeesPage from "./shared/MyFeesPage";
 import MyMarksPage from "./shared/MyMarksPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
+import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 
 const nav = [
   { to: "/student", label: "Growth", icon: <Brain className="w-4 h-4" /> },
@@ -137,27 +138,31 @@ const Home = () => {
 const MyAttendance = () => {
   const { user } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     (async () => {
       if (!user) return;
+      setLoading(true);
       const { data: s } = await supabase.from("students").select("id").eq("user_id", user.id).maybeSingle();
-      if (!s) return;
+      if (!s) { setLoading(false); return; }
       const { data } = await supabase.from("attendance").select("*").eq("student_id", s.id).order("date", { ascending: false }).limit(60);
       setRows(data ?? []);
+      setLoading(false);
     })();
   }, [user]);
   const colors: any = { present: "bg-accent/10 text-accent", absent: "bg-destructive/10 text-destructive", leave: "bg-warning/10 text-warning" };
   return (
     <>
-      <PageHeader title="My Attendance" subtitle={`Last ${rows.length} days`} />
+      <PageHeader title="My Attendance" subtitle={loading ? "Loading records…" : `Last ${rows.length} days`} />
+      {loading && <StudentListSkeleton rows={6} />}
       <div className="space-y-2">
-        {rows.map(r => (
+        {!loading && rows.map(r => (
           <Card key={r.id} className="p-3 flex items-center justify-between shadow-card">
             <span className="font-medium">{new Date(r.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</span>
             <span className={`text-xs px-2.5 py-1 rounded-full capitalize font-medium ${colors[r.status]}`}>{r.status}</span>
           </Card>
         ))}
-        {rows.length === 0 && <p className="text-muted-foreground text-center py-8">No records yet.</p>}
+        {!loading && rows.length === 0 && <p className="text-muted-foreground text-center py-8">No records yet.</p>}
       </div>
     </>
   );

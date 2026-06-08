@@ -11,6 +11,7 @@ import { Sparkles, Loader2, ListChecks, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { invokeEdgeFunction, isAiUnavailableError } from "@/lib/edgeFunction";
 import { buildRuleImprovementPlan, type ImprovementPlanPayload } from "@/lib/improvementPlanFallback";
+import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 export default function ImprovementPlans() {
   const { user } = useAuth();
@@ -110,14 +111,10 @@ export default function ImprovementPlans() {
         subtitle="Weak topics from DPPs, battles, and self-practice — with steps to improve"
       />
 
-      {loading && <p className="text-center text-muted-foreground py-8">Loading weak topics…</p>}
+      {loading && <StudentListSkeleton rows={3} />}
 
       {!loading && error && (
-        <Card className="p-6 text-center">
-          <p className="text-sm text-muted-foreground mb-2">Could not load improvement plans.</p>
-          <p className="text-xs text-destructive mb-3">{error}</p>
-          <Button size="sm" variant="outline" onClick={() => reload()}>Try again</Button>
-        </Card>
+        <StudentErrorState title="Could not load improvement plans" message={error} onRetry={reload} />
       )}
 
       {!loading && !error && plans.length === 0 && (

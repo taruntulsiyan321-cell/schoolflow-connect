@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/ui-bits";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 type RecoveryQuestion = {
   id: string;
@@ -22,6 +23,7 @@ type RecoveryQuestion = {
 export default function RecoverySession() {
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<any>(null);
   const [questions, setQuestions] = useState<RecoveryQuestion[]>([]);
   const [idx, setIdx] = useState(0);
@@ -33,11 +35,12 @@ export default function RecoverySession() {
     if (!id) return;
     (async () => {
       setLoading(true);
+      setLoadError(null);
       const { data, error } = await (supabase as any).rpc("rpc_get_recovery_assignment", {
         _assignment_id: id,
       });
       if (error) {
-        toast.error(error.message);
+        setLoadError(error.message);
         setLoading(false);
         return;
       }
@@ -83,9 +86,16 @@ export default function RecoverySession() {
   };
 
   if (loading) {
+    return <StudentSessionSkeleton label="Loading recovery session…" />;
+  }
+
+  if (loadError) {
     return (
-      <div className="py-16 text-center text-muted-foreground flex flex-col items-center gap-2">
-        <Loader2 className="w-6 h-6 animate-spin" /> Loading recovery session…
+      <div className="max-w-md mx-auto space-y-4">
+        <StudentErrorState title="Could not load recovery session" message={loadError} onRetry={() => window.location.reload()} />
+        <div className="text-center">
+          <Button asChild variant="outline"><Link to="/student/recovery">Back to Recovery Zone</Link></Button>
+        </div>
       </div>
     );
   }

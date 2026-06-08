@@ -1,0 +1,30 @@
+---
+description: Student panel quality bar — flagship product, zero-glitch UX
+globs: src/pages/student/**,src/pages/StudentDashboard.tsx,src/components/student/**,src/components/battleground/**
+alwaysApply: false
+---
+
+# Student panel quality standard
+
+The student panel is the flagship product. Prioritize polish over feature count.
+
+## Before marking any student feature complete
+
+- UI works on mobile and desktop
+- Loading: skeleton (not plain "Loading…" text alone)
+- Error: inline card with retry, not toast-only
+- Empty: helpful copy + clear CTAs to next action
+- Actions: instant feedback (disabled state, optimistic remove where safe)
+- No layout shift when data arrives
+- No dead buttons or placeholder flows
+- RPC/DB failures handled gracefully
+
+## Prefer
+
+- `StudentPanelStates` components for skeletons and errors
+- Optimistic UI for mark-done / dismiss actions (avoid reload that re-fetches stale data)
+- One polished flow over multiple half-finished screens
+
+## Quality over feature count
+
+If choosing between many buggy features vs fewer polished ones, choose fewer polished ones.
