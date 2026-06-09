@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { invokeEdgeFunction, isAiUnavailableError } from "@/lib/edgeFunction";
+import { invokeEdgeFunction } from "@/lib/edgeFunction";
 import {
   buildRuleConceptReport,
   type ConceptRecoveryReport,
@@ -40,7 +40,7 @@ export function ConceptRecoveryReport({ sourceType, sourceId, title = "Concept r
       }
       const r = data as ConceptRecoveryReport;
       setReport(r);
-      setInsights(buildRuleConceptReport(r));
+      setInsights(r.insights ?? null);
       setLoading(false);
     })();
   }, [sourceType, sourceId]);
@@ -57,9 +57,7 @@ export function ConceptRecoveryReport({ sourceType, sourceId, title = "Concept r
       setAiLoading(false);
       return;
     }
-    if (isAiUnavailableError(err)) {
-      setInsights(buildRuleConceptReport(report));
-    }
+    if (err) setError(err);
     setAiLoading(false);
   };
 
@@ -153,7 +151,7 @@ export function ConceptRecoveryReport({ sourceType, sourceId, title = "Concept r
             </>
           )}
           <p className="text-[10px] text-muted-foreground mt-2 uppercase tracking-wide">
-            Source: {insights.source === "ai" ? "AI coach" : "Rule-based (offline)"}
+            Source: Gemini Flash
           </p>
         </div>
       )}
