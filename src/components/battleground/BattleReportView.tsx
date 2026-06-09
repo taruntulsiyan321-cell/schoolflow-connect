@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
-import { invokeEdgeFunction, isAiUnavailableError } from "@/lib/edgeFunction";
-import { buildRuleBattleInsights, type BattleAiInsights } from "@/lib/battleReportInsights";
+import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import type { BattleAiInsights } from "@/lib/battleReportInsights";
 import {
   Target, Clock, TrendingUp, TrendingDown, Sparkles, Loader2,
   AlertTriangle, Brain, CheckCircle2, XCircle, Timer, BarChart3,
@@ -96,20 +96,10 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         return;
       }
 
-      const fallback = buildRuleBattleInsights(data.report ?? {});
-      await applyInsights(fallback);
-      if (fnErr) {
-        setAiError(
-          isAiUnavailableError(fnErr)
-            ? "Using offline coach — add GOOGLE_GEMINI_API_KEY to enable Gemini Flash."
-            : fnErr,
-        );
-      }
+      setAiError(fnErr || "Gemini could not generate this battle report. Please retry.");
       return;
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? "AI insights failed";
-      const fallback = buildRuleBattleInsights(data.report ?? {});
-      await applyInsights(fallback);
       setAiError(msg);
     } finally {
       setAiLoading(false);
@@ -205,12 +195,9 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <Sparkles className="w-5 h-5 text-primary" />
           <h2 className="font-bold">Performance Coach</h2>
-          {coachSource === "rule" && (
-            <Badge variant="outline" className="text-xs border-warning/40 text-warning">Offline coach</Badge>
-          )}
-          {(coachSource === "ai" || coachSource === "gemini") && (
+          {(coachSource === "ai" || coachSource === "gemini" || coachSource === "rule") && (
             <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-              {coachSource === "gemini" ? "Gemini Flash" : "AI powered"}
+              Gemini Flash
             </Badge>
           )}
         </div>
