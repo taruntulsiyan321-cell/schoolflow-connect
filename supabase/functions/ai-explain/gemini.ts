@@ -40,8 +40,8 @@ export function getAiConfig(): AiConfig | null {
     primaryModel,
     ...configuredFallbacks,
     "gemini-2.0-flash-lite",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-8b",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
   ]));
 
   if (googleKey) return { provider: "google", apiKey: googleKey, models };
@@ -111,7 +111,7 @@ export async function generateStructured<T>(req: StructuredAiRequest): Promise<A
   for (const model of cfg.models) {
     const result = await callGoogleGemini<T>(cfg, model, req);
     if (result.ok) return result;
-    if (result.status !== 429) return result;
+    if (result.status !== 429 && !result.error.includes("NOT_FOUND")) return result;
     lastRateLimit = result;
   }
 
