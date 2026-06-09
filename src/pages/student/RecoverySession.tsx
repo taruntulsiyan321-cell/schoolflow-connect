@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui-bits";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle, Sparkles, Loader2, Brain } from "lucide-react";
 import { toast } from "sonner";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
@@ -14,6 +15,7 @@ import { generateFromTemplate } from "@/engines/class12Math/generate";
 import type { GeneratedQuestion } from "@/engines/class12Math/types";
 import { freshSessionSeed, SEED_STRIDE } from "@/lib/practiceDiversity";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
+import { invokeEdgeFunction } from "@/lib/edgeFunction";
 
 type RecoveryQuestion = {
   id: string;
@@ -29,11 +31,14 @@ type RecoveryQuestion = {
   explanation_template?: string;
   chapter?: string;
   generated?: GeneratedQuestion;
+  correct_index?: number;
+  ai_generated?: boolean;
 };
 
 export default function RecoverySession() {
   const { id } = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [assignment, setAssignment] = useState<any>(null);
   const [questions, setQuestions] = useState<RecoveryQuestion[]>([]);
@@ -41,11 +46,52 @@ export default function RecoverySession() {
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [done, setDone] = useState(false);
+  const [score, setScore] = useState({ correct: 0, total: 0 });
 
   const sessionSeed = useMemo(
     () => freshSessionSeed(assignment?.chapter ?? assignment?.concept ?? "recovery"),
     [assignment?.chapter, assignment?.concept],
   );
+
+  // ── Generate AI recovery questions when DB has none ────────────────
+  const generateAiQuestions = async (assign: any): Promise<RecoveryQuestion[]> => {
+    setAiLoading(true);
+    try {
+      const { data, error } = await invokeEdgeFunction<{ questions: { question: string; options: string[]; correct_index: number; explanation: string }[] }>(
+        "dpp-generate-questions",
+        {
+          subject: assign.subject ?? "Mathematics",
+          chapter: assign.chapter ?? "",
+          topic: assign.concept ?? assign.chapter ?? "",
+          difficulty: assign.severity === "severe" ? "easy" : assign.severity === "moderate" ? "medium" : "medium",
+          count: assign.severity === "severe" ? 8 : assign.severity === "moderate" ? 6 : 5,
+        },
+      );
+
+      if (data?.questions && data.questions.length > 0) {
+        return data.questions.map((q, i) => ({
+          id: `ai-${Date.now()}-${i}`,
+          order_index: i,
+          question_text: q.question,
+          options: q.options,
+          correct_index: q.correct_index,
+          explanation: q.explanation,
+          answered: false,
+          ai_generated: true,
+        }));
+      }
+
+      if (error) {
+        console.warn("AI question generation failed:", error);
+      }
+      return [];
+    } catch (e) {
+      console.warn("AI question generation error:", e);
+      return [];
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -60,7 +106,8 @@ export default function RecoverySession() {
         setLoading(false);
         return;
       }
-      setAssignment(data?.assignment);
+      const assign = data?.assignment;
+      setAssignment(assign);
 
       const raw = (data?.questions ?? []) as RecoveryQuestion[];
       const enriched: RecoveryQuestion[] = [];
@@ -133,6 +180,21 @@ export default function RecoverySession() {
         };
       }).filter((q) => q.question_text?.trim() && q.options?.length >= 2);
 
+      // ── If no DB questions, generate AI questions on-the-fly ──────
+      if (qs.length === 0 && assign) {
+        const aiQuestions = await generateAiQuestions(assign);
+        if (aiQuestions.length > 0) {
+          setQuestions(aiQuestions);
+          setIdx(0);
+          setLoading(false);
+          return;
+        }
+        // AI also failed — show error with helpful actions
+        setLoadError("No practice questions could be loaded. AI generation is unavailable — please try again later.");
+        setLoading(false);
+        return;
+      }
+
       if (qs.length === 0) {
         setLoadError("No practice questions could be loaded for this recovery topic.");
         setLoading(false);
@@ -148,8 +210,9 @@ export default function RecoverySession() {
 
   const current = questions[idx];
 
-  const correctIdx = current?.generated?.correctIndex ??
-    (current as any)?.correct_answer?.correct_index ?? 0;
+  const correctIdx = current?.ai_generated
+    ? (current.correct_index ?? 0)
+    : (current?.generated?.correctIndex ?? (current as any)?.correct_answer?.correct_index ?? 0);
 
   const submit = async (optionIndex: number) => {
     if (!current || revealed) return;
@@ -157,14 +220,29 @@ export default function RecoverySession() {
     setRevealed(true);
 
     const ok = optionIndex === correctIdx;
+    setScore((prev) => ({ correct: prev.correct + (ok ? 1 : 0), total: prev.total + 1 }));
 
-    const { data, error } = await (supabase as any).rpc("rpc_submit_recovery_answer", {
-      _question_id: current.id,
-      _student_answer: { selected_index: optionIndex, text: current.options[optionIndex] },
-      _is_correct: ok,
-    });
-    if (error) toast.error(error.message);
-    else if (data?.completed) setDone(true);
+    // For AI-generated questions, we still try to record via RPC if possible
+    if (current.ai_generated) {
+      // Try recording the answer — the RPC may fail if the question_id is a client-generated ID
+      try {
+        await (supabase as any).rpc("rpc_submit_recovery_answer", {
+          _question_id: current.id,
+          _student_answer: { selected_index: optionIndex, text: current.options[optionIndex] },
+          _is_correct: ok,
+        });
+      } catch {
+        // Non-fatal for AI questions — answer tracking is best-effort
+      }
+    } else {
+      const { data, error } = await (supabase as any).rpc("rpc_submit_recovery_answer", {
+        _question_id: current.id,
+        _student_answer: { selected_index: optionIndex, text: current.options[optionIndex] },
+        _is_correct: ok,
+      });
+      if (error) toast.error(error.message);
+      else if (data?.completed) setDone(true);
+    }
   };
 
   const next = () => {
@@ -177,8 +255,28 @@ export default function RecoverySession() {
     setIdx(idx + 1);
   };
 
-  if (loading) {
+  // ── Loading states ─────────────────────────────────────────────────
+
+  if (loading && !aiLoading) {
     return <StudentSessionSkeleton label="Loading recovery session…" />;
+  }
+
+  if (aiLoading) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-4">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Sparkles className="w-8 h-8 text-primary animate-pulse" />
+        </div>
+        <h2 className="text-xl font-semibold">Generating AI Practice Questions</h2>
+        <p className="text-muted-foreground text-sm">
+          Creating personalized questions based on your weak concepts…
+        </p>
+        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Powered by Gemini AI
+        </div>
+      </div>
+    );
   }
 
   if (loadError) {
@@ -211,12 +309,38 @@ export default function RecoverySession() {
     );
   }
 
+  // ── Completion screen ──────────────────────────────────────────────
+
   if (done) {
+    const isAiSession = questions.some((q) => q.ai_generated);
+    const accuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
     return (
       <Card className="p-8 max-w-md mx-auto text-center shadow-card">
         <CheckCircle2 className="w-12 h-12 mx-auto text-accent mb-3" />
         <h2 className="text-xl font-semibold">Recovery complete</h2>
         <p className="text-muted-foreground mt-2">{assignment.concept} — {assignment.subject}</p>
+
+        {isAiSession && (
+          <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">AI Practice Results</span>
+            </div>
+            <div className="text-2xl font-bold">{score.correct}/{score.total}</div>
+            <div className="text-sm text-muted-foreground">{accuracy}% accuracy</div>
+            {accuracy < 60 && (
+              <p className="text-xs text-warning mt-2">
+                Consider reviewing the chapter notes and trying again.
+              </p>
+            )}
+            {accuracy >= 80 && (
+              <p className="text-xs text-accent mt-2">
+                Excellent! You're mastering this concept.
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="flex gap-2 mt-6 justify-center flex-wrap">
           <Button asChild variant="outline"><Link to="/student/recovery">Recovery Zone</Link></Button>
           <Button asChild><Link to="/student/mistakes">Mistake book</Link></Button>
@@ -225,6 +349,9 @@ export default function RecoverySession() {
     );
   }
 
+  // ── Quiz UI ────────────────────────────────────────────────────────
+
+  const isAiSession = questions.some((q) => q.ai_generated);
   const pct = ((idx + (revealed ? 1 : 0)) / questions.length) * 100;
 
   return (
@@ -238,8 +365,20 @@ export default function RecoverySession() {
         subtitle={`${assignment.subject}${assignment.chapter ? ` · ${assignment.chapter}` : ""} · ${assignment.severity} priority`}
       />
 
+      {isAiSession && (
+        <div className="flex items-center gap-2 text-xs font-medium text-primary bg-primary/5 border border-primary/15 rounded-lg px-3 py-2 mb-3">
+          <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          AI-generated practice questions targeting your weak concept
+        </div>
+      )}
+
       <Progress value={pct} className="h-1.5 mb-4" />
-      <p className="text-xs text-muted-foreground mb-4">Question {idx + 1} of {questions.length}</p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs text-muted-foreground">Question {idx + 1} of {questions.length}</p>
+        {isAiSession && (
+          <p className="text-xs text-muted-foreground">{score.correct}/{score.total} correct</p>
+        )}
+      </div>
 
       <Card className="p-5 shadow-card">
         <MathText block className="font-medium leading-relaxed" text={current.question_text} />
