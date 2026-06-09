@@ -14,13 +14,7 @@ import {
   getNcertSubjects,
   parseClassGrade,
 } from "@/lib/ncertSyllabus";
-import {
-  canUseMath12TemplateSolo,
-  createMath12TemplateSoloBattle,
-  isEmptyQuestionBankError,
-  NO_BANK_MSG,
-  shouldPreferMathTemplateSolo,
-} from "@/lib/battleTemplateSolo";
+import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
 import { Globe, Loader2, Search, User, Users, UsersRound, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
@@ -28,7 +22,7 @@ import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 const ANY = "__any__";
 
-type BattleMode = "solo" | "duel" | "class" | "open";
+type BattleMode = "duel" | "class" | "open";
 
 type Classmate = {
   id: string;
@@ -46,9 +40,8 @@ type Props = {
 };
 
 const MODE_META: Record<BattleMode, { label: string; icon: typeof User; hint: string }> = {
-  solo: { label: "Solo", icon: User, hint: "Private practice — not listed publicly" },
-  duel: { label: "Challenge", icon: Users, hint: "1v1 with a classmate" },
-  class: { label: "Class lobby", icon: UsersRound, hint: "Your class can join this battle" },
+  duel: { label: "1v1", icon: Users, hint: "Challenge one classmate" },
+  class: { label: "Class", icon: UsersRound, hint: "Your class can join" },
   open: { label: "Open", icon: Globe, hint: "Anyone in school can join" },
 };
 
@@ -58,7 +51,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
   const grade = useMemo(() => parseClassGrade(className), [className]);
   const subjects = useMemo(() => getNcertSubjects(grade), [grade]);
 
-  const [mode, setMode] = useState<BattleMode>("solo");
+  const [mode, setMode] = useState<BattleMode>("duel");
   const [classmates, setClassmates] = useState<Classmate[]>([]);
   const [filter, setFilter] = useState("");
   const [opponent, setOpponent] = useState<Classmate | null>(null);
@@ -71,7 +64,6 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
   const [loading, setLoading] = useState(false);
   const [bankEmptyHint, setBankEmptyHint] = useState(false);
   const [classmatesError, setClassmatesError] = useState<string | null>(null);
-  const math12Solo = canUseMath12TemplateSolo(subject, grade);
 
   useEffect(() => {
     if (subjects.length && !subjects.includes(subject)) setSubject(subjects[0]);
@@ -192,61 +184,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       let battleId: string | null = null;
       let error: { message: string } | null = null;
 
-      const preferMathTemplates =
-        mode === "solo" && shouldPreferMathTemplateSolo(subject, grade, bankRows.length === 0);
-
-      if (preferMathTemplates) {
-        try {
-          const result = await createMath12TemplateSoloBattle({
-            chapter: chap,
-            difficulty,
-            count: 5,
-            perQ: 20,
-            classId,
-          });
-          if ("redirectTo" in result) {
-            toast({ title: "Starting Class 12 Math practice session" });
-            nav(result.redirectTo);
-            return;
-          }
-          battleId = result.battleId;
-        } catch (templateErr: unknown) {
-          const msg =
-            templateErr && typeof templateErr === "object" && "message" in templateErr
-              ? String((templateErr as { message: string }).message)
-              : "";
-          if (!msg.toLowerCase().includes("no templates")) {
-            throw templateErr;
-          }
-        }
-      }
-
-      if (mode === "solo" && !battleId) {
-        const res = await supabase.rpc("rpc_create_quick_battle", base);
-        battleId = res.data as string;
-        error = res.error;
-        if (error && isEmptyQuestionBankError(error.message)) {
-          setBankEmptyHint(true);
-          try {
-            const result = await createMath12TemplateSoloBattle({
-              chapter: chap,
-              difficulty,
-              count: 5,
-              perQ: 20,
-              classId,
-            });
-            if ("redirectTo" in result) {
-              toast({ title: "Starting Class 12 Math practice session" });
-              nav(result.redirectTo);
-              return;
-            }
-            battleId = result.battleId;
-            error = null;
-          } catch {
-            /* keep original bank-empty error */
-          }
-        }
-      } else if (mode === "duel") {
+      if (mode === "duel") {
         const res = await supabase.rpc("rpc_challenge_student", {
           _opponent_user_id: opponent!.user_id,
           _subject: subject,
@@ -273,7 +211,6 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
         throw new Error("Battle could not be created. Try Class 12 Math practice or another subject.");
       }
       const labels: Record<BattleMode, string> = {
-        solo: "Solo practice ready",
         duel: `Challenge sent to ${opponent!.full_name.split(" ")[0]}`,
         class: "Class lobby is live — classmates can join",
         open: "Open battle is live — anyone can join",
@@ -303,7 +240,11 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-1 rounded-lg bg-muted/50 border border-border/60">
+      <p className="text-xs text-muted-foreground">
+        For solo practice use <Link to="/student/practice/math12" className="text-primary font-semibold underline">Class 12 Practice</Link> (AI questions).
+      </p>
+
+      <div className="grid grid-cols-3 gap-2 p-1 rounded-lg bg-muted/50 border border-border/60">
         {(Object.keys(MODE_META) as BattleMode[]).map((m) => {
           const Meta = MODE_META[m];
           const Icon = Meta.icon;
@@ -376,11 +317,6 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
         </Card>
       )}
 
-      {math12Solo && mode === "solo" && (
-        <p className="text-[11px] text-muted-foreground -mt-1">
-          Solo Math uses the Class 12 template engine — unlimited fresh NCERT questions.
-        </p>
-      )}
 
       {mode === "duel" && (
         <div className="space-y-2">

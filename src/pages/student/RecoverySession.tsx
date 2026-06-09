@@ -15,7 +15,7 @@ import { generateFromTemplate } from "@/engines/class12Math/generate";
 import type { GeneratedQuestion } from "@/engines/class12Math/types";
 import { freshSessionSeed, SEED_STRIDE } from "@/lib/practiceDiversity";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
-import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import { fetchRecentMistakeContext, generateAiPracticeQuestions } from "@/lib/aiPracticeQuestions";
 
 type RecoveryQuestion = {
   id: string;
@@ -57,19 +57,28 @@ export default function RecoverySession() {
   const generateAiQuestions = async (assign: any): Promise<RecoveryQuestion[]> => {
     setAiLoading(true);
     try {
-      const { data, error } = await invokeEdgeFunction<{ questions: { question: string; options: string[]; correct_index: number; explanation: string }[] }>(
-        "dpp-generate-questions",
-        {
-          subject: assign.subject ?? "Mathematics",
-          chapter: assign.chapter ?? "",
-          topic: assign.concept ?? assign.chapter ?? "",
-          difficulty: assign.severity === "severe" ? "easy" : assign.severity === "moderate" ? "medium" : "medium",
-          count: assign.severity === "severe" ? 8 : assign.severity === "moderate" ? 6 : 5,
-        },
-      );
+      const concept = assign.concept ?? assign.chapter ?? "";
+      const { text: mistakeContext, concepts } = await fetchRecentMistakeContext({
+        subject: assign.subject ?? "Mathematics",
+        chapter: assign.chapter,
+        concept,
+      });
 
-      if (data?.questions && data.questions.length > 0) {
-        return data.questions.map((q, i) => ({
+      const count =
+        assign.severity === "severe" ? 8 : assign.severity === "moderate" ? 6 : 5;
+
+      const { questions, error } = await generateAiPracticeQuestions({
+        subject: assign.subject ?? "Mathematics",
+        chapter: assign.chapter ?? "",
+        topic: concept,
+        difficulty: assign.severity === "severe" ? "easy" : "medium",
+        count,
+        mistakeContext,
+        weakConcepts: concepts.length ? concepts : concept ? [concept] : [],
+      });
+
+      if (questions.length > 0) {
+        return questions.map((q, i) => ({
           id: `ai-${Date.now()}-${i}`,
           order_index: i,
           question_text: q.question,
@@ -81,9 +90,7 @@ export default function RecoverySession() {
         }));
       }
 
-      if (error) {
-        console.warn("AI question generation failed:", error);
-      }
+      if (error) console.warn("AI question generation failed:", error);
       return [];
     } catch (e) {
       console.warn("AI question generation error:", e);

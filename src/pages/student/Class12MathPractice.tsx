@@ -32,11 +32,9 @@ export default function Class12MathPractice() {
   }
 
   const start = () => {
-    if (subject === "Mathematics") {
-      nav(`/student/practice/math12/session?chapter=${encodeURIComponent(chapter)}&count=${count}`);
-    } else {
-      nav(`/student/practice/ai/session?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapter)}&count=${count}`);
-    }
+    nav(
+      `/student/practice/ai/session?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapter)}&count=${count}`,
+    );
   };
 
   return (
@@ -44,7 +42,7 @@ export default function Class12MathPractice() {
       <PageHeader
         eyebrow="CBSE · NCERT · Class 12"
         title="Practice with AI-fresh questions"
-        subtitle="Every session pulls new questions — Math uses parametric templates; Physics is AI-generated and cached so the bank keeps growing."
+        subtitle="Gemini generates fresh CBSE questions every session — same quality as Recovery practice."
       />
 
       <Card className="p-6 max-w-lg shadow-card space-y-5">

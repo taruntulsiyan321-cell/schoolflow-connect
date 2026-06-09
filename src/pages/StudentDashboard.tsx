@@ -37,10 +37,8 @@ import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 
 const nav = [
   { to: "/student", label: "Growth", icon: <Brain className="w-4 h-4" /> },
-  { to: "/student/revision", label: "Revision", icon: <ListChecks className="w-4 h-4" /> },
-  { to: "/student/plans", label: "Improvement", icon: <Sparkles className="w-4 h-4" /> },
+  { to: "/student/practice/math12", label: "Practice", icon: <Target className="w-4 h-4" /> },
   { to: "/student/recovery", label: "Recovery", icon: <Wrench className="w-4 h-4" />, end: false },
-  { to: "/student/mistakes", label: "Mistakes", icon: <BookMarked className="w-4 h-4" /> },
   { to: "/student/analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" />, end: false },
   { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
@@ -119,7 +117,7 @@ const Home = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${pct}%`} tone={pct >= 75 ? "accent" : "warning"} />
         <StatCard icon={<Wallet className="w-5 h-5" />} label="Pending Fees" value={pendingFees ? `₹${pendingFees}` : "₹0"} tone={pendingFees > 0 ? "warning" : "accent"} />
-        <Link to="/student/battleground/stats"><StatCard icon={<Sword className="w-5 h-5" />} label="Level / XP" value={xp ? `L${xp.level} · ${xp.xp}` : "L1 · 0"} /></Link>
+        <Link to="/student/battleground/progress"><StatCard icon={<Sword className="w-5 h-5" />} label="Level / XP" value={xp ? `L${xp.level} · ${xp.xp}` : "L1 · 0"} /></Link>
         <Link to="/student/leaderboard"><StatCard icon={<Trophy className="w-5 h-5" />} label="Class Rank" value={rank ? `#${rank}` : "—"} tone="accent" /></Link>
       </div>
       <h3 className="font-semibold mb-3">Latest notices</h3>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Routes, Route, useNavigate, useParams, Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { Routes, Route, useNavigate, useParams, Link, NavLink, Outlet, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,6 @@ import { Sword, Trophy, Sparkles, Plus, Users, Clock, Target, ArrowLeft, Trendin
 import { XPRing, StreakFlame, BadgeCard, BattleCard, PodiumRow, Countdown } from "@/components/battleground/bg-bits";
 import { FrictionlessChallenge } from "@/components/battleground/FrictionlessChallenge";
 import { InviteFriends, MyInvites } from "@/components/battleground/Invites";
-import { BattleFeed } from "@/components/battleground/BattleFeed";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { BADGES, badgesByGroup, GROUP_LABEL, GROUP_ORDER } from "@/lib/badges";
 import { cn } from "@/lib/utils";
@@ -28,9 +27,7 @@ const BG_BASE = "/student/battleground";
 const BG_TABS = [
   { to: BG_BASE, label: "Arena", end: true, icon: Sword },
   { to: `${BG_BASE}/create`, label: "Challenge", end: true, icon: Users },
-  { to: `${BG_BASE}/achievements`, label: "Badges", end: true, icon: Award },
-  { to: `${BG_BASE}/stats`, label: "Stats", end: true, icon: TrendingUp },
-  { to: `${BG_BASE}/leaderboard`, label: "Ranks", end: true, icon: Trophy },
+  { to: `${BG_BASE}/progress`, label: "Progress", end: true, icon: TrendingUp },
 ] as const;
 
 function BattlegroundLayout() {
@@ -76,7 +73,6 @@ function Arena() {
   const [student, setStudent] = useState<any>(null);
   const [xp, setXp] = useState<any>({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
   const [battles, setBattles] = useState<any[]>([]);
-  const [topClass, setTopClass] = useState<any[]>([]);
   const [arenaLoading, setArenaLoading] = useState(true);
 
   const refreshXp = async () => {
@@ -101,24 +97,8 @@ function Arena() {
       } else {
         battleQuery = battleQuery.eq("mode", "open");
       }
-      const { data: b } = await battleQuery.order("starts_at", { ascending: true }).limit(8);
+      const { data: b } = await battleQuery.order("starts_at", { ascending: true }).limit(3);
       setBattles(b ?? []);
-      // Top performers in class
-      if (s?.class_id) {
-        const { data: cb } = await supabase.from("battles").select("id").eq("class_id", s.class_id).limit(50);
-        const ids = (cb ?? []).map((r: any) => r.id);
-        if (ids.length) {
-          const { data: parts } = await supabase.from("battle_participants")
-            .select("user_id, display_name, score").in("battle_id", ids);
-          const agg: Record<string, { name: string; score: number }> = {};
-          (parts ?? []).forEach((p: any) => {
-            if (!agg[p.user_id]) agg[p.user_id] = { name: p.display_name || "Student", score: 0 };
-            agg[p.user_id].score += p.score;
-          });
-          const sorted = Object.entries(agg).map(([uid, v]) => ({ uid, ...v })).sort((a, b) => b.score - a.score).slice(0, 5);
-          setTopClass(sorted);
-        }
-      }
       setArenaLoading(false);
     })();
   }, [user]);
@@ -158,99 +138,47 @@ function Arena() {
         </div>
       </Card>
 
-      {/* Class 12 Math practice — works when question bank is empty */}
-      <Card className="p-4 surface-card border-primary/20">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="icon-tile">
-            <BookOpen className="w-5 h-5" />
+      <div className="grid sm:grid-cols-2 gap-3">
+        <Card className="p-4 surface-card border-primary/20">
+          <div className="flex items-center gap-3">
+            <div className="icon-tile"><BookOpen className="w-5 h-5" /></div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm">Class 12 practice</div>
+              <p className="text-xs text-muted-foreground mt-0.5">AI questions — same as Recovery</p>
+            </div>
+            <Button asChild size="sm" className="btn-cta shrink-0">
+              <Link to="/student/practice/math12">Practice</Link>
+            </Button>
           </div>
-          <div className="flex-1 min-w-[180px]">
-            <div className="section-label">Solo practice</div>
-            <div className="font-medium text-sm mt-0.5">Class 12 Mathematics — unlimited NCERT MCQs</div>
-            <p className="text-xs text-muted-foreground mt-0.5">Use when battles have no bank questions yet</p>
+        </Card>
+        <Card className="p-4 surface-card">
+          <div className="flex items-center gap-3">
+            <div className="icon-tile"><Users className="w-5 h-5" /></div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm">Challenge a classmate</div>
+              <p className="text-xs text-muted-foreground mt-0.5">1v1 or class lobby</p>
+            </div>
+            <Button size="sm" variant="outline" className="shrink-0" onClick={() => nav(`${BG_BASE}/create`)}>
+              Challenge
+            </Button>
           </div>
-          <Button asChild size="sm" className="btn-cta shrink-0">
-            <Link to="/student/practice/math12">Start practice</Link>
-          </Button>
-        </div>
-      </Card>
-
-      {/* Frictionless challenge — subject → chapter → topic → start */}
-      <FrictionlessChallenge
-        classId={student?.class_id}
-        className={student?.classes?.name ?? student?.classes?.display_name}
-      />
-
-      {/* Pending invites from classmates */}
-      <MyInvites />
-
-      {/* Live competitive activity timeline */}
-      <BattleFeed />
-
-      {/* Daily challenge */}
-      <Card className="p-4 surface-card">
-        <div className="flex items-center gap-3">
-          <div className="icon-tile">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="section-label">Daily goal</div>
-            <div className="font-medium text-sm mt-0.5">Win one battle today for bonus XP</div>
-            <Progress value={Math.min(100, (xp.total_battles % 5) * 20)} className="mt-2 h-1.5" />
-          </div>
-        </div>
-      </Card>
-
-      {/* Quick nav */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { to: `${BG_BASE}/achievements`, icon: Award, label: "Badges" },
-          { to: `${BG_BASE}/stats`, icon: TrendingUp, label: "Analytics" },
-          { to: `${BG_BASE}/leaderboard`, icon: Trophy, label: "Leaderboard" },
-          { to: `${BG_BASE}/create`, icon: Sword, label: "Challenge" },
-        ].map((q) => (
-          <Link key={q.to} to={q.to}>
-            <Card className="p-4 surface-card cursor-pointer">
-              <div className="icon-tile mb-3">
-                <q.icon className="w-5 h-5" />
-              </div>
-              <div className="font-medium text-sm">{q.label}</div>
-            </Card>
-          </Link>
-        ))}
-      </div>
-
-      {/* Live & upcoming battles */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold flex items-center gap-2"><Zap className="w-4 h-4 text-primary" /> Live & upcoming</h2>
-          <Link to={`${BG_BASE}/create`} className="text-xs text-primary font-semibold">+ Create</Link>
-        </div>
-        {battles.length === 0 ? (
-          <Card className="p-8 text-center">
-            <Sword className="w-10 h-10 mx-auto text-muted-foreground/50" />
-            <div className="font-semibold mt-3">No active battles</div>
-            <p className="text-sm text-muted-foreground mt-1">Be the first to challenge your class!</p>
-            <Button onClick={() => nav(`${BG_BASE}/create`)} className="mt-4 btn-cta">Start battle</Button>
-          </Card>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-3">
-            {battles.map((b) => <BattleCard key={b.id} battle={b} onJoin={() => nav(`${BG_BASE}/battle/${b.id}`)} />)}
-          </div>
-        )}
-      </div>
-
-      {/* Class top */}
-      <div>
-        <h2 className="text-base font-semibold mb-3 flex items-center gap-2"><Trophy className="w-4 h-4 text-tier-gold" /> Class leaderboard</h2>
-        <Card className="p-3 space-y-2">
-          {topClass.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">Play a battle to start ranking.</p>
-          ) : topClass.map((p, i) => (
-            <PodiumRow key={p.uid} rank={i + 1} name={p.name} score={p.score} isMe={p.uid === user?.id} />
-          ))}
         </Card>
       </div>
+
+      <MyInvites />
+
+      {battles.length > 0 && (
+        <div>
+          <h2 className="text-sm font-semibold mb-2 flex items-center gap-2">
+            <Zap className="w-4 h-4 text-primary" /> Join a live battle
+          </h2>
+          <div className="space-y-2">
+            {battles.slice(0, 3).map((b) => (
+              <BattleCard key={b.id} battle={b} onJoin={() => nav(`${BG_BASE}/battle/${b.id}`)} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -894,6 +822,16 @@ function MyStats() {
   );
 }
 
+function BattlegroundProgress() {
+  return (
+    <div className="space-y-10 animate-rise">
+      <MyStats />
+      <Achievements />
+      <SharedLeaderboard />
+    </div>
+  );
+}
+
 // =================== ROOT ===================
 export default function Battleground() {
   return (
@@ -901,9 +839,10 @@ export default function Battleground() {
       <Route element={<BattlegroundLayout />}>
         <Route index element={<Arena />} />
         <Route path="create" element={<CreateBattle />} />
-        <Route path="achievements" element={<Achievements />} />
-        <Route path="stats" element={<MyStats />} />
-        <Route path="leaderboard" element={<SharedLeaderboard />} />
+        <Route path="progress" element={<BattlegroundProgress />} />
+        <Route path="stats" element={<Navigate to="../progress" replace />} />
+        <Route path="achievements" element={<Navigate to="../progress" replace />} />
+        <Route path="leaderboard" element={<Navigate to="../progress" replace />} />
       </Route>
       <Route path="battle/:id" element={<BattleRoom />} />
       <Route path="report/:participantId" element={<BattleReportPage />} />

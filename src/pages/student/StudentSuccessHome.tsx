@@ -52,12 +52,10 @@ export default function StudentSuccessHome() {
             <div className="text-sm text-white/80 mt-1">{readiness?.label ?? "Building profile"}</div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button size="sm" variant="secondary" asChild><Link to="/student/revision">Revision queue</Link></Button>
-            <Button size="sm" variant="secondary" asChild><Link to="/student/plans">Improvement plans</Link></Button>
+            <Button size="sm" asChild><Link to="/student/practice/math12">Practice</Link></Button>
             <Button size="sm" variant="secondary" asChild><Link to="/student/recovery">Recovery zone</Link></Button>
-            <Button size="sm" variant="secondary" asChild><Link to="/student/mistakes">Mistake book</Link></Button>
-            <Button size="sm" asChild><Link to="/student/analytics">Full analytics</Link></Button>
-            <Button size="sm" variant="outline" asChild><Link to="/student/report">Print report</Link></Button>
+            <Button size="sm" variant="secondary" asChild><Link to="/student/revision">Revision</Link></Button>
+            <Button size="sm" variant="outline" asChild><Link to="/student/analytics">Analytics</Link></Button>
           </div>
         </div>
         <Progress value={readiness?.score ?? 0} className="mt-4 h-2" />
@@ -66,7 +64,7 @@ export default function StudentSuccessHome() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${readiness?.attendance_pct ?? 0}%`} tone={(readiness?.attendance_pct ?? 0) >= 75 ? "accent" : "warning"} />
         <StatCard icon={<Target className="w-5 h-5" />} label="Practice accuracy" value={`${readiness?.accuracy_pct ?? 0}%`} hint="DPP + self-practice" />
-        <Link to="/student/battleground/stats"><StatCard icon={<Sword className="w-5 h-5" />} label="Level" value={xp ? `L${xp.level}` : "L1"} hint={`${xp?.xp ?? 0} XP`} /></Link>
+        <Link to="/student/battleground/progress"><StatCard icon={<Sword className="w-5 h-5" />} label="Level" value={xp ? `L${xp.level}` : "L1"} hint={`${xp?.xp ?? 0} XP`} /></Link>
         <StatCard icon={<Flame className="w-5 h-5" />} label="Streak" value={`${xp?.current_streak ?? 0}d`} tone="accent" />
       </div>
 
@@ -142,40 +140,26 @@ export default function StudentSuccessHome() {
         </Card>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid sm:grid-cols-3 gap-3">
+        <Link to="/student/practice/math12" className="block">
+          <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
+            <Target className="w-5 h-5 text-primary mb-2" />
+            <div className="font-semibold">AI Practice</div>
+            <p className="text-xs text-muted-foreground mt-1">Class 12 · fresh questions</p>
+          </Card>
+        </Link>
         <Link to="/student/recovery" className="block">
           <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
             <Wrench className="w-5 h-5 text-primary mb-2" />
-            <div className="font-semibold">Recovery zone</div>
-            <p className="text-xs text-muted-foreground mt-1">{data?.recovery_pending ?? 0} to fix</p>
+            <div className="font-semibold">Recovery</div>
+            <p className="text-xs text-muted-foreground mt-1">{data?.recovery_pending ?? 0} pending · {data?.mistake_count ?? 0} mistakes</p>
           </Card>
         </Link>
-        <Link to="/student/plans" className="block">
+        <Link to="/student/battleground" className="block">
           <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
-            <Sparkles className="w-5 h-5 text-primary mb-2" />
-            <div className="font-semibold">Improvement plans</div>
-            <p className="text-xs text-muted-foreground mt-1">Steps per weak topic</p>
-          </Card>
-        </Link>
-        <Link to="/student/mistakes" className="block">
-          <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
-            <BookMarked className="w-5 h-5 text-primary mb-2" />
-            <div className="font-semibold">Mistake book</div>
-            <p className="text-xs text-muted-foreground mt-1">{data?.mistake_count ?? 0} to review</p>
-          </Card>
-        </Link>
-        <Link to="/student/revision" className="block">
-          <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
-            <ListChecks className="w-5 h-5 text-primary mb-2" />
-            <div className="font-semibold">Revision queue</div>
-            <p className="text-xs text-muted-foreground mt-1">{(data?.revision_queue ?? []).length} items</p>
-          </Card>
-        </Link>
-        <Link to="/student/leaderboard" className="block">
-          <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
-            <Trophy className="w-5 h-5 text-primary mb-2" />
-            <div className="font-semibold">Leaderboard</div>
-            <p className="text-xs text-muted-foreground mt-1">Class & school ranks</p>
+            <Sword className="w-5 h-5 text-primary mb-2" />
+            <div className="font-semibold">Battleground</div>
+            <p className="text-xs text-muted-foreground mt-1">Challenge classmates</p>
           </Card>
         </Link>
       </div>

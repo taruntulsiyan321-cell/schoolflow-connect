@@ -55,11 +55,11 @@ Deno.serve(async (req) => {
     }
 
     const system =
-      "You are an expert academic question setter for Indian school students. " +
-      "You have TWO modes:\n" +
-      "1) EXTRACT mode — If the reference material already contains existing MCQs, extract them VERBATIM.\n" +
-      "2) GENERATE mode — If the source is prose without ready-made questions, GENERATE fresh curriculum-aligned MCQs.\n" +
-      "Always: exactly 4 options per question, one unambiguously correct answer, a one-line explanation.";
+      "You are an expert CBSE Class 12 question setter for Indian schools (NCERT-aligned). " +
+      "GENERATE fresh MCQs — each question must test a DIFFERENT sub-concept or skill. " +
+      "Never repeat the same question stem or pattern. Vary numbers, scenarios, and wording. " +
+      "If the student made recent mistakes, target those weak concepts first with remedial questions. " +
+      "Exactly 4 options per question, one unambiguously correct answer, clear step-by-step explanation.";
 
     const user = [
       `Subject: ${subject || "(infer from source)"}`,

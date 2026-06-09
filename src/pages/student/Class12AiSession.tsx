@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, CheckCircle2, Sparkles, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Sparkles, XCircle, Loader2 } from "lucide-react";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { toast } from "sonner";
-import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
+import { StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
+import { generateAiPracticeQuestions } from "@/lib/aiPracticeQuestions";
+import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 
 type AiQuestion = {
   id: string;
@@ -22,10 +24,9 @@ type AiQuestion = {
 
 export default function Class12AiSession() {
   const { user } = useAuth();
-  const nav = useNavigate();
   const [params] = useSearchParams();
-  const subject = params.get("subject") ?? "Physics";
-  const chapter = params.get("chapter") ?? "Electric Charges and Fields";
+  const subject = params.get("subject") ?? "Mathematics";
+  const chapter = params.get("chapter") ?? "Relations and Functions";
   const count = Math.min(20, Math.max(1, Number(params.get("count") ?? 10)));
 
   const [loading, setLoading] = useState(true);
@@ -37,7 +38,6 @@ export default function Class12AiSession() {
   const [revealed, setRevealed] = useState(false);
   const [correctN, setCorrectN] = useState(0);
   const [done, setDone] = useState(false);
-  const [summary, setSummary] = useState<any>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -50,70 +50,37 @@ export default function Class12AiSession() {
         _chapter: chapter,
         _count: count,
       });
-      if (sErr) { setLoadError(sErr.message); setLoading(false); return; }
+      if (sErr) {
+        setLoadError(sErr.message);
+        setLoading(false);
+        return;
+      }
       setSessionId(sid as string);
 
-      // Track which question ids the student has already seen (no-repeat within session)
-      const seenIds = new Set<string>(
-        JSON.parse(sessionStorage.getItem(`seen-${subject}-${chapter}`) ?? "[]"),
-      );
+      const { questions, error } = await generateAiPracticeQuestions({
+        subject,
+        chapter,
+        topic: chapter,
+        count,
+        difficulty: "medium",
+      });
 
-      const fetchPool = async () => {
-        const { data, error } = await supabase
-          .from("question_templates")
-          .select("id, template_data, explanation_template")
-          .eq("class", 12)
-          .eq("subject", subject)
-          .eq("chapter", chapter)
-          .eq("template_type", "ai_mcq")
-          .eq("is_active", true)
-          .limit(200);
-        if (error) throw error;
-        return (data ?? []).filter((r) => !seenIds.has(r.id));
-      };
-
-      try {
-        let pool = await fetchPool();
-
-        if (pool.length < count) {
-          // Ask AI to expand the bank
-          toast.message("Generating fresh questions with AI…");
-          const { error: fnErr } = await supabase.functions.invoke("ai-expand-questions", {
-            body: { class: 12, subject, chapter, count: Math.max(8, count), ensure_total: 30 },
-          });
-          if (fnErr) throw new Error(fnErr.message);
-          pool = await fetchPool();
-        }
-
-        if (pool.length === 0) {
-          setLoadError("No questions available yet. Please try again in a moment.");
-          setLoading(false);
-          return;
-        }
-
-        // Shuffle & take
-        const shuffled = pool.sort(() => Math.random() - 0.5).slice(0, count);
-        const built: AiQuestion[] = shuffled.map((r) => {
-          const td: any = r.template_data ?? {};
-          return {
-            id: r.id,
-            question: String(td.question ?? ""),
-            options: Array.isArray(td.options) ? td.options.map(String) : [],
-            correctIndex: Number(td.correct_index ?? 0),
-            explanation: String(r.explanation_template ?? ""),
-          };
-        });
-        // Persist seen ids
-        const next = new Set(seenIds);
-        built.forEach((b) => next.add(b.id));
-        sessionStorage.setItem(`seen-${subject}-${chapter}`, JSON.stringify([...next]));
-
-        setItems(built);
+      if (error || questions.length === 0) {
+        setLoadError(error ?? "AI could not generate questions. Try again in a moment.");
         setLoading(false);
-      } catch (e: any) {
-        setLoadError(e.message ?? "Failed to load questions");
-        setLoading(false);
+        return;
       }
+
+      setItems(
+        questions.map((q, i) => ({
+          id: `ai-${Date.now()}-${i}`,
+          question: q.question,
+          options: q.options.slice(0, 4),
+          correctIndex: Math.max(0, Math.min(3, q.correct_index ?? 0)),
+          explanation: q.explanation ?? "",
+        })),
+      );
+      setLoading(false);
     })();
   }, [user, subject, chapter, count]);
 
@@ -126,13 +93,32 @@ export default function Class12AiSession() {
     const ok = optionIndex === current.correctIndex;
     if (ok) setCorrectN((n) => n + 1);
 
+    if (!ok) {
+      void assignRecoveryOnMistake({
+        subject,
+        chapter,
+        concept: chapter,
+        sourceType: "practice",
+        sourceId: sessionId,
+      });
+      void (supabase as any).rpc("rpc_record_concept_mistake", {
+        _assessment_type: "practice",
+        _source_id: sessionId,
+        _subject: subject,
+        _chapter: chapter,
+        _concept: chapter,
+        _question_text: current.question,
+        _options: current.options,
+        _student_answer: { selected_index: optionIndex },
+        _correct_answer: { correct_index: current.correctIndex },
+        _explanation: current.explanation,
+      });
+    }
+
     await supabase.rpc("rpc_record_question_attempt", {
       _session_id: sessionId,
-      _template_id: current.id,
-      _generated_question: {
-        question: current.question,
-        options: current.options,
-      },
+      _template_id: null,
+      _generated_question: { question: current.question, options: current.options },
       _correct_answer: { index: current.correctIndex, text: current.options[current.correctIndex] },
       _selected_answer: { index: optionIndex, text: current.options[optionIndex] },
       _is_correct: ok,
@@ -144,16 +130,31 @@ export default function Class12AiSession() {
     setRevealed(false);
     setSelected(null);
     if (idx + 1 >= items.length) {
-      const { data: sum, error: finErr } = await supabase.rpc("rpc_finish_practice_session", { _session_id: sessionId });
+      const { error: finErr } = await supabase.rpc("rpc_finish_practice_session", { _session_id: sessionId });
       if (finErr) toast.error(finErr.message);
-      setSummary(sum ?? { correct_count: correctN, question_count: items.length, chapter, subject });
       setDone(true);
       return;
     }
     setIdx(idx + 1);
   };
 
-  if (loading) return <StudentSessionSkeleton label="Generating fresh AI questions…" />;
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center space-y-4">
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center">
+          <Sparkles className="w-8 h-8 text-primary animate-pulse" />
+        </div>
+        <h2 className="text-xl font-semibold">Generating AI Practice Questions</h2>
+        <p className="text-muted-foreground text-sm">
+          Fresh {subject} questions for {chapter}…
+        </p>
+        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Powered by Gemini AI
+        </div>
+      </div>
+    );
+  }
 
   if (loadError) {
     return (
@@ -166,20 +167,30 @@ export default function Class12AiSession() {
     );
   }
 
-  if (done && summary) {
+  if (done) {
+    const accuracy = items.length ? Math.round((correctN / items.length) * 100) : 0;
     return (
-      <div className="max-w-2xl mx-auto space-y-4">
-        <Card className="p-8 text-center shadow-card">
-          <CheckCircle2 className="w-12 h-12 mx-auto text-accent mb-3" />
-          <h2 className="text-xl font-semibold">Session complete</h2>
-          <p className="text-muted-foreground mt-2">{subject} · {chapter}</p>
-          <div className="text-3xl font-bold mt-4">{summary.correct_count}/{summary.question_count}</div>
-          <div className="flex gap-2 mt-6 justify-center flex-wrap">
-            <Button asChild variant="outline"><Link to="/student/practice/math12">New chapter</Link></Button>
-            <Button onClick={() => window.location.reload()}>Same chapter again</Button>
+      <Card className="p-8 max-w-md mx-auto text-center shadow-card">
+        <CheckCircle2 className="w-12 h-12 mx-auto text-accent mb-3" />
+        <h2 className="text-xl font-semibold">Practice complete</h2>
+        <p className="text-muted-foreground mt-2">{subject} · {chapter}</p>
+        <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm font-medium">AI Practice Results</span>
           </div>
-        </Card>
-      </div>
+          <div className="text-2xl font-bold">{correctN}/{items.length}</div>
+          <div className="text-sm text-muted-foreground">{accuracy}% accuracy</div>
+        </div>
+        <div className="flex gap-2 mt-6 justify-center flex-wrap">
+          <Button asChild variant="outline"><Link to="/student/practice/math12">New chapter</Link></Button>
+          {!accuracy || accuracy < 70 ? (
+            <Button asChild><Link to="/student/recovery">Recovery zone</Link></Button>
+          ) : (
+            <Button onClick={() => window.location.reload()}>Practice again</Button>
+          )}
+        </div>
+      </Card>
     );
   }
 
@@ -187,71 +198,69 @@ export default function Class12AiSession() {
   const pct = ((idx + (revealed ? 1 : 0)) / items.length) * 100;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 animate-rise">
-      <button type="button" onClick={() => nav(-1)} className="text-sm text-muted-foreground flex items-center gap-1">
-        <ArrowLeft className="w-4 h-4" /> Exit
-      </button>
+    <>
+      <Button variant="ghost" size="sm" asChild className="mb-2">
+        <Link to="/student/practice/math12"><ArrowLeft className="w-4 h-4" /> Practice</Link>
+      </Button>
 
-      <div>
-        <div className="flex justify-between text-xs text-muted-foreground mb-1">
-          <span>{subject} · {chapter}</span>
-          <span>Q {idx + 1} / {items.length} · {correctN} correct</span>
-        </div>
-        <Progress value={pct} className="h-1.5" />
+      <div className="flex items-center gap-2 text-xs font-medium text-primary bg-primary/5 border border-primary/15 rounded-lg px-3 py-2 mb-3">
+        <Sparkles className="w-3.5 h-3.5 shrink-0" />
+        AI-generated · varied concepts · {subject}
+      </div>
+
+      <Progress value={pct} className="h-1.5 mb-4" />
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs text-muted-foreground">Question {idx + 1} of {items.length}</p>
+        <p className="text-xs text-muted-foreground">{correctN} correct</p>
       </div>
 
       <Card className="p-5 shadow-card">
-        <MathText className="font-medium leading-relaxed block" text={current.question} />
+        <MathText block className="font-medium leading-relaxed" text={current.question} />
         <div className="grid gap-2 mt-4">
-          {current.options.map((opt, oi) => {
-            const isCorrect = oi === current.correctIndex;
-            const isSel = oi === selected;
-            return (
-              <button
-                key={oi}
-                type="button"
-                disabled={revealed}
-                onClick={() => submitAnswer(oi)}
-                className={cn(
-                  "text-left px-4 py-3 rounded-lg border text-sm transition-colors",
-                  !revealed && "hover:border-primary/40 hover:bg-primary/5",
-                  revealed && isCorrect && "border-accent bg-accent/10",
-                  revealed && isSel && !isCorrect && "border-destructive bg-destructive/10",
-                )}
-              >
-                <span className="font-semibold mr-2">{String.fromCharCode(65 + oi)}.</span>
-                <MathText text={opt} />
-              </button>
-            );
-          })}
+          {current.options.map((opt, oi) => (
+            <button
+              key={oi}
+              type="button"
+              disabled={revealed}
+              onClick={() => submitAnswer(oi)}
+              className={cn(
+                "text-left px-4 py-3 rounded-lg border text-sm transition-colors",
+                !revealed && "hover:border-primary/40 hover:bg-primary/5",
+                revealed && oi === current.correctIndex && "border-accent bg-accent/10",
+                revealed && oi === selected && oi !== current.correctIndex && "border-destructive bg-destructive/10",
+              )}
+            >
+              <span className="font-semibold mr-2">{String.fromCharCode(65 + oi)}.</span>
+              <MathText text={opt} />
+            </button>
+          ))}
         </div>
 
         {revealed && (
           <div className="mt-4 space-y-3">
             <div className={cn("flex items-center gap-2 text-sm font-medium", selected === current.correctIndex ? "text-accent" : "text-destructive")}>
               {selected === current.correctIndex ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-              {selected === current.correctIndex ? "Correct!" : <>Answer: <MathText className="ml-1" text={current.options[current.correctIndex]} /></>}
+              {selected === current.correctIndex ? "Correct!" : "Review the explanation below."}
             </div>
-            {current.explanation && <MathText className="text-sm text-muted-foreground block" text={current.explanation} />}
-            <ExplainPanel
-              question={current.question}
-              options={current.options}
-              correctIndex={current.correctIndex}
-              selectedIndex={selected}
-              wasCorrect={selected === current.correctIndex}
-              subject={subject}
-              chapter={chapter}
-            />
+            {current.explanation && <MathText block className="text-sm text-muted-foreground" text={current.explanation} />}
+            {selected !== current.correctIndex && (
+              <ExplainPanel
+                question={current.question}
+                options={current.options}
+                correctIndex={current.correctIndex}
+                selectedIndex={selected}
+                wasCorrect={false}
+                subject={subject}
+                chapter={chapter}
+                autoLoad
+              />
+            )}
             <Button className="w-full" onClick={next}>
               {idx + 1 >= items.length ? "Finish session" : "Next question"}
             </Button>
           </div>
         )}
       </Card>
-
-      <p className="text-[11px] text-center text-muted-foreground flex items-center justify-center gap-1">
-        <Sparkles className="w-3 h-3" /> AI-generated · cached · no repeats this session
-      </p>
-    </div>
+    </>
   );
 }
