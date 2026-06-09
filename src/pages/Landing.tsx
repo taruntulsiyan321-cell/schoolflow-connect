@@ -219,7 +219,7 @@ export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boole
             <StackCard icon={Bell} title="Realtime + Push" desc="Live updates and native FCM push notifications." />
             <StackCard icon={Languages} title="EN + HI" desc="Bilingual ready, parent-friendly UI." />
             <StackCard icon={Wallet} title="Payments-ready" desc="Drop-in Razorpay/Stripe for online fee collection." />
-            <StackCard icon={Sparkles} title="AI-ready" desc="Hooked into AI gateway for tutoring & insights." />
+            <StackCard icon={Sparkles} title="Gemini-ready" desc="Google Gemini powers tutoring, practice generation and insights." />
           </div>
         </div>
       </section>
