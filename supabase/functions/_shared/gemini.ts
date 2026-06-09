@@ -84,58 +84,6 @@ async function callGoogleGemini<T>(
   }
 }
 
-async function callLovableGateway<T>(
-  cfg: Extract<AiConfig, { provider: "lovable" }>,
-  req: StructuredAiRequest,
-): Promise<AiResult<T>> {
-  const tool = {
-    type: "function",
-    function: {
-      name: req.toolName,
-      description: "Structured AI output",
-      parameters: req.schema,
-    },
-  };
-
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${cfg.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: cfg.model,
-      messages: [
-        { role: "system", content: req.system },
-        { role: "user", content: req.user },
-      ],
-      tools: [tool],
-      tool_choice: { type: "function", function: { name: req.toolName } },
-    }),
-  });
-
-  if (res.status === 429) {
-    return { ok: false, error: "Rate limit — try again shortly.", status: 429 };
-  }
-  if (res.status === 402) {
-    return { ok: false, error: "AI credits exhausted.", status: 402 };
-  }
-  if (!res.ok) {
-    const txt = await res.text();
-    return { ok: false, error: `AI gateway error: ${txt.slice(0, 300)}`, status: 502 };
-  }
-
-  const data = await res.json();
-  const call = data?.choices?.[0]?.message?.tool_calls?.[0];
-  const args = call?.function?.arguments;
-  if (!args) {
-    return { ok: false, error: "AI returned no structured output", status: 502 };
-  }
-
-  const parsed = typeof args === "string" ? JSON.parse(args) : args;
-  return { ok: true, data: parsed as T, source: "lovable" };
-}
-
 export async function generateStructured<T>(req: StructuredAiRequest): Promise<AiResult<T>> {
   const cfg = getAiConfig();
   if (!cfg) {
@@ -147,8 +95,5 @@ export async function generateStructured<T>(req: StructuredAiRequest): Promise<A
     };
   }
 
-  if (cfg.provider === "google") {
-    return callGoogleGemini<T>(cfg, req);
-  }
-  return callLovableGateway<T>(cfg, req);
+  return callGoogleGemini<T>(cfg, req);
 }
