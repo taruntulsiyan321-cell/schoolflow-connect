@@ -96,7 +96,7 @@ export default function AcademicReport() {
 
             {conceptInsights && (
               <Card className="p-5 shadow-card">
-                <h2 className="font-semibold mb-2">AI improvement insights (offline)</h2>
+                <h2 className="font-semibold mb-2">Concept improvement insights</h2>
                 <p className="font-medium text-sm">{conceptInsights.headline}</p>
                 <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc pl-4">
                   {conceptInsights.bullets.map((b, i) => <li key={i}>{b}</li>)}

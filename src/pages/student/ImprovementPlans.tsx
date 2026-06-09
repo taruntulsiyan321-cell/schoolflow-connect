@@ -117,9 +117,9 @@ export default function ImprovementPlans() {
       <div className="space-y-4">
         {plans.map((p) => {
           const key = topicKey(p);
-          const active = p.ai_plan ?? p.rule_plan;
+          const hasGeminiPlan = Boolean(p.ai_plan && (p.ai_plan as { source?: string }).source !== "rule");
+          const active = hasGeminiPlan ? p.ai_plan : p.rule_plan;
           const steps = active?.steps ?? [];
-          const isOfflinePlan = false;
           return (
             <Card key={key} className="p-5 shadow-card">
               <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
@@ -131,7 +131,7 @@ export default function ImprovementPlans() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">{p.accuracy}% accuracy</Badge>
-                  {p.ai_plan && (
+                  {hasGeminiPlan && (
                     <Badge className="bg-primary/15 text-primary border-0">Gemini enhanced</Badge>
                   )}
                 </div>
@@ -165,14 +165,14 @@ export default function ImprovementPlans() {
 
               <Button
                 size="sm"
-                variant={p.ai_plan ? "outline" : "default"}
+                variant={hasGeminiPlan ? "outline" : "default"}
                 disabled={enhancing === key}
                 onClick={() => enhanceWithAI(p)}
               >
                 {enhancing === key ? (
                   <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Generating…</>
                 ) : (
-                  <><Sparkles className="w-4 h-4 mr-1" /> {p.ai_plan ? "Refresh plan" : "Enhance with AI"}</>
+                  <><Sparkles className="w-4 h-4 mr-1" /> {hasGeminiPlan ? "Refresh plan" : "Enhance with Gemini"}</>
                 )}
               </Button>
             </Card>
