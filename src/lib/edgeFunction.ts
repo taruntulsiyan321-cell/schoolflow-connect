@@ -33,7 +33,7 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
     }
 
     if (message.includes("Failed to send") || message.includes("FunctionsFetchError")) {
-      message = "AI service unavailable — using offline insights instead.";
+      message = "Gemini AI service unavailable. Please retry.";
     }
 
     return { data: null, error: message, usedFallback: false };
@@ -46,7 +46,7 @@ export function isAiUnavailableError(msg: string | null): boolean {
   if (!msg) return false;
   const m = msg.toLowerCase();
   return (
-    m.includes("ai gateway") ||
+    m.includes("gemini ai service unavailable") ||
     m.includes("google_gemini") ||
     m.includes("gemini api") ||
     m.includes("not configured") ||

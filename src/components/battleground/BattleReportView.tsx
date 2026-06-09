@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
-import { invokeEdgeFunction, isAiUnavailableError } from "@/lib/edgeFunction";
-import { buildRuleBattleInsights, type BattleAiInsights } from "@/lib/battleReportInsights";
+import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import type { BattleAiInsights } from "@/lib/battleReportInsights";
 import {
   Target, Clock, TrendingUp, TrendingDown, Sparkles, Loader2,
   AlertTriangle, Brain, CheckCircle2, XCircle, Timer, BarChart3,
@@ -39,7 +39,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiSource, setAiSource] = useState<"ai" | "rule" | "gemini" | "lovable" | null>(null);
+  const [aiSource, setAiSource] = useState<"ai" | "gemini" | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -59,8 +59,13 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
 
     if (err) { setError(err.message); setLoading(false); return; }
     if (!res) { setError("Report not found — finish the battle and try again."); setLoading(false); return; }
-    setData(res as BattleReportPayload);
-    if (res.ai_insights?.source) setAiSource(res.ai_insights.source);
+    const normalized = res.ai_insights?.source === "rule"
+      ? { ...res, ai_insights: null }
+      : res;
+    setData(normalized as BattleReportPayload);
+    if (normalized.ai_insights?.source) {
+      setAiSource(normalized.ai_insights.source === "gemini" ? "gemini" : "ai");
+    }
     setLoading(false);
   };
 
@@ -68,7 +73,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
 
   const applyInsights = async (insights: BattleAiInsights) => {
     setData((d) => d ? { ...d, ai_insights: insights } : d);
-    setAiSource(insights.source ?? "ai");
+    setAiSource(insights.source === "gemini" ? "gemini" : "ai");
     const { error: saveErr } = await (supabase as any).rpc("rpc_save_battle_ai_insights", {
       _participant_id: participantId,
       _insights: insights,
@@ -96,20 +101,10 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         return;
       }
 
-      const fallback = buildRuleBattleInsights(data.report ?? {});
-      await applyInsights(fallback);
-      if (fnErr) {
-        setAiError(
-          isAiUnavailableError(fnErr)
-            ? "Using offline coach — add GOOGLE_GEMINI_API_KEY to enable Gemini Flash."
-            : fnErr,
-        );
-      }
+      setAiError(fnErr || "Gemini could not generate this battle report. Please retry.");
       return;
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? "AI insights failed";
-      const fallback = buildRuleBattleInsights(data.report ?? {});
-      await applyInsights(fallback);
       setAiError(msg);
     } finally {
       setAiLoading(false);
@@ -205,12 +200,9 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <Sparkles className="w-5 h-5 text-primary" />
           <h2 className="font-bold">Performance Coach</h2>
-          {coachSource === "rule" && (
-            <Badge variant="outline" className="text-xs border-warning/40 text-warning">Offline coach</Badge>
-          )}
           {(coachSource === "ai" || coachSource === "gemini") && (
             <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-              {coachSource === "gemini" ? "Gemini Flash" : "AI powered"}
+              Gemini Flash
             </Badge>
           )}
         </div>

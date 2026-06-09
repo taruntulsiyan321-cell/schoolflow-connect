@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Loader2, Brain, Lightbulb, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { buildRuleExplanation } from "@/lib/ruleExplanation";
-import { invokeEdgeFunction, isAiUnavailableError } from "@/lib/edgeFunction";
+import { invokeEdgeFunction } from "@/lib/edgeFunction";
 
 export type Explanation = {
   summary: string;
@@ -49,25 +48,15 @@ export function ExplainPanel(props: Props) {
   const [data, setData] = useState<Explanation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [offline, setOffline] = useState(false);
-  const [aiSource, setAiSource] = useState<"gemini" | "lovable" | null>(null);
+  const [aiSource, setAiSource] = useState<"gemini" | null>(null);
   const [open, setOpen] = useState(autoLoad);
   const fetched = useRef(false);
-
-  const applyRuleFallback = () => {
-    setData(buildRuleExplanation({
-      question, options, correctIndex, selectedIndex, correctText, selectedText, wasCorrect, subject, chapter,
-    }));
-    setOffline(true);
-    setError(null);
-  };
 
   const load = async () => {
     if (loading || data || fetched.current) return;
     fetched.current = true;
     setLoading(true);
     setError(null);
-    setOffline(false);
     setAiSource(null);
     const cacheKey = hashKey([question, correctIndex, selectedIndex, correctText, selectedText]);
     try {
@@ -79,6 +68,7 @@ export function ExplainPanel(props: Props) {
         .maybeSingle();
       if (cached?.payload) {
         setData(cached.payload as Explanation);
+        setAiSource("gemini");
         setLoading(false);
         return;
       }
@@ -98,7 +88,7 @@ export function ExplainPanel(props: Props) {
           how_to_improve: res.how_to_improve ?? "",
         };
         setData(payload);
-        setAiSource(res.source === "gemini" ? "gemini" : res.source === "lovable" ? "lovable" : "gemini");
+        setAiSource("gemini");
 
         // 3) Cache for everyone else
         (supabase as any).from("ai_explanations").insert({
@@ -107,20 +97,12 @@ export function ExplainPanel(props: Props) {
         return;
       }
 
-      if (isAiUnavailableError(fnErr) || fnErr) {
-        applyRuleFallback();
-        return;
-      }
-
-      applyRuleFallback();
+      setError(fnErr || "Gemini could not generate this explanation. Please retry.");
+      fetched.current = false;
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? "";
-      if (isAiUnavailableError(msg)) {
-        applyRuleFallback();
-      } else {
-        setError(msg || "Could not load explanation");
-        fetched.current = false;
-      }
+      setError(msg || "Gemini could not generate this explanation. Please retry.");
+      fetched.current = false;
     } finally {
       setLoading(false);
     }
@@ -158,9 +140,6 @@ export function ExplainPanel(props: Props) {
             <span className="section-label text-primary">Learning insight</span>
             {aiSource === "gemini" && (
               <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">Gemini Flash</Badge>
-            )}
-            {offline && (
-              <Badge variant="outline" className="text-[10px] border-warning/40 text-warning">Offline coach</Badge>
             )}
             {!autoLoad && (
               <button onClick={() => setOpen(false)} className="ml-auto text-xs text-muted-foreground hover:text-foreground">

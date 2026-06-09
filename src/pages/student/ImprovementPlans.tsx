@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui-bits";
 import { Sparkles, Loader2, ListChecks, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { invokeEdgeFunction, isAiUnavailableError } from "@/lib/edgeFunction";
-import { buildRuleImprovementPlan, type ImprovementPlanPayload } from "@/lib/improvementPlanFallback";
+import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import type { ImprovementPlanPayload } from "@/lib/improvementPlanFallback";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 export default function ImprovementPlans() {
@@ -21,7 +21,7 @@ export default function ImprovementPlans() {
   const topicKey = (p: ImprovementPlanRow) =>
     `${p.subject}|${p.chapter ?? ""}|${p.topic ?? ""}`;
 
-  const savePlan = async (p: ImprovementPlanRow, plan: ImprovementPlanPayload, offline: boolean) => {
+  const savePlan = async (p: ImprovementPlanRow, plan: ImprovementPlanPayload) => {
     if (!user) return;
     let q = supabase
       .from("student_improvement_plans")
@@ -48,7 +48,7 @@ export default function ImprovementPlans() {
       : await supabase.from("student_improvement_plans").insert(row);
     if (saveErr) throw new Error(saveErr.message);
 
-    toast.success(offline ? "Offline coaching plan saved for this topic" : "AI plan saved for this topic");
+    toast.success("Gemini AI plan saved for this topic");
     reload();
   };
 
@@ -74,26 +74,11 @@ export default function ImprovementPlans() {
       });
 
       if (ai && !fnErr) {
-        await savePlan(p, { ...ai, source: "ai" }, false);
+        await savePlan(p, { ...ai, source: "ai" });
         return;
       }
 
-      const fallback = buildRuleImprovementPlan({
-        subject: p.subject,
-        chapter: p.chapter,
-        topic: p.topic,
-        accuracy: p.accuracy,
-        attempts: p.attempts,
-        mistake_count: p.mistake_count,
-      });
-      const mergedSteps = [
-        ...new Set([...(p.rule_plan?.steps ?? []), ...fallback.steps]),
-      ].slice(0, 6);
-      await savePlan(p, { ...fallback, steps: mergedSteps, source: "rule" }, true);
-
-      if (fnErr && !isAiUnavailableError(fnErr)) {
-        toast.message(fnErr);
-      }
+      toast.error(fnErr || "Gemini could not generate a plan. Please retry.");
     } catch (e: unknown) {
       toast.error((e as Error)?.message ?? "Could not generate plan");
     } finally {
@@ -132,9 +117,9 @@ export default function ImprovementPlans() {
       <div className="space-y-4">
         {plans.map((p) => {
           const key = topicKey(p);
-          const active = p.ai_plan ?? p.rule_plan;
+          const hasGeminiPlan = Boolean(p.ai_plan && (p.ai_plan as { source?: string }).source !== "rule");
+          const active = hasGeminiPlan ? p.ai_plan : p.rule_plan;
           const steps = active?.steps ?? [];
-          const isOfflinePlan = (p.ai_plan as { source?: string } | null)?.source === "rule";
           return (
             <Card key={key} className="p-5 shadow-card">
               <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
@@ -146,11 +131,8 @@ export default function ImprovementPlans() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">{p.accuracy}% accuracy</Badge>
-                  {p.ai_plan && isOfflinePlan && (
-                    <Badge variant="outline" className="border-warning/40 text-warning">Offline coach</Badge>
-                  )}
-                  {p.ai_plan && !isOfflinePlan && (
-                    <Badge className="bg-primary/15 text-primary border-0">AI enhanced</Badge>
+                  {hasGeminiPlan && (
+                    <Badge className="bg-primary/15 text-primary border-0">Gemini enhanced</Badge>
                   )}
                 </div>
               </div>
@@ -183,14 +165,14 @@ export default function ImprovementPlans() {
 
               <Button
                 size="sm"
-                variant={p.ai_plan ? "outline" : "default"}
+                variant={hasGeminiPlan ? "outline" : "default"}
                 disabled={enhancing === key}
                 onClick={() => enhanceWithAI(p)}
               >
                 {enhancing === key ? (
                   <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Generating…</>
                 ) : (
-                  <><Sparkles className="w-4 h-4 mr-1" /> {p.ai_plan ? "Refresh plan" : "Enhance with AI"}</>
+                  <><Sparkles className="w-4 h-4 mr-1" /> {hasGeminiPlan ? "Refresh plan" : "Enhance with Gemini"}</>
                 )}
               </Button>
             </Card>

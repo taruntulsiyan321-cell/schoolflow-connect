@@ -1,8 +1,7 @@
 /**
  * Google Gemini Flash — primary AI provider for all edge functions.
  * Deploy: GitHub Action deploy-edge-functions.yml (SUPABASE_ACCESS_TOKEN).
- * Set GOOGLE_GEMINI_API_KEY (or GEMINI_API_KEY) in Supabase Edge Function secrets.
- * Falls back to Lovable AI Gateway if only LOVABLE_API_KEY is set.
+ * Requires GOOGLE_GEMINI_API_KEY (or GEMINI_API_KEY) in Edge Function secrets.
  */
 
 export const corsHeaders = {
@@ -21,29 +20,25 @@ export type StructuredAiRequest = {
   user: string;
   /** JSON Schema object (properties + required) for structured output */
   schema: Record<string, unknown>;
-  /** Tool name when using Lovable OpenAI-compatible gateway */
+  /** Tool name retained for caller compatibility. */
   toolName: string;
 };
 
-type AiConfig =
-  | { provider: "google"; apiKey: string; model: string }
-  | { provider: "lovable"; apiKey: string; model: string };
+type AiConfig = { provider: "google"; apiKey: string; model: string };
 
 export function getAiConfig(): AiConfig | null {
   const googleKey =
     Deno.env.get("GOOGLE_GEMINI_API_KEY")?.trim() ||
     Deno.env.get("GEMINI_API_KEY")?.trim() ||
     "";
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY")?.trim() || "";
   const model = Deno.env.get("GEMINI_MODEL")?.trim() || "gemini-2.0-flash";
 
   if (googleKey) return { provider: "google", apiKey: googleKey, model };
-  if (lovableKey) return { provider: "lovable", apiKey: lovableKey, model: "google/gemini-2.5-flash" };
   return null;
 }
 
 export type AiResult<T> =
-  | { ok: true; data: T; source: "gemini" | "lovable" }
+  | { ok: true; data: T; source: "gemini" }
   | { ok: false; error: string; status: number };
 
 async function callGoogleGemini<T>(
@@ -89,58 +84,6 @@ async function callGoogleGemini<T>(
   }
 }
 
-async function callLovableGateway<T>(
-  cfg: Extract<AiConfig, { provider: "lovable" }>,
-  req: StructuredAiRequest,
-): Promise<AiResult<T>> {
-  const tool = {
-    type: "function",
-    function: {
-      name: req.toolName,
-      description: "Structured AI output",
-      parameters: req.schema,
-    },
-  };
-
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${cfg.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: cfg.model,
-      messages: [
-        { role: "system", content: req.system },
-        { role: "user", content: req.user },
-      ],
-      tools: [tool],
-      tool_choice: { type: "function", function: { name: req.toolName } },
-    }),
-  });
-
-  if (res.status === 429) {
-    return { ok: false, error: "Rate limit — try again shortly.", status: 429 };
-  }
-  if (res.status === 402) {
-    return { ok: false, error: "AI credits exhausted.", status: 402 };
-  }
-  if (!res.ok) {
-    const txt = await res.text();
-    return { ok: false, error: `AI gateway error: ${txt.slice(0, 300)}`, status: 502 };
-  }
-
-  const data = await res.json();
-  const call = data?.choices?.[0]?.message?.tool_calls?.[0];
-  const args = call?.function?.arguments;
-  if (!args) {
-    return { ok: false, error: "AI returned no structured output", status: 502 };
-  }
-
-  const parsed = typeof args === "string" ? JSON.parse(args) : args;
-  return { ok: true, data: parsed as T, source: "lovable" };
-}
-
 export async function generateStructured<T>(req: StructuredAiRequest): Promise<AiResult<T>> {
   const cfg = getAiConfig();
   if (!cfg) {
@@ -152,8 +95,5 @@ export async function generateStructured<T>(req: StructuredAiRequest): Promise<A
     };
   }
 
-  if (cfg.provider === "google") {
-    return callGoogleGemini<T>(cfg, req);
-  }
-  return callLovableGateway<T>(cfg, req);
+  return callGoogleGemini<T>(cfg, req);
 }
