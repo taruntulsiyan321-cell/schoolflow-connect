@@ -71,7 +71,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
 
   const applyInsights = async (insights: BattleAiInsights) => {
     setData((d) => d ? { ...d, ai_insights: insights } : d);
-    setAiSource(insights.source ?? "ai");
+    setAiSource(insights.source === "gemini" ? "gemini" : "ai");
     const { error: saveErr } = await (supabase as any).rpc("rpc_save_battle_ai_insights", {
       _participant_id: participantId,
       _insights: insights,
@@ -198,7 +198,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <Sparkles className="w-5 h-5 text-primary" />
           <h2 className="font-bold">Performance Coach</h2>
-          {(coachSource === "ai" || coachSource === "gemini" || coachSource === "rule") && (
+          {(coachSource === "ai" || coachSource === "gemini") && (
             <Badge variant="outline" className="text-xs border-primary/40 text-primary">
               Gemini Flash
             </Badge>
