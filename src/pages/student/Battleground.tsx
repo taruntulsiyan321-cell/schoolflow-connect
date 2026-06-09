@@ -519,7 +519,7 @@ function BattleRoom() {
 
       <Card className="p-6 border border-border/70 bg-card">
         <div className="section-label">{battle.subject}</div>
-        <h2 className="text-lg md:text-xl font-semibold mt-2 leading-snug text-foreground">{currentQ.question}</h2>
+        <MathText block className="text-lg md:text-xl font-semibold mt-2 leading-snug text-foreground" text={currentQ.question} />
       </Card>
 
       <div className="grid md:grid-cols-2 gap-3">
@@ -536,7 +536,7 @@ function BattleRoom() {
             <button key={i} onClick={() => handleAnswer(i)} disabled={showResult}
               className={cn("p-4 rounded-xl border-2 text-left font-medium transition-all flex items-center gap-3", style)}>
               <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center font-bold text-sm shrink-0">{String.fromCharCode(65 + i)}</div>
-              <span className="flex-1">{opt}</span>
+              <MathText className="flex-1" text={opt} />
             </button>
           );
         })}
