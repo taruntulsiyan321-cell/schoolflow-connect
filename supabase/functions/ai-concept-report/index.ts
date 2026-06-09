@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       headline: result.data.headline ?? "",
       bullets: result.data.bullets ?? [],
       next_steps: result.data.next_steps ?? [],
-      source: result.source === "gemini" ? "ai" : "lovable",
+      source: "ai",
     });
   } catch (e) {
     return jsonResponse({ error: String(e) }, 500);
