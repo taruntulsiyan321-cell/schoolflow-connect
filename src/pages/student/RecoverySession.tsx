@@ -142,7 +142,7 @@ export default function RecoverySession() {
       <p className="text-xs text-muted-foreground mb-4">Question {idx + 1} of {questions.length}</p>
 
       <Card className="p-5 shadow-card">
-        <p className="font-medium leading-relaxed">{current.question_text}</p>
+        <MathText block className="font-medium leading-relaxed" text={current.question_text} />
         <div className="grid gap-2 mt-4">
           {current.options.map((opt, oi) => (
             <button
@@ -158,7 +158,7 @@ export default function RecoverySession() {
               )}
             >
               <span className="font-semibold mr-2">{String.fromCharCode(65 + oi)}.</span>
-              {opt}
+              <MathText text={opt} />
             </button>
           ))}
         </div>
@@ -169,7 +169,7 @@ export default function RecoverySession() {
               {selected === correctIdx ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
               {selected === correctIdx ? "Correct — concept reinforced!" : "Review the explanation and try similar questions."}
             </div>
-            {current.explanation && <p className="text-sm text-muted-foreground">{current.explanation}</p>}
+            {current.explanation && <MathText block className="text-sm text-muted-foreground" text={current.explanation} />}
             <Button className="w-full" onClick={next}>
               {idx + 1 >= questions.length ? "Finish recovery" : "Next question"}
             </Button>
