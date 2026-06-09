@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
 import {
-  buildRuleConceptReport,
   type ConceptRecoveryReport,
   type ConceptAiReport,
 } from "@/lib/conceptReportFallback";
