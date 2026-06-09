@@ -39,7 +39,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiSource, setAiSource] = useState<"ai" | "rule" | "gemini" | "lovable" | null>(null);
+  const [aiSource, setAiSource] = useState<"ai" | "gemini" | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -59,8 +59,11 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
 
     if (err) { setError(err.message); setLoading(false); return; }
     if (!res) { setError("Report not found — finish the battle and try again."); setLoading(false); return; }
-    setData(res as BattleReportPayload);
-    if (res.ai_insights?.source) setAiSource(res.ai_insights.source);
+    const normalized = res.ai_insights?.source === "rule"
+      ? { ...res, ai_insights: null }
+      : res;
+    setData(normalized as BattleReportPayload);
+    if (normalized.ai_insights?.source) setAiSource(normalized.ai_insights.source);
     setLoading(false);
   };
 
