@@ -39,7 +39,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
-  const [aiSource, setAiSource] = useState<"ai" | "rule" | null>(null);
+  const [aiSource, setAiSource] = useState<"ai" | "rule" | "gemini" | "lovable" | null>(null);
 
   const load = async () => {
     setLoading(true);
