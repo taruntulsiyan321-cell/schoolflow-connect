@@ -22,7 +22,11 @@ export default function DppHub() {
     setLoadError(null);
     let dppQuery = supabase.from("dpps").select("*").eq("is_published", true).order("created_at", { ascending: false });
     const { data: s } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
-    if (s?.class_id) dppQuery = dppQuery.eq("class_id", s.class_id);
+    if (s?.class_id) {
+      dppQuery = dppQuery.or(`class_id.eq.${s.class_id},class_id.is.null`);
+    } else {
+      dppQuery = dppQuery.is("class_id", null);
+    }
     const { data: d, error: dErr } = await dppQuery;
     if (dErr) {
       setLoadError(dErr.message);

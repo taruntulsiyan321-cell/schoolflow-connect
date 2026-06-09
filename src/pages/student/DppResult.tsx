@@ -10,6 +10,7 @@ import { QuestionRenderer, DppQuestion } from "@/components/dpp/QuestionRenderer
 import { PageHeader } from "@/components/ui-bits";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
+import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 export default function DppResult() {
   const { id } = useParams<{ id: string }>();
@@ -19,27 +20,54 @@ export default function DppResult() {
   const [questions, setQuestions] = useState<DppQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      if (!id || !user) return;
-      const { data: d } = await supabase.from("dpps").select("*").eq("id", id).maybeSingle();
-      setDpp(d);
-      const { data: a } = await supabase.from("dpp_attempts").select("*").eq("dpp_id", id).eq("user_id", user.id).maybeSingle();
-      setAttempt(a);
-      const { data: qs } = await supabase.from("dpp_questions").select("*").eq("dpp_id", id).order("order_index");
-      setQuestions((qs ?? []) as any);
-      if (a) {
-        const { data: ans } = await supabase.from("dpp_answers").select("*").eq("attempt_id", a.id);
-        const m: Record<string, any> = {};
-        (ans ?? []).forEach(x => m[x.question_id] = x);
-        setAnswers(m);
-      }
+  const load = async () => {
+    if (!id || !user) return;
+    setLoading(true);
+    setLoadError(null);
+    const { data: d, error: dErr } = await supabase.from("dpps").select("*").eq("id", id).maybeSingle();
+    if (dErr) {
+      setLoadError(dErr.message);
       setLoading(false);
-    })();
-  }, [id, user]);
+      return;
+    }
+    setDpp(d);
+    const { data: a, error: aErr } = await supabase.from("dpp_attempts").select("*").eq("dpp_id", id).eq("user_id", user.id).maybeSingle();
+    if (aErr) {
+      setLoadError(aErr.message);
+      setLoading(false);
+      return;
+    }
+    setAttempt(a);
+    const { data: qs, error: qErr } = await supabase.from("dpp_questions").select("*").eq("dpp_id", id).order("order_index");
+    if (qErr) {
+      setLoadError(qErr.message);
+      setLoading(false);
+      return;
+    }
+    setQuestions((qs ?? []) as DppQuestion[]);
+    if (a) {
+      const { data: ans } = await supabase.from("dpp_answers").select("*").eq("attempt_id", a.id);
+      const m: Record<string, any> = {};
+      (ans ?? []).forEach((x) => { m[x.question_id] = x; });
+      setAnswers(m);
+    }
+    setLoading(false);
+  };
 
-  if (loading) return <p className="text-muted-foreground text-center py-8">Loading…</p>;
+  useEffect(() => { load(); }, [id, user]);
+
+  if (loading) return <StudentListSkeleton rows={4} />;
+
+  if (loadError) {
+    return (
+      <>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
+        <StudentErrorState title="Could not load results" message={loadError} onRetry={load} />
+      </>
+    );
+  }
 
   if (!dpp) {
     return (

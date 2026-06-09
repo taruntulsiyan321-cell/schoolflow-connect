@@ -6,19 +6,27 @@ import { PageHeader } from "@/components/ui-bits";
 import { Bell, AlertCircle, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 
 export default function MyFeesPage({ asParent = false }: { asParent?: boolean }) {
   const { user } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     (async () => {
       if (!user) return;
+      setLoading(true);
       const col = asParent ? "parent_user_id" : "user_id";
       const { data: ss } = await supabase.from("students").select("id, full_name").eq(col, user.id);
       const ids = ss?.map(s => s.id) ?? [];
-      if (!ids.length) return;
+      if (!ids.length) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
       const { data } = await supabase.from("fees").select("*, students(full_name)").in("student_id", ids).order("month", { ascending: false });
       setRows(data ?? []);
+      setLoading(false);
     })();
   }, [user, asParent]);
 
@@ -41,7 +49,9 @@ export default function MyFeesPage({ asParent = false }: { asParent?: boolean })
     <>
       <PageHeader title="Fees" subtitle={asParent ? "Your child's fee status" : "Your fee status"} />
 
-      {overdue.length > 0 && (
+      {loading && <StudentListSkeleton rows={4} />}
+
+      {!loading && overdue.length > 0 && (
         <Card className="p-4 mb-4 border-destructive/30 bg-destructive/5 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
           <div>
@@ -51,7 +61,7 @@ export default function MyFeesPage({ asParent = false }: { asParent?: boolean })
         </Card>
       )}
 
-      <div className="space-y-2">
+      {!loading && <div className="space-y-2">
         {rows.map(r => (
           <Card key={r.id} className="p-4 flex items-center justify-between gap-3 shadow-card">
             <div>
@@ -73,7 +83,7 @@ export default function MyFeesPage({ asParent = false }: { asParent?: boolean })
           </Card>
         ))}
         {rows.length === 0 && <p className="text-muted-foreground text-center py-8 flex items-center justify-center gap-2"><Bell className="w-4 h-4" /> No fee records yet.</p>}
-      </div>
+      </div>}
     </>
   );
 }

@@ -20,6 +20,7 @@ import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
 import SharedLeaderboard from "@/pages/shared/LeaderboardPage";
 import BattleReportPage from "./BattleReportPage";
 import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
+import { StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
 
 // =================== ARENA (HOME) ===================
 function Arena() {
@@ -237,6 +238,7 @@ function BattleRoom() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [battle, setBattle] = useState<any>(null);
+  const [battleLoading, setBattleLoading] = useState(true);
   const [questions, setQuestions] = useState<any[]>([]);
   const [participantId, setParticipantId] = useState<string | null>(null);
   const [participants, setParticipants] = useState<any[]>([]);
@@ -255,31 +257,37 @@ function BattleRoom() {
   useEffect(() => {
     if (!id || !user) return;
     (async () => {
-      const { data: b } = await supabase.from("battles").select("*").eq("id", id).maybeSingle();
-      setBattle(b);
-      const { data: qs } = await supabase.from("battle_questions").select("*").eq("battle_id", id).order("order_index");
-      setQuestions(qs ?? []);
-      // Display name
-      const { data: prof } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
-      const name = prof?.full_name || prof?.email?.split("@")[0] || "Student";
-      const { data: stu } = await supabase.from("students").select("id").eq("user_id", user.id).maybeSingle();
-      // Join (idempotent)
-      const { data: existing } = await supabase.from("battle_participants").select("*").eq("battle_id", id).eq("user_id", user.id).maybeSingle();
-      let pid = existing?.id;
-      if (!pid) {
-        const { data: p, error } = await supabase.from("battle_participants").insert({
-          battle_id: id, user_id: user.id, student_id: stu?.id ?? null, display_name: name,
-        }).select().single();
-        if (error) { toast({ title: error.message, variant: "destructive" }); return; }
-        pid = p.id;
-      } else {
-        setMe(existing);
-        if (existing.finished_at) setFinished(true);
+      setBattleLoading(true);
+      try {
+        const { data: b } = await supabase.from("battles").select("*").eq("id", id).maybeSingle();
+        setBattle(b);
+        const { data: qs } = await supabase.from("battle_questions").select("*").eq("battle_id", id).order("order_index");
+        setQuestions(qs ?? []);
+        const { data: prof } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
+        const name = prof?.full_name || prof?.email?.split("@")[0] || "Student";
+        const { data: stu } = await supabase.from("students").select("id").eq("user_id", user.id).maybeSingle();
+        const { data: existing } = await supabase.from("battle_participants").select("*").eq("battle_id", id).eq("user_id", user.id).maybeSingle();
+        let pid = existing?.id;
+        if (!pid) {
+          const { data: p, error } = await supabase.from("battle_participants").insert({
+            battle_id: id, user_id: user.id, student_id: stu?.id ?? null, display_name: name,
+          }).select().single();
+          if (error) {
+            toast({ title: error.message, variant: "destructive" });
+            return;
+          }
+          pid = p.id;
+        } else {
+          setMe(existing);
+          if (existing.finished_at) setFinished(true);
+        }
+        setParticipantId(pid);
+        setQuestionStart(Date.now());
+        if (b) setTimeLeft(b.per_question_sec);
+        if ((qs ?? []).length > 0) setReadyCount(3);
+      } finally {
+        setBattleLoading(false);
       }
-      setParticipantId(pid);
-      setQuestionStart(Date.now());
-      if (b) setTimeLeft(b.per_question_sec);
-      if ((qs ?? []).length > 0) setReadyCount(3);
     })();
   }, [id, user]);
 
@@ -375,7 +383,15 @@ function BattleRoom() {
     setQuestionStart(Date.now());
   };
 
-  if (!battle) return <div className="p-8 text-center text-muted-foreground">Loading battle...</div>;
+  if (battleLoading) return <StudentSessionSkeleton label="Loading battle…" />;
+  if (!battle) {
+    return (
+      <Card className="p-8 text-center max-w-md mx-auto space-y-4">
+        <p className="text-muted-foreground">This battle could not be found or you no longer have access.</p>
+        <Button asChild variant="outline"><Link to="/student/battleground">Back to Arena</Link></Button>
+      </Card>
+    );
+  }
 
   if (finished) {
     const sorted = [...participants].sort((a, b) => b.score - a.score);

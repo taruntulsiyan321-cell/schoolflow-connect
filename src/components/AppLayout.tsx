@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/co
 import { GraduationCap, LogOut, Menu, MoreHorizontal } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 
-interface NavItem { to: string; label: string; icon: ReactNode; }
+interface NavItem { to: string; label: string; icon: ReactNode; /** false = stay active on nested routes (e.g. /student/dpp/:id) */ end?: boolean; }
 
 const MOBILE_PRIMARY = 4; // items shown in bottom bar; rest collapse into "More"
 
@@ -24,7 +24,7 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
   const renderNavList = (items: NavItem[], onClick?: () => void) => (
     <nav className="flex flex-col gap-1">
       {items.map(n => (
-        <NavLink key={n.to} to={n.to} end onClick={onClick}
+        <NavLink key={n.to} to={n.to} end={n.end !== false} onClick={onClick}
           className={({ isActive }) =>
             `group flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
               isActive
@@ -146,7 +146,7 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
         }}
       >
         {primary.map(n => (
-          <NavLink key={n.to} to={n.to} end
+          <NavLink key={n.to} to={n.to} end={n.end !== false}
             className={({ isActive }) =>
               `flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
                 isActive ? "text-primary" : "text-muted-foreground"
@@ -173,7 +173,7 @@ export const AppLayout = ({ children, nav, title }: { children: ReactNode; nav: 
               </SheetHeader>
               <div className="grid grid-cols-3 gap-2 mt-4">
                 {overflow.map(n => (
-                  <NavLink key={n.to} to={n.to} end onClick={() => setMoreOpen(false)}
+                  <NavLink key={n.to} to={n.to} end={n.end !== false} onClick={() => setMoreOpen(false)}
                     className={({ isActive }) =>
                       `flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-border text-xs font-medium transition-colors ${
                         isActive ? "bg-primary/10 text-primary border-primary/30" : "text-foreground hover:bg-muted"

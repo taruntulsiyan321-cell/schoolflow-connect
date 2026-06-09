@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { NotebookPen, Clock, CheckCircle, Send, Calendar, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 
 interface HomeworkItem {
   id: string;
@@ -31,6 +32,7 @@ export default function StudentHomeworkPage() {
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [noClass, setNoClass] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [submitText, setSubmitText] = useState<Record<string, string>>({});
 
@@ -45,9 +47,11 @@ export default function StudentHomeworkPage() {
         .maybeSingle();
 
       if (!s?.class_id) {
+        setNoClass(true);
         setLoading(false);
         return;
       }
+      setNoClass(false);
       setStudentId(s.id);
 
       // Get homework for this class
@@ -149,7 +153,24 @@ export default function StudentHomeworkPage() {
   };
 
   if (loading) {
-    return <p className="text-muted-foreground text-center py-8">Loading…</p>;
+    return (
+      <>
+        <PageHeader title="Homework" subtitle="Assigned tasks and submissions" />
+        <StudentListSkeleton rows={4} />
+      </>
+    );
+  }
+
+  if (noClass) {
+    return (
+      <>
+        <PageHeader title="Homework" subtitle="Assigned tasks and submissions" />
+        <Card className="p-8 text-center">
+          <NotebookPen className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
+          <p className="text-muted-foreground">You need to be assigned to a class before homework appears here.</p>
+        </Card>
+      </>
+    );
   }
 
   const today = new Date().toISOString().split("T")[0];
