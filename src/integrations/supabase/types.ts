@@ -21,6 +21,7 @@ export type Database = {
           dpp_count: number
           homework_count: number
           practice_minutes: number
+          self_practice_count: number
           user_id: string
         }
         Insert: {
@@ -29,6 +30,7 @@ export type Database = {
           dpp_count?: number
           homework_count?: number
           practice_minutes?: number
+          self_practice_count?: number
           user_id: string
         }
         Update: {
@@ -37,6 +39,7 @@ export type Database = {
           dpp_count?: number
           homework_count?: number
           practice_minutes?: number
+          self_practice_count?: number
           user_id?: string
         }
         Relationships: []
@@ -419,32 +422,38 @@ export type Database = {
         Row: {
           bank_question_id: string | null
           battle_id: string
+          concept: string | null
           correct_index: number
           id: string
           options: Json
           order_index: number
           points: number
           question: string
+          subconcept: string | null
         }
         Insert: {
           bank_question_id?: string | null
           battle_id: string
+          concept?: string | null
           correct_index: number
           id?: string
           options: Json
           order_index: number
           points?: number
           question: string
+          subconcept?: string | null
         }
         Update: {
           bank_question_id?: string | null
           battle_id?: string
+          concept?: string | null
           correct_index?: number
           id?: string
           options?: Json
           order_index?: number
           points?: number
           question?: string
+          subconcept?: string | null
         }
         Relationships: [
           {
@@ -650,6 +659,71 @@ export type Database = {
         }
         Relationships: []
       }
+      concept_mastery: {
+        Row: {
+          chapter: string | null
+          class_level: number | null
+          concept: string
+          correct_attempts: number
+          id: string
+          last_attempt_at: string | null
+          mastery_score: number
+          mistake_count: number
+          recovery_attempts: number
+          recovery_correct: number
+          student_id: string | null
+          subconcept: string | null
+          subject: string
+          total_attempts: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chapter?: string | null
+          class_level?: number | null
+          concept: string
+          correct_attempts?: number
+          id?: string
+          last_attempt_at?: string | null
+          mastery_score?: number
+          mistake_count?: number
+          recovery_attempts?: number
+          recovery_correct?: number
+          student_id?: string | null
+          subconcept?: string | null
+          subject: string
+          total_attempts?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chapter?: string | null
+          class_level?: number | null
+          concept?: string
+          correct_attempts?: number
+          id?: string
+          last_attempt_at?: string | null
+          mastery_score?: number
+          mistake_count?: number
+          recovery_attempts?: number
+          recovery_correct?: number
+          student_id?: string | null
+          subconcept?: string | null
+          subject?: string
+          total_attempts?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concept_mastery_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_tokens: {
         Row: {
           created_at: string
@@ -780,6 +854,9 @@ export type Database = {
       }
       dpp_questions: {
         Row: {
+          chapter: string | null
+          class_level: number | null
+          concept: string | null
           correct: Json
           created_at: string
           dpp_id: string
@@ -790,8 +867,13 @@ export type Database = {
           options: Json
           order_index: number
           question: string
+          subconcept: string | null
+          subject: string | null
         }
         Insert: {
+          chapter?: string | null
+          class_level?: number | null
+          concept?: string | null
           correct?: Json
           created_at?: string
           dpp_id: string
@@ -802,8 +884,13 @@ export type Database = {
           options?: Json
           order_index?: number
           question: string
+          subconcept?: string | null
+          subject?: string | null
         }
         Update: {
+          chapter?: string | null
+          class_level?: number | null
+          concept?: string | null
           correct?: Json
           created_at?: string
           dpp_id?: string
@@ -814,6 +901,8 @@ export type Database = {
           options?: Json
           order_index?: number
           question?: string
+          subconcept?: string | null
+          subject?: string | null
         }
         Relationships: [
           {
@@ -1136,6 +1225,7 @@ export type Database = {
           created_at: string
           id: string
           isbn: string | null
+          shelf_location: string | null
           title: string
           total_copies: number
           updated_at: string
@@ -1147,6 +1237,7 @@ export type Database = {
           created_at?: string
           id?: string
           isbn?: string | null
+          shelf_location?: string | null
           title: string
           total_copies?: number
           updated_at?: string
@@ -1158,6 +1249,7 @@ export type Database = {
           created_at?: string
           id?: string
           isbn?: string | null
+          shelf_location?: string | null
           title?: string
           total_copies?: number
           updated_at?: string
@@ -1368,6 +1460,47 @@ export type Database = {
         }
         Relationships: []
       }
+      parent_academic_alerts: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          parent_user_id: string
+          read: boolean
+          student_id: string
+          title: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          kind: string
+          parent_user_id: string
+          read?: boolean
+          student_id: string
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          parent_user_id?: string
+          read?: boolean
+          student_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parent_academic_alerts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       phone_otps: {
         Row: {
           attempts: number
@@ -1397,6 +1530,53 @@ export type Database = {
           phone?: string
         }
         Relationships: []
+      }
+      practice_sessions: {
+        Row: {
+          chapter: string
+          correct_count: number
+          created_at: string
+          finished_at: string | null
+          id: string
+          question_count: number
+          score: number
+          student_id: string | null
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          chapter: string
+          correct_count?: number
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          question_count?: number
+          score?: number
+          student_id?: string | null
+          subject: string
+          user_id: string
+        }
+        Update: {
+          chapter?: string
+          correct_count?: number
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          question_count?: number
+          score?: number
+          student_id?: string | null
+          subject?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_sessions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1428,10 +1608,75 @@ export type Database = {
         }
         Relationships: []
       }
+      question_attempts: {
+        Row: {
+          correct_answer: Json
+          created_at: string
+          generated_question: Json
+          id: string
+          is_correct: boolean | null
+          score: number
+          selected_answer: Json | null
+          session_id: string | null
+          student_id: string | null
+          template_id: string
+          user_id: string
+        }
+        Insert: {
+          correct_answer: Json
+          created_at?: string
+          generated_question: Json
+          id?: string
+          is_correct?: boolean | null
+          score?: number
+          selected_answer?: Json | null
+          session_id?: string | null
+          student_id?: string | null
+          template_id: string
+          user_id: string
+        }
+        Update: {
+          correct_answer?: Json
+          created_at?: string
+          generated_question?: Json
+          id?: string
+          is_correct?: boolean | null
+          score?: number
+          selected_answer?: Json | null
+          session_id?: string | null
+          student_id?: string | null
+          template_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_attempts_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "practice_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_attempts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_attempts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "question_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_bank: {
         Row: {
           chapter: string | null
           class_level: number | null
+          concept: string | null
           correct_index: number
           created_at: string
           created_by: string | null
@@ -1442,12 +1687,14 @@ export type Database = {
           options: Json
           question: string
           source: string | null
+          subconcept: string | null
           subject: string
           topic: string | null
         }
         Insert: {
           chapter?: string | null
           class_level?: number | null
+          concept?: string | null
           correct_index: number
           created_at?: string
           created_by?: string | null
@@ -1458,12 +1705,14 @@ export type Database = {
           options: Json
           question: string
           source?: string | null
+          subconcept?: string | null
           subject: string
           topic?: string | null
         }
         Update: {
           chapter?: string | null
           class_level?: number | null
+          concept?: string | null
           correct_index?: number
           created_at?: string
           created_by?: string | null
@@ -1474,10 +1723,188 @@ export type Database = {
           options?: Json
           question?: string
           source?: string | null
+          subconcept?: string | null
           subject?: string
           topic?: string | null
         }
         Relationships: []
+      }
+      question_templates: {
+        Row: {
+          chapter: string
+          class: number
+          concept: string | null
+          created_at: string
+          explanation_template: string
+          id: string
+          is_active: boolean
+          subconcept: string | null
+          subject: string
+          template_data: Json
+          template_type: string
+        }
+        Insert: {
+          chapter: string
+          class: number
+          concept?: string | null
+          created_at?: string
+          explanation_template?: string
+          id?: string
+          is_active?: boolean
+          subconcept?: string | null
+          subject: string
+          template_data?: Json
+          template_type: string
+        }
+        Update: {
+          chapter?: string
+          class?: number
+          concept?: string | null
+          created_at?: string
+          explanation_template?: string
+          id?: string
+          is_active?: boolean
+          subconcept?: string | null
+          subject?: string
+          template_data?: Json
+          template_type?: string
+        }
+        Relationships: []
+      }
+      recovery_assignment_questions: {
+        Row: {
+          answered: boolean
+          assignment_id: string
+          bank_question_id: string | null
+          correct_answer: Json
+          created_at: string
+          explanation: string | null
+          id: string
+          is_correct: boolean | null
+          options: Json
+          order_index: number
+          question_text: string
+          student_answer: Json | null
+          template_id: string | null
+        }
+        Insert: {
+          answered?: boolean
+          assignment_id: string
+          bank_question_id?: string | null
+          correct_answer?: Json
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          is_correct?: boolean | null
+          options?: Json
+          order_index?: number
+          question_text: string
+          student_answer?: Json | null
+          template_id?: string | null
+        }
+        Update: {
+          answered?: boolean
+          assignment_id?: string
+          bank_question_id?: string | null
+          correct_answer?: Json
+          created_at?: string
+          explanation?: string | null
+          id?: string
+          is_correct?: boolean | null
+          options?: Json
+          order_index?: number
+          question_text?: string
+          student_answer?: Json | null
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_assignment_questions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "recovery_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_assignment_questions_bank_question_id_fkey"
+            columns: ["bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_assignment_questions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "question_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recovery_assignments: {
+        Row: {
+          chapter: string | null
+          completed_at: string | null
+          concept: string
+          created_at: string
+          id: string
+          question_count: number
+          questions_completed: number
+          questions_correct: number
+          severity: string
+          source_id: string | null
+          source_type: string | null
+          status: string
+          student_id: string | null
+          subconcept: string | null
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          chapter?: string | null
+          completed_at?: string | null
+          concept: string
+          created_at?: string
+          id?: string
+          question_count?: number
+          questions_completed?: number
+          questions_correct?: number
+          severity: string
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          student_id?: string | null
+          subconcept?: string | null
+          subject: string
+          user_id: string
+        }
+        Update: {
+          chapter?: string | null
+          completed_at?: string | null
+          concept?: string
+          created_at?: string
+          id?: string
+          question_count?: number
+          questions_completed?: number
+          questions_correct?: number
+          severity?: string
+          source_id?: string | null
+          source_type?: string | null
+          status?: string
+          student_id?: string | null
+          subconcept?: string | null
+          subject?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recovery_assignments_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       revision_queue: {
         Row: {
@@ -1675,9 +2102,45 @@ export type Database = {
         }
         Relationships: []
       }
-      student_mistakes: {
+      student_improvement_plans: {
         Row: {
           chapter: string | null
+          id: string
+          plan: Json
+          source: string
+          subject: string
+          topic: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chapter?: string | null
+          id?: string
+          plan?: Json
+          source: string
+          subject: string
+          topic?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chapter?: string | null
+          id?: string
+          plan?: Json
+          source?: string
+          subject?: string
+          topic?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      student_mistakes: {
+        Row: {
+          assessment_type: string | null
+          chapter: string | null
+          class_level: number | null
+          concept: string | null
           correct_answer: Json | null
           created_at: string
           explanation: string | null
@@ -1691,13 +2154,17 @@ export type Database = {
           source_id: string | null
           student_answer: Json | null
           student_id: string | null
+          subconcept: string | null
           subject: string
           times_wrong: number
           topic: string | null
           user_id: string
         }
         Insert: {
+          assessment_type?: string | null
           chapter?: string | null
+          class_level?: number | null
+          concept?: string | null
           correct_answer?: Json | null
           created_at?: string
           explanation?: string | null
@@ -1711,13 +2178,17 @@ export type Database = {
           source_id?: string | null
           student_answer?: Json | null
           student_id?: string | null
+          subconcept?: string | null
           subject?: string
           times_wrong?: number
           topic?: string | null
           user_id: string
         }
         Update: {
+          assessment_type?: string | null
           chapter?: string | null
+          class_level?: number | null
+          concept?: string | null
           correct_answer?: Json | null
           created_at?: string
           explanation?: string | null
@@ -1731,6 +2202,7 @@ export type Database = {
           source_id?: string | null
           student_answer?: Json | null
           student_id?: string | null
+          subconcept?: string | null
           subject?: string
           times_wrong?: number
           topic?: string | null
@@ -2038,6 +2510,11 @@ export type Database = {
         }
         Returns: undefined
       }
+      _award_engagement_badges: { Args: { _uid: string }; Returns: undefined }
+      _backfill_battle_question_concepts: { Args: never; Returns: number }
+      _backfill_dpp_question_concepts: { Args: never; Returns: number }
+      _backfill_question_bank_concepts: { Args: never; Returns: number }
+      _backfill_template_concepts: { Args: never; Returns: number }
       _battle_event: {
         Args: {
           _battle?: string
@@ -2052,24 +2529,59 @@ export type Database = {
         }
         Returns: undefined
       }
-      _bump_academic_activity: {
-        Args: {
-          _battle?: number
-          _dpp?: number
-          _hw?: number
-          _mins?: number
-          _uid: string
-        }
+      _build_concept_recovery_report: {
+        Args: { _source_id: string; _source_type: string; _uid: string }
+        Returns: Json
+      }
+      _bump_academic_activity:
+        | {
+            Args: {
+              _battle?: number
+              _dpp?: number
+              _hw?: number
+              _mins?: number
+              _uid: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _battle?: number
+              _dpp?: number
+              _hw?: number
+              _mins?: number
+              _self_practice?: number
+              _uid: string
+            }
+            Returns: undefined
+          }
+      _capture_battle_mistakes: {
+        Args: { _participant_id: string }
         Returns: undefined
       }
       _capture_dpp_mistakes: {
         Args: { _attempt_id: string }
         Returns: undefined
       }
+      _class_grade: { Args: { _class_id: string }; Returns: number }
+      _compute_mastery_score: {
+        Args: {
+          _attempts: number
+          _correct: number
+          _last_at: string
+          _mistakes: number
+          _recovery_attempts: number
+          _recovery_correct: number
+        }
+        Returns: number
+      }
+      _concept_severity: { Args: { _accuracy: number }; Returns: string }
       _exam_readiness: {
         Args: { _student_id: string; _uid: string }
         Returns: Json
       }
+      _humanize_template_type: { Args: { _t: string }; Returns: string }
+      _maybe_finish_battle: { Args: { _battle_id: string }; Returns: undefined }
       _notify: {
         Args: {
           _body?: string
@@ -2085,9 +2597,58 @@ export type Database = {
         Args: { _student_id: string; _uid: string }
         Returns: undefined
       }
+      _recovery_question_count: { Args: { _severity: string }; Returns: number }
+      _revision_recently_completed: {
+        Args: {
+          _chapter: string
+          _days?: number
+          _subject: string
+          _topic: string
+          _uid: string
+        }
+        Returns: boolean
+      }
+      _revision_topic_priority: {
+        Args: {
+          _accuracy?: number
+          _chapter: string
+          _subject: string
+          _topic: string
+          _uid: string
+        }
+        Returns: {
+          priority: number
+          sort_factors: string[]
+        }[]
+      }
+      _rule_improvement_plan: {
+        Args: {
+          _accuracy: number
+          _attempts: number
+          _chapter: string
+          _mistakes: number
+          _subject: string
+          _topic: string
+        }
+        Returns: Json
+      }
       _snapshot_battle_report: {
         Args: { _participant_id: string }
         Returns: string
+      }
+      _upsert_concept_mastery: {
+        Args: {
+          _chapter: string
+          _class: number
+          _concept: string
+          _is_correct: boolean
+          _is_recovery?: boolean
+          _sid: string
+          _subconcept: string
+          _subject: string
+          _uid: string
+        }
+        Returns: undefined
       }
       _weak_topics_for_user: {
         Args: { _uid: string }
@@ -2182,10 +2743,22 @@ export type Database = {
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
       link_portal_on_auth: { Args: { _uid?: string }; Returns: undefined }
       normalize_phone: { Args: { _raw: string }; Returns: string }
-      rpc_battle_curriculum: {
-        Args: { _subject: string; _class_id?: string | null }
-        Returns: Json
+      rpc_assign_concept_recovery: {
+        Args: {
+          _accuracy?: number
+          _chapter?: string
+          _concept?: string
+          _source_id?: string
+          _source_type?: string
+          _subconcept?: string
+          _subject: string
+        }
+        Returns: string
       }
+      rpc_backfill_question_concepts: { Args: never; Returns: Json }
+      rpc_battle_curriculum:
+        | { Args: { _subject: string }; Returns: Json }
+        | { Args: { _class_id?: string; _subject: string }; Returns: Json }
       rpc_battle_feed: {
         Args: { _limit?: number }
         Returns: {
@@ -2248,30 +2821,6 @@ export type Database = {
         }[]
       }
       rpc_complete_revision: { Args: { _id: string }; Returns: undefined }
-      rpc_create_quick_battle:
-        | {
-            Args: {
-              _chapter?: string
-              _class_id?: string
-              _count?: number
-              _difficulty?: string
-              _per_q?: number
-              _subject: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _chapter?: string
-              _class_id?: string
-              _count?: number
-              _difficulty?: string
-              _per_q?: number
-              _subject: string
-              _topic?: string
-            }
-            Returns: string
-          }
       rpc_create_class_battle: {
         Args: {
           _chapter?: string
@@ -2296,12 +2845,40 @@ export type Database = {
         }
         Returns: string
       }
+      rpc_create_quick_battle: {
+        Args: {
+          _chapter?: string
+          _class_id?: string
+          _count?: number
+          _difficulty?: string
+          _per_q?: number
+          _subject: string
+          _topic?: string
+        }
+        Returns: string
+      }
+      rpc_create_template_solo_battle: {
+        Args: {
+          _chapter: string
+          _class_id?: string
+          _count?: number
+          _difficulty?: string
+          _per_q?: number
+          _questions?: Json
+          _subject: string
+        }
+        Returns: string
+      }
       rpc_dpp_pick_from_bank: {
         Args: { _count?: number; _difficulty?: string; _dpp_id: string }
         Returns: number
       }
       rpc_dpp_start: { Args: { _dpp_id: string }; Returns: string }
       rpc_dpp_submit: { Args: { _attempt_id: string }; Returns: undefined }
+      rpc_ensure_battle_report: {
+        Args: { _participant_id: string }
+        Returns: Json
+      }
       rpc_finish_battle: {
         Args: { _participant_id: string }
         Returns: undefined
@@ -2310,58 +2887,20 @@ export type Database = {
         Args: { _session_id: string }
         Returns: Json
       }
-      rpc_get_recovery_assignment: {
-        Args: { _assignment_id: string }
-        Returns: Json
-      }
-      rpc_pick_question_templates: {
-        Args: {
-          _class: number
-          _chapter: string
-          _count?: number
-          _subject: string
-        }
-        Returns: Json
-      }
-      rpc_record_question_attempt: {
-        Args: {
-          _correct_answer: Json
-          _generated_question: Json
-          _is_correct?: boolean
-          _score?: number
-          _selected_answer?: Json
-          _session_id: string
-          _template_id: string
-        }
-        Returns: string
-      }
-      rpc_start_practice_session: {
-        Args: {
-          _chapter: string
-          _count?: number
-          _subject: string
-        }
-        Returns: string
-      }
-      rpc_student_concept_mastery: { Args: never; Returns: Json }
-      rpc_student_improvement_plans: { Args: never; Returns: Json }
-      rpc_student_performance_charts: { Args: never; Returns: Json }
-      rpc_student_recovery_zone: { Args: never; Returns: Json }
-      rpc_student_revision_queue: { Args: never; Returns: Json }
-      rpc_submit_recovery_answer: {
-        Args: {
-          _is_correct: boolean
-          _question_id: string
-          _student_answer: Json
-        }
-        Returns: Json
-      }
       rpc_generate_battle: {
         Args: { _battle_id: string; _count?: number }
         Returns: number
       }
       rpc_get_battle_report: {
         Args: { _participant_id: string }
+        Returns: Json
+      }
+      rpc_get_concept_recovery_report: {
+        Args: { _source_id: string; _source_type: string }
+        Returns: Json
+      }
+      rpc_get_recovery_assignment: {
+        Args: { _assignment_id: string }
         Returns: Json
       }
       rpc_leaderboard: {
@@ -2385,10 +2924,95 @@ export type Database = {
         Args: { _student_id?: string }
         Returns: Json
       }
+      rpc_parent_concept_analytics: { Args: never; Returns: Json }
+      rpc_parent_weekly_digest: { Args: never; Returns: Json }
+      rpc_pick_question_templates: {
+        Args: {
+          _chapter: string
+          _class: number
+          _count?: number
+          _subject: string
+        }
+        Returns: {
+          chapter: string
+          class: number
+          concept: string | null
+          created_at: string
+          explanation_template: string
+          id: string
+          is_active: boolean
+          subconcept: string | null
+          subject: string
+          template_data: Json
+          template_type: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "question_templates"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      rpc_post_assessment_concept_analysis: {
+        Args: { _source_id: string; _source_type: string }
+        Returns: Json
+      }
+      rpc_principal_concept_analytics: { Args: never; Returns: Json }
       rpc_principal_school_health: { Args: never; Returns: Json }
+      rpc_record_concept_mistake: {
+        Args: {
+          _assessment_type: string
+          _chapter?: string
+          _class_level?: number
+          _concept?: string
+          _correct_answer?: Json
+          _explanation?: string
+          _options?: Json
+          _question_id?: string
+          _question_text?: string
+          _source_id: string
+          _student_answer?: Json
+          _subconcept?: string
+          _subject?: string
+        }
+        Returns: string
+      }
+      rpc_record_question_attempt: {
+        Args: {
+          _correct_answer: Json
+          _generated_question: Json
+          _is_correct?: boolean
+          _score?: number
+          _selected_answer?: Json
+          _session_id: string
+          _template_id: string
+        }
+        Returns: string
+      }
+      rpc_save_battle_ai_insights: {
+        Args: { _insights: Json; _participant_id: string }
+        Returns: undefined
+      }
+      rpc_start_practice_session: {
+        Args: { _chapter: string; _count?: number; _subject: string }
+        Returns: string
+      }
       rpc_student_academic_snapshot: { Args: never; Returns: Json }
       rpc_student_academic_snapshot_internal: {
         Args: { _student_id: string; _uid: string }
+        Returns: Json
+      }
+      rpc_student_concept_mastery: { Args: never; Returns: Json }
+      rpc_student_improvement_plans: { Args: never; Returns: Json }
+      rpc_student_performance_charts: { Args: never; Returns: Json }
+      rpc_student_recovery_zone: { Args: never; Returns: Json }
+      rpc_student_revision_queue: { Args: never; Returns: Json }
+      rpc_submit_recovery_answer: {
+        Args: {
+          _is_correct: boolean
+          _question_id: string
+          _student_answer: Json
+        }
         Returns: Json
       }
       rpc_teacher_battle_reports: {
@@ -2396,6 +3020,10 @@ export type Database = {
         Returns: Json
       }
       rpc_teacher_class_insights: { Args: { _class_id: string }; Returns: Json }
+      rpc_teacher_concept_analytics: {
+        Args: { _class_id: string }
+        Returns: Json
+      }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       teacher_teaches_class: {
         Args: { _class_id: string; _user_id: string }
