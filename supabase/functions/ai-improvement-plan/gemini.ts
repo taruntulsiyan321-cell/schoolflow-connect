@@ -24,16 +24,27 @@ export type StructuredAiRequest = {
   toolName: string;
 };
 
-type AiConfig = { provider: "google"; apiKey: string; model: string };
+type AiConfig = { provider: "google"; apiKey: string; models: string[] };
 
 export function getAiConfig(): AiConfig | null {
   const googleKey =
     Deno.env.get("GOOGLE_GEMINI_API_KEY")?.trim() ||
     Deno.env.get("GEMINI_API_KEY")?.trim() ||
     "";
-  const model = Deno.env.get("GEMINI_MODEL")?.trim() || "gemini-2.0-flash";
+  const primaryModel = Deno.env.get("GEMINI_MODEL")?.trim() || "gemini-2.0-flash";
+  const configuredFallbacks = (Deno.env.get("GEMINI_FALLBACK_MODELS") ?? "")
+    .split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
+  const models = Array.from(new Set([
+    primaryModel,
+    ...configuredFallbacks,
+    "gemini-2.0-flash-lite",
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-8b",
+  ]));
 
-  if (googleKey) return { provider: "google", apiKey: googleKey, model };
+  if (googleKey) return { provider: "google", apiKey: googleKey, models };
   return null;
 }
 
@@ -43,10 +54,11 @@ export type AiResult<T> =
 
 async function callGoogleGemini<T>(
   cfg: Extract<AiConfig, { provider: "google" }>,
+  model: string,
   req: StructuredAiRequest,
 ): Promise<AiResult<T>> {
   const url =
-    `https://generativelanguage.googleapis.com/v1beta/models/${cfg.model}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -95,5 +107,13 @@ export async function generateStructured<T>(req: StructuredAiRequest): Promise<A
     };
   }
 
-  return callGoogleGemini<T>(cfg, req);
+  let lastRateLimit: AiResult<T> | null = null;
+  for (const model of cfg.models) {
+    const result = await callGoogleGemini<T>(cfg, model, req);
+    if (result.ok) return result;
+    if (result.status !== 429) return result;
+    lastRateLimit = result;
+  }
+
+  return lastRateLimit ?? { ok: false, error: "Gemini rate limit — try again in a moment.", status: 429 };
 }
