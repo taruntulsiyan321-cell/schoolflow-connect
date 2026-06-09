@@ -12,7 +12,7 @@ import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/
 import { MathText } from "@/components/MathText";
 import { generateFromTemplate } from "@/engines/class12Math/generate";
 import type { GeneratedQuestion } from "@/engines/class12Math/types";
-import { freshSessionSeed } from "@/lib/practiceDiversity";
+import { freshSessionSeed, SEED_STRIDE } from "@/lib/practiceDiversity";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 
 type RecoveryQuestion = {
@@ -85,6 +85,7 @@ export default function RecoverySession() {
         enriched.push(q);
       }
 
+      const seenQuestions = new Set<string>();
       const qs = enriched.map((q, i) => {
         const needsGen =
           q.client_generate ||
@@ -94,14 +95,27 @@ export default function RecoverySession() {
 
         if (needsGen && q.template_type) {
           try {
-            const generated = generateFromTemplate(
+            let attempt = 0;
+            let generated = generateFromTemplate(
               {
                 template_type: q.template_type,
                 template_data: q.template_data ?? {},
                 explanation_template: q.explanation ?? "",
               },
-              sessionSeed + i * 7919,
+              sessionSeed + i * SEED_STRIDE,
             );
+            while (seenQuestions.has(generated.question) && attempt < 8) {
+              attempt++;
+              generated = generateFromTemplate(
+                {
+                  template_type: q.template_type,
+                  template_data: q.template_data ?? {},
+                  explanation_template: q.explanation ?? "",
+                },
+                sessionSeed + i * SEED_STRIDE + attempt * 131 + attempt * attempt * 17,
+              );
+            }
+            seenQuestions.add(generated.question);
             return {
               ...q,
               options: generated.options,

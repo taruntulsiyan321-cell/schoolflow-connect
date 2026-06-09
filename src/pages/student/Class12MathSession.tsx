@@ -5,7 +5,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { generateFromTemplate } from "@/engines/class12Math/generate";
 import type { GeneratedQuestion, QuestionTemplateRow } from "@/engines/class12Math/types";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, CheckCircle2, Sparkles, XCircle } from "lucide-react";
@@ -14,7 +13,13 @@ import { toast } from "sonner";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
-import { diversifyTemplates, freshSessionSeed } from "@/lib/practiceDiversity";
+import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
+import {
+  diversifyTemplates,
+  freshSessionSeed,
+  generateUniqueFromTemplates,
+  SEED_STRIDE,
+} from "@/lib/practiceDiversity";
 
 type SessionItem = {
   template: QuestionTemplateRow;
@@ -83,18 +88,7 @@ export default function Class12MathSession() {
         return;
       }
 
-      const seenQuestions = new Set<string>();
-      const built: SessionItem[] = [];
-      uniqueRows.forEach((t, i) => {
-        let attempt = 0;
-        let generated = generateFromTemplate(t, seed + i * 7919);
-        while (seenQuestions.has(generated.question) && attempt < 6) {
-          attempt++;
-          generated = generateFromTemplate(t, seed + i * 7919 + attempt * 131);
-        }
-        seenQuestions.add(generated.question);
-        built.push({ template: t, generated });
-      });
+      const built = generateUniqueFromTemplates(uniqueRows, seed);
       setItems(built);
       setLoading(false);
     })();
@@ -116,13 +110,23 @@ export default function Class12MathSession() {
         question: current.generated.question,
         options: current.generated.options,
         values: current.generated.values,
-        session_seed: sessionSeed + idx * 7919,
+        session_seed: sessionSeed + idx * SEED_STRIDE,
       },
       _correct_answer: { index: current.generated.correctIndex, text: current.generated.correctAnswer },
       _selected_answer: { index: optionIndex, text: current.generated.options[optionIndex] },
       _is_correct: ok,
       _score: ok ? 1 : 0,
     });
+
+    if (!ok && sessionId) {
+      void assignRecoveryOnMistake({
+        subject: "Mathematics",
+        chapter,
+        concept: current.template.chapter,
+        sourceType: "practice_session",
+        sourceId: sessionId,
+      });
+    }
   };
 
   const next = async () => {
@@ -264,7 +268,7 @@ export default function Class12MathSession() {
       </Card>
 
       <p className="text-[11px] text-center text-muted-foreground flex items-center justify-center gap-1">
-        <Sparkles className="w-3 h-3" /> Generated from template · seed {sessionSeed + idx * 7919}
+        <Sparkles className="w-3 h-3" /> Generated from template · seed {sessionSeed + idx * SEED_STRIDE}
       </p>
     </div>
   );

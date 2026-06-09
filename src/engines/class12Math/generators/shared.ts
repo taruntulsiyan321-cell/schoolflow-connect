@@ -1,24 +1,7 @@
 import { fmt, randInt } from "../random";
-import type { GeneratorFn } from "../types";
+import { coeff, register, generators } from "./register";
 
-export function coeff(rng: () => number, variant: number, spread = 9) {
-  const base = (variant % 7) + 1;
-  return randInt(rng, 1, spread) * (rng() > 0.5 ? 1 : -1) + base;
-}
-
-export function makePolyEval(coeffs: number[], x: number) {
-  return coeffs.reduce((s, c, i) => s + c * x ** i, 0);
-}
-
-export function derivativePoly(coeffs: number[]) {
-  return coeffs.slice(1).map((c, i) => c * (i + 1));
-}
-
-export const generators: Record<string, GeneratorFn> = {};
-
-export function register(type: string, fn: GeneratorFn) {
-  generators[type] = fn;
-}
+export { coeff, generators, register };
 
 // ── Relations and Functions ───────────────────────────────────────────────────
 register("rf_composition_linear", (data, rng) => {
@@ -345,12 +328,13 @@ register("lp_feasible_region", (data, rng) => {
 
 register("lp_minimize", (data, rng) => {
   const v = Number(data.variant ?? 0);
-  const z = 2 * 1 + 3 * 1;
+  const a = 2 + (v % 3);
+  const b = 3 + (v % 2);
   return {
-    question: `Minimize Z = 2x + 3y on x,y ≥ 0. Minimum at origin is?`,
-    correctAnswer: fmt(z),
-    explanation: `At (0,0), Z = 0 is minimum for this objective with non-negativity constraints.`,
-    values: { z },
+    question: `Minimize Z = ${a}x + ${b}y on x,y ≥ 0. Minimum value at origin is?`,
+    correctAnswer: "0",
+    explanation: `At (0,0), Z = 0 is minimum for positive-coefficient objective with x,y ≥ 0.`,
+    values: { a, b },
   };
 });
 
@@ -396,3 +380,5 @@ register("prob_bayes", (data, rng) => {
     values: { sens, spec, prev },
   };
 });
+
+import "./expanded";

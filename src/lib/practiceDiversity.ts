@@ -1,4 +1,5 @@
-import type { QuestionTemplateRow } from "@/engines/class12Math/types";
+import { generateFromTemplate } from "@/engines/class12Math/generate";
+import type { GeneratedQuestion, QuestionTemplateRow } from "@/engines/class12Math/types";
 
 /** High-entropy seed so consecutive sessions produce different numbers. */
 export function freshSessionSeed(chapter: string): number {
@@ -44,3 +45,29 @@ export function diversifyTemplates(
 
   return picked.slice(0, count);
 }
+
+const SEED_STRIDE = 7919;
+const RETRY_STRIDE = 131;
+
+/** Generate questions with dedupe + fresh seeds when question text collides. */
+export function generateUniqueFromTemplates(
+  rows: QuestionTemplateRow[],
+  sessionSeed: number,
+  seenQuestions = new Set<string>(),
+): Array<{ template: QuestionTemplateRow; generated: GeneratedQuestion }> {
+  return rows.map((t, i) => {
+    let attempt = 0;
+    let generated = generateFromTemplate(t, sessionSeed + i * SEED_STRIDE);
+    while (seenQuestions.has(generated.question) && attempt < 8) {
+      attempt++;
+      generated = generateFromTemplate(
+        t,
+        sessionSeed + i * SEED_STRIDE + attempt * RETRY_STRIDE + attempt * attempt * 17,
+      );
+    }
+    seenQuestions.add(generated.question);
+    return { template: t, generated };
+  });
+}
+
+export { SEED_STRIDE };

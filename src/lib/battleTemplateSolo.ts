@@ -1,7 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
-import { generateFromTemplate } from "@/engines/class12Math/generate";
 import { CLASS12_MATH_CHAPTERS, type QuestionTemplateRow } from "@/engines/class12Math/types";
-import { diversifyTemplates, freshSessionSeed } from "@/lib/practiceDiversity";
+import {
+  diversifyTemplates,
+  freshSessionSeed,
+  generateUniqueFromTemplates,
+} from "@/lib/practiceDiversity";
 
 const NO_BANK_MSG = "No questions available for this combination yet";
 
@@ -53,7 +56,7 @@ export async function createMath12TemplateSoloBattle(opts: {
   }
 
   const seed = freshSessionSeed(chapter);
-  const generated = rows.map((t, i) => generateFromTemplate(t, seed + i * 7919));
+  const generated = generateUniqueFromTemplates(rows, seed).map((x) => x.generated);
   const payload = generated.map((g) => ({
     question: g.question,
     options: g.options,
