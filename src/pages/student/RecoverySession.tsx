@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
+import { MathText } from "@/components/MathText";
 
 type RecoveryQuestion = {
   id: string;

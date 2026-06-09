@@ -2,6 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Check, X } from "lucide-react";
+import { MathText } from "@/components/MathText";
 
 export type DppQuestion = {
   id: string;
@@ -39,7 +40,7 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
   return (
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="text-base leading-relaxed font-medium flex-1">{q.question}</div>
+        <MathText block className="text-base leading-relaxed font-medium flex-1" text={q.question} />
         <span className="text-xs text-muted-foreground whitespace-nowrap">+{q.marks}</span>
       </div>
 
@@ -66,7 +67,7 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
                 <span className="w-6 h-6 rounded-full border flex items-center justify-center text-xs font-semibold shrink-0">
                   {String.fromCharCode(65 + i)}
                 </span>
-                <span className="flex-1 text-sm">{opt}</span>
+                <MathText className="flex-1 text-sm" text={opt} />
                 {showState && isRight && <Check className="w-4 h-4 text-accent" />}
                 {showState && isSel && !isRight && <X className="w-4 h-4 text-destructive" />}
               </button>
