@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
+import { MathText } from "@/components/MathText";
 
 export type BattleReportPayload = {
   id: string;
@@ -295,7 +296,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
                   </span>
                 )}
               </div>
-              <p className="text-sm font-medium leading-snug">{q.question}</p>
+              <MathText block className="text-sm font-medium leading-snug" text={q.question} />
               {(q.chapter || q.topic) && (
                 <p className="text-[11px] text-muted-foreground mt-1">{[q.chapter, q.topic].filter(Boolean).join(" · ")}</p>
               )}

@@ -4,101 +4,102 @@
 
 @layer base {
   :root {
-    /* Professional but colorful — institutional indigo with vivid accents */
-    --background: 220 30% 99%;
-    --foreground: 222 47% 8%;
+    /* Emerald Prestige — calm authority, study-focused.
+       Palette: #064e3b #0d7a5f #c9a84c #f5f0e0 */
+    --background: 44 38% 97%;
+    --foreground: 158 60% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 8%;
+    --card-foreground: 158 60% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 8%;
+    --popover-foreground: 158 60% 8%;
 
-    /* Vivid indigo primary */
-    --primary: 231 75% 42%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 231 90% 60%;
+    /* Deep emerald primary */
+    --primary: 162 84% 16%;
+    --primary-foreground: 44 38% 97%;
+    --primary-glow: 162 70% 26%;
 
-    --secondary: 231 40% 95%;
-    --secondary-foreground: 231 60% 25%;
+    --secondary: 158 30% 94%;
+    --secondary-foreground: 162 60% 18%;
 
-    --accent: 173 70% 38%;
-    --accent-foreground: 0 0% 100%;
+    /* Refined gold accent */
+    --accent: 43 56% 54%;
+    --accent-foreground: 158 60% 10%;
 
-    --warning: 32 95% 50%;
+    --warning: 32 92% 48%;
     --warning-foreground: 0 0% 100%;
 
-    --muted: 220 22% 94%;
-    --muted-foreground: 222 20% 32%;
+    --muted: 44 24% 93%;
+    --muted-foreground: 162 14% 36%;
 
-    --destructive: 0 78% 52%;
+    --destructive: 0 70% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 18% 86%;
-    --input: 220 18% 86%;
-    --ring: 231 75% 42%;
-    --radius: 0.625rem;
+    --border: 44 20% 88%;
+    --input: 44 20% 88%;
+    --ring: 162 70% 26%;
+    --radius: 0.75rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(231 62% 40%), hsl(245 52% 46%));
-    --gradient-soft: linear-gradient(180deg, hsl(220 30% 99%), hsl(220 24% 96%));
-    --gradient-hero: linear-gradient(135deg, hsl(231 62% 40%) 0%, hsl(245 52% 46%) 100%);
-    /* Restrained accents — no rainbow gaming gradients */
-    --gradient-battle: linear-gradient(135deg, hsl(231 55% 36%) 0%, hsl(245 48% 42%) 100%);
-    --gradient-victory: linear-gradient(135deg, hsl(231 62% 40%) 0%, hsl(245 52% 46%) 100%);
-    --gradient-arena: linear-gradient(165deg, hsl(231 42% 12%) 0%, hsl(231 38% 18%) 100%);
-    --gradient-highlight: linear-gradient(135deg, hsl(38 72% 48%) 0%, hsl(32 78% 52%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(162 84% 16%), hsl(162 60% 28%));
+    --gradient-soft: linear-gradient(180deg, hsl(44 38% 98%), hsl(44 28% 94%));
+    --gradient-hero: linear-gradient(135deg, hsl(162 84% 14%) 0%, hsl(162 50% 24%) 100%);
+    --gradient-battle: linear-gradient(135deg, hsl(162 84% 14%) 0%, hsl(162 50% 22%) 100%);
+    --gradient-victory: linear-gradient(135deg, hsl(162 70% 22%) 0%, hsl(43 56% 48%) 100%);
+    --gradient-arena: linear-gradient(165deg, hsl(162 80% 10%) 0%, hsl(162 50% 16%) 100%);
+    --gradient-highlight: linear-gradient(135deg, hsl(43 60% 50%) 0%, hsl(38 62% 54%) 100%);
 
-    --shadow-card: 0 1px 2px hsl(231 50% 15% / 0.06), 0 1px 3px hsl(231 50% 15% / 0.05);
-    --shadow-elevated: 0 6px 16px -4px hsl(231 50% 15% / 0.12), 0 2px 4px hsl(231 50% 15% / 0.06);
-    --shadow-battle: 0 8px 24px -8px hsl(231 50% 25% / 0.18);
-    --shadow-glow: 0 0 0 4px hsl(231 75% 42% / 0.12);
+    --shadow-card: 0 1px 2px hsl(162 40% 12% / 0.05), 0 1px 3px hsl(162 40% 12% / 0.04);
+    --shadow-elevated: 0 8px 20px -8px hsl(162 40% 12% / 0.14), 0 2px 4px hsl(162 40% 12% / 0.05);
+    --shadow-battle: 0 10px 28px -12px hsl(162 40% 14% / 0.22);
+    --shadow-glow: 0 0 0 4px hsl(162 70% 26% / 0.12);
 
     --tier-bronze: 25 80% 48%;
     --tier-silver: 220 10% 55%;
-    --tier-gold: 42 92% 52%;
-    --tier-platinum: 200 70% 60%;
+    --tier-gold: 43 60% 50%;
+    --tier-platinum: 200 60% 55%;
 
-    /* Sidebar — deep indigo */
-    --sidebar-background: 231 55% 12%;
-    --sidebar-foreground: 220 22% 92%;
-    --sidebar-primary: 231 90% 65%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 231 45% 20%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 231 40% 22%;
-    --sidebar-ring: 231 90% 65%;
+    /* Sidebar — deep emerald */
+    --sidebar-background: 162 80% 10%;
+    --sidebar-foreground: 44 30% 92%;
+    --sidebar-primary: 43 60% 56%;
+    --sidebar-primary-foreground: 162 80% 10%;
+    --sidebar-accent: 162 50% 18%;
+    --sidebar-accent-foreground: 44 30% 96%;
+    --sidebar-border: 162 50% 18%;
+    --sidebar-ring: 43 60% 56%;
   }
 
 
   .dark {
-    --background: 222 32% 7%;
-    --foreground: 220 14% 92%;
-    --card: 222 32% 10%;
-    --card-foreground: 220 14% 92%;
-    --popover: 222 32% 10%;
-    --popover-foreground: 220 14% 92%;
-    --primary: 222 60% 60%;
-    --primary-foreground: 222 32% 8%;
-    --primary-glow: 222 80% 70%;
-    --secondary: 222 24% 16%;
-    --secondary-foreground: 220 14% 92%;
-    --accent: 162 50% 48%;
-    --accent-foreground: 222 32% 8%;
+    --background: 162 40% 6%;
+    --foreground: 44 24% 92%;
+    --card: 162 36% 9%;
+    --card-foreground: 44 24% 92%;
+    --popover: 162 36% 9%;
+    --popover-foreground: 44 24% 92%;
+    --primary: 162 60% 50%;
+    --primary-foreground: 162 60% 8%;
+    --primary-glow: 162 70% 60%;
+    --secondary: 162 28% 14%;
+    --secondary-foreground: 44 24% 92%;
+    --accent: 43 60% 56%;
+    --accent-foreground: 162 60% 10%;
     --warning: 32 92% 55%;
-    --warning-foreground: 222 32% 8%;
-    --muted: 222 24% 16%;
-    --muted-foreground: 220 10% 65%;
+    --warning-foreground: 162 60% 10%;
+    --muted: 162 24% 14%;
+    --muted-foreground: 44 12% 66%;
     --destructive: 0 65% 52%;
     --destructive-foreground: 0 0% 100%;
-    --border: 222 24% 18%;
-    --input: 222 24% 18%;
-    --ring: 222 60% 60%;
+    --border: 162 24% 16%;
+    --input: 162 24% 16%;
+    --ring: 162 60% 50%;
   }
 }
 
 @layer base {
   * { @apply border-border; }
-  html { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  html { font-family: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif; }
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02","cv03","cv04","cv11","ss01";
@@ -106,9 +107,17 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
-  h1, h2, h3, h4 { @apply tracking-tight font-semibold; letter-spacing: -0.015em; }
+  h1, h2, h3, h4 {
+    font-family: 'Sora', 'Manrope', system-ui, sans-serif;
+    @apply tracking-tight font-semibold;
+    letter-spacing: -0.015em;
+  }
   h1 { letter-spacing: -0.025em; }
   code, pre, .font-mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+  /* KaTeX visual harmony — typeset, not "typed" */
+  .math-text .katex { font-size: 1em; }
+  .math-text .katex-display { margin: 0.35em 0; }
 
   /* Refined scrollbars */
   ::-webkit-scrollbar { width: 10px; height: 10px; }

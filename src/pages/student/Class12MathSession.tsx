@@ -13,6 +13,7 @@ import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { toast } from "sonner";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
+import { MathText } from "@/components/MathText";
 
 type SessionItem = {
   template: QuestionTemplateRow;
@@ -68,16 +69,32 @@ export default function Class12MathSession() {
         return;
       }
       const rows = (templates ?? []) as QuestionTemplateRow[];
-      if (rows.length === 0) {
+      // Belt-and-suspenders dedupe — guarantees no repeated template within a single session.
+      const seenIds = new Set<string>();
+      const uniqueRows = rows.filter((r) => {
+        if (seenIds.has(r.id)) return false;
+        seenIds.add(r.id);
+        return true;
+      });
+      if (uniqueRows.length === 0) {
         setLoadError("No question templates for this chapter yet. Ask your admin to seed Class 12 math templates.");
         setLoading(false);
         return;
       }
 
-      const built: SessionItem[] = rows.map((t, i) => ({
-        template: t,
-        generated: generateFromTemplate(t, sessionSeed + i * 7919),
-      }));
+      const seenQuestions = new Set<string>();
+      const built: SessionItem[] = [];
+      uniqueRows.forEach((t, i) => {
+        // Vary the seed until the generated question text is unique within this session.
+        let attempt = 0;
+        let generated = generateFromTemplate(t, sessionSeed + i * 7919);
+        while (seenQuestions.has(generated.question) && attempt < 6) {
+          attempt++;
+          generated = generateFromTemplate(t, sessionSeed + i * 7919 + attempt * 131);
+        }
+        seenQuestions.add(generated.question);
+        built.push({ template: t, generated });
+      });
       setItems(built);
       setLoading(false);
     })();
@@ -198,7 +215,7 @@ export default function Class12MathSession() {
       </div>
 
       <Card className="p-5 shadow-card">
-        <p className="font-medium leading-relaxed">{current.generated.question}</p>
+        <MathText className="font-medium leading-relaxed block" text={current.generated.question} />
         <div className="grid gap-2 mt-4">
           {current.generated.options.map((opt, oi) => {
             const isCorrect = oi === current.generated.correctIndex;
@@ -217,7 +234,7 @@ export default function Class12MathSession() {
                 )}
               >
                 <span className="font-semibold mr-2">{String.fromCharCode(65 + oi)}.</span>
-                {opt}
+                <MathText text={opt} />
               </button>
             );
           })}
@@ -227,9 +244,9 @@ export default function Class12MathSession() {
           <div className="mt-4 space-y-3">
             <div className={cn("flex items-center gap-2 text-sm font-medium", selected === current.generated.correctIndex ? "text-accent" : "text-destructive")}>
               {selected === current.generated.correctIndex ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-              {selected === current.generated.correctIndex ? "Correct!" : `Answer: ${current.generated.correctAnswer}`}
+              {selected === current.generated.correctIndex ? "Correct!" : <>Answer: <MathText className="ml-1" text={current.generated.correctAnswer} /></>}
             </div>
-            <p className="text-sm text-muted-foreground">{current.generated.explanation}</p>
+            <MathText className="text-sm text-muted-foreground block" text={current.generated.explanation} />
             <ExplainPanel
               question={current.generated.question}
               options={current.generated.options}
