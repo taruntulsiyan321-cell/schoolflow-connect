@@ -21,6 +21,7 @@ import SharedLeaderboard from "@/pages/shared/LeaderboardPage";
 import BattleReportPage from "./BattleReportPage";
 import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
 import { StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
+import { MathText } from "@/components/MathText";
 
 // =================== ARENA (HOME) ===================
 function Arena() {
