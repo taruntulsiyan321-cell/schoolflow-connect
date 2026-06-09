@@ -27,7 +27,7 @@ export default function Class12MathPractice() {
   const [count, setCount] = useState(10);
 
   // Keep chapter valid when subject changes
-  if (!chapters.includes(chapter as any)) {
+  if (!(chapters as readonly string[]).includes(chapter)) {
     setChapter(chapters[0]);
   }
 
