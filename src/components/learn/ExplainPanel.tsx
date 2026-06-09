@@ -68,6 +68,7 @@ export function ExplainPanel(props: Props) {
         .maybeSingle();
       if (cached?.payload) {
         setData(cached.payload as Explanation);
+        setAiSource("gemini");
         setLoading(false);
         return;
       }
