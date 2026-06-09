@@ -63,7 +63,9 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
       ? { ...res, ai_insights: null }
       : res;
     setData(normalized as BattleReportPayload);
-    if (normalized.ai_insights?.source) setAiSource(normalized.ai_insights.source);
+    if (normalized.ai_insights?.source) {
+      setAiSource(normalized.ai_insights.source === "gemini" ? "gemini" : "ai");
+    }
     setLoading(false);
   };
 
