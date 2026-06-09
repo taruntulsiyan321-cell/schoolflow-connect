@@ -12,7 +12,7 @@ const QUESTION_COUNTS = [5, 10, 15, 20];
 
 export default function Class12MathPractice() {
   const nav = useNavigate();
-  const [chapter, setChapter] = useState(CLASS12_MATH_CHAPTERS[0]);
+  const [chapter, setChapter] = useState<string>(CLASS12_MATH_CHAPTERS[0]);
   const [count, setCount] = useState(10);
 
   const start = () => {
