@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Routes, Route, useNavigate, useParams, Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Routes, Route, useNavigate, useParams, Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -20,8 +20,54 @@ import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
 import SharedLeaderboard from "@/pages/shared/LeaderboardPage";
 import BattleReportPage from "./BattleReportPage";
 import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
-import { StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
+import { StudentAnalyticsSkeleton, StudentDashboardSkeleton, StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
+
+const BG_BASE = "/student/battleground";
+
+const BG_TABS = [
+  { to: BG_BASE, label: "Arena", end: true, icon: Sword },
+  { to: `${BG_BASE}/create`, label: "Challenge", end: true, icon: Users },
+  { to: `${BG_BASE}/achievements`, label: "Badges", end: true, icon: Award },
+  { to: `${BG_BASE}/stats`, label: "Stats", end: true, icon: TrendingUp },
+  { to: `${BG_BASE}/leaderboard`, label: "Ranks", end: true, icon: Trophy },
+] as const;
+
+function BattlegroundLayout() {
+  const location = useLocation();
+  const immersive = /\/battle\/|\/report\//.test(location.pathname);
+
+  return (
+    <div className="space-y-4">
+      {!immersive && (
+        <nav className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none" aria-label="Battleground sections">
+          {BG_TABS.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <NavLink
+                key={tab.to}
+                to={tab.to}
+                end={tab.end}
+                className={({ isActive }) =>
+                  cn(
+                    "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0",
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )
+                }
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {tab.label}
+              </NavLink>
+            );
+          })}
+        </nav>
+      )}
+      <Outlet />
+    </div>
+  );
+}
 
 // =================== ARENA (HOME) ===================
 function Arena() {
@@ -31,6 +77,7 @@ function Arena() {
   const [xp, setXp] = useState<any>({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
   const [battles, setBattles] = useState<any[]>([]);
   const [topClass, setTopClass] = useState<any[]>([]);
+  const [arenaLoading, setArenaLoading] = useState(true);
 
   const refreshXp = async () => {
     if (!user) return;
@@ -41,6 +88,7 @@ function Arena() {
   useEffect(() => {
     if (!user) return;
     (async () => {
+      setArenaLoading(true);
       const { data: s } = await supabase.from("students").select("*, classes(name,section,display_name)").eq("user_id", user.id).maybeSingle();
       setStudent(s);
       await refreshXp();
@@ -71,6 +119,7 @@ function Arena() {
           setTopClass(sorted);
         }
       }
+      setArenaLoading(false);
     })();
   }, [user]);
 
@@ -79,6 +128,8 @@ function Arena() {
     window.addEventListener("student-xp-updated", onXp);
     return () => window.removeEventListener("student-xp-updated", onXp);
   }, [user]);
+
+  if (arenaLoading) return <StudentDashboardSkeleton />;
 
   return (
     <div className="space-y-6 animate-rise">
@@ -101,7 +152,7 @@ function Arena() {
               <span className="text-xs px-2.5 py-1 rounded-md bg-white/10 text-white/90 font-medium">{xp.total_battles} battles</span>
             </div>
           </div>
-          <Button onClick={() => nav("create")} size="lg" className="btn-cta shrink-0">
+          <Button onClick={() => nav(`${BG_BASE}/create`)} size="lg" className="btn-cta shrink-0">
             <Sword className="w-4 h-4 mr-2" /> New challenge
           </Button>
         </div>
@@ -153,10 +204,10 @@ function Arena() {
       {/* Quick nav */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { to: "achievements", icon: Award, label: "Badges" },
-          { to: "stats", icon: TrendingUp, label: "Analytics" },
-          { to: "leaderboard", icon: Trophy, label: "Leaderboard" },
-          { to: "create", icon: Sword, label: "Challenge" },
+          { to: `${BG_BASE}/achievements`, icon: Award, label: "Badges" },
+          { to: `${BG_BASE}/stats`, icon: TrendingUp, label: "Analytics" },
+          { to: `${BG_BASE}/leaderboard`, icon: Trophy, label: "Leaderboard" },
+          { to: `${BG_BASE}/create`, icon: Sword, label: "Challenge" },
         ].map((q) => (
           <Link key={q.to} to={q.to}>
             <Card className="p-4 surface-card cursor-pointer">
@@ -173,18 +224,18 @@ function Arena() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold flex items-center gap-2"><Zap className="w-4 h-4 text-primary" /> Live & upcoming</h2>
-          <Link to="create" className="text-xs text-primary font-semibold">+ Create</Link>
+          <Link to={`${BG_BASE}/create`} className="text-xs text-primary font-semibold">+ Create</Link>
         </div>
         {battles.length === 0 ? (
           <Card className="p-8 text-center">
             <Sword className="w-10 h-10 mx-auto text-muted-foreground/50" />
             <div className="font-semibold mt-3">No active battles</div>
             <p className="text-sm text-muted-foreground mt-1">Be the first to challenge your class!</p>
-            <Button onClick={() => nav("create")} className="mt-4 btn-cta">Start battle</Button>
+            <Button onClick={() => nav(`${BG_BASE}/create`)} className="mt-4 btn-cta">Start battle</Button>
           </Card>
         ) : (
           <div className="grid md:grid-cols-2 gap-3">
-            {battles.map((b) => <BattleCard key={b.id} battle={b} onJoin={() => nav(`battle/${b.id}`)} />)}
+            {battles.map((b) => <BattleCard key={b.id} battle={b} onJoin={() => nav(`${BG_BASE}/battle/${b.id}`)} />)}
           </div>
         )}
       </div>
@@ -206,7 +257,6 @@ function Arena() {
 
 // =================== CREATE / CHALLENGE (frictionless) ===================
 function CreateBattle() {
-  const nav = useNavigate();
   const { user } = useAuth();
   const [student, setStudent] = useState<any>(null);
   useEffect(() => {
@@ -216,9 +266,9 @@ function CreateBattle() {
 
   return (
     <div className="space-y-4 animate-rise">
-      <button type="button" onClick={() => nav(-1)} className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground">
+      <Link to={BG_BASE} className="text-sm text-muted-foreground flex items-center gap-1 hover:text-foreground w-fit">
         <ArrowLeft className="w-4 h-4" /> Back to Arena
-      </button>
+      </Link>
       <Card className="p-5 hero-panel">
         <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-white/70"><Sword className="w-3.5 h-3.5" /> Matchmaking</div>
         <h1 className="text-xl font-semibold mt-1 text-white">Challenge</h1>
@@ -253,6 +303,7 @@ function BattleRoom() {
   const [reviewAnswers, setReviewAnswers] = useState<Record<string, any>>({});
   const [readyCount, setReadyCount] = useState<number | null>(null);
   const [pointsFlash, setPointsFlash] = useState<number | null>(null);
+  const answeringRef = useRef(false);
 
   // Load
   useEffect(() => {
@@ -327,22 +378,15 @@ function BattleRoom() {
     });
   }, [finished, participantId]);
 
-  // Per-question timer
-  useEffect(() => {
-    if (finished || showResult || !battle || readyCount !== null) return;
-    if (timeLeft <= 0) { handleAnswer(-1); return; }
-    const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    return () => clearTimeout(t);
-  }, [timeLeft, showResult, finished, battle, readyCount]);
-
   const currentQ = questions[qIdx];
 
-  const handleAnswer = async (idx: number) => {
-    if (showResult || !currentQ || !participantId || readyCount !== null) return;
+  const handleAnswer = useCallback(async (idx: number) => {
+    if (answeringRef.current || showResult || !currentQ || !participantId || readyCount !== null || !battle) return;
+    answeringRef.current = true;
     setSelected(idx);
     setShowResult(true);
     const elapsed = Date.now() - questionStart;
-    const correct = idx === currentQ.correct_index;
+    const correct = idx >= 0 && idx === currentQ.correct_index;
     const pts = correct ? currentQ.points + Math.max(0, Math.floor((battle.per_question_sec * 1000 - elapsed) / 200)) : 0;
     const newMe = {
       score: me.score + pts,
@@ -355,14 +399,50 @@ function BattleRoom() {
       setPointsFlash(pts);
       setTimeout(() => setPointsFlash(null), 900);
     }
-    await supabase.from("battle_answers").insert({
+    const { error: ansErr } = await supabase.from("battle_answers").insert({
       participant_id: participantId, question_id: currentQ.id,
       selected_index: idx, is_correct: correct, time_ms: elapsed,
     });
-    await supabase.from("battle_participants").update(newMe).eq("id", participantId);
-  };
+    if (ansErr) {
+      toast({ title: "Could not save your answer", description: ansErr.message, variant: "destructive" });
+      answeringRef.current = false;
+      setShowResult(false);
+      setSelected(null);
+      return;
+    }
+    const { error: partErr } = await supabase.from("battle_participants").update(newMe).eq("id", participantId);
+    if (partErr) {
+      toast({ title: "Score update failed", description: partErr.message, variant: "destructive" });
+    }
+  }, [showResult, currentQ, participantId, readyCount, battle, questionStart, me]);
+
+  // Per-question timer
+  useEffect(() => {
+    if (finished || showResult || !battle || readyCount !== null) return;
+    if (timeLeft <= 0) {
+      handleAnswer(-1);
+      return;
+    }
+    const t = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
+    return () => clearTimeout(t);
+  }, [timeLeft, showResult, finished, battle, readyCount, handleAnswer]);
+
+  // Keep local score in sync with realtime leaderboard
+  useEffect(() => {
+    if (!user || finished) return;
+    const mine = participants.find((p) => p.user_id === user.id);
+    if (mine && !showResult && !answeringRef.current) {
+      setMe({
+        score: mine.score ?? 0,
+        correct_count: mine.correct_count ?? 0,
+        answered_count: mine.answered_count ?? 0,
+        total_time_ms: mine.total_time_ms ?? 0,
+      });
+    }
+  }, [participants, user, finished, showResult]);
 
   const next = async () => {
+    answeringRef.current = false;
     setShowResult(false);
     setSelected(null);
     if (qIdx + 1 >= questions.length) {
@@ -389,7 +469,7 @@ function BattleRoom() {
     return (
       <Card className="p-8 text-center max-w-md mx-auto space-y-4">
         <p className="text-muted-foreground">This battle could not be found or you no longer have access.</p>
-        <Button asChild variant="outline"><Link to="/student/battleground">Back to Arena</Link></Button>
+        <Button asChild variant="outline"><Link to={BG_BASE}>Back to Arena</Link></Button>
       </Card>
     );
   }
@@ -426,7 +506,7 @@ function BattleRoom() {
             return (
               <Card key={q.id} className="p-4">
                 <div className="text-xs text-muted-foreground mb-1">Q{i + 1}</div>
-                <div className="font-medium text-sm leading-snug">{q.question}</div>
+                <MathText block className="font-medium text-sm leading-snug" text={q.question} />
                 <div className="grid sm:grid-cols-2 gap-2 mt-3">
                   {(q.options as string[]).map((opt: string, oi: number) => {
                     const isCorrect = oi === q.correct_index;
@@ -439,7 +519,7 @@ function BattleRoom() {
                         !isCorrect && !isSel && "border-border opacity-70",
                       )}>
                         <span className="w-5 h-5 rounded bg-muted flex items-center justify-center text-[11px] font-bold shrink-0">{String.fromCharCode(65 + oi)}</span>
-                        <span className="flex-1">{opt}</span>
+                        <MathText className="flex-1" text={opt} />
                         {isCorrect && <span className="text-[10px] font-semibold text-accent uppercase">Correct</span>}
                         {isSel && !isCorrect && <span className="text-[10px] font-semibold text-destructive uppercase">You</span>}
                       </div>
@@ -462,12 +542,12 @@ function BattleRoom() {
 
         <div className="flex flex-col sm:flex-row gap-2">
           {participantId && (
-            <Button onClick={() => nav(`report/${participantId}`)} className="flex-1 btn-cta">
+            <Button onClick={() => nav(`${BG_BASE}/report/${participantId}`)} className="flex-1 btn-cta">
               <Sparkles className="w-4 h-4 mr-1" /> Full analytics (24h)
             </Button>
           )}
-          <Button onClick={() => nav("/student/battleground")} variant="outline" className="flex-1">Back to Arena</Button>
-          <Button onClick={() => nav("/student/battleground/create")} variant="outline" className="flex-1">New Battle</Button>
+          <Button onClick={() => nav(BG_BASE)} variant="outline" className="flex-1">Back to Arena</Button>
+          <Button onClick={() => nav(`${BG_BASE}/create`)} variant="outline" className="flex-1">New Battle</Button>
         </div>
       </div>
     );
@@ -478,7 +558,7 @@ function BattleRoom() {
       <p className="text-muted-foreground">No questions in this battle — the question bank may be empty for this subject.</p>
       <div className="flex gap-2 justify-center flex-wrap">
         <Button asChild><Link to="/student/practice/math12">Class 12 Math practice</Link></Button>
-        <Button asChild variant="outline"><Link to="/student/battleground">Back to Arena</Link></Button>
+        <Button asChild variant="outline"><Link to={BG_BASE}>Back to Arena</Link></Button>
       </div>
     </Card>
   );
@@ -510,7 +590,7 @@ function BattleRoom() {
         </div>
       )}
       <div className="flex items-center justify-between text-sm">
-        <button onClick={() => nav(-1)} className="text-muted-foreground flex items-center gap-1"><ArrowLeft className="w-4 h-4" /> Exit</button>
+        <Link to={BG_BASE} className="text-muted-foreground flex items-center gap-1 hover:text-foreground"><ArrowLeft className="w-4 h-4" /> Exit</Link>
         <span className="font-semibold">Question {qIdx + 1} / {questions.length}</span>
         <span className={cn("font-mono font-bold tabular-nums px-3 py-1 rounded-full", timeLeft <= 5 ? "bg-destructive text-white animate-pulse" : "bg-muted")}>
           <Clock className="w-3 h-3 inline mr-1" />{timeLeft}s
@@ -570,10 +650,18 @@ function Achievements() {
   const { user } = useAuth();
   const [badges, setBadges] = useState<any[]>([]);
   const [xp, setXp] = useState<any>({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!user) return;
-    supabase.from("student_badges").select("*").eq("user_id", user.id).then(({ data }) => setBadges(data ?? []));
-    supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle().then(({ data }) => data && setXp(data));
+    setLoading(true);
+    Promise.all([
+      supabase.from("student_badges").select("*").eq("user_id", user.id),
+      supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle(),
+    ]).then(([badgesRes, xpRes]) => {
+      setBadges(badgesRes.data ?? []);
+      if (xpRes.data) setXp(xpRes.data);
+      setLoading(false);
+    });
   }, [user]);
 
   const earnedCodes = new Set(badges.map((b) => b.badge_code));
@@ -581,6 +669,8 @@ function Achievements() {
   const totalBadges = Object.keys(BADGES).length;
   const earnedCount = Object.keys(BADGES).filter((c) => earnedCodes.has(c)).length;
   const pct = Math.round((earnedCount / totalBadges) * 100);
+
+  if (loading) return <StudentAnalyticsSkeleton />;
 
   return (
     <div className="space-y-5 animate-rise">
@@ -631,10 +721,12 @@ function MyStats() {
   const [xp, setXp] = useState<any>({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
   const [history, setHistory] = useState<any[]>([]);
   const [marks, setMarks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
+      setLoading(true);
       const { data: x } = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
       if (x) setXp(x);
       const { data: parts } = await supabase.from("battle_participants").select("*, battles(title,subject,topic,starts_at)").eq("user_id", user.id).order("joined_at", { ascending: false }).limit(20);
@@ -644,6 +736,7 @@ function MyStats() {
         const { data: m } = await supabase.from("marks").select("marks_obtained, exams(subject, max_marks)").eq("student_id", stu.id);
         setMarks(m ?? []);
       }
+      setLoading(false);
     })();
   }, [user]);
 
@@ -687,6 +780,8 @@ function MyStats() {
     const days = new Set(history.map((h) => new Date(h.joined_at).toDateString()));
     return { accuracy, avgScore, trend, activeDays: days.size };
   }, [history]);
+
+  if (loading) return <StudentAnalyticsSkeleton />;
 
   return (
     <div className="space-y-5 animate-rise">
@@ -778,7 +873,7 @@ function MyStats() {
             {history.map((h) => (
               <Link
                 key={h.id}
-                to={`/student/battleground/report/${h.id}`}
+                to={`${BG_BASE}/report/${h.id}`}
                 className="flex items-center justify-between p-3 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors"
               >
                 <div>
@@ -803,12 +898,14 @@ function MyStats() {
 export default function Battleground() {
   return (
     <Routes>
-      <Route index element={<Arena />} />
-      <Route path="create" element={<CreateBattle />} />
+      <Route element={<BattlegroundLayout />}>
+        <Route index element={<Arena />} />
+        <Route path="create" element={<CreateBattle />} />
+        <Route path="achievements" element={<Achievements />} />
+        <Route path="stats" element={<MyStats />} />
+        <Route path="leaderboard" element={<SharedLeaderboard />} />
+      </Route>
       <Route path="battle/:id" element={<BattleRoom />} />
-      <Route path="achievements" element={<Achievements />} />
-      <Route path="stats" element={<MyStats />} />
-      <Route path="leaderboard" element={<SharedLeaderboard />} />
       <Route path="report/:participantId" element={<BattleReportPage />} />
     </Routes>
   );

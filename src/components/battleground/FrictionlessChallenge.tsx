@@ -67,8 +67,10 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
   const [topic, setTopic] = useState(ANY);
   const [difficulty, setDifficulty] = useState<string>("medium");
   const [bankRows, setBankRows] = useState<CurriculumRow[]>([]);
+  const [curriculumLoading, setCurriculumLoading] = useState(true);
   const [loading, setLoading] = useState(false);
   const [bankEmptyHint, setBankEmptyHint] = useState(false);
+  const [classmatesError, setClassmatesError] = useState<string | null>(null);
   const math12Solo = canUseMath12TemplateSolo(subject, grade);
 
   useEffect(() => {
@@ -76,9 +78,17 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
   }, [subjects, subject]);
 
   useEffect(() => {
-    if (!classId) return;
+    if (!classId) {
+      setClassmates([]);
+      setClassmatesError(null);
+      return;
+    }
+    setClassmatesError(null);
     supabase.rpc("rpc_classmates").then(({ data, error }) => {
-      if (error) return;
+      if (error) {
+        setClassmatesError("Could not load classmates — try again in a moment.");
+        return;
+      }
       setClassmates(
         (data ?? []).map((m) => ({
           id: m.student_id,
@@ -92,15 +102,20 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
   }, [classId]);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
+      setCurriculumLoading(true);
       const { data, error } = await supabase.rpc("rpc_battle_curriculum", {
         _subject: subject,
         _class_id: classId ?? null,
       });
 
+      if (cancelled) return;
+
       if (error) {
         setBankRows([]);
         setBankEmptyHint(true);
+        setCurriculumLoading(false);
         return;
       }
 
@@ -121,7 +136,9 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       setBankEmptyHint(rows.length === 0);
       setChapter(ANY);
       setTopic(ANY);
+      setCurriculumLoading(false);
     })();
+    return () => { cancelled = true; };
   }, [subject, classId, grade]);
 
   const curriculum = useMemo(
@@ -252,6 +269,9 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       }
 
       if (error) throw error;
+      if (!battleId) {
+        throw new Error("Battle could not be created. Try Class 12 Math practice or another subject.");
+      }
       const labels: Record<BattleMode, string> = {
         solo: "Solo practice ready",
         duel: `Challenge sent to ${opponent!.full_name.split(" ")[0]}`,
@@ -322,8 +342,8 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
         </div>
         <div>
           <Label className="text-xs text-muted-foreground">Chapter (NCERT)</Label>
-          <Select value={chapter} onValueChange={(v) => { setChapter(v); setTopic(ANY); }}>
-            <SelectTrigger className="mt-1"><SelectValue placeholder="Any" /></SelectTrigger>
+          <Select value={chapter} onValueChange={(v) => { setChapter(v); setTopic(ANY); }} disabled={curriculumLoading}>
+            <SelectTrigger className="mt-1"><SelectValue placeholder={curriculumLoading ? "Loading…" : "Any"} /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ANY}>Any chapter</SelectItem>
               {chapters.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -365,6 +385,9 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       {mode === "duel" && (
         <div className="space-y-2">
           <Label className="text-xs text-muted-foreground">Opponent</Label>
+          {classmatesError && (
+            <p className="text-xs text-destructive py-1">{classmatesError}</p>
+          )}
           {!classId ? (
             <p className="text-xs text-muted-foreground py-2">Join a class to challenge friends.</p>
           ) : (
@@ -374,6 +397,9 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
                 <Input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search classmates" className="pl-9 h-9" />
               </div>
               <div className="max-h-44 overflow-y-auto space-y-1 rounded-lg border border-border/60 p-1">
+                {filtered.length === 0 && !classmatesError && (
+                  <p className="text-xs text-muted-foreground text-center py-4">No classmates found.</p>
+                )}
                 {filtered.map((c) => (
                   <button
                     key={c.id}
@@ -399,7 +425,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
 
       <Button
         onClick={start}
-        disabled={loading || (mode === "duel" && !opponent) || (mode === "class" && !classId)}
+        disabled={loading || curriculumLoading || (mode === "duel" && !opponent) || (mode === "class" && !classId)}
         size="lg"
         className="w-full btn-cta"
       >

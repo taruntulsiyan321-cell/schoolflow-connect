@@ -14,7 +14,7 @@ export default function BattleReportPage() {
   return (
     <div>
       <Button variant="ghost" size="sm" asChild className="mb-2">
-        <Link to="/student/battleground"><ArrowLeft className="w-4 h-4" /> Arena</Link>
+        <Link to="/student/battleground"><ArrowLeft className="w-4 h-4" /> Back to Arena</Link>
       </Button>
       <BattleReportView
         participantId={participantId}

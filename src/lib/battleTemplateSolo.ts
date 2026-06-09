@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { generateFromTemplate } from "@/engines/class12Math/generate";
 import { CLASS12_MATH_CHAPTERS, type QuestionTemplateRow } from "@/engines/class12Math/types";
+import { diversifyTemplates, freshSessionSeed } from "@/lib/practiceDiversity";
 
 const NO_BANK_MSG = "No questions available for this combination yet";
 
@@ -46,12 +47,12 @@ export async function createMath12TemplateSoloBattle(opts: {
   });
   if (tErr) throw tErr;
 
-  const rows = (templates ?? []) as QuestionTemplateRow[];
+  const rows = diversifyTemplates((templates ?? []) as QuestionTemplateRow[], count);
   if (rows.length === 0) {
     return { redirectTo: `/student/practice/math12/session?chapter=${encodeURIComponent(chapter)}&count=${count}` };
   }
 
-  const seed = Date.now();
+  const seed = freshSessionSeed(chapter);
   const generated = rows.map((t, i) => generateFromTemplate(t, seed + i * 7919));
   const payload = generated.map((g) => ({
     question: g.question,

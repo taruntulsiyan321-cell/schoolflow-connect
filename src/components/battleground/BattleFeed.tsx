@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Sword, Swords, Trophy, Target, Flame, Award, Activity, Radio } from "lucide-react";
 import { formatDistanceToNowStrict } from "date-fns";
+import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 
 type FeedEvent = {
   id: string;
@@ -83,7 +84,7 @@ export function BattleFeed({ limit = 25, className }: { limit?: number; classNam
 
       <div className="max-h-[360px] overflow-y-auto divide-y divide-border/60">
         {loading ? (
-          <div className="p-6 text-center text-sm text-muted-foreground">Loading the arena…</div>
+          <div className="p-4"><StudentListSkeleton rows={4} /></div>
         ) : events.length === 0 ? (
           <div className="p-8 text-center">
             <Activity className="w-9 h-9 mx-auto text-muted-foreground/40" />

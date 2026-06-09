@@ -87,14 +87,22 @@ export function MyInvites() {
 
   const accept = async (invite: any) => {
     setAccepting(invite.id);
-    await supabase.from("battle_invites").update({ status: "accepted" }).eq("id", invite.id);
-    toast({ title: "Challenge accepted!", description: "Entering the arena…" });
+    const { error } = await supabase.from("battle_invites").update({ status: "accepted" }).eq("id", invite.id);
     setAccepting(null);
+    if (error) {
+      toast({ title: "Could not accept challenge", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Challenge accepted!", description: "Entering the arena…" });
     nav(`/student/battleground/battle/${invite.battle_id}`);
   };
 
   const decline = async (id: string) => {
-    await supabase.from("battle_invites").update({ status: "declined" }).eq("id", id);
+    const { error } = await supabase.from("battle_invites").update({ status: "declined" }).eq("id", id);
+    if (error) {
+      toast({ title: "Could not decline challenge", description: error.message, variant: "destructive" });
+      return;
+    }
     toast({ title: "Challenge declined" });
     refresh();
   };
