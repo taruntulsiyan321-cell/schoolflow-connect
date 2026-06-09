@@ -232,6 +232,8 @@ function BattleRoom() {
   const [readyCount, setReadyCount] = useState<number | null>(null);
   const [pointsFlash, setPointsFlash] = useState<number | null>(null);
   const answeringRef = useRef(false);
+  const answeredQRef = useRef<Set<string>>(new Set());
+  const timerFiredRef = useRef(false);
 
   // Load
   useEffect(() => {
@@ -262,6 +264,13 @@ function BattleRoom() {
           if (existing.finished_at) setFinished(true);
         }
         setParticipantId(pid);
+        if (pid) {
+          const { data: prior } = await supabase
+            .from("battle_answers")
+            .select("question_id")
+            .eq("participant_id", pid);
+          answeredQRef.current = new Set((prior ?? []).map((a) => a.question_id));
+        }
         setQuestionStart(Date.now());
         if (b) setTimeLeft(b.per_question_sec);
         if ((qs ?? []).length > 0) setReadyCount(3);
@@ -310,8 +319,11 @@ function BattleRoom() {
 
   const handleAnswer = useCallback(async (idx: number) => {
     if (answeringRef.current || showResult || !currentQ || !participantId || readyCount !== null || !battle) return;
+    if (answeredQRef.current.has(currentQ.id)) return;
+
     answeringRef.current = true;
-    setSelected(idx);
+    answeredQRef.current.add(currentQ.id);
+    setSelected(idx >= 0 ? idx : null);
     setShowResult(true);
     const elapsed = Date.now() - questionStart;
     const correct = idx >= 0 && idx === currentQ.correct_index;
@@ -327,11 +339,18 @@ function BattleRoom() {
       setPointsFlash(pts);
       setTimeout(() => setPointsFlash(null), 900);
     }
-    const { error: ansErr } = await supabase.from("battle_answers").insert({
-      participant_id: participantId, question_id: currentQ.id,
-      selected_index: idx, is_correct: correct, time_ms: elapsed,
-    });
-    if (ansErr) {
+    const { error: ansErr } = await supabase.from("battle_answers").upsert(
+      {
+        participant_id: participantId,
+        question_id: currentQ.id,
+        selected_index: idx,
+        is_correct: correct,
+        time_ms: elapsed,
+      },
+      { onConflict: "participant_id,question_id", ignoreDuplicates: false },
+    );
+    if (ansErr && !ansErr.message.includes("duplicate key")) {
+      answeredQRef.current.delete(currentQ.id);
       toast({ title: "Could not save your answer", description: ansErr.message, variant: "destructive" });
       answeringRef.current = false;
       setShowResult(false);
@@ -344,13 +363,17 @@ function BattleRoom() {
     }
   }, [showResult, currentQ, participantId, readyCount, battle, questionStart, me]);
 
-  // Per-question timer
+  // Per-question timer (guard against double fire at 0s)
   useEffect(() => {
     if (finished || showResult || !battle || readyCount !== null) return;
     if (timeLeft <= 0) {
-      handleAnswer(-1);
+      if (!timerFiredRef.current) {
+        timerFiredRef.current = true;
+        handleAnswer(-1);
+      }
       return;
     }
+    timerFiredRef.current = false;
     const t = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearTimeout(t);
   }, [timeLeft, showResult, finished, battle, readyCount, handleAnswer]);
@@ -371,6 +394,7 @@ function BattleRoom() {
 
   const next = async () => {
     answeringRef.current = false;
+    timerFiredRef.current = false;
     setShowResult(false);
     setSelected(null);
     if (qIdx + 1 >= questions.length) {
