@@ -1,8 +1,7 @@
 /**
  * Google Gemini Flash — primary AI provider for all edge functions.
  * Deploy: GitHub Action deploy-edge-functions.yml (SUPABASE_ACCESS_TOKEN).
- * Set GOOGLE_GEMINI_API_KEY (or GEMINI_API_KEY) in Supabase Edge Function secrets.
- * Falls back to Lovable AI Gateway if only LOVABLE_API_KEY is set.
+ * Requires GOOGLE_GEMINI_API_KEY (or GEMINI_API_KEY) in Edge Function secrets.
  */
 
 export const corsHeaders = {
@@ -21,29 +20,25 @@ export type StructuredAiRequest = {
   user: string;
   /** JSON Schema object (properties + required) for structured output */
   schema: Record<string, unknown>;
-  /** Tool name when using Lovable OpenAI-compatible gateway */
+  /** Tool name retained for caller compatibility. */
   toolName: string;
 };
 
-type AiConfig =
-  | { provider: "google"; apiKey: string; model: string }
-  | { provider: "lovable"; apiKey: string; model: string };
+type AiConfig = { provider: "google"; apiKey: string; model: string };
 
 export function getAiConfig(): AiConfig | null {
   const googleKey =
     Deno.env.get("GOOGLE_GEMINI_API_KEY")?.trim() ||
     Deno.env.get("GEMINI_API_KEY")?.trim() ||
     "";
-  const lovableKey = Deno.env.get("LOVABLE_API_KEY")?.trim() || "";
   const model = Deno.env.get("GEMINI_MODEL")?.trim() || "gemini-2.0-flash";
 
   if (googleKey) return { provider: "google", apiKey: googleKey, model };
-  if (lovableKey) return { provider: "lovable", apiKey: lovableKey, model: "google/gemini-2.5-flash" };
   return null;
 }
 
 export type AiResult<T> =
-  | { ok: true; data: T; source: "gemini" | "lovable" }
+  | { ok: true; data: T; source: "gemini" }
   | { ok: false; error: string; status: number };
 
 async function callGoogleGemini<T>(
