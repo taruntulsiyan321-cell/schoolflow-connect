@@ -2,7 +2,7 @@ import { generators } from "./generators/shared";
 
 export const GENERATOR_REGISTRY = generators;
 
-/** CBSE Class 12 Math — template types aligned to chapter question variants in class12CbseQuestionCatalog.json */
+/** CBSE Class 12 Math — template types per NCERT chapter */
 export const TEMPLATE_TYPES_BY_CHAPTER: Record<string, string[]> = {
   "Relations and Functions": [
     "rf_composition_linear",

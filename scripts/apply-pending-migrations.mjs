@@ -1,39 +1,46 @@
 /**
- * Apply pending Supabase migrations WITHOUT Lovable credits.
+ * Apply Supabase migrations via Management API or DATABASE_URL.
  *
  * Setup (.env.local) — use ONE:
  *   SUPABASE_ACCESS_TOKEN=sbp_...   https://supabase.com/dashboard/account/tokens
- *   DATABASE_URL=postgresql://...   Lovable → Project → Settings → Supabase / Database URI
+ *   DATABASE_URL=postgresql://...
  *
  * Run:
- *   npm run db:migrate          # pending migration files only
- *   npm run db:migrate:all      # full LOVABLE_PASTE_ALL_PENDING.sql (larger)
+ *   npm run db:migrate          # recent migration files only
+ *   npm run db:migrate:all      # every file in supabase/migrations/
  */
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
+const MIGRATIONS_DIR = join(ROOT, "supabase", "migrations");
 const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "kdmjipeksjdyojjdokbi";
 
-const PENDING_FILES = [
-  "20260509065137_35bec001-c627-426a-bdd6-dc992c1d3693.sql",
-  "20260516000000_inquiries_complaints.sql",
-  "20260604030000_student_panel_fixes.sql",
-  "20260604060340_60f4721e-63fc-4ef7-8c92-450cfa872f39.sql",
-  "20260604080000_battle_monitor.sql",
-  "20260604100000_battleground_phase4.sql",
-  "20260605000000_student_portal_login.sql",
-  "20260606000000_student_success_platform.sql",
-  "20260607000000_student_success_phase2.sql",
-  "20260608000000_student_success_phase3.sql",
-  "20260604120000_demo_data.sql",
-  "20260609000000_fix_quick_battle_overload.sql",
-  "20260610000000_battleground_overhaul.sql",
-  "20260611000000_question_template_engine.sql",
-  "20260612000000_ai_and_audit_fixes.sql",
-  "20260613000000_concept_mastery_recovery.sql",
+/** Migrations added after the initial Lovable deploy — safe to run on existing DBs. */
+const RECENT_PREFIXES = [
+  "20260509065137",
+  "20260516000000",
+  "20260604030000",
+  "20260604060340",
+  "20260604080000",
+  "20260604100000",
+  "20260605000000",
+  "20260606000000",
+  "20260607000000",
+  "20260608000000",
+  "20260604120000",
+  "20260609000000",
+  "20260610000000",
+  "20260611000000",
+  "20260612000000",
+  "20260613000000",
+  "20260614000000",
+  "20260615000000",
+  "20260616000000",
+  "20260617000000",
+  "20260618000000",
 ];
 
 function loadEnvFile(name) {
@@ -47,6 +54,16 @@ function loadEnvFile(name) {
       v = v.slice(1, -1);
     process.env[m[1]] = v;
   }
+}
+
+function listMigrations({ all }) {
+  const files = readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  const selected = all
+    ? files
+    : files.filter((f) => RECENT_PREFIXES.some((p) => f.startsWith(p)));
+  return selected.map((f) => join(MIGRATIONS_DIR, f));
 }
 
 loadEnvFile(".env");
@@ -100,29 +117,16 @@ async function main() {
     console.error(`
 No database credentials in .env.local
 
-OPTION A (easiest if you have a Supabase account):
-  1. Open https://supabase.com/dashboard/account/tokens
-  2. Create token → copy sbp_...
-  3. In .env.local add: SUPABASE_ACCESS_TOKEN=sbp_...
-  4. Run: npm run db:migrate
-
-OPTION B (database password — works even when supabase.com blocks the project UI):
-  1. In Lovable: open your project → Settings / Integrations → Supabase
-  2. Copy the Postgres connection string (URI) or host + password
-  3. In .env.local add: DATABASE_URL=postgresql://postgres.[ref]:[PASSWORD]@...
-  4. Run: npm run db:migrate
-
-Then verify: npm run db:check-migrations
+Add SUPABASE_ACCESS_TOKEN or DATABASE_URL, then run: npm run db:migrate
+Verify with: npm run db:check-migrations
 `);
     process.exit(1);
   }
 
-  const files = useAll
-    ? [join(ROOT, "supabase", "LOVABLE_PASTE_ALL_PENDING.sql")]
-    : PENDING_FILES.map((f) => join(ROOT, "supabase", "migrations", f));
+  const files = listMigrations({ all: useAll });
 
   console.log(`Project: ${PROJECT_REF}`);
-  console.log(`Mode: ${useAll ? "full bundle" : "pending files only"} (${files.length} file(s))\n`);
+  console.log(`Mode: ${useAll ? "all migrations" : "recent only"} (${files.length} file(s))\n`);
 
   for (const path of files) {
     if (!existsSync(path)) {
@@ -139,7 +143,7 @@ Then verify: npm run db:check-migrations
       if (e.message === "missing_credentials") throw e;
       console.error(`  FAILED: ${name}`);
       console.error(e.message || e);
-      console.error("\nStopped. Fix the error above, then re-run (migrations are mostly idempotent).");
+      console.error("\nStopped. Fix the error above, then re-run.");
       process.exit(1);
     }
   }
