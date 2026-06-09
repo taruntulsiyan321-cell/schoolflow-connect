@@ -14,6 +14,7 @@ import Battleground from "./student/Battleground";
 import DppHub from "./student/DppHub";
 import Class12MathPractice from "./student/Class12MathPractice";
 import Class12MathSession from "./student/Class12MathSession";
+import Class12AiSession from "./student/Class12AiSession";
 import DppAttempt from "./student/DppAttempt";
 import DppResult from "./student/DppResult";
 import StudentProfilePage from "./shared/StudentProfilePage";
@@ -197,6 +198,7 @@ export default function StudentDashboard() {
         <Route path="dpp" element={<DppHub />} />
         <Route path="practice/math12" element={<Class12MathPractice />} />
         <Route path="practice/math12/session" element={<Class12MathSession />} />
+        <Route path="practice/ai/session" element={<Class12AiSession />} />
         <Route path="dpp/:id/attempt" element={<DppAttempt />} />
         <Route path="dpp/:id/result" element={<DppResult />} />
         <Route path="*" element={<Navigate to="/student" replace />} />
