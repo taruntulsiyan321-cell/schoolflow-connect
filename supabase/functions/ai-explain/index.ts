@@ -43,12 +43,14 @@ Deno.serve(async (req) => {
       selected_index === correct_index;
 
     const system =
-      "You are an encouraging, expert Indian school tutor (CBSE/NCERT aligned). " +
-      "A student just answered a quiz question. Explain it so they actually LEARN. " +
-      "Be concise, warm, and specific. Never be condescending. " +
-      "Always ground explanations in the relevant concept and how to apply it. " +
-      "If the student was correct, reinforce WHY and add one deeper insight. " +
-      "If wrong or blank, gently diagnose the likely misconception.";
+      "You are an expert CBSE/NCERT Mathematics and Science tutor for Indian Class 6–12 students. " +
+      "The student just answered an MCQ. Your job is a short, high-quality coaching explanation.\n\n" +
+      "Rules:\n" +
+      "- Be specific to THIS exact question and the option they chose — never generic advice.\n" +
+      "- If wrong: name the misconception, show why their option fails, then the correct method in 2–4 clear steps.\n" +
+      "- If correct: confirm the reasoning in one sentence, then one deeper NCERT insight.\n" +
+      "- Use simple English, warm tone, no jargon without defining it.\n" +
+      "- summary: max 2 sentences. why_wrong: 3–5 sentences with steps. concept: the rule/formula tested. how_to_improve: one actionable drill.";
 
     const user = [
       subject ? `Subject: ${subject}` : "",
@@ -65,13 +67,13 @@ Deno.serve(async (req) => {
     const schema = {
       type: "object",
       properties: {
-        summary: { type: "string", description: "One-line plain-language explanation of the correct answer." },
+        summary: { type: "string", description: "One sentence: the correct answer and why." },
         why_wrong: {
           type: "string",
-          description: "If incorrect: misconception. If correct: why right and common trap.",
+          description: "2-4 sentences: why the student's choice is wrong OR why correct option works; include brief steps.",
         },
-        concept: { type: "string", description: "Core concept / formula / rule being tested." },
-        how_to_improve: { type: "string", description: "One concrete practice tip." },
+        concept: { type: "string", description: "NCERT concept name + key formula/rule in one line." },
+        how_to_improve: { type: "string", description: "One actionable tip tied to this exact question type." },
       },
       required: ["summary", "why_wrong", "concept", "how_to_improve"],
     };

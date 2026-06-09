@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,10 @@ import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
+import { generateFromTemplate } from "@/engines/class12Math/generate";
+import type { GeneratedQuestion } from "@/engines/class12Math/types";
+import { freshSessionSeed } from "@/lib/practiceDiversity";
+import { ExplainPanel } from "@/components/learn/ExplainPanel";
 
 type RecoveryQuestion = {
   id: string;
@@ -19,6 +23,12 @@ type RecoveryQuestion = {
   answered: boolean;
   is_correct?: boolean;
   explanation?: string;
+  client_generate?: boolean;
+  template_type?: string;
+  template_data?: Record<string, unknown>;
+  explanation_template?: string;
+  chapter?: string;
+  generated?: GeneratedQuestion;
 };
 
 export default function RecoverySession() {
@@ -31,6 +41,11 @@ export default function RecoverySession() {
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [done, setDone] = useState(false);
+
+  const sessionSeed = useMemo(
+    () => freshSessionSeed(assignment?.chapter ?? assignment?.concept ?? "recovery"),
+    [assignment?.chapter, assignment?.concept],
+  );
 
   useEffect(() => {
     if (!id) return;
@@ -46,25 +61,87 @@ export default function RecoverySession() {
         return;
       }
       setAssignment(data?.assignment);
-      const qs = (data?.questions ?? []).map((q: any) => ({
-        ...q,
-        options: Array.isArray(q.options) ? q.options : [],
-      }));
+
+      const raw = (data?.questions ?? []) as RecoveryQuestion[];
+      const enriched: RecoveryQuestion[] = [];
+      for (const q of raw) {
+        if ((q.client_generate || !q.question_text?.trim()) && (q as any).template_id && !q.template_type) {
+          const { data: tpl } = await supabase
+            .from("question_templates")
+            .select("template_type, template_data, explanation_template, chapter")
+            .eq("id", (q as any).template_id)
+            .maybeSingle();
+          if (tpl) {
+            enriched.push({
+              ...q,
+              template_type: tpl.template_type,
+              template_data: tpl.template_data as Record<string, unknown>,
+              explanation_template: tpl.explanation_template ?? q.explanation,
+              chapter: tpl.chapter,
+            });
+            continue;
+          }
+        }
+        enriched.push(q);
+      }
+
+      const qs = enriched.map((q, i) => {
+        const needsGen =
+          q.client_generate ||
+          (!q.question_text?.trim() && q.template_type) ||
+          (Array.isArray(q.options) && q.options.length === 0 && q.template_type) ||
+          (q.options?.length === 4 && q.options[0] === "Option A");
+
+        if (needsGen && q.template_type) {
+          try {
+            const generated = generateFromTemplate(
+              {
+                template_type: q.template_type,
+                template_data: q.template_data ?? {},
+                explanation_template: q.explanation ?? "",
+              },
+              sessionSeed + i * 7919,
+            );
+            return {
+              ...q,
+              options: generated.options,
+              question_text: generated.question,
+              explanation: generated.explanation,
+              generated,
+            };
+          } catch {
+            return q;
+          }
+        }
+        return {
+          ...q,
+          options: Array.isArray(q.options) ? q.options : [],
+        };
+      }).filter((q) => q.question_text?.trim() && q.options?.length >= 2);
+
+      if (qs.length === 0) {
+        setLoadError("No practice questions could be loaded for this recovery topic.");
+        setLoading(false);
+        return;
+      }
+
       setQuestions(qs);
-      const firstUnanswered = qs.findIndex((q: RecoveryQuestion) => !q.answered);
+      const firstUnanswered = qs.findIndex((q) => !q.answered);
       setIdx(firstUnanswered >= 0 ? firstUnanswered : 0);
       setLoading(false);
     })();
-  }, [id]);
+  }, [id, sessionSeed]);
 
   const current = questions[idx];
+
+  const correctIdx = current?.generated?.correctIndex ??
+    (current as any)?.correct_answer?.correct_index ?? 0;
 
   const submit = async (optionIndex: number) => {
     if (!current || revealed) return;
     setSelected(optionIndex);
     setRevealed(true);
 
-    const correctIdx = (current as any).correct_answer?.correct_index ?? 0;
     const ok = optionIndex === correctIdx;
 
     const { data, error } = await (supabase as any).rpc("rpc_submit_recovery_answer", {
@@ -94,8 +171,15 @@ export default function RecoverySession() {
     return (
       <div className="max-w-md mx-auto space-y-4">
         <StudentErrorState title="Could not load recovery session" message={loadError} onRetry={() => window.location.reload()} />
-        <div className="text-center">
+        <div className="flex gap-2 justify-center flex-wrap">
           <Button asChild variant="outline"><Link to="/student/recovery">Back to Recovery Zone</Link></Button>
+          {assignment?.chapter && (
+            <Button asChild>
+              <Link to={`/student/practice/math12/session?chapter=${encodeURIComponent(assignment.chapter)}&count=10`}>
+                Practice {assignment.chapter}
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     );
@@ -103,9 +187,12 @@ export default function RecoverySession() {
 
   if (!assignment || questions.length === 0) {
     return (
-      <Card className="p-8 text-center">
-        <p className="text-muted-foreground">No recovery questions found.</p>
-        <Button asChild className="mt-4"><Link to="/student/recovery">Back to Recovery Zone</Link></Button>
+      <Card className="p-8 text-center space-y-4">
+        <p className="text-muted-foreground">No recovery questions found for this topic.</p>
+        <div className="flex gap-2 justify-center flex-wrap">
+          <Button asChild variant="outline"><Link to="/student/recovery">Back to Recovery Zone</Link></Button>
+          <Button asChild><Link to="/student/practice/math12">Class 12 Math practice</Link></Button>
+        </div>
       </Card>
     );
   }
@@ -116,7 +203,7 @@ export default function RecoverySession() {
         <CheckCircle2 className="w-12 h-12 mx-auto text-accent mb-3" />
         <h2 className="text-xl font-semibold">Recovery complete</h2>
         <p className="text-muted-foreground mt-2">{assignment.concept} — {assignment.subject}</p>
-        <div className="flex gap-2 mt-6 justify-center">
+        <div className="flex gap-2 mt-6 justify-center flex-wrap">
           <Button asChild variant="outline"><Link to="/student/recovery">Recovery Zone</Link></Button>
           <Button asChild><Link to="/student/mistakes">Mistake book</Link></Button>
         </div>
@@ -125,7 +212,6 @@ export default function RecoverySession() {
   }
 
   const pct = ((idx + (revealed ? 1 : 0)) / questions.length) * 100;
-  const correctIdx = (current as any).correct_answer?.correct_index ?? 0;
 
   return (
     <>
@@ -170,6 +256,18 @@ export default function RecoverySession() {
               {selected === correctIdx ? "Correct — concept reinforced!" : "Review the explanation and try similar questions."}
             </div>
             {current.explanation && <MathText block className="text-sm text-muted-foreground" text={current.explanation} />}
+            {selected !== correctIdx && (
+              <ExplainPanel
+                question={current.question_text}
+                options={current.options}
+                correctIndex={correctIdx}
+                selectedIndex={selected}
+                wasCorrect={false}
+                subject={assignment.subject}
+                chapter={assignment.chapter ?? current.chapter}
+                autoLoad
+              />
+            )}
             <Button className="w-full" onClick={next}>
               {idx + 1 >= questions.length ? "Finish recovery" : "Next question"}
             </Button>

@@ -69,7 +69,7 @@ async function callGoogleGemini<T>(
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: req.schema,
-        temperature: 0.35,
+        temperature: 0.55,
       },
     }),
   });

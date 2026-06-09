@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
+import { diversifyTemplates, freshSessionSeed } from "@/lib/practiceDiversity";
 
 type SessionItem = {
   template: QuestionTemplateRow;
@@ -37,11 +38,12 @@ export default function Class12MathSession() {
   const [correctN, setCorrectN] = useState(0);
   const [done, setDone] = useState(false);
   const [summary, setSummary] = useState<any>(null);
-
-  const sessionSeed = useMemo(() => Date.now() ^ chapter.length * 997, [chapter]);
+  const [sessionSeed, setSessionSeed] = useState(0);
 
   useEffect(() => {
     if (!user) return;
+    const seed = freshSessionSeed(chapter);
+    setSessionSeed(seed);
     (async () => {
       setLoading(true);
       setLoadError(null);
@@ -68,11 +70,10 @@ export default function Class12MathSession() {
         setLoading(false);
         return;
       }
-      const rows = (templates ?? []) as QuestionTemplateRow[];
-      // Belt-and-suspenders dedupe — guarantees no repeated template within a single session.
+      const rows = diversifyTemplates((templates ?? []) as QuestionTemplateRow[], count);
       const seenIds = new Set<string>();
       const uniqueRows = rows.filter((r) => {
-        if (seenIds.has(r.id)) return false;
+        if (!r.id || seenIds.has(r.id)) return !r.id;
         seenIds.add(r.id);
         return true;
       });
@@ -85,12 +86,11 @@ export default function Class12MathSession() {
       const seenQuestions = new Set<string>();
       const built: SessionItem[] = [];
       uniqueRows.forEach((t, i) => {
-        // Vary the seed until the generated question text is unique within this session.
         let attempt = 0;
-        let generated = generateFromTemplate(t, sessionSeed + i * 7919);
+        let generated = generateFromTemplate(t, seed + i * 7919);
         while (seenQuestions.has(generated.question) && attempt < 6) {
           attempt++;
-          generated = generateFromTemplate(t, sessionSeed + i * 7919 + attempt * 131);
+          generated = generateFromTemplate(t, seed + i * 7919 + attempt * 131);
         }
         seenQuestions.add(generated.question);
         built.push({ template: t, generated });
@@ -98,7 +98,7 @@ export default function Class12MathSession() {
       setItems(built);
       setLoading(false);
     })();
-  }, [user, chapter, count, sessionSeed]);
+  }, [user, chapter, count]);
 
   const current = items[idx];
 
