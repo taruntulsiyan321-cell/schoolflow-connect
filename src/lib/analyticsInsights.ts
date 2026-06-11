@@ -421,20 +421,41 @@ function planResponseToTopicGap(agg: MistakeTopicAggregate, plan: ImprovementPla
     subject: agg.subject,
     concept: agg.concept ?? undefined,
     severity: severityFromWrong(agg.total_wrong, agg.mistake_count),
-    misconception: clipInsightText(headlineCore, 36) || "Method mix-up",
-    why_weak: clipInsightText(headlineCore, 100),
-    root_cause: clipInsightText(plan.steps[0] ?? "Concept gap from your wrong answers.", 90),
+    misconception: clipInsightText(headlineCore, 56) || "Method mix-up",
+    why_weak: headlineCore,
+    root_cause: plan.steps[0] ?? "Concept gap from your wrong answers.",
     error_pattern: agg.mistake_count >= 2 ? `Repeated on ${agg.topic}` : undefined,
-    fix_hint: clipInsightText(plan.steps[0] ?? "", 100),
-    micro_drills: plan.steps.slice(0, 3).map((s) => clipInsightText(s, 72)),
-    evidence: agg.sample_wrong
-      ? `Picked "${agg.sample_wrong}" not "${agg.sample_correct ?? "?"}"`
-      : undefined,
-    ncert_ref: ncert ? clipInsightText(ncert, 48) : undefined,
+    fix_hint: plan.steps.slice(0, 2).join(" "),
+    micro_drills: plan.steps.slice(0, 4),
+    evidence: agg.sample_question
+      ? `On "${agg.sample_question.slice(0, 100)}…" you picked "${agg.sample_wrong ?? "?"}" — correct was "${agg.sample_correct ?? "?"}".`
+      : agg.sample_wrong
+        ? `Picked "${agg.sample_wrong}" not "${agg.sample_correct ?? "?"}"`
+        : undefined,
+    ncert_ref: ncert,
     mistake_count: agg.mistake_count,
     total_wrong: agg.total_wrong,
     last_seen: agg.last_seen,
   };
+}
+
+/** Merge live insights with rule-based gaps so every mistake topic is covered. */
+export function resolveTopicGaps(
+  insights: AnalyticsInsights | null,
+  aggregates: MistakeTopicAggregate[],
+): TopicGapInsight[] {
+  const fromInsights = insights?.weak_topics ?? [];
+  const fromRule = aggregatesToTopicGaps(aggregates);
+  if (fromInsights.length === 0) return fromRule.slice(0, 8);
+  const merged = [...fromInsights];
+  for (const r of fromRule) {
+    if (merged.length >= 8) break;
+    const exists = merged.some(
+      (m) => m.topic.toLowerCase() === r.topic.toLowerCase() && m.chapter === r.chapter,
+    );
+    if (!exists) merged.push(r);
+  }
+  return merged.slice(0, 8);
 }
 
 function buildInsightsFromGeminiPlans(
@@ -450,7 +471,7 @@ function buildInsightsFromGeminiPlans(
     chapter: g.chapter,
     subject: g.subject,
     time_minutes: g.severity === "critical" ? 45 : g.severity === "moderate" ? 30 : 20,
-    action: clipInsightText(g.micro_drills?.[0] ?? g.fix_hint, 80),
+    action: g.micro_drills?.[0] ?? g.fix_hint,
     priority: i + 1,
   }));
 
@@ -460,20 +481,18 @@ function buildInsightsFromGeminiPlans(
 
   return {
     headline: top
-      ? clipInsightText(overallHeadline || `${top.topic} needs work`, 80)
+      ? overallHeadline || `${top.topic} needs focused revision`
       : ruleFallback.headline,
-    summary: `${totalMistakes} mistakes · ${topicGaps.length} topics · ${readiness}% ready`,
-    diagnosis: clipInsightText(
+    summary: `Analysed ${totalMistakes} mistakes across ${topicGaps.length} NCERT topics · exam readiness ${readiness}% · ${topicGaps.filter((t) => t.severity === "critical").length} critical.`,
+    diagnosis:
       overallHeadline ||
-        (topicGaps.length > 0
-          ? `Focus: ${topicGaps
-              .slice(0, 3)
-              .map((t) => t.topic)
-              .join(", ")}`
-          : ruleFallback.diagnosis),
-      120,
-    ),
-    today_focus: clipInsightText(top?.fix_hint ?? top?.micro_drills?.[0] ?? ruleFallback.today_focus, 100),
+      (topicGaps.length > 0
+        ? `Mistakes cluster around ${topicGaps
+            .slice(0, 4)
+            .map((t) => `"${t.topic}" (${t.chapter})`)
+            .join(", ")}. Tackle highest-severity topics first with Recovery, then NCERT re-read.`
+        : ruleFallback.diagnosis),
+    today_focus: top?.fix_hint ?? top?.micro_drills?.[0] ?? ruleFallback.today_focus,
     error_patterns: topicGaps.map((g) => g.misconception).filter(Boolean) as string[],
     recurring_errors: buildRecurringErrors(topicGaps),
     weak_topics: topicGaps,
@@ -498,7 +517,7 @@ async function fetchGeminiAnalyticsViaImprovementPlan(
   ruleFallback: AnalyticsInsights,
   displayName: string,
 ): Promise<AnalyticsInsights | null> {
-  const topAggregates = aggregates.slice(0, 4);
+  const topAggregates = aggregates.slice(0, 6);
   if (topAggregates.length === 0) return null;
 
   const overallTopic = [
@@ -539,6 +558,8 @@ async function fetchGeminiAnalyticsViaImprovementPlan(
     const plan = results[i + 1]?.data;
     if (plan?.headline && plan.steps?.length) {
       topicGaps.push(planResponseToTopicGap(topAggregates[i], plan));
+    } else {
+      topicGaps.push(...aggregatesToTopicGaps([topAggregates[i]]));
     }
   }
 

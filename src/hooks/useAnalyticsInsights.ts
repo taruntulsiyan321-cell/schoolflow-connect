@@ -45,7 +45,8 @@ export function useAnalyticsInsights(snapshot: AcademicSnapshot | null, enabled 
       }
       enhanceKeyRef.current = enhanceKey;
 
-      setInsights(null);
+      // Show rule-based insights immediately; upgrade when coach analysis returns.
+      setInsights(base.insights);
       setEnhancing(true);
       setLoading(false);
 
@@ -61,6 +62,7 @@ export function useAnalyticsInsights(snapshot: AcademicSnapshot | null, enabled 
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load insights");
       setLoading(false);
+      setEnhancing(false);
     } finally {
       setEnhancing(false);
     }

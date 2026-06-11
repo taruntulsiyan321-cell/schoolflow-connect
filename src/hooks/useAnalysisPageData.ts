@@ -4,6 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 
 export type PracticeSessionSummary = {
   id: string;
+  subject: string;
+  chapter: string;
   question_count: number;
   correct_count: number;
   score: number;
@@ -32,6 +34,8 @@ export type AnalysisPageData = {
 
 function sessionSummary(row: {
   id: string;
+  subject: string;
+  chapter: string;
   question_count: number;
   correct_count: number;
   score: number;
@@ -70,7 +74,7 @@ export function useAnalysisPageData(enabled = true) {
       const [sessionsRes, rankRes, masteryRes] = await Promise.all([
         supabase
           .from("practice_sessions")
-          .select("id, question_count, correct_count, score, created_at, finished_at")
+          .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at")
           .eq("user_id", user.id)
           .not("finished_at", "is", null)
           .order("finished_at", { ascending: false })
