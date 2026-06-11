@@ -41,25 +41,23 @@ export function StudentListSkeleton({ rows = 4 }: { rows?: number }) {
   );
 }
 
-/** Analytics / chart pages — soft studio layout. */
+/** Analysis page — 6-section card layout. */
 export function StudentAnalyticsSkeleton() {
   return (
-    <div className="analytics-studio space-y-6 animate-rise" aria-busy="true" aria-label="Loading analytics">
-      <Skeleton className="h-[260px] w-full rounded-3xl bg-[#EDE9E0]/60" />
-      <Skeleton className="h-24 w-full rounded-2xl bg-[#EDE9E0]/60" />
-      <div className="grid md:grid-cols-5 gap-4">
-        <Skeleton className="h-44 rounded-3xl md:col-span-3 bg-[#EDE9E0]/60" />
-        <div className="md:col-span-2 grid grid-rows-2 gap-4">
-          <Skeleton className="h-20 rounded-2xl bg-[#EDE9E0]/60" />
-          <Skeleton className="h-20 rounded-2xl bg-[#EDE9E0]/60" />
-        </div>
+    <div className="space-y-8 animate-rise" aria-busy="true" aria-label="Loading analytics">
+      <Skeleton className="h-48 w-full rounded-3xl" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-24 rounded-2xl" />
+        ))}
       </div>
-      <Skeleton className="h-36 w-full rounded-2xl bg-[#EDE9E0]/60" />
-      <Skeleton className="h-40 w-full rounded-3xl bg-[#EDE9E0]/60" />
-      <div className="grid lg:grid-cols-2 gap-6">
-        <Skeleton className="h-52 rounded-3xl bg-[#EDE9E0]/60" />
-        <Skeleton className="h-52 rounded-3xl bg-[#EDE9E0]/60" />
+      <div className="grid md:grid-cols-2 gap-4">
+        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-36 rounded-2xl" />
       </div>
+      <Skeleton className="h-32 rounded-2xl" />
+      <Skeleton className="h-44 rounded-3xl" />
+      <Skeleton className="h-28 rounded-2xl" />
     </div>
   );
 }
