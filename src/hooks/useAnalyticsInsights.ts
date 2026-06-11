@@ -5,13 +5,13 @@ import {
   enhanceAnalyticsWithGemini,
   fetchMistakeAnalyticsBase,
   type AnalyticsInsights,
-  type MistakeConceptAggregate,
+  type MistakeTopicAggregate,
 } from "@/lib/analyticsInsights";
 
 export function useAnalyticsInsights(snapshot: AcademicSnapshot | null, enabled = true) {
   const { items: mastery, loading: masteryLoading } = useConceptMastery(enabled);
   const [insights, setInsights] = useState<AnalyticsInsights | null>(null);
-  const [aggregates, setAggregates] = useState<MistakeConceptAggregate[]>([]);
+  const [aggregates, setAggregates] = useState<MistakeTopicAggregate[]>([]);
   const [mistakeCount, setMistakeCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [enhancing, setEnhancing] = useState(false);

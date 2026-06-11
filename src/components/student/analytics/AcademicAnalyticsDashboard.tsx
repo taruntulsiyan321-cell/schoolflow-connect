@@ -47,10 +47,15 @@ function computeWeeklySummary(weekly: WeeklyActivityPoint[] | undefined) {
 }
 
 function buildActionSteps(conceptInsights: AnalyticsInsights | null) {
-  if (!conceptInsights?.next_steps?.length) {
+  const steps = conceptInsights?.next_steps?.length
+    ? conceptInsights.next_steps
+    : conceptInsights?.study_priority?.length
+      ? conceptInsights.study_priority
+      : [];
+  if (!steps.length) {
     return [{ text: "Start practice to build your mistake profile.", to: "/student/practice/math12", label: "Practice" }];
   }
-  return conceptInsights.next_steps.slice(0, 3).map((text) => {
+  return steps.slice(0, 3).map((text) => {
     const link = linkForActionStep(text);
     return { text, to: link.to, label: link.label };
   });
@@ -81,7 +86,7 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
   const strongest = subjects[0];
   const weakest = subjects.length > 1 ? subjects[subjects.length - 1] : subjects[0];
 
-  const topWeakConcept = conceptInsights?.weak_concepts?.[0];
+  const topWeakTopic = conceptInsights?.weak_topics?.[0];
   const topWeakAggregate = aggregates[0];
 
   const dppTrendValues = (charts?.dpp_trend ?? []).map((d) => d.score_pct);
@@ -93,7 +98,7 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
     (charts?.dpp_trend?.length ?? 0) > 0 ||
     (charts?.practice_trend?.length ?? 0) > 0;
 
-  const conceptGapCount = conceptInsights?.weak_concepts?.length ?? aggregates.length;
+  const conceptGapCount = conceptInsights?.weak_topics?.length ?? aggregates.length;
 
   return (
     <div className="space-y-5 animate-rise">
@@ -111,9 +116,9 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
               <MetricTile label="Attendance" value={`${readiness?.attendance_pct ?? 0}%`} accent={(readiness?.attendance_pct ?? 0) >= 75 ? "accent" : "warning"} />
               <MetricTile label="Streak" value={`${data.xp?.current_streak ?? 0}d`} sub={`L${data.xp?.level ?? 1}`} />
               <MetricTile
-                label="Concept gaps"
+                label="Weak topics"
                 value={conceptGapCount}
-                sub={`${data.mistake_count ?? 0} open mistakes`}
+                sub={topWeakTopic ? topWeakTopic.topic.slice(0, 28) + (topWeakTopic.topic.length > 28 ? "…" : "") : `${data.mistake_count ?? 0} mistakes`}
                 accent={conceptGapCount > 0 ? "warning" : "accent"}
               />
             </div>
@@ -151,7 +156,7 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
         <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted/50 rounded-xl">
           <TabsTrigger value="concepts" className="text-sm py-2.5 rounded-lg gap-1.5 data-[state=active]:shadow-sm">
             <Brain className="w-3.5 h-3.5 hidden sm:inline" />
-            Concept gaps
+            Topic analysis
             {conceptGapCount > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">{conceptGapCount}</Badge>
             )}
@@ -191,18 +196,18 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
             </Card>
 
             <div className="lg:col-span-2 space-y-3">
-              {topWeakConcept ? (
+              {topWeakTopic ? (
                 <InsightHighlight
                   kind="focus"
-                  title={topWeakConcept.concept}
-                  subtitle={`${topWeakConcept.subject}${topWeakConcept.chapter ? ` · ${topWeakConcept.chapter}` : ""} — top concept gap`}
-                  value={topWeakConcept.severity === "critical" ? "Urgent" : `×${topWeakConcept.mistake_count}`}
+                  title={topWeakTopic.topic}
+                  subtitle={`${topWeakTopic.chapter} · ${topWeakTopic.subject}`}
+                  value={topWeakTopic.severity === "critical" ? "Urgent" : `×${topWeakTopic.mistake_count}`}
                 />
               ) : topWeakAggregate ? (
                 <InsightHighlight
                   kind="focus"
-                  title={topWeakAggregate.concept}
-                  subtitle={`${topWeakAggregate.subject}${topWeakAggregate.chapter ? ` · ${topWeakAggregate.chapter}` : ""} — from mistake book`}
+                  title={topWeakAggregate.topic}
+                  subtitle={`${topWeakAggregate.chapter ?? "Chapter"} · ${topWeakAggregate.subject}`}
                   value={`×${topWeakAggregate.mistake_count}`}
                 />
               ) : null}
