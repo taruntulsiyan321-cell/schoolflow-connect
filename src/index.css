@@ -228,6 +228,13 @@
     --studio-muted: #6B756C;
     --studio-border: #E8E2D9;
   }
+  .analytics-studio .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .analytics-studio .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @keyframes pulse-glow {

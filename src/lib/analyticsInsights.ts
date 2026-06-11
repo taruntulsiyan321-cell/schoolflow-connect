@@ -106,6 +106,25 @@ function normalizeTopicKey(topic: string, chapter: string | null, subject: strin
   return `${s}::${c}::${t}`;
 }
 
+/** Shorten long AI copy for scannable UI. */
+export function clipInsightText(text: string, max = 120): string {
+  const t = text.replace(/\s+/g, " ").replace(/\(\d+[–-]?\d*\s*min\)/gi, "").trim();
+  if (!t) return "";
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${lastSpace > max * 0.55 ? cut.slice(0, lastSpace) : cut}…`;
+}
+
+export function insightHook(gap: TopicGapInsight): string {
+  const raw =
+    gap.misconception ||
+    gap.why_weak.replace(/^[^:]{0,50}:\s*/, "") ||
+    gap.fix_hint ||
+    "";
+  return clipInsightText(raw, 72);
+}
+
 export function formatLastSeen(iso: string | null | undefined): string {
   if (!iso) return "Recently";
   const then = new Date(iso).getTime();
@@ -395,22 +414,23 @@ function buildTopicPromptForPlan(agg: MistakeTopicAggregate, topicMistakes: Mist
 
 function planResponseToTopicGap(agg: MistakeTopicAggregate, plan: ImprovementPlanPayload): TopicGapInsight {
   const ncert = plan.resources?.find((r) => /ncert/i.test(r));
+  const headlineCore = plan.headline.replace(/^[^:]{0,50}:\s*/, "").trim() || plan.headline;
   return {
     topic: agg.topic,
     chapter: agg.chapter ?? "General",
     subject: agg.subject,
     concept: agg.concept ?? undefined,
     severity: severityFromWrong(agg.total_wrong, agg.mistake_count),
-    misconception: plan.headline.split(":").pop()?.trim().slice(0, 48) || "Method mix-up",
-    why_weak: plan.headline,
-    root_cause: plan.steps[0] ?? "Underlying concept or procedure needs revision.",
-    error_pattern: agg.mistake_count >= 2 ? `Repeated errors on ${agg.topic}` : undefined,
-    fix_hint: plan.steps.slice(0, 2).join(" "),
-    micro_drills: plan.steps.slice(0, 3),
-    evidence: agg.sample_question
-      ? `You chose "${agg.sample_wrong ?? "?"}" instead of "${agg.sample_correct ?? "?"}" on: "${agg.sample_question.slice(0, 100)}…"`
+    misconception: clipInsightText(headlineCore, 36) || "Method mix-up",
+    why_weak: clipInsightText(headlineCore, 100),
+    root_cause: clipInsightText(plan.steps[0] ?? "Concept gap from your wrong answers.", 90),
+    error_pattern: agg.mistake_count >= 2 ? `Repeated on ${agg.topic}` : undefined,
+    fix_hint: clipInsightText(plan.steps[0] ?? "", 100),
+    micro_drills: plan.steps.slice(0, 3).map((s) => clipInsightText(s, 72)),
+    evidence: agg.sample_wrong
+      ? `Picked "${agg.sample_wrong}" not "${agg.sample_correct ?? "?"}"`
       : undefined,
-    ncert_ref: ncert,
+    ncert_ref: ncert ? clipInsightText(ncert, 48) : undefined,
     mistake_count: agg.mistake_count,
     total_wrong: agg.total_wrong,
     last_seen: agg.last_seen,
@@ -430,7 +450,7 @@ function buildInsightsFromGeminiPlans(
     chapter: g.chapter,
     subject: g.subject,
     time_minutes: g.severity === "critical" ? 45 : g.severity === "moderate" ? 30 : 20,
-    action: g.micro_drills?.[0] ?? g.fix_hint,
+    action: clipInsightText(g.micro_drills?.[0] ?? g.fix_hint, 80),
     priority: i + 1,
   }));
 
@@ -440,18 +460,20 @@ function buildInsightsFromGeminiPlans(
 
   return {
     headline: top
-      ? overallHeadline || `${top.topic}: ${top.why_weak}`
+      ? clipInsightText(overallHeadline || `${top.topic} needs work`, 80)
       : ruleFallback.headline,
-    summary: `Deep review of ${totalMistakes} mistakes across ${topicGaps.length} topics. Readiness ${readiness}%.`,
-    diagnosis:
+    summary: `${totalMistakes} mistakes · ${topicGaps.length} topics · ${readiness}% ready`,
+    diagnosis: clipInsightText(
       overallHeadline ||
-      (topicGaps.length > 0
-        ? `Your mistakes cluster around ${topicGaps
-            .slice(0, 3)
-            .map((t) => `"${t.topic}"`)
-            .join(", ")}. Each card below explains what went wrong on your actual questions.`
-        : ruleFallback.diagnosis),
-    today_focus: top?.micro_drills?.[0] ?? top?.fix_hint ?? ruleFallback.today_focus,
+        (topicGaps.length > 0
+          ? `Focus: ${topicGaps
+              .slice(0, 3)
+              .map((t) => t.topic)
+              .join(", ")}`
+          : ruleFallback.diagnosis),
+      120,
+    ),
+    today_focus: clipInsightText(top?.fix_hint ?? top?.micro_drills?.[0] ?? ruleFallback.today_focus, 100),
     error_patterns: topicGaps.map((g) => g.misconception).filter(Boolean) as string[],
     recurring_errors: buildRecurringErrors(topicGaps),
     weak_topics: topicGaps,
