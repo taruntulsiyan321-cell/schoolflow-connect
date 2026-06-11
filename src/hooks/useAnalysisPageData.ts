@@ -84,9 +84,9 @@ export function useAnalysisPageData(enabled = true) {
         supabase.rpc("rpc_student_concept_mastery"),
       ]);
 
-      if (sessionsRes.error) throw new Error(sessionsRes.error.message);
-
-      const sessions = (sessionsRes.data ?? []).map(sessionSummary);
+      const sessions = sessionsRes.error
+        ? []
+        : (sessionsRes.data ?? []).map(sessionSummary);
       const latest = sessions[0];
       const previous = sessions[1];
 
@@ -142,7 +142,18 @@ export function useAnalysisPageData(enabled = true) {
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load analysis");
-      setData(null);
+      setData({
+        class_rank: null,
+        recent_sessions: [],
+        totals: {
+          correct: 0,
+          wrong: 0,
+          accuracy_pct: 0,
+          avg_sec_per_question: null,
+          last_session_minutes: null,
+        },
+        trend: { previous_accuracy: null, current_accuracy: null, improvement_pct: null },
+      });
     } finally {
       setLoading(false);
     }

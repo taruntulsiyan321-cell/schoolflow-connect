@@ -1,42 +1,25 @@
 import { Link } from "react-router-dom";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { PageHeader, StatCard } from "@/components/ui-bits";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentXp } from "@/hooks/useStudentXp";
+import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import {
-  Target, BookOpen, ClipboardCheck, Flame, AlertTriangle,
-  TrendingUp, Sword, Wrench, CalendarDays,
-} from "lucide-react";
-
-function localDateKey(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function computeWeekActivity(days: { date: string; dpp?: number; homework?: number; battles?: number; self_practice?: number }[] | undefined) {
-  const map = new Map((days ?? []).map((d) => [d.date, (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0)]));
-  let activeDays = 0;
-  let activities = 0;
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const score = map.get(localDateKey(d)) ?? 0;
-    if (score > 0) activeDays++;
-    activities += score;
-  }
-  return { activeDays, activities };
-}
-import { ConceptMastery } from "@/components/student/ConceptMastery";
+  FlowActionCard,
+  FlowConceptPanel,
+  FlowConceptTag,
+  FlowHero,
+  FlowPage,
+  FlowRecoveryCard,
+  FlowSectionTitle,
+  FlowStatGrid,
+} from "@/components/student/flow/FlowDesign";
 import { StudentDashboardSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
+import { BookOpen, Calculator, ClipboardCheck, Flame, Sword, Target, Wrench } from "lucide-react";
 
 export default function StudentSuccessHome() {
   const { data, loading, error, reload } = useStudentAcademicSnapshot();
   const { xp: liveXp } = useStudentXp();
+  const { data: pageData } = useAnalysisPageData(!loading && !error);
   const xp = liveXp.xp > 0 || liveXp.level > 1 ? liveXp : data?.xp;
 
   if (loading) return <StudentDashboardSkeleton />;
@@ -53,159 +36,117 @@ export default function StudentSuccessHome() {
   }
 
   const readiness = data?.exam_readiness;
-  const toneClass =
-    readiness?.tone === "ready" ? "text-accent" : readiness?.tone === "risk" ? "text-destructive" : "text-warning";
-  const weekStats = computeWeekActivity(data?.activity_heatmap);
+  const score = readiness?.score ?? 0;
+  const firstName = data?.student?.full_name?.split(" ")[0] ?? "Student";
 
   return (
-    <>
-      <PageHeader
-        eyebrow="Student Success"
-        title={`Hi, ${data?.student?.full_name?.split(" ")[0] ?? "Student"}`}
-        subtitle="Your growth dashboard — attendance, practice, weaknesses, and what to revise next"
+    <FlowPage className="max-w-3xl">
+      <FlowHero
+        eyebrow={`Hi, ${firstName}`}
+        title="Your learning journey"
+        metrics={[
+          { label: "Ready", value: `${score}%` },
+          { label: "Accuracy", value: `${readiness?.accuracy_pct ?? 0}%` },
+          { label: "Streak", value: `${xp?.current_streak ?? 0}d` },
+          { label: "Rank", value: pageData?.class_rank ? `#${pageData.class_rank}` : "—" },
+          { label: "XP", value: (xp?.xp ?? 0).toLocaleString() },
+        ]}
+        footer={
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" className="rounded-full bg-white/20 hover:bg-white/30 text-white border-0" asChild>
+              <Link to="/student/practice/math12">Practice</Link>
+            </Button>
+            <Button size="sm" variant="secondary" className="rounded-full" asChild>
+              <Link to="/student/analytics">View analysis</Link>
+            </Button>
+          </div>
+        }
       />
 
-      <Card className="hero-panel p-5 mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-[11px] uppercase tracking-wide text-white/70">Exam readiness</div>
-            <div className={`text-3xl font-bold mt-1 ${toneClass}`}>{readiness?.score ?? 0}%</div>
-            <div className="text-sm text-white/80 mt-1">{readiness?.label ?? "Building profile"}</div>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button size="sm" asChild><Link to="/student/practice/math12">Practice</Link></Button>
-            <Button size="sm" variant="secondary" asChild><Link to="/student/recovery">Recovery zone</Link></Button>
-            <Button size="sm" variant="secondary" asChild><Link to="/student/revision">Revision</Link></Button>
-            <Button size="sm" variant="outline" asChild><Link to="/student/analytics">Analytics</Link></Button>
-          </div>
+      <section>
+        <FlowSectionTitle>Today at a glance</FlowSectionTitle>
+        <FlowStatGrid
+          columns={4}
+          items={[
+            { label: "Attendance", value: `${readiness?.attendance_pct ?? 0}%` },
+            { label: "Homework", value: data?.homework?.pending ?? 0, sub: "pending" },
+            { label: "DPP", value: data?.dpp?.open ?? 0, sub: "to do" },
+            { label: "Mistakes", value: data?.mistake_count ?? 0, sub: "to fix" },
+          ]}
+        />
+      </section>
+
+      <div className="grid md:grid-cols-2 gap-4">
+        <FlowConceptPanel
+          title="Strong concepts"
+          icon={<Target className="w-4 h-4" />}
+          variant="strong"
+          empty="Strengths appear as you practice."
+        >
+          {(data?.strong_topics ?? []).map((w, i) => (
+            <FlowConceptTag
+              key={i}
+              label={w.topic ?? w.chapter ?? w.subject}
+              meta={`${Math.round(w.accuracy)}%`}
+              variant="strong"
+            />
+          ))}
+        </FlowConceptPanel>
+
+        <FlowConceptPanel
+          title="Needs work"
+          icon={<ClipboardCheck className="w-4 h-4" />}
+          variant="weak"
+          empty="Complete practice to detect weak spots."
+        >
+          {(data?.weak_topics ?? []).slice(0, 5).map((w, i) => (
+            <FlowConceptTag
+              key={i}
+              label={w.topic ?? w.chapter ?? w.subject}
+              meta={`${Math.round(w.accuracy)}%`}
+              variant="weak"
+            />
+          ))}
+        </FlowConceptPanel>
+      </div>
+
+      <FlowRecoveryCard
+        count={data?.recovery_pending ?? data?.mistake_count ?? 0}
+        weakConcepts={(data?.weak_concepts ?? []).slice(0, 5).map((c) => c.concept)}
+      />
+
+      <section>
+        <FlowSectionTitle>Quick actions</FlowSectionTitle>
+        <div className="grid sm:grid-cols-3 gap-3">
+          <FlowActionCard
+            icon={<Calculator className="w-5 h-5" />}
+            title="Practice"
+            description="Fresh Class 12 questions"
+            to="/student/practice/math12"
+          />
+          <FlowActionCard
+            icon={<Wrench className="w-5 h-5" />}
+            title="Recovery"
+            description={`${data?.mistake_count ?? 0} mistakes in your book`}
+            to="/student/recovery"
+          />
+          <FlowActionCard
+            icon={<Sword className="w-5 h-5" />}
+            title="Battleground"
+            description="Challenge classmates"
+            to="/student/battleground"
+          />
         </div>
-        <Progress value={readiness?.score ?? 0} className="mt-4 h-2" />
-      </Card>
+      </section>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${readiness?.attendance_pct ?? 0}%`} tone={(readiness?.attendance_pct ?? 0) >= 75 ? "accent" : "warning"} />
-        <StatCard icon={<Target className="w-5 h-5" />} label="Practice accuracy" value={`${readiness?.accuracy_pct ?? 0}%`} hint="DPP + self-practice" />
-        <Link to="/student/battleground/progress"><StatCard icon={<Sword className="w-5 h-5" />} label="Level" value={xp ? `L${xp.level}` : "L1"} hint={`${xp?.xp ?? 0} XP`} /></Link>
-        <StatCard icon={<Flame className="w-5 h-5" />} label="Streak" value={`${xp?.current_streak ?? 0}d`} tone="accent" />
+      <div className="flex flex-wrap gap-2 justify-center pt-2">
+        <Button size="sm" variant="outline" className="rounded-full" asChild>
+          <Link to="/student/homework"><BookOpen className="w-3.5 h-3.5 mr-1" /> Homework</Link>
+        </Button>
+        <Button size="sm" variant="outline" className="rounded-full" asChild>
+          <Link to="/student/dpp"><Flame className="w-3.5 h-3.5 mr-1" /> Daily DPP</Link>
+        </Button>
       </div>
-
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <Card className="p-4 shadow-card">
-          <div className="flex items-center gap-2 mb-3"><BookOpen className="w-4 h-4 text-primary" /><h3 className="font-semibold">Homework & DPP</h3></div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="p-3 rounded-lg bg-muted"><div className="text-muted-foreground">Homework pending</div><div className="text-xl font-bold">{data?.homework?.pending ?? 0}</div></div>
-            <div className="p-3 rounded-lg bg-muted"><div className="text-muted-foreground">DPP to complete</div><div className="text-xl font-bold">{data?.dpp?.open ?? 0}</div></div>
-          </div>
-          <div className="flex gap-2 mt-3 flex-wrap">
-            <Button size="sm" variant="outline" asChild><Link to="/student/homework">Homework</Link></Button>
-            <Button size="sm" variant="outline" asChild><Link to="/student/dpp">Daily practice</Link></Button>
-            <Button size="sm" asChild><Link to="/student/practice/math12">Class 12 Math</Link></Button>
-          </div>
-          {(data?.self_practice?.sessions_completed ?? 0) > 0 && (
-            <p className="text-xs text-muted-foreground mt-2">{data.self_practice.sessions_completed} self-practice sessions completed</p>
-          )}
-        </Card>
-
-        <Card className="p-4 shadow-card">
-          <div className="flex items-center gap-2 mb-3"><CalendarDays className="w-4 h-4 text-primary" /><h3 className="font-semibold">This week</h3></div>
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div className="p-3 rounded-lg bg-muted">
-              <div className="text-muted-foreground">Active days</div>
-              <div className="text-xl font-bold">{weekStats.activeDays}<span className="text-sm font-normal text-muted-foreground">/7</span></div>
-            </div>
-            <div className="p-3 rounded-lg bg-muted">
-              <div className="text-muted-foreground">Activities logged</div>
-              <div className="text-xl font-bold">{weekStats.activities}</div>
-            </div>
-            <div className="p-3 rounded-lg bg-muted">
-              <div className="text-muted-foreground">Mistakes to fix</div>
-              <div className="text-xl font-bold">{data?.mistake_count ?? 0}</div>
-            </div>
-            <div className="p-3 rounded-lg bg-muted">
-              <div className="text-muted-foreground">Recovery pending</div>
-              <div className="text-xl font-bold">{data?.recovery_pending ?? 0}</div>
-            </div>
-          </div>
-          <div className="flex gap-2 mt-3 flex-wrap">
-            <Button size="sm" variant="outline" asChild><Link to="/student/analytics">View analytics</Link></Button>
-            {(data?.mistake_count ?? 0) > 0 && (
-              <Button size="sm" asChild><Link to="/student/recovery">Fix mistakes</Link></Button>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <Card className="p-4 shadow-card">
-          <div className="flex items-center gap-2 mb-3"><AlertTriangle className="w-4 h-4 text-warning" /><h3 className="font-semibold">Weak topics — revise first</h3></div>
-          <div className="space-y-2">
-            {(data?.weak_topics ?? []).length === 0 && <p className="text-sm text-muted-foreground">Complete DPPs, battles, or self-practice to unlock weakness detection.</p>}
-            {(data?.weak_topics ?? []).map((w, i) => (
-              <div key={i} className="flex justify-between items-center p-2 rounded-lg bg-warning/10 border border-warning/20">
-                <div>
-                  <div className="font-medium text-sm">{w.subject}</div>
-                  <div className="text-xs text-muted-foreground">{[w.chapter, w.topic].filter(Boolean).join(" · ") || "General"}</div>
-                </div>
-                <Badge variant="outline">{w.accuracy}%</Badge>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card className="p-4 shadow-card">
-          <div className="flex items-center gap-2 mb-3"><TrendingUp className="w-4 h-4 text-accent" /><h3 className="font-semibold">Strong topics</h3></div>
-          <div className="space-y-2">
-            {(data?.strong_topics ?? []).map((w, i) => (
-              <div key={i} className="flex justify-between p-2 rounded-lg bg-accent/10">
-                <span className="font-medium text-sm">{w.subject}</span>
-                <Badge className="bg-accent/20 text-accent border-0">{w.accuracy}%</Badge>
-              </div>
-            ))}
-            {(data?.strong_topics ?? []).length === 0 && <p className="text-sm text-muted-foreground">Your strengths will appear as you practice.</p>}
-          </div>
-        </Card>
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <ConceptMastery />
-        <Card className="p-4 shadow-card">
-          <div className="flex items-center gap-2 mb-3"><Wrench className="w-4 h-4 text-primary" /><h3 className="font-semibold">Recovery zone</h3></div>
-          <p className="text-2xl font-bold">{data?.recovery_pending ?? 0}</p>
-          <p className="text-xs text-muted-foreground mt-1">recovery questions pending</p>
-          {(data?.weak_concepts ?? []).length > 0 && (
-            <div className="mt-3 space-y-1">
-              {(data?.weak_concepts ?? []).slice(0, 3).map((c: { concept: string; mastery_score: number }, i: number) => (
-                <div key={i} className="text-xs flex justify-between"><span>{c.concept}</span><span>{Math.round(c.mastery_score)}%</span></div>
-              ))}
-            </div>
-          )}
-          <Button size="sm" className="mt-3" asChild><Link to="/student/recovery">Fix my mistakes</Link></Button>
-        </Card>
-      </div>
-
-      <div className="grid sm:grid-cols-3 gap-3">
-        <Link to="/student/practice/math12" className="block">
-          <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
-            <Target className="w-5 h-5 text-primary mb-2" />
-            <div className="font-semibold">Class 12 Practice</div>
-            <p className="text-xs text-muted-foreground mt-1">Fresh CBSE questions</p>
-          </Card>
-        </Link>
-        <Link to="/student/recovery" className="block">
-          <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
-            <Wrench className="w-5 h-5 text-primary mb-2" />
-            <div className="font-semibold">Recovery</div>
-            <p className="text-xs text-muted-foreground mt-1">{data?.recovery_pending ?? 0} pending · {data?.mistake_count ?? 0} mistakes</p>
-          </Card>
-        </Link>
-        <Link to="/student/battleground" className="block">
-          <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
-            <Sword className="w-5 h-5 text-primary mb-2" />
-            <div className="font-semibold">Battleground</div>
-            <p className="text-xs text-muted-foreground mt-1">Challenge classmates</p>
-          </Card>
-        </Link>
-      </div>
-    </>
+    </FlowPage>
   );
 }

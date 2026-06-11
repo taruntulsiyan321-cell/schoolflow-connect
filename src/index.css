@@ -216,7 +216,10 @@
     @apply inline-flex items-center justify-center min-w-[1.5rem] px-1.5 py-0.5 text-[10px] font-medium font-mono rounded border border-border bg-muted text-muted-foreground;
   }
 
-  /* Analytics — soft daylight / Scandinavian study studio */
+  /* Student flow pages — premium card layout (Analysis design language) */
+  .flow-page {
+    @apply animate-rise;
+  }
   .analytics-page {
     @apply -mx-1 px-1 sm:mx-0 sm:px-0;
   }

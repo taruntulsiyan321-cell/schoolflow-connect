@@ -5,9 +5,10 @@ import { AnalyticsStudio } from "@/components/student/analytics/AnalyticsStudio"
 type Props = {
   data: AcademicSnapshot;
   charts: StudentPerformanceCharts | null;
+  chartsLoading?: boolean;
 };
 
-/** Analytics UI — soft daylight study studio layout. */
-export function AcademicAnalyticsDashboard({ data, charts }: Props) {
-  return <AnalyticsStudio data={data} charts={charts} />;
+/** Student analysis — 6-section flow layout. */
+export function AcademicAnalyticsDashboard({ data, charts, chartsLoading }: Props) {
+  return <AnalyticsStudio data={data} charts={charts} chartsLoading={chartsLoading} />;
 }
