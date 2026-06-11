@@ -1,20 +1,28 @@
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BarChart3, Calculator, Target } from "lucide-react";
+import { BarChart3, Calculator, Target, Sword } from "lucide-react";
 
 export function AnalyticsEmptyState() {
   return (
-    <Card className="p-8 text-center shadow-card">
-      <BarChart3 className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-      <h3 className="font-semibold">No performance data yet</h3>
-      <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-        Complete a DPP, battle, or Class 12 self-practice session to unlock readiness scores, weekly summaries, and topic insights.
+    <Card className="p-10 sm:p-12 text-center shadow-card border-dashed border-border/80 bg-gradient-to-b from-muted/40 to-transparent">
+      <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+        <BarChart3 className="w-7 h-7 text-primary" />
+      </div>
+      <h3 className="text-lg font-semibold">Your analytics will appear here</h3>
+      <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto leading-relaxed">
+        Complete a DPP, battle, or Class 12 practice session to unlock readiness scores, subject breakdowns, weekly momentum, and a personalised action plan.
       </p>
-      <div className="flex gap-2 justify-center mt-4 flex-wrap">
-        <Button asChild><Link to="/student/dpp"><Target className="w-4 h-4 mr-1" /> Start a DPP</Link></Button>
-        <Button asChild variant="outline"><Link to="/student/battleground">Battleground</Link></Button>
-        <Button asChild variant="outline"><Link to="/student/practice/math12"><Calculator className="w-4 h-4 mr-1" /> Class 12 Math</Link></Button>
+      <div className="flex gap-2 justify-center mt-6 flex-wrap">
+        <Button asChild>
+          <Link to="/student/dpp"><Target className="w-4 h-4 mr-1" /> Start a DPP</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/student/battleground"><Sword className="w-4 h-4 mr-1" /> Battleground</Link>
+        </Button>
+        <Button asChild variant="outline">
+          <Link to="/student/practice/math12"><Calculator className="w-4 h-4 mr-1" /> Class 12 practice</Link>
+        </Button>
       </div>
     </Card>
   );

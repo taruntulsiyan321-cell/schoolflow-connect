@@ -45,21 +45,16 @@ export function StudentListSkeleton({ rows = 4 }: { rows?: number }) {
 export function StudentAnalyticsSkeleton() {
   return (
     <div className="space-y-6 animate-rise" aria-busy="true" aria-label="Loading analytics">
-      <Skeleton className="h-28 w-full rounded-xl" />
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <Skeleton key={i} className="h-[88px] rounded-xl" />
+      <Skeleton className="h-44 w-full rounded-xl" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 rounded-xl" />
         ))}
       </div>
-      <Skeleton className="h-36 w-full rounded-xl" />
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Skeleton className="h-44 rounded-xl" />
-        <Skeleton className="h-44 rounded-xl" />
-      </div>
-      <Skeleton className="h-28 w-full rounded-xl" />
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Skeleton className="h-[260px] rounded-xl" />
-        <Skeleton className="h-[260px] rounded-xl" />
+      <Skeleton className="h-11 w-full max-w-md rounded-lg" />
+      <div className="grid lg:grid-cols-5 gap-4">
+        <Skeleton className="h-56 rounded-xl lg:col-span-3" />
+        <Skeleton className="h-56 rounded-xl lg:col-span-2" />
       </div>
     </div>
   );
