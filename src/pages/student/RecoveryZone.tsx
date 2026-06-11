@@ -1,11 +1,15 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchMostRecentPracticeMistake } from "@/lib/mistakeRecovery";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { ConceptMastery } from "@/components/student/ConceptMastery";
 import { useRecoveryZone } from "@/hooks/useRecoveryZone";
-import { AlertTriangle, BookMarked, ListChecks, Target, Wrench } from "lucide-react";
+import { AlertTriangle, BookMarked, ListChecks, Loader2, Target, Wrench } from "lucide-react";
+import { toast } from "sonner";
 import { StudentDashboardSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
 const severityTone: Record<string, string> = {
@@ -16,6 +20,51 @@ const severityTone: Record<string, string> = {
 
 export default function RecoveryZone() {
   const { data, loading, error, reload } = useRecoveryZone();
+  const navigate = useNavigate();
+  const [hasPracticeMistakes, setHasPracticeMistakes] = useState(false);
+  const [fixing, setFixing] = useState(false);
+
+  useEffect(() => {
+    fetchMostRecentPracticeMistake().then((m) => setHasPracticeMistakes(!!m));
+  }, [data?.open_assignments?.length]);
+
+  const handleFixMistakes = async () => {
+    const assignments = data?.open_assignments ?? [];
+    if (assignments[0]) {
+      navigate(`/student/recovery/${assignments[0].id}`);
+      return;
+    }
+
+    setFixing(true);
+    try {
+      const m = await fetchMostRecentPracticeMistake();
+      if (!m) {
+        toast.info("No practice mistakes yet — try the Practice tab first.");
+        return;
+      }
+
+      const { data: aid, error: assignErr } = await (supabase as any).rpc(
+        "rpc_assign_concept_recovery",
+        {
+          _subject: m.subject,
+          _chapter: m.chapter ?? null,
+          _concept: m.concept ?? m.topic ?? m.chapter ?? null,
+          _subconcept: null,
+          _accuracy: 35,
+          _source_type: "practice",
+          _source_id: m.id,
+        },
+      );
+
+      if (assignErr) {
+        toast.error(assignErr.message);
+        return;
+      }
+      if (aid) navigate(`/student/recovery/${aid}`);
+    } finally {
+      setFixing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -62,11 +111,14 @@ export default function RecoveryZone() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            {assignments[0] && (
-              <Button size="sm" asChild>
-                <Link to={`/student/recovery/${assignments[0].id}`}>
-                  <Wrench className="w-4 h-4 mr-1" /> Fix my mistakes
-                </Link>
+            {(assignments[0] || hasPracticeMistakes) && (
+              <Button size="sm" onClick={handleFixMistakes} disabled={fixing}>
+                {fixing ? (
+                  <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                ) : (
+                  <Wrench className="w-4 h-4 mr-1" />
+                )}
+                Fix my mistakes
               </Button>
             )}
             <Button size="sm" variant="secondary" asChild><Link to="/student/mistakes">Mistake book</Link></Button>

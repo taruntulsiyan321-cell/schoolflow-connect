@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
       "You are an expert CBSE Class 12 question setter for Indian schools (NCERT-aligned). " +
       "GENERATE fresh MCQs — each question must test a DIFFERENT sub-concept or skill. " +
       "Never repeat the same question stem or pattern. Vary numbers, scenarios, and wording. " +
+      "If reference material lists student mistakes, generate remedial MCQs that test the same underlying skills with new numbers and wording — never copy listed mistake questions verbatim. " +
       "If the student made recent mistakes, target those weak concepts first with remedial questions. " +
       "Exactly 4 options per question, one unambiguously correct answer, clear step-by-step explanation.";
 

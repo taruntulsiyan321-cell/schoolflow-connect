@@ -15,7 +15,10 @@ import { generateFromTemplate } from "@/engines/class12Math/generate";
 import type { GeneratedQuestion } from "@/engines/class12Math/types";
 import { freshSessionSeed, SEED_STRIDE } from "@/lib/practiceDiversity";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
-import { fetchRecentMistakeContext, generateAiPracticeQuestions } from "@/lib/aiPracticeQuestions";
+import {
+  fetchMistakesForRecovery,
+  generateRecoveryQuestionsFromMistakes,
+} from "@/lib/mistakeRecovery";
 
 type RecoveryQuestion = {
   id: string;
@@ -53,53 +56,6 @@ export default function RecoverySession() {
     [assignment?.chapter, assignment?.concept],
   );
 
-  // ── Generate AI recovery questions when DB has none ────────────────
-  const generateAiQuestions = async (assign: any): Promise<RecoveryQuestion[]> => {
-    setAiLoading(true);
-    try {
-      const concept = assign.concept ?? assign.chapter ?? "";
-      const { text: mistakeContext, concepts } = await fetchRecentMistakeContext({
-        subject: assign.subject ?? "Mathematics",
-        chapter: assign.chapter,
-        concept,
-      });
-
-      const count =
-        assign.severity === "severe" ? 8 : assign.severity === "moderate" ? 6 : 5;
-
-      const { questions, error } = await generateAiPracticeQuestions({
-        subject: assign.subject ?? "Mathematics",
-        chapter: assign.chapter ?? "",
-        topic: concept,
-        difficulty: assign.severity === "severe" ? "easy" : "medium",
-        count,
-        mistakeContext,
-        weakConcepts: concepts.length ? concepts : concept ? [concept] : [],
-      });
-
-      if (questions.length > 0) {
-        return questions.map((q, i) => ({
-          id: `ai-${Date.now()}-${i}`,
-          order_index: i,
-          question_text: q.question,
-          options: q.options,
-          correct_index: q.correct_index,
-          explanation: q.explanation,
-          answered: false,
-          ai_generated: true,
-        }));
-      }
-
-      if (error) console.warn("AI question generation failed:", error);
-      return [];
-    } catch (e) {
-      console.warn("AI question generation error:", e);
-      return [];
-    } finally {
-      setAiLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (!id) return;
     (async () => {
@@ -115,6 +71,33 @@ export default function RecoverySession() {
       }
       const assign = data?.assignment;
       setAssignment(assign);
+
+      if (assign) {
+        const mistakes = await fetchMistakesForRecovery({
+          subject: assign.subject ?? "Mathematics",
+          chapter: assign.chapter,
+          concept: assign.concept,
+        });
+
+        if (mistakes.length > 0) {
+          setAiLoading(true);
+          const { questions: recoveryQs, error: genError } =
+            await generateRecoveryQuestionsFromMistakes(assign, mistakes);
+          setAiLoading(false);
+
+          if (recoveryQs.length > 0) {
+            setQuestions(recoveryQs);
+            setIdx(0);
+            setLoading(false);
+            return;
+          }
+
+          if (genError) console.warn("Recovery question generation failed:", genError);
+          setLoadError("No practice questions could be loaded right now — please try again later.");
+          setLoading(false);
+          return;
+        }
+      }
 
       const raw = (data?.questions ?? []) as RecoveryQuestion[];
       const enriched: RecoveryQuestion[] = [];
@@ -187,23 +170,8 @@ export default function RecoverySession() {
         };
       }).filter((q) => q.question_text?.trim() && q.options?.length >= 2);
 
-      // ── If no DB questions, generate AI questions on-the-fly ──────
-      if (qs.length === 0 && assign) {
-        const aiQuestions = await generateAiQuestions(assign);
-        if (aiQuestions.length > 0) {
-          setQuestions(aiQuestions);
-          setIdx(0);
-          setLoading(false);
-          return;
-        }
-        // AI also failed — show error with helpful actions
-        setLoadError("No practice questions could be loaded right now — please try again later.");
-        setLoading(false);
-        return;
-      }
-
       if (qs.length === 0) {
-        setLoadError("No practice questions could be loaded for this recovery topic.");
+        setLoadError("Practice first to build your mistake book — wrong answers from Practice are saved here for targeted recovery.");
         setLoading(false);
         return;
       }

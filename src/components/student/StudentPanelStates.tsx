@@ -44,10 +44,23 @@ export function StudentListSkeleton({ rows = 4 }: { rows?: number }) {
 /** Analytics / chart pages. */
 export function StudentAnalyticsSkeleton() {
   return (
-    <div className="space-y-4 animate-rise" aria-busy="true" aria-label="Loading analytics">
-      <Skeleton className="h-[180px] w-full rounded-xl" />
-      <Skeleton className="h-[260px] w-full rounded-xl" />
-      <Skeleton className="h-[260px] w-full rounded-xl" />
+    <div className="space-y-6 animate-rise" aria-busy="true" aria-label="Loading analytics">
+      <Skeleton className="h-28 w-full rounded-xl" />
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-[88px] rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-36 w-full rounded-xl" />
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Skeleton className="h-44 rounded-xl" />
+        <Skeleton className="h-44 rounded-xl" />
+      </div>
+      <Skeleton className="h-28 w-full rounded-xl" />
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Skeleton className="h-[260px] rounded-xl" />
+        <Skeleton className="h-[260px] rounded-xl" />
+      </div>
     </div>
   );
 }

@@ -51,7 +51,7 @@ export async function fetchRecentMistakeContext(opts: {
   return { text, concepts };
 }
 
-/** Gemini-powered MCQs — same engine as recovery (varied, concept-focused). */
+/** Generated MCQs — same engine as recovery (varied, concept-focused). */
 export async function generateAiPracticeQuestions(opts: {
   subject: string;
   chapter?: string;
@@ -60,19 +60,35 @@ export async function generateAiPracticeQuestions(opts: {
   count: number;
   mistakeContext?: string;
   weakConcepts?: string[];
+  recoveryMode?: boolean;
 }): Promise<{ questions: AiMcq[]; error?: string }> {
   const focus = opts.weakConcepts?.length
     ? `Weak concepts to fix first: ${opts.weakConcepts.join("; ")}.`
     : "";
+
   const mistakes = opts.mistakeContext
-    ? `Questions the student got wrong recently:\n${opts.mistakeContext}`
+    ? opts.recoveryMode
+      ? `Mistakes from the student's practice sessions (use these to design remedial questions):\n${opts.mistakeContext}`
+      : `Questions the student got wrong recently:\n${opts.mistakeContext}`
+    : "";
+
+  const recoveryInstructions = opts.recoveryMode && opts.mistakeContext
+    ? [
+        `Generate exactly ${opts.count} remedial MCQs — one per listed mistake concept where possible.`,
+        "Each new question must test the SAME underlying skill as the corresponding mistake but with different numbers, wording, and scenario.",
+        "Do NOT repeat or lightly reword the exact mistake questions listed above.",
+        "Target what the student misunderstood (wrong pick vs correct answer and explanation).",
+      ].join("\n")
     : "";
 
   const source_text = [
     focus,
     mistakes,
+    recoveryInstructions,
     `Generate ${opts.count} DISTINCT CBSE Class 12 ${opts.subject} MCQs for chapter/topic "${opts.topic}".`,
-    "Each question must test a different sub-concept. Vary numbers, scenarios, and wording.",
+    opts.recoveryMode
+      ? "Remedial focus: rebuild confidence on weak spots with fresh practice."
+      : "Each question must test a different sub-concept. Vary numbers, scenarios, and wording.",
     "NCERT-aligned. No duplicate question stems.",
   ]
     .filter(Boolean)

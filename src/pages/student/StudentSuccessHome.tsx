@@ -6,11 +6,31 @@ import { Progress } from "@/components/ui/progress";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentXp } from "@/hooks/useStudentXp";
-import { AcademicHeatmap } from "@/components/student/AcademicHeatmap";
 import {
-  Target, BookOpen, ClipboardCheck, Trophy, Flame, AlertTriangle,
-  TrendingUp, ListChecks, BookMarked, Sword, Sparkles, Wrench,
+  Target, BookOpen, ClipboardCheck, Flame, AlertTriangle,
+  TrendingUp, Sword, Wrench, CalendarDays,
 } from "lucide-react";
+
+function localDateKey(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function computeWeekActivity(days: { date: string; dpp?: number; homework?: number; battles?: number; self_practice?: number }[] | undefined) {
+  const map = new Map((days ?? []).map((d) => [d.date, (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0)]));
+  let activeDays = 0;
+  let activities = 0;
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const score = map.get(localDateKey(d)) ?? 0;
+    if (score > 0) activeDays++;
+    activities += score;
+  }
+  return { activeDays, activities };
+}
 import { ConceptMastery } from "@/components/student/ConceptMastery";
 import { StudentDashboardSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 
@@ -35,6 +55,7 @@ export default function StudentSuccessHome() {
   const readiness = data?.exam_readiness;
   const toneClass =
     readiness?.tone === "ready" ? "text-accent" : readiness?.tone === "risk" ? "text-destructive" : "text-warning";
+  const weekStats = computeWeekActivity(data?.activity_heatmap);
 
   return (
     <>
@@ -86,9 +107,31 @@ export default function StudentSuccessHome() {
         </Card>
 
         <Card className="p-4 shadow-card">
-          <div className="flex items-center gap-2 mb-3"><Flame className="w-4 h-4 text-primary" /><h3 className="font-semibold">Consistency heatmap</h3></div>
-          <AcademicHeatmap days={data?.activity_heatmap ?? []} />
-          <p className="text-xs text-muted-foreground mt-2">Darker = more activity (DPP, battles, self-practice)</p>
+          <div className="flex items-center gap-2 mb-3"><CalendarDays className="w-4 h-4 text-primary" /><h3 className="font-semibold">This week</h3></div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="p-3 rounded-lg bg-muted">
+              <div className="text-muted-foreground">Active days</div>
+              <div className="text-xl font-bold">{weekStats.activeDays}<span className="text-sm font-normal text-muted-foreground">/7</span></div>
+            </div>
+            <div className="p-3 rounded-lg bg-muted">
+              <div className="text-muted-foreground">Activities logged</div>
+              <div className="text-xl font-bold">{weekStats.activities}</div>
+            </div>
+            <div className="p-3 rounded-lg bg-muted">
+              <div className="text-muted-foreground">Mistakes to fix</div>
+              <div className="text-xl font-bold">{data?.mistake_count ?? 0}</div>
+            </div>
+            <div className="p-3 rounded-lg bg-muted">
+              <div className="text-muted-foreground">Recovery pending</div>
+              <div className="text-xl font-bold">{data?.recovery_pending ?? 0}</div>
+            </div>
+          </div>
+          <div className="flex gap-2 mt-3 flex-wrap">
+            <Button size="sm" variant="outline" asChild><Link to="/student/analytics">View analytics</Link></Button>
+            {(data?.mistake_count ?? 0) > 0 && (
+              <Button size="sm" asChild><Link to="/student/recovery">Fix mistakes</Link></Button>
+            )}
+          </div>
         </Card>
       </div>
 

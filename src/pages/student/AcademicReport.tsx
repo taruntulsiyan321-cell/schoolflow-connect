@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui-bits";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
-import { AcademicHeatmap } from "@/components/student/AcademicHeatmap";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
 import { ArrowLeft, Printer } from "lucide-react";
@@ -130,10 +129,43 @@ export default function AcademicReport() {
               </Card>
             )}
 
-            <Card className="p-5 shadow-card">
-              <h2 className="font-semibold mb-3">Activity (28 days)</h2>
-              <AcademicHeatmap days={snap?.activity_heatmap ?? []} />
-            </Card>
+            {(charts?.weekly_activity?.length ?? 0) > 0 && (
+              <Card className="p-5 shadow-card">
+                <h2 className="font-semibold mb-3">Weekly activity summary</h2>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="py-2 pr-4 font-medium">Date</th>
+                        <th className="py-2 pr-4 font-medium">Total</th>
+                        <th className="py-2 pr-4 font-medium">DPP</th>
+                        <th className="py-2 pr-4 font-medium">Battles</th>
+                        <th className="py-2 font-medium">Self-practice</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(charts?.weekly_activity ?? []).map((row) => (
+                        <tr key={row.date} className="border-b border-border/50">
+                          <td className="py-2 pr-4">{String(row.date).slice(5)}</td>
+                          <td className="py-2 pr-4 font-medium">{row.total}</td>
+                          <td className="py-2 pr-4">{row.dpp}</td>
+                          <td className="py-2 pr-4">{row.battles}</td>
+                          <td className="py-2">{row.self_practice ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-muted-foreground mt-3">
+                  {(() => {
+                    const recent = (charts?.weekly_activity ?? []).slice(-7);
+                    const total = recent.reduce((s, d) => s + d.total, 0);
+                    const active = recent.filter((d) => d.total > 0).length;
+                    return `${total} questions across ${active} active day${active === 1 ? "" : "s"} in the last week`;
+                  })()}
+                </p>
+              </Card>
+            )}
 
             {(charts?.subjects?.length ?? 0) > 0 && (
               <Card className="p-5 shadow-card break-inside-avoid">
