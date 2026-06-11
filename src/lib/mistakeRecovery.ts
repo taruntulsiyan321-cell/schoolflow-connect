@@ -13,6 +13,7 @@ export type MistakeRecord = {
   concept: string | null;
   topic: string | null;
   times_wrong: number;
+  last_wrong_at?: string | null;
 };
 
 export type RecoveryQuestionFromMistakes = {
@@ -69,6 +70,7 @@ function mapRow(m: {
   concept: string | null;
   topic: string | null;
   times_wrong: number;
+  last_wrong_at?: string | null;
 }): MistakeRecord {
   return {
     id: m.id,
@@ -82,11 +84,12 @@ function mapRow(m: {
     concept: m.concept,
     topic: m.topic,
     times_wrong: m.times_wrong,
+    last_wrong_at: m.last_wrong_at ?? null,
   };
 }
 
 const MISTAKE_SELECT =
-  "id, question_text, options, student_answer, correct_answer, explanation, subject, chapter, concept, topic, times_wrong";
+  "id, question_text, options, student_answer, correct_answer, explanation, subject, chapter, concept, topic, times_wrong, last_wrong_at";
 
 /** Unmastered practice mistakes for a recovery assignment's subject/chapter/concept. */
 export async function fetchMistakesForRecovery(opts: {

@@ -1,13 +1,13 @@
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { StudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
-import { AnalyticsDossier } from "@/components/student/analytics/AnalyticsDossier";
+import { AnalyticsStudio } from "@/components/student/analytics/AnalyticsStudio";
 
 type Props = {
   data: AcademicSnapshot;
   charts: StudentPerformanceCharts | null;
 };
 
-/** Analytics UI — editorial performance dossier layout. */
+/** Analytics UI — soft daylight study studio layout. */
 export function AcademicAnalyticsDashboard({ data, charts }: Props) {
-  return <AnalyticsDossier data={data} charts={charts} />;
+  return <AnalyticsStudio data={data} charts={charts} />;
 }

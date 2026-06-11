@@ -215,6 +215,19 @@
   .kbd {
     @apply inline-flex items-center justify-center min-w-[1.5rem] px-1.5 py-0.5 text-[10px] font-medium font-mono rounded border border-border bg-muted text-muted-foreground;
   }
+
+  /* Analytics — soft daylight / Scandinavian study studio */
+  .analytics-page {
+    @apply -mx-1 px-1 sm:mx-0 sm:px-0;
+  }
+  .analytics-studio {
+    --studio-cream: #FAF8F4;
+    --studio-sage: #7A9E7E;
+    --studio-coral: #E07A5F;
+    --studio-ink: #2C3E2D;
+    --studio-muted: #6B756C;
+    --studio-border: #E8E2D9;
+  }
 }
 
 @keyframes pulse-glow {

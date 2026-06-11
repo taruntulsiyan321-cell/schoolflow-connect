@@ -39,7 +39,7 @@ export default function AcademicAnalytics() {
   const showEmpty = !busy && !snapError && !chartsError && !hasChartData && !hasSnapshotActivity;
 
   return (
-    <div className="max-w-5xl mx-auto pb-12">
+    <div className="analytics-page max-w-5xl mx-auto pb-12">
       <div className="flex items-center justify-between mb-4">
         <Button variant="ghost" size="sm" asChild className="-ml-2 text-muted-foreground">
           <Link to="/student"><ArrowLeft className="w-4 h-4" /> Back</Link>
