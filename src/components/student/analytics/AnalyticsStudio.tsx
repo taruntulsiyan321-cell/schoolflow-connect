@@ -8,7 +8,9 @@ import {
 } from "@/components/student/analytics/AnalyticsBits";
 import {
   aggregatesToTopicGaps,
+  formatLastSeen,
   linkForActionStep,
+  linkForTopicGap,
   type TopicGapInsight,
 } from "@/lib/analyticsInsights";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
@@ -20,11 +22,13 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
+  ClipboardList,
   Leaf,
   Loader2,
   RefreshCw,
   Sparkles,
   Target,
+  TrendingDown,
   TrendingUp,
 } from "lucide-react";
 
@@ -58,6 +62,7 @@ const severityAccent: Record<string, { border: string; bg: string; label: string
 
 function TopicCard({ gap }: { gap: TopicGapInsight }) {
   const style = severityAccent[gap.severity] ?? severityAccent.mild;
+  const fixLink = linkForTopicGap(gap);
 
   return (
     <article
@@ -68,44 +73,88 @@ function TopicCard({ gap }: { gap: TopicGapInsight }) {
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-[#8A8578]">
             {gap.subject} · {gap.chapter}
           </p>
           <h3 className="text-lg sm:text-xl font-semibold text-[#2C3E2D] mt-1 leading-snug">{gap.topic}</h3>
+          {gap.misconception && (
+            <span className="inline-block mt-2 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#FBF0EC] text-[#C45C44] border border-[#F0D5CC]">
+              {gap.misconception}
+            </span>
+          )}
           {gap.ncert_ref && (
-            <p className="text-xs text-[#5A7D5E] font-medium mt-1.5 flex items-center gap-1">
+            <p className="text-xs text-[#5A7D5E] font-medium mt-2 flex items-center gap-1">
               <BookOpen className="w-3 h-3" /> {gap.ncert_ref}
             </p>
           )}
         </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
+        <div className="flex flex-col items-end gap-1 shrink-0 text-right">
           <span className={cn("text-[10px] font-semibold uppercase tracking-wide", style.text)}>
             {style.label}
           </span>
           <span className="text-xs text-[#8A8578] tabular-nums">
             {gap.mistake_count} mistake{gap.mistake_count === 1 ? "" : "s"}
+            {gap.total_wrong != null && gap.total_wrong > gap.mistake_count
+              ? ` · ${gap.total_wrong} wrong attempts`
+              : ""}
           </span>
+          {gap.last_seen && (
+            <span className="text-[10px] text-[#8A8578]">Last seen {formatLastSeen(gap.last_seen)}</span>
+          )}
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3 text-sm">
-        <div className={cn("rounded-xl p-3.5", style.bg)}>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8A8578] mb-1">Why it&apos;s tricky</p>
-          <p className="text-[#3D4A3E] leading-relaxed">{gap.why_weak}</p>
+      {/* Headline insight */}
+      <div className={cn("rounded-xl p-3.5 mb-3", style.bg)}>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8A8578] mb-1">What went wrong</p>
+        <p className="text-[#3D4A3E] leading-relaxed text-sm">{gap.why_weak}</p>
+      </div>
+
+      {/* Evidence */}
+      {gap.evidence && (
+        <p className="text-xs text-[#6B756C] mb-3 leading-relaxed border-l-2 border-[#D4CFC4] pl-3 italic">
+          {gap.evidence}
+        </p>
+      )}
+
+      <div className="grid sm:grid-cols-2 gap-3 text-sm mb-3">
+        <div className="rounded-xl p-3.5 bg-[#F5F5F3]">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8A8578] mb-1">Why it happened</p>
+          <p className="text-[#3D4A3E] leading-relaxed">{gap.root_cause}</p>
         </div>
         <div className="rounded-xl p-3.5 bg-[#F0F5F0]">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#5A7D5E] mb-1">How to fix</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#5A7D5E] mb-1">What to do</p>
           <p className="text-[#3D4A3E] leading-relaxed">{gap.fix_hint}</p>
         </div>
       </div>
 
-      <p className="text-xs text-[#6B756C] mt-3 leading-relaxed">
-        <span className="font-medium text-[#4A554B]">Root cause:</span> {gap.root_cause}
-      </p>
       {gap.error_pattern && (
-        <p className="text-xs mt-2 text-[#B8864A] font-medium">Pattern: {gap.error_pattern}</p>
+        <p className="text-xs mb-3 text-[#B8864A] font-medium">Pattern: {gap.error_pattern}</p>
       )}
+
+      {(gap.micro_drills?.length ?? 0) > 0 && (
+        <div className="rounded-xl bg-[#FAF8F4] border border-[#E8E2D9] p-3.5 mb-4">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#8A8578] mb-2 flex items-center gap-1">
+            <ClipboardList className="w-3 h-3" /> Quick checks (5 min each)
+          </p>
+          <ol className="space-y-1.5 list-decimal list-inside text-xs text-[#4A554B] leading-relaxed">
+            {gap.micro_drills!.map((d, i) => (
+              <li key={i}>{d}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      <Button
+        size="sm"
+        className="rounded-full bg-[#7A9E7E] hover:bg-[#6A8D6E] text-white"
+        asChild
+      >
+        <Link to={fixLink.to}>
+          {fixLink.label} <ArrowRight className="w-3.5 h-3.5 ml-1" />
+        </Link>
+      </Button>
     </article>
   );
 }
@@ -138,10 +187,16 @@ export function AnalyticsStudio({ data, charts }: Props) {
 
   const topGap = gaps[0];
   const score = readiness?.score ?? 0;
-  const steps = insights?.study_priority?.length
-    ? insights.study_priority
-    : insights?.next_steps ?? [];
+  const weeklyPlan = insights?.weekly_plan ?? [];
+  const steps = weeklyPlan.length
+    ? weeklyPlan.map((w) => `${w.topic} (${w.chapter}) — ~${w.time_minutes} min: ${w.action}`)
+    : insights?.study_priority?.length
+      ? insights.study_priority
+      : insights?.next_steps ?? [];
   const strong = insights?.strong_concepts ?? [];
+  const momentum = insights?.momentum ?? [];
+  const recurring = insights?.recurring_errors ?? [];
+  const patterns = insights?.error_patterns ?? [];
 
   if (loading) {
     return (
@@ -210,8 +265,25 @@ export function AnalyticsStudio({ data, charts }: Props) {
         </div>
       </section>
 
+      {/* ——— What to do today ——— */}
+      {insights?.today_focus && (
+        <section className="rounded-2xl bg-gradient-to-r from-[#EEF4EE] to-[#FAF8F4] border border-[#C8DCC8] p-5 sm:p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[#5A7D5E] mb-2 flex items-center gap-1.5">
+            <Target className="w-4 h-4" /> What to do today
+          </p>
+          <p className="text-base sm:text-lg font-medium text-[#2C3E2D] leading-relaxed">{insights.today_focus}</p>
+          {topGap && (
+            <Button size="sm" className="mt-4 rounded-full" asChild>
+              <Link to={linkForTopicGap(topGap).to}>
+                Start with {topGap.topic} <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </Link>
+            </Button>
+          )}
+        </section>
+      )}
+
       {/* ——— Headline + patterns ——— */}
-      {(insights?.headline || (insights?.error_patterns?.length ?? 0) > 0) && (
+      {(insights?.headline || patterns.length > 0 || recurring.length > 0) && (
         <section className="space-y-4">
           {insights?.headline && (
             <div className="rounded-2xl bg-white border border-[#E8E2D9] p-5 sm:p-6 shadow-sm">
@@ -221,19 +293,72 @@ export function AnalyticsStudio({ data, charts }: Props) {
               )}
             </div>
           )}
-          {(insights?.error_patterns?.length ?? 0) > 0 && (
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-xs font-medium text-[#8A8578] mr-1">Common patterns</span>
-              {insights!.error_patterns.map((p, i) => (
-                <span
-                  key={i}
-                  className="text-xs px-3 py-1.5 rounded-full bg-[#FBF0EC] text-[#C45C44] border border-[#F0D5CC]"
-                >
-                  {p}
-                </span>
-              ))}
+
+          {(recurring.length > 0 || patterns.length > 0) && (
+            <div className="rounded-2xl bg-[#FBF0EC]/60 border border-[#F0D5CC] p-4 sm:p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#C45C44] mb-3">
+                Recurring mistake types
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {recurring.map((r, i) => (
+                  <span
+                    key={`r-${i}`}
+                    className="text-xs px-3 py-2 rounded-xl bg-white text-[#C45C44] border border-[#F0D5CC] max-w-full"
+                    title={r.explanation}
+                  >
+                    <span className="font-semibold">{r.label}</span>
+                    {r.subjects.length > 0 && (
+                      <span className="opacity-75 ml-1">· {r.subjects.join(", ")}</span>
+                    )}
+                  </span>
+                ))}
+                {patterns
+                  .filter((p) => !recurring.some((r) => r.label === p))
+                  .map((p, i) => (
+                    <span
+                      key={`p-${i}`}
+                      className="text-xs px-3 py-1.5 rounded-full bg-white text-[#C45C44] border border-[#F0D5CC]"
+                    >
+                      {p}
+                    </span>
+                  ))}
+              </div>
             </div>
           )}
+        </section>
+      )}
+
+      {/* ——— Momentum ——— */}
+      {momentum.length > 0 && (
+        <section className="grid sm:grid-cols-2 gap-3">
+          {momentum.map((m, i) => (
+            <div
+              key={i}
+              className={cn(
+                "rounded-2xl border p-4 flex gap-3 items-start",
+                m.direction === "improving"
+                  ? "bg-[#F2F7F2] border-[#C8DCC8]"
+                  : m.direction === "slipping"
+                    ? "bg-[#FDF0EC] border-[#F0D5CC]"
+                    : "bg-white border-[#E8E2D9]",
+              )}
+            >
+              {m.direction === "improving" ? (
+                <TrendingUp className="w-5 h-5 text-[#5A7D5E] shrink-0 mt-0.5" />
+              ) : m.direction === "slipping" ? (
+                <TrendingDown className="w-5 h-5 text-[#C45C44] shrink-0 mt-0.5" />
+              ) : (
+                <Target className="w-5 h-5 text-[#8A8578] shrink-0 mt-0.5" />
+              )}
+              <div>
+                <p className="text-sm font-semibold text-[#2C3E2D]">
+                  {m.topic}
+                  <span className="font-normal text-[#8A8578] ml-1">· {m.subject}</span>
+                </p>
+                <p className="text-xs text-[#6B756C] mt-1 leading-relaxed">{m.note}</p>
+              </div>
+            </div>
+          ))}
         </section>
       )}
 
@@ -249,7 +374,13 @@ export function AnalyticsStudio({ data, charts }: Props) {
               <h2 className="text-xl sm:text-2xl font-semibold text-[#2C3E2D] leading-tight">{topGap.topic}</h2>
               <p className="text-sm text-[#6B756C] mt-1.5">
                 {topGap.chapter} · {topGap.subject}
+                {topGap.last_seen ? ` · ${formatLastSeen(topGap.last_seen)}` : ""}
               </p>
+              {topGap.misconception && (
+                <span className="inline-block mt-2 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#FBF0EC] text-[#C45C44]">
+                  {topGap.misconception}
+                </span>
+              )}
               <p className="text-sm text-[#4A554B] mt-4 leading-relaxed pl-4 border-l-2 border-[#E07A5F]/50">
                 {topGap.fix_hint}
               </p>
@@ -259,8 +390,8 @@ export function AnalyticsStudio({ data, charts }: Props) {
                 className="mt-4 rounded-full border-[#E07A5F]/40 text-[#C45C44] hover:bg-[#FDF0EC]"
                 asChild
               >
-                <Link to="/student/recovery">
-                  Open recovery <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                <Link to={linkForTopicGap(topGap).to}>
+                  {linkForTopicGap(topGap).label} <ArrowRight className="w-3.5 h-3.5 ml-1" />
                 </Link>
               </Button>
             </>
@@ -298,7 +429,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
           <div>
             <h2 className="text-xl sm:text-2xl font-semibold text-[#2C3E2D]">Topics to improve</h2>
             <p className="text-sm text-[#6B756C] mt-1 max-w-lg">
-              {insights?.summary || "Exact NCERT topics from your mistake book — not just chapter labels."}
+              Each card shows what went wrong, why, and exactly what to do next.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -364,30 +495,62 @@ export function AnalyticsStudio({ data, charts }: Props) {
         )}
 
         <section className="rounded-3xl bg-gradient-to-br from-[#F2F7F2] to-[#FAF8F4] border border-[#D4E4D4] p-5 sm:p-6">
-          <h3 className="text-base font-semibold text-[#2C3E2D]">This week&apos;s plan</h3>
-          <p className="text-xs text-[#8A8578] mt-0.5 mb-5">Prioritised steps for you</p>
+          <h3 className="text-base font-semibold text-[#2C3E2D]">This week&apos;s focus</h3>
+          <p className="text-xs text-[#8A8578] mt-0.5 mb-5">Prioritised steps with time estimates</p>
           <ol className="space-y-3">
-            {(steps.length ? steps : ["Start practice to unlock your personalised plan."]).slice(0, 5).map((step, i) => {
-              const link = typeof step === "string" ? linkForActionStep(step) : { to: "/student/practice/math12", label: "Go" };
-              return (
-                <li key={i} className="flex gap-3 items-start">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#7A9E7E] text-white text-xs font-semibold">
-                    {i + 1}
-                  </span>
-                  <div className="min-w-0 pt-0.5">
-                    <p className="text-sm leading-relaxed text-[#3D4A3E]">{step}</p>
-                    {steps.length > 0 && (
+            {(weeklyPlan.length
+              ? weeklyPlan
+              : steps.length
+                ? steps.map((s, i) => ({
+                    topic: `Step ${i + 1}`,
+                    chapter: "",
+                    subject: "",
+                    time_minutes: 0,
+                    action: s,
+                    priority: i + 1,
+                  }))
+                : [{ topic: "Practice", chapter: "", subject: "", time_minutes: 15, action: "Start practice to unlock your personalised plan.", priority: 1 }]
+            )
+              .slice(0, 5)
+              .map((item, i) => {
+                const link =
+                  weeklyPlan.length > 0
+                    ? linkForTopicGap({
+                        topic: item.topic,
+                        chapter: item.chapter || "General",
+                        subject: item.subject || "General",
+                        severity: "moderate",
+                        why_weak: "",
+                        root_cause: "",
+                        fix_hint: item.action,
+                        mistake_count: 1,
+                      })
+                    : linkForActionStep(item.action);
+                return (
+                  <li key={i} className="flex gap-3 items-start">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#7A9E7E] text-white text-xs font-semibold">
+                      {item.priority ?? i + 1}
+                    </span>
+                    <div className="min-w-0 pt-0.5">
+                      {weeklyPlan.length > 0 && (
+                        <p className="text-sm font-medium text-[#2C3E2D]">
+                          {item.topic}
+                          {item.time_minutes > 0 && (
+                            <span className="text-[#8A8578] font-normal ml-1">· ~{item.time_minutes} min</span>
+                          )}
+                        </p>
+                      )}
+                      <p className="text-sm leading-relaxed text-[#3D4A3E]">{item.action}</p>
                       <Link
                         to={link.to}
                         className="text-xs text-[#5A7D5E] font-medium mt-1 inline-flex items-center hover:underline"
                       >
                         {link.label} <ArrowRight className="w-3 h-3 ml-0.5" />
                       </Link>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
+                    </div>
+                  </li>
+                );
+              })}
           </ol>
         </section>
       </div>

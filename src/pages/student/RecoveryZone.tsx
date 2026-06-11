@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMostRecentPracticeMistake } from "@/lib/mistakeRecovery";
 import { Card } from "@/components/ui/card";
@@ -21,12 +21,47 @@ const severityTone: Record<string, string> = {
 export default function RecoveryZone() {
   const { data, loading, error, reload } = useRecoveryZone();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [hasPracticeMistakes, setHasPracticeMistakes] = useState(false);
   const [fixing, setFixing] = useState(false);
+  const [topicFixAttempted, setTopicFixAttempted] = useState(false);
 
   useEffect(() => {
     fetchMostRecentPracticeMistake().then((m) => setHasPracticeMistakes(!!m));
   }, [data?.open_assignments?.length]);
+
+  useEffect(() => {
+    if (topicFixAttempted || loading || searchParams.get("fix") !== "1") return;
+    const subject = searchParams.get("subject");
+    const concept = searchParams.get("concept");
+    if (!subject || !concept) return;
+
+    setTopicFixAttempted(true);
+    setFixing(true);
+    (async () => {
+      try {
+        const { data: aid, error: assignErr } = await (supabase as any).rpc(
+          "rpc_assign_concept_recovery",
+          {
+            _subject: subject,
+            _chapter: searchParams.get("chapter") || null,
+            _concept: concept,
+            _subconcept: null,
+            _accuracy: 35,
+            _source_type: "analytics",
+            _source_id: null,
+          },
+        );
+        if (assignErr) {
+          toast.error(assignErr.message);
+          return;
+        }
+        if (aid) navigate(`/student/recovery/${aid}`, { replace: true });
+      } finally {
+        setFixing(false);
+      }
+    })();
+  }, [loading, navigate, searchParams, topicFixAttempted]);
 
   const handleFixMistakes = async () => {
     const assignments = data?.open_assignments ?? [];
