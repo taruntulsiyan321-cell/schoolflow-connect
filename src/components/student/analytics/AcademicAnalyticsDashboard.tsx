@@ -17,9 +17,12 @@ import {
   TrendSparkline,
   WeekActivityBars,
 } from "@/components/student/analytics/AnalyticsBits";
+import { WeakConceptInsights } from "@/components/student/analytics/WeakConceptInsights";
+import { useAnalyticsInsights } from "@/hooks/useAnalyticsInsights";
+import type { AnalyticsInsights } from "@/lib/analyticsInsights";
 import {
-  Target, ClipboardCheck, Flame, AlertTriangle, TrendingUp, TrendingDown,
-  BookOpen, Lightbulb, BarChart3, Sword, Layers,
+  Target, ClipboardCheck, Flame, AlertTriangle, TrendingUp,
+  Lightbulb, BarChart3, Sword, Layers,
 } from "lucide-react";
 
 const barConfig = { accuracy: { label: "Accuracy %", color: "hsl(var(--primary))" } };
@@ -43,51 +46,45 @@ function computeWeeklySummary(weekly: WeeklyActivityPoint[] | undefined) {
   return { totalQuestions, activeDays, dppCount, battleCount, practiceCount, avgPerActiveDay, daysTracked: recent.length };
 }
 
-function buildInsights(data: AcademicSnapshot | null, weekly: ReturnType<typeof computeWeeklySummary>) {
+function buildActionSteps(
+  data: AcademicSnapshot,
+  weekly: ReturnType<typeof computeWeeklySummary>,
+  conceptInsights: AnalyticsInsights | null,
+) {
+  if (conceptInsights?.next_steps?.length) {
+    return conceptInsights.next_steps.slice(0, 3).map((text, i) => ({
+      text,
+      to: i === 0 ? "/student/recovery" : i === 1 ? "/student/practice/math12" : "/student/mistakes",
+      label: i === 0 ? "Fix mistakes" : i === 1 ? "Practice" : "Mistake book",
+    }));
+  }
+
   const steps: { text: string; to: string; label: string; priority: number }[] = [];
-  const mistakes = data?.mistake_count ?? 0;
-  const recovery = data?.recovery_pending ?? 0;
-  const accuracy = data?.exam_readiness?.accuracy_pct ?? 0;
+  const mistakes = data.mistake_count ?? 0;
+  const recovery = data.recovery_pending ?? 0;
 
   if (mistakes > 0 || recovery > 0) {
     steps.push({
       priority: 1,
-      text: `You have ${mistakes} open mistake${mistakes === 1 ? "" : "s"}${recovery > 0 ? ` and ${recovery} recovery item${recovery === 1 ? "" : "s"} queued` : ""}. Fixing these lifts readiness fastest.`,
+      text: `You have ${mistakes} open mistake${mistakes === 1 ? "" : "s"} — concept gaps are listed above from your mistake book.`,
       to: "/student/recovery",
       label: "Fix mistakes",
     });
   }
-  if (accuracy > 0 && accuracy < 65) {
+  if (weekly.activeDays < 3 && weekly.daysTracked > 0) {
     steps.push({
       priority: 2,
-      text: `Practice accuracy is ${accuracy}%. Short targeted sessions on weak chapters will move your readiness score.`,
+      text: `Only ${weekly.activeDays} active day${weekly.activeDays === 1 ? "" : "s"} this week. Practice or a DPP builds your mistake profile.`,
       to: "/student/practice/math12",
       label: "Practice now",
     });
   }
-  if ((data?.weak_topics?.length ?? 0) > 0) {
-    const names = data!.weak_topics!.slice(0, 2).map((w) => w.subject).join(" & ");
-    steps.push({
-      priority: 3,
-      text: `Revise ${names} before your next DPP — these are your lowest-scoring areas.`,
-      to: "/student/revision",
-      label: "Revision queue",
-    });
-  }
-  if (weekly.activeDays < 3 && weekly.daysTracked > 0) {
-    steps.push({
-      priority: 4,
-      text: `Only ${weekly.activeDays} active day${weekly.activeDays === 1 ? "" : "s"} this week. A 15-minute DPP keeps momentum.`,
-      to: "/student/dpp",
-      label: "Start DPP",
-    });
-  }
   if (steps.length === 0) {
     steps.push({
-      priority: 5,
-      text: "Solid progress — mix DPP, battles, and self-practice to keep every subject green.",
-      to: "/student/report",
-      label: "View full report",
+      priority: 3,
+      text: "Start practice — wrong answers unlock personalised concept gap analysis here.",
+      to: "/student/practice/math12",
+      label: "Start practice",
     });
   }
   return steps.sort((a, b) => a.priority - b.priority).slice(0, 3);
@@ -99,17 +96,24 @@ type Props = {
 };
 
 export function AcademicAnalyticsDashboard({ data, charts }: Props) {
+  const {
+    insights: conceptInsights,
+    aggregates,
+    mistakeCount,
+    loading: conceptLoading,
+  } = useAnalyticsInsights(data);
+
   const readiness = data.exam_readiness;
   const weekly = computeWeeklySummary(charts?.weekly_activity);
-  const insights = buildInsights(data, weekly);
+  const actionSteps = buildActionSteps(data, weekly, conceptInsights);
   const firstName = data.student?.full_name?.split(" ")[0] ?? "Student";
 
   const subjects = [...(charts?.subjects ?? [])].sort((a, b) => b.accuracy - a.accuracy);
   const strongest = subjects[0];
   const weakest = subjects.length > 1 ? subjects[subjects.length - 1] : subjects[0];
 
-  const weakTopic = data.weak_topics?.[0];
-  const strongTopic = data.strong_topics?.[0];
+  const topWeakConcept = conceptInsights?.weak_concepts?.[0];
+  const topStrongConcept = conceptInsights?.strong_concepts?.[0];
 
   const dppTrendValues = (charts?.dpp_trend ?? []).map((d) => d.score_pct);
   const practiceTrendValues = (charts?.practice_trend ?? []).map((d) => d.score_pct);
@@ -189,11 +193,19 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
         </Card>
       </div>
 
+      <WeakConceptInsights
+        insights={conceptInsights}
+        aggregates={aggregates}
+        mistakeCount={mistakeCount}
+        loading={conceptLoading}
+        compact
+      />
+
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3 h-11 p-1 bg-muted/60">
           <TabsTrigger value="overview" className="text-sm">Overview</TabsTrigger>
           <TabsTrigger value="subjects" className="text-sm">Subjects & trends</TabsTrigger>
-          <TabsTrigger value="topics" className="text-sm">Topics & plan</TabsTrigger>
+          <TabsTrigger value="concepts" className="text-sm">Concept gaps</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 mt-0">
@@ -239,20 +251,20 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
                   value={`${weakest.accuracy}%`}
                 />
               )}
-              {!strongest && weakTopic && (
+              {topWeakConcept && (
                 <InsightHighlight
                   kind="focus"
-                  title={weakTopic.subject}
-                  subtitle={[weakTopic.chapter, weakTopic.topic].filter(Boolean).join(" · ") || "General"}
-                  value={`${weakTopic.accuracy}%`}
+                  title={topWeakConcept.concept}
+                  subtitle={`${topWeakConcept.subject}${topWeakConcept.chapter ? ` · ${topWeakConcept.chapter}` : ""} — from mistake book`}
+                  value={topWeakConcept.severity === "critical" ? "Urgent" : `${topWeakConcept.mistake_count} errors`}
                 />
               )}
-              {!strongest && strongTopic && (
+              {topStrongConcept && (
                 <InsightHighlight
                   kind="strength"
-                  title={strongTopic.subject}
-                  subtitle={[strongTopic.chapter, strongTopic.topic].filter(Boolean).join(" · ") || "Strong area"}
-                  value={`${strongTopic.accuracy}%`}
+                  title={topStrongConcept.concept}
+                  subtitle={topStrongConcept.subject}
+                  value="Strong"
                 />
               )}
 
@@ -262,7 +274,7 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
                   <h3 className="font-semibold">Your action plan</h3>
                 </div>
                 <ol className="space-y-3">
-                  {insights.map((step, i) => (
+                  {actionSteps.map((step, i) => (
                     <li key={i} className="flex gap-3 text-sm">
                       <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">
                         {i + 1}
@@ -397,61 +409,15 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
           )}
         </TabsContent>
 
-        <TabsContent value="topics" className="space-y-4 mt-0">
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="p-5 shadow-card">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingDown className="w-4 h-4 text-warning" />
-                <h3 className="font-semibold">Weak topics</h3>
-                <Badge variant="outline" className="ml-auto">{data.weak_topics?.length ?? 0}</Badge>
-              </div>
-              <div className="space-y-2">
-                {(data.weak_topics ?? []).length === 0 && (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No weak topics detected yet — keep practicing.</p>
-                )}
-                {(data.weak_topics ?? []).map((w, i) => (
-                  <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-warning/8 border border-warning/20">
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm">{w.subject}</div>
-                      <div className="text-xs text-muted-foreground truncate">{[w.chapter, w.topic].filter(Boolean).join(" · ") || "General"}</div>
-                    </div>
-                    <Badge variant="outline" className="shrink-0 ml-2">{w.accuracy}%</Badge>
-                  </div>
-                ))}
-              </div>
-              {(data.weak_topics?.length ?? 0) > 0 && (
-                <Button size="sm" className="mt-4 w-full" variant="outline" asChild>
-                  <Link to="/student/revision"><BookOpen className="w-4 h-4 mr-1" /> Open revision queue</Link>
-                </Button>
-              )}
-            </Card>
+        <TabsContent value="concepts" className="space-y-4 mt-0">
+          <WeakConceptInsights
+            insights={conceptInsights}
+            aggregates={aggregates}
+            mistakeCount={mistakeCount}
+            loading={conceptLoading}
+          />
 
-            <Card className="p-5 shadow-card">
-              <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="w-4 h-4 text-accent" />
-                <h3 className="font-semibold">Strong topics</h3>
-                <Badge variant="outline" className="ml-auto">{data.strong_topics?.length ?? 0}</Badge>
-              </div>
-              <div className="space-y-2">
-                {(data.strong_topics ?? []).length === 0 && (
-                  <p className="text-sm text-muted-foreground py-4 text-center">Strengths appear as you score well across subjects.</p>
-                )}
-                {(data.strong_topics ?? []).map((w, i) => (
-                  <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-accent/10 border border-accent/20">
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm">{w.subject}</div>
-                      {(w.chapter || w.topic) && (
-                        <div className="text-xs text-muted-foreground truncate">{[w.chapter, w.topic].filter(Boolean).join(" · ")}</div>
-                      )}
-                    </div>
-                    <Badge className="bg-accent/20 text-accent border-0 shrink-0 ml-2">{w.accuracy}%</Badge>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-
-          <ConceptMastery limit={6} />
+          <ConceptMastery limit={8} />
         </TabsContent>
       </Tabs>
     </div>

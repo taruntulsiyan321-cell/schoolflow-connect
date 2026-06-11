@@ -123,6 +123,24 @@ export async function fetchMistakesForRecovery(opts: {
   return filtered.map(mapRow);
 }
 
+/** All unmastered practice mistakes for analytics / concept gap analysis. */
+export async function fetchPracticeMistakesForAnalytics(limit = 25): Promise<MistakeRecord[]> {
+  const { data: auth } = await supabase.auth.getUser();
+  const user = auth.user;
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("student_mistakes")
+    .select(MISTAKE_SELECT)
+    .eq("user_id", user.id)
+    .eq("mastered", false)
+    .or("source.eq.practice,assessment_type.eq.practice")
+    .order("last_wrong_at", { ascending: false })
+    .limit(limit);
+
+  return (data ?? []).map(mapRow);
+}
+
 /** Most recent unmastered practice mistake (any subject). */
 export async function fetchMostRecentPracticeMistake(): Promise<MistakeRecord | null> {
   const { data: auth } = await supabase.auth.getUser();

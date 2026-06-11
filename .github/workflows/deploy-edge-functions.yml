@@ -35,7 +35,7 @@ jobs:
       - name: Deploy all AI edge functions
         run: |
           set -euo pipefail
-          FUNCS="ai-explain ai-battle-report ai-improvement-plan ai-concept-report dpp-generate-questions"
+          FUNCS="ai-explain ai-battle-report ai-improvement-plan ai-concept-report ai-analytics-insights dpp-generate-questions"
           for func in $FUNCS; do
             echo "Deploying $func ..."
             supabase functions deploy "$func" --project-ref "$PROJECT_ID" --use-api

@@ -15,6 +15,7 @@ const TARGETS = [
   "ai-battle-report",
   "ai-improvement-plan",
   "ai-concept-report",
+  "ai-analytics-insights",
   "ai-expand-questions",
   "dpp-generate-questions",
 ];

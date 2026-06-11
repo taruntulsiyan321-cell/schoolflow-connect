@@ -53,7 +53,7 @@ export default function AcademicAnalytics() {
       <PageHeader
         eyebrow="Performance"
         title="Analytics"
-        subtitle={`Clear picture of how ${firstName} is progressing across subjects, practice, and exams`}
+        subtitle={`Concept gaps from your mistake book, subject trends, and weekly momentum for ${firstName}`}
         action={
           <Button size="sm" variant="outline" asChild>
             <Link to="/student/report"><FileText className="w-4 h-4 mr-1" /> Report</Link>
