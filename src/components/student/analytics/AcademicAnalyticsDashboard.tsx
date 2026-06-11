@@ -19,10 +19,10 @@ import {
 } from "@/components/student/analytics/AnalyticsBits";
 import { WeakConceptInsights } from "@/components/student/analytics/WeakConceptInsights";
 import { useAnalyticsInsights } from "@/hooks/useAnalyticsInsights";
-import type { AnalyticsInsights } from "@/lib/analyticsInsights";
+import { linkForActionStep, type AnalyticsInsights } from "@/lib/analyticsInsights";
 import {
   Target, ClipboardCheck, Flame, AlertTriangle, TrendingUp,
-  Lightbulb, BarChart3, Sword, Layers,
+  Lightbulb, BarChart3, Sword, Layers, Brain,
 } from "lucide-react";
 
 const barConfig = { accuracy: { label: "Accuracy %", color: "hsl(var(--primary))" } };
@@ -46,48 +46,14 @@ function computeWeeklySummary(weekly: WeeklyActivityPoint[] | undefined) {
   return { totalQuestions, activeDays, dppCount, battleCount, practiceCount, avgPerActiveDay, daysTracked: recent.length };
 }
 
-function buildActionSteps(
-  data: AcademicSnapshot,
-  weekly: ReturnType<typeof computeWeeklySummary>,
-  conceptInsights: AnalyticsInsights | null,
-) {
-  if (conceptInsights?.next_steps?.length) {
-    return conceptInsights.next_steps.slice(0, 3).map((text, i) => ({
-      text,
-      to: i === 0 ? "/student/recovery" : i === 1 ? "/student/practice/math12" : "/student/mistakes",
-      label: i === 0 ? "Fix mistakes" : i === 1 ? "Practice" : "Mistake book",
-    }));
+function buildActionSteps(conceptInsights: AnalyticsInsights | null) {
+  if (!conceptInsights?.next_steps?.length) {
+    return [{ text: "Start practice to build your mistake profile.", to: "/student/practice/math12", label: "Practice" }];
   }
-
-  const steps: { text: string; to: string; label: string; priority: number }[] = [];
-  const mistakes = data.mistake_count ?? 0;
-  const recovery = data.recovery_pending ?? 0;
-
-  if (mistakes > 0 || recovery > 0) {
-    steps.push({
-      priority: 1,
-      text: `You have ${mistakes} open mistake${mistakes === 1 ? "" : "s"} — concept gaps are listed above from your mistake book.`,
-      to: "/student/recovery",
-      label: "Fix mistakes",
-    });
-  }
-  if (weekly.activeDays < 3 && weekly.daysTracked > 0) {
-    steps.push({
-      priority: 2,
-      text: `Only ${weekly.activeDays} active day${weekly.activeDays === 1 ? "" : "s"} this week. Practice or a DPP builds your mistake profile.`,
-      to: "/student/practice/math12",
-      label: "Practice now",
-    });
-  }
-  if (steps.length === 0) {
-    steps.push({
-      priority: 3,
-      text: "Start practice — wrong answers unlock personalised concept gap analysis here.",
-      to: "/student/practice/math12",
-      label: "Start practice",
-    });
-  }
-  return steps.sort((a, b) => a.priority - b.priority).slice(0, 3);
+  return conceptInsights.next_steps.slice(0, 3).map((text) => {
+    const link = linkForActionStep(text);
+    return { text, to: link.to, label: link.label };
+  });
 }
 
 type Props = {
@@ -101,11 +67,14 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
     aggregates,
     mistakeCount,
     loading: conceptLoading,
+    enhancing,
+    error: conceptError,
+    reload: reloadConcepts,
   } = useAnalyticsInsights(data);
 
   const readiness = data.exam_readiness;
   const weekly = computeWeeklySummary(charts?.weekly_activity);
-  const actionSteps = buildActionSteps(data, weekly, conceptInsights);
+  const actionSteps = buildActionSteps(conceptInsights);
   const firstName = data.student?.full_name?.split(" ")[0] ?? "Student";
 
   const subjects = [...(charts?.subjects ?? [])].sort((a, b) => b.accuracy - a.accuracy);
@@ -113,7 +82,7 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
   const weakest = subjects.length > 1 ? subjects[subjects.length - 1] : subjects[0];
 
   const topWeakConcept = conceptInsights?.weak_concepts?.[0];
-  const topStrongConcept = conceptInsights?.strong_concepts?.[0];
+  const topWeakAggregate = aggregates[0];
 
   const dppTrendValues = (charts?.dpp_trend ?? []).map((d) => d.score_pct);
   const practiceTrendValues = (charts?.practice_trend ?? []).map((d) => d.score_pct);
@@ -124,122 +93,124 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
     (charts?.dpp_trend?.length ?? 0) > 0 ||
     (charts?.practice_trend?.length ?? 0) > 0;
 
+  const conceptGapCount = conceptInsights?.weak_concepts?.length ?? aggregates.length;
+
   return (
-    <div className="space-y-6 animate-rise">
+    <div className="space-y-5 animate-rise">
+      {/* Hero */}
       <Card className="hero-panel p-5 sm:p-6 overflow-hidden relative">
-        <div className="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/5 blur-2xl pointer-events-none" />
-        <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
+        <div className="absolute -right-12 -top-12 w-48 h-48 rounded-full bg-white/5 blur-3xl pointer-events-none" />
+        <div className="flex flex-col md:flex-row gap-5 items-start md:items-center relative">
           <ReadinessRing score={readiness?.score ?? 0} label="Readiness" />
           <div className="flex-1 min-w-0">
-            <div className="text-[11px] uppercase tracking-wider text-white/65">Performance overview</div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white mt-1">
-              {firstName}&apos;s academic snapshot
-            </h2>
+            <p className="text-[11px] uppercase tracking-wider text-white/60">Performance</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-white mt-0.5">{firstName}&apos;s analytics</h2>
             <p className="text-sm text-white/75 mt-1">{readiness?.label ?? "Building your profile"}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
-              <MetricTile label="Accuracy" value={`${readiness?.accuracy_pct ?? 0}%`} sub="DPP + practice" accent="accent" />
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mt-4">
+              <MetricTile label="Accuracy" value={`${readiness?.accuracy_pct ?? 0}%`} accent="accent" />
               <MetricTile label="Attendance" value={`${readiness?.attendance_pct ?? 0}%`} accent={(readiness?.attendance_pct ?? 0) >= 75 ? "accent" : "warning"} />
-              <MetricTile label="Streak" value={`${data.xp?.current_streak ?? 0}d`} sub={`Level ${data.xp?.level ?? 1}`} />
+              <MetricTile label="Streak" value={`${data.xp?.current_streak ?? 0}d`} sub={`L${data.xp?.level ?? 1}`} />
               <MetricTile
-                label="Mistakes"
-                value={data.mistake_count ?? 0}
-                sub={data.recovery_pending ? `${data.recovery_pending} in recovery` : "Open in mistake book"}
-                accent={(data.mistake_count ?? 0) > 0 ? "warning" : "accent"}
+                label="Concept gaps"
+                value={conceptGapCount}
+                sub={`${data.mistake_count ?? 0} open mistakes`}
+                accent={conceptGapCount > 0 ? "warning" : "accent"}
               />
             </div>
           </div>
-          <div className="flex flex-col gap-2 w-full lg:w-auto shrink-0">
-            <Button size="sm" className="bg-white text-primary hover:bg-white/90" asChild>
+          <div className="flex flex-row md:flex-col gap-2 w-full md:w-auto shrink-0">
+            <Button size="sm" className="flex-1 md:flex-none bg-white text-primary hover:bg-white/90" asChild>
+              <Link to="/student/recovery"><AlertTriangle className="w-4 h-4 mr-1" /> Fix mistakes</Link>
+            </Button>
+            <Button size="sm" variant="secondary" className="flex-1 md:flex-none" asChild>
               <Link to="/student/practice/math12"><Target className="w-4 h-4 mr-1" /> Practice</Link>
-            </Button>
-            <Button size="sm" variant="secondary" asChild>
-              <Link to="/student/recovery"><AlertTriangle className="w-4 h-4 mr-1" /> Recovery</Link>
-            </Button>
-            <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10" asChild>
-              <Link to="/student/dpp">Daily DPP</Link>
             </Button>
           </div>
         </div>
       </Card>
 
+      {/* Quick stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-4 shadow-card hover:shadow-elevated transition-shadow">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide mb-2">
-            <ClipboardCheck className="w-3.5 h-3.5" /> DPP open
-          </div>
-          <div className="text-2xl font-bold">{data.dpp?.open ?? 0}</div>
-          <div className="text-xs text-muted-foreground mt-1">{data.dpp?.completed ?? 0} completed</div>
-        </Card>
-        <Card className="p-4 shadow-card hover:shadow-elevated transition-shadow">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide mb-2">
-            <Sword className="w-3.5 h-3.5" /> Battles
-          </div>
-          <div className="text-2xl font-bold text-primary">{data.xp?.wins ?? 0}<span className="text-base font-normal text-muted-foreground"> wins</span></div>
-          <div className="text-xs text-muted-foreground mt-1">{data.xp?.total_battles ?? 0} played · {data.xp?.xp ?? 0} XP</div>
-        </Card>
-        <Card className="p-4 shadow-card hover:shadow-elevated transition-shadow">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide mb-2">
-            <Flame className="w-3.5 h-3.5" /> This week
-          </div>
-          <div className="text-2xl font-bold text-accent">{weekly.activeDays}<span className="text-base font-normal text-muted-foreground">/{weekly.daysTracked} days</span></div>
-          <div className="text-xs text-muted-foreground mt-1">{weekly.totalQuestions} questions attempted</div>
-        </Card>
-        <Card className="p-4 shadow-card hover:shadow-elevated transition-shadow">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-wide mb-2">
-            <Layers className="w-3.5 h-3.5" /> Self-practice
-          </div>
-          <div className="text-2xl font-bold">{data.self_practice?.sessions_completed ?? 0}</div>
-          <div className="text-xs text-muted-foreground mt-1">sessions completed</div>
-        </Card>
+        {[
+          { icon: ClipboardCheck, label: "DPP open", value: data.dpp?.open ?? 0, sub: `${data.dpp?.completed ?? 0} done` },
+          { icon: Sword, label: "Battles", value: `${data.xp?.wins ?? 0}W`, sub: `${data.xp?.total_battles ?? 0} played` },
+          { icon: Flame, label: "Active days", value: `${weekly.activeDays}/${weekly.daysTracked}`, sub: `${weekly.totalQuestions} Qs this week` },
+          { icon: Layers, label: "Practice", value: data.self_practice?.sessions_completed ?? 0, sub: "sessions" },
+        ].map(({ icon: Icon, label, value, sub }) => (
+          <Card key={label} className="p-4 shadow-card">
+            <div className="flex items-center gap-1.5 text-muted-foreground text-[10px] uppercase tracking-wide mb-1.5">
+              <Icon className="w-3.5 h-3.5" /> {label}
+            </div>
+            <div className="text-xl font-bold tabular-nums">{value}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>
+          </Card>
+        ))}
       </div>
 
-      <WeakConceptInsights
-        insights={conceptInsights}
-        aggregates={aggregates}
-        mistakeCount={mistakeCount}
-        loading={conceptLoading}
-        compact
-      />
-
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 h-11 p-1 bg-muted/60">
-          <TabsTrigger value="overview" className="text-sm">Overview</TabsTrigger>
-          <TabsTrigger value="subjects" className="text-sm">Subjects & trends</TabsTrigger>
-          <TabsTrigger value="concepts" className="text-sm">Concept gaps</TabsTrigger>
+      <Tabs defaultValue="concepts" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3 h-auto p-1 bg-muted/50 rounded-xl">
+          <TabsTrigger value="concepts" className="text-sm py-2.5 rounded-lg gap-1.5 data-[state=active]:shadow-sm">
+            <Brain className="w-3.5 h-3.5 hidden sm:inline" />
+            Concept gaps
+            {conceptGapCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">{conceptGapCount}</Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="overview" className="text-sm py-2.5 rounded-lg data-[state=active]:shadow-sm">Overview</TabsTrigger>
+          <TabsTrigger value="subjects" className="text-sm py-2.5 rounded-lg data-[state=active]:shadow-sm">Subjects</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="concepts" className="space-y-4 mt-0">
+          <WeakConceptInsights
+            insights={conceptInsights}
+            aggregates={aggregates}
+            mistakeCount={mistakeCount}
+            loading={conceptLoading}
+            enhancing={enhancing}
+            error={conceptError}
+            onRetry={reloadConcepts}
+          />
+          <ConceptMastery limit={6} />
+        </TabsContent>
 
         <TabsContent value="overview" className="space-y-4 mt-0">
           <div className="grid lg:grid-cols-5 gap-4">
             <Card className="p-5 shadow-card lg:col-span-3">
               <SectionTitle title="Weekly momentum" />
-              <div className="flex flex-wrap gap-3 mb-4">
-                <Badge variant="outline" className="gap-1.5"><span className="w-2 h-2 rounded-full bg-primary" /> DPP</Badge>
-                <Badge variant="outline" className="gap-1.5"><span className="w-2 h-2 rounded-full bg-warning" /> Battles</Badge>
-                <Badge variant="outline" className="gap-1.5"><span className="w-2 h-2 rounded-full bg-accent" /> Self-practice</Badge>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <Badge variant="outline" className="gap-1.5 text-xs"><span className="w-2 h-2 rounded-full bg-primary" /> DPP</Badge>
+                <Badge variant="outline" className="gap-1.5 text-xs"><span className="w-2 h-2 rounded-full bg-warning" /> Battles</Badge>
+                <Badge variant="outline" className="gap-1.5 text-xs"><span className="w-2 h-2 rounded-full bg-accent" /> Practice</Badge>
               </div>
               <WeekActivityBars days={charts?.weekly_activity ?? []} />
-              <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-border/60">
-                <div>
-                  <div className="text-xs text-muted-foreground">Avg / active day</div>
-                  <div className="text-lg font-bold">{weekly.avgPerActiveDay}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">DPP this week</div>
-                  <div className="text-lg font-bold">{weekly.dppCount}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-muted-foreground">Battles this week</div>
-                  <div className="text-lg font-bold">{weekly.battleCount}</div>
-                </div>
+              <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t">
+                <div><div className="text-xs text-muted-foreground">Avg / day</div><div className="text-lg font-bold">{weekly.avgPerActiveDay}</div></div>
+                <div><div className="text-xs text-muted-foreground">DPP</div><div className="text-lg font-bold">{weekly.dppCount}</div></div>
+                <div><div className="text-xs text-muted-foreground">Battles</div><div className="text-lg font-bold">{weekly.battleCount}</div></div>
               </div>
             </Card>
 
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-3">
+              {topWeakConcept ? (
+                <InsightHighlight
+                  kind="focus"
+                  title={topWeakConcept.concept}
+                  subtitle={`${topWeakConcept.subject}${topWeakConcept.chapter ? ` · ${topWeakConcept.chapter}` : ""} — top concept gap`}
+                  value={topWeakConcept.severity === "critical" ? "Urgent" : `×${topWeakConcept.mistake_count}`}
+                />
+              ) : topWeakAggregate ? (
+                <InsightHighlight
+                  kind="focus"
+                  title={topWeakAggregate.concept}
+                  subtitle={`${topWeakAggregate.subject}${topWeakAggregate.chapter ? ` · ${topWeakAggregate.chapter}` : ""} — from mistake book`}
+                  value={`×${topWeakAggregate.mistake_count}`}
+                />
+              ) : null}
               {strongest && (
                 <InsightHighlight
                   kind="strength"
                   title={strongest.name}
-                  subtitle={`${strongest.attempts} attempts across DPP, battles & practice`}
+                  subtitle={`${strongest.attempts} attempts`}
                   value={`${strongest.accuracy}%`}
                 />
               )}
@@ -247,41 +218,23 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
                 <InsightHighlight
                   kind="focus"
                   title={weakest.name}
-                  subtitle={`${weakest.attempts} attempts — extra practice recommended`}
+                  subtitle="Lowest subject accuracy"
                   value={`${weakest.accuracy}%`}
                 />
               )}
-              {topWeakConcept && (
-                <InsightHighlight
-                  kind="focus"
-                  title={topWeakConcept.concept}
-                  subtitle={`${topWeakConcept.subject}${topWeakConcept.chapter ? ` · ${topWeakConcept.chapter}` : ""} — from mistake book`}
-                  value={topWeakConcept.severity === "critical" ? "Urgent" : `${topWeakConcept.mistake_count} errors`}
-                />
-              )}
-              {topStrongConcept && (
-                <InsightHighlight
-                  kind="strength"
-                  title={topStrongConcept.concept}
-                  subtitle={topStrongConcept.subject}
-                  value="Strong"
-                />
-              )}
 
-              <Card className="p-5 shadow-card border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+              <Card className="p-5 shadow-card">
                 <div className="flex items-center gap-2 mb-3">
                   <Lightbulb className="w-4 h-4 text-primary" />
-                  <h3 className="font-semibold">Your action plan</h3>
+                  <h3 className="font-semibold text-sm">Action plan</h3>
                 </div>
                 <ol className="space-y-3">
                   {actionSteps.map((step, i) => (
                     <li key={i} className="flex gap-3 text-sm">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">
-                        {i + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/12 text-primary text-xs font-bold">{i + 1}</span>
+                      <div className="min-w-0">
                         <p className="text-muted-foreground leading-relaxed">{step.text}</p>
-                        <Button size="sm" variant={i === 0 ? "default" : "ghost"} className="mt-2 h-8 px-0" asChild>
+                        <Button size="sm" variant="link" className="h-auto p-0 mt-1 text-primary" asChild>
                           <Link to={step.to}>{step.label} →</Link>
                         </Button>
                       </div>
@@ -297,8 +250,8 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
           {subjects.length > 0 && (
             <Card className="p-5 shadow-card">
               <SectionTitle title="Subject accuracy" />
-              <p className="text-xs text-muted-foreground mb-5">Ranked by accuracy — DPP, battles, and self-practice combined</p>
-              <div className="space-y-5">
+              <p className="text-xs text-muted-foreground mb-4">DPP, battles, and practice combined</p>
+              <div className="space-y-4">
                 {subjects.map((s, i) => (
                   <SubjectBar key={s.name} name={s.name} accuracy={s.accuracy} attempts={s.attempts} rank={i + 1} />
                 ))}
@@ -307,24 +260,19 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
           )}
 
           <div className="grid md:grid-cols-2 gap-4">
-            {(dppTrendValues.length > 0 || practiceTrendValues.length > 0) && (
+            {(dppTrendValues.length > 1 || practiceTrendValues.length > 1) && (
               <Card className="p-5 shadow-card">
-                <SectionTitle title="Score snapshots" />
-                <p className="text-xs text-muted-foreground mb-4">Recent session scores (last 30 days)</p>
-                <div className="grid sm:grid-cols-2 gap-6">
-                  {dppTrendValues.length > 0 && (
+                <SectionTitle title="Score trends" />
+                <div className="grid sm:grid-cols-2 gap-5 mt-2">
+                  {dppTrendValues.length > 1 && (
                     <div>
-                      <div className="text-sm font-medium mb-2 flex items-center gap-2">
-                        <BarChart3 className="w-4 h-4 text-primary" /> DPP trend
-                      </div>
+                      <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><BarChart3 className="w-3.5 h-3.5" /> DPP</p>
                       <TrendSparkline values={dppTrendValues.slice(-12)} tone="primary" />
                     </div>
                   )}
-                  {practiceTrendValues.length > 0 && (
+                  {practiceTrendValues.length > 1 && (
                     <div>
-                      <div className="text-sm font-medium mb-2 flex items-center gap-2">
-                        <Target className="w-4 h-4 text-accent" /> Practice trend
-                      </div>
+                      <p className="text-xs font-medium mb-2 flex items-center gap-1.5"><Target className="w-3.5 h-3.5" /> Practice</p>
                       <TrendSparkline values={practiceTrendValues.slice(-12)} tone="accent" />
                     </div>
                   )}
@@ -335,13 +283,13 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
             {(charts?.weekly_activity?.length ?? 0) > 0 && (
               <Card className="p-5 shadow-card">
                 <SectionTitle title="Activity over time" />
-                <ChartContainer config={lineConfig} className="h-[220px] w-full mt-2">
+                <ChartContainer config={lineConfig} className="h-[200px] w-full mt-2">
                   <LineChart data={charts?.weekly_activity ?? []}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                     <XAxis dataKey="date" tickFormatter={(d) => String(d).slice(5)} className="text-[10px]" />
                     <YAxis className="text-[10px]" width={28} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 10 }} />
                     <Line type="monotone" dataKey="total" stroke="var(--color-total)" strokeWidth={2} dot={false} />
                     <Line type="monotone" dataKey="dpp" stroke="var(--color-dpp)" strokeWidth={1.5} dot={false} />
                     <Line type="monotone" dataKey="battles" stroke="var(--color-battles)" strokeWidth={1.5} dot={false} />
@@ -352,12 +300,12 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
             )}
           </div>
 
-          {hasCharts && (
+          {hasCharts ? (
             <div className="grid lg:grid-cols-2 gap-4">
               {(charts?.subjects?.length ?? 0) > 0 && (
                 <Card className="p-5 shadow-card">
                   <SectionTitle title="Subject comparison" />
-                  <ChartContainer config={barConfig} className="h-[240px] w-full mt-2">
+                  <ChartContainer config={barConfig} className="h-[220px] w-full mt-2">
                     <BarChart data={charts?.subjects ?? []} barCategoryGap="20%">
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" vertical={false} />
                       <XAxis dataKey="name" className="text-[10px]" />
@@ -368,56 +316,27 @@ export function AcademicAnalyticsDashboard({ data, charts }: Props) {
                   </ChartContainer>
                 </Card>
               )}
-
               {(charts?.dpp_trend?.length ?? 0) > 0 && (
                 <Card className="p-5 shadow-card">
-                  <SectionTitle title="DPP score trend" />
-                  <ChartContainer config={areaConfig} className="h-[240px] w-full mt-2">
+                  <SectionTitle title="DPP scores" />
+                  <ChartContainer config={areaConfig} className="h-[220px] w-full mt-2">
                     <AreaChart data={charts?.dpp_trend ?? []}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
                       <XAxis dataKey="date" tickFormatter={(d) => String(d).slice(5)} className="text-[10px]" />
                       <YAxis domain={[0, 100]} className="text-[10px]" width={32} />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Area type="monotone" dataKey="score_pct" fill="var(--color-score_pct)" fillOpacity={0.15} stroke="var(--color-score_pct)" strokeWidth={2} />
-                    </AreaChart>
-                  </ChartContainer>
-                </Card>
-              )}
-
-              {(charts?.practice_trend?.length ?? 0) > 0 && (
-                <Card className="p-5 shadow-card lg:col-span-2">
-                  <SectionTitle title="Self-practice score trend" />
-                  <ChartContainer config={practiceAreaConfig} className="h-[220px] w-full mt-2">
-                    <AreaChart data={charts?.practice_trend ?? []}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border/40" />
-                      <XAxis dataKey="date" tickFormatter={(d) => String(d).slice(5)} className="text-[10px]" />
-                      <YAxis domain={[0, 100]} className="text-[10px]" width={32} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <Area type="monotone" dataKey="score_pct" fill="var(--color-score_pct)" fillOpacity={0.15} stroke="var(--color-score_pct)" strokeWidth={2} />
+                      <Area type="monotone" dataKey="score_pct" fill="var(--color-score_pct)" fillOpacity={0.12} stroke="var(--color-score_pct)" strokeWidth={2} />
                     </AreaChart>
                   </ChartContainer>
                 </Card>
               )}
             </div>
-          )}
-
-          {!hasCharts && (
+          ) : (
             <Card className="p-8 text-center shadow-card border-dashed">
               <BarChart3 className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">Complete a DPP or practice session to unlock trend charts.</p>
+              <p className="text-sm text-muted-foreground">Complete a DPP or practice session to unlock charts.</p>
             </Card>
           )}
-        </TabsContent>
-
-        <TabsContent value="concepts" className="space-y-4 mt-0">
-          <WeakConceptInsights
-            insights={conceptInsights}
-            aggregates={aggregates}
-            mistakeCount={mistakeCount}
-            loading={conceptLoading}
-          />
-
-          <ConceptMastery limit={8} />
         </TabsContent>
       </Tabs>
     </div>

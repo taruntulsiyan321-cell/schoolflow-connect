@@ -101,7 +101,10 @@ export function WeekActivityBars({ days }: { days: WeeklyActivityPoint[] }) {
       {recent.map((d) => {
         const total = d.total ?? 0;
         const h = total > 0 ? Math.max((total / max) * 100, 8) : 4;
-        const dayLabel = new Date(d.date + "T12:00:00").toLocaleDateString("en-IN", { weekday: "short" });
+        const parsed = d.date.includes("T") ? new Date(d.date) : new Date(`${d.date}T12:00:00`);
+        const dayLabel = Number.isNaN(parsed.getTime())
+          ? String(d.date).slice(5)
+          : parsed.toLocaleDateString("en-IN", { weekday: "short" });
         const dpp = d.dpp ?? 0;
         const battles = d.battles ?? 0;
         const practice = d.self_practice ?? 0;
