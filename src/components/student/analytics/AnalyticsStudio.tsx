@@ -221,6 +221,11 @@ export function AnalyticsStudio({ data, charts }: Props) {
             <div>
               <p className="text-sm text-[#7A9E7E] font-medium flex items-center gap-1.5">
                 <Leaf className="w-4 h-4" /> Study insights
+                {insights?.source === "gemini" && !analysingMistakes && (
+                  <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-[#EEF4EE] text-[#5A7D5E] border border-[#C8DCC8]">
+                    Live analysis
+                  </span>
+                )}
               </p>
               <h1 className="text-2xl sm:text-3xl font-semibold text-[#2C3E2D] mt-1">
                 Hello, {firstName}

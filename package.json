@@ -17,6 +17,7 @@
     "db:check-migrations": "node scripts/check-pending-migrations.mjs",
     "seed:math12": "node scripts/seed-class12-math-templates.mjs",
     "functions:sync": "node scripts/sync-gemini-to-functions.mjs",
+    "functions:deploy-analytics": "npm run functions:sync && npx --yes supabase@latest functions deploy ai-analytics-insights --project-ref kdmjipeksjdyojjdokbi --use-api",
     "ai:set-gemini-secret": "powershell -ExecutionPolicy Bypass -File scripts/set-gemini-secret.ps1"
   },
   "dependencies": {

@@ -20,3 +20,6 @@ verify_jwt = true
 
 [functions.dpp-generate-questions]
 verify_jwt = true
+
+[functions.ai-analytics-insights]
+verify_jwt = true
