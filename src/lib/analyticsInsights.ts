@@ -1,5 +1,9 @@
 import { invokeEdgeFunction, isAiUnavailableError } from "@/lib/edgeFunction";
-import { fetchMistakesForAnalytics, type MistakeRecord } from "@/lib/mistakeRecovery";
+import {
+  fetchMistakesForAnalytics,
+  formatMistakesForPrompt,
+  type MistakeRecord,
+} from "@/lib/mistakeRecovery";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 
@@ -274,17 +278,87 @@ function buildRecurringErrors(gaps: TopicGapInsight[]): RecurringError[] {
 }
 
 function buildMistakesRawPayload(mistakes: MistakeRecord[]) {
-  return mistakes.slice(0, 20).map((m) => ({
+  return mistakes.slice(0, 22).map((m) => ({
     subject: m.subject,
     chapter: m.chapter ?? undefined,
     topic: m.topic ?? undefined,
     concept: m.concept ?? undefined,
-    question: m.question_text.slice(0, 350),
+    question: m.question_text.slice(0, 400),
     student_pick: pickAnswerText(m, "student"),
     correct_pick: pickAnswerText(m, "correct"),
+    explanation: m.explanation?.slice(0, 500) ?? undefined,
     times_wrong: m.times_wrong,
     last_wrong_at: m.last_wrong_at ?? undefined,
   }));
+}
+
+function findAggregateForTopic(
+  topic: string,
+  chapter: string,
+  subject: string,
+  aggregates: MistakeTopicAggregate[],
+): MistakeTopicAggregate | undefined {
+  const key = normalizeTopicKey(topic, chapter === "General" ? null : chapter, subject);
+  const exact = aggregates.find((a) => normalizeTopicKey(a.topic, a.chapter, a.subject) === key);
+  if (exact) return exact;
+
+  const t = topic.toLowerCase();
+  return aggregates.find(
+    (a) =>
+      a.topic.toLowerCase() === t ||
+      a.topic.toLowerCase().includes(t) ||
+      t.includes(a.topic.toLowerCase()),
+  );
+}
+
+function mergeTopicsWithAggregates(
+  geminiTopics: TopicGapInsight[],
+  aggregates: MistakeTopicAggregate[],
+  ruleTopics: TopicGapInsight[],
+): TopicGapInsight[] {
+  if (geminiTopics.length === 0) return ruleTopics;
+
+  const merged = geminiTopics.map((w, i) => {
+    const agg = findAggregateForTopic(w.topic, w.chapter, w.subject, aggregates);
+    const rule = ruleTopics[i] ?? ruleTopics.find((r) => r.topic === w.topic) ?? ruleTopics[0];
+    return {
+      ...w,
+      chapter: w.chapter || agg?.chapter || rule?.chapter || "General",
+      subject: w.subject || agg?.subject || rule?.subject || "General",
+      severity: w.severity || (agg ? severityFromWrong(agg.total_wrong, agg.mistake_count) : rule?.severity ?? "moderate"),
+      mistake_count: agg?.mistake_count ?? w.mistake_count ?? rule?.mistake_count ?? 1,
+      total_wrong: agg?.total_wrong ?? w.total_wrong ?? rule?.total_wrong,
+      last_seen: agg?.last_seen ?? w.last_seen ?? rule?.last_seen,
+      micro_drills:
+        (w.micro_drills?.length ?? 0) > 0 ? w.micro_drills : rule?.micro_drills ?? buildMicroDrills(w.topic, w.chapter),
+      evidence: w.evidence || (agg?.sample_question ? `From your mistakes: "${agg.sample_question.slice(0, 140)}…"` : rule?.evidence),
+    };
+  });
+
+  const covered = new Set(merged.map((m) => normalizeTopicKey(m.topic, m.chapter === "General" ? null : m.chapter, m.subject)));
+  for (const agg of aggregates.slice(0, 8)) {
+    const k = normalizeTopicKey(agg.topic, agg.chapter, agg.subject);
+    if (!covered.has(k) && merged.length < 10) {
+      merged.push(...aggregatesToTopicGaps([agg]));
+    }
+  }
+
+  return merged;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function hasGeminiInsightPayload(data: Record<string, unknown>): boolean {
+  if (data.source === "gemini") return true;
+  const topics = data.weak_topics as unknown[] | undefined;
+  return Boolean(
+    data.diagnosis ||
+      data.today_focus ||
+      data.headline ||
+      (topics?.length ?? 0) > 0,
+  );
 }
 
 export function buildRuleAnalyticsInsights(
@@ -412,8 +486,9 @@ export function linkForActionStep(text: string): { to: string; label: string } {
 function normalizeGeminiInsights(
   data: Record<string, unknown>,
   ruleFallback: AnalyticsInsights,
+  aggregates: MistakeTopicAggregate[],
 ): AnalyticsInsights {
-  const weak_topics: TopicGapInsight[] = ((data.weak_topics as TopicGapInsight[]) ?? []).map((w, i) => {
+  const rawTopics: TopicGapInsight[] = ((data.weak_topics as TopicGapInsight[]) ?? []).map((w, i) => {
     const fallback = ruleFallback.weak_topics[i] ?? ruleFallback.weak_topics[0];
     return {
       topic: w.topic || fallback?.topic || "Topic",
@@ -436,12 +511,22 @@ function normalizeGeminiInsights(
     };
   });
 
+  const weak_topics = mergeTopicsWithAggregates(rawTopics, aggregates, ruleFallback.weak_topics);
+
   const weekly_plan: StudyPlanItem[] = ((data.weekly_plan as StudyPlanItem[]) ?? []).length
     ? (data.weekly_plan as StudyPlanItem[])
     : ruleFallback.weekly_plan;
 
-  const momentum: MomentumSignal[] = ((data.momentum as MomentumSignal[]) ?? []).length
-    ? (data.momentum as MomentumSignal[])
+  const rawMomentum = (data.momentum as MomentumSignal[]) ?? [];
+  const momentum: MomentumSignal[] = rawMomentum.length
+    ? rawMomentum.map((m) => ({
+        topic: m.topic,
+        subject: m.subject,
+        direction: (["improving", "slipping", "steady"] as const).includes(m.direction)
+          ? m.direction
+          : "steady",
+        note: m.note,
+      }))
     : ruleFallback.momentum;
 
   const recurring_errors: RecurringError[] = ((data.recurring_errors as RecurringError[]) ?? []).length
@@ -470,7 +555,7 @@ function normalizeGeminiInsights(
     next_steps: (data.next_steps as string[])?.length
       ? (data.next_steps as string[])
       : ruleFallback.next_steps,
-    source: data.source === "gemini" ? "gemini" : "rule",
+    source: hasGeminiInsightPayload(data) ? "gemini" : "rule",
   };
 }
 
@@ -491,7 +576,7 @@ export async function enhanceAnalyticsWithGemini(
 ): Promise<AnalyticsInsights> {
   if (mistakes.length === 0) return ruleFallback;
 
-  const { data, error } = await invokeEdgeFunction<Record<string, unknown>>("ai-analytics-insights", {
+  const payload = {
     display_name: displayName ?? snapshot?.student?.full_name?.split(" ")[0] ?? "Student",
     exam_readiness: snapshot?.exam_readiness ?? {},
     topic_summary: aggregates.slice(0, 15).map((a) => ({
@@ -502,6 +587,8 @@ export async function enhanceAnalyticsWithGemini(
       mistake_count: a.mistake_count,
       total_wrong: a.total_wrong,
       sample_question: a.sample_question,
+      sample_wrong: a.sample_wrong,
+      sample_correct: a.sample_correct,
       last_seen: a.last_seen ?? undefined,
     })),
     concept_mastery: mastery.slice(0, 15).map((m) => ({
@@ -512,15 +599,33 @@ export async function enhanceAnalyticsWithGemini(
       mistake_count: m.mistake_count,
     })),
     mistakes_raw: buildMistakesRawPayload(mistakes),
-  });
+    mistakes_detail: formatMistakesForPrompt(mistakes.slice(0, 22)),
+  };
 
-  if (data && !error) {
-    const normalized = normalizeGeminiInsights(data, ruleFallback);
-    if (normalized.weak_topics.length > 0) return normalized;
+  let lastError: string | null = null;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await sleep(900 * attempt);
+
+    const { data, error } = await invokeEdgeFunction<Record<string, unknown>>(
+      "ai-analytics-insights",
+      payload,
+    );
+
+    if (data && !error && hasGeminiInsightPayload(data)) {
+      return normalizeGeminiInsights(data, ruleFallback, aggregates);
+    }
+
+    if (error) {
+      lastError = error;
+      if (!isAiUnavailableError(error) && attempt === 2) {
+        console.warn("analytics insights:", error);
+      }
+    }
   }
 
-  if (error && !isAiUnavailableError(error)) {
-    console.warn("analytics insights:", error);
+  if (lastError) {
+    console.warn("analytics insights fell back after retries:", lastError);
   }
 
   return ruleFallback;

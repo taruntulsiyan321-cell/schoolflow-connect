@@ -31,16 +31,24 @@ export function useAnalyticsInsights(snapshot: AcademicSnapshot | null, enabled 
       const base = await fetchMistakeAnalyticsBase(snapshot, currentMastery);
       setAggregates(base.aggregates);
       setMistakeCount(base.mistakeCount);
-      setInsights(base.insights);
-      setLoading(false);
 
-      if (base.mistakeCount === 0) return;
+      if (base.mistakeCount === 0) {
+        setInsights(base.insights);
+        setLoading(false);
+        return;
+      }
 
       const enhanceKey = `${base.mistakeCount}:${snapshot?.mistake_count ?? 0}:${currentMastery.length}`;
-      if (enhanceKeyRef.current === enhanceKey) return;
+      if (enhanceKeyRef.current === enhanceKey) {
+        setLoading(false);
+        return;
+      }
       enhanceKeyRef.current = enhanceKey;
 
+      setInsights(null);
       setEnhancing(true);
+      setLoading(false);
+
       const enhanced = await enhanceAnalyticsWithGemini(
         snapshot,
         currentMastery,

@@ -183,7 +183,11 @@ export function AnalyticsStudio({ data, charts }: Props) {
   const gaps: TopicGapInsight[] =
     (insights?.weak_topics?.length ?? 0) > 0
       ? insights!.weak_topics
-      : aggregatesToTopicGaps(aggregates);
+      : enhancing
+        ? []
+        : aggregatesToTopicGaps(aggregates);
+
+  const analysingMistakes = enhancing && mistakeCount > 0 && !insights;
 
   const topGap = gaps[0];
   const score = readiness?.score ?? 0;
@@ -224,9 +228,14 @@ export function AnalyticsStudio({ data, charts }: Props) {
               <p className="text-[#5C665C] mt-2 max-w-md text-sm sm:text-base leading-relaxed">
                 {insights?.diagnosis || readiness?.label || "Your personalised exam readiness overview."}
               </p>
-              {enhancing && (
+              {analysingMistakes && (
                 <p className="text-xs text-[#7A9E7E] mt-2 flex items-center gap-1.5">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Refining topic details…
+                  <Loader2 className="w-3 h-3 animate-spin" /> Reading your mistakes and building your study plan…
+                </p>
+              )}
+              {enhancing && insights && (
+                <p className="text-xs text-[#7A9E7E] mt-2 flex items-center gap-1.5">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Updating insights…
                 </p>
               )}
             </div>
@@ -265,8 +274,19 @@ export function AnalyticsStudio({ data, charts }: Props) {
         </div>
       </section>
 
+      {analysingMistakes && (
+        <section className="rounded-2xl border border-[#C8DCC8] bg-[#F2F7F2]/80 p-8 flex flex-col items-center gap-3 text-center">
+          <Sparkles className="w-8 h-8 text-[#7A9E7E] animate-pulse" />
+          <p className="text-base font-medium text-[#2C3E2D]">Analysing {mistakeCount} mistakes from your book</p>
+          <p className="text-sm text-[#6B756C] max-w-md">
+            Finding exact topics, why you got them wrong, and what to practise today.
+          </p>
+          <Loader2 className="w-5 h-5 animate-spin text-[#7A9E7E]" />
+        </section>
+      )}
+
       {/* ——— What to do today ——— */}
-      {insights?.today_focus && (
+      {!analysingMistakes && insights?.today_focus && (
         <section className="rounded-2xl bg-gradient-to-r from-[#EEF4EE] to-[#FAF8F4] border border-[#C8DCC8] p-5 sm:p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-[#5A7D5E] mb-2 flex items-center gap-1.5">
             <Target className="w-4 h-4" /> What to do today
@@ -444,7 +464,16 @@ export function AnalyticsStudio({ data, charts }: Props) {
           </div>
         </div>
 
-        {gaps.length === 0 ? (
+        {analysingMistakes ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="rounded-2xl border border-[#E8E2D9] bg-white p-6 animate-pulse h-36"
+              />
+            ))}
+          </div>
+        ) : gaps.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-[#D4CFC4] bg-white/60 p-12 text-center">
             <Sparkles className="w-8 h-8 mx-auto text-[#7A9E7E] mb-3" />
             <p className="font-medium text-[#2C3E2D]">All clear for now</p>

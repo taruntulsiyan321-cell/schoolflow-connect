@@ -1,5 +1,12 @@
 // Deep student analytics — topic-level diagnosis from mistake book via Gemini.
-import { corsHeaders, generateStructured, jsonResponse } from "./gemini.ts";
+import { corsHeaders, generateStructuredWithFallback, jsonResponse } from "./gemini.ts";
+
+const ANALYTICS_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash-lite",
+];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -58,13 +65,15 @@ Deno.serve(async (req) => {
         mistake_count: number;
         total_wrong: number;
         sample_question?: string;
+        sample_wrong?: string;
+        sample_correct?: string;
         last_seen?: string;
       }[]
     )
       .slice(0, 12)
       .map(
         (t) =>
-          `- TOPIC: "${t.topic}" | Chapter: ${t.chapter ?? "unknown"} | ${t.subject} | ${t.mistake_count} wrong Qs, ${t.total_wrong} errors${t.concept ? ` | skill: ${t.concept}` : ""}${t.last_seen ? ` | last seen: ${t.last_seen}` : ""}`,
+          `- TOPIC: "${t.topic}" | Chapter: ${t.chapter ?? "unknown"} | ${t.subject} | ${t.mistake_count} wrong Qs, ${t.total_wrong} errors${t.concept ? ` | skill: ${t.concept}` : ""}${t.last_seen ? ` | last: ${t.last_seen}` : ""}${t.sample_wrong ? ` | picked "${t.sample_wrong}" not "${t.sample_correct ?? "?"}"` : ""}`,
       )
       .join("\n");
 
@@ -77,85 +86,69 @@ Deno.serve(async (req) => {
         question: string;
         student_pick: string;
         correct_pick: string;
+        explanation?: string;
         times_wrong: number;
         last_wrong_at?: string;
       }[]
     )
-      .slice(0, 18)
+      .slice(0, 22)
       .map(
         (m, i) =>
           `${i + 1}. [${m.subject}${m.chapter ? ` · ${m.chapter}` : ""}${m.topic ? ` · TOPIC: ${m.topic}` : ""}]
    Q: ${m.question}
    Student picked: ${m.student_pick}
-   Correct: ${m.correct_pick}
+   Correct: ${m.correct_pick}${m.explanation ? `\n   Solution hint: ${m.explanation.slice(0, 450)}` : ""}
    Wrong ${m.times_wrong}x${m.last_wrong_at ? ` (last: ${m.last_wrong_at})` : ""}`,
       )
       .join("\n\n");
 
     const system =
       "You are a senior CBSE Class 12 NCERT tutor for Indian school students. " +
-      "Write like a smart, caring tutor explaining what's wrong and exactly what to do — plain language, no jargon about models or AI.\n\n" +
-      "The student ALREADY knows which chapters are weak — do NOT only repeat chapter names.\n" +
-      "Your job is DEEP TOPIC-LEVEL analysis from their mistake book:\n" +
-      "1. Name the exact NCERT TOPIC within each chapter (e.g. 'Integration by substitution', NOT just 'Integrals').\n" +
-      "2. For each weak topic: give a short misconception label (2-5 words), why they likely got it wrong, root cause, and 2-3 micro_drills (plain-text check questions or mini-tasks they can do in 5 min).\n" +
-      "3. Detect recurring_errors across subjects — label the error TYPE (e.g. 'sign errors in algebra', 'limits vs continuity confusion') with which subjects it appears in.\n" +
-      "4. error_patterns: short chip-friendly phrases summarising cross-topic patterns.\n" +
-      "5. today_focus: ONE concrete sentence — what to do in the next 20-30 minutes today.\n" +
-      "6. weekly_plan: 3-5 prioritised study blocks with time_minutes (15-45) and a specific action per topic.\n" +
-      "7. momentum: topics improving (mastery high, few mistakes) vs slipping (recent mistakes, low mastery) if data supports it.\n" +
-      "8. NCERT section references when confident (e.g. 'NCERT Maths Ch 7 §7.2').\n" +
-      "9. diagnosis: 2-3 sentences on how they think and where they're slipping overall.\n" +
-      "Be specific, honest, encouraging. No invented URLs.";
+      "Analyse the student's ACTUAL wrong answers below — quote their mistakes, explain the thinking error, and prescribe fixes.\n\n" +
+      "CRITICAL RULES:\n" +
+      "- Name exact NCERT TOPICS (e.g. 'Integration by substitution'), NOT just chapter names.\n" +
+      "- For EACH weak topic: read what they picked vs correct answer; explain WHY that wrong choice happens (misconception label + root cause).\n" +
+      "- micro_drills: 2-3 tiny 5-minute tasks tied to THEIR specific errors.\n" +
+      "- recurring_errors: cross-subject patterns (sign errors, formula mix-ups, etc.).\n" +
+      "- today_focus: ONE concrete 20-30 min action for TODAY.\n" +
+      "- weekly_plan: 3-5 blocks with time_minutes (15-45) and specific actions.\n" +
+      "- momentum: improving vs slipping topics when mastery data supports it.\n" +
+      "- diagnosis: 2-3 sentences on how this student thinks and where they slip.\n" +
+      "Be specific, honest, encouraging. No invented URLs. No mention of AI or models.";
 
     const user = [
       `Student: ${display_name}`,
       `Exam readiness: ${exam_readiness.score ?? 0}% | accuracy ${exam_readiness.accuracy_pct ?? 0}% | attendance ${exam_readiness.attendance_pct ?? 0}%`,
       "",
       "=== Mistakes grouped by TOPIC ===",
-      topicLines || "(infer from raw mistakes below)",
+      topicLines || "(infer topics from raw mistakes)",
       "",
       "=== Concept mastery ===",
       masteryLines || "none yet",
       "",
-      "=== Raw wrong answers (analyse deeply) ===",
-      rawLines || mistakes_detail.slice(0, 8000) || "none",
+      "=== Raw wrong answers (analyse each deeply — use student_pick vs correct_pick) ===",
+      rawLines || mistakes_detail.slice(0, 10000) || "none",
     ].join("\n");
 
     const gapItemSchema = {
       type: "object",
       properties: {
-        topic: { type: "string", description: "Specific NCERT topic name, not just chapter" },
+        topic: { type: "string" },
         chapter: { type: "string" },
         subject: { type: "string" },
-        concept: { type: "string", description: "Micro-skill within topic" },
-        severity: { type: "string", enum: ["critical", "moderate", "mild"] },
-        misconception: { type: "string", description: "Short 2-5 word label for the wrong thinking" },
-        why_weak: { type: "string", description: "Plain explanation of what they get wrong and why" },
-        root_cause: { type: "string", description: "Underlying reason: conceptual, procedural, careless" },
-        error_pattern: { type: "string", description: "Recurring mistake pattern for this topic" },
-        fix_hint: { type: "string", description: "Concrete fix: what to revise and practise today" },
-        micro_drills: {
-          type: "array",
-          items: { type: "string" },
-          description: "2-3 quick check questions or 5-min tasks",
-        },
-        evidence: { type: "string", description: "Brief evidence from their mistakes" },
-        ncert_ref: { type: "string", description: "NCERT reference if known" },
+        concept: { type: "string" },
+        severity: { type: "string" },
+        misconception: { type: "string" },
+        why_weak: { type: "string" },
+        root_cause: { type: "string" },
+        error_pattern: { type: "string" },
+        fix_hint: { type: "string" },
+        micro_drills: { type: "array", items: { type: "string" } },
+        evidence: { type: "string" },
+        ncert_ref: { type: "string" },
         mistake_count: { type: "number" },
       },
-      required: [
-        "topic",
-        "chapter",
-        "subject",
-        "severity",
-        "misconception",
-        "why_weak",
-        "root_cause",
-        "fix_hint",
-        "micro_drills",
-        "mistake_count",
-      ],
+      required: ["topic", "subject", "why_weak", "fix_hint", "misconception"],
     };
 
     const schema = {
@@ -164,7 +157,7 @@ Deno.serve(async (req) => {
         headline: { type: "string" },
         summary: { type: "string" },
         diagnosis: { type: "string" },
-        today_focus: { type: "string", description: "One actionable sentence for today" },
+        today_focus: { type: "string" },
         error_patterns: { type: "array", items: { type: "string" } },
         recurring_errors: {
           type: "array",
@@ -175,7 +168,6 @@ Deno.serve(async (req) => {
               subjects: { type: "array", items: { type: "string" } },
               explanation: { type: "string" },
             },
-            required: ["label", "subjects", "explanation"],
           },
         },
         weak_topics: { type: "array", items: gapItemSchema },
@@ -189,7 +181,6 @@ Deno.serve(async (req) => {
               topic: { type: "string" },
               note: { type: "string" },
             },
-            required: ["concept", "subject", "note"],
           },
         },
         study_priority: { type: "array", items: { type: "string" } },
@@ -205,7 +196,6 @@ Deno.serve(async (req) => {
               action: { type: "string" },
               priority: { type: "number" },
             },
-            required: ["topic", "chapter", "subject", "time_minutes", "action", "priority"],
           },
         },
         momentum: {
@@ -215,28 +205,17 @@ Deno.serve(async (req) => {
             properties: {
               topic: { type: "string" },
               subject: { type: "string" },
-              direction: { type: "string", enum: ["improving", "slipping", "steady"] },
+              direction: { type: "string" },
               note: { type: "string" },
             },
-            required: ["topic", "subject", "direction", "note"],
           },
         },
         next_steps: { type: "array", items: { type: "string" } },
       },
-      required: [
-        "headline",
-        "summary",
-        "diagnosis",
-        "today_focus",
-        "weak_topics",
-        "error_patterns",
-        "study_priority",
-        "weekly_plan",
-        "next_steps",
-      ],
+      required: ["headline", "diagnosis", "today_focus", "weak_topics", "next_steps"],
     };
 
-    const result = await generateStructured<{
+    const result = await generateStructuredWithFallback<{
       headline: string;
       summary: string;
       diagnosis: string;
@@ -248,7 +227,7 @@ Deno.serve(async (req) => {
         chapter: string;
         subject: string;
         concept?: string;
-        severity: "critical" | "moderate" | "mild";
+        severity: string;
         misconception: string;
         why_weak: string;
         root_cause: string;
@@ -269,11 +248,38 @@ Deno.serve(async (req) => {
         action: string;
         priority: number;
       }[];
-      momentum?: { topic: string; subject: string; direction: "improving" | "slipping" | "steady"; note: string }[];
+      momentum?: { topic: string; subject: string; direction: string; note: string }[];
       next_steps: string[];
-    }>({ system, user, schema, toolName: "deep_analytics" });
+    }>({ system, user, schema, toolName: "deep_analytics" }, {
+      models: ANALYTICS_MODELS,
+      temperature: 0.7,
+    });
 
     if (!result.ok) return jsonResponse({ error: result.error }, result.status);
+
+    const normalizeSeverity = (s: string | undefined): "critical" | "moderate" | "mild" => {
+      const l = (s ?? "").toLowerCase();
+      if (l.includes("crit") || l.includes("urgent") || l.includes("severe")) return "critical";
+      if (l.includes("mod") || l.includes("work")) return "moderate";
+      return "mild";
+    };
+
+    const weak_topics = (result.data.weak_topics ?? []).map((w) => ({
+      topic: w.topic ?? "Topic",
+      chapter: w.chapter ?? "General",
+      subject: w.subject ?? "General",
+      concept: w.concept,
+      severity: normalizeSeverity(w.severity),
+      misconception: w.misconception ?? "Concept mix-up",
+      why_weak: w.why_weak ?? "",
+      root_cause: w.root_cause ?? "Review the underlying concept and method.",
+      error_pattern: w.error_pattern,
+      fix_hint: w.fix_hint ?? "",
+      micro_drills: w.micro_drills ?? [],
+      evidence: w.evidence,
+      ncert_ref: w.ncert_ref,
+      mistake_count: Math.max(1, w.mistake_count ?? 1),
+    }));
 
     return jsonResponse({
       headline: result.data.headline ?? "",
@@ -282,13 +288,18 @@ Deno.serve(async (req) => {
       today_focus: result.data.today_focus ?? "",
       error_patterns: result.data.error_patterns ?? [],
       recurring_errors: result.data.recurring_errors ?? [],
-      weak_topics: result.data.weak_topics ?? [],
+      weak_topics,
       strong_concepts: result.data.strong_concepts ?? [],
       study_priority: result.data.study_priority ?? [],
       weekly_plan: result.data.weekly_plan ?? [],
-      momentum: result.data.momentum ?? [],
+      momentum: (result.data.momentum ?? []).map((m) => ({
+        ...m,
+        direction: ["improving", "slipping", "steady"].includes(m.direction)
+          ? m.direction
+          : "steady",
+      })),
       next_steps: result.data.next_steps ?? [],
-      source: result.source,
+      source: "gemini",
     });
   } catch (e) {
     return jsonResponse({ error: String(e) }, 500);
