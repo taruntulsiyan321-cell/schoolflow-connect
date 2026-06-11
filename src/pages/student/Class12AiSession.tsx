@@ -66,7 +66,7 @@ export default function Class12AiSession() {
       });
 
       if (error || questions.length === 0) {
-        setLoadError(error ?? "AI could not generate questions. Try again in a moment.");
+        setLoadError(error ?? "Could not load questions. Try again in a moment.");
         setLoading(false);
         return;
       }
@@ -144,13 +144,13 @@ export default function Class12AiSession() {
         <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center">
           <Sparkles className="w-8 h-8 text-primary animate-pulse" />
         </div>
-        <h2 className="text-xl font-semibold">Generating AI Practice Questions</h2>
+        <h2 className="text-xl font-semibold">Preparing your practice questions</h2>
         <p className="text-muted-foreground text-sm">
           Fresh {subject} questions for {chapter}…
         </p>
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Powered by Gemini AI
+          One moment…
         </div>
       </div>
     );
@@ -177,7 +177,7 @@ export default function Class12AiSession() {
         <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">AI Practice Results</span>
+            <span className="text-sm font-medium">Practice results</span>
           </div>
           <div className="text-2xl font-bold">{correctN}/{items.length}</div>
           <div className="text-sm text-muted-foreground">{accuracy}% accuracy</div>
@@ -205,7 +205,7 @@ export default function Class12AiSession() {
 
       <div className="flex items-center gap-2 text-xs font-medium text-primary bg-primary/5 border border-primary/15 rounded-lg px-3 py-2 mb-3">
         <Sparkles className="w-3.5 h-3.5 shrink-0" />
-        AI-generated · varied concepts · {subject}
+        Fresh questions · varied concepts · {subject}
       </div>
 
       <Progress value={pct} className="h-1.5 mb-4" />

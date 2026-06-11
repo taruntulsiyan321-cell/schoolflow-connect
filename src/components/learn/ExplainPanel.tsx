@@ -97,11 +97,11 @@ export function ExplainPanel(props: Props) {
         return;
       }
 
-      setError(fnErr || "Gemini could not generate this explanation. Please retry.");
+      setError(fnErr || "Could not generate this explanation. Please retry.");
       fetched.current = false;
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? "";
-      setError(msg || "Gemini could not generate this explanation. Please retry.");
+      setError(msg || "Could not generate this explanation. Please retry.");
       fetched.current = false;
     } finally {
       setLoading(false);
@@ -129,7 +129,7 @@ export function ExplainPanel(props: Props) {
           className="gap-1.5 border-primary/30 text-primary hover:bg-primary/5"
         >
           <Sparkles className="w-3.5 h-3.5" />
-          {wasCorrect ? "Go deeper with AI" : "Explain my mistake"}
+          {wasCorrect ? "Go deeper" : "Explain my mistake"}
         </Button>
       ) : (
         <div className="rounded-xl border border-border/70 bg-muted/30 p-4 animate-rise">
@@ -138,9 +138,6 @@ export function ExplainPanel(props: Props) {
               <Sparkles className="w-4 h-4" />
             </div>
             <span className="section-label text-primary">Learning insight</span>
-            {aiSource === "gemini" && (
-              <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">Gemini Flash</Badge>
-            )}
             {!autoLoad && (
               <button onClick={() => setOpen(false)} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
                 Hide

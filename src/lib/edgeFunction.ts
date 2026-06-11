@@ -7,6 +7,17 @@ export type EdgeInvokeResult<T> = {
   usedFallback: boolean;
 };
 
+/** Strip vendor names from messages shown in the app UI. */
+function sanitizeUserFacingError(message: string): string {
+  return message
+    .replace(/google[_\s-]?gemini[_\s-]?api[_\s-]?key/gi, "service configuration")
+    .replace(/gemini\s*flash/gi, "learning service")
+    .replace(/gemini/gi, "learning service")
+    .replace(/\bAI\b/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 /** Invoke a Supabase edge function and normalize error bodies (500 JSON, network, credits). */
 export async function invokeEdgeFunction<T extends Record<string, unknown>>(
   name: string,
@@ -15,7 +26,7 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
   const { data, error } = await supabase.functions.invoke(name, { body });
 
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
-    return { data: null, error: String((data as { error: string }).error), usedFallback: false };
+    return { data: null, error: sanitizeUserFacingError(String((data as { error: string }).error)), usedFallback: false };
   }
 
   if (error) {
@@ -33,10 +44,10 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
     }
 
     if (message.includes("Failed to send") || message.includes("FunctionsFetchError")) {
-      message = "Gemini AI service unavailable. Please retry.";
+      message = "Learning service unavailable. Please retry.";
     }
 
-    return { data: null, error: message, usedFallback: false };
+    return { data: null, error: sanitizeUserFacingError(message), usedFallback: false };
   }
 
   return { data: (data as T) ?? null, error: null, usedFallback: false };
@@ -46,6 +57,7 @@ export function isAiUnavailableError(msg: string | null): boolean {
   if (!msg) return false;
   const m = msg.toLowerCase();
   return (
+    m.includes("learning service unavailable") ||
     m.includes("gemini ai service unavailable") ||
     m.includes("google_gemini") ||
     m.includes("gemini api") ||

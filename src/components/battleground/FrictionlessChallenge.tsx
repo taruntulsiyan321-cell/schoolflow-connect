@@ -241,7 +241,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       </div>
 
       <p className="text-xs text-muted-foreground">
-        For solo practice use <Link to="/student/practice/math12" className="text-primary font-semibold underline">Class 12 Practice</Link> (AI questions).
+        For solo practice use <Link to="/student/practice/math12" className="text-primary font-semibold underline">Class 12 Practice</Link>.
       </p>
 
       <div className="grid grid-cols-3 gap-2 p-1 rounded-lg bg-muted/50 border border-border/60">

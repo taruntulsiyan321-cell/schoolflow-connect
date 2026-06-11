@@ -144,7 +144,7 @@ function Arena() {
             <div className="icon-tile"><BookOpen className="w-5 h-5" /></div>
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm">Class 12 practice</div>
-              <p className="text-xs text-muted-foreground mt-0.5">AI questions — same as Recovery</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Fresh questions — same as Recovery</p>
             </div>
             <Button asChild size="sm" className="btn-cta shrink-0">
               <Link to="/student/practice/math12">Practice</Link>
@@ -450,7 +450,7 @@ function BattleRoom() {
 
         {/* Question-wise review + AI insights */}
         <div className="space-y-3">
-          <h3 className="font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Question Review & AI Insights</h3>
+          <h3 className="font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Question review & insights</h3>
           {questions.map((q, i) => {
             const ans = reviewAnswers[q.id];
             const sel = ans ? ans.selected_index : null;

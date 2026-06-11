@@ -28,7 +28,7 @@ const upcoming = [
   { icon: Bell, title: "Push Notifications", desc: "Native FCM alerts for notices, fees, results." },
   { icon: Smartphone, title: "Phone OTP Login", desc: "SMS-based sign-in via Twilio." },
   { icon: Bus, title: "Bus Tracking", desc: "Live route + ETA for parents." },
-  { icon: Brain, title: "Homework AI Assistant", desc: "AI-powered doubt solver for students." },
+  { icon: Brain, title: "Homework Assistant", desc: "Smart doubt solver for students." },
   { icon: Video, title: "Online Classes", desc: "Built-in live class scheduling & links." },
   { icon: Camera, title: "Live CCTV Alerts", desc: "Smart safety alerts to admin." },
   { icon: IdCard, title: "Digital ID Cards", desc: "Auto-generated student & staff IDs." },
@@ -219,7 +219,7 @@ export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boole
             <StackCard icon={Bell} title="Realtime + Push" desc="Live updates and native FCM push notifications." />
             <StackCard icon={Languages} title="EN + HI" desc="Bilingual ready, parent-friendly UI." />
             <StackCard icon={Wallet} title="Payments-ready" desc="Drop-in Razorpay/Stripe for online fee collection." />
-            <StackCard icon={Sparkles} title="Gemini-ready" desc="Google Gemini powers tutoring, practice generation and insights." />
+            <StackCard icon={Sparkles} title="Smart learning" desc="Personalized tutoring, practice generation, and insights built in." />
           </div>
         </div>
       </section>

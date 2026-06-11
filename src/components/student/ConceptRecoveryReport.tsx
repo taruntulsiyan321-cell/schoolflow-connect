@@ -90,7 +90,7 @@ export function ConceptRecoveryReport({ sourceType, sourceId, title = "Concept r
         </div>
         <Button size="sm" variant="outline" onClick={fetchAi} disabled={aiLoading}>
           {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-          {insights?.source === "ai" ? "AI insights" : "Enhance with AI"}
+          {insights?.source === "ai" ? "View insights" : "Get insights"}
         </Button>
       </div>
 
@@ -149,9 +149,6 @@ export function ConceptRecoveryReport({ sourceType, sourceId, title = "Concept r
               </ul>
             </>
           )}
-          <p className="text-[10px] text-muted-foreground mt-2 uppercase tracking-wide">
-            Source: Gemini Flash
-          </p>
         </div>
       )}
 

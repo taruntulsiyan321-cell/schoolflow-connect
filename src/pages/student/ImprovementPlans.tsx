@@ -48,7 +48,7 @@ export default function ImprovementPlans() {
       : await supabase.from("student_improvement_plans").insert(row);
     if (saveErr) throw new Error(saveErr.message);
 
-    toast.success("Gemini AI plan saved for this topic");
+    toast.success("Personalized plan saved for this topic");
     reload();
   };
 
@@ -78,7 +78,7 @@ export default function ImprovementPlans() {
         return;
       }
 
-      toast.error(fnErr || "Gemini could not generate a plan. Please retry.");
+      toast.error(fnErr || "Could not generate a plan. Please retry.");
     } catch (e: unknown) {
       toast.error((e as Error)?.message ?? "Could not generate plan");
     } finally {
@@ -132,7 +132,7 @@ export default function ImprovementPlans() {
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">{p.accuracy}% accuracy</Badge>
                   {hasGeminiPlan && (
-                    <Badge className="bg-primary/15 text-primary border-0">Gemini enhanced</Badge>
+                    <Badge className="bg-primary/15 text-primary border-0">Personalized</Badge>
                   )}
                 </div>
               </div>
@@ -172,7 +172,7 @@ export default function ImprovementPlans() {
                 {enhancing === key ? (
                   <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Generating…</>
                 ) : (
-                  <><Sparkles className="w-4 h-4 mr-1" /> {hasGeminiPlan ? "Refresh plan" : "Enhance with Gemini"}</>
+                  <><Sparkles className="w-4 h-4 mr-1" /> {hasGeminiPlan ? "Refresh plan" : "Personalize plan"}</>
                 )}
               </Button>
             </Card>

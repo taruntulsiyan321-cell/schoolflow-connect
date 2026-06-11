@@ -41,8 +41,8 @@ export default function Class12MathPractice() {
     <>
       <PageHeader
         eyebrow="CBSE · NCERT · Class 12"
-        title="Practice with AI-fresh questions"
-        subtitle="Gemini generates fresh CBSE questions every session — same quality as Recovery practice."
+        title="Practice with fresh questions"
+        subtitle="New CBSE-aligned questions every session — same quality as Recovery practice."
       />
 
       <Card className="p-6 max-w-lg shadow-card space-y-5">
@@ -101,7 +101,7 @@ export default function Class12MathPractice() {
         <p className="text-[11px] text-muted-foreground text-center">
           {subject === "Mathematics"
             ? "13 NCERT chapters · 1300+ parametric templates · CBSE aligned"
-            : "14 NCERT chapters · AI-generated MCQs cached and grown automatically"}
+            : "14 NCERT chapters · fresh MCQs every session"}
         </p>
       </Card>
 

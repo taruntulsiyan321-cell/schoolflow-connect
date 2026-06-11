@@ -197,7 +197,7 @@ export default function RecoverySession() {
           return;
         }
         // AI also failed — show error with helpful actions
-        setLoadError("No practice questions could be loaded. AI generation is unavailable — please try again later.");
+        setLoadError("No practice questions could be loaded right now — please try again later.");
         setLoading(false);
         return;
       }
@@ -274,13 +274,13 @@ export default function RecoverySession() {
         <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center">
           <Sparkles className="w-8 h-8 text-primary animate-pulse" />
         </div>
-        <h2 className="text-xl font-semibold">Generating AI Practice Questions</h2>
+        <h2 className="text-xl font-semibold">Preparing your practice questions</h2>
         <p className="text-muted-foreground text-sm">
           Creating personalized questions based on your weak concepts…
         </p>
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin" />
-          Powered by Gemini AI
+          One moment…
         </div>
       </div>
     );
@@ -331,7 +331,7 @@ export default function RecoverySession() {
           <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
             <div className="flex items-center justify-center gap-2 mb-2">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">AI Practice Results</span>
+              <span className="text-sm font-medium">Practice results</span>
             </div>
             <div className="text-2xl font-bold">{score.correct}/{score.total}</div>
             <div className="text-sm text-muted-foreground">{accuracy}% accuracy</div>
@@ -375,7 +375,7 @@ export default function RecoverySession() {
       {isAiSession && (
         <div className="flex items-center gap-2 text-xs font-medium text-primary bg-primary/5 border border-primary/15 rounded-lg px-3 py-2 mb-3">
           <Sparkles className="w-3.5 h-3.5 shrink-0" />
-          AI-generated practice questions targeting your weak concept
+          Personalized practice targeting your weak concepts
         </div>
       )}
 

@@ -77,7 +77,7 @@ export default function QuestionBankPage() {
       },
     });
     setBusy(false);
-    if (error) return toast.error(error.message ?? "AI generation failed");
+    if (error) return toast.error(error.message ?? "Question generation failed");
     const arr = (data?.questions ?? []) as Array<{ question: string; options: string[]; correct_index: number; explanation?: string }>;
     if (arr.length === 0) return toast.error(data?.error ?? "No questions returned");
     setDrafts(arr.map((a) => ({
@@ -156,7 +156,7 @@ export default function QuestionBankPage() {
 
   return (
     <>
-      <PageHeader title="Question Bank" subtitle="Grow the battle & DPP question pool with AI or CSV import" />
+      <PageHeader title="Question Bank" subtitle="Grow the battle & DPP question pool from topics or CSV import" />
 
       {/* Bank summary */}
       <Card className="p-4 mb-4">
@@ -182,7 +182,7 @@ export default function QuestionBankPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4">
-          <TabsTrigger value="generate"><Sparkles className="w-4 h-4 mr-1.5" /> AI Generate</TabsTrigger>
+          <TabsTrigger value="generate"><Sparkles className="w-4 h-4 mr-1.5" /> Generate</TabsTrigger>
           <TabsTrigger value="csv"><Upload className="w-4 h-4 mr-1.5" /> CSV Import</TabsTrigger>
         </TabsList>
 
@@ -192,7 +192,6 @@ export default function QuestionBankPage() {
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold">Generate from a topic, URL, or notes</span>
-              <Badge variant="secondary" className="text-[10px]">Powered by AI</Badge>
             </div>
             <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
               <div>

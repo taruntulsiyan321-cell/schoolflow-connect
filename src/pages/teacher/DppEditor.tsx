@@ -172,7 +172,7 @@ export default function DppEditor() {
       },
     });
     setAiBusy(false);
-    if (error) return toast.error(error.message ?? "AI generation failed");
+    if (error) return toast.error(error.message ?? "Question generation failed");
     const arr = (data?.questions ?? []) as Array<{
       question: string; options: string[]; correct_index: number; explanation?: string;
     }>;
@@ -348,8 +348,7 @@ export default function DppEditor() {
           <Card className="p-4 mb-4 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
             <div className="flex items-center gap-2 mb-3">
               <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-semibold">Generate from the internet (AI)</span>
-              <Badge variant="secondary" className="text-[10px]">Powered by Lovable AI</Badge>
+              <span className="text-sm font-semibold">Generate from topic or URL</span>
             </div>
             <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
               <div>

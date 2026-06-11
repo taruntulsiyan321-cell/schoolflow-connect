@@ -102,10 +102,10 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         return;
       }
 
-      setAiError(fnErr || "Gemini could not generate this battle report. Please retry.");
+      setAiError(fnErr || "Could not generate this battle report. Please retry.");
       return;
     } catch (e: unknown) {
-      const msg = (e as Error)?.message ?? "AI insights failed";
+      const msg = (e as Error)?.message ?? "Insights could not be loaded";
       setAiError(msg);
     } finally {
       setAiLoading(false);
@@ -201,11 +201,6 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <Sparkles className="w-5 h-5 text-primary" />
           <h2 className="font-bold">Performance Coach</h2>
-          {(coachSource === "ai" || coachSource === "gemini") && (
-            <Badge variant="outline" className="text-xs border-primary/40 text-primary">
-              Gemini Flash
-            </Badge>
-          )}
         </div>
         {aiError && !aiLoading && (
           <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
@@ -244,7 +239,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         )}
         {!ai && !aiLoading && (
           <Button variant="outline" size="sm" onClick={fetchAI} className="gap-1.5">
-            <Sparkles className="w-3.5 h-3.5" /> Generate AI report
+            <Sparkles className="w-3.5 h-3.5" /> Generate full report
           </Button>
         )}
       </Card>

@@ -144,8 +144,8 @@ export default function StudentSuccessHome() {
         <Link to="/student/practice/math12" className="block">
           <Card className="p-4 hover:shadow-elevated transition-shadow h-full">
             <Target className="w-5 h-5 text-primary mb-2" />
-            <div className="font-semibold">AI Practice</div>
-            <p className="text-xs text-muted-foreground mt-1">Class 12 · fresh questions</p>
+            <div className="font-semibold">Class 12 Practice</div>
+            <p className="text-xs text-muted-foreground mt-1">Fresh CBSE questions</p>
           </Card>
         </Link>
         <Link to="/student/recovery" className="block">

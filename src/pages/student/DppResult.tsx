@@ -121,7 +121,7 @@ export default function DppResult() {
           <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
             {accuracy < 60 && <li>Review wrong answers below — they were added to your Mistake Book automatically.</li>}
             {accuracy < 80 && <li>Revise weak topics from your Growth dashboard before the next DPP.</li>}
-            <li>Use AI Explain on each wrong question to understand the concept, not just the answer.</li>
+            <li>Use &quot;Explain my mistake&quot; on each wrong question to understand the concept, not just the answer.</li>
           </ul>
         </Card>
       )}
