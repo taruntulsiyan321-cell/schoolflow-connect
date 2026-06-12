@@ -1,0 +1,11 @@
+export { StudioHeader } from "./StudioHeader";
+export { StudioHero } from "./StudioHero";
+export { StudioTabs, type StudioTab } from "./StudioTabs";
+export { CoachCard } from "./CoachCard";
+export { StatRow } from "./StatRow";
+export { LeaderboardTop5 } from "./LeaderboardTop5";
+export { SubjectCardsGrid } from "./SubjectCardsGrid";
+export { SubjectAccuracyChart } from "./SubjectAccuracyChart";
+export { StrengthsWeaknesses } from "./StrengthsWeaknesses";
+export { WeeklyActivityChart } from "./WeeklyActivityChart";
+export { RecentSessionsList } from "./RecentSessionsList";

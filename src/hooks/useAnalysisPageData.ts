@@ -15,8 +15,19 @@ export type PracticeSessionSummary = {
   accuracy_pct: number;
 };
 
+export type LeaderboardEntry = {
+  user_id: string;
+  full_name: string;
+  roll_number: string | null;
+  score: number;
+  rank: number;
+};
+
 export type AnalysisPageData = {
   class_rank: number | null;
+  leaderboard_top: LeaderboardEntry[];
+  class_size: number;
+  student_class: string | null;
   recent_sessions: PracticeSessionSummary[];
   totals: {
     correct: number;
@@ -71,7 +82,7 @@ export function useAnalysisPageData(enabled = true) {
     setError(null);
 
     try {
-      const [sessionsRes, rankRes, masteryRes] = await Promise.all([
+      const [sessionsRes, rankRes, masteryRes, classRes] = await Promise.all([
         supabase
           .from("practice_sessions")
           .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at")
@@ -86,6 +97,11 @@ export function useAnalysisPageData(enabled = true) {
           _limit: 200,
         }),
         supabase.rpc("rpc_student_concept_mastery"),
+        supabase
+          .from("students")
+          .select("class_id, classes(name, section)")
+          .eq("user_id", user.id)
+          .maybeSingle(),
       ]);
 
       const sessions = sessionsRes.error
@@ -95,9 +111,38 @@ export function useAnalysisPageData(enabled = true) {
       const previous = sessions[1];
 
       let class_rank: number | null = null;
+      let leaderboard_top: LeaderboardEntry[] = [];
+      let class_size = 0;
+      let student_class: string | null = null;
+
       if (Array.isArray(rankRes.data)) {
-        const idx = rankRes.data.findIndex((r: { user_id?: string }) => r.user_id === user.id);
+        const rows = rankRes.data as {
+          user_id: string;
+          full_name: string;
+          roll_number: string | null;
+          score: number;
+          class_label?: string;
+        }[];
+        class_size = rows.length;
+        const idx = rows.findIndex((r) => r.user_id === user.id);
         class_rank = idx >= 0 ? idx + 1 : null;
+        leaderboard_top = rows.slice(0, 5).map((r, i) => ({
+          user_id: r.user_id,
+          full_name: r.full_name,
+          roll_number: r.roll_number ?? null,
+          score: Number(r.score) || 0,
+          rank: i + 1,
+        }));
+        if (rows[0]?.class_label) {
+          student_class = rows[0].class_label;
+        }
+      }
+
+      const classRow = classRes.data as {
+        classes?: { name: string; section: string } | null;
+      } | null;
+      if (classRow?.classes) {
+        student_class = `Class ${classRow.classes.name}-${classRow.classes.section}`;
       }
 
       const masteryItems =
@@ -130,6 +175,9 @@ export function useAnalysisPageData(enabled = true) {
 
       setData({
         class_rank,
+        leaderboard_top,
+        class_size,
+        student_class,
         recent_sessions: sessions,
         totals: {
           correct,
@@ -148,6 +196,9 @@ export function useAnalysisPageData(enabled = true) {
       setError(e instanceof Error ? e.message : "Could not load analysis");
       setData({
         class_rank: null,
+        leaderboard_top: [],
+        class_size: 0,
+        student_class: null,
         recent_sessions: [],
         totals: {
           correct: 0,
