@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
@@ -6,29 +5,31 @@ import type { StudentPerformanceCharts } from "@/hooks/useStudentPerformanceChar
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import { useAnalyticsInsights } from "@/hooks/useAnalyticsInsights";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
+import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import { useAuth } from "@/hooks/useAuth";
 import { buildRuleAnalyticsInsights, resolveTopicGaps } from "@/lib/analyticsInsights";
+import { AnalysisClassStanding } from "@/components/student/analytics/AnalysisWidgets";
 import {
   DiagnosisBanner,
   MistakeTopicTable,
+  MomentumSection,
+  RecurringErrorsSection,
+  SessionLog,
+  SubjectBreakdown,
   TopicDeepCards,
   WeeklyStudyPlan,
 } from "@/components/student/analytics/AnalysisDeepSections";
 import {
-  CoachCard,
-  LeaderboardTop5,
-  RecentSessionsList,
-  StatRow,
-  StrengthsWeaknesses,
-  StudioHeader,
-  StudioHero,
-  StudioTabs,
-  SubjectAccuracyChart,
-  SubjectCardsGrid,
-  WeeklyActivityChart,
-  type StudioTab,
-} from "@/components/student/analytics/studio";
-import "./studio/analytics-studio.css";
+  FlowCoachCard,
+  FlowConceptPanel,
+  FlowConceptTag,
+  FlowHero,
+  FlowRecoveryCard,
+  FlowSectionTitle,
+  FlowStatGrid,
+  FlowTrendCard,
+} from "@/components/student/flow/FlowDesign";
+import { CheckCircle2, Target } from "lucide-react";
 
 type Props = {
   data: AcademicSnapshot;
@@ -36,27 +37,19 @@ type Props = {
   chartsLoading?: boolean;
 };
 
-function initialsFromName(name: string | undefined): string {
-  if (!name) return "ST";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-  return name.slice(0, 2).toUpperCase();
-}
-
 export function AnalyticsStudio({ data, charts }: Props) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<StudioTab>("overview");
   const { data: pageData, loading: pageLoading } = useAnalysisPageData();
   const { items: mastery } = useConceptMastery();
+  const { data: recovery, loading: recoveryLoading } = useRecoveryZone();
   const { insights, aggregates, enhancing, loading: insightsLoading } = useAnalyticsInsights(data);
 
   const readiness = data.exam_readiness;
   const score = readiness?.score ?? 0;
   const xp = data.xp?.xp ?? 0;
-  const level = data.xp?.level ?? 1;
   const streak = data.xp?.current_streak ?? 0;
   const rank = pageData?.class_rank;
-  const firstName = data.student?.full_name?.split(" ")[0] ?? "Student";
+  const firstName = data.student?.full_name?.split(" ")[0] ?? "there";
 
   const ruleInsights =
     aggregates.length > 0 ? buildRuleAnalyticsInsights(aggregates, mastery, data) : null;
@@ -86,114 +79,185 @@ export function AnalyticsStudio({ data, charts }: Props) {
   if (coachLines.length === 0) {
     if (strongConcepts[0]) coachLines.push(`You perform well in ${strongConcepts[0].concept.toLowerCase()}.`);
     if (weakConcepts[0]) {
-      coachLines.push(
-        `Focus next on ${weakConcepts[0].concept.toLowerCase()} — open Recovery after reading the breakdown below.`,
-      );
+      coachLines.push(`Focus next on ${weakConcepts[0].concept.toLowerCase()} — use Recovery after the breakdown below.`);
     }
   }
 
+  const recoveryCount = recovery?.pending_count ?? data.recovery_pending ?? data.mistake_count ?? 0;
+  const weakTags = (
+    recovery?.weak_concepts?.slice(0, 6).map((w) => w.concept) ??
+    topicGaps.slice(0, 6).map((t) => t.topic) ??
+    weakConcepts.map((c) => c.concept)
+  ).slice(0, 6);
+
+  const trend = pageData?.trend;
+  const practiceTrend = charts?.practice_trend ?? [];
+  const prevAcc = trend?.previous_accuracy ?? practiceTrend.at(-2)?.score_pct ?? null;
+  const currAcc = trend?.current_accuracy ?? practiceTrend.at(-1)?.score_pct ?? readiness?.accuracy_pct ?? null;
+  const improvement =
+    trend?.improvement_pct ??
+    (prevAcc != null && currAcc != null ? Math.round((currAcc - prevAcc) * 10) / 10 : null);
+
   const totals = pageData?.totals;
+  const correct = totals?.correct ?? 0;
+  const wrong = totals?.wrong ?? data.mistake_count ?? 0;
   const accuracy = totals?.accuracy_pct ?? readiness?.accuracy_pct ?? 0;
-  const attendance = readiness?.attendance_pct ?? 0;
-  const sessions = data.self_practice?.sessions_completed ?? pageData?.recent_sessions.length ?? 0;
+  const speed = totals?.avg_sec_per_question;
+  const timeMin = totals?.last_session_minutes;
   const weeklyPlan = displayInsights?.weekly_plan ?? [];
-  const subjects = charts?.subjects ?? [];
-  const weeklyActivity = charts?.weekly_activity ?? [];
+  const momentum = displayInsights?.momentum ?? [];
+
+  const heroSummary =
+    displayInsights?.summary ??
+    (aggregates.length > 0
+      ? `${aggregates.reduce((s, a) => s + a.mistake_count, 0)} mistakes traced across ${aggregates.length} topics`
+      : pageData?.student_class
+        ? `${pageData.student_class} · keep practising to unlock deeper breakdowns`
+        : undefined);
 
   const initialLoad = insightsLoading && aggregates.length === 0 && !displayInsights;
 
   if (initialLoad) {
     return (
-      <div className="analytics-studio py-12 text-center text-sm text-[var(--as-muted)]">
+      <div className="py-12 text-center text-sm text-muted-foreground animate-rise">
         Loading your analysis…
       </div>
     );
   }
 
   return (
-    <div className="analytics-studio animate-rise">
-      <StudioHeader
-        streak={streak}
-        xp={xp}
-        level={level}
-        initials={initialsFromName(data.student?.full_name)}
+    <div className="space-y-8 animate-rise">
+      <FlowHero
+        eyebrow={pageData?.student_class ?? "Your progress"}
+        title={`Hi, ${firstName}`}
+        metrics={[
+          { label: "Readiness", value: `${score}%` },
+          { label: "Accuracy", value: `${readiness?.accuracy_pct ?? accuracy}%` },
+          { label: "Rank", value: rank ? `#${rank}` : "—" },
+          { label: "Streak", value: `${streak}d` },
+          { label: "XP", value: xp.toLocaleString() },
+        ]}
+        footer={
+          heroSummary ? (
+            <p className="text-sm text-primary-foreground/85 leading-relaxed">{heroSummary}</p>
+          ) : undefined
+        }
       />
 
-      <StudioHero
-        firstName={firstName}
-        studentClass={pageData?.student_class ?? null}
-        classRank={rank}
-        classSize={pageData?.class_size ?? 0}
-        accuracy={accuracy}
-        attendance={attendance}
-        level={level}
-        xp={xp}
-        examReadiness={score}
-        subjects={subjects}
-      />
+      {displayInsights && <DiagnosisBanner insights={displayInsights} />}
 
-      <StudioTabs active={activeTab} onChange={setActiveTab} />
+      <section>
+        <FlowSectionTitle>Performance snapshot</FlowSectionTitle>
+        <FlowStatGrid
+          items={[
+            { label: "Correct", value: correct },
+            { label: "Wrong", value: wrong },
+            { label: "Accuracy", value: `${accuracy}%` },
+            {
+              label: "Last session",
+              value: timeMin != null ? `${timeMin}m` : "—",
+              sub: speed != null ? `${speed}s per question` : undefined,
+            },
+          ]}
+        />
+      </section>
 
-      <div className="as-content">
-        {activeTab === "overview" && (
-          <>
-            <CoachCard lines={coachLines.slice(0, 6)} loading={enhancing} />
-            <StatRow
-              classRank={rank ?? null}
-              streak={streak}
-              totalXp={xp}
-              sessions={sessions}
-            />
-            <LeaderboardTop5
-              entries={pageData?.leaderboard_top ?? []}
-              currentUserId={user?.id}
-            />
-            {weeklyActivity.length > 0 && <WeeklyActivityChart weeklyActivity={weeklyActivity} />}
-            {!pageLoading && <RecentSessionsList sessions={pageData?.recent_sessions ?? []} />}
-          </>
-        )}
+      <SubjectBreakdown subjects={charts?.subjects ?? []} />
 
-        {activeTab === "subjects" && (
-          <>
-            <section>
-              <h2 className="as-section-title">Subject performance</h2>
-              <SubjectCardsGrid subjects={subjects} practiceTrend={charts?.practice_trend} />
-            </section>
-            <SubjectAccuracyChart subjects={subjects} />
-          </>
-        )}
-
-        {activeTab === "concepts" && (
-          <div className="as-deep space-y-6">
-            <StrengthsWeaknesses
-              strongConcepts={strongConcepts}
-              topicGaps={topicGaps}
-              weakConcepts={weakConcepts}
-            />
-            {displayInsights && <DiagnosisBanner insights={displayInsights} />}
-            {topicGaps.length > 0 && <TopicDeepCards topics={topicGaps} />}
-            {aggregates.length > 0 && <MistakeTopicTable aggregates={aggregates} />}
-            {weeklyPlan.length > 0 && <WeeklyStudyPlan plan={weeklyPlan} />}
-          </div>
-        )}
-
-        {activeTab === "activity" && (
-          <>
-            <WeeklyActivityChart weeklyActivity={weeklyActivity} />
-            {!pageLoading && <RecentSessionsList sessions={pageData?.recent_sessions ?? []} />}
-          </>
-        )}
-
-        <div className="flex justify-center pt-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-[var(--as-muted)] hover:text-[var(--as-text)] hover:bg-white/5"
-            asChild
+      <section>
+        <FlowSectionTitle>Concepts at a glance</FlowSectionTitle>
+        <div className="grid md:grid-cols-2 gap-4">
+          <FlowConceptPanel
+            title="Strong"
+            icon={<CheckCircle2 className="w-4 h-4" />}
+            variant="strong"
+            empty="Practice more to unlock strengths."
           >
-            <Link to="/student/practice/math12">Start another session</Link>
-          </Button>
+            {strongConcepts.map((c) => (
+              <FlowConceptTag
+                key={`${c.subject}-${c.concept}`}
+                label={c.concept}
+                meta={`${Math.round(c.mastery_score)}% · ${c.subject}`}
+                variant="strong"
+              />
+            ))}
+            {strongConcepts.length === 0 &&
+              (data.strong_topics ?? []).map((t, i) => (
+                <FlowConceptTag
+                  key={i}
+                  label={t.topic ?? t.chapter ?? t.subject}
+                  meta={`${Math.round(t.accuracy)}%`}
+                  variant="strong"
+                />
+              ))}
+          </FlowConceptPanel>
+
+          <FlowConceptPanel
+            title="Needs work"
+            icon={<Target className="w-4 h-4" />}
+            variant="weak"
+            empty="No weak spots flagged yet."
+          >
+            {topicGaps.slice(0, 8).map((t) => (
+              <FlowConceptTag
+                key={`${t.subject}-${t.topic}`}
+                label={t.topic}
+                meta={`${t.chapter} · ${t.mistake_count} mistakes`}
+                variant="weak"
+              />
+            ))}
+            {topicGaps.length === 0 &&
+              weakConcepts.map((c) => (
+                <FlowConceptTag
+                  key={`${c.subject}-${c.concept}`}
+                  label={c.concept}
+                  meta={`${c.mistake_count} mistakes`}
+                  variant="weak"
+                />
+              ))}
+          </FlowConceptPanel>
         </div>
+      </section>
+
+      {topicGaps.length > 0 && <TopicDeepCards topics={topicGaps} />}
+
+      {aggregates.length > 0 && <MistakeTopicTable aggregates={aggregates} />}
+
+      <FlowCoachCard
+        title="What to do next"
+        loading={enhancing}
+        lines={coachLines.slice(0, 6)}
+        empty="Complete a practice session — personalised tips appear from your real mistakes."
+      />
+
+      {weeklyPlan.length > 0 && <WeeklyStudyPlan plan={weeklyPlan} />}
+
+      {momentum.length > 0 && <MomentumSection signals={momentum} />}
+
+      {displayInsights && (
+        <RecurringErrorsSection
+          errors={displayInsights.recurring_errors}
+          patterns={displayInsights.error_patterns}
+        />
+      )}
+
+      <AnalysisClassStanding
+        rank={rank}
+        classSize={pageData?.class_size ?? 0}
+        topPeers={pageData?.leaderboard_top ?? []}
+        currentUserId={user?.id}
+      />
+
+      {!pageLoading && <SessionLog sessions={pageData?.recent_sessions ?? []} />}
+
+      <FlowRecoveryCard count={recoveryLoading ? 0 : recoveryCount} weakConcepts={weakTags} />
+
+      <FlowTrendCard previous={prevAcc} current={currAcc} improvement={improvement} />
+
+      <div className="flex justify-center">
+        <Button variant="ghost" size="sm" className="text-muted-foreground" asChild>
+          <Link to="/student/practice/math12">Start another session</Link>
+        </Button>
       </div>
     </div>
   );
