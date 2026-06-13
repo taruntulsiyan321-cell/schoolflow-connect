@@ -478,6 +478,48 @@ BEGIN
     ), u_t_math)
   ON CONFLICT (class_id) DO UPDATE SET grid = EXCLUDED.grid, updated_by = EXCLUDED.updated_by;
 
+  -- ===================== STUDENT MISTAKES (coach / recovery / arena focus demo) =====================
+  INSERT INTO public.student_mistakes (
+    id, user_id, student_id, source, source_id, question_id,
+    class_level, subject, chapter, topic, concept, subconcept, assessment_type,
+    question_text, options, student_answer, correct_answer, explanation,
+    times_wrong, mastered, last_wrong_at
+  ) VALUES
+    ('d9000003-0001-4000-8000-000000000001', u_s1, st1, 'practice', NULL,
+     'd9000003-0001-4000-8000-000000000001', 10, 'Mathematics', 'Integrals', 'Power rule integration',
+     'Integrals', 'Power rule', 'practice',
+     'What is ∫ x² dx?',
+     '["x³ + C", "x³/3 + C", "2x + C", "x²/2 + C"]'::jsonb,
+     '{"indexes":[0]}'::jsonb,
+     '{"indexes":[1]}'::jsonb,
+     '∫ xⁿ dx = xⁿ⁺¹/(n+1) + C',
+     2, false, now() - interval '2 days'),
+    ('d9000003-0002-4000-8000-000000000002', u_s1, st1, 'practice', NULL,
+     'd9000003-0002-4000-8000-000000000002', 10, 'Physics', 'Electricity', 'Coulomb''s law',
+     'Electrostatics', 'Coulomb force', 'practice',
+     'Two equal charges at distance d exert 1.2 N. At distance 2d the force is:',
+     '["0.6 N", "1.2 N", "2.4 N", "4.8 N"]'::jsonb,
+     '{"indexes":[0]}'::jsonb,
+     '{"indexes":[1]}'::jsonb,
+     'Coulomb''s law: F ∝ 1/r² — doubling distance halves the force when comparing proportional setups.',
+     1, false, now() - interval '1 day'),
+    ('d9000003-0003-4000-8000-000000000003', u_s1, st1, 'battleground', b_done,
+     bq_done2, 10, 'Mathematics', 'Real Numbers', 'Euclid division',
+     'Real Numbers', 'Division lemma', 'battle',
+     'The HCF of 867 and 255 is:',
+     '["3", "51", "17", "255"]'::jsonb,
+     '{"indexes":[0]}'::jsonb,
+     '{"indexes":[1]}'::jsonb,
+     '867 = 255 × 3 + 102; continue Euclid steps → HCF 51',
+     1, false, now() - interval '3 days')
+  ON CONFLICT (user_id, source, question_id) WHERE question_id IS NOT NULL DO UPDATE SET
+    times_wrong = EXCLUDED.times_wrong,
+    question_text = EXCLUDED.question_text,
+    student_answer = EXCLUDED.student_answer,
+    correct_answer = EXCLUDED.correct_answer,
+    mastered = EXCLUDED.mastered,
+    last_wrong_at = EXCLUDED.last_wrong_at;
+
   -- ===================== APP SETTINGS =====================
   INSERT INTO public.app_settings (id, school_name, locale, currency, enable_notices, enable_fees, enable_leaves, updated_by) VALUES
     (true, 'Wisdom Campus Demo School', 'en-IN', 'INR', true, true, true, u_admin)
