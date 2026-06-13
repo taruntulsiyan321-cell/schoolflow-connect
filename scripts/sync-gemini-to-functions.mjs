@@ -18,6 +18,10 @@ const TARGETS = [
   "ai-analytics-insights",
   "ai-expand-questions",
   "dpp-generate-questions",
+  "ai-learning-pattern-agent",
+  "ai-recovery-agent",
+  "ai-revision-agent",
+  "ai-academic-coach-agent",
 ];
 
 const src = readFileSync(SRC, "utf8");

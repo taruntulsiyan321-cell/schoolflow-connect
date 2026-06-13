@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { StudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
-import { useAnalyticsInsights } from "@/hooks/useAnalyticsInsights";
+import { useAcademicCoach } from "@/hooks/useAcademicCoach";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,16 +46,16 @@ export function AnalyticsStudio({ data, charts }: Props) {
     coachLive,
     error: coachError,
     reload: reloadCoach,
-  } = useAnalyticsInsights(data);
+  } = useAcademicCoach(data);
 
   const readiness = data.exam_readiness;
   const score = readiness?.score ?? 0;
   const level = data.xp?.level ?? 1;
   const rank = pageData?.class_rank;
 
-  const ruleInsights =
+  const ruleFallback =
     aggregates.length > 0 ? buildRuleAnalyticsInsights(aggregates, mastery, data) : null;
-  const displayInsights = insights ?? ruleInsights;
+  const displayInsights = insights ?? ruleFallback;
   const topicGaps = resolveTopicGaps(displayInsights, aggregates);
 
   const totals = pageData?.totals;

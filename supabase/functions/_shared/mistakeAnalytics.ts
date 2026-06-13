@@ -1,4 +1,4 @@
-import { generateStructuredWithFallback, jsonResponse } from "../ai-improvement-plan/gemini.ts";
+import { generateStructuredWithFallback, jsonResponse } from "./gemini.ts";
 
 const ANALYTICS_MODELS = [
   "gemini-2.5-flash",

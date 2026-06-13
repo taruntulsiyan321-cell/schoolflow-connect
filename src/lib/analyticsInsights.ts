@@ -693,11 +693,11 @@ async function fetchGeminiAnalyticsViaImprovementPlan(
 
 function hasGeminiInsightPayload(data: Record<string, unknown>): boolean {
   if (data.error) return false;
-  if (data.source === "gemini") return true;
   const topics = data.weak_topics as { evidence?: string; why_weak?: string }[] | undefined;
   if ((topics?.length ?? 0) > 0) {
     return topics!.some((t) => Boolean(t.evidence?.trim() || t.why_weak?.trim()));
   }
+  // Full analytics shape from shared mistake handler (not single-topic improvement plans).
   return Boolean(data.diagnosis && data.today_focus && data.headline);
 }
 
