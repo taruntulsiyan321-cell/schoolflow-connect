@@ -7,15 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
-import { Sword, Trophy, Sparkles, Plus, Users, Clock, Target, ArrowLeft, TrendingUp, Award, Flame, ChevronRight, Zap, Loader2, BookOpen } from "lucide-react";
-import { XPRing, StreakFlame, BadgeCard, BattleCard, PodiumRow, Countdown } from "@/components/battleground/bg-bits";
+import { Sword, Trophy, Sparkles, Users, Clock, ArrowLeft, TrendingUp, ChevronRight, Loader2 } from "lucide-react";
+import { XPRing, BadgeCard, PodiumRow, Countdown } from "@/components/battleground/bg-bits";
+import { ArenaHub } from "@/components/battleground/ArenaHub";
+import "@/components/battleground/battle-arena.css";
 import { FrictionlessChallenge } from "@/components/battleground/FrictionlessChallenge";
-import { InviteFriends, MyInvites } from "@/components/battleground/Invites";
-import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { BADGES, badgesByGroup, GROUP_LABEL, GROUP_ORDER } from "@/lib/badges";
 import { cn } from "@/lib/utils";
-import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
+import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import SharedLeaderboard from "@/pages/shared/LeaderboardPage";
 import BattleReportPage from "./BattleReportPage";
 import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
@@ -35,9 +35,9 @@ function BattlegroundLayout() {
   const immersive = /\/battle\/|\/report\//.test(location.pathname);
 
   return (
-    <div className="space-y-4">
+    <div className="wisdom-arena space-y-4">
       {!immersive && (
-        <nav className="flex gap-1 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none" aria-label="Battleground sections">
+        <nav className="flex gap-1 overflow-x-auto pb-1 scrollbar-none" aria-label="Battleground sections">
           {BG_TABS.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -47,10 +47,8 @@ function BattlegroundLayout() {
                 end={tab.end}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors shrink-0",
-                    isActive
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+                    "ba-tab flex items-center gap-1.5 shrink-0",
+                    isActive ? "!bg-[var(--ba-primary-container)] !text-white" : "",
                   )
                 }
               >
@@ -68,119 +66,7 @@ function BattlegroundLayout() {
 
 // =================== ARENA (HOME) ===================
 function Arena() {
-  const { user } = useAuth();
-  const nav = useNavigate();
-  const [student, setStudent] = useState<any>(null);
-  const [xp, setXp] = useState<any>({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
-  const [battles, setBattles] = useState<any[]>([]);
-  const [arenaLoading, setArenaLoading] = useState(true);
-
-  const refreshXp = async () => {
-    if (!user) return;
-    const { data: x } = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
-    if (x) setXp(x);
-  };
-
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      setArenaLoading(true);
-      const { data: s } = await supabase.from("students").select("*, classes(name,section,display_name)").eq("user_id", user.id).maybeSingle();
-      setStudent(s);
-      await refreshXp();
-      let battleQuery = supabase.from("battles")
-        .select("*")
-        .eq("status", "live")
-        .in("mode", ["open", "lobby"]);
-      if (s?.class_id) {
-        battleQuery = battleQuery.or(`mode.eq.open,and(mode.eq.lobby,class_id.eq.${s.class_id})`);
-      } else {
-        battleQuery = battleQuery.eq("mode", "open");
-      }
-      const { data: b } = await battleQuery.order("starts_at", { ascending: true }).limit(3);
-      setBattles(b ?? []);
-      setArenaLoading(false);
-    })();
-  }, [user]);
-
-  useEffect(() => {
-    const onXp = () => refreshXp();
-    window.addEventListener("student-xp-updated", onXp);
-    return () => window.removeEventListener("student-xp-updated", onXp);
-  }, [user]);
-
-  if (arenaLoading) return <StudentDashboardSkeleton />;
-
-  return (
-    <div className="space-y-6 animate-rise">
-      {/* Hero */}
-      <Card className="hero-panel p-6">
-        <div className="flex items-center gap-6 flex-wrap">
-          <XPRing xp={xp.xp} level={xp.level} />
-          <div className="flex-1 min-w-[200px]">
-            <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-white/70">
-              <Sword className="w-3.5 h-3.5" /> Battleground
-            </div>
-            <h1 className="text-2xl font-semibold mt-1 flex flex-wrap items-center gap-2 text-white">
-              {student?.full_name?.split(" ")[0] || "Student"}
-              <EquippedBadge code={xp.equipped_badge} size="sm" showLabel />
-            </h1>
-            <p className="text-sm text-white/75 mt-1">Compete with classmates and track your academic progress.</p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              <StreakFlame streak={xp.current_streak} />
-              <span className="text-xs px-2.5 py-1 rounded-md bg-white/10 text-white/90 font-medium">{xp.wins} wins</span>
-              <span className="text-xs px-2.5 py-1 rounded-md bg-white/10 text-white/90 font-medium">{xp.total_battles} battles</span>
-            </div>
-          </div>
-          <Button onClick={() => nav(`${BG_BASE}/create`)} size="lg" className="btn-cta shrink-0">
-            <Sword className="w-4 h-4 mr-2" /> New challenge
-          </Button>
-        </div>
-      </Card>
-
-      <div className="grid sm:grid-cols-2 gap-3">
-        <Card className="p-4 surface-card border-primary/20">
-          <div className="flex items-center gap-3">
-            <div className="icon-tile"><BookOpen className="w-5 h-5" /></div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">Class 12 practice</div>
-              <p className="text-xs text-muted-foreground mt-0.5">Fresh questions — same as Recovery</p>
-            </div>
-            <Button asChild size="sm" className="btn-cta shrink-0">
-              <Link to="/student/practice/math12">Practice</Link>
-            </Button>
-          </div>
-        </Card>
-        <Card className="p-4 surface-card">
-          <div className="flex items-center gap-3">
-            <div className="icon-tile"><Users className="w-5 h-5" /></div>
-            <div className="flex-1 min-w-0">
-              <div className="font-medium text-sm">Challenge a classmate</div>
-              <p className="text-xs text-muted-foreground mt-0.5">1v1 or class lobby</p>
-            </div>
-            <Button size="sm" variant="outline" className="shrink-0" onClick={() => nav(`${BG_BASE}/create`)}>
-              Challenge
-            </Button>
-          </div>
-        </Card>
-      </div>
-
-      <MyInvites />
-
-      {battles.length > 0 && (
-        <div>
-          <h2 className="text-sm font-semibold mb-2 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" /> Join a live battle
-          </h2>
-          <div className="space-y-2">
-            {battles.slice(0, 3).map((b) => (
-              <BattleCard key={b.id} battle={b} onJoin={() => nav(`${BG_BASE}/battle/${b.id}`)} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return <ArenaHub />;
 }
 
 // =================== CREATE / CHALLENGE (frictionless) ===================

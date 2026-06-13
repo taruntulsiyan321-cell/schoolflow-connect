@@ -1,0 +1,138 @@
+/* Battleground Arena — Wisdom Campus inspired, scoped to content area only */
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Manrope:wght@400;500;600&display=swap");
+
+.wisdom-arena {
+  --ba-primary: #003324;
+  --ba-primary-container: #074b37;
+  --ba-on-primary: #ffffff;
+  --ba-surface: #e7fff2;
+  --ba-surface-low: #defaeb;
+  --ba-surface-high: #d3efe0;
+  --ba-outline-variant: #bfc9c2;
+  --ba-on-surface: #072017;
+  --ba-on-surface-variant: #404944;
+  --ba-secondary-fixed: #ffdf97;
+  --ba-secondary-fixed-dim: #e9c261;
+  --ba-secondary-container: #fed572;
+  --ba-primary-fixed: #b2f0d4;
+  --ba-primary-fixed-dim: #97d3b8;
+  --ba-error: #ba1a1a;
+  --ba-error-container: #ffdad6;
+  --ba-shadow: 0 4px 20px -2px rgba(8, 33, 24, 0.08);
+  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  color: var(--ba-on-surface);
+}
+
+.wisdom-arena .ba-gradient {
+  background: radial-gradient(circle at top right, #b2f0d4 0%, #e7fff2 60%);
+  border-radius: 1rem;
+  padding: 0.25rem;
+}
+
+.wisdom-arena .ba-display {
+  font-family: "Sora", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.wisdom-arena .ba-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.wisdom-arena .ba-headline {
+  font-family: "Sora", ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.wisdom-arena .ba-card {
+  background: #ffffff;
+  border: 1px solid var(--ba-outline-variant);
+  border-radius: 0.75rem;
+  box-shadow: var(--ba-shadow);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.wisdom-arena .ba-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px -4px rgba(8, 33, 24, 0.12);
+}
+
+.wisdom-arena .ba-hero {
+  background: var(--ba-primary-container);
+  border-radius: 1rem;
+  color: var(--ba-on-primary);
+  box-shadow: var(--ba-shadow);
+}
+
+.wisdom-arena .ba-glass {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.wisdom-arena .ba-gold-shimmer {
+  background: linear-gradient(90deg, #ffdf97 0%, #e9c261 50%, #ffdf97 100%);
+  background-size: 200% auto;
+  animation: ba-shimmer 3s linear infinite;
+}
+
+@keyframes ba-shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+
+.wisdom-arena .ba-tab {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+
+.wisdom-arena .ba-tab[data-active="true"] {
+  background: var(--ba-primary-container);
+  color: var(--ba-on-primary);
+}
+
+.wisdom-arena .ba-tab[data-active="false"] {
+  background: var(--ba-surface-low);
+  color: var(--ba-on-surface-variant);
+}
+
+.wisdom-arena .ba-fab {
+  background: var(--ba-primary);
+  color: var(--ba-secondary-fixed);
+  box-shadow: 0 8px 24px rgba(0, 51, 36, 0.35);
+}
+
+.wisdom-arena .ba-fab:hover {
+  transform: scale(1.05);
+}
+
+.wisdom-arena .ba-leaderboard-panel {
+  background: var(--ba-primary-container);
+  color: var(--ba-on-primary);
+  border-radius: 1rem;
+  border-top: 4px solid var(--ba-secondary-fixed);
+}
+
+.wisdom-arena .ba-pulse-live {
+  animation: ba-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ba-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
