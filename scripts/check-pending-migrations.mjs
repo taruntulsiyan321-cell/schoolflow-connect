@@ -47,6 +47,12 @@ const MARKERS = [
   { id: "20260611000000", label: "Question template engine", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='question_templates' LIMIT 1" },
   { id: "20260612000000", label: "AI and audit fixes", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_ensure_battle_report' LIMIT 1" },
   { id: "20260613000000", label: "Concept mastery recovery", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='concept_mastery' LIMIT 1" },
+  { id: "20260614000000", label: "Unify practice analytics", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_student_academic_snapshot' LIMIT 1" },
+  { id: "20260615000000", label: "Battle template fallback", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_create_template_solo_battle' LIMIT 1" },
+  { id: "20260616000000", label: "Revision queue fix", sql: "SELECT proname FROM pg_proc WHERE proname = '_revision_recently_completed' LIMIT 1" },
+  { id: "20260617000000", label: "Practice recovery quality", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_assign_concept_recovery' AND pg_get_function_arguments(oid) LIKE '%_concept%' LIMIT 1" },
+  { id: "20260618000000", label: "Mistake triggers recovery", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_record_concept_mistake' AND pg_get_function_arguments(oid) LIKE '%_error_type%' LIMIT 1" },
+  { id: "20260619000000", label: "Academic intelligence system", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='student_academic_brain' LIMIT 1" },
 ];
 
 async function queryManagement(token, sql) {
@@ -109,9 +115,15 @@ async function probeViaRest() {
     "20260608000000": ["student_improvement_plans"],
     "20260611000000": ["question_templates"],
     "20260613000000": ["concept_mastery"],
+    "20260619000000": ["student_academic_brain"],
   };
 
   const rpcMap = {
+    "20260614000000": ["rpc_student_academic_snapshot", {}],
+    "20260615000000": ["rpc_create_template_solo_battle", { _subject: "Mathematics" }],
+    "20260616000000": ["rpc_student_revision_queue", {}],
+    "20260617000000": ["rpc_assign_concept_recovery", { _concept: "Determinants", _subject: "Mathematics" }],
+    "20260619000000": ["rpc_get_academic_brain", {}],
     "20260609000000": ["rpc_create_quick_battle", { _subject: "Mathematics" }],
     "20260610000000": ["rpc_create_open_battle", { _subject: "Mathematics" }],
     "20260612000000": ["rpc_ensure_battle_report", { _participant_id: "00000000-0000-0000-0000-000000000000" }],
@@ -157,6 +169,11 @@ async function probeViaRest() {
     if (m.id === "20260605000000") {
       const pe = await tableExists(url, key, "students", "portal_email");
       (pe.exists && !pe.columnMissing ? applied : pending).push({ id: m.id, label });
+      continue;
+    }
+    if (m.id === "20260618000000") {
+      const et = await tableExists(url, key, "student_mistakes", "error_type");
+      (et.exists && !et.columnMissing ? applied : pending).push({ id: m.id, label });
       continue;
     }
     if (m.id === "20260604120000") {
