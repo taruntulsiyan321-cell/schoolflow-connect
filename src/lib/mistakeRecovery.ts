@@ -126,8 +126,8 @@ export async function fetchMistakesForRecovery(opts: {
   return filtered.map(mapRow);
 }
 
-/** All unmastered mistakes for analytics (practice, DPP, battles, exams). */
-export async function fetchMistakesForAnalytics(limit = 35): Promise<MistakeRecord[]> {
+/** Unmastered mistakes for analytics (practice, DPP, battles, exams). */
+export async function fetchMistakesForAnalytics(limit = 50): Promise<MistakeRecord[]> {
   const { data: auth } = await supabase.auth.getUser();
   const user = auth.user;
   if (!user) return [];

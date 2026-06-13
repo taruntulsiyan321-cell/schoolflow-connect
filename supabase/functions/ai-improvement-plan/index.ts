@@ -1,11 +1,18 @@
-// AI improvement plan for weak topics — Google Gemini Flash (primary).
+// Improvement plans + deep mistake analytics (mode=mistake_analytics) — Google Gemini.
 import { corsHeaders, generateStructured, jsonResponse } from "./gemini.ts";
+import { handleMistakeAnalyticsRequest } from "../_shared/mistakeAnalytics.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const body = await req.json();
+
+    // Full question-level mistake analysis (same engine as ai-analytics-insights).
+    if (body?.mode === "mistake_analytics") {
+      return await handleMistakeAnalyticsRequest(body);
+    }
+
     const {
       subject = "General",
       chapter = "",
@@ -14,6 +21,7 @@ Deno.serve(async (req) => {
       attempts = 0,
       mistake_count = 0,
       display_name = "Student",
+      mistakes_detail = "",
     } = body ?? {};
 
     const label = [subject, chapter, topic].filter(Boolean).join(" · ");
@@ -21,6 +29,7 @@ Deno.serve(async (req) => {
     const system =
       "You are an expert Indian school academic coach (CBSE/NCERT). " +
       "Create a concise, actionable improvement plan for the weak topic below. " +
+      "If mistakes_detail is provided, reference the student's ACTUAL wrong answers and explain the thinking error. " +
       "Steps must be realistic for a school student (15–45 min each). " +
       "Resources should name free types (NCERT section, Khan Academy topic, school DPP) — no invented URLs.";
 
@@ -29,12 +38,15 @@ Deno.serve(async (req) => {
       `Weak topic: ${label}`,
       `Accuracy: ${accuracy}% over ${attempts} attempts`,
       `Mistake book entries: ${mistake_count}`,
+      mistakes_detail ? `\n=== Student's wrong answers ===\n${mistakes_detail.slice(0, 8000)}` : "",
       accuracy < 45
         ? "Severity: critical — rebuild fundamentals first."
         : accuracy < 60
         ? "Severity: moderate — practice and error correction."
         : "Severity: mild — consolidation and timed practice.",
-    ].join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const schema = {
       type: "object",

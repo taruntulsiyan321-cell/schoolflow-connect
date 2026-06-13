@@ -298,18 +298,80 @@ function buildRecurringErrors(gaps: TopicGapInsight[]): RecurringError[] {
 }
 
 function buildMistakesRawPayload(mistakes: MistakeRecord[]) {
-  return mistakes.slice(0, 22).map((m) => ({
+  return mistakes.slice(0, 28).map((m) => ({
     subject: m.subject,
     chapter: m.chapter ?? undefined,
     topic: m.topic ?? undefined,
     concept: m.concept ?? undefined,
-    question: m.question_text.slice(0, 400),
+    question: m.question_text.slice(0, 600),
+    options: m.options.slice(0, 6),
     student_pick: pickAnswerText(m, "student"),
     correct_pick: pickAnswerText(m, "correct"),
-    explanation: m.explanation?.slice(0, 500) ?? undefined,
+    student_index: m.student_answer?.selected_index,
+    correct_index: m.correct_answer?.correct_index,
+    explanation: m.explanation?.slice(0, 600) ?? undefined,
     times_wrong: m.times_wrong,
     last_wrong_at: m.last_wrong_at ?? undefined,
   }));
+}
+
+/** Group full question context per topic for the coach edge function. */
+export function buildTopicMistakeBundles(
+  aggregates: MistakeTopicAggregate[],
+  mistakes: MistakeRecord[],
+) {
+  return aggregates.slice(0, 12).map((agg) => {
+    const matched = mistakesForAggregate(agg, mistakes);
+    return {
+      topic: agg.topic,
+      chapter: agg.chapter ?? undefined,
+      subject: agg.subject,
+      mistake_count: agg.mistake_count,
+      questions: matched.slice(0, 6).map((m) => ({
+        question: m.question_text.slice(0, 600),
+        options: m.options.slice(0, 6),
+        student_pick: pickAnswerText(m, "student"),
+        correct_pick: pickAnswerText(m, "correct"),
+        explanation: m.explanation?.slice(0, 600) ?? undefined,
+        times_wrong: m.times_wrong,
+      })),
+    };
+  });
+}
+
+function buildCoachAnalyticsPayload(
+  snapshot: AcademicSnapshot | null,
+  mastery: ConceptMasteryItem[],
+  mistakes: MistakeRecord[],
+  aggregates: MistakeTopicAggregate[],
+  displayName?: string,
+) {
+  return {
+    display_name: displayName ?? snapshot?.student?.full_name?.split(" ")[0] ?? "Student",
+    exam_readiness: snapshot?.exam_readiness ?? {},
+    topic_summary: aggregates.slice(0, 15).map((a) => ({
+      topic: a.topic,
+      chapter: a.chapter ?? undefined,
+      subject: a.subject,
+      concept: a.concept ?? undefined,
+      mistake_count: a.mistake_count,
+      total_wrong: a.total_wrong,
+      sample_question: a.sample_question,
+      sample_wrong: a.sample_wrong,
+      sample_correct: a.sample_correct,
+      last_seen: a.last_seen ?? undefined,
+    })),
+    concept_mastery: mastery.slice(0, 15).map((m) => ({
+      concept: m.concept,
+      subject: m.subject,
+      chapter: m.chapter,
+      mastery_score: m.mastery_score,
+      mistake_count: m.mistake_count,
+    })),
+    mistakes_raw: buildMistakesRawPayload(mistakes),
+    mistakes_detail: formatMistakesForPrompt(mistakes.slice(0, 28)),
+    topic_mistakes: buildTopicMistakeBundles(aggregates, mistakes),
+  };
 }
 
 function findAggregateForTopic(
@@ -630,14 +692,13 @@ async function fetchGeminiAnalyticsViaImprovementPlan(
 }
 
 function hasGeminiInsightPayload(data: Record<string, unknown>): boolean {
+  if (data.error) return false;
   if (data.source === "gemini") return true;
-  const topics = data.weak_topics as unknown[] | undefined;
-  return Boolean(
-    data.diagnosis ||
-      data.today_focus ||
-      data.headline ||
-      (topics?.length ?? 0) > 0,
-  );
+  const topics = data.weak_topics as { evidence?: string; why_weak?: string }[] | undefined;
+  if ((topics?.length ?? 0) > 0) {
+    return topics!.some((t) => Boolean(t.evidence?.trim() || t.why_weak?.trim()));
+  }
+  return Boolean(data.diagnosis && data.today_focus && data.headline);
 }
 
 export function buildRuleAnalyticsInsights(
@@ -839,7 +900,7 @@ function normalizeGeminiInsights(
 }
 
 export async function fetchMistakeAnalyticsBase(snapshot: AcademicSnapshot | null, mastery: ConceptMasteryItem[]) {
-  const mistakes = await fetchMistakesForAnalytics(35);
+  const mistakes = await fetchMistakesForAnalytics(50);
   const aggregates = aggregateMistakesByTopic(mistakes);
   const insights = buildRuleAnalyticsInsights(aggregates, mastery, snapshot);
   return { mistakes, aggregates, insights, mistakeCount: mistakes.length };
@@ -855,48 +916,29 @@ export async function enhanceAnalyticsWithGemini(
 ): Promise<AnalyticsInsights> {
   if (mistakes.length === 0) return ruleFallback;
 
-  const payload = {
-    display_name: displayName ?? snapshot?.student?.full_name?.split(" ")[0] ?? "Student",
-    exam_readiness: snapshot?.exam_readiness ?? {},
-    topic_summary: aggregates.slice(0, 15).map((a) => ({
-      topic: a.topic,
-      chapter: a.chapter ?? undefined,
-      subject: a.subject,
-      concept: a.concept ?? undefined,
-      mistake_count: a.mistake_count,
-      total_wrong: a.total_wrong,
-      sample_question: a.sample_question,
-      sample_wrong: a.sample_wrong,
-      sample_correct: a.sample_correct,
-      last_seen: a.last_seen ?? undefined,
-    })),
-    concept_mastery: mastery.slice(0, 15).map((m) => ({
-      concept: m.concept,
-      subject: m.subject,
-      chapter: m.chapter,
-      mastery_score: m.mastery_score,
-      mistake_count: m.mistake_count,
-    })),
-    mistakes_raw: buildMistakesRawPayload(mistakes),
-    mistakes_detail: formatMistakesForPrompt(mistakes.slice(0, 22)),
-  };
-
+  const payload = buildCoachAnalyticsPayload(snapshot, mastery, mistakes, aggregates, displayName);
   const name = displayName ?? snapshot?.student?.full_name?.split(" ")[0] ?? "Student";
 
-  const { data, error } = await invokeEdgeFunction<Record<string, unknown>>(
-    "ai-analytics-insights",
-    payload,
-  );
+  const analyticsFns = ["ai-analytics-insights", "ai-improvement-plan"] as const;
 
-  if (data && !error && hasGeminiInsightPayload(data)) {
-    return normalizeGeminiInsights(data, ruleFallback, aggregates);
+  for (const fn of analyticsFns) {
+    const body =
+      fn === "ai-improvement-plan"
+        ? { ...payload, mode: "mistake_analytics" as const }
+        : payload;
+
+    const { data, error } = await invokeEdgeFunction<Record<string, unknown>>(fn, body);
+
+    if (data && !error && hasGeminiInsightPayload(data)) {
+      return normalizeGeminiInsights(data, ruleFallback, aggregates);
+    }
+
+    if (error) {
+      console.warn(`${fn} coach unavailable:`, error);
+    }
   }
 
-  if (error) {
-    console.warn("ai-analytics-insights unavailable:", error);
-  }
-
-  const viaPlan = await fetchGeminiAnalyticsViaImprovementPlan(
+  return fetchGeminiAnalyticsViaImprovementPlan(
     snapshot,
     mastery,
     mistakes,
@@ -904,5 +946,4 @@ export async function enhanceAnalyticsWithGemini(
     ruleFallback,
     name,
   );
-  return viaPlan;
 }
