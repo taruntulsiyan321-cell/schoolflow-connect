@@ -55,9 +55,9 @@ export function PerformanceSection({
 
   return (
     <div className="space-y-6">
-      <header>
-        <h2 className="wa-display text-2xl">Performance trends</h2>
-        <p className="wa-body mt-1">Momentum, class context, and study consistency.</p>
+      <header className="text-center md:text-left">
+        <h2 className="wa-display text-2xl md:text-3xl">Performance Trends</h2>
+        <p className="wa-body mt-1">Tracking your momentum across the learning arena.</p>
       </header>
 
       <section className="wa-card">

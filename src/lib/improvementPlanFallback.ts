@@ -3,7 +3,7 @@ export type ImprovementPlanPayload = {
   steps: string[];
   resources: string[];
   timeframe: string;
-  source?: "ai" | "rule";
+  source?: "gemini" | "ai" | "rule";
 };
 
 export function buildRuleImprovementPlan(opts: {

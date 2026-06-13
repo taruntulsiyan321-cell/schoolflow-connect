@@ -12,6 +12,7 @@ type Props = {
   coachInsights: string[];
   recoveryCount: number;
   priorityTarget: string | null;
+  coachLive?: boolean;
 };
 
 export function MistakeSection({
@@ -20,6 +21,7 @@ export function MistakeSection({
   coachInsights,
   recoveryCount,
   priorityTarget,
+  coachLive,
 }: Props) {
   const buckets = classifyMistakes(aggregates);
   const totalErrors = aggregates.reduce((s, a) => s + a.mistake_count, 0);
@@ -29,9 +31,9 @@ export function MistakeSection({
 
   return (
     <div className="space-y-6">
-      <header>
-        <h2 className="wa-display text-2xl">Mistake intelligence</h2>
-        <p className="wa-body mt-1">Patterns from your wrong answers — not just a score.</p>
+      <header className="text-center md:text-left">
+        <h2 className="wa-display text-2xl md:text-3xl">Mistake Intelligence</h2>
+        <p className="wa-body mt-1">Decoding your learning patterns</p>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -130,7 +132,9 @@ export function MistakeSection({
                   <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${i % 2 === 0 ? "text-[var(--wa-primary)]" : "text-[var(--wa-error)]"}`} />
                   <div>
                     <p className="text-sm font-medium text-[var(--wa-on-surface)]">{line}</p>
-                    <span className="wa-label mt-1 block">Pattern from your attempts</span>
+                    <span className="wa-label mt-1 block">
+                      {coachLive ? "Coach insight · from your attempts" : "Pattern from your mistake log"}
+                    </span>
                   </div>
                 </div>
               ))

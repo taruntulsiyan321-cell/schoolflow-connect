@@ -1,5 +1,5 @@
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
-import type { ImprovementPlanPayload } from "@/lib/improvementPlanFallback";
+import { buildRuleImprovementPlan, type ImprovementPlanPayload } from "@/lib/improvementPlanFallback";
 import {
   fetchMistakesForAnalytics,
   formatMistakesForPrompt,
@@ -508,7 +508,62 @@ function buildInsightsFromGeminiPlans(
   };
 }
 
-/** Live Gemini via deployed ai-improvement-plan (analytics edge fn often not deployed). */
+/** Live coach response from edge (Gemini), not client rule template. */
+function isLiveCoachPlan(plan: ImprovementPlanPayload | null | undefined): boolean {
+  if (!plan?.headline || !plan.steps?.length) return false;
+  const src = (plan.source ?? "").toLowerCase();
+  return src === "gemini" || src === "ai" || src === "google";
+}
+
+async function fetchTopicCoachPlan(
+  agg: MistakeTopicAggregate,
+  mistakes: MistakeRecord[],
+  mastery: ConceptMasteryItem[],
+  snapshot: AcademicSnapshot | null,
+  displayName: string,
+): Promise<{ plan: ImprovementPlanPayload; live: boolean }> {
+  const topicMistakes = mistakesForAggregate(agg, mistakes);
+  const m = masteryForAggregate(agg, mastery);
+  const accuracy = m?.mastery_score ?? snapshot?.exam_readiness?.accuracy_pct ?? 45;
+  const attempts = m?.total_attempts ?? Math.max(3, agg.mistake_count);
+
+  const { data, error } = await invokeEdgeFunction<ImprovementPlanPayload>("ai-improvement-plan", {
+    subject: agg.subject,
+    chapter: agg.chapter ?? "",
+    topic: buildTopicPromptForPlan(agg, topicMistakes),
+    accuracy,
+    attempts,
+    mistake_count: agg.mistake_count,
+    display_name: displayName,
+  });
+
+  if (data?.headline && data?.steps?.length && !error) {
+    return { plan: data, live: isLiveCoachPlan(data) };
+  }
+
+  return {
+    plan: buildRuleImprovementPlan({
+      subject: agg.subject,
+      chapter: agg.chapter,
+      topic: agg.topic,
+      accuracy,
+      attempts,
+      mistake_count: agg.mistake_count,
+    }),
+    live: false,
+  };
+}
+
+async function runBatched<T>(items: (() => Promise<T>)[], batchSize = 2): Promise<T[]> {
+  const out: T[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize).map((fn) => fn());
+    out.push(...(await Promise.all(batch)));
+  }
+  return out;
+}
+
+/** Live coach via deployed ai-improvement-plan (analytics edge fn often not deployed). */
 async function fetchGeminiAnalyticsViaImprovementPlan(
   snapshot: AcademicSnapshot | null,
   mastery: ConceptMasteryItem[],
@@ -516,63 +571,62 @@ async function fetchGeminiAnalyticsViaImprovementPlan(
   aggregates: MistakeTopicAggregate[],
   ruleFallback: AnalyticsInsights,
   displayName: string,
-): Promise<AnalyticsInsights | null> {
-  const topAggregates = aggregates.slice(0, 6);
-  if (topAggregates.length === 0) return null;
+): Promise<AnalyticsInsights> {
+  const topAggregates = aggregates.slice(0, 5);
+  if (topAggregates.length === 0) return ruleFallback;
 
-  const overallTopic = [
-    "Analyse ALL recent mistakes below — find cross-topic patterns and today's #1 priority.",
-    formatMistakesForPrompt(mistakes.slice(0, 12)),
-  ].join("\n\n");
+  const mistakePrompt = formatMistakesForPrompt(mistakes.slice(0, 14));
+  const overallRes = await invokeEdgeFunction<ImprovementPlanPayload>("ai-improvement-plan", {
+    subject: topAggregates[0].subject,
+    chapter: "Cross-topic analysis",
+    topic: [
+      "Analyse these wrong answers. Find cross-topic patterns and today's #1 priority.",
+      mistakePrompt.slice(0, 6000),
+    ].join("\n\n"),
+    accuracy: snapshot?.exam_readiness?.accuracy_pct ?? 45,
+    attempts: Math.max(5, mistakes.length),
+    mistake_count: mistakes.length,
+    display_name: displayName,
+  });
 
-  const calls = [
-    invokeEdgeFunction<ImprovementPlanPayload>("ai-improvement-plan", {
-      subject: topAggregates[0].subject,
-      chapter: "Cross-topic analysis",
-      topic: overallTopic,
-      accuracy: snapshot?.exam_readiness?.accuracy_pct ?? 45,
-      attempts: Math.max(5, mistakes.length),
-      mistake_count: mistakes.length,
-      display_name: displayName,
-    }),
-    ...topAggregates.map((agg) => {
-      const topicMistakes = mistakesForAggregate(agg, mistakes);
-      const m = masteryForAggregate(agg, mastery);
-      return invokeEdgeFunction<ImprovementPlanPayload>("ai-improvement-plan", {
-        subject: agg.subject,
-        chapter: agg.chapter ?? "",
-        topic: buildTopicPromptForPlan(agg, topicMistakes),
-        accuracy: m?.mastery_score ?? snapshot?.exam_readiness?.accuracy_pct ?? 45,
-        attempts: m?.total_attempts ?? Math.max(3, agg.mistake_count),
-        mistake_count: agg.mistake_count,
-        display_name: displayName,
-      });
-    }),
-  ];
+  let anyLive = isLiveCoachPlan(overallRes.data);
+  const overallHeadline = overallRes.data?.headline;
 
-  const results = await Promise.all(calls);
-  const overall = results[0]?.data;
+  const topicResults = await runBatched(
+    topAggregates.map(
+      (agg) => () => fetchTopicCoachPlan(agg, mistakes, mastery, snapshot, displayName),
+    ),
+    2,
+  );
+
   const topicGaps: TopicGapInsight[] = [];
-
   for (let i = 0; i < topAggregates.length; i++) {
-    const plan = results[i + 1]?.data;
-    if (plan?.headline && plan.steps?.length) {
-      topicGaps.push(planResponseToTopicGap(topAggregates[i], plan));
-    } else {
-      topicGaps.push(...aggregatesToTopicGaps([topAggregates[i]]));
-    }
+    const { plan, live } = topicResults[i];
+    if (live) anyLive = true;
+    topicGaps.push(planResponseToTopicGap(topAggregates[i], plan));
   }
 
-  if (topicGaps.length === 0) return null;
-
-  return buildInsightsFromGeminiPlans(
+  const built = buildInsightsFromGeminiPlans(
     topicGaps,
     aggregates,
     mastery,
     snapshot,
     ruleFallback,
-    overall?.headline,
+    overallHeadline,
   );
+
+  if (overallRes.data?.steps?.length) {
+    built.diagnosis = overallRes.data.headline;
+    built.today_focus = overallRes.data.steps[0] ?? built.today_focus;
+    if (overallRes.data.steps.length > 1) {
+      built.next_steps = [
+        ...overallRes.data.steps.slice(0, 3),
+        ...built.next_steps.slice(0, 2),
+      ].slice(0, 5);
+    }
+  }
+
+  return { ...built, source: anyLive ? "gemini" : "rule" };
 }
 
 function hasGeminiInsightPayload(data: Record<string, unknown>): boolean {
@@ -850,7 +904,5 @@ export async function enhanceAnalyticsWithGemini(
     ruleFallback,
     name,
   );
-  if (viaPlan) return viaPlan;
-
-  return ruleFallback;
+  return viaPlan;
 }

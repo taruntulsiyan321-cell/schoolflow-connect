@@ -19,6 +19,7 @@ type Props = {
   level: number;
   improvement: number | null;
   enhancing?: boolean;
+  coachLive?: boolean;
 };
 
 export function MasterySection({
@@ -30,6 +31,7 @@ export function MasterySection({
   level,
   improvement,
   enhancing,
+  coachLive,
 }: Props) {
   const cells = mastery.slice(0, 12);
   const subject = cells[0]?.subject ?? "Mathematics";
@@ -39,8 +41,8 @@ export function MasterySection({
   return (
     <div className="space-y-6">
       <header>
-        <h2 className="wa-display text-2xl">Academic mastery</h2>
-        <p className="wa-body mt-1">Topic-level map of where you stand in NCERT skills.</p>
+        <h2 className="wa-display text-2xl md:text-3xl">Academic Mastery</h2>
+        <p className="wa-body mt-1">Your journey toward subject excellence.</p>
       </header>
 
       <section className="wa-card">
@@ -110,9 +112,19 @@ export function MasterySection({
         </section>
 
         <section className="wa-card relative overflow-hidden border-2 border-[var(--wa-surface-tint)]/30 bg-gradient-to-br from-[var(--wa-surface-low)] to-white">
+          <div className="absolute -right-8 -bottom-8 opacity-[0.06] pointer-events-none text-[var(--wa-primary)]">
+            <GitBranch className="w-32 h-32" />
+          </div>
           <div className="relative z-10">
-            <p className="wa-label text-[var(--wa-primary)] tracking-widest mb-1">Study coach</p>
-            <h3 className="wa-headline mb-2">{enhancing ? "Analysing…" : focusTitle}</h3>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <p className="wa-label text-[var(--wa-primary)] tracking-widest">Study coach insight</p>
+              {coachLive && !enhancing && (
+                <span className="wa-label text-[var(--wa-surface-tint)] flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--wa-primary)]" /> Live
+                </span>
+              )}
+            </div>
+            <h3 className="wa-headline mb-2">{enhancing ? "Reading your mistakes…" : focusTitle}</h3>
             <p className="wa-body mb-5">{focusBody}</p>
             <ButtonLink />
           </div>

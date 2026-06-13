@@ -16,36 +16,31 @@ export function useAnalyticsInsights(snapshot: AcademicSnapshot | null, enabled 
   const [loading, setLoading] = useState(true);
   const [enhancing, setEnhancing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const enhanceKeyRef = useRef<string>("");
+  const requestIdRef = useRef(0);
   const masteryRef = useRef(mastery);
   masteryRef.current = mastery;
 
   const reload = useCallback(async () => {
     if (!enabled) return;
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
-    enhanceKeyRef.current = "";
 
     try {
       const currentMastery = masteryRef.current;
       const base = await fetchMistakeAnalyticsBase(snapshot, currentMastery);
+      if (requestId !== requestIdRef.current) return;
+
       setAggregates(base.aggregates);
       setMistakeCount(base.mistakeCount);
 
       if (base.mistakeCount === 0) {
         setInsights(base.insights);
         setLoading(false);
+        setEnhancing(false);
         return;
       }
 
-      const enhanceKey = `${base.mistakeCount}:${snapshot?.mistake_count ?? 0}:${currentMastery.length}`;
-      if (enhanceKeyRef.current === enhanceKey) {
-        setLoading(false);
-        return;
-      }
-      enhanceKeyRef.current = enhanceKey;
-
-      // Show rule-based insights immediately; upgrade when coach analysis returns.
       setInsights(base.insights);
       setEnhancing(true);
       setLoading(false);
@@ -58,20 +53,27 @@ export function useAnalyticsInsights(snapshot: AcademicSnapshot | null, enabled 
         base.insights,
         snapshot?.student?.full_name?.split(" ")[0],
       );
+      if (requestId !== requestIdRef.current) return;
+
       setInsights(enhanced);
     } catch (e) {
+      if (requestId !== requestIdRef.current) return;
       setError(e instanceof Error ? e.message : "Could not load insights");
       setLoading(false);
-      setEnhancing(false);
     } finally {
-      setEnhancing(false);
+      if (requestId === requestIdRef.current) {
+        setEnhancing(false);
+        setLoading(false);
+      }
     }
-  }, [enabled, snapshot?.mistake_count, snapshot?.student?.full_name]);
+  }, [enabled, snapshot?.mistake_count, snapshot?.student?.full_name, snapshot?.exam_readiness?.score]);
 
   useEffect(() => {
     if (!enabled || masteryLoading) return;
     reload();
   }, [enabled, masteryLoading, snapshot?.mistake_count, reload]);
+
+  const coachLive = insights?.source === "gemini";
 
   return {
     insights,
@@ -79,6 +81,7 @@ export function useAnalyticsInsights(snapshot: AcademicSnapshot | null, enabled 
     mistakeCount,
     loading: loading || (enabled && masteryLoading && !insights),
     enhancing,
+    coachLive,
     error,
     reload,
   };
