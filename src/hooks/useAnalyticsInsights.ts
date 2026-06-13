@@ -45,17 +45,20 @@ export function useAnalyticsInsights(snapshot: AcademicSnapshot | null, enabled 
       setEnhancing(true);
       setLoading(false);
 
-      const enhanced = await enhanceAnalyticsWithGemini(
-        snapshot,
-        currentMastery,
-        base.mistakes,
-        base.aggregates,
-        base.insights,
-        snapshot?.student?.full_name?.split(" ")[0],
-      );
-      if (requestId !== requestIdRef.current) return;
-
-      setInsights(enhanced);
+      try {
+        const enhanced = await enhanceAnalyticsWithGemini(
+          snapshot,
+          currentMastery,
+          base.mistakes,
+          base.aggregates,
+          base.insights,
+          snapshot?.student?.full_name?.split(" ")[0],
+        );
+        if (requestId !== requestIdRef.current) return;
+        setInsights(enhanced);
+      } catch (e) {
+        console.warn("Coach enhancement failed:", e);
+      }
     } catch (e) {
       if (requestId !== requestIdRef.current) return;
       setError(e instanceof Error ? e.message : "Could not load insights");

@@ -916,34 +916,43 @@ export async function enhanceAnalyticsWithGemini(
 ): Promise<AnalyticsInsights> {
   if (mistakes.length === 0) return ruleFallback;
 
-  const payload = buildCoachAnalyticsPayload(snapshot, mastery, mistakes, aggregates, displayName);
-  const name = displayName ?? snapshot?.student?.full_name?.split(" ")[0] ?? "Student";
+  try {
+    const payload = buildCoachAnalyticsPayload(snapshot, mastery, mistakes, aggregates, displayName);
+    const name = displayName ?? snapshot?.student?.full_name?.split(" ")[0] ?? "Student";
 
-  const analyticsFns = ["ai-analytics-insights", "ai-improvement-plan"] as const;
+    const analyticsFns = ["ai-analytics-insights", "ai-improvement-plan"] as const;
 
-  for (const fn of analyticsFns) {
-    const body =
-      fn === "ai-improvement-plan"
-        ? { ...payload, mode: "mistake_analytics" as const }
-        : payload;
+    for (const fn of analyticsFns) {
+      const body =
+        fn === "ai-improvement-plan"
+          ? { ...payload, mode: "mistake_analytics" as const }
+          : payload;
 
-    const { data, error } = await invokeEdgeFunction<Record<string, unknown>>(fn, body);
+      try {
+        const { data, error } = await invokeEdgeFunction<Record<string, unknown>>(fn, body);
 
-    if (data && !error && hasGeminiInsightPayload(data)) {
-      return normalizeGeminiInsights(data, ruleFallback, aggregates);
+        if (data && !error && hasGeminiInsightPayload(data)) {
+          return normalizeGeminiInsights(data, ruleFallback, aggregates);
+        }
+
+        if (error) {
+          console.warn(`${fn} coach unavailable:`, error);
+        }
+      } catch (e) {
+        console.warn(`${fn} coach unavailable:`, e);
+      }
     }
 
-    if (error) {
-      console.warn(`${fn} coach unavailable:`, error);
-    }
+    return await fetchGeminiAnalyticsViaImprovementPlan(
+      snapshot,
+      mastery,
+      mistakes,
+      aggregates,
+      ruleFallback,
+      name,
+    );
+  } catch (e) {
+    console.warn("Coach enhancement failed:", e);
+    return ruleFallback;
   }
-
-  return fetchGeminiAnalyticsViaImprovementPlan(
-    snapshot,
-    mastery,
-    mistakes,
-    aggregates,
-    ruleFallback,
-    name,
-  );
 }

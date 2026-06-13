@@ -23,7 +23,14 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
   name: string,
   body: Record<string, unknown>,
 ): Promise<EdgeInvokeResult<T>> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
+  let data: unknown;
+  let error: unknown;
+  try {
+    ({ data, error } = await supabase.functions.invoke(name, { body }));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Edge function failed";
+    return { data: null, error: sanitizeUserFacingError(message), usedFallback: false };
+  }
 
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     return { data: null, error: sanitizeUserFacingError(String((data as { error: string }).error)), usedFallback: false };
