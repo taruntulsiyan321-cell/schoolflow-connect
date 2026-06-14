@@ -30,13 +30,13 @@ export function AnalysisClassStanding({
           <FlowSectionTitle>Class standing</FlowSectionTitle>
         )}
         <Link
-          to="/student/leaderboard"
+          to="/student/classes#leaderboard"
           className={cn(
             "text-xs font-medium hover:underline",
             isWisdom ? "text-[var(--wa-primary)]" : "text-primary",
           )}
         >
-          Full leaderboard
+          Class rankings
         </Link>
       </div>
       {rank != null && (

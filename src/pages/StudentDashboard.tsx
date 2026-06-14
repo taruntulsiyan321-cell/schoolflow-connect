@@ -53,7 +53,6 @@ const nav = [
   { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/student/library", label: "Library", icon: <Library className="w-4 h-4" /> },
   { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
-  { to: "/student/leaderboard", label: "Leaderboard", icon: <Trophy className="w-4 h-4" /> },
   { to: "/student/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
@@ -118,7 +117,7 @@ const Home = () => {
         <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${pct}%`} tone={pct >= 75 ? "accent" : "warning"} />
         <StatCard icon={<Wallet className="w-5 h-5" />} label="Pending Fees" value={pendingFees ? `₹${pendingFees}` : "₹0"} tone={pendingFees > 0 ? "warning" : "accent"} />
         <Link to="/student/battleground/progress"><StatCard icon={<Sword className="w-5 h-5" />} label="Level / XP" value={xp ? `L${xp.level} · ${xp.xp}` : "L1 · 0"} /></Link>
-        <Link to="/student/leaderboard"><StatCard icon={<Trophy className="w-5 h-5" />} label="Class Rank" value={rank ? `#${rank}` : "—"} tone="accent" /></Link>
+        <Link to="/student/classes#leaderboard"><StatCard icon={<Trophy className="w-5 h-5" />} label="Class Rank" value={rank ? `#${rank}` : "—"} tone="accent" /></Link>
       </div>
       <h3 className="font-semibold mb-3">Latest notices</h3>
       <div className="space-y-2">

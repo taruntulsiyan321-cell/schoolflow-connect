@@ -4,9 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
-import { BookOpen, GraduationCap, Users, User } from "lucide-react";
+import { BookOpen, GraduationCap, Users, User, Trophy } from "lucide-react";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
-import { Link } from "react-router-dom";
+import { LeaderboardPanel } from "@/components/student/LeaderboardPanel";
+import { cn } from "@/lib/utils";
 
 interface SubjectTeacher {
   subject: string | null;
@@ -22,6 +23,16 @@ export default function StudentClassesPage() {
   const [classmates, setClassmates] = useState(0);
   const [classmateRows, setClassmateRows] = useState<{ id: string; full_name: string; roll_number: string | null; user_id: string | null; equipped_badge: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeSection, setActiveSection] = useState<"overview" | "leaderboard">("overview");
+
+  useEffect(() => {
+    if (window.location.hash === "#leaderboard") {
+      setActiveSection("leaderboard");
+      requestAnimationFrame(() => {
+        document.getElementById("leaderboard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -106,10 +117,41 @@ export default function StudentClassesPage() {
     <>
       <PageHeader
         title={`Class ${student.classes.name}-${student.classes.section}`}
-        subtitle="Your class information and subjects"
+        subtitle="Class info, classmates, and rankings"
       />
 
-      {/* Quick stats */}
+      <nav className="flex gap-2 mb-6 p-1 rounded-full bg-muted/50 border border-border/60 w-fit">
+        {([
+          { id: "overview" as const, label: "Overview" },
+          { id: "leaderboard" as const, label: "Rankings", icon: Trophy },
+        ]).map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => {
+              setActiveSection(tab.id);
+              if (tab.id === "leaderboard") {
+                window.history.replaceState(null, "", "#leaderboard");
+                document.getElementById("leaderboard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              } else {
+                window.history.replaceState(null, "", window.location.pathname);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all",
+              activeSection === tab.id
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {tab.icon && <tab.icon className="w-3.5 h-3.5" />}
+            {tab.label}
+          </button>
+        ))}
+      </nav>
+
+      <div id="overview" className="scroll-mt-20">
       <div className="grid grid-cols-2 gap-4 mb-4">
         <StatCard
           icon={<Users className="w-5 h-5" />}
@@ -173,12 +215,7 @@ export default function StudentClassesPage() {
 
       {classmateRows.length > 0 && (
         <>
-          <div className="flex items-center justify-between mb-3 mt-6">
-            <h3 className="font-semibold">Classmates</h3>
-            <Link to="/student/leaderboard" className="text-xs text-primary font-medium hover:underline">
-              View leaderboard
-            </Link>
-          </div>
+          <h3 className="font-semibold mb-3 mt-6">Classmates</h3>
           <div className="space-y-2 mb-4">
             {classmateRows.map((m) => (
               <Card key={m.id} className="p-3 flex items-center gap-3 shadow-card">
@@ -212,6 +249,18 @@ export default function StudentClassesPage() {
           </Badge>
         </div>
       </Card>
+      </div>
+
+      <section id="leaderboard" className="scroll-mt-20 mt-10 pt-8 border-t border-border/60">
+        <div className="flex items-center gap-2 mb-4">
+          <Trophy className="w-5 h-5 text-primary" />
+          <h3 className="font-semibold text-lg">Class & school rankings</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          XP, wins, streaks, and academic standings — compete with classmates and the whole school.
+        </p>
+        <LeaderboardPanel embedded />
+      </section>
     </>
   );
 }

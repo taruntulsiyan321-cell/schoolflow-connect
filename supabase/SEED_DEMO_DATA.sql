@@ -289,8 +289,8 @@ BEGIN
     ('d7000001-0003-4000-8000-000000000003', 'Physics Refresher', 'H.C. Verma', '978-8177091878', 'Reference', 2, 2, 'B-02')
   ON CONFLICT (id) DO UPDATE SET available_copies = EXCLUDED.available_copies;
 
-  INSERT INTO public.library_checkouts (id, book_id, student_id, due_date, status, issued_by) VALUES
-    (lib_co1, lib_book1, st1, _today + 10, 'borrowed', u_t_math)
+  INSERT INTO public.library_checkouts (id, library_books_id, student_id, due_date, status) VALUES
+    (lib_co1, lib_book1, st1, _today + 10, 'borrowed')
   ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status;
 
   -- ===================== MESSAGES (chat) =====================

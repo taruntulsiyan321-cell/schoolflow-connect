@@ -13,7 +13,6 @@ import {
   DEMO_AGGREGATES,
   DEMO_COACH_INSIGHTS,
   DEMO_INSIGHTS,
-  DEMO_LEADERBOARD,
   DEMO_MASTERY,
   DEMO_MOMENTUM,
   DEMO_SESSIONS,
@@ -28,7 +27,6 @@ import {
   TopicDeepCards,
   WeeklyStudyPlan,
 } from "@/components/student/analytics/AnalysisDeepSections";
-import { AnalysisClassStanding } from "@/components/student/analytics/AnalysisWidgets";
 import { MasterySection } from "@/components/student/analytics/wisdom/MasterySection";
 import { MistakeSection } from "@/components/student/analytics/wisdom/MistakeSection";
 import { PerformanceSection } from "@/components/student/analytics/wisdom/PerformanceSection";
@@ -42,11 +40,10 @@ type Props = {
 };
 
 const ANCHORS = [
-  { id: "mastery", label: "Mastery" },
+  { id: "mastery", label: "Concept mastery" },
   { id: "mistakes", label: "Mistakes" },
   { id: "coach", label: "Coach" },
   { id: "trends", label: "Trends" },
-  { id: "standing", label: "Standing" },
 ] as const;
 
 export function AnalyticsStudio({ data, charts }: Props) {
@@ -135,11 +132,6 @@ export function AnalyticsStudio({ data, charts }: Props) {
     pageData?.recent_sessions ?? [],
     DEMO_SESSIONS,
     2,
-  );
-  const topPeers = withPresentationFallback(
-    pageData?.leaderboard_top ?? [],
-    DEMO_LEADERBOARD,
-    3,
   );
 
   const firstName = data.student?.full_name?.split(" ")[0] ?? "Scholar";
@@ -269,22 +261,15 @@ export function AnalyticsStudio({ data, charts }: Props) {
         )}
       </div>
 
-      <div id="standing" className="scroll-mt-24">
-        <AnalysisClassStanding
-          rank={rank}
-          classSize={classSize}
-          topPeers={topPeers}
-          currentUserId={user?.id}
-          variant="wisdom"
-        />
-      </div>
-
       <div className="wa-cta-bar">
         <Button variant="outline" size="sm" className="rounded-lg border-[var(--wa-outline-variant)] bg-white" asChild>
           <Link to="/student/practice/math12">Start practice</Link>
         </Button>
         <Button size="sm" className="rounded-lg bg-[var(--wa-primary)] hover:bg-[var(--wa-primary-container)]" asChild>
           <Link to="/student/recovery">Recovery zone</Link>
+        </Button>
+        <Button variant="outline" size="sm" className="rounded-lg border-[var(--wa-outline-variant)] bg-white" asChild>
+          <Link to="/student/classes#leaderboard">Class rankings</Link>
         </Button>
         <Button variant="outline" size="sm" className="rounded-lg border-[var(--wa-outline-variant)] bg-white" asChild>
           <Link to="/student/revision">Revision center</Link>

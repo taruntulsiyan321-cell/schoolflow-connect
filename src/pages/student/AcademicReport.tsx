@@ -91,7 +91,15 @@ export default function AcademicReport() {
               </div>
             </Card>
 
-            <ConceptMastery />
+            <Card className="p-5 shadow-card">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h2 className="font-semibold text-lg">Concept mastery</h2>
+                <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
+                  <Link to="/student/analytics#mastery">View full skill tree</Link>
+                </Button>
+              </div>
+              <ConceptMastery />
+            </Card>
 
             {conceptInsights && (
               <Card className="p-5 shadow-card">

@@ -41,8 +41,8 @@ export function MasterySection({
   return (
     <div className="space-y-6">
       <header>
-        <h2 className="wa-display text-2xl md:text-3xl">Academic Mastery</h2>
-        <p className="wa-body mt-1">Your journey toward subject excellence.</p>
+        <h2 className="wa-display text-2xl md:text-3xl">Concept mastery</h2>
+        <p className="wa-body mt-1">Your academic skill tree — strengths, gaps, and learning journey.</p>
       </header>
 
       <section className="wa-card">
@@ -79,6 +79,63 @@ export function MasterySection({
           <p className="wa-body">Complete practice — each chapter fills in here.</p>
         )}
       </section>
+
+      {mastery.length > 0 && (
+        <section className="wa-card">
+          <h3 className="wa-headline flex items-center gap-2 mb-4">
+            <GitBranch className="w-4 h-4 text-[var(--wa-secondary-fixed-dim)]" />
+            Skill tree · all concepts
+          </h3>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {mastery.map((c) => {
+              const levelKey = masteryLevel(c);
+              const border =
+                levelKey === "mastered"
+                  ? "border-[var(--wa-primary)]"
+                  : levelKey === "weak"
+                    ? "border-red-300"
+                    : "border-[var(--wa-outline-variant)]";
+              return (
+                <div
+                  key={`${c.subject}-${c.concept}-${c.chapter}`}
+                  className={`rounded-xl border-2 ${border} bg-white/80 p-3`}
+                >
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--wa-on-surface)] truncate">{c.concept}</p>
+                      <p className="wa-label text-[10px] truncate">
+                        {c.subject}{c.chapter ? ` · ${c.chapter}` : ""}
+                      </p>
+                    </div>
+                    <span className="text-lg font-bold tabular-nums text-[var(--wa-primary)] shrink-0">
+                      {Math.round(c.mastery_score)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-[var(--wa-surface-variant)] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-[var(--wa-primary)]"
+                      style={{ width: `${Math.min(100, c.mastery_score)}%` }}
+                    />
+                  </div>
+                  {c.mistake_count > 0 && (
+                    <p className="text-[10px] text-[var(--wa-on-surface-variant)] mt-1.5">
+                      {c.mistake_count} mistake{c.mistake_count !== 1 ? "s" : ""} logged
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap gap-2 mt-4">
+            <span className="wa-label px-2 py-1 rounded-full bg-[var(--wa-primary-fixed)]/30">
+              {mastery.filter((m) => masteryLevel(m) === "mastered").length} strong
+            </span>
+            <span className="wa-label px-2 py-1 rounded-full bg-red-50 text-red-700">
+              {mastery.filter((m) => masteryLevel(m) === "weak").length} needs work
+            </span>
+          </div>
+        </section>
+      )}
 
       <div className="grid md:grid-cols-2 gap-6">
         <section className="wa-card flex flex-col">
