@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
+import "./student-panel-premium.css";
 
 /** Shared student UX — premium card flow (Analysis page design language). */
 
@@ -14,7 +15,7 @@ export function FlowPage({
   className?: string;
 }) {
   return (
-    <div className={cn("flow-page max-w-3xl mx-auto space-y-8 pb-6", className)}>{children}</div>
+    <div className={cn("flow-page student-premium max-w-3xl mx-auto space-y-8 pb-6", className)}>{children}</div>
   );
 }
 
@@ -51,14 +52,16 @@ export function FlowHero({
   footer?: ReactNode;
 }) {
   return (
-    <section className="rounded-3xl overflow-hidden shadow-elevated bg-gradient-to-br from-primary via-primary to-primary/90 text-primary-foreground p-6 sm:p-8">
+    <section className="sp-hero rounded-3xl overflow-hidden shadow-elevated bg-gradient-to-br from-[#074b37] via-[#003324] to-[#003324]/95 text-primary-foreground p-6 sm:p-8 relative">
+      <div className="absolute top-0 right-0 w-48 h-48 bg-[#b2f0d4]/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative z-10">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground/70">
         {eyebrow}
       </p>
-      <h1 className="text-2xl sm:text-3xl font-semibold mt-2 tracking-tight">{title}</h1>
+      <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold mt-2 tracking-tight">{title}</h1>
       <div
         className={cn(
-          "grid gap-4 mt-8",
+          "grid gap-3 mt-8",
           metrics.length <= 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-5",
         )}
       >
@@ -73,6 +76,7 @@ export function FlowHero({
         ))}
       </div>
       {footer && <div className="mt-6 pt-6 border-t border-white/15">{footer}</div>}
+      </div>
     </section>
   );
 }
@@ -95,7 +99,7 @@ export function FlowStatGrid({
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-2xl border border-border/60 bg-card p-4 shadow-sm"
+          className="sp-stat-card rounded-2xl border border-border/60 bg-card p-4 shadow-sm"
         >
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             {item.label}
@@ -214,7 +218,7 @@ export function FlowRecoveryCard({
   ctaDisabled?: boolean;
 }) {
   return (
-    <section className="rounded-3xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-card to-orange-50/40 p-6 sm:p-8 shadow-elevated">
+    <section className="sp-recovery-card rounded-3xl border-2 border-[#97d3b8]/40 bg-gradient-to-br from-[#defaeb]/60 via-card to-[#ffdf97]/10 p-6 sm:p-8 shadow-elevated">
       <div className="flex flex-col sm:flex-row sm:items-center gap-6">
         <div className="flex-1">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">Recovery zone</p>
@@ -333,7 +337,7 @@ export function FlowActionCard({
   return (
     <Link
       to={to}
-      className="block rounded-2xl border border-border/60 bg-card p-4 shadow-sm hover:shadow-elevated hover:border-primary/30 transition-all"
+      className="sp-action-card block rounded-2xl border border-border/60 bg-card p-4 shadow-sm hover:shadow-elevated hover:border-[#97d3b8]/50 transition-all"
     >
       <div className="text-primary mb-2">{icon}</div>
       <div className="font-semibold text-foreground">{title}</div>

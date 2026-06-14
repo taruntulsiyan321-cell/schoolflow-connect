@@ -39,17 +39,20 @@ export default function Class12MathPractice() {
     <FlowPage>
       <FlowTopBar backTo="/student" />
 
-      <section className="rounded-3xl overflow-hidden shadow-elevated bg-gradient-to-br from-primary via-primary to-primary/90 text-primary-foreground p-6 sm:p-8">
+      <section className="sp-hero rounded-3xl overflow-hidden shadow-elevated bg-gradient-to-br from-[#074b37] via-[#003324] to-[#003324]/95 text-primary-foreground p-6 sm:p-8 relative">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-[#b2f0d4]/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="relative z-10">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground/70">
           CBSE · NCERT · Class 12
         </p>
-        <h1 className="text-2xl sm:text-3xl font-semibold mt-2 tracking-tight">Practice session</h1>
+        <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold mt-2 tracking-tight">Practice session</h1>
         <p className="text-sm text-primary-foreground/80 mt-2 max-w-md">
           Fresh questions every time — same quality as recovery practice.
         </p>
+        </div>
       </section>
 
-      <section className="rounded-2xl border border-border/60 bg-card p-6 shadow-sm space-y-5 max-w-lg">
+      <section className="sp-stat-card rounded-2xl border border-border/60 bg-card p-6 shadow-sm space-y-5 max-w-lg">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
             {subject === "Mathematics" ? <Calculator className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}

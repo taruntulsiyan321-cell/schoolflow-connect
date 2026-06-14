@@ -4,11 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchRevisionPlan } from "@/lib/academicBrain";
 import { runRevisionAgent } from "@/lib/academicAgents";
 import { useAcademicBrain } from "@/hooks/useAcademicBrain";
-import { Card } from "@/components/ui/card";
+import { PRESENTATION_MODE } from "@/lib/presentationMode";
+import { DEMO_WEEKLY_PLAN } from "@/lib/presentationAnalytics";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/ui-bits";
-import { ListChecks, Check, Info, Clock, Loader2 } from "lucide-react";
+import {
+  FlowPage,
+  FlowSectionTitle,
+  FlowTopBar,
+} from "@/components/student/flow/FlowDesign";
+import { ListChecks, Check, Info, Clock, Loader2, BookOpen } from "lucide-react";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { toast } from "sonner";
 
@@ -44,6 +49,29 @@ type TodayPlanItem = {
   priority: number;
   reason?: string;
 };
+
+const DEMO_REVISION_ROWS: RevisionItem[] = [
+  {
+    id: "demo-rev-1",
+    subject: "Mathematics",
+    chapter: "Integrals",
+    topic: "Substitution",
+    reason: "Limit mismatch after u-sub — 3 mistakes logged",
+    priority: 1,
+    due_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+    priority_label: "High",
+  },
+  {
+    id: "demo-rev-2",
+    subject: "Physics",
+    chapter: "Current Electricity",
+    topic: "Kirchhoff",
+    reason: "Sign convention slips on junction problems",
+    priority: 2,
+    due_date: new Date(Date.now() + 172800000).toISOString().slice(0, 10),
+    priority_label: "Medium",
+  },
+];
 
 export default function RevisionQueue() {
   const { brain } = useAcademicBrain();
@@ -82,7 +110,7 @@ export default function RevisionQueue() {
   }, [brain?.updated_at]);
 
   const complete = async (id: string) => {
-    if (completingId) return;
+    if (completingId || id.startsWith("demo-")) return;
     setCompletingId(id);
     const { error } = await supabase.rpc("rpc_complete_revision", { _id: id });
     if (error) {
@@ -101,23 +129,57 @@ export default function RevisionQueue() {
     return "secondary";
   };
 
-  const hasContent = rows.length > 0 || brainPriorities.length > 0 || todayPlan.length > 0;
+  const displayTodayPlan =
+    todayPlan.length > 0
+      ? todayPlan
+      : PRESENTATION_MODE
+        ? DEMO_WEEKLY_PLAN.map((p) => ({
+            topic: p.topic,
+            subject: p.subject,
+            chapter: p.chapter,
+            time_minutes: p.time_minutes,
+            action: p.action,
+            priority: p.priority,
+            reason: "Prioritised from mistake patterns",
+          }))
+        : [];
+
+  const displayRows =
+    rows.length > 0 ? rows : PRESENTATION_MODE ? DEMO_REVISION_ROWS : [];
+
+  const displayCoachHeadline =
+    coachHeadline ||
+    (PRESENTATION_MODE
+      ? "Chain rule and substitution are your top revision targets this week"
+      : "");
+
+  const hasContent =
+    displayRows.length > 0 || brainPriorities.length > 0 || displayTodayPlan.length > 0;
 
   return (
-    <>
-      <PageHeader
-        title="Revision Center"
-        subtitle="Prioritized from weak concepts, mistake history, and recovery gaps — not random questions"
-      />
+    <FlowPage>
+      <FlowTopBar backTo="/student" />
 
-      {coachHeadline && (
-        <Card className="p-4 mb-4 bg-primary/5 border-primary/20">
-          <p className="text-sm font-medium">{coachHeadline}</p>
-        </Card>
+      <section className="sp-hero rounded-3xl overflow-hidden shadow-elevated bg-gradient-to-br from-[#074b37] via-[#003324] to-[#003324]/95 text-white p-6 sm:p-8 relative">
+        <div className="absolute top-0 right-0 w-40 h-40 bg-[#b2f0d4]/15 rounded-full blur-2xl pointer-events-none" />
+        <div className="relative z-10">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Revision Center</p>
+          <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold mt-2 tracking-tight">Your study queue</h1>
+          <p className="text-sm text-white/75 mt-2 max-w-lg">
+            Prioritized from weak concepts, mistake history, and recovery gaps — not random questions.
+          </p>
+        </div>
+      </section>
+
+      {displayCoachHeadline && (
+        <section className="rounded-2xl border border-[#97d3b8]/40 bg-gradient-to-br from-[#defaeb]/50 to-white p-5 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#074b37]">Coach note</p>
+          <p className="text-sm font-medium text-foreground mt-1">{displayCoachHeadline}</p>
+        </section>
       )}
 
       {sortNote && (
-        <p className="text-xs text-muted-foreground flex items-start gap-1.5 mb-4">
+        <p className="text-xs text-muted-foreground flex items-start gap-1.5">
           <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           {sortNote}
         </p>
@@ -132,7 +194,7 @@ export default function RevisionQueue() {
           onRetry={load}
         />
       ) : !hasContent ? (
-        <Card className="p-8 text-center">
+        <section className="rounded-2xl border border-border/60 bg-card p-8 text-center shadow-sm">
           <ListChecks className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">
             Nothing queued yet. Complete practice or DPPs — revision builds from your academic profile.
@@ -141,17 +203,19 @@ export default function RevisionQueue() {
             <Button asChild><Link to="/student/dpp">Start a DPP</Link></Button>
             <Button asChild variant="outline"><Link to="/student/recovery">Recovery zone</Link></Button>
           </div>
-        </Card>
+        </section>
       ) : (
         <div className="space-y-6">
-          {todayPlan.length > 0 && (
+          {displayTodayPlan.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                <Clock className="w-4 h-4" /> Today&apos;s plan
-              </h2>
+              <FlowSectionTitle>
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="w-4 h-4" /> Today&apos;s plan
+                </span>
+              </FlowSectionTitle>
               <div className="space-y-2">
-                {todayPlan.map((p, i) => (
-                  <Card key={i} className="p-4 shadow-card">
+                {displayTodayPlan.map((p, i) => (
+                  <div key={i} className="sp-stat-card rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold">{p.topic}</div>
@@ -167,20 +231,18 @@ export default function RevisionQueue() {
                         {p.time_minutes} min
                       </Badge>
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
             </section>
           )}
 
-          {rows.length > 0 && (
+          {displayRows.length > 0 && (
             <section>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Revision queue
-              </h2>
+              <FlowSectionTitle>Revision queue</FlowSectionTitle>
               <div className="space-y-2">
-                {rows.map((r) => (
-                  <Card key={r.id} className="p-4 flex items-center justify-between gap-3 shadow-card">
+                {displayRows.map((r) => (
+                  <div key={r.id} className="sp-stat-card rounded-2xl border border-border/60 bg-card p-4 flex items-center justify-between gap-3 shadow-sm">
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold">{r.subject}</div>
                       <div className="text-sm text-muted-foreground">
@@ -198,47 +260,47 @@ export default function RevisionQueue() {
                     </div>
                     <Button
                       size="sm"
-                      className="shrink-0"
-                      disabled={completingId === r.id}
+                      className="shrink-0 rounded-full"
+                      disabled={completingId === r.id || r.id.startsWith("demo-")}
                       onClick={() => complete(r.id)}
                     >
                       {completingId === r.id ? (
                         <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Saving…</>
+                      ) : r.id.startsWith("demo-") ? (
+                        <><BookOpen className="w-4 h-4 mr-1" /> Demo</>
                       ) : (
                         <><Check className="w-4 h-4 mr-1" /> Done</>
                       )}
                     </Button>
-                  </Card>
+                  </div>
                 ))}
               </div>
             </section>
           )}
 
-          {brainPriorities.length > 0 && rows.length === 0 && (
+          {brainPriorities.length > 0 && displayRows.length === 0 && (
             <section>
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                Weak concept priorities
-              </h2>
+              <FlowSectionTitle>Weak concept priorities</FlowSectionTitle>
               <div className="space-y-2">
                 {brainPriorities.map((bp, i) => (
-                  <Card key={i} className="p-4 shadow-card">
+                  <div key={i} className="sp-stat-card rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
                     <div className="font-semibold">{bp.concept}</div>
                     <div className="text-sm text-muted-foreground">{bp.subject}{bp.chapter ? ` · ${bp.chapter}` : ""}</div>
                     <p className="text-sm mt-2">{bp.action ?? "Review and practice"}</p>
                     <div className="mt-2">
-                      <Button size="sm" variant="outline" asChild>
+                      <Button size="sm" variant="outline" className="rounded-full" asChild>
                         <Link to={`/student/recovery?fix=1&subject=${encodeURIComponent(bp.subject)}&chapter=${encodeURIComponent(bp.chapter ?? "")}&concept=${encodeURIComponent(bp.concept)}`}>
                           Start recovery
                         </Link>
                       </Button>
                     </div>
-                  </Card>
+                  </div>
                 ))}
               </div>
             </section>
           )}
         </div>
       )}
-    </>
+    </FlowPage>
   );
 }

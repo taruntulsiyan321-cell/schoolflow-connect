@@ -50,19 +50,35 @@ export function DiagnosisBanner({ insights }: { insights: AnalyticsInsights | nu
   );
 }
 
-export function TopicDeepCards({ topics }: { topics: TopicGapInsight[] }) {
+type WisdomVariant = { variant?: "default" | "wisdom" };
+
+export function TopicDeepCards({ topics, variant = "default" }: { topics: TopicGapInsight[] } & WisdomVariant) {
   if (topics.length === 0) return null;
+  const isWisdom = variant === "wisdom";
   return (
     <section>
-      <FlowSectionTitle>Topic-by-topic breakdown</FlowSectionTitle>
-      <p className="text-xs text-muted-foreground mb-4 -mt-1">
-        Every weak spot traced to NCERT — why it slipped, what to fix, and drills to run today.
-      </p>
+      {isWisdom ? (
+        <>
+          <h3 className="wa-headline text-lg">Topic-by-topic breakdown</h3>
+          <p className="wa-body text-sm mb-4 mt-1">
+            Every weak spot traced to NCERT — why it slipped, what to fix, and drills to run today.
+          </p>
+        </>
+      ) : (
+        <>
+          <FlowSectionTitle>Topic-by-topic breakdown</FlowSectionTitle>
+          <p className="text-xs text-muted-foreground mb-4 -mt-1">
+            Every weak spot traced to NCERT — why it slipped, what to fix, and drills to run today.
+          </p>
+        </>
+      )}
       <div className="space-y-4">
         {topics.map((t, i) => (
           <article
             key={`${t.subject}-${t.chapter}-${t.topic}-${i}`}
-            className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm"
+            className={cn(
+              isWisdom ? `wa-deep-card severity-${t.severity}` : "rounded-2xl border border-border/60 bg-card p-5 shadow-sm",
+            )}
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
@@ -132,12 +148,17 @@ export function TopicDeepCards({ topics }: { topics: TopicGapInsight[] }) {
   );
 }
 
-export function MistakeTopicTable({ aggregates }: { aggregates: MistakeTopicAggregate[] }) {
+export function MistakeTopicTable({ aggregates, variant = "default" }: { aggregates: MistakeTopicAggregate[] } & WisdomVariant) {
   if (aggregates.length === 0) return null;
+  const isWisdom = variant === "wisdom";
   return (
     <section>
-      <FlowSectionTitle>Mistake log by topic</FlowSectionTitle>
-      <div className="rounded-2xl border border-border/60 overflow-hidden shadow-sm">
+      {isWisdom ? (
+        <h3 className="wa-headline text-lg mb-3">Mistake log by topic</h3>
+      ) : (
+        <FlowSectionTitle>Mistake log by topic</FlowSectionTitle>
+      )}
+      <div className={cn(isWisdom ? "wa-card overflow-hidden p-0" : "rounded-2xl border border-border/60 overflow-hidden shadow-sm")}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -171,16 +192,24 @@ export function MistakeTopicTable({ aggregates }: { aggregates: MistakeTopicAggr
   );
 }
 
-export function WeeklyStudyPlan({ plan }: { plan: StudyPlanItem[] }) {
+export function WeeklyStudyPlan({ plan, variant = "default" }: { plan: StudyPlanItem[] } & WisdomVariant) {
   if (plan.length === 0) return null;
+  const isWisdom = variant === "wisdom";
   return (
     <section>
-      <FlowSectionTitle>This week&apos;s study plan</FlowSectionTitle>
+      {isWisdom ? (
+        <h3 className="wa-headline text-lg mb-3">This week&apos;s study plan</h3>
+      ) : (
+        <FlowSectionTitle>This week&apos;s study plan</FlowSectionTitle>
+      )}
       <div className="space-y-2">
         {plan.map((item) => (
           <div
             key={item.priority}
-            className="flex gap-4 rounded-2xl border border-border/60 bg-card p-4 shadow-sm"
+            className={cn(
+              "flex gap-4 p-4",
+              isWisdom ? "wa-card" : "rounded-2xl border border-border/60 bg-card shadow-sm",
+            )}
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm">
               {item.priority}
@@ -202,10 +231,14 @@ export function WeeklyStudyPlan({ plan }: { plan: StudyPlanItem[] }) {
   );
 }
 
-function MomentumRow({ signal }: { signal: MomentumSignal }) {
+function MomentumRow({ signal, variant = "default" }: { signal: MomentumSignal } & WisdomVariant) {
   const improving = signal.direction === "improving";
+  const isWisdom = variant === "wisdom";
   return (
-    <div className="flex gap-3 rounded-xl border border-border/50 bg-card px-4 py-3">
+    <div className={cn(
+      "flex gap-3 px-4 py-3",
+      isWisdom ? "wa-card" : "rounded-xl border border-border/50 bg-card",
+    )}>
       {improving ? (
         <TrendingUp className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
       ) : (
@@ -222,21 +255,35 @@ function MomentumRow({ signal }: { signal: MomentumSignal }) {
   );
 }
 
-export function MomentumSection({ signals }: { signals: MomentumSignal[] }) {
+export function MomentumSection({ signals, variant = "default" }: { signals: MomentumSignal[] } & WisdomVariant) {
   if (signals.length === 0) return null;
+  const isWisdom = variant === "wisdom";
   return (
     <section>
-      <FlowSectionTitle>Momentum — what&apos;s shifting</FlowSectionTitle>
-      <div className="space-y-2">{signals.map((s, i) => <MomentumRow key={`${s.topic}-${i}`} signal={s} />)}</div>
+      {isWisdom ? (
+        <h3 className="wa-headline text-lg mb-3">Momentum — what&apos;s shifting</h3>
+      ) : (
+        <FlowSectionTitle>Momentum — what&apos;s shifting</FlowSectionTitle>
+      )}
+      <div className="space-y-2">
+        {signals.map((s, i) => (
+          <MomentumRow key={`${s.topic}-${i}`} signal={s} variant={variant} />
+        ))}
+      </div>
     </section>
   );
 }
 
-export function SessionLog({ sessions }: { sessions: PracticeSessionSummary[] }) {
+export function SessionLog({ sessions, variant = "default" }: { sessions: PracticeSessionSummary[] } & WisdomVariant) {
   if (sessions.length === 0) return null;
+  const isWisdom = variant === "wisdom";
   return (
     <section>
-      <FlowSectionTitle>Recent practice sessions</FlowSectionTitle>
+      {isWisdom ? (
+        <h3 className="wa-headline text-lg mb-3">Recent practice sessions</h3>
+      ) : (
+        <FlowSectionTitle>Recent practice sessions</FlowSectionTitle>
+      )}
       <div className="space-y-2">
         {sessions.slice(0, 8).map((s) => {
           const date = new Date(s.finished_at).toLocaleDateString(undefined, {
@@ -248,7 +295,10 @@ export function SessionLog({ sessions }: { sessions: PracticeSessionSummary[] })
           return (
             <div
               key={s.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/50 bg-card px-4 py-3 text-sm"
+              className={cn(
+                "flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm",
+                isWisdom ? "wa-card" : "rounded-xl border border-border/50 bg-card",
+              )}
             >
               <div className="min-w-0">
                 <p className="font-medium text-foreground truncate">

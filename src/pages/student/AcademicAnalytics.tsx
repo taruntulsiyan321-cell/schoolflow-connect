@@ -12,7 +12,7 @@ export default function AcademicAnalytics() {
   const { data: charts, loading: chartsLoading, error: chartsError } = useStudentPerformanceCharts();
 
   return (
-    <FlowPage>
+    <FlowPage className="max-w-6xl">
       <FlowTopBar
         action={
           <Button size="sm" variant="ghost" asChild className="text-muted-foreground h-9">

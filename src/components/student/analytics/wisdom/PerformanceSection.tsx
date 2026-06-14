@@ -7,6 +7,8 @@ import {
   consistencyLevel,
   peerBenchmarkSubjects,
 } from "@/components/student/analytics/wisdom/analyticsDerived";
+import { PRESENTATION_MODE } from "@/lib/presentationMode";
+import { demoConsistencyHeatmap, demoPracticeTrend } from "@/lib/presentationAnalytics";
 import {
   Line,
   LineChart,
@@ -44,14 +46,42 @@ export function PerformanceSection({
   classSize,
   improvement,
 }: Props) {
-  const trendData = (charts?.practice_trend ?? []).slice(-14).map((p) => ({
+  const rawTrend = charts?.practice_trend ?? [];
+  const trendSource = rawTrend.length >= 2 ? rawTrend : PRESENTATION_MODE ? demoPracticeTrend() : [];
+  const trendData = trendSource.slice(-14).map((p) => ({
     label: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
     accuracy: p.score_pct,
   }));
 
   const benchmarks = peerBenchmarkSubjects(charts?.subjects ?? [], rank, classSize);
+  const displayBenchmarks =
+    benchmarks.length > 0
+      ? benchmarks
+      : PRESENTATION_MODE
+        ? [
+            { name: "Mathematics", pct: 74, label: "Above average" },
+            { name: "Physics", pct: 68, label: "On track" },
+            { name: "Chemistry", pct: 61, label: "Needs focus" },
+          ]
+        : [];
   const bests = buildPersonalBests(data, sessions, accuracy);
-  const grid = consistencyGrid(data.activity_heatmap);
+  const displayBests =
+    bests.length > 0
+      ? bests
+      : PRESENTATION_MODE
+        ? [
+            { kind: "RECORD", title: "82% in Differentiation", icon: "target" as const },
+            { kind: "PACE", title: "Fastest session: 14 min (6/8)", icon: "timer" as const },
+            { kind: "STREAK", title: "5-day practice streak", icon: "flame" as const },
+          ]
+        : [];
+  const heatmapCells = consistencyGrid(data.activity_heatmap);
+  const grid =
+    heatmapCells.length > 0
+      ? heatmapCells
+      : PRESENTATION_MODE
+        ? demoConsistencyHeatmap()
+        : [];
 
   return (
     <div className="space-y-6">
@@ -110,8 +140,8 @@ export function PerformanceSection({
             Peer benchmarking
           </h3>
           <div className="space-y-5">
-            {benchmarks.length > 0 ? (
-              benchmarks.map((b) => (
+            {displayBenchmarks.length > 0 ? (
+              displayBenchmarks.map((b) => (
                 <div key={b.name}>
                   <div className="flex justify-between text-sm font-medium mb-1">
                     <span>{b.name}</span>
@@ -138,8 +168,8 @@ export function PerformanceSection({
             Personal bests
           </h3>
           <div className="space-y-3">
-            {bests.length > 0 ? (
-              bests.map((b, i) => (
+            {displayBests.length > 0 ? (
+              displayBests.map((b, i) => (
                 <div key={i} className="flex items-center gap-3 bg-white p-3 rounded-lg border border-[var(--wa-outline-variant)]/50">
                   <div className="w-10 h-10 rounded-full bg-[var(--wa-secondary-container)]/30 flex items-center justify-center text-[var(--wa-secondary)]">
                     {b.icon === "timer" ? <Timer className="w-5 h-5" /> : b.icon === "flame" ? <Flame className="w-5 h-5" /> : <Target className="w-5 h-5" />}
