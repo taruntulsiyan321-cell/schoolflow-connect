@@ -68,13 +68,13 @@ async function verify() {
     method: "POST",
     headers: { apikey: key, "Content-Type": "application/json" },
     body: JSON.stringify({
-      email: "arjun.mehta@wisdomcampus.demo",
+      email: "arjun.mehta@wisdomcampus.com",
       password: "DemoPass123!",
     }),
   });
   const body = await auth.json();
   if (auth.ok) {
-    console.log("OK: demo student login works (arjun.mehta@wisdomcampus.demo)");
+    console.log("OK: demo student login works (arjun.mehta@wisdomcampus.com)");
     return;
   }
   console.warn("Login check:", auth.status, body.msg || body.error_description || body);

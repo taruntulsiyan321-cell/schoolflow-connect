@@ -28,17 +28,17 @@ Minimum 8 characters — matches app signup rules.
 
 | Role | Email | Notes |
 |------|--------|--------|
-| **Admin** | `admin@wisdomcampus.demo` | Full admin panel, roles, fees write, user linking |
-| **Principal** | `principal@wisdomcampus.demo` | Principal dashboard, leave approval, reports, inquiries |
-| **Teacher (Math, Class 10-A)** | `priya.sharma@wisdomcampus.demo` | Class teacher, attendance, homework, DPPs, battle monitor |
-| **Teacher (Physics)** | `rajesh.verma@wisdomcampus.demo` | Teaches 10-A Physics, exams/marks |
-| **Student** | `arjun.mehta@wisdomcampus.demo` | Class 10-A, roll 1 — battles, DPPs, fees, homework |
-| **Student** | `priya.patel@wisdomcampus.demo` | Class 10-A, roll 2 |
-| **Student** | `rohan.singh@wisdomcampus.demo` | Class 10-A, roll 3 — battle challenge target |
-| **Student** | `ananya.iyer@wisdomcampus.demo` | Class 10-A, roll 4 |
-| **Student** | `vikram.joshi@wisdomcampus.demo` | Class 10-A, roll 5 |
-| **Parent** | `mehta.parent@wisdomcampus.demo` | Linked to Arjun Mehta |
-| **Parent** | `patel.parent@wisdomcampus.demo` | Linked to Priya Patel |
+| **Admin** | `admin@wisdomcampus.com` | Full admin panel, roles, fees write, user linking |
+| **Principal** | `principal@wisdomcampus.com` | Principal dashboard, leave approval, reports, inquiries |
+| **Teacher (Math, Class 10-A)** | `priya.sharma@wisdomcampus.com` | Class teacher, attendance, homework, DPPs, battle monitor |
+| **Teacher (Physics)** | `rajesh.verma@wisdomcampus.com` | Teaches 10-A Physics, exams/marks |
+| **Student** | `arjun.mehta@wisdomcampus.com` | Class 10-A, roll 1 — battles, DPPs, fees, homework |
+| **Student** | `priya.patel@wisdomcampus.com` | Class 10-A, roll 2 |
+| **Student** | `rohan.singh@wisdomcampus.com` | Class 10-A, roll 3 — battle challenge target |
+| **Student** | `ananya.iyer@wisdomcampus.com` | Class 10-A, roll 4 |
+| **Student** | `vikram.joshi@wisdomcampus.com` | Class 10-A, roll 5 |
+| **Parent** | `mehta.parent@wisdomcampus.com` | Linked to Arjun Mehta |
+| **Parent** | `patel.parent@wisdomcampus.com` | Linked to Priya Patel |
 
 Sign in at `/auth` with **email + password** (not Google OAuth for demo users).
 
@@ -89,4 +89,4 @@ In Lovable, open **Supabase** → run migrations or paste `supabase/migrations/2
 
 ## Security
 
-Demo users use the `@wisdomcampus.demo` domain. **Do not use these passwords in production.** Remove or skip this migration in production databases.
+Demo users use the `@wisdomcampus.com` domain. **Do not use these passwords in production.** Remove or skip this migration in production databases.

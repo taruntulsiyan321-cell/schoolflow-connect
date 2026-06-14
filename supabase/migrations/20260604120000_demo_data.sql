@@ -118,31 +118,31 @@ DECLARE
   _yr         text := '2025-26';
 BEGIN
   -- ===================== AUTH USERS =====================
-  PERFORM public._demo_upsert_auth_user(u_admin,     'admin@wisdomcampus.demo',           _pw, 'Ravi Krishnan');
-  PERFORM public._demo_upsert_auth_user(u_principal, 'principal@wisdomcampus.demo',     _pw, 'Sunita Nair');
-  PERFORM public._demo_upsert_auth_user(u_t_math,    'priya.sharma@wisdomcampus.demo',  _pw, 'Priya Sharma');
-  PERFORM public._demo_upsert_auth_user(u_t_phys,    'rajesh.verma@wisdomcampus.demo',  _pw, 'Rajesh Verma');
-  PERFORM public._demo_upsert_auth_user(u_s1,        'arjun.mehta@wisdomcampus.demo',   _pw, 'Arjun Mehta');
-  PERFORM public._demo_upsert_auth_user(u_s2,        'priya.patel@wisdomcampus.demo',   _pw, 'Priya Patel');
-  PERFORM public._demo_upsert_auth_user(u_s3,        'rohan.singh@wisdomcampus.demo',   _pw, 'Rohan Singh');
-  PERFORM public._demo_upsert_auth_user(u_s4,        'ananya.iyer@wisdomcampus.demo',   _pw, 'Ananya Iyer');
-  PERFORM public._demo_upsert_auth_user(u_s5,        'vikram.joshi@wisdomcampus.demo',  _pw, 'Vikram Joshi');
-  PERFORM public._demo_upsert_auth_user(u_p1,        'mehta.parent@wisdomcampus.demo',  _pw, 'Suresh Mehta');
-  PERFORM public._demo_upsert_auth_user(u_p2,        'patel.parent@wisdomcampus.demo',  _pw, 'Kavita Patel');
+  PERFORM public._demo_upsert_auth_user(u_admin,     'admin@wisdomcampus.com',           _pw, 'Ravi Krishnan');
+  PERFORM public._demo_upsert_auth_user(u_principal, 'principal@wisdomcampus.com',     _pw, 'Sunita Nair');
+  PERFORM public._demo_upsert_auth_user(u_t_math,    'priya.sharma@wisdomcampus.com',  _pw, 'Priya Sharma');
+  PERFORM public._demo_upsert_auth_user(u_t_phys,    'rajesh.verma@wisdomcampus.com',  _pw, 'Rajesh Verma');
+  PERFORM public._demo_upsert_auth_user(u_s1,        'arjun.mehta@wisdomcampus.com',   _pw, 'Arjun Mehta');
+  PERFORM public._demo_upsert_auth_user(u_s2,        'priya.patel@wisdomcampus.com',   _pw, 'Priya Patel');
+  PERFORM public._demo_upsert_auth_user(u_s3,        'rohan.singh@wisdomcampus.com',   _pw, 'Rohan Singh');
+  PERFORM public._demo_upsert_auth_user(u_s4,        'ananya.iyer@wisdomcampus.com',   _pw, 'Ananya Iyer');
+  PERFORM public._demo_upsert_auth_user(u_s5,        'vikram.joshi@wisdomcampus.com',  _pw, 'Vikram Joshi');
+  PERFORM public._demo_upsert_auth_user(u_p1,        'mehta.parent@wisdomcampus.com',  _pw, 'Suresh Mehta');
+  PERFORM public._demo_upsert_auth_user(u_p2,        'patel.parent@wisdomcampus.com',  _pw, 'Kavita Patel');
 
   -- Profiles (trigger may have created; ensure full data)
   INSERT INTO public.profiles (id, full_name, email) VALUES
-    (u_admin,     'Ravi Krishnan',   'admin@wisdomcampus.demo'),
-    (u_principal, 'Sunita Nair',     'principal@wisdomcampus.demo'),
-    (u_t_math,    'Priya Sharma',    'priya.sharma@wisdomcampus.demo'),
-    (u_t_phys,    'Rajesh Verma',    'rajesh.verma@wisdomcampus.demo'),
-    (u_s1,        'Arjun Mehta',     'arjun.mehta@wisdomcampus.demo'),
-    (u_s2,        'Priya Patel',     'priya.patel@wisdomcampus.demo'),
-    (u_s3,        'Rohan Singh',     'rohan.singh@wisdomcampus.demo'),
-    (u_s4,        'Ananya Iyer',     'ananya.iyer@wisdomcampus.demo'),
-    (u_s5,        'Vikram Joshi',    'vikram.joshi@wisdomcampus.demo'),
-    (u_p1,        'Suresh Mehta',    'mehta.parent@wisdomcampus.demo'),
-    (u_p2,        'Kavita Patel',    'patel.parent@wisdomcampus.demo')
+    (u_admin,     'Ravi Krishnan',   'admin@wisdomcampus.com'),
+    (u_principal, 'Sunita Nair',     'principal@wisdomcampus.com'),
+    (u_t_math,    'Priya Sharma',    'priya.sharma@wisdomcampus.com'),
+    (u_t_phys,    'Rajesh Verma',    'rajesh.verma@wisdomcampus.com'),
+    (u_s1,        'Arjun Mehta',     'arjun.mehta@wisdomcampus.com'),
+    (u_s2,        'Priya Patel',     'priya.patel@wisdomcampus.com'),
+    (u_s3,        'Rohan Singh',     'rohan.singh@wisdomcampus.com'),
+    (u_s4,        'Ananya Iyer',     'ananya.iyer@wisdomcampus.com'),
+    (u_s5,        'Vikram Joshi',    'vikram.joshi@wisdomcampus.com'),
+    (u_p1,        'Suresh Mehta',    'mehta.parent@wisdomcampus.com'),
+    (u_p2,        'Kavita Patel',    'patel.parent@wisdomcampus.com')
   ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, email = EXCLUDED.email;
 
   -- Roles
@@ -173,9 +173,9 @@ BEGIN
     id, user_id, full_name, subject, mobile, email,
     is_class_teacher, class_teacher_of, employee_id, department, qualification, joining_date, status
   ) VALUES
-    (t_math, u_t_math, 'Priya Sharma', 'Mathematics', '9876501001', 'priya.sharma@wisdomcampus.demo',
+    (t_math, u_t_math, 'Priya Sharma', 'Mathematics', '9876501001', 'priya.sharma@wisdomcampus.com',
      true, c10a, 'EMP-T-001', 'Mathematics', 'M.Sc Mathematics', '2018-06-01', 'active'),
-    (t_phys, u_t_phys, 'Rajesh Verma', 'Physics', '9876501002', 'rajesh.verma@wisdomcampus.demo',
+    (t_phys, u_t_phys, 'Rajesh Verma', 'Physics', '9876501002', 'rajesh.verma@wisdomcampus.com',
      false, NULL, 'EMP-T-002', 'Science', 'M.Sc Physics', '2019-07-15', 'active')
   ON CONFLICT (id) DO UPDATE SET
     user_id = EXCLUDED.user_id, full_name = EXCLUDED.full_name, email = EXCLUDED.email,
@@ -491,7 +491,7 @@ BEGIN
     (u_principal, 'leave_review', 'leave_requests', 'd9000002-0003-4000-8000-000000000003', '{"status":"rejected"}'::jsonb)
   ON CONFLICT DO NOTHING;
 
-  RAISE NOTICE 'Wisdom Campus demo data applied. Login: admin@wisdomcampus.demo / DemoPass123! — see docs/DEMO_ACCOUNTS.md';
+  RAISE NOTICE 'Wisdom Campus demo data applied. Login: admin@wisdomcampus.com / DemoPass123! — see docs/DEMO_ACCOUNTS.md';
 END $demo$;
 
 DROP FUNCTION IF EXISTS public._demo_upsert_auth_user(uuid, text, text, text);
