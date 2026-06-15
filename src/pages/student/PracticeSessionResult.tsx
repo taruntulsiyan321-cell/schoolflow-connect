@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -12,6 +12,21 @@ import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryRepor
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 import { cn } from "@/lib/utils";
+import {
+  buildPracticeRecoveryReport,
+  snapshotsToAttemptRows,
+  type PracticeSessionResultState,
+} from "@/lib/practiceSessionSnapshot";
+
+function readLocalState(id: string): PracticeSessionResultState | null {
+  try {
+    const raw = sessionStorage.getItem(`practice-session-result-${id}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as PracticeSessionResultState;
+  } catch {
+    return null;
+  }
+}
 
 type AttemptRow = {
   id: string;
@@ -35,11 +50,19 @@ type SessionRow = {
 
 export default function PracticeSessionResult() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const { user } = useAuth();
   const [session, setSession] = useState<SessionRow | null>(null);
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const localState = useMemo(() => {
+    const fromNav = location.state as PracticeSessionResultState | null;
+    if (fromNav?.attempts?.length) return fromNav;
+    if (id) return readLocalState(id);
+    return null;
+  }, [location.state, id]);
 
   const load = async () => {
     if (!id || !user) return;
@@ -97,7 +120,7 @@ export default function PracticeSessionResult() {
     );
   }
 
-  if (!session) {
+  if (!session && !localState) {
     return (
       <>
         <Button variant="ghost" size="sm" asChild className="mb-2">
@@ -110,15 +133,44 @@ export default function PracticeSessionResult() {
     );
   }
 
-  const total = session.question_count || attempts.length;
-  const correct = session.correct_count ?? attempts.filter((a) => a.is_correct).length;
+  const localAttempts = localState ? snapshotsToAttemptRows(localState.attempts) : [];
+  const displayAttempts = attempts.length > 0 ? attempts : localAttempts;
+  const subject = session?.subject ?? localState?.subject ?? "Practice";
+  const chapter = session?.chapter ?? localState?.chapter ?? "";
+  const total = session?.question_count || displayAttempts.length;
+  const correct = session?.correct_count ?? displayAttempts.filter((a) => a.is_correct).length;
   const accuracy = total ? Math.round((correct / total) * 100) : 0;
-  const finishedMs = session.finished_at
+  const finishedMs = session?.finished_at && session?.created_at
     ? new Date(session.finished_at).getTime() - new Date(session.created_at).getTime()
-    : 0;
+    : localState?.startedAt
+      ? Date.now() - new Date(localState.startedAt).getTime()
+      : 0;
   const mins = Math.max(1, Math.round(finishedMs / 60000));
 
-  const retryUrl = `/student/practice/ai/session?subject=${encodeURIComponent(session.subject)}&chapter=${encodeURIComponent(session.chapter)}&count=${total}`;
+  const fallbackReport = useMemo(() => {
+    if (!id) return null;
+    if (localState?.attempts.length) {
+      return buildPracticeRecoveryReport(id, subject, chapter, localState.attempts, mins);
+    }
+    if (displayAttempts.length) {
+      return buildPracticeRecoveryReport(
+        id,
+        subject,
+        chapter,
+        displayAttempts.map((a) => ({
+          question: a.generated_question?.question ?? "",
+          options: a.generated_question?.options ?? [],
+          correctIndex: typeof a.correct_answer?.index === "number" ? a.correct_answer.index : 0,
+          selectedIndex: typeof a.selected_answer?.index === "number" ? a.selected_answer.index : 0,
+          isCorrect: !!a.is_correct,
+        })),
+        mins,
+      );
+    }
+    return null;
+  }, [id, subject, chapter, localState, displayAttempts, mins]);
+
+  const retryUrl = `/student/practice/ai/session?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapter)}&count=${total || 10}`;
 
   return (
     <>
@@ -126,15 +178,18 @@ export default function PracticeSessionResult() {
         <Link to="/student/practice/math12"><ArrowLeft className="w-4 h-4" /> Practice</Link>
       </Button>
       <PageHeader
-        title={`${session.subject} · ${session.chapter}`}
-        subtitle={`Practice session · ${session.finished_at ? new Date(session.finished_at).toLocaleString() : "Just now"}`}
+        title={`${subject} · ${chapter}`}
+        subtitle={`Practice session · ${session?.finished_at ? new Date(session.finished_at).toLocaleString() : "Just now"}`}
       />
 
-      <ConceptRecoveryReport
-        sourceType="practice_session"
-        sourceId={session.id}
-        title="Practice concept recovery report"
-      />
+      {id && (
+        <ConceptRecoveryReport
+          sourceType="practice_session"
+          sourceId={id}
+          title="Practice concept recovery report"
+          fallbackReport={fallbackReport}
+        />
+      )}
 
       <Card className="p-6 mb-6 flex flex-col sm:flex-row items-center gap-6">
         <ScoreRing value={correct} max={total} size={140} label="correct" />
@@ -159,7 +214,7 @@ export default function PracticeSessionResult() {
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Score</div>
-            <div className="font-bold text-lg">{Number(session.score).toFixed(1)} / {total}</div>
+            <div className="font-bold text-lg">{Number(session?.score ?? correct).toFixed(1)} / {total}</div>
           </div>
         </div>
       </Card>
@@ -192,7 +247,7 @@ export default function PracticeSessionResult() {
 
       <h3 className="font-semibold mb-3">Question review</h3>
       <div className="space-y-4">
-        {attempts.map((a, i) => {
+        {displayAttempts.map((a, i) => {
           const gq = a.generated_question ?? {};
           const opts: string[] = Array.isArray(gq.options) ? gq.options : [];
           const correctIdx = typeof a.correct_answer?.index === "number" ? a.correct_answer.index : null;
@@ -234,8 +289,8 @@ export default function PracticeSessionResult() {
                 selectedIndex={selectedIdx}
                 correctText={correctText}
                 selectedText={selectedText}
-                subject={session.subject}
-                chapter={session.chapter}
+                subject={subject}
+                chapter={chapter}
                 wasCorrect={a.is_correct}
               />
             </Card>
@@ -243,7 +298,7 @@ export default function PracticeSessionResult() {
         })}
       </div>
 
-      {attempts.length === 0 && (
+      {displayAttempts.length === 0 && (
         <Card className="p-6 text-center text-sm text-muted-foreground">
           No question details saved for this session.
         </Card>

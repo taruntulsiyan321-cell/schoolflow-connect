@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,6 +13,10 @@ import { StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 import { generateAiPracticeQuestions } from "@/lib/aiPracticeQuestions";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
+import {
+  persistAndGoToPracticeResult,
+  type PracticeAttemptSnapshot,
+} from "@/lib/practiceSessionSnapshot";
 
 type AiQuestion = {
   id: string;
@@ -38,6 +42,8 @@ export default function Class12AiSession() {
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [correctN, setCorrectN] = useState(0);
+  const startedAt = useRef(new Date().toISOString());
+  const attemptLog = useRef<PracticeAttemptSnapshot[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -93,6 +99,15 @@ export default function Class12AiSession() {
     const ok = optionIndex === current.correctIndex;
     if (ok) setCorrectN((n) => n + 1);
 
+    attemptLog.current.push({
+      question: current.question,
+      options: current.options,
+      correctIndex: current.correctIndex,
+      selectedIndex: optionIndex,
+      isCorrect: ok,
+      explanation: current.explanation,
+    });
+
     if (!ok) {
       void assignRecoveryOnMistake({
         subject,
@@ -115,15 +130,23 @@ export default function Class12AiSession() {
       });
     }
 
-    await supabase.rpc("rpc_record_question_attempt", {
+    const { error: recErr } = await supabase.rpc("rpc_record_question_attempt", {
       _session_id: sessionId,
       _template_id: null,
-      _generated_question: { question: current.question, options: current.options },
-      _correct_answer: { index: current.correctIndex, text: current.options[current.correctIndex] },
+      _generated_question: {
+        question: current.question,
+        options: current.options,
+        explanation: current.explanation,
+      },
       _selected_answer: { index: optionIndex, text: current.options[optionIndex] },
+      _correct_answer: { index: current.correctIndex, text: current.options[current.correctIndex] },
       _is_correct: ok,
       _score: ok ? 1 : 0,
     });
+    if (recErr) {
+      console.warn("record attempt:", recErr.message);
+      toast.error("Answer could not be saved to your history.");
+    }
   };
 
   const next = async () => {
@@ -135,7 +158,14 @@ export default function Class12AiSession() {
         toast.error(finErr.message);
         return;
       }
-      if (sessionId) nav(`/student/practice/session/${sessionId}/result`, { replace: true });
+      if (sessionId) {
+        persistAndGoToPracticeResult(nav, sessionId, {
+          subject,
+          chapter,
+          attempts: [...attemptLog.current],
+          startedAt: startedAt.current,
+        });
+      }
       return;
     }
     setIdx(idx + 1);

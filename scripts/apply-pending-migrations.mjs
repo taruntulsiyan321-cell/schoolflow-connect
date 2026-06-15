@@ -42,6 +42,7 @@ const RECENT_PREFIXES = [
   "20260617000000",
   "20260618000000",
   "20260619000000",
+  "20260620000000",
 ];
 
 function loadEnvFile(name) {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,6 +19,10 @@ import {
   generateUniqueFromTemplates,
   SEED_STRIDE,
 } from "@/lib/practiceDiversity";
+import {
+  persistAndGoToPracticeResult,
+  type PracticeAttemptSnapshot,
+} from "@/lib/practiceSessionSnapshot";
 
 type SessionItem = {
   template: QuestionTemplateRow;
@@ -41,6 +45,8 @@ export default function Class12MathSession() {
   const [revealed, setRevealed] = useState(false);
   const [correctN, setCorrectN] = useState(0);
   const [sessionSeed, setSessionSeed] = useState(0);
+  const startedAt = useRef(new Date().toISOString());
+  const attemptLog = useRef<PracticeAttemptSnapshot[]>([]);
 
   useEffect(() => {
     if (!user) return;
@@ -100,7 +106,16 @@ export default function Class12MathSession() {
     const ok = optionIndex === current.generated.correctIndex;
     if (ok) setCorrectN((n) => n + 1);
 
-    await supabase.rpc("rpc_record_question_attempt", {
+    attemptLog.current.push({
+      question: current.generated.question,
+      options: current.generated.options,
+      correctIndex: current.generated.correctIndex,
+      selectedIndex: optionIndex,
+      isCorrect: ok,
+      explanation: current.generated.explanation,
+    });
+
+    const { error: recErr } = await supabase.rpc("rpc_record_question_attempt", {
       _session_id: sessionId,
       _template_id: current.template.id,
       _generated_question: {
@@ -108,12 +123,17 @@ export default function Class12MathSession() {
         options: current.generated.options,
         values: current.generated.values,
         session_seed: sessionSeed + idx * SEED_STRIDE,
+        explanation: current.generated.explanation,
       },
-      _correct_answer: { index: current.generated.correctIndex, text: current.generated.correctAnswer },
       _selected_answer: { index: optionIndex, text: current.generated.options[optionIndex] },
+      _correct_answer: { index: current.generated.correctIndex, text: current.generated.correctAnswer },
       _is_correct: ok,
       _score: ok ? 1 : 0,
     });
+    if (recErr) {
+      console.warn("record attempt:", recErr.message);
+      toast.error("Answer could not be saved to your history.");
+    }
 
     if (!ok && sessionId) {
       void assignRecoveryOnMistake({
@@ -135,7 +155,14 @@ export default function Class12MathSession() {
         toast.error(finErr.message);
         return;
       }
-      if (sessionId) nav(`/student/practice/session/${sessionId}/result`, { replace: true });
+      if (sessionId) {
+        persistAndGoToPracticeResult(nav, sessionId, {
+          subject: "Mathematics",
+          chapter,
+          attempts: [...attemptLog.current],
+          startedAt: startedAt.current,
+        });
+      }
       return;
     }
     setIdx(idx + 1);

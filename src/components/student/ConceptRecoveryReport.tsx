@@ -8,6 +8,7 @@ import { invokeEdgeFunction } from "@/lib/edgeFunction";
 import {
   type ConceptRecoveryReport,
   type ConceptAiReport,
+  buildRuleConceptReport,
 } from "@/lib/conceptReportFallback";
 import { AlertTriangle, CheckCircle2, Loader2, Sparkles, Target, Timer } from "lucide-react";
 
@@ -15,9 +16,16 @@ type Props = {
   sourceType: "dpp_attempt" | "battle_participant" | "practice_session";
   sourceId: string;
   title?: string;
+  /** Client-side report when DB/RPC has no attempt rows yet */
+  fallbackReport?: ConceptRecoveryReport | null;
 };
 
-export function ConceptRecoveryReport({ sourceType, sourceId, title = "Concept recovery report" }: Props) {
+export function ConceptRecoveryReport({
+  sourceType,
+  sourceId,
+  title = "Concept recovery report",
+  fallbackReport = null,
+}: Props) {
   const [report, setReport] = useState<ConceptRecoveryReport | null>(null);
   const [insights, setInsights] = useState<ConceptAiReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,16 +41,24 @@ export function ConceptRecoveryReport({ sourceType, sourceId, title = "Concept r
         _source_id: sourceId,
       });
       if (err) {
+        if (fallbackReport) {
+          setReport(fallbackReport);
+          setInsights(buildRuleConceptReport(fallbackReport));
+          setLoading(false);
+          return;
+        }
         setError(err.message);
         setLoading(false);
         return;
       }
       const r = data as ConceptRecoveryReport;
-      setReport(r);
-      setInsights(r.insights ?? null);
+      const useFallback = fallbackReport && (r.total_count ?? 0) === 0 && (fallbackReport.total_count ?? 0) > 0;
+      const finalReport = useFallback ? fallbackReport : r;
+      setReport(finalReport);
+      setInsights(finalReport.insights ?? buildRuleConceptReport(finalReport));
       setLoading(false);
     })();
-  }, [sourceType, sourceId]);
+  }, [sourceType, sourceId, fallbackReport]);
 
   const fetchAi = async () => {
     if (!report) return;
@@ -69,6 +85,42 @@ export function ConceptRecoveryReport({ sourceType, sourceId, title = "Concept r
   }
 
   if (error || !report) {
+    if (fallbackReport) {
+      const fb = fallbackReport;
+      const fbInsights = buildRuleConceptReport(fb);
+      return (
+        <Card className="p-5 mb-6 border-primary/20 bg-primary/5 shadow-card">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <h3 className="font-semibold flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" /> {title}
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">Session summary from your answers</p>
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-3 mb-4 text-sm">
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60">
+              <Target className="w-4 h-4 text-accent" />
+              <div><div className="text-xs text-muted-foreground">Accuracy</div><div className="font-bold">{fb.accuracy_pct}%</div></div>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60">
+              <CheckCircle2 className="w-4 h-4 text-primary" />
+              <div><div className="text-xs text-muted-foreground">Score</div><div className="font-bold">{fb.correct_count}/{fb.total_count}</div></div>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60">
+              <Timer className="w-4 h-4 text-muted-foreground" />
+              <div><div className="text-xs text-muted-foreground">Time</div><div className="font-bold">{fb.time_minutes}m</div></div>
+            </div>
+          </div>
+          <div className="p-3 rounded-lg bg-background/70 border">
+            <p className="font-medium text-sm">{fbInsights.headline}</p>
+            <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc pl-4">
+              {fbInsights.bullets.map((b, i) => <li key={i}>{b}</li>)}
+            </ul>
+          </div>
+        </Card>
+      );
+    }
     return (
       <Card className="p-4 text-sm text-muted-foreground">
         Concept analysis unavailable{error ? `: ${error}` : ""}.

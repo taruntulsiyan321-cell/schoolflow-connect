@@ -53,6 +53,7 @@ const MARKERS = [
   { id: "20260617000000", label: "Practice recovery quality", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_assign_concept_recovery' AND pg_get_function_arguments(oid) LIKE '%_concept%' LIMIT 1" },
   { id: "20260618000000", label: "Mistake triggers recovery", sql: "SELECT proname FROM pg_proc WHERE proname = 'rpc_record_concept_mistake' AND pg_get_function_arguments(oid) LIKE '%_error_type%' LIMIT 1" },
   { id: "20260619000000", label: "Academic intelligence system", sql: "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='student_academic_brain' LIMIT 1" },
+  { id: "20260620000000", label: "Practice session persistence fix", sql: "SELECT is_nullable FROM information_schema.columns WHERE table_schema='public' AND table_name='question_attempts' AND column_name='template_id' AND is_nullable='YES' LIMIT 1" },
 ];
 
 async function queryManagement(token, sql) {
