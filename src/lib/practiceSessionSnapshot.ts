@@ -1,4 +1,5 @@
 import type { ConceptRecoveryReport } from "@/lib/conceptReportFallback";
+import { supabase } from "@/integrations/supabase/client";
 
 export type PracticeAttemptSnapshot = {
   question: string;
@@ -74,4 +75,28 @@ export function persistAndGoToPracticeResult(
     /* quota / private mode */
   }
   nav(`/student/practice/session/${sessionId}/result`, { replace: true, state });
+}
+
+export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
+  return attempts.map((a) => ({
+    generated_question: {
+      question: a.question,
+      options: a.options,
+      explanation: a.explanation ?? "",
+    },
+    selected_answer: { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
+    correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
+    is_correct: a.isCorrect,
+    score: a.isCorrect ? 1 : 0,
+  }));
+}
+
+export async function finishPracticeSessionWithAttempts(
+  sessionId: string,
+  attempts: PracticeAttemptSnapshot[],
+) {
+  return supabase.rpc("rpc_finish_practice_session", {
+    _session_id: sessionId,
+    _attempts: attemptsToFinishPayload(attempts),
+  } as { _session_id: string; _attempts: ReturnType<typeof attemptsToFinishPayload> });
 }

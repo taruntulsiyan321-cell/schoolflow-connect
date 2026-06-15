@@ -26,9 +26,11 @@ export function ConceptRecoveryReport({
   title = "Concept recovery report",
   fallbackReport = null,
 }: Props) {
-  const [report, setReport] = useState<ConceptRecoveryReport | null>(null);
-  const [insights, setInsights] = useState<ConceptAiReport | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [report, setReport] = useState<ConceptRecoveryReport | null>(fallbackReport ?? null);
+  const [insights, setInsights] = useState<ConceptAiReport | null>(
+    fallbackReport ? buildRuleConceptReport(fallbackReport) : null,
+  );
+  const [loading, setLoading] = useState(!fallbackReport);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

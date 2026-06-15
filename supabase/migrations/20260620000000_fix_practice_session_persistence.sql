@@ -34,6 +34,7 @@ DECLARE
   _concept_f text;
   _sub_f text;
   _difficulty text := 'medium';
+  _explanation text;
 BEGIN
   IF _uid IS NULL THEN RAISE EXCEPTION 'auth required'; END IF;
 
@@ -77,6 +78,12 @@ BEGIN
     );
     PERFORM public.rpc_refresh_academic_brain();
   ELSIF NOT COALESCE(_skipped, false) THEN
+    _explanation := NULLIF(_generated_question->>'explanation', '');
+    IF _explanation IS NULL AND _template_id IS NOT NULL THEN
+      SELECT explanation_template INTO _explanation
+      FROM public.question_templates WHERE id = _template_id LIMIT 1;
+    END IF;
+    _explanation := COALESCE(_explanation, '');
     PERFORM public.rpc_record_concept_mistake(
       'practice', _session_id, _aid,
       _subject, _chapter, _concept_f, _sub_f, _class,
@@ -84,7 +91,7 @@ BEGIN
       COALESCE(_generated_question->'options', '[]'::jsonb),
       COALESCE(_selected_answer, '{}'::jsonb),
       _correct_answer,
-      COALESCE(_generated_question->>'explanation', _tm.explanation_template)
+      _explanation
     );
     PERFORM public._upsert_concept_mastery(
       _uid, _sid, _class, _subject, _chapter, _concept_f, _sub_f, false, false

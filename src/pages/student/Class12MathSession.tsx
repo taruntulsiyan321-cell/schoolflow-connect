@@ -20,6 +20,7 @@ import {
   SEED_STRIDE,
 } from "@/lib/practiceDiversity";
 import {
+  finishPracticeSessionWithAttempts,
   persistAndGoToPracticeResult,
   type PracticeAttemptSnapshot,
 } from "@/lib/practiceSessionSnapshot";
@@ -150,7 +151,7 @@ export default function Class12MathSession() {
     setRevealed(false);
     setSelected(null);
     if (idx + 1 >= items.length) {
-      const { error: finErr } = await supabase.rpc("rpc_finish_practice_session", { _session_id: sessionId });
+      const { error: finErr } = await finishPracticeSessionWithAttempts(sessionId, [...attemptLog.current]);
       if (finErr) {
         toast.error(finErr.message);
         return;

@@ -22,7 +22,8 @@ function readLocalState(id: string): PracticeSessionResultState | null {
   try {
     const raw = sessionStorage.getItem(`practice-session-result-${id}`);
     if (!raw) return null;
-    return JSON.parse(raw) as PracticeSessionResultState;
+    const parsed = JSON.parse(raw) as PracticeSessionResultState;
+    return parsed?.attempts?.length ? parsed : null;
   } catch {
     return null;
   }
@@ -52,10 +53,6 @@ export default function PracticeSessionResult() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const { user } = useAuth();
-  const [session, setSession] = useState<SessionRow | null>(null);
-  const [attempts, setAttempts] = useState<AttemptRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   const localState = useMemo(() => {
     const fromNav = location.state as PracticeSessionResultState | null;
@@ -64,58 +61,106 @@ export default function PracticeSessionResult() {
     return null;
   }, [location.state, id]);
 
-  const load = async () => {
-    if (!id || !user) return;
-    setLoading(true);
-    setLoadError(null);
+  const [session, setSession] = useState<SessionRow | null>(null);
+  const [attempts, setAttempts] = useState<AttemptRow[]>([]);
+  const [dbLoading, setDbLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-    const { data: s, error: sErr } = await supabase
-      .from("practice_sessions")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .maybeSingle();
+  const localAttempts = useMemo(
+    () => (localState ? snapshotsToAttemptRows(localState.attempts) : []),
+    [localState],
+  );
 
-    if (sErr) {
-      setLoadError(sErr.message);
-      setLoading(false);
-      return;
-    }
-    if (!s) {
-      setSession(null);
-      setLoading(false);
-      return;
-    }
-    setSession(s as SessionRow);
+  const displayAttempts = useMemo(
+    () => (attempts.length > 0 ? attempts : localAttempts),
+    [attempts, localAttempts],
+  );
 
-    const { data: rows, error: aErr } = await supabase
-      .from("question_attempts")
-      .select("*")
-      .eq("session_id", id)
-      .order("created_at");
+  const subject = session?.subject ?? localState?.subject ?? "Practice";
+  const chapter = session?.chapter ?? localState?.chapter ?? "";
+  const total = Math.max(session?.question_count ?? 0, displayAttempts.length);
+  const correct =
+    displayAttempts.length > 0
+      ? displayAttempts.filter((a) => a.is_correct).length
+      : (session?.correct_count ?? 0);
+  const accuracy = total ? Math.round((correct / total) * 100) : 0;
+  const finishedMs =
+    session?.finished_at && session?.created_at
+      ? new Date(session.finished_at).getTime() - new Date(session.created_at).getTime()
+      : localState?.startedAt
+        ? Date.now() - new Date(localState.startedAt).getTime()
+        : 0;
+  const mins = Math.max(1, Math.round(finishedMs / 60000));
 
-    if (aErr) {
-      setLoadError(aErr.message);
-      setLoading(false);
-      return;
-    }
-    setAttempts((rows ?? []) as AttemptRow[]);
-    setLoading(false);
-  };
+  const fallbackReport = useMemo(() => {
+    if (!id || displayAttempts.length === 0) return null;
+    const snapshots =
+      localState?.attempts ??
+      displayAttempts.map((a) => ({
+        question: a.generated_question?.question ?? "",
+        options: a.generated_question?.options ?? [],
+        correctIndex: typeof a.correct_answer?.index === "number" ? a.correct_answer.index : 0,
+        selectedIndex: typeof a.selected_answer?.index === "number" ? a.selected_answer.index : 0,
+        isCorrect: !!a.is_correct,
+      }));
+    return buildPracticeRecoveryReport(id, subject, chapter, snapshots, mins);
+  }, [id, subject, chapter, localState, displayAttempts, mins]);
+
+  const retryUrl = `/student/practice/ai/session?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapter)}&count=${total || 10}`;
+
+  const hasLocalData = displayAttempts.length > 0;
 
   useEffect(() => {
-    load();
-  }, [id, user]);
+    if (!id || !user) {
+      if (hasLocalData) setDbLoading(false);
+      return;
+    }
 
-  if (loading) return <StudentListSkeleton rows={4} />;
+    (async () => {
+      setDbLoading(true);
+      setLoadError(null);
 
-  if (loadError) {
+      const { data: s, error: sErr } = await supabase
+        .from("practice_sessions")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (sErr) {
+        setLoadError(sErr.message);
+        setDbLoading(false);
+        return;
+      }
+
+      if (s) setSession(s as SessionRow);
+
+      const { data: rows, error: aErr } = await supabase
+        .from("question_attempts")
+        .select("*")
+        .eq("session_id", id)
+        .order("created_at");
+
+      if (aErr) {
+        setLoadError(aErr.message);
+        setDbLoading(false);
+        return;
+      }
+
+      if (rows?.length) setAttempts(rows as AttemptRow[]);
+      setDbLoading(false);
+    })();
+  }, [id, user, hasLocalData]);
+
+  if (dbLoading && !hasLocalData) return <StudentListSkeleton rows={4} />;
+
+  if (loadError && !hasLocalData) {
     return (
       <>
         <Button variant="ghost" size="sm" asChild className="mb-2">
           <Link to="/student/practice/math12"><ArrowLeft className="w-4 h-4" /> Practice</Link>
         </Button>
-        <StudentErrorState title="Could not load results" message={loadError} onRetry={load} />
+        <StudentErrorState title="Could not load results" message={loadError} onRetry={() => window.location.reload()} />
       </>
     );
   }
@@ -133,45 +178,6 @@ export default function PracticeSessionResult() {
     );
   }
 
-  const localAttempts = localState ? snapshotsToAttemptRows(localState.attempts) : [];
-  const displayAttempts = attempts.length > 0 ? attempts : localAttempts;
-  const subject = session?.subject ?? localState?.subject ?? "Practice";
-  const chapter = session?.chapter ?? localState?.chapter ?? "";
-  const total = session?.question_count || displayAttempts.length;
-  const correct = session?.correct_count ?? displayAttempts.filter((a) => a.is_correct).length;
-  const accuracy = total ? Math.round((correct / total) * 100) : 0;
-  const finishedMs = session?.finished_at && session?.created_at
-    ? new Date(session.finished_at).getTime() - new Date(session.created_at).getTime()
-    : localState?.startedAt
-      ? Date.now() - new Date(localState.startedAt).getTime()
-      : 0;
-  const mins = Math.max(1, Math.round(finishedMs / 60000));
-
-  const fallbackReport = useMemo(() => {
-    if (!id) return null;
-    if (localState?.attempts.length) {
-      return buildPracticeRecoveryReport(id, subject, chapter, localState.attempts, mins);
-    }
-    if (displayAttempts.length) {
-      return buildPracticeRecoveryReport(
-        id,
-        subject,
-        chapter,
-        displayAttempts.map((a) => ({
-          question: a.generated_question?.question ?? "",
-          options: a.generated_question?.options ?? [],
-          correctIndex: typeof a.correct_answer?.index === "number" ? a.correct_answer.index : 0,
-          selectedIndex: typeof a.selected_answer?.index === "number" ? a.selected_answer.index : 0,
-          isCorrect: !!a.is_correct,
-        })),
-        mins,
-      );
-    }
-    return null;
-  }, [id, subject, chapter, localState, displayAttempts, mins]);
-
-  const retryUrl = `/student/practice/ai/session?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapter)}&count=${total || 10}`;
-
   return (
     <>
       <Button variant="ghost" size="sm" asChild className="mb-2">
@@ -182,7 +188,7 @@ export default function PracticeSessionResult() {
         subtitle={`Practice session · ${session?.finished_at ? new Date(session.finished_at).toLocaleString() : "Just now"}`}
       />
 
-      {id && (
+      {id && fallbackReport && (
         <ConceptRecoveryReport
           sourceType="practice_session"
           sourceId={id}
@@ -192,7 +198,7 @@ export default function PracticeSessionResult() {
       )}
 
       <Card className="p-6 mb-6 flex flex-col sm:flex-row items-center gap-6">
-        <ScoreRing value={correct} max={total} size={140} label="correct" />
+        <ScoreRing value={correct} max={total || 1} size={140} label="correct" />
         <div className="grid grid-cols-2 gap-4 flex-1 w-full">
           <div className="flex items-center gap-3">
             <Target className="w-5 h-5 text-accent" />
@@ -210,11 +216,11 @@ export default function PracticeSessionResult() {
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Correct</div>
-            <div className="font-bold text-lg">{correct}/{total}</div>
+            <div className="font-bold text-lg">{correct}/{total || displayAttempts.length}</div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Score</div>
-            <div className="font-bold text-lg">{Number(session?.score ?? correct).toFixed(1)} / {total}</div>
+            <div className="font-bold text-lg">{Number(session?.score ?? correct).toFixed(1)} / {total || displayAttempts.length}</div>
           </div>
         </div>
       </Card>
@@ -234,7 +240,7 @@ export default function PracticeSessionResult() {
         </Button>
       </div>
 
-      {accuracy < 100 && (
+      {accuracy < 100 && displayAttempts.length > 0 && (
         <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
           <h3 className="font-semibold text-sm mb-2">Improvement focus</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
@@ -300,7 +306,7 @@ export default function PracticeSessionResult() {
 
       {displayAttempts.length === 0 && (
         <Card className="p-6 text-center text-sm text-muted-foreground">
-          No question details saved for this session.
+          No question details saved for this session. Complete a new practice session after updating the app.
         </Card>
       )}
     </>
