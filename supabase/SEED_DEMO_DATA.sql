@@ -112,8 +112,6 @@ DECLARE
   dpp_att     uuid := 'd5000003-0001-4000-8000-000000000001';
   hw1         uuid := 'd6000001-0001-4000-8000-000000000001';
   hw_sub1     uuid := 'd6000002-0001-4000-8000-000000000001';
-  lib_book1   uuid := 'd7000001-0001-4000-8000-000000000001';
-  lib_co1     uuid := 'd7000002-0001-4000-8000-000000000001';
   exam1       uuid := 'd8000001-0001-4000-8000-000000000001';
   exam2       uuid := 'd8000001-0002-4000-8000-000000000002';
   _qb_id      uuid;
@@ -281,17 +279,6 @@ BEGIN
   INSERT INTO public.homework_submissions (homework_id, student_id, content, status, submitted_at) VALUES
     (hw1, st2, 'Submitted — pending review', 'submitted', now() - interval '2 hours')
   ON CONFLICT (homework_id, student_id) DO NOTHING;
-
-  -- ===================== LIBRARY =====================
-  INSERT INTO public.library_books (id, title, author, isbn, category, total_copies, available_copies, shelf_location) VALUES
-    (lib_book1, 'Mathematics — Class X (NCERT)', 'NCERT', '978-81-7450-634-4', 'Textbook', 5, 4, 'A-12'),
-    ('d7000001-0002-4000-8000-000000000002', 'Science — Class X (NCERT)', 'NCERT', '978-81-7450-636-8', 'Textbook', 5, 5, 'A-13'),
-    ('d7000001-0003-4000-8000-000000000003', 'Physics Refresher', 'H.C. Verma', '978-8177091878', 'Reference', 2, 2, 'B-02')
-  ON CONFLICT (id) DO UPDATE SET available_copies = EXCLUDED.available_copies;
-
-  INSERT INTO public.library_checkouts (id, library_books_id, student_id, due_date, status) VALUES
-    (lib_co1, lib_book1, st1, _today + 10, 'borrowed')
-  ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status;
 
   -- ===================== MESSAGES (chat) =====================
   INSERT INTO public.messages (sender_id, receiver_id, content, is_read) VALUES

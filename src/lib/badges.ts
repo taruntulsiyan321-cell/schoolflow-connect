@@ -70,7 +70,7 @@ export const BADGES: Record<string, BadgeMeta> = {
   topper:              { code: "topper",              label: "Subject Topper",       desc: "Top of your class in a subject",        tier: "gold",      rarity: "epic",   group: "academic", icon: Crown },
   academic_beast:      { code: "academic_beast",      label: "Academic Beast",       desc: "90%+ across all subjects",              tier: "platinum",  rarity: "legendary", group: "academic", icon: Brain },
   rising_star:         { code: "rising_star",         label: "Rising Star",          desc: "Most improved this term",               tier: "silver",    rarity: "rare",   group: "academic", icon: Star },
-  scholar:             { code: "scholar",             label: "Scholar",              desc: "Read 10 library books",                 tier: "silver",    rarity: "rare",   group: "academic", icon: GraduationCap },
+  scholar:             { code: "scholar",             label: "Scholar",              desc: "Score 90%+ on 5 consecutive DPPs",      tier: "silver",    rarity: "rare",   group: "academic", icon: GraduationCap },
   explorer:            { code: "explorer",            label: "Explorer",             desc: "Battle in 5 different subjects",         tier: "bronze",    rarity: "common", group: "academic", icon: Compass },
 
   // ── Subject mastery ───────────────────────────────────────────

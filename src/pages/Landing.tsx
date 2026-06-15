@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   GraduationCap, Users, ClipboardCheck, Megaphone, Wallet, BookOpen, Trophy,
   Bell, ShieldCheck, Smartphone, Languages, Bus, Brain, Video, Camera,
-  IdCard, Library, ArrowRight, Sparkles, CheckCircle2,
+  IdCard, ArrowRight, Sparkles, CheckCircle2,
 } from "lucide-react";
 
 const roles = [
@@ -32,7 +32,6 @@ const upcoming = [
   { icon: Video, title: "Online Classes", desc: "Built-in live class scheduling & links." },
   { icon: Camera, title: "Live CCTV Alerts", desc: "Smart safety alerts to admin." },
   { icon: IdCard, title: "Digital ID Cards", desc: "Auto-generated student & staff IDs." },
-  { icon: Library, title: "Library Management", desc: "Books, issues, returns and dues." },
 ];
 
 const stats = [

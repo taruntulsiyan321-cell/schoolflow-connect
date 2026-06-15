@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, Library, MessageSquare, User, Sword, Target, Megaphone, Brain, BookMarked, ListChecks, BarChart3, Sparkles, Wrench } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, MessageSquare, User, Sword, Target, Megaphone, Brain, BookMarked, ListChecks, BarChart3, Sparkles, Wrench } from "lucide-react";
 import RecoveryZone from "./student/RecoveryZone";
 import RecoverySession from "./student/RecoverySession";
 import StudentSuccessHome from "./student/StudentSuccessHome";
@@ -22,7 +22,6 @@ import StudentClassesPage from "./shared/StudentClassesPage";
 import StudentExamsPage from "./shared/StudentExamsPage";
 import StudentTimetablePage from "./shared/StudentTimetablePage";
 import StudentHomeworkPage from "./shared/StudentHomeworkPage";
-import StudentLibraryPage from "./shared/StudentLibraryPage";
 import ChatPage from "./shared/ChatPage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,7 +50,6 @@ const nav = [
   { to: "/student/notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/student/notices", label: "Notices", icon: <Megaphone className="w-4 h-4" /> },
   { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
-  { to: "/student/library", label: "Library", icon: <Library className="w-4 h-4" /> },
   { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
   { to: "/student/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
@@ -187,7 +185,6 @@ export default function StudentDashboard() {
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notices" element={<NoticesPage viewerRole="student" />} />
         <Route path="fees" element={<MyFeesPage />} />
-        <Route path="library" element={<StudentLibraryPage />} />
         <Route path="chat" element={<ChatPage userRole="student" />} />
         <Route path="profile" element={<StudentProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
