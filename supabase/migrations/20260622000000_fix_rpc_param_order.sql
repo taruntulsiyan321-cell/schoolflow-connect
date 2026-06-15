@@ -1,12 +1,12 @@
--- PostgREST matches RPC args alphabetically: _attempts before _session_id
+-- Practice RPCs: required params first, then defaults (PostgreSQL rule)
 
 DROP FUNCTION IF EXISTS public.rpc_finish_practice_session(uuid);
 DROP FUNCTION IF EXISTS public.rpc_finish_practice_session(uuid, jsonb);
 DROP FUNCTION IF EXISTS public.rpc_finish_practice_session(jsonb, uuid);
 
 CREATE OR REPLACE FUNCTION public.rpc_finish_practice_session(
-  _attempts jsonb DEFAULT NULL,
-  _session_id uuid
+  _session_id uuid,
+  _attempts jsonb DEFAULT NULL
 )
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -35,9 +35,9 @@ BEGIN
         COALESCE(_att->'correct_answer', '{}'::jsonb),
         COALESCE(_att->'generated_question', '{}'::jsonb),
         COALESCE((_att->>'is_correct')::boolean, false),
-        COALESCE((_att->>'score')::numeric, CASE WHEN COALESCE((_att->>'is_correct')::boolean, false) THEN 1 ELSE 0 END),
         COALESCE(_att->'selected_answer', '{}'::jsonb),
         _session_id,
+        COALESCE((_att->>'score')::numeric, CASE WHEN COALESCE((_att->>'is_correct')::boolean, false) THEN 1 ELSE 0 END),
         false,
         NULLIF(_att->>'template_id', '')::uuid,
         NULL::int
@@ -76,19 +76,19 @@ BEGIN
   );
 END; $$;
 
-GRANT EXECUTE ON FUNCTION public.rpc_finish_practice_session(jsonb, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rpc_finish_practice_session(uuid, jsonb) TO authenticated;
 
--- PostgREST alphabetical parameter order for per-answer saves
 DROP FUNCTION IF EXISTS public.rpc_record_question_attempt(uuid, uuid, jsonb, jsonb, jsonb, boolean, numeric, int, boolean);
 DROP FUNCTION IF EXISTS public.rpc_record_question_attempt(uuid, uuid, jsonb, jsonb, jsonb, boolean, numeric);
+DROP FUNCTION IF EXISTS public.rpc_record_question_attempt(jsonb, jsonb, boolean, numeric, jsonb, uuid, boolean, uuid, int);
 
 CREATE OR REPLACE FUNCTION public.rpc_record_question_attempt(
   _correct_answer jsonb,
   _generated_question jsonb,
   _is_correct boolean,
-  _score numeric DEFAULT 0,
-  _selected_answer jsonb DEFAULT NULL,
+  _selected_answer jsonb,
   _session_id uuid,
+  _score numeric DEFAULT 0,
   _skipped boolean DEFAULT false,
   _template_id uuid DEFAULT NULL,
   _time_taken_ms int DEFAULT NULL
@@ -174,5 +174,5 @@ BEGIN
 END; $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_record_question_attempt(
-  jsonb, jsonb, boolean, numeric, jsonb, uuid, boolean, uuid, int
+  jsonb, jsonb, boolean, jsonb, uuid, numeric, boolean, uuid, int
 ) TO authenticated;

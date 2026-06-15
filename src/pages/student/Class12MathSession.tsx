@@ -126,9 +126,9 @@ export default function Class12MathSession() {
         explanation: current.generated.explanation,
       },
       _is_correct: ok,
-      _score: ok ? 1 : 0,
       _selected_answer: { index: optionIndex, text: current.generated.options[optionIndex] },
       _session_id: sessionId,
+      _score: ok ? 1 : 0,
       _template_id: current.template.id,
     });
     if (recErr) {

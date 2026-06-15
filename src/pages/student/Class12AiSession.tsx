@@ -139,9 +139,9 @@ export default function Class12AiSession() {
         explanation: current.explanation,
       },
       _is_correct: ok,
-      _score: ok ? 1 : 0,
       _selected_answer: { index: optionIndex, text: current.options[optionIndex] },
       _session_id: sessionId,
+      _score: ok ? 1 : 0,
       _template_id: null,
     });
     if (recErr) console.warn("record attempt:", recErr.message);
