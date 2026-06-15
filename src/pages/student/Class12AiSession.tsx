@@ -8,16 +8,14 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, CheckCircle2, Sparkles, XCircle, Loader2 } from "lucide-react";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
-import { toast } from "sonner";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 import { generateAiPracticeQuestions } from "@/lib/aiPracticeQuestions";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import {
-  finishPracticeSessionWithAttempts,
-  persistAndGoToPracticeResult,
+  completePracticeSession,
   type PracticeAttemptSnapshot,
-} from "@/lib/practiceSessionSnapshot";
+} from "@/lib/practiceSessionPersistence";
 
 type AiQuestion = {
   id: string;
@@ -132,17 +130,25 @@ export default function Class12AiSession() {
     }
 
     const { error: recErr } = await supabase.rpc("rpc_record_question_attempt", {
-      _correct_answer: { index: current.correctIndex, text: current.options[current.correctIndex] },
+      _session_id: sessionId,
+      _template_id: null,
       _generated_question: {
         question: current.question,
         options: current.options,
         explanation: current.explanation,
       },
-      _is_correct: ok,
+      _correct_answer: { index: current.correctIndex, text: current.options[current.correctIndex] },
       _selected_answer: { index: optionIndex, text: current.options[optionIndex] },
-      _session_id: sessionId,
+      _is_correct: ok,
       _score: ok ? 1 : 0,
-      _template_id: null,
+    } as {
+      _session_id: string;
+      _template_id: null;
+      _generated_question: object;
+      _correct_answer: object;
+      _selected_answer: object;
+      _is_correct: boolean;
+      _score: number;
     });
     if (recErr) console.warn("record attempt:", recErr.message);
   };
@@ -151,19 +157,13 @@ export default function Class12AiSession() {
     setRevealed(false);
     setSelected(null);
     if (idx + 1 >= items.length) {
-      const { error: finErr } = await finishPracticeSessionWithAttempts(sessionId, [...attemptLog.current]);
-      if (finErr) {
-        console.warn("finish session:", finErr.message);
-        toast.error("Could not sync to server — showing your results locally.");
-      }
-      if (sessionId) {
-        persistAndGoToPracticeResult(nav, sessionId, {
-          subject,
-          chapter,
-          attempts: [...attemptLog.current],
-          startedAt: startedAt.current,
-        });
-      }
+      if (!sessionId) return;
+      completePracticeSession(nav, sessionId, {
+        subject,
+        chapter,
+        attempts: [...attemptLog.current],
+        startedAt: startedAt.current,
+      });
       return;
     }
     setIdx(idx + 1);

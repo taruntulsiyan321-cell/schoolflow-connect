@@ -20,10 +20,9 @@ import {
   SEED_STRIDE,
 } from "@/lib/practiceDiversity";
 import {
-  finishPracticeSessionWithAttempts,
-  persistAndGoToPracticeResult,
+  completePracticeSession,
   type PracticeAttemptSnapshot,
-} from "@/lib/practiceSessionSnapshot";
+} from "@/lib/practiceSessionPersistence";
 
 type SessionItem = {
   template: QuestionTemplateRow;
@@ -117,7 +116,8 @@ export default function Class12MathSession() {
     });
 
     const { error: recErr } = await supabase.rpc("rpc_record_question_attempt", {
-      _correct_answer: { index: current.generated.correctIndex, text: current.generated.correctAnswer },
+      _session_id: sessionId,
+      _template_id: current.template.id,
       _generated_question: {
         question: current.generated.question,
         options: current.generated.options,
@@ -125,11 +125,10 @@ export default function Class12MathSession() {
         session_seed: sessionSeed + idx * SEED_STRIDE,
         explanation: current.generated.explanation,
       },
-      _is_correct: ok,
+      _correct_answer: { index: current.generated.correctIndex, text: current.generated.correctAnswer },
       _selected_answer: { index: optionIndex, text: current.generated.options[optionIndex] },
-      _session_id: sessionId,
+      _is_correct: ok,
       _score: ok ? 1 : 0,
-      _template_id: current.template.id,
     });
     if (recErr) {
       console.warn("record attempt:", recErr.message);
@@ -151,19 +150,13 @@ export default function Class12MathSession() {
     setRevealed(false);
     setSelected(null);
     if (idx + 1 >= items.length) {
-      const { error: finErr } = await finishPracticeSessionWithAttempts(sessionId, [...attemptLog.current]);
-      if (finErr) {
-        console.warn("finish session:", finErr.message);
-        toast.error("Could not sync to server — showing your results locally.");
-      }
-      if (sessionId) {
-        persistAndGoToPracticeResult(nav, sessionId, {
-          subject: "Mathematics",
-          chapter,
-          attempts: [...attemptLog.current],
-          startedAt: startedAt.current,
-        });
-      }
+      if (!sessionId) return;
+      completePracticeSession(nav, sessionId, {
+        subject: "Mathematics",
+        chapter,
+        attempts: [...attemptLog.current],
+        startedAt: startedAt.current,
+      });
       return;
     }
     setIdx(idx + 1);
