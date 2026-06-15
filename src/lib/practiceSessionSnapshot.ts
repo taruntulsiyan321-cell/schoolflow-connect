@@ -96,7 +96,7 @@ export async function finishPracticeSessionWithAttempts(
   attempts: PracticeAttemptSnapshot[],
 ) {
   return supabase.rpc("rpc_finish_practice_session", {
-    _session_id: sessionId,
     _attempts: attemptsToFinishPayload(attempts),
-  } as { _session_id: string; _attempts: ReturnType<typeof attemptsToFinishPayload> });
+    _session_id: sessionId,
+  });
 }

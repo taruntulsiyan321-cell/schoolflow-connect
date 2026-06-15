@@ -132,22 +132,19 @@ export default function Class12AiSession() {
     }
 
     const { error: recErr } = await supabase.rpc("rpc_record_question_attempt", {
-      _session_id: sessionId,
-      _template_id: null,
+      _correct_answer: { index: current.correctIndex, text: current.options[current.correctIndex] },
       _generated_question: {
         question: current.question,
         options: current.options,
         explanation: current.explanation,
       },
-      _selected_answer: { index: optionIndex, text: current.options[optionIndex] },
-      _correct_answer: { index: current.correctIndex, text: current.options[current.correctIndex] },
       _is_correct: ok,
       _score: ok ? 1 : 0,
+      _selected_answer: { index: optionIndex, text: current.options[optionIndex] },
+      _session_id: sessionId,
+      _template_id: null,
     });
-    if (recErr) {
-      console.warn("record attempt:", recErr.message);
-      toast.error("Answer could not be saved to your history.");
-    }
+    if (recErr) console.warn("record attempt:", recErr.message);
   };
 
   const next = async () => {
@@ -156,8 +153,8 @@ export default function Class12AiSession() {
     if (idx + 1 >= items.length) {
       const { error: finErr } = await finishPracticeSessionWithAttempts(sessionId, [...attemptLog.current]);
       if (finErr) {
-        toast.error(finErr.message);
-        return;
+        console.warn("finish session:", finErr.message);
+        toast.error("Could not sync to server — showing your results locally.");
       }
       if (sessionId) {
         persistAndGoToPracticeResult(nav, sessionId, {
