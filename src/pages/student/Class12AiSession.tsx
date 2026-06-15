@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -24,6 +24,7 @@ type AiQuestion = {
 
 export default function Class12AiSession() {
   const { user } = useAuth();
+  const nav = useNavigate();
   const [params] = useSearchParams();
   const subject = params.get("subject") ?? "Mathematics";
   const chapter = params.get("chapter") ?? "Relations and Functions";
@@ -37,7 +38,6 @@ export default function Class12AiSession() {
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [correctN, setCorrectN] = useState(0);
-  const [done, setDone] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -98,7 +98,7 @@ export default function Class12AiSession() {
         subject,
         chapter,
         concept: chapter,
-        sourceType: "practice",
+        sourceType: "practice_session",
         sourceId: sessionId,
       });
       void (supabase as any).rpc("rpc_record_concept_mistake", {
@@ -131,8 +131,11 @@ export default function Class12AiSession() {
     setSelected(null);
     if (idx + 1 >= items.length) {
       const { error: finErr } = await supabase.rpc("rpc_finish_practice_session", { _session_id: sessionId });
-      if (finErr) toast.error(finErr.message);
-      setDone(true);
+      if (finErr) {
+        toast.error(finErr.message);
+        return;
+      }
+      if (sessionId) nav(`/student/practice/session/${sessionId}/result`, { replace: true });
       return;
     }
     setIdx(idx + 1);
@@ -164,33 +167,6 @@ export default function Class12AiSession() {
           <Button asChild variant="outline"><Link to="/student/practice/math12">Back to picker</Link></Button>
         </div>
       </div>
-    );
-  }
-
-  if (done) {
-    const accuracy = items.length ? Math.round((correctN / items.length) * 100) : 0;
-    return (
-      <Card className="p-8 max-w-md mx-auto text-center shadow-card">
-        <CheckCircle2 className="w-12 h-12 mx-auto text-accent mb-3" />
-        <h2 className="text-xl font-semibold">Practice complete</h2>
-        <p className="text-muted-foreground mt-2">{subject} · {chapter}</p>
-        <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">Practice results</span>
-          </div>
-          <div className="text-2xl font-bold">{correctN}/{items.length}</div>
-          <div className="text-sm text-muted-foreground">{accuracy}% accuracy</div>
-        </div>
-        <div className="flex gap-2 mt-6 justify-center flex-wrap">
-          <Button asChild variant="outline"><Link to="/student/practice/math12">New chapter</Link></Button>
-          {!accuracy || accuracy < 70 ? (
-            <Button asChild><Link to="/student/recovery">Recovery zone</Link></Button>
-          ) : (
-            <Button onClick={() => window.location.reload()}>Practice again</Button>
-          )}
-        </div>
-      </Card>
     );
   }
 
@@ -243,18 +219,15 @@ export default function Class12AiSession() {
               {selected === current.correctIndex ? "Correct!" : "Review the explanation below."}
             </div>
             {current.explanation && <MathText block className="text-sm text-muted-foreground" text={current.explanation} />}
-            {selected !== current.correctIndex && (
-              <ExplainPanel
-                question={current.question}
-                options={current.options}
-                correctIndex={current.correctIndex}
-                selectedIndex={selected}
-                wasCorrect={false}
-                subject={subject}
-                chapter={chapter}
-                autoLoad
-              />
-            )}
+            <ExplainPanel
+              question={current.question}
+              options={current.options}
+              correctIndex={current.correctIndex}
+              selectedIndex={selected}
+              wasCorrect={selected === current.correctIndex}
+              subject={subject}
+              chapter={chapter}
+            />
             <Button className="w-full" onClick={next}>
               {idx + 1 >= items.length ? "Finish session" : "Next question"}
             </Button>
