@@ -15,7 +15,7 @@ export function AnalyticsEmptyState() {
       </p>
       <div className="flex gap-2 justify-center mt-6 flex-wrap">
         <Button asChild>
-          <Link to="/student/dpp"><Target className="w-4 h-4 mr-1" /> Start a DPP</Link>
+          <Link to="/student/practice/math12"><Target className="w-4 h-4 mr-1" /> Start practice</Link>
         </Button>
         <Button asChild variant="outline">
           <Link to="/student/battleground"><Sword className="w-4 h-4 mr-1" /> Battleground</Link>

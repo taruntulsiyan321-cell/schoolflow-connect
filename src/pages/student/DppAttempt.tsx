@@ -112,7 +112,7 @@ export default function DppAttempt() {
       <div className="max-w-md mx-auto space-y-4">
         <StudentErrorState title="Could not start DPP" message={loadError} onRetry={load} />
         <div className="text-center">
-          <Button variant="outline" size="sm" asChild><Link to="/student/dpp">Back to DPP list</Link></Button>
+          <Button variant="outline" size="sm" asChild><Link to="/student">Back to Growth</Link></Button>
         </div>
       </div>
     );
@@ -122,7 +122,7 @@ export default function DppAttempt() {
     return (
       <Card className="p-8 text-center max-w-md mx-auto">
         <p className="text-muted-foreground">No questions in this DPP yet.</p>
-        <Button variant="outline" className="mt-4" asChild><Link to="/student/dpp">Back to DPP list</Link></Button>
+        <Button variant="outline" className="mt-4" asChild><Link to="/student">Back to Growth</Link></Button>
       </Card>
     );
   }
@@ -135,7 +135,7 @@ export default function DppAttempt() {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-3">
-        <Button variant="ghost" size="sm" asChild><Link to="/student/dpp"><ArrowLeft className="w-4 h-4" /> Back</Link></Button>
+        <Button variant="ghost" size="sm" asChild><Link to="/student"><ArrowLeft className="w-4 h-4" /> Growth</Link></Button>
         {timedDpp && mins !== null && secs !== null && (
           <div className="flex items-center gap-2 text-sm font-mono px-3 py-1 rounded-lg bg-muted">
             <Timer className="w-4 h-4" /> {mins}:{secs}

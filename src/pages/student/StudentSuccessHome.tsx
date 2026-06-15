@@ -14,7 +14,7 @@ import {
   FlowStatGrid,
 } from "@/components/student/flow/FlowDesign";
 import { StudentDashboardSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
-import { BookOpen, Calculator, ClipboardCheck, Flame, Sword, Target, Wrench } from "lucide-react";
+import { BookOpen, Calculator, ClipboardCheck, Sword, Target, Wrench } from "lucide-react";
 
 export default function StudentSuccessHome() {
   const { data, loading, error, reload } = useStudentAcademicSnapshot();
@@ -66,11 +66,10 @@ export default function StudentSuccessHome() {
       <section>
         <FlowSectionTitle>Today at a glance</FlowSectionTitle>
         <FlowStatGrid
-          columns={4}
+          columns={3}
           items={[
             { label: "Attendance", value: `${readiness?.attendance_pct ?? 0}%` },
             { label: "Homework", value: data?.homework?.pending ?? 0, sub: "pending" },
-            { label: "DPP", value: data?.dpp?.open ?? 0, sub: "to do" },
             { label: "Mistakes", value: data?.mistake_count ?? 0, sub: "to fix" },
           ]}
         />
@@ -142,9 +141,6 @@ export default function StudentSuccessHome() {
       <div className="flex flex-wrap gap-2 justify-center pt-2">
         <Button size="sm" variant="outline" className="rounded-full" asChild>
           <Link to="/student/homework"><BookOpen className="w-3.5 h-3.5 mr-1" /> Homework</Link>
-        </Button>
-        <Button size="sm" variant="outline" className="rounded-full" asChild>
-          <Link to="/student/dpp"><Flame className="w-3.5 h-3.5 mr-1" /> Daily DPP</Link>
         </Button>
       </div>
     </FlowPage>

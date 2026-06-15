@@ -312,7 +312,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
             <Button size="sm" asChild variant="default">
               <Link to="/student/practice/math12"><Calculator className="w-4 h-4 mr-1" /> Class 12 Math practice</Link>
             </Button>
-            <Button size="sm" asChild variant="outline"><Link to="/student/dpp">Daily practice (DPP)</Link></Button>
+            <Button size="sm" asChild variant="outline"><Link to="/student/homework">Assigned work</Link></Button>
           </div>
         </Card>
       )}

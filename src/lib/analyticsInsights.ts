@@ -815,7 +815,7 @@ export function linkForActionStep(text: string): { to: string; label: string } {
     return { to: "/student/revision", label: "Revision" };
   }
   if (t.includes("dpp")) {
-    return { to: "/student/dpp", label: "Daily DPP" };
+    return { to: "/student/homework", label: "Assigned work" };
   }
   if (t.includes("practice")) {
     return { to: "/student/practice/math12", label: "Practice" };

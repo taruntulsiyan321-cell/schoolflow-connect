@@ -107,7 +107,7 @@ export default function ImprovementPlans() {
           <ListChecks className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">No weak topics yet. Try a DPP, battle, or Class 12 self-practice session.</p>
           <div className="flex gap-2 justify-center mt-4 flex-wrap">
-            <Button asChild><Link to="/student/dpp">Start a DPP</Link></Button>
+            <Button asChild><Link to="/student/practice/math12">Start practice</Link></Button>
             <Button asChild variant="outline"><Link to="/student/practice/math12">Self-practice</Link></Button>
           </div>
         </Card>

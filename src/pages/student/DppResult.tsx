@@ -63,7 +63,7 @@ export default function DppResult() {
   if (loadError) {
     return (
       <>
-        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Growth</Link></Button>
         <StudentErrorState title="Could not load results" message={loadError} onRetry={load} />
       </>
     );
@@ -72,7 +72,7 @@ export default function DppResult() {
   if (!dpp) {
     return (
       <>
-        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Growth</Link></Button>
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">This DPP could not be found.</p>
         </Card>
@@ -83,7 +83,7 @@ export default function DppResult() {
   if (!attempt) {
     return (
       <>
-        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Growth</Link></Button>
         <Card className="p-8 text-center">
           <Target className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">You haven't submitted this DPP yet.</p>
@@ -98,7 +98,7 @@ export default function DppResult() {
 
   return (
     <>
-      <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
+      <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Growth</Link></Button>
       <PageHeader title={dpp.title} subtitle={`${dpp.subject} · Submitted ${attempt.submitted_at ? new Date(attempt.submitted_at).toLocaleString() : "—"}`} />
 
       {attempt?.id && (

@@ -115,7 +115,7 @@ export const GROUP_LABEL: Record<BadgeGroup, string> = {
   speed: "Speed",
   accuracy: "Accuracy",
   academic: "Academic",
-  dpp: "Daily Practice",
+  dpp: "DPP",
   attendance: "Attendance",
   leaderboard: "Leaderboard",
   mastery: "Subject Mastery",

@@ -200,7 +200,7 @@ export default function RevisionQueue() {
             Nothing queued yet. Complete practice or DPPs — revision builds from your academic profile.
           </p>
           <div className="flex gap-2 justify-center mt-4">
-            <Button asChild><Link to="/student/dpp">Start a DPP</Link></Button>
+            <Button asChild><Link to="/student/practice/math12">Start practice</Link></Button>
             <Button asChild variant="outline"><Link to="/student/recovery">Recovery zone</Link></Button>
           </div>
         </section>

@@ -11,7 +11,6 @@ import ImprovementPlans from "./student/ImprovementPlans";
 import AcademicAnalytics from "./student/AcademicAnalytics";
 import AcademicReport from "./student/AcademicReport";
 import Battleground from "./student/Battleground";
-import DppHub from "./student/DppHub";
 import Class12MathPractice from "./student/Class12MathPractice";
 import Class12MathSession from "./student/Class12MathSession";
 import Class12AiSession from "./student/Class12AiSession";
@@ -42,7 +41,6 @@ const nav = [
   { to: "/student/analytics", label: "Analysis", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" />, end: false },
   { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
-  { to: "/student/dpp", label: "Daily Practice", icon: <Target className="w-4 h-4" />, end: false },
   { to: "/student/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
   { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/student/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
@@ -190,7 +188,7 @@ export default function StudentDashboard() {
         <Route path="profile" element={<StudentProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />
         <Route path="battleground/*" element={<Battleground />} />
-        <Route path="dpp" element={<DppHub />} />
+        <Route path="dpp" element={<Navigate to="/student" replace />} />
         <Route path="practice/math12" element={<Class12MathPractice />} />
         <Route path="practice/math12/session" element={<Class12MathSession />} />
         <Route path="practice/ai/session" element={<Class12AiSession />} />
