@@ -1,0 +1,70 @@
+/* Premium recovery hub */
+.recovery-hub {
+  --rh-emerald: #003324;
+  --rh-mint: #defaeb;
+  --rh-gold: #e8c468;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-bottom: 2.5rem;
+}
+
+.recovery-hub .rh-hero {
+  background: linear-gradient(135deg, #0a4d3a 0%, #003324 45%, #1a3a0a 100%);
+  box-shadow: 0 24px 48px -12px rgba(0, 51, 36, 0.4);
+}
+
+.recovery-hub .rh-hero-glow {
+  background: radial-gradient(circle at 80% 20%, rgba(232, 196, 104, 0.3) 0%, transparent 55%);
+}
+
+.recovery-hub .rh-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fdf9 100%);
+  border: 1px solid rgba(0, 51, 36, 0.08);
+  box-shadow: 0 4px 24px -6px rgba(0, 51, 36, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.recovery-hub .rh-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.14);
+}
+
+.recovery-hub .rh-coach {
+  background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 50%, #f4fff8 100%);
+  border: 1px solid rgba(59, 130, 246, 0.12);
+  box-shadow: 0 8px 32px -8px rgba(59, 130, 246, 0.1);
+}
+
+.recovery-hub .rh-task {
+  background: linear-gradient(160deg, #ffffff 0%, #fff8f0 55%, #f4fff8 100%);
+  border: 1px solid rgba(232, 196, 104, 0.2);
+}
+
+.recovery-hub .rh-success {
+  background: linear-gradient(135deg, #defaeb 0%, #ffffff 60%, #f4fff8 100%);
+  border: 1px solid rgba(151, 211, 184, 0.4);
+}
+
+.recovery-hub .rh-forecast {
+  background: linear-gradient(135deg, #003324 0%, #064e3b 100%);
+  box-shadow: 0 16px 40px -10px rgba(0, 51, 36, 0.35);
+}
+
+.recovery-hub .rh-journey-line {
+  background: linear-gradient(90deg, #97d3b8 0%, #0d5c44 50%, #e8c468 100%);
+}
+
+.recovery-hub .rh-heat-strong {
+  background: linear-gradient(135deg, #defaeb 0%, #ffffff 100%);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.recovery-hub .rh-heat-moderate {
+  background: linear-gradient(135deg, #fff8e8 0%, #ffffff 100%);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.recovery-hub .rh-heat-critical {
+  background: linear-gradient(135deg, #fff0f0 0%, #ffffff 100%);
+  border-color: rgba(239, 68, 68, 0.25);
+}

@@ -1,41 +1,45 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMostRecentPracticeMistake } from "@/lib/mistakeRecovery";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
-  FlowConceptPanel,
-  FlowConceptTag,
-  FlowPage,
-  FlowRecoveryCard,
-  FlowSectionTitle,
-  FlowStatGrid,
-  FlowTopBar,
-} from "@/components/student/flow/FlowDesign";
+  RecoveryHubPage,
+  type FixedConcept,
+  type HeatMapItem,
+  type JourneyStage,
+  type RecoveryPriority,
+  type RecoveryTask,
+} from "@/components/student/recovery/RecoveryHubPage";
 import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import { useAcademicBrain } from "@/hooks/useAcademicBrain";
-import { BookMarked, Loader2, Target, TrendingDown, TrendingUp, Minus } from "lucide-react";
-import { toast } from "sonner";
 import { StudentDashboardSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
+import { toast } from "sonner";
 
-const severityTone: Record<string, string> = {
-  severe: "destructive",
-  moderate: "default",
-  minor: "outline",
-};
+const PLACEHOLDER_PRIORITIES: RecoveryPriority[] = [
+  { rank: 1, concept: "Determinants", subject: "Mathematics", accuracy: 42, mastery: 38, questionsAssigned: 12 },
+  { rank: 2, concept: "Inverse Matrix", subject: "Mathematics", accuracy: 48, mastery: 45, questionsAssigned: 10 },
+  { rank: 3, concept: "Vector Algebra", subject: "Mathematics", accuracy: 55, mastery: 52, questionsAssigned: 8 },
+];
 
-const trendIcon = {
-  improving: TrendingUp,
-  slipping: TrendingDown,
-  steady: Minus,
-} as const;
+const PLACEHOLDER_FIXED: FixedConcept[] = [
+  { concept: "Matrices", subject: "Mathematics", improvement: "+18% mastery" },
+  { concept: "Probability", subject: "Mathematics", improvement: "+14% mastery" },
+  { concept: "Linear Programming", subject: "Mathematics", improvement: "+11% mastery" },
+];
 
-const trendLabel = {
-  improving: "Improving",
-  slipping: "Needs attention",
-  steady: "Steady",
-} as const;
+const PLACEHOLDER_HEAT: HeatMapItem[] = [
+  { concept: "Probability", subject: "Mathematics", level: "strong", mastery: 88 },
+  { concept: "Matrices", subject: "Mathematics", level: "strong", mastery: 82 },
+  { concept: "Vector Algebra", subject: "Mathematics", level: "moderate", mastery: 58 },
+  { concept: "Determinants", subject: "Mathematics", level: "critical", mastery: 38 },
+  { concept: "Integration", subject: "Mathematics", level: "critical", mastery: 41 },
+];
+
+function masteryLevel(score: number): HeatMapItem["level"] {
+  if (score >= 75) return "strong";
+  if (score >= 50) return "moderate";
+  return "critical";
+}
 
 export default function RecoveryZone() {
   const { data, loading, error, reload } = useRecoveryZone();
@@ -60,18 +64,15 @@ export default function RecoveryZone() {
     setFixing(true);
     (async () => {
       try {
-        const { data: aid, error: assignErr } = await (supabase as any).rpc(
-          "rpc_assign_concept_recovery",
-          {
-            _subject: subject,
-            _chapter: searchParams.get("chapter") || null,
-            _concept: concept,
-            _subconcept: null,
-            _accuracy: 35,
-            _source_type: "analytics",
-            _source_id: null,
-          },
-        );
+        const { data: aid, error: assignErr } = await (supabase as any).rpc("rpc_assign_concept_recovery", {
+          _subject: subject,
+          _chapter: searchParams.get("chapter") || null,
+          _concept: concept,
+          _subconcept: null,
+          _accuracy: 35,
+          _source_type: "analytics",
+          _source_id: null,
+        });
         if (assignErr) {
           toast.error(assignErr.message);
           return;
@@ -98,18 +99,15 @@ export default function RecoveryZone() {
         return;
       }
 
-      const { data: aid, error: assignErr } = await (supabase as any).rpc(
-        "rpc_assign_concept_recovery",
-        {
-          _subject: m.subject,
-          _chapter: m.chapter ?? null,
-          _concept: m.concept ?? m.topic ?? m.chapter ?? null,
-          _subconcept: null,
-          _accuracy: 35,
-          _source_type: "practice",
-          _source_id: m.id,
-        },
-      );
+      const { data: aid, error: assignErr } = await (supabase as any).rpc("rpc_assign_concept_recovery", {
+        _subject: m.subject,
+        _chapter: m.chapter ?? null,
+        _concept: m.concept ?? m.topic ?? m.chapter ?? null,
+        _subconcept: null,
+        _accuracy: 35,
+        _source_type: "practice",
+        _source_id: m.id,
+      });
 
       if (assignErr) {
         toast.error(assignErr.message);
@@ -121,152 +119,139 @@ export default function RecoveryZone() {
     }
   };
 
+  const hubProps = useMemo(() => {
+    const assignments = data?.open_assignments ?? [];
+    const weak = data?.weak_concepts ?? [];
+    const brainWeak = brain?.weak_concepts ?? [];
+    const displayWeak = weak.length > 0 ? weak : brainWeak;
+    const pending = data?.pending_count ?? (assignments.length > 0 ? assignments.reduce((s, a) => s + (a.question_count - a.questions_completed), 0) : 12);
+    const recoveryPct = Math.round(brain?.recovery_completion_pct ?? 0);
+    const trend = brain?.improvement_trend ?? "steady";
+
+    const priorities: RecoveryPriority[] =
+      displayWeak.length > 0
+        ? displayWeak.slice(0, 3).map((w, i) => ({
+            rank: i + 1,
+            concept: w.concept,
+            subject: w.subject,
+            accuracy: Math.max(20, Math.round(100 - (w.mastery_score ?? 50))),
+            mastery: Math.round(w.mastery_score ?? 40),
+            questionsAssigned: assignments.find((a) => a.concept === w.concept)?.question_count ?? 10 - i * 2,
+          }))
+        : PLACEHOLDER_PRIORITIES;
+
+    const tasks: RecoveryTask[] =
+      assignments.length > 0
+        ? assignments.map((a) => ({
+            id: a.id,
+            concept: a.concept,
+            subject: a.subject,
+            currentMastery: Math.round(((a.questions_completed / Math.max(1, a.question_count)) * 40) + 30),
+            targetMastery: 80,
+            questionsAssigned: a.question_count,
+            estimatedImprovement: `+${Math.min(12, a.question_count)}% accuracy`,
+          }))
+        : priorities.map((p, i) => ({
+            id: `placeholder-${i}`,
+            concept: p.concept,
+            subject: p.subject,
+            currentMastery: p.mastery,
+            targetMastery: 80,
+            questionsAssigned: p.questionsAssigned,
+            estimatedImprovement: "+5–8% accuracy",
+          }));
+
+    const mastery = data?.mastery ?? [];
+    const fixedConcepts: FixedConcept[] =
+      mastery.filter((m) => m.mastery_score >= 75).length > 0
+        ? mastery
+            .filter((m) => m.mastery_score >= 75)
+            .slice(0, 3)
+            .map((m) => ({
+              concept: m.concept,
+              subject: m.subject,
+              improvement: `+${Math.round(m.mastery_score - 60)}% mastery`,
+            }))
+        : PLACEHOLDER_FIXED;
+
+    const heatMap: HeatMapItem[] =
+      displayWeak.length > 0 || mastery.length > 0
+        ? [
+            ...mastery.slice(0, 3).map((m) => ({
+              concept: m.concept,
+              subject: m.subject,
+              level: masteryLevel(m.mastery_score),
+              mastery: Math.round(m.mastery_score),
+            })),
+            ...displayWeak.slice(0, 4).map((w) => ({
+              concept: w.concept,
+              subject: w.subject,
+              level: masteryLevel(w.mastery_score ?? 40) as HeatMapItem["level"],
+              mastery: Math.round(w.mastery_score ?? 40),
+            })),
+          ].slice(0, 8)
+        : PLACEHOLDER_HEAT;
+
+    const journey: JourneyStage[] = [
+      { id: "detected", label: "Weakness detected", done: displayWeak.length > 0, active: displayWeak.length > 0 && assignments.length === 0 },
+      { id: "assigned", label: "Recovery assigned", done: assignments.length > 0, active: assignments.length > 0 && recoveryPct < 100 },
+      { id: "completed", label: "Recovery completed", done: recoveryPct >= 80, active: recoveryPct > 0 && recoveryPct < 80 },
+      { id: "mastery", label: "Mastery improved", done: trend === "improving" && recoveryPct >= 80, active: recoveryPct >= 80 && trend !== "improving" },
+    ];
+
+    const topWeak = displayWeak[0]?.concept ?? "Determinants";
+    const coachTitle = `Focus on ${topWeak} today`;
+    const coachBody =
+      displayWeak.length > 0
+        ? `You frequently struggle with ${topWeak.toLowerCase()}-related questions. Completing today's recovery plan can significantly improve your ${displayWeak[0]?.subject ?? "mathematics"} performance.`
+        : "You frequently struggle with determinant transformations. Completing today's recovery plan can significantly improve your mathematics performance.";
+
+    const baseAccuracy = 78;
+    const baseMastery = 72;
+
+    return {
+      pending,
+      potentialImprovement: `+${Math.min(7, Math.max(3, displayWeak.length + 2))}%`,
+      weakConcepts: displayWeak.map((w) => w.concept),
+      priorities,
+      tasks,
+      fixedConcepts,
+      journey,
+      forecast: {
+        accuracy: [baseAccuracy, Math.min(95, baseAccuracy + 7)] as [number, number],
+        mastery: [baseMastery, Math.min(95, baseMastery + 9)] as [number, number],
+      },
+      heatMap,
+      coachTitle,
+      coachBody,
+    };
+  }, [brain, data]);
+
   if (loading || brainLoading) {
-    return (
-      <FlowPage>
-        <FlowTopBar backTo="/student" />
-        <StudentDashboardSkeleton />
-      </FlowPage>
-    );
+    return <StudentDashboardSkeleton />;
   }
 
   if (error) {
     return (
-      <FlowPage>
-        <FlowTopBar backTo="/student" />
-        <StudentErrorState
-          title="Recovery Zone unavailable"
-          message={error}
-          onRetry={reload}
-        />
-      </FlowPage>
+      <StudentErrorState title="Recovery Center unavailable" message={error} onRetry={reload} />
     );
   }
 
-  const pending = data?.pending_count ?? 0;
-  const assignments = data?.open_assignments ?? [];
-  const weak = data?.weak_concepts ?? [];
-  const brainWeak = brain?.weak_concepts ?? [];
-  const displayWeak = weak.length > 0 ? weak : brainWeak;
-  const trend = brain?.improvement_trend ?? "steady";
-  const TrendIcon = trendIcon[trend];
-  const recoveryPct = Math.round(brain?.recovery_completion_pct ?? 0);
-
   return (
-    <FlowPage>
-      <FlowTopBar
-        backTo="/student"
-        action={
-          <Button size="sm" variant="ghost" className="h-9" asChild>
-            <Link to="/student/mistakes">Mistake book</Link>
-          </Button>
+    <RecoveryHubPage
+      {...hubProps}
+      fixing={fixing}
+      onFixMistakes={() => {
+        if ((data?.open_assignments?.length ?? 0) > 0 || hasPracticeMistakes) void handleFixMistakes();
+        else toast.info("No mistakes yet — complete a practice session first.");
+      }}
+      onStartRecovery={(id) => {
+        if (id.startsWith("placeholder-")) {
+          void handleFixMistakes();
+          return;
         }
-      />
-
-      <FlowRecoveryCard
-        count={pending}
-        weakConcepts={displayWeak.slice(0, 6).map((w) => w.concept)}
-        ctaLabel={fixing ? "Starting…" : "Fix my mistakes"}
-        subtitle="Targeted practice on weak concepts from your academic profile"
-        onCtaClick={() => {
-          if (assignments[0] || hasPracticeMistakes) void handleFixMistakes();
-          else toast.info("No mistakes yet — complete a practice session first.");
-        }}
-        ctaDisabled={fixing}
-      />
-
-      <div className="flex flex-wrap gap-2 -mt-4 justify-center sm:justify-start">
-        <Button variant="outline" className="rounded-full" asChild>
-          <Link to="/student/revision">Revision center</Link>
-        </Button>
-        <Button variant="outline" className="rounded-full" asChild>
-          <Link to="/student/analytics">View insights</Link>
-        </Button>
-      </div>
-
-      <section>
-        <FlowSectionTitle>Overview</FlowSectionTitle>
-        <FlowStatGrid
-          columns={4}
-          items={[
-            { label: "Pending recovery", value: pending },
-            { label: "Weak concepts", value: displayWeak.length },
-            { label: "Recovery progress", value: `${recoveryPct}%` },
-            { label: "Trend", value: trendLabel[trend] },
-          ]}
-        />
-      </section>
-
-      <section className="rounded-2xl border border-[#97d3b8]/30 bg-gradient-to-br from-[#defaeb]/30 to-white p-4 shadow-sm flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 text-sm">
-          <TrendIcon className={`w-4 h-4 ${trend === "improving" ? "text-green-600" : trend === "slipping" ? "text-destructive" : "text-muted-foreground"}`} />
-          <span className="font-medium">Improvement trend:</span>
-          <span className="text-muted-foreground">{trendLabel[trend]}</span>
-        </div>
-        {recoveryPct > 0 && (
-          <div className="flex-1 min-w-[120px]">
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all"
-                style={{ width: `${Math.min(100, recoveryPct)}%` }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">{recoveryPct}% recovery completion</p>
-          </div>
-        )}
-      </section>
-
-      <FlowConceptPanel
-        title="Weak concepts"
-        icon={<Target className="w-4 h-4" />}
-        variant="weak"
-        empty="Wrong answers in practice build this list automatically."
-      >
-        {displayWeak.map((w, i) => (
-          <FlowConceptTag
-            key={i}
-            label={w.concept}
-            meta={`${w.subject}${w.chapter ? ` · ${w.chapter}` : ""} · ${Math.round(w.mastery_score ?? 0)}%`}
-            variant="weak"
-          />
-        ))}
-      </FlowConceptPanel>
-
-      <section className="sp-stat-card rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-4">
-          <BookMarked className="w-4 h-4" /> Recovery assignments
-        </p>
-        {assignments.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Complete practice — weak concepts auto-generate recovery work here.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {assignments.map((a) => (
-              <div
-                key={a.id}
-                className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl border border-border/60 bg-muted/20"
-              >
-                <div className="min-w-0">
-                  <div className="font-medium text-sm">{a.concept}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {a.subject}
-                    {a.chapter ? ` · ${a.chapter}` : ""} · {a.questions_completed}/{a.question_count} done
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant={severityTone[a.severity] as "destructive" | "default" | "outline"}>
-                    {a.severity}
-                  </Badge>
-                  <Button size="sm" className="rounded-full" asChild>
-                    <Link to={`/student/recovery/${a.id}`}>Start</Link>
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-    </FlowPage>
+        navigate(`/student/recovery/${id}`);
+      }}
+    />
   );
 }
