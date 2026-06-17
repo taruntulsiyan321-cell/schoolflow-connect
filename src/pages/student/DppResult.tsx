@@ -63,7 +63,7 @@ export default function DppResult() {
   if (loadError) {
     return (
       <>
-        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Growth</Link></Button>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Dashboard</Link></Button>
         <StudentErrorState title="Could not load results" message={loadError} onRetry={load} />
       </>
     );
@@ -72,7 +72,7 @@ export default function DppResult() {
   if (!dpp) {
     return (
       <>
-        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Growth</Link></Button>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Dashboard</Link></Button>
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">This DPP could not be found.</p>
         </Card>
@@ -83,7 +83,7 @@ export default function DppResult() {
   if (!attempt) {
     return (
       <>
-        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Growth</Link></Button>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Dashboard</Link></Button>
         <Card className="p-8 text-center">
           <Target className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">You haven't submitted this DPP yet.</p>
@@ -98,7 +98,7 @@ export default function DppResult() {
 
   return (
     <>
-      <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Growth</Link></Button>
+      <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/student"><ArrowLeft className="w-4 h-4" /> Dashboard</Link></Button>
       <PageHeader title={dpp.title} subtitle={`${dpp.subject} · Submitted ${attempt.submitted_at ? new Date(attempt.submitted_at).toLocaleString() : "—"}`} />
 
       {attempt?.id && (
@@ -120,7 +120,7 @@ export default function DppResult() {
           <h3 className="font-semibold text-sm mb-2">Improvement focus</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
             {accuracy < 60 && <li>Review wrong answers below — they were added to your Mistake Book automatically.</li>}
-            {accuracy < 80 && <li>Revise weak topics from your Growth dashboard before the next DPP.</li>}
+            {accuracy < 80 && <li>Revise weak topics from your Dashboard before the next DPP.</li>}
             <li>Use &quot;Explain my mistake&quot; on each wrong question to understand the concept, not just the answer.</li>
           </ul>
         </Card>

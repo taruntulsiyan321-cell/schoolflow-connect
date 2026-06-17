@@ -35,7 +35,7 @@ import LeaderboardPage from "./shared/LeaderboardPage";
 import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 
 const nav = [
-  { to: "/student", label: "Growth", icon: <Brain className="w-4 h-4" /> },
+  { to: "/student", label: "Dashboard", icon: <Brain className="w-4 h-4" /> },
   { to: "/student/practice/math12", label: "Practice", icon: <Target className="w-4 h-4" /> },
   { to: "/student/recovery", label: "Recovery", icon: <Wrench className="w-4 h-4" />, end: false },
   { to: "/student/analytics", label: "Analysis", icon: <BarChart3 className="w-4 h-4" /> },

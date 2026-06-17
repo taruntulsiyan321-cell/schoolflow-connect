@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
-/** Consistent loading skeleton for the growth dashboard. */
+/** Consistent loading skeleton for the student dashboard. */
 export function StudentDashboardSkeleton() {
   return (
     <div className="space-y-6 animate-rise" aria-busy="true" aria-label="Loading dashboard">
