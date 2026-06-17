@@ -13,7 +13,7 @@ import {
 import { AlertTriangle, CheckCircle2, Loader2, Sparkles, Target, Timer } from "lucide-react";
 
 type Props = {
-  sourceType: "dpp_attempt" | "battle_participant" | "practice_session";
+  sourceType: "dpp_attempt" | "battle_participant" | "practice_session" | "recovery_assignment";
   sourceId: string;
   title?: string;
   /** Client-side report when DB/RPC has no attempt rows yet */

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,10 @@ import {
   fetchMistakesForRecovery,
   generateRecoveryQuestionsFromMistakes,
 } from "@/lib/mistakeRecovery";
+import {
+  persistRecoveryResult,
+  type RecoveryAttemptSnapshot,
+} from "@/lib/recoverySessionSnapshot";
 
 type RecoveryQuestion = {
   id: string;
@@ -41,6 +45,7 @@ type RecoveryQuestion = {
 
 export default function RecoverySession() {
   const { id } = useParams<{ id: string }>();
+  const nav = useNavigate();
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -49,8 +54,10 @@ export default function RecoverySession() {
   const [idx, setIdx] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
-  const [done, setDone] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
+  const [attemptSnapshots, setAttemptSnapshots] = useState<RecoveryAttemptSnapshot[]>([]);
+  const attemptSnapshotsRef = useRef<RecoveryAttemptSnapshot[]>([]);
+  const startedAtRef = useRef(new Date().toISOString());
 
   const sessionSeed = useMemo(
     () => freshSessionSeed(assignment?.chapter ?? assignment?.concept ?? "recovery"),
@@ -191,17 +198,42 @@ export default function RecoverySession() {
     ? (current.correct_index ?? 0)
     : (current?.generated?.correctIndex ?? (current as any)?.correct_answer?.correct_index ?? 0);
 
+  const finishSession = (snapshots: RecoveryAttemptSnapshot[]) => {
+    if (!id || !assignment) return;
+    persistRecoveryResult(nav, {
+      assignmentId: id,
+      subject: assignment.subject ?? "Mathematics",
+      chapter: assignment.chapter ?? undefined,
+      concept: assignment.concept ?? "Recovery",
+      severity: assignment.severity,
+      attempts: snapshots,
+      startedAt: startedAtRef.current,
+    });
+  };
+
   const submit = async (optionIndex: number) => {
     if (!current || revealed) return;
     setSelected(optionIndex);
     setRevealed(true);
 
     const ok = optionIndex === correctIdx;
-    setScore((prev) => ({ correct: prev.correct + (ok ? 1 : 0), total: prev.total + 1 }));
+    const nextScore = { correct: score.correct + (ok ? 1 : 0), total: score.total + 1 };
+    setScore(nextScore);
 
-    // For AI-generated questions, we still try to record via RPC if possible
+    const snapshot: RecoveryAttemptSnapshot = {
+      questionId: current.id,
+      question: current.question_text,
+      options: current.options,
+      correctIndex: correctIdx,
+      selectedIndex: optionIndex,
+      isCorrect: ok,
+      explanation: current.explanation,
+    };
+    const snapshots = [...attemptSnapshotsRef.current, snapshot];
+    attemptSnapshotsRef.current = snapshots;
+    setAttemptSnapshots(snapshots);
+
     if (current.ai_generated) {
-      // Try recording the answer — the RPC may fail if the question_id is a client-generated ID
       try {
         await (supabase as any).rpc("rpc_submit_recovery_answer", {
           _question_id: current.id,
@@ -209,7 +241,7 @@ export default function RecoverySession() {
           _is_correct: ok,
         });
       } catch {
-        // Non-fatal for AI questions — answer tracking is best-effort
+        /* best-effort for AI questions */
       }
     } else {
       const { data, error } = await (supabase as any).rpc("rpc_submit_recovery_answer", {
@@ -218,7 +250,6 @@ export default function RecoverySession() {
         _is_correct: ok,
       });
       if (error) toast.error(error.message);
-      else if (data?.completed) setDone(true);
     }
   };
 
@@ -226,7 +257,7 @@ export default function RecoverySession() {
     setRevealed(false);
     setSelected(null);
     if (idx + 1 >= questions.length) {
-      setDone(true);
+      finishSession(attemptSnapshotsRef.current);
       return;
     }
     setIdx(idx + 1);
@@ -281,46 +312,6 @@ export default function RecoverySession() {
         <div className="flex gap-2 justify-center flex-wrap">
           <Button asChild variant="outline"><Link to="/student/recovery">Back to Recovery Zone</Link></Button>
           <Button asChild><Link to="/student/practice/math12">Class 12 Math practice</Link></Button>
-        </div>
-      </Card>
-    );
-  }
-
-  // ── Completion screen ──────────────────────────────────────────────
-
-  if (done) {
-    const isAiSession = questions.some((q) => q.ai_generated);
-    const accuracy = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
-    return (
-      <Card className="p-8 max-w-md mx-auto text-center shadow-card">
-        <CheckCircle2 className="w-12 h-12 mx-auto text-accent mb-3" />
-        <h2 className="text-xl font-semibold">Recovery complete</h2>
-        <p className="text-muted-foreground mt-2">{assignment.concept} — {assignment.subject}</p>
-
-        {isAiSession && (
-          <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Practice results</span>
-            </div>
-            <div className="text-2xl font-bold">{score.correct}/{score.total}</div>
-            <div className="text-sm text-muted-foreground">{accuracy}% accuracy</div>
-            {accuracy < 60 && (
-              <p className="text-xs text-warning mt-2">
-                Consider reviewing the chapter notes and trying again.
-              </p>
-            )}
-            {accuracy >= 80 && (
-              <p className="text-xs text-accent mt-2">
-                Excellent! You're mastering this concept.
-              </p>
-            )}
-          </div>
-        )}
-
-        <div className="flex gap-2 mt-6 justify-center flex-wrap">
-          <Button asChild variant="outline"><Link to="/student/recovery">Recovery Zone</Link></Button>
-          <Button asChild><Link to="/student/mistakes">Mistake book</Link></Button>
         </div>
       </Card>
     );

@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, MessageSquare, User, Sword, Target, Megaphone, Brain, BookMarked, ListChecks, BarChart3, Sparkles, Wrench } from "lucide-react";
 import RecoveryZone from "./student/RecoveryZone";
 import RecoverySession from "./student/RecoverySession";
+import RecoverySessionResult from "./student/RecoverySessionResult";
 import StudentSuccessHome from "./student/StudentSuccessHome";
 import MistakeBank from "./student/MistakeBank";
 import RevisionQueue from "./student/RevisionQueue";
@@ -169,6 +170,7 @@ export default function StudentDashboard() {
         <Route path="revision" element={<RevisionQueue />} />
         <Route path="plans" element={<ImprovementPlans />} />
         <Route path="recovery" element={<RecoveryZone />} />
+        <Route path="recovery/:id/result" element={<RecoverySessionResult />} />
         <Route path="recovery/:id" element={<RecoverySession />} />
         <Route path="mistakes" element={<MistakeBank />} />
         <Route path="analytics" element={<AcademicAnalytics />} />

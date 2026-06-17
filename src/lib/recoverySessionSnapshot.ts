@@ -1,0 +1,92 @@
+import type { ConceptRecoveryReport } from "@/lib/conceptReportFallback";
+
+export type RecoveryAttemptSnapshot = {
+  questionId: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  selectedIndex: number;
+  isCorrect: boolean;
+  explanation?: string;
+};
+
+export type RecoverySessionResultState = {
+  assignmentId: string;
+  subject: string;
+  chapter?: string;
+  concept: string;
+  severity?: string;
+  attempts: RecoveryAttemptSnapshot[];
+  startedAt?: string;
+};
+
+export function buildRecoveryAssignmentReport(
+  assignmentId: string,
+  subject: string,
+  chapter: string | undefined,
+  concept: string,
+  attempts: RecoveryAttemptSnapshot[],
+  timeMinutes = 1,
+): ConceptRecoveryReport {
+  const total = attempts.length;
+  const correct = attempts.filter((a) => a.isCorrect).length;
+  const accuracy = total ? Math.round((correct / total) * 100) : 0;
+
+  const weak =
+    accuracy < 70
+      ? [{ subject, chapter, concept, accuracy }]
+      : [];
+  const strong =
+    accuracy >= 80
+      ? [{ subject, chapter, concept, accuracy }]
+      : [];
+
+  return {
+    source_type: "recovery_assignment",
+    source_id: assignmentId,
+    accuracy_pct: accuracy,
+    correct_count: correct,
+    total_count: total,
+    time_minutes: timeMinutes,
+    weak_concepts: weak,
+    strong_concepts: strong,
+    recovery_assignments: [],
+    improvement_areas: weak.map((w) => w.concept),
+    insights: undefined,
+  };
+}
+
+export function recoverySnapshotsToAttemptRows(attempts: RecoveryAttemptSnapshot[]) {
+  return attempts.map((a, i) => ({
+    id: a.questionId || `local-${i}`,
+    generated_question: { question: a.question, options: a.options },
+    correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
+    selected_answer: { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
+    is_correct: a.isCorrect,
+    explanation: a.explanation,
+    created_at: new Date().toISOString(),
+  }));
+}
+
+export function persistRecoveryResult(
+  nav: (path: string, opts?: { replace?: boolean; state?: RecoverySessionResultState }) => void,
+  state: RecoverySessionResultState,
+) {
+  try {
+    sessionStorage.setItem(`recovery-result-${state.assignmentId}`, JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+  nav(`/student/recovery/${state.assignmentId}/result`, { replace: true, state });
+}
+
+export function readRecoveryResultState(assignmentId: string): RecoverySessionResultState | null {
+  try {
+    const raw = sessionStorage.getItem(`recovery-result-${assignmentId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as RecoverySessionResultState;
+    return parsed?.attempts?.length ? parsed : null;
+  } catch {
+    return null;
+  }
+}
