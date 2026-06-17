@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, CheckCircle2, Sparkles, XCircle, Loader2 } from "lucide-react";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
-import { StudentErrorState } from "@/components/student/StudentPanelStates";
+import { StudentErrorState, StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 import { generateAiPracticeQuestions } from "@/lib/aiPracticeQuestions";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
@@ -16,6 +16,7 @@ import {
   completePracticeSession,
   type PracticeAttemptSnapshot,
 } from "@/lib/practiceSessionPersistence";
+import { loadMath12TemplatePractice } from "@/lib/templatePracticeLoader";
 
 type AiQuestion = {
   id: string;
@@ -23,6 +24,7 @@ type AiQuestion = {
   options: string[];
   correctIndex: number;
   explanation: string;
+  templateId?: string;
 };
 
 export default function Class12AiSession() {
@@ -32,8 +34,10 @@ export default function Class12AiSession() {
   const subject = params.get("subject") ?? "Mathematics";
   const chapter = params.get("chapter") ?? "Relations and Functions";
   const count = Math.min(20, Math.max(1, Number(params.get("count") ?? 10)));
+  const isMath = subject.toLowerCase().includes("math");
 
   const [loading, setLoading] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [items, setItems] = useState<AiQuestion[]>([]);
@@ -41,6 +45,7 @@ export default function Class12AiSession() {
   const [selected, setSelected] = useState<number | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [correctN, setCorrectN] = useState(0);
+  const [fromTemplates, setFromTemplates] = useState(false);
   const startedAt = useRef(new Date().toISOString());
   const attemptLog = useRef<PracticeAttemptSnapshot[]>([]);
 
@@ -48,7 +53,9 @@ export default function Class12AiSession() {
     if (!user) return;
     (async () => {
       setLoading(true);
+      setAiLoading(false);
       setLoadError(null);
+      setFromTemplates(false);
 
       const { data: sid, error: sErr } = await supabase.rpc("rpc_start_practice_session", {
         _subject: subject,
@@ -62,6 +69,27 @@ export default function Class12AiSession() {
       }
       setSessionId(sid as string);
 
+      if (isMath) {
+        const { items: built, error: tplErr } = await loadMath12TemplatePractice({ chapter, count });
+        if (built.length > 0) {
+          setFromTemplates(true);
+          setItems(
+            built.map(({ generated }, i) => ({
+              id: `tpl-${i}`,
+              question: generated.question,
+              options: generated.options,
+              correctIndex: generated.correctIndex,
+              explanation: generated.explanation,
+              templateId: built[i].template.id,
+            })),
+          );
+          setLoading(false);
+          return;
+        }
+        if (tplErr) console.warn("Template practice fallback:", tplErr);
+      }
+
+      setAiLoading(true);
       const { questions, error } = await generateAiPracticeQuestions({
         subject,
         chapter,
@@ -69,6 +97,7 @@ export default function Class12AiSession() {
         count,
         difficulty: "medium",
       });
+      setAiLoading(false);
 
       if (error || questions.length === 0) {
         setLoadError(error ?? "Could not load questions. Try again in a moment.");
@@ -87,7 +116,7 @@ export default function Class12AiSession() {
       );
       setLoading(false);
     })();
-  }, [user, subject, chapter, count]);
+  }, [user, subject, chapter, count, isMath]);
 
   const current = items[idx];
 
@@ -131,7 +160,7 @@ export default function Class12AiSession() {
 
     const { error: recErr } = await supabase.rpc("rpc_record_question_attempt", {
       _session_id: sessionId,
-      _template_id: null,
+      _template_id: current.templateId ?? null,
       _generated_question: {
         question: current.question,
         options: current.options,
@@ -143,7 +172,7 @@ export default function Class12AiSession() {
       _score: ok ? 1 : 0,
     } as {
       _session_id: string;
-      _template_id: null;
+      _template_id: string | null;
       _generated_question: object;
       _correct_answer: object;
       _selected_answer: object;
@@ -169,7 +198,11 @@ export default function Class12AiSession() {
     setIdx(idx + 1);
   };
 
-  if (loading) {
+  if (loading && !aiLoading) {
+    return <StudentSessionSkeleton label="Loading session…" />;
+  }
+
+  if (aiLoading) {
     return (
       <div className="max-w-md mx-auto py-16 text-center space-y-4">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -209,7 +242,7 @@ export default function Class12AiSession() {
 
       <div className="flex items-center gap-2 text-xs font-medium text-primary bg-primary/5 border border-primary/15 rounded-lg px-3 py-2 mb-3">
         <Sparkles className="w-3.5 h-3.5 shrink-0" />
-        Fresh questions · varied concepts · {subject}
+        {fromTemplates ? "Template practice" : "Fresh questions · varied concepts"} · {subject}
       </div>
 
       <Progress value={pct} className="h-1.5 mb-4" />

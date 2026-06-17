@@ -142,9 +142,12 @@ export default function PracticeHubPage() {
     }
     const ch = chapter ?? CLASS12_MATH_CHAPTERS[0];
     const n = count ?? QUESTION_SETS.find((q) => q.id === questionSet)?.count ?? 10;
-    const subj = selectedSubject === "Physics" ? "Physics" : "Mathematics";
+    if (selectedSubject === "Mathematics") {
+      nav(`/student/practice/math12/session?chapter=${encodeURIComponent(ch)}&count=${n}`);
+      return;
+    }
     nav(
-      `/student/practice/ai/session?subject=${encodeURIComponent(subj)}&chapter=${encodeURIComponent(ch)}&count=${n}`,
+      `/student/practice/ai/session?subject=${encodeURIComponent(selectedSubject)}&chapter=${encodeURIComponent(ch)}&count=${n}`,
     );
   };
 

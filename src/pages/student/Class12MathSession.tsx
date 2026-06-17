@@ -13,12 +13,8 @@ import { toast } from "sonner";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
-import {
-  diversifyTemplates,
-  freshSessionSeed,
-  generateUniqueFromTemplates,
-  SEED_STRIDE,
-} from "@/lib/practiceDiversity";
+import { freshSessionSeed, SEED_STRIDE } from "@/lib/practiceDiversity";
+import { loadMath12TemplatePractice } from "@/lib/templatePracticeLoader";
 import {
   completePracticeSession,
   type PracticeAttemptSnapshot,
@@ -67,31 +63,23 @@ export default function Class12MathSession() {
       }
       setSessionId(sid as string);
 
-      const { data: templates, error: tErr } = await supabase.rpc("rpc_pick_question_templates", {
-        _class: 12,
-        _subject: "Mathematics",
-        _chapter: chapter,
-        _count: count,
+      const { items: built, sessionSeed: resolvedSeed, error: tErr } = await loadMath12TemplatePractice({
+        chapter,
+        count,
+        sessionSeed: seed,
       });
       if (tErr) {
-        setLoadError(tErr.message);
+        setLoadError(tErr);
         setLoading(false);
         return;
       }
-      const rows = diversifyTemplates((templates ?? []) as QuestionTemplateRow[], count);
-      const seenIds = new Set<string>();
-      const uniqueRows = rows.filter((r) => {
-        if (!r.id || seenIds.has(r.id)) return !r.id;
-        seenIds.add(r.id);
-        return true;
-      });
-      if (uniqueRows.length === 0) {
+      if (built.length === 0) {
         setLoadError("No question templates for this chapter yet. Ask your admin to seed Class 12 math templates.");
         setLoading(false);
         return;
       }
 
-      const built = generateUniqueFromTemplates(uniqueRows, seed);
+      setSessionSeed(resolvedSeed);
       setItems(built);
       setLoading(false);
     })();
@@ -163,7 +151,7 @@ export default function Class12MathSession() {
   };
 
   if (loading) {
-    return <StudentSessionSkeleton label="Generating fresh questions…" />;
+    return <StudentSessionSkeleton label="Loading session…" />;
   }
 
   if (loadError) {
