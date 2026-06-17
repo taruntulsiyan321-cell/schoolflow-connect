@@ -1,0 +1,63 @@
+/* Premium practice hub */
+.practice-hub {
+  --ph-emerald: #003324;
+  --ph-mint: #b2f0d4;
+  --ph-gold: #e8c468;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-bottom: 2.5rem;
+}
+
+.practice-hub .ph-hero {
+  background: linear-gradient(135deg, #0a4d3a 0%, #003324 50%, #002418 100%);
+  box-shadow: 0 24px 48px -12px rgba(0, 51, 36, 0.35);
+}
+
+.practice-hub .ph-hero-glow {
+  background: radial-gradient(circle at 78% 22%, rgba(232, 196, 104, 0.35) 0%, transparent 50%);
+}
+
+.practice-hub .ph-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fdf9 100%);
+  border: 1px solid rgba(0, 51, 36, 0.08);
+  box-shadow: 0 4px 24px -6px rgba(0, 51, 36, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.practice-hub .ph-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.14);
+  border-color: rgba(151, 211, 184, 0.5);
+}
+
+.practice-hub .ph-mode-card {
+  background: linear-gradient(160deg, #ffffff 0%, #f4fff8 100%);
+}
+
+.practice-hub .ph-quick-start {
+  background: linear-gradient(135deg, #defaeb 0%, #ffffff 40%, #fff8e8 100%);
+  border: 2px solid rgba(151, 211, 184, 0.45);
+  box-shadow: 0 12px 40px -10px rgba(0, 51, 36, 0.15);
+}
+
+.practice-hub .ph-ai-card {
+  background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 50%, #f4fff8 100%);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  box-shadow: 0 8px 32px -8px rgba(59, 130, 246, 0.12);
+}
+
+.practice-hub .ph-summary {
+  background: linear-gradient(90deg, #003324 0%, #064e3b 50%, #0a4d3a 100%);
+  box-shadow: 0 12px 40px -8px rgba(0, 51, 36, 0.3);
+}
+
+.practice-hub .ph-illustration {
+  background: radial-gradient(circle at 30% 30%, rgba(178, 240, 212, 0.4) 0%, transparent 55%),
+    radial-gradient(circle at 70% 70%, rgba(232, 196, 104, 0.25) 0%, transparent 50%);
+}
+
+.practice-hub .ph-subject-active {
+  ring: 2px;
+  border-color: rgba(0, 51, 36, 0.25);
+  box-shadow: 0 8px 24px -6px rgba(0, 51, 36, 0.15);
+}
