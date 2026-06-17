@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/ui-bits";
+import { cn } from "@/lib/utils";
 import { MessageSquare, Send, ArrowLeft, Search } from "lucide-react";
 import { toast } from "sonner";
+import "@/components/chat/chat-panel.css";
 
 interface Contact {
   user_id: string;
@@ -27,6 +27,23 @@ interface Message {
   created_at: string;
 }
 
+const roleColors: Record<string, string> = {
+  admin: "bg-red-500/10 text-red-700 border-red-500/20",
+  principal: "bg-purple-500/10 text-purple-700 border-purple-500/20",
+  teacher: "bg-blue-500/10 text-blue-700 border-blue-500/20",
+  student: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
+  parent: "bg-amber-500/10 text-amber-800 border-amber-500/20",
+};
+
+function formatTime(iso?: string) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+}
+
 export default function ChatPage({ userRole }: { userRole?: string }) {
   const { user } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -38,13 +55,10 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load contacts based on role
   useEffect(() => {
     if (!user) return;
     (async () => {
       const contactList: Contact[] = [];
-
-      // Get allowed contacts based on role
       const { data: allowedUsers } = await supabase.rpc("get_chat_contacts" as any);
 
       (allowedUsers ?? []).forEach((u: any) => {
@@ -57,7 +71,6 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       });
 
       if (contactList.length > 0) {
-        // Get unread counts and last messages
         const { data: received } = await supabase
           .from("messages")
           .select("sender_id, is_read, content, created_at")
@@ -75,7 +88,6 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
           }
         });
 
-        // Also check last sent messages
         const { data: sent } = await supabase
           .from("messages")
           .select("receiver_id, content, created_at")
@@ -91,7 +103,6 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         });
       }
 
-      // Sort: unread first, then by last message time
       contactList.sort((a, b) => {
         if (a.unread !== b.unread) return b.unread - a.unread;
         return (b.lastTime || "") > (a.lastTime || "") ? 1 : -1;
@@ -102,7 +113,6 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     })();
   }, [user]);
 
-  // Load messages for selected contact
   useEffect(() => {
     if (!user || !selectedContact) return;
     (async () => {
@@ -110,12 +120,11 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         .from("messages")
         .select("*")
         .or(
-          `and(sender_id.eq.${user.id},receiver_id.eq.${selectedContact.user_id}),and(sender_id.eq.${selectedContact.user_id},receiver_id.eq.${user.id})`
+          `and(sender_id.eq.${user.id},receiver_id.eq.${selectedContact.user_id}),and(sender_id.eq.${selectedContact.user_id},receiver_id.eq.${user.id})`,
         )
         .order("created_at", { ascending: true });
       setMessages(data ?? []);
 
-      // Mark received messages as read
       await supabase
         .from("messages")
         .update({ is_read: true })
@@ -123,54 +132,43 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         .eq("receiver_id", user.id)
         .eq("is_read", false);
 
-      // Update unread count in contacts
       setContacts((prev) =>
-        prev.map((c) =>
-          c.user_id === selectedContact.user_id ? { ...c, unread: 0 } : c
-        )
+        prev.map((c) => (c.user_id === selectedContact.user_id ? { ...c, unread: 0 } : c)),
       );
     })();
   }, [user, selectedContact]);
 
-  // Real-time subscription for new messages
   useEffect(() => {
     if (!user) return;
 
     const channel = supabase
-      .channel('chat_messages')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          const newMsg = payload.new as Message;
-          
-          // If message belongs to currently open chat
-          if (
-            selectedContact &&
-            ((newMsg.sender_id === user.id && newMsg.receiver_id === selectedContact.user_id) ||
-             (newMsg.sender_id === selectedContact.user_id && newMsg.receiver_id === user.id))
-          ) {
-            setMessages((prev) => {
-              if (prev.find((m) => m.id === newMsg.id)) return prev;
-              return [...prev, newMsg];
-            });
+      .channel("chat_messages")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const newMsg = payload.new as Message;
 
-            // Mark as read if we are receiving it while chat is open
-            if (newMsg.receiver_id === user.id) {
-              supabase.from("messages").update({ is_read: true }).eq("id", newMsg.id).then();
-            }
-          } else if (newMsg.receiver_id === user.id) {
-            // Message from someone else, update unread count and last message
-            setContacts((prev) =>
-              prev.map((c) =>
-                c.user_id === newMsg.sender_id
-                  ? { ...c, unread: c.unread + 1, lastMessage: newMsg.content, lastTime: newMsg.created_at }
-                  : c
-              )
-            );
+        if (
+          selectedContact &&
+          ((newMsg.sender_id === user.id && newMsg.receiver_id === selectedContact.user_id) ||
+            (newMsg.sender_id === selectedContact.user_id && newMsg.receiver_id === user.id))
+        ) {
+          setMessages((prev) => {
+            if (prev.find((m) => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+
+          if (newMsg.receiver_id === user.id) {
+            supabase.from("messages").update({ is_read: true }).eq("id", newMsg.id).then();
           }
+        } else if (newMsg.receiver_id === user.id) {
+          setContacts((prev) =>
+            prev.map((c) =>
+              c.user_id === newMsg.sender_id
+                ? { ...c, unread: c.unread + 1, lastMessage: newMsg.content, lastTime: newMsg.created_at }
+                : c,
+            ),
+          );
         }
-      )
+      })
       .subscribe();
 
     return () => {
@@ -178,7 +176,6 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     };
   }, [user, selectedContact]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -201,6 +198,13 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     } else if (data) {
       setMessages((prev) => [...prev, data]);
       setNewMessage("");
+      setContacts((prev) =>
+        prev.map((c) =>
+          c.user_id === selectedContact.user_id
+            ? { ...c, lastMessage: `You: ${data.content}`, lastTime: data.created_at }
+            : c,
+        ),
+      );
     }
     setSending(false);
   };
@@ -213,145 +217,214 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   };
 
   const filtered = contacts.filter(
-    (c) => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.role.includes(search.toLowerCase())
+    (c) =>
+      !search ||
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.role.includes(search.toLowerCase()),
   );
 
-  const roleColors: Record<string, string> = {
-    admin: "bg-red-500/10 text-red-600",
-    principal: "bg-purple-500/10 text-purple-600",
-    teacher: "bg-blue-500/10 text-blue-600",
-    student: "bg-green-500/10 text-green-600",
-    parent: "bg-amber-500/10 text-amber-600",
-  };
+  const showMobileChat = !!selectedContact;
+
+  const ContactRow = ({ c, compact }: { c: Contact; compact?: boolean }) => (
+    <button
+      type="button"
+      onClick={() => setSelectedContact(c)}
+      className={cn(
+        "w-full text-left rounded-2xl border border-transparent p-3 sm:p-4 transition-all hover:bg-white/80",
+        selectedContact?.user_id === c.user_id && "chat-contact-active border",
+        compact && "p-3",
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <div className="chat-avatar w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 font-semibold text-sm shadow-sm">
+          {c.name[0]?.toUpperCase()}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-semibold text-sm truncate text-foreground">{c.name}</span>
+            {c.lastTime && (
+              <span className="text-[10px] text-muted-foreground shrink-0">{formatTime(c.lastTime)}</span>
+            )}
+          </div>
+          <div className="flex items-center justify-between gap-2 mt-0.5">
+            {c.lastMessage ? (
+              <span className="text-xs text-muted-foreground truncate">{c.lastMessage}</span>
+            ) : (
+              <span className="text-xs text-muted-foreground italic">No messages yet</span>
+            )}
+            {c.unread > 0 && (
+              <span className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
+                {c.unread}
+              </span>
+            )}
+          </div>
+          <Badge
+            variant="outline"
+            className={cn("mt-2 text-[10px] capitalize", roleColors[c.role] || "")}
+          >
+            {c.role}
+          </Badge>
+        </div>
+      </div>
+    </button>
+  );
 
   if (loading) {
-    return <p className="text-muted-foreground text-center py-8">Loading…</p>;
-  }
-
-  // Chat view (messages)
-  if (selectedContact) {
     return (
-      <div className="flex flex-col h-[calc(100vh-12rem)]">
-        {/* Chat header */}
-        <div className="flex items-center gap-3 pb-3 border-b border-border mb-3">
-          <Button variant="ghost" size="sm" onClick={() => setSelectedContact(null)}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <div className="font-semibold text-sm">{selectedContact.name}</div>
-            <Badge variant="outline" className={`text-[10px] capitalize ${roleColors[selectedContact.role] || ""}`}>
-              {selectedContact.role}
-            </Badge>
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto space-y-2 mb-3">
-          {messages.length === 0 && (
-            <p className="text-muted-foreground text-center py-8 text-sm">
-              No messages yet. Start a conversation!
-            </p>
-          )}
-          {messages.map((m) => {
-            const isMine = m.sender_id === user!.id;
-            return (
-              <div key={m.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[75%] rounded-2xl px-4 py-2 text-sm ${
-                    isMine
-                      ? "bg-primary text-primary-foreground rounded-br-md"
-                      : "bg-muted rounded-bl-md"
-                  }`}
-                >
-                  <p>{m.content}</p>
-                  <div className={`text-[10px] mt-1 ${isMine ? "text-primary-foreground/60" : "text-muted-foreground"}`}>
-                    {new Date(m.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="flex gap-2">
-          <Input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={handleKeyPress}
-            placeholder="Type a message…"
-            className="flex-1"
-          />
-          <Button
-            onClick={sendMessage}
-            disabled={sending || !newMessage.trim()}
-            className="bg-gradient-primary text-primary-foreground"
-            size="sm"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
+      <div className="chat-panel max-w-5xl mx-auto py-12 text-center text-muted-foreground">
+        Loading conversations…
       </div>
     );
   }
 
-  // Contacts list view
   return (
-    <>
-      <PageHeader title="Chat" subtitle="Messages with teachers, students and staff" />
-
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search contacts…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
+    <div className="chat-panel max-w-5xl mx-auto pb-6">
+      {/* Header */}
+      <div className="mb-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">Messages</p>
+        <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold text-foreground mt-1 tracking-tight">
+          Chat
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Connect with teachers, classmates, and school staff.
+        </p>
       </div>
 
-      <div className="space-y-2">
-        {filtered.map((c) => (
-          <Card
-            key={c.user_id}
-            className="p-4 cursor-pointer hover:shadow-elevated transition shadow-card"
-            onClick={() => setSelectedContact(c)}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0 font-bold text-sm">
-                  {c.name[0]?.toUpperCase()}
+      <div className="chat-shell rounded-[1.75rem] overflow-hidden flex flex-col md:flex-row min-h-[calc(100vh-14rem)] md:min-h-[32rem]">
+        {/* Sidebar — contacts */}
+        <aside
+          className={cn(
+            "chat-sidebar w-full md:w-[340px] shrink-0 flex flex-col",
+            showMobileChat && "hidden md:flex",
+          )}
+        >
+          <div className="p-4 border-b border-border/40">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search contacts…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 rounded-xl bg-white border-border/60 h-11"
+              />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 space-y-1">
+            {filtered.map((c) => (
+              <ContactRow key={c.user_id} c={c} />
+            ))}
+            {filtered.length === 0 && (
+              <div className="p-8 text-center">
+                <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground mb-2 opacity-50" />
+                <p className="text-sm text-muted-foreground">
+                  {contacts.length === 0 ? "No contacts available." : "No contacts match your search."}
+                </p>
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* Main — conversation */}
+        <main
+          className={cn(
+            "flex-1 flex flex-col min-w-0 bg-white",
+            !showMobileChat && "hidden md:flex",
+          )}
+        >
+          {selectedContact ? (
+            <>
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 bg-gradient-to-r from-[#f4fff8] to-white">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden shrink-0 rounded-xl"
+                  onClick={() => setSelectedContact(null)}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <div className="chat-avatar w-10 h-10 rounded-xl flex items-center justify-center font-semibold text-sm">
+                  {selectedContact.name[0]?.toUpperCase()}
                 </div>
-                <div className="min-w-0">
-                  <div className="font-medium text-sm truncate">{c.name}</div>
-                  {c.lastMessage && (
-                    <div className="text-xs text-muted-foreground truncate">{c.lastMessage}</div>
-                  )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm truncate">{selectedContact.name}</p>
+                  <Badge
+                    variant="outline"
+                    className={cn("text-[10px] capitalize mt-0.5", roleColors[selectedContact.role] || "")}
+                  >
+                    {selectedContact.role}
+                  </Badge>
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className={`text-[10px] capitalize ${roleColors[c.role] || ""}`}>
-                  {c.role}
-                </Badge>
-                {c.unread > 0 && (
-                  <div className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
-                    {c.unread}
+
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#fafefb]/50">
+                {messages.length === 0 && (
+                  <div className="chat-empty-state flex flex-col items-center justify-center h-full py-16 text-center">
+                    <MessageSquare className="w-12 h-12 text-primary/30 mb-3" />
+                    <p className="font-medium text-foreground">Start the conversation</p>
+                    <p className="text-sm text-muted-foreground mt-1">Send a message to {selectedContact.name}</p>
                   </div>
                 )}
+                {messages.map((m) => {
+                  const isMine = m.sender_id === user!.id;
+                  return (
+                    <div key={m.id} className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+                      <div
+                        className={cn(
+                          "max-w-[80%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-sm",
+                          isMine
+                            ? "chat-bubble-mine text-primary-foreground rounded-br-md"
+                            : "chat-bubble-theirs rounded-bl-md text-foreground",
+                        )}
+                      >
+                        <p className="leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                        <div
+                          className={cn(
+                            "text-[10px] mt-1.5 tabular-nums",
+                            isMine ? "text-primary-foreground/60 text-right" : "text-muted-foreground",
+                          )}
+                        >
+                          {new Date(m.created_at).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={messagesEndRef} />
               </div>
+
+              <div className="chat-composer p-4 flex gap-2 rounded-b-[1.75rem]">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Type a message…"
+                  className="flex-1 rounded-xl h-11 border-border/60 bg-[#fafefb]"
+                />
+                <Button
+                  onClick={sendMessage}
+                  disabled={sending || !newMessage.trim()}
+                  className="rounded-xl h-11 px-4 bg-gradient-primary text-primary-foreground shadow-md"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="chat-empty-state flex-1 flex flex-col items-center justify-center p-8 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <MessageSquare className="w-8 h-8 text-primary" />
+              </div>
+              <p className="font-semibold text-lg text-foreground">Select a conversation</p>
+              <p className="text-sm text-muted-foreground mt-2 max-w-xs">
+                Choose a contact from the list to view messages and start chatting.
+              </p>
             </div>
-          </Card>
-        ))}
-        {filtered.length === 0 && (
-          <Card className="p-8 text-center">
-            <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
-            <p className="text-muted-foreground">
-              {contacts.length === 0 ? "No contacts available." : "No contacts match your search."}
-            </p>
-          </Card>
-        )}
+          )}
+        </main>
       </div>
-    </>
+    </div>
   );
 }

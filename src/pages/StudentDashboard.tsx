@@ -19,7 +19,7 @@ import DppAttempt from "./student/DppAttempt";
 import DppResult from "./student/DppResult";
 import StudentProfilePage from "./shared/StudentProfilePage";
 import StudentClassesPage from "./shared/StudentClassesPage";
-import StudentExamsPage from "./shared/StudentExamsPage";
+import StudentExamsResultsPage from "./shared/StudentExamsResultsPage";
 import StudentTimetablePage from "./shared/StudentTimetablePage";
 import StudentHomeworkPage from "./shared/StudentHomeworkPage";
 import ChatPage from "./shared/ChatPage";
@@ -30,7 +30,6 @@ import { PageHeader, StatCard } from "@/components/ui-bits";
 import NoticesPage from "./shared/NoticesPage";
 import NotificationsPage from "./shared/NotificationsPage";
 import MyFeesPage from "./shared/MyFeesPage";
-import MyMarksPage from "./shared/MyMarksPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
 import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 
@@ -44,8 +43,7 @@ const nav = [
   { to: "/student/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
   { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/student/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
-  { to: "/student/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
-  { to: "/student/results", label: "Results", icon: <Trophy className="w-4 h-4" /> },
+  { to: "/student/exams", label: "Exams & Results", icon: <FileText className="w-4 h-4" /> },
   { to: "/student/notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/student/notices", label: "Notices", icon: <Megaphone className="w-4 h-4" /> },
   { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
@@ -179,8 +177,8 @@ export default function StudentDashboard() {
         <Route path="homework" element={<StudentHomeworkPage />} />
         <Route path="attendance" element={<MyAttendance />} />
         <Route path="timetable" element={<StudentTimetablePage />} />
-        <Route path="exams" element={<StudentExamsPage />} />
-        <Route path="results" element={<MyMarksPage />} />
+        <Route path="exams" element={<StudentExamsResultsPage />} />
+        <Route path="results" element={<Navigate to="/student/exams?tab=results" replace />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notices" element={<NoticesPage viewerRole="student" />} />
         <Route path="fees" element={<MyFeesPage />} />
