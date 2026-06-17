@@ -11,6 +11,11 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { ConceptMastery } from "@/components/student/ConceptMastery";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildRuleConceptReport } from "@/lib/conceptReportFallback";
+import {
+  formatLearningProgressSummary,
+  practiceAccuracyFromSnapshot,
+  studyActiveDaysFromSnapshot,
+} from "@/lib/learningMetrics";
 
 const barConfig = { accuracy: { label: "Accuracy %", color: "hsl(var(--primary))" } };
 const lineConfig = { total: { label: "Activity", color: "hsl(var(--accent))" } };
@@ -26,7 +31,7 @@ export default function AcademicReport() {
     ? buildRuleConceptReport({
         source_type: "report",
         source_id: "snapshot",
-        accuracy_pct: snap?.exam_readiness?.accuracy_pct ?? 0,
+        accuracy_pct: practiceAccuracyFromSnapshot(snap),
         correct_count: 0,
         total_count: 0,
         time_minutes: 0,
@@ -82,12 +87,14 @@ export default function AcademicReport() {
             <Card className="p-5 shadow-card">
               <h2 className="font-semibold text-lg mb-2">Summary</h2>
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                <p>Exam readiness: <strong>{snap?.exam_readiness?.score ?? 0}%</strong> ({snap?.exam_readiness?.label})</p>
+                <p>Practice accuracy: <strong>{practiceAccuracyFromSnapshot(snap)}%</strong></p>
+                <p>Study consistency: <strong>{studyActiveDaysFromSnapshot(snap)}</strong> active days (14d)</p>
                 <p>Attendance: <strong>{snap?.exam_readiness?.attendance_pct ?? 0}%</strong></p>
-                <p>DPP accuracy: <strong>{snap?.exam_readiness?.accuracy_pct ?? 0}%</strong></p>
                 <p>Open mistakes: <strong>{snap?.mistake_count ?? 0}</strong></p>
+                <p>Recovery pending: <strong>{snap?.recovery_pending ?? 0}</strong></p>
                 <p>XP / Level: <strong>{snap?.xp?.xp ?? 0}</strong> / L{snap?.xp?.level ?? 1}</p>
                 <p>Battle wins: <strong>{snap?.xp?.wins ?? 0}</strong> ({snap?.xp?.total_battles ?? 0} played)</p>
+                <p className="sm:col-span-2 text-muted-foreground text-xs">{formatLearningProgressSummary(snap)}</p>
               </div>
             </Card>
 

@@ -171,10 +171,12 @@ export default function ParentInsights() {
                       <Bell className="w-4 h-4" /> Weekly academic summary
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Exam readiness: <strong>{snap.exam_readiness?.score ?? 0}%</strong>
-                      {snap.exam_readiness?.label ? ` (${snap.exam_readiness.label})` : ""}
+                      Practice accuracy: <strong>{snap.exam_readiness?.accuracy_pct ?? 0}%</strong>
                       · Active study days (14d): <strong>{snap.exam_readiness?.active_days_14d ?? 0}</strong>
                       · Mistake book: <strong>{snap.mistake_count ?? 0}</strong> open
+                      {(snap.recovery_pending ?? 0) > 0 && (
+                        <> · Recovery: <strong>{snap.recovery_pending}</strong> pending</>
+                      )}
                     </p>
                   </div>
                 )}

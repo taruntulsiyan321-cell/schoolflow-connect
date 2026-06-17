@@ -69,7 +69,7 @@ export function useAnalyticsInsights(snapshot: AcademicSnapshot | null, enabled 
         setLoading(false);
       }
     }
-  }, [enabled, snapshot?.mistake_count, snapshot?.student?.full_name, snapshot?.exam_readiness?.score]);
+  }, [enabled, snapshot?.mistake_count, snapshot?.student?.full_name, snapshot?.exam_readiness?.accuracy_pct]);
 
   useEffect(() => {
     if (!enabled || masteryLoading) return;

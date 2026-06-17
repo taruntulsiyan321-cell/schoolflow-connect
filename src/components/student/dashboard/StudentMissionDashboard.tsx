@@ -35,7 +35,7 @@ import "../flow/student-panel-premium.css";
 /* ── Placeholder data (visual pass) ───────────────────────────── */
 
 const PLACEHOLDER = {
-  examReadiness: 74,
+  practiceAccuracy: 78,
   todayGoal: "Complete 12 Recovery Questions",
   goalProgress: 58,
   goalCompleted: 7,
@@ -117,7 +117,7 @@ function timeGreeting() {
   return "Good Evening";
 }
 
-function HeroRing({ value, size = 148 }: { value: number; size?: number }) {
+function HeroRing({ value, label = "Accuracy", size = 148 }: { value: number; label?: string; size?: number }) {
   const r = size / 2 - 12;
   const c = 2 * Math.PI * r;
   const off = c * (1 - value / 100);
@@ -147,7 +147,7 @@ function HeroRing({ value, size = 148 }: { value: number; size?: number }) {
       <div className="absolute inset-0 flex flex-col items-center justify-center text-primary-foreground">
         <span className="text-4xl font-bold tabular-nums tracking-tight">{value}%</span>
         <span className="text-[10px] uppercase tracking-[0.2em] text-primary-foreground/70 mt-0.5">
-          Readiness
+          {label}
         </span>
       </div>
     </div>
@@ -271,11 +271,11 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
             </div>
 
             <div className="flex flex-col items-center lg:items-end gap-3 shrink-0">
-              <HeroRing value={p.examReadiness} />
-              <p className="text-sm font-medium text-primary-foreground/80">Exam Readiness</p>
+              <HeroRing value={p.practiceAccuracy} label="Accuracy" />
+              <p className="text-sm font-medium text-primary-foreground/80">Practice accuracy</p>
               <div className="hidden lg:flex items-center gap-2 text-xs text-primary-foreground/60">
                 <Sparkles className="w-3.5 h-3.5 text-[#e8c468]" />
-                <span>On track for your next exam</span>
+                <span>From your recent practice &amp; recovery</span>
               </div>
             </div>
           </div>

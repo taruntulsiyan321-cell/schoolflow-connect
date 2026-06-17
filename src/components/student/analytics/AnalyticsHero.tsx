@@ -5,7 +5,8 @@ import { ArrowRight, Sparkles, Trophy } from "lucide-react";
 type Props = {
   firstName: string;
   studentClass: string;
-  readiness: number;
+  heroScore: number;
+  heroLabel: string;
   accuracy: number;
   level: number;
   rank: number | null;
@@ -45,7 +46,8 @@ function ProgressRing({ value, label }: { value: number; label: string }) {
 export function AnalyticsHero({
   firstName,
   studentClass,
-  readiness,
+  heroScore,
+  heroLabel,
   accuracy,
   level,
   rank,
@@ -76,7 +78,7 @@ export function AnalyticsHero({
               {rank ? ` · Class rank #${rank}` : ""}
             </p>
           </div>
-          <ProgressRing value={readiness} label="Readiness" />
+          <ProgressRing value={heroScore} label={heroLabel} />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">

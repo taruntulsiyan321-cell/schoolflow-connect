@@ -9,6 +9,7 @@ import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import { useAuth } from "@/hooks/useAuth";
 import { buildRuleAnalyticsInsights, resolveTopicGaps } from "@/lib/analyticsInsights";
 import { presentationValue, withPresentationFallback } from "@/lib/presentationMode";
+import { heroLearningScore, practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import {
   DEMO_AGGREGATES,
   DEMO_COACH_INSIGHTS,
@@ -61,8 +62,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
     reload: reloadCoach,
   } = useAcademicCoach(data);
 
-  const readiness = data.exam_readiness;
-  const score = readiness?.score ?? 0;
+  const { score: heroScore, label: heroLabel } = heroLearningScore(data, mastery);
   const level = data.xp?.level ?? 1;
   const rank = presentationValue(pageData?.class_rank, 6);
   const classSize = presentationValue(pageData?.class_size, 32);
@@ -81,7 +81,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
 
   const totals = pageData?.totals;
   const accuracy = presentationValue(
-    totals?.accuracy_pct ?? readiness?.accuracy_pct,
+    totals?.accuracy_pct ?? practiceAccuracyFromSnapshot(data),
     74,
   );
 
@@ -154,7 +154,8 @@ export function AnalyticsStudio({ data, charts }: Props) {
       <AnalyticsHero
         firstName={firstName}
         studentClass={studentClass}
-        readiness={presentationValue(score, 78)}
+        heroScore={presentationValue(heroScore, mastery.length > 0 ? 71 : 74)}
+        heroLabel={heroLabel}
         accuracy={accuracy}
         level={level}
         rank={rank}

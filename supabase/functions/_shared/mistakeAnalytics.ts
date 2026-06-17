@@ -146,7 +146,7 @@ export async function handleMistakeAnalyticsRequest(body: Record<string, unknown
 
   const user = [
     `Student: ${display_name}`,
-    `Exam readiness: ${exam_readiness.score ?? 0}% | accuracy ${exam_readiness.accuracy_pct ?? 0}%`,
+    `Practice accuracy: ${exam_readiness.accuracy_pct ?? 0}% | active days (14d): ${exam_readiness.active_days_14d ?? 0}`,
     "",
     "=== Topics with mistake counts ===",
     topicLines || "(infer from questions below)",

@@ -7,6 +7,7 @@ import {
 } from "@/lib/mistakeRecovery";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
+import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 
 export type TopicGapInsight = {
   topic: string;
@@ -539,13 +540,13 @@ function buildInsightsFromGeminiPlans(
 
   const top = topicGaps[0];
   const totalMistakes = aggregates.reduce((s, a) => s + a.mistake_count, 0);
-  const readiness = snapshot?.exam_readiness?.score ?? 0;
+  const practiceAccuracy = practiceAccuracyFromSnapshot(snapshot);
 
   return {
     headline: top
       ? overallHeadline || `${top.topic} needs focused revision`
       : ruleFallback.headline,
-    summary: `Analysed ${totalMistakes} mistakes across ${topicGaps.length} NCERT topics · exam readiness ${readiness}% · ${topicGaps.filter((t) => t.severity === "critical").length} critical.`,
+    summary: `Analysed ${totalMistakes} mistakes across ${topicGaps.length} NCERT topics · practice accuracy ${practiceAccuracy}% · ${topicGaps.filter((t) => t.severity === "critical").length} critical.`,
     diagnosis:
       overallHeadline ||
       (topicGaps.length > 0
@@ -718,7 +719,7 @@ export function buildRuleAnalyticsInsights(
       note: `${Math.round(m.mastery_score)}% mastery — keep revising with mixed problems.`,
     }));
 
-  const readiness = snapshot?.exam_readiness?.score ?? 0;
+  const practiceAccuracy = practiceAccuracyFromSnapshot(snapshot);
   const top = weak_topics[0];
   const momentum = buildMomentumFromMastery(mastery);
   const weekly_plan = buildWeeklyPlanFromGaps(weak_topics);
@@ -734,7 +735,7 @@ export function buildRuleAnalyticsInsights(
   const summary =
     weak_topics.length === 0
       ? "Each wrong answer is traced to the exact NCERT topic and skill — not just the chapter name."
-      : `We reviewed ${aggregates.reduce((s, a) => s + a.mistake_count, 0)} mistakes across ${weak_topics.length} topics. Exam readiness: ${readiness}%.`;
+      : `We reviewed ${aggregates.reduce((s, a) => s + a.mistake_count, 0)} mistakes across ${weak_topics.length} topics. Practice accuracy: ${practiceAccuracy}%.`;
 
   const diagnosis =
     weak_topics.length === 0

@@ -14,7 +14,14 @@ export type AcademicSnapshot = {
   weak_concepts?: { subject: string; concept: string; mastery_score: number }[];
   self_practice?: { sessions_completed: number };
   activity_heatmap?: { date: string; dpp: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
-  exam_readiness?: { score: number; label: string; tone: string; attendance_pct?: number; accuracy_pct?: number };
+  exam_readiness?: {
+    score: number;
+    label: string;
+    tone: string;
+    attendance_pct?: number;
+    accuracy_pct?: number;
+    active_days_14d?: number;
+  };
 };
 
 export function useStudentAcademicSnapshot(enabled = true) {

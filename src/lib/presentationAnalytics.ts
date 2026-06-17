@@ -138,7 +138,7 @@ export const DEMO_COACH_INSIGHTS: string[] = [
   "Chain rule slips cluster on nested trig — drill inner/outer identification first.",
   "Integration errors are mostly limit updates after substitution, not antiderivatives.",
   "Physics circuit mistakes are sign conventions — redraw before solving.",
-  "Recovery completion is at 68% — finish pending drills to lift readiness.",
+  "Recovery completion is at 68% — finish pending drills to strengthen weak concepts.",
 ];
 
 export const DEMO_WEEKLY_PLAN: StudyPlanItem[] = [
