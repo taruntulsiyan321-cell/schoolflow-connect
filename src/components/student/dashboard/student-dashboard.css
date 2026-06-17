@@ -1,0 +1,101 @@
+/* Student mission control dashboard — premium visual layer */
+.sd-dashboard {
+  --sd-emerald: #003324;
+  --sd-emerald-mid: #0d5c44;
+  --sd-mint: #b2f0d4;
+  --sd-gold: #e8c468;
+  --sd-gold-soft: #fff4d6;
+  --sd-surface: #f7fdf9;
+}
+
+.sd-dashboard {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-bottom: 2rem;
+}
+
+.sd-hero {
+  background: linear-gradient(135deg, #064e3b 0%, #003324 42%, #002818 100%);
+  box-shadow:
+    0 24px 48px -12px rgba(0, 51, 36, 0.35),
+    0 0 0 1px rgba(178, 240, 212, 0.12) inset;
+}
+
+.sd-hero-glow {
+  background: radial-gradient(circle at 85% 15%, rgba(232, 196, 104, 0.28) 0%, transparent 55%);
+}
+
+.sd-hero-orb {
+  background: radial-gradient(circle, rgba(178, 240, 212, 0.22) 0%, transparent 70%);
+}
+
+.sd-ring-track {
+  stroke: rgba(255, 255, 255, 0.15);
+}
+
+.sd-ring-fill {
+  stroke: url(#sd-hero-gradient);
+  filter: drop-shadow(0 0 8px rgba(178, 240, 212, 0.45));
+}
+
+.sd-card {
+  background: linear-gradient(180deg, #ffffff 0%, var(--sd-surface) 100%);
+  border: 1px solid rgba(0, 51, 36, 0.08);
+  box-shadow: 0 4px 24px -6px rgba(0, 51, 36, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.sd-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.14);
+  border-color: rgba(151, 211, 184, 0.45);
+}
+
+.sd-metric-card {
+  background: linear-gradient(145deg, #ffffff 0%, #f4fff8 100%);
+}
+
+.sd-mission-card {
+  background: linear-gradient(160deg, #ffffff 0%, #fafefb 55%, #f0fdf6 100%);
+}
+
+.sd-recovery {
+  background: linear-gradient(135deg, #defaeb 0%, #ffffff 45%, #fff8e8 100%);
+  border: 2px solid rgba(151, 211, 184, 0.5);
+  box-shadow:
+    0 16px 40px -10px rgba(0, 51, 36, 0.18),
+    0 0 0 1px rgba(232, 196, 104, 0.15) inset;
+}
+
+.sd-battle-card {
+  background: linear-gradient(160deg, #0a2e24 0%, #003324 50%, #064e3b 100%);
+  color: #f4fff8;
+  box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.4);
+}
+
+.sd-battle-card:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 20px 40px -10px rgba(0, 51, 36, 0.5);
+}
+
+.sd-achievement {
+  background: linear-gradient(145deg, #fffef8 0%, #ffffff 50%, #f4fff8 100%);
+  border: 1px solid rgba(232, 196, 104, 0.25);
+}
+
+.sd-radar-center {
+  background: radial-gradient(circle at center, rgba(178, 240, 212, 0.35) 0%, transparent 65%);
+}
+
+.sd-section-title {
+  font-family: "Sora", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.sd-trend-chart .recharts-cartesian-grid-horizontal line {
+  stroke: rgba(0, 51, 36, 0.06);
+}
+
+.sd-trend-chart .recharts-area {
+  filter: drop-shadow(0 4px 12px rgba(0, 51, 36, 0.12));
+}
