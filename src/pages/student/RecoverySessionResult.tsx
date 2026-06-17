@@ -14,6 +14,7 @@ import { MathText } from "@/components/MathText";
 import { cn } from "@/lib/utils";
 import {
   buildRecoveryAssignmentReport,
+  mergeRecoveryAttemptRows,
   readRecoveryResultState,
   recoverySnapshotsToAttemptRows,
   type RecoverySessionResultState,
@@ -63,7 +64,10 @@ export default function RecoverySessionResult() {
     [localState],
   );
 
-  const displayAttempts = attempts.length > 0 ? attempts : localAttempts;
+  const displayAttempts = useMemo(
+    () => mergeRecoveryAttemptRows(attempts, localAttempts),
+    [attempts, localAttempts],
+  );
 
   const subject = assignment?.subject ?? localState?.subject ?? "Mathematics";
   const chapter = assignment?.chapter ?? localState?.chapter ?? "";

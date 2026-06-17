@@ -90,3 +90,49 @@ export function readRecoveryResultState(assignmentId: string): RecoverySessionRe
     return null;
   }
 }
+
+export function writeRecoveryResultState(state: RecoverySessionResultState): void {
+  try {
+    sessionStorage.setItem(`recovery-result-${state.assignmentId}`, JSON.stringify(state));
+  } catch {
+    /* ignore quota */
+  }
+}
+
+type AttemptRowLike = {
+  id: string;
+  generated_question?: { question?: string; options?: string[] };
+};
+
+export function attemptRowHasContent(row: AttemptRowLike): boolean {
+  const q = (row.generated_question?.question ?? "").trim();
+  const opts = row.generated_question?.options;
+  return q.length > 0 && Array.isArray(opts) && opts.length >= 2;
+}
+
+/** Prefer rows with question text — DB often has answered=true but empty client-generated fields. */
+export function mergeRecoveryAttemptRows<T extends AttemptRowLike>(db: T[], local: T[]): T[] {
+  if (local.length === 0) return db;
+  if (db.length === 0) return local;
+
+  const localById = new Map(local.map((r) => [r.id, r]));
+  const merged = db.map((row, i) => {
+    if (attemptRowHasContent(row)) return row;
+    const byId = localById.get(row.id);
+    if (byId && attemptRowHasContent(byId)) return byId;
+    const byOrder = local[i];
+    if (byOrder && attemptRowHasContent(byOrder)) return byOrder;
+    return byId ?? byOrder ?? row;
+  });
+
+  const seen = new Set(merged.map((r) => r.id));
+  for (const row of local) {
+    if (!seen.has(row.id) && attemptRowHasContent(row)) {
+      merged.push(row);
+      seen.add(row.id);
+    }
+  }
+
+  const withContent = merged.filter(attemptRowHasContent);
+  return withContent.length > 0 ? withContent : local.length > 0 ? local : db;
+}
