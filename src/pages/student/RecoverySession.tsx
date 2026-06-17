@@ -15,6 +15,7 @@ import { generateFromTemplate } from "@/engines/class12Math/generate";
 import type { GeneratedQuestion } from "@/engines/class12Math/types";
 import { freshSessionSeed, SEED_STRIDE } from "@/lib/practiceDiversity";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
+import { mcqOptionsInvalid } from "@/lib/mcqOptions";
 import {
   fetchMistakesForRecovery,
   generateRecoveryQuestionsFromMistakes,
@@ -128,7 +129,8 @@ export default function RecoverySession() {
           q.client_generate ||
           (!q.question_text?.trim() && q.template_type) ||
           (Array.isArray(q.options) && q.options.length === 0 && q.template_type) ||
-          (q.options?.length === 4 && q.options[0] === "Option A");
+          (q.options?.length === 4 && q.options[0] === "Option A") ||
+          mcqOptionsInvalid(q.options);
 
         if (needsGen && q.template_type) {
           try {

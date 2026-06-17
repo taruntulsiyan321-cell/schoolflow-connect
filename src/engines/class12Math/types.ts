@@ -38,4 +38,8 @@ export type GeneratedQuestion = {
 export type GeneratorFn = (
   data: Record<string, unknown>,
   rng: () => number,
-) => Omit<GeneratedQuestion, "correctIndex" | "options"> & { correctAnswer: string };
+) => Omit<GeneratedQuestion, "correctIndex" | "options"> & {
+  correctAnswer: string;
+  /** When set, used as wrong options instead of auto-generated distractors. */
+  distractors?: string[];
+};

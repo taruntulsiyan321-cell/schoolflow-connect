@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import { mcqOptionsInvalid, normalizeMcqOptions } from "@/lib/mcqOptions";
 
 export type AiMcq = {
   question: string;
@@ -108,5 +108,20 @@ export async function generateAiPracticeQuestions(opts: {
 
   if (error) return { questions: [], error };
   if (data?.error) return { questions: [], error: data.error };
-  return { questions: data?.questions ?? [] };
+
+  const valid = (data?.questions ?? [])
+    .map((q) => {
+      if (!q?.options?.length || q.correct_index == null) return null;
+      if (mcqOptionsInvalid(q.options)) return null;
+      const normalized = normalizeMcqOptions(q.options, q.correct_index);
+      if (!normalized) return null;
+      return {
+        ...q,
+        options: normalized.options,
+        correct_index: normalized.correctIndex,
+      };
+    })
+    .filter((q): q is AiMcq => q != null);
+
+  return { questions: valid };
 }

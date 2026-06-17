@@ -34,9 +34,13 @@ register("rf_bijective_check", (data, rng) => {
   const v = Number(data.variant ?? 0);
   const isBijective = v % 2 === 0;
   const domain = "R";
+  const correct = isBijective ? "f(x) = x³" : "f(x) = x²";
   return {
     question: `Which function is bijective on ${domain}?`,
-    correctAnswer: isBijective ? "f(x) = x³" : "f(x) = x²",
+    correctAnswer: correct,
+    distractors: isBijective
+      ? ["f(x) = x²", "f(x) = |x|", "f(x) = sin x"]
+      : ["f(x) = x³", "f(x) = x", "f(x) = 2x"],
     explanation: `x³ is one-one and onto on ${domain}; x² is not one-one on ${domain}.`,
     values: { isBijective: isBijective ? 1 : 0 },
   };

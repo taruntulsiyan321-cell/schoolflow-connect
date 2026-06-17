@@ -23,6 +23,7 @@ register("rf_relation_properties", (data, rng) => {
   return {
     question: `On set A = {1, 2, 3}, relation R = {(1,1), (2,2), (3,3), (1,2), (2,1)} is?`,
     correctAnswer: "reflexive and symmetric",
+    distractors: ["reflexive only", "symmetric only", "transitive only"],
     explanation: `All (a,a) present ⇒ reflexive; (1,2) and (2,1) present ⇒ symmetric.`,
     values: { prop: ans },
   };
