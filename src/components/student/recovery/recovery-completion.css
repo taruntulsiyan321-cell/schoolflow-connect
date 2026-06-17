@@ -1,0 +1,175 @@
+/* Recovery Completion Report — transformation celebration */
+.rc-report {
+  --rc-emerald: #003324;
+  --rc-emerald-mid: #0d5c44;
+  --rc-mint: #b2f0d4;
+  --rc-gold: #e8c468;
+  --rc-gold-soft: #fff8e8;
+  max-width: 48rem;
+  margin-inline: auto;
+  padding-bottom: 3rem;
+}
+
+.rc-report .rc-hero {
+  background: linear-gradient(145deg, #0a5c44 0%, #003324 40%, #1a2f1a 100%);
+  box-shadow:
+    0 32px 64px -16px rgba(0, 51, 36, 0.45),
+    0 0 0 1px rgba(178, 240, 212, 0.15) inset;
+}
+
+.rc-report .rc-hero-glow {
+  background: radial-gradient(ellipse 80% 60% at 90% 10%, rgba(232, 196, 104, 0.35) 0%, transparent 55%);
+}
+
+.rc-report .rc-hero-confetti {
+  background: radial-gradient(circle at 20% 80%, rgba(178, 240, 212, 0.2) 0%, transparent 40%);
+}
+
+.rc-report .rc-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fdf9 100%);
+  border: 1px solid rgba(0, 51, 36, 0.08);
+  box-shadow: 0 4px 24px -6px rgba(0, 51, 36, 0.08);
+  border-radius: 1.25rem;
+}
+
+.rc-report .rc-card-gold {
+  background: linear-gradient(135deg, #fffbf0 0%, #ffffff 50%, #f4fff8 100%);
+  border: 1px solid rgba(232, 196, 104, 0.35);
+  box-shadow: 0 8px 32px -8px rgba(232, 196, 104, 0.2);
+}
+
+.rc-report .rc-card-coach {
+  background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 45%, #f4fff8 100%);
+  border: 1px solid rgba(13, 92, 68, 0.12);
+  box-shadow: 0 12px 40px -12px rgba(0, 51, 36, 0.12);
+}
+
+.rc-report .rc-compare-before {
+  background: linear-gradient(135deg, #f5f5f5 0%, #fafafa 100%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.rc-report .rc-compare-after {
+  background: linear-gradient(135deg, #defaeb 0%, #f4fff8 100%);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.rc-report .rc-arrow {
+  color: var(--rc-gold);
+}
+
+.rc-report .rc-progress-track {
+  background: rgba(0, 51, 36, 0.08);
+  border-radius: 999px;
+  height: 0.5rem;
+  overflow: hidden;
+}
+
+.rc-report .rc-progress-before {
+  background: rgba(0, 51, 36, 0.2);
+  height: 100%;
+  border-radius: 999px;
+}
+
+.rc-report .rc-progress-after {
+  background: linear-gradient(90deg, #0d5c44, #97d3b8);
+  height: 100%;
+  border-radius: 999px;
+}
+
+.rc-report .rc-journey-line {
+  background: linear-gradient(90deg, #97d3b8 0%, #0d5c44 50%, #e8c468 100%);
+  height: 3px;
+}
+
+.rc-report .rc-journey-dot {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 51, 36, 0.15);
+}
+
+.rc-report .rc-journey-dot.done {
+  background: linear-gradient(135deg, #0d5c44, #97d3b8);
+  color: white;
+}
+
+.rc-report .rc-journey-dot.pending {
+  background: #e8e8e8;
+  color: #888;
+}
+
+.rc-report .rc-badge-earned {
+  background: linear-gradient(135deg, #fff8e0 0%, #fffbf5 100%);
+  border: 1px solid rgba(232, 196, 104, 0.5);
+  box-shadow: 0 4px 16px -4px rgba(232, 196, 104, 0.35);
+}
+
+.rc-report .rc-badge-locked {
+  background: #f8f8f8;
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+  opacity: 0.65;
+}
+
+.rc-report .rc-stat-hero {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.rc-report .rc-health-bar {
+  height: 2rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  display: flex;
+}
+
+.rc-report .rc-health-before {
+  background: linear-gradient(90deg, #94a3b8, #cbd5e1);
+}
+
+.rc-report .rc-health-after {
+  background: linear-gradient(90deg, #0d5c44, #97d3b8, #e8c468);
+}
+
+.rc-report .rc-cta-primary {
+  background: linear-gradient(135deg, #e8c468 0%, #d4a84a 100%);
+  color: #251a00;
+  font-weight: 600;
+  box-shadow: 0 8px 24px -6px rgba(232, 196, 104, 0.5);
+}
+
+.rc-report .rc-cta-primary:hover {
+  filter: brightness(1.05);
+}
+
+.rc-report .rc-section-title {
+  font-family: "Sora", system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+@keyframes rc-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rc-report .rc-animate {
+  animation: rc-rise 0.5s ease-out both;
+}
+
+.rc-report .rc-animate-delay-1 { animation-delay: 0.05s; }
+.rc-report .rc-animate-delay-2 { animation-delay: 0.1s; }
+.rc-report .rc-animate-delay-3 { animation-delay: 0.15s; }

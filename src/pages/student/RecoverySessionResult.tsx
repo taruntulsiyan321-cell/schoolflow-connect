@@ -203,9 +203,15 @@ export default function RecoverySessionResult() {
       </Button>
 
       <PageHeader
-        title={`Recovery complete: ${concept}`}
-        subtitle={`${subject}${chapter ? ` · ${chapter}` : ""}${assignment?.severity ? ` · ${assignment.severity} priority` : ""}`}
+        title={`Question review: ${concept}`}
+        subtitle={`${subject}${chapter ? ` · ${chapter}` : ""} · per-question breakdown`}
       />
+
+      {id && (
+        <Button variant="outline" size="sm" className="mb-4" asChild>
+          <Link to={`/student/recovery/${id}/complete`}>← Back to completion report</Link>
+        </Button>
+      )}
 
       {id && fallbackReport && (
         <ConceptRecoveryReport

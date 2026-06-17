@@ -77,7 +77,7 @@ export function persistRecoveryResult(
   } catch {
     /* ignore */
   }
-  nav(`/student/recovery/${state.assignmentId}/result`, { replace: true, state });
+  nav(`/student/recovery/${state.assignmentId}/complete`, { replace: true, state });
 }
 
 export function readRecoveryResultState(assignmentId: string): RecoverySessionResultState | null {

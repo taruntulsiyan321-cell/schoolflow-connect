@@ -5,6 +5,7 @@ import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOp
 import RecoveryZone from "./student/RecoveryZone";
 import RecoverySession from "./student/RecoverySession";
 import RecoverySessionResult from "./student/RecoverySessionResult";
+import RecoveryCompletionReportPage from "./student/RecoveryCompletionReportPage";
 import StudentSuccessHome from "./student/StudentSuccessHome";
 import MistakeBank from "./student/MistakeBank";
 import RevisionQueue from "./student/RevisionQueue";
@@ -170,6 +171,7 @@ export default function StudentDashboard() {
         <Route path="revision" element={<RevisionQueue />} />
         <Route path="plans" element={<ImprovementPlans />} />
         <Route path="recovery" element={<RecoveryZone />} />
+        <Route path="recovery/:id/complete" element={<RecoveryCompletionReportPage />} />
         <Route path="recovery/:id/result" element={<RecoverySessionResult />} />
         <Route path="recovery/:id" element={<RecoverySession />} />
         <Route path="mistakes" element={<MistakeBank />} />
