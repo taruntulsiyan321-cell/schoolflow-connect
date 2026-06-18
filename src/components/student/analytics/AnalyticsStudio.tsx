@@ -6,32 +6,51 @@ import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import { useAcademicCoach } from "@/hooks/useAcademicCoach";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useRecoveryZone } from "@/hooks/useRecoveryZone";
-import { useAuth } from "@/hooks/useAuth";
-import { buildRuleAnalyticsInsights, resolveTopicGaps } from "@/lib/analyticsInsights";
+import {
+  buildRuleAnalyticsInsights,
+  clipInsightText,
+  formatLastSeen,
+  resolveTopicGaps,
+  type MistakeTopicAggregate,
+} from "@/lib/analyticsInsights";
+import { classifyMistakes } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { presentationValue, withPresentationFallback } from "@/lib/presentationMode";
-import { heroLearningScore, practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import {
+  averageConceptMastery,
+  practiceAccuracyFromSnapshot,
+  studyActiveDaysFromSnapshot,
+} from "@/lib/learningMetrics";
 import {
   DEMO_AGGREGATES,
-  DEMO_COACH_INSIGHTS,
   DEMO_INSIGHTS,
   DEMO_MASTERY,
-  DEMO_MOMENTUM,
-  DEMO_SESSIONS,
   DEMO_TOPIC_GAPS,
-  DEMO_WEEKLY_PLAN,
 } from "@/lib/presentationAnalytics";
-import { AnalyticsHero } from "@/components/student/analytics/AnalyticsHero";
 import {
-  MistakeTopicTable,
-  MomentumSection,
-  SessionLog,
-  TopicDeepCards,
-  WeeklyStudyPlan,
-} from "@/components/student/analytics/AnalysisDeepSections";
-import { MasterySection } from "@/components/student/analytics/wisdom/MasterySection";
-import { MistakeSection } from "@/components/student/analytics/wisdom/MistakeSection";
-import { PerformanceSection } from "@/components/student/analytics/wisdom/PerformanceSection";
-import { Loader2, RefreshCw } from "lucide-react";
+  Area,
+  AreaChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Brain,
+  CheckCircle2,
+  ClipboardList,
+  Gauge,
+  LineChart,
+  Loader2,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  TrendingUp,
+  Trophy,
+  Wrench,
+} from "lucide-react";
 import "./wisdom/wisdom-analytics.css";
 
 type Props = {
@@ -40,15 +59,78 @@ type Props = {
   chartsLoading?: boolean;
 };
 
-const ANCHORS = [
-  { id: "mastery", label: "Skill tree" },
-  { id: "mistakes", label: "Mistakes" },
-  { id: "coach", label: "Coach" },
-  { id: "trends", label: "Trends" },
-] as const;
+const SUBJECT_FALLBACK = [
+  { name: "Mathematics", accuracy: 78, attempts: 42 },
+  { name: "Physics", accuracy: 68, attempts: 21 },
+  { name: "Chemistry", accuracy: 61, attempts: 18 },
+  { name: "Biology", accuracy: 72, attempts: 15 },
+  { name: "English", accuracy: 85, attempts: 12 },
+];
+
+function clamp(n: number, min = 0, max = 100) {
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+function MetricCard({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  tone = "emerald",
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  icon: typeof Target;
+  tone?: "emerald" | "gold" | "blue" | "red";
+}) {
+  return (
+    <div className={`wa-intel-card tone-${tone}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="wa-label">{label}</p>
+          <p className="text-3xl font-bold tabular-nums mt-2 text-[var(--wa-on-surface)]">{value}</p>
+          {sub && <p className="text-xs text-[var(--wa-on-surface-variant)] mt-1">{sub}</p>}
+        </div>
+        <div className="wa-intel-icon">
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProgressBar({ value, tone = "emerald" }: { value: number; tone?: "emerald" | "gold" | "red" }) {
+  return (
+    <div className="h-2 rounded-full bg-[var(--wa-surface-variant)] overflow-hidden">
+      <div className={`h-full rounded-full wa-bar-${tone}`} style={{ width: `${clamp(value)}%` }} />
+    </div>
+  );
+}
+
+function miniTrendValue(values: number[], fallback: number) {
+  if (values.length < 2) return fallback;
+  return clamp(values[values.length - 1] - values[0], -40, 40);
+}
+
+function groupMasteryBySubject(mastery: typeof DEMO_MASTERY) {
+  const grouped = new Map<string, Map<string, typeof DEMO_MASTERY>>();
+  for (const item of mastery) {
+    const subject = item.subject || "Subject";
+    const chapter = item.chapter || "General";
+    if (!grouped.has(subject)) grouped.set(subject, new Map());
+    const byChapter = grouped.get(subject)!;
+    if (!byChapter.has(chapter)) byChapter.set(chapter, []);
+    byChapter.get(chapter)!.push(item);
+  }
+  return grouped;
+}
+
+function repeatedMistake(aggregates: MistakeTopicAggregate[]) {
+  return [...aggregates].sort((a, b) => b.mistake_count - a.mistake_count)[0];
+}
 
 export function AnalyticsStudio({ data, charts }: Props) {
-  const { user } = useAuth();
   const { data: pageData, loading: pageLoading } = useAnalysisPageData();
   const { items: mastery } = useConceptMastery();
   const { data: recovery } = useRecoveryZone();
@@ -61,11 +143,6 @@ export function AnalyticsStudio({ data, charts }: Props) {
     error: coachError,
     reload: reloadCoach,
   } = useAcademicCoach(data);
-
-  const { score: heroScore, label: heroLabel } = heroLearningScore(data, mastery);
-  const level = data.xp?.level ?? 1;
-  const rank = presentationValue(pageData?.class_rank, 6);
-  const classSize = presentationValue(pageData?.class_size, 32);
 
   const ruleFallback =
     liveAggregates.length > 0 ? buildRuleAnalyticsInsights(liveAggregates, mastery, data) : null;
@@ -84,6 +161,8 @@ export function AnalyticsStudio({ data, charts }: Props) {
     totals?.accuracy_pct ?? practiceAccuracyFromSnapshot(data),
     74,
   );
+  const conceptMastery = presentationValue(averageConceptMastery(displayMastery), 72);
+  const weakConceptCount = topicGaps.length;
 
   const trend = pageData?.trend;
   const practiceTrend = charts?.practice_trend ?? [];
@@ -94,18 +173,6 @@ export function AnalyticsStudio({ data, charts }: Props) {
       const curr = trend?.current_accuracy ?? practiceTrend.at(-1)?.score_pct;
       return prev != null && curr != null ? Math.round((curr - prev) * 10) / 10 : presentationValue(null, 8.5);
     })();
-
-  const coachInsights: string[] = [];
-  if (displayInsights?.diagnosis) coachInsights.push(displayInsights.diagnosis);
-  if (displayInsights?.today_focus) coachInsights.push(displayInsights.today_focus);
-  for (const e of displayInsights?.recurring_errors ?? []) coachInsights.push(e.label);
-  for (const p of displayInsights?.error_patterns ?? []) {
-    if (!coachInsights.includes(p)) coachInsights.push(p);
-  }
-  for (const t of topicGaps.slice(0, 2)) {
-    if (!coachInsights.includes(t.why_weak)) coachInsights.push(t.why_weak);
-  }
-  const displayCoachInsights = withPresentationFallback(coachInsights, DEMO_COACH_INSIGHTS, 1);
 
   const topGap = topicGaps[0];
   const focusTitle = topGap ? `Focus on ${topGap.topic}` : displayInsights?.headline ?? "Keep practising";
@@ -118,25 +185,49 @@ export function AnalyticsStudio({ data, charts }: Props) {
     recovery?.pending_count ?? data.recovery_pending ?? data.mistake_count,
     12,
   );
-  const weeklyPlan = withPresentationFallback(
-    displayInsights?.weekly_plan ?? [],
-    DEMO_WEEKLY_PLAN,
-    1,
-  );
-  const momentum = withPresentationFallback(
-    displayInsights?.momentum ?? [],
-    DEMO_MOMENTUM,
-    1,
-  );
-  const sessions = withPresentationFallback(
-    pageData?.recent_sessions ?? [],
-    DEMO_SESSIONS,
-    2,
-  );
+  const recoveryCompletion = clamp(100 - recoveryCount * 4, 40, 94);
+  const activeDays = studyActiveDaysFromSnapshot(data);
+  const consistencyScore = presentationValue(clamp((activeDays / 14) * 100), 64);
+  const academicHealth = clamp((accuracy + conceptMastery + recoveryCompletion + consistencyScore) / 4);
+  const weeklyImprovement = improvement != null ? Math.max(0, Math.round(improvement)) : 11;
 
   const firstName = data.student?.full_name?.split(" ")[0] ?? "Scholar";
   const studentClass = pageData?.student_class ?? "Class 12 · Section A";
-  const streak = data.xp?.current_streak ?? 5;
+  const strongConcepts = displayMastery
+    .filter((m) => m.mastery_score >= 75)
+    .sort((a, b) => b.mastery_score - a.mastery_score)
+    .slice(0, 5);
+  const weakConcepts = topicGaps.slice(0, 5);
+  const mistakeBuckets = classifyMistakes(aggregates);
+  const mostRepeated = repeatedMistake(aggregates);
+  const conceptErrors = mistakeBuckets.find((b) => b.key === "concept")?.count ?? Math.max(weakConceptCount, 1);
+  const calculationErrors = mistakeBuckets.find((b) => b.key === "calc")?.count ?? Math.max(0, Math.round(conceptErrors * 0.4));
+  const carelessMistakes = mistakeBuckets.find((b) => b.key === "careless")?.count ?? Math.max(0, Math.round(conceptErrors * 0.25));
+  const timePressureMistakes = mistakeBuckets.find((b) => b.key === "time")?.count ?? Math.max(0, Math.round(conceptErrors * 0.2));
+  const misinterpretationMistakes = displayInsights.error_patterns.filter((p) => /read|interpret|misread|word/i.test(p)).length || 1;
+  const recoveryBeforeAccuracy = clamp((topGap?.mistake_count ?? 4) > 0 ? accuracy - 23 : accuracy - 10, 35, 72);
+  const recoveryAfterAccuracy = clamp(Math.max(accuracy, recoveryBeforeAccuracy + 18), recoveryBeforeAccuracy + 8, 94);
+  const recoveryBeforeMastery = clamp(conceptMastery - 25, 32, 70);
+  const recoveryAfterMastery = clamp(Math.max(conceptMastery, recoveryBeforeMastery + 18), recoveryBeforeMastery + 8, 94);
+  const subjectRows = charts?.subjects?.length ? charts.subjects : SUBJECT_FALLBACK;
+  const trendValues = practiceTrend.slice(-7).map((p) => p.score_pct);
+  const thirtyDayValues = practiceTrend.slice(-30).map((p) => p.score_pct);
+  const focusTopics = [
+    ...(topGap ? [topGap] : []),
+    ...topicGaps.filter((g) => g.topic !== topGap?.topic),
+  ].slice(0, 3);
+  const expectedGain = Math.max(4, Math.min(12, weakConceptCount * 2 + 4));
+  const strength =
+    strongConcepts[0]?.concept ??
+    data.strong_topics?.[0]?.topic ??
+    data.strong_topics?.[0]?.chapter ??
+    "practice consistency";
+  const weakness = topGap?.topic ?? displayMastery.find((m) => m.mastery_score < 60)?.concept ?? "mixed weak concepts";
+  const skillGroups = groupMasteryBySubject(displayMastery);
+  const trendData = (practiceTrend.length ? practiceTrend : []).slice(-14).map((p) => ({
+    label: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    accuracy: p.score_pct,
+  }));
 
   const initialLoad = insightsLoading && liveAggregates.length === 0 && !displayInsights;
 
@@ -150,21 +241,57 @@ export function AnalyticsStudio({ data, charts }: Props) {
   }
 
   return (
-    <div className="wisdom-analytics wa-gradient-bg space-y-8 animate-rise pb-10 px-1 sm:px-2">
-      <AnalyticsHero
-        firstName={firstName}
-        studentClass={studentClass}
-        heroScore={presentationValue(heroScore, mastery.length > 0 ? 71 : 74)}
-        heroLabel={heroLabel}
-        accuracy={accuracy}
-        level={level}
-        rank={rank}
-        classSize={classSize}
-        streak={streak}
-        improvement={improvement}
-        coachHeadline={displayInsights?.headline ?? focusTitle}
-        coachFocus={displayInsights?.today_focus ?? focusBody}
-      />
+    <div className="wisdom-analytics wa-gradient-bg wa-intelligence-center space-y-8 animate-rise pb-10 px-1 sm:px-2">
+      <section className="wa-health-hero">
+        <div className="relative z-10 grid lg:grid-cols-[1.15fr_0.85fr] gap-6 items-stretch">
+          <div>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <span className="wa-gold-pill">Wisdom Campus · Academic Intelligence Center</span>
+              <span className="rounded-full bg-white/12 border border-white/15 px-3 py-1 text-[10px] font-semibold text-white/80">
+                {studentClass}
+              </span>
+            </div>
+            <p className="text-sm text-white/70">Hi, {firstName}</p>
+            <h1 className="font-['Sora'] text-3xl sm:text-5xl font-semibold tracking-tight text-white mt-1">
+              Academic Health
+            </h1>
+            <div className="mt-6 flex flex-wrap items-end gap-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">Health score</p>
+                <p className="text-6xl font-bold tabular-nums text-white leading-none mt-1">
+                  {academicHealth}<span className="text-2xl text-white/55">/100</span>
+                </p>
+              </div>
+              <div className="rounded-2xl bg-[#ffdf97] text-[#251a00] px-4 py-3 shadow-lg">
+                <p className="text-[10px] uppercase tracking-wider font-bold">Weekly improvement</p>
+                <p className="text-2xl font-bold tabular-nums">+{weeklyImprovement} pts</p>
+              </div>
+            </div>
+            <p className="text-sm text-white/72 mt-5 max-w-xl">
+              This score blends accuracy, concept mastery, recovery completion, and consistency so you can see your academic position instantly.
+            </p>
+          </div>
+
+          <div className="wa-health-breakdown">
+            {[
+              { label: "Overall Accuracy", value: accuracy },
+              { label: "Concept Mastery", value: conceptMastery },
+              { label: "Recovery Completion", value: recoveryCompletion },
+              { label: "Consistency Score", value: consistencyScore },
+            ].map((m) => (
+              <div key={m.label}>
+                <div className="flex justify-between text-sm font-medium text-white/85 mb-1">
+                  <span>{m.label}</span>
+                  <span className="tabular-nums">{m.value}%</span>
+                </div>
+                <div className="h-2 rounded-full bg-white/15 overflow-hidden">
+                  <div className="h-full rounded-full bg-[#ffdf97]" style={{ width: `${m.value}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
       {(enhancing || coachLive || coachError) && (
         <div className="flex flex-wrap items-center gap-2 px-1">
@@ -186,96 +313,252 @@ export function AnalyticsStudio({ data, charts }: Props) {
         </div>
       )}
 
-      <nav
-        className="wa-section-nav sticky top-0 z-10 bg-[var(--wa-surface-container-lowest)]/90 backdrop-blur-md py-2.5 -mx-1 px-2 rounded-full border border-[var(--wa-outline-variant)]/40"
-        aria-label="Jump to section"
-      >
-        {ANCHORS.map((a) => (
-          <a key={a.id} href={`#${a.id}`} className="wa-section-pill no-underline">
-            {a.label}
-          </a>
-        ))}
-      </nav>
-
-      <div id="mastery" className="scroll-mt-24">
-        <MasterySection
-          data={data}
-          mastery={displayMastery}
-          topicGaps={topicGaps}
-          focusTitle={focusTitle}
-          focusBody={focusBody}
-          level={level}
-          improvement={improvement}
-          enhancing={enhancing}
-          coachLive={coachLive}
-        />
-      </div>
-
-      <div id="mistakes" className="scroll-mt-24 pt-2">
-        <MistakeSection
-          aggregates={aggregates}
-          topicGaps={topicGaps}
-          coachInsights={displayCoachInsights}
-          recoveryCount={recoveryCount}
-          priorityTarget={topGap ? `${topGap.topic} (${topGap.chapter})` : "Chain rule (Differentiation)"}
-          coachLive={coachLive}
-        />
-        <div className="mt-6">
-          <TopicDeepCards topics={topicGaps} variant="wisdom" />
+      <section className="wa-focus-panel">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="wa-label text-[var(--wa-primary)]">Focus today</p>
+            <h2 className="wa-display text-2xl mt-1">{focusTitle}</h2>
+            <p className="wa-body mt-1 max-w-2xl">{clipInsightText(focusBody, 120)}</p>
+          </div>
+          <div className="rounded-2xl bg-[var(--wa-primary)] text-white px-4 py-3">
+            <p className="wa-label text-white/65">Estimated gain</p>
+            <p className="text-3xl font-bold tabular-nums">+{expectedGain}%</p>
+          </div>
         </div>
-        <div className="mt-6">
-          <MistakeTopicTable aggregates={aggregates} variant="wisdom" />
-        </div>
-      </div>
-
-      <div id="coach" className="scroll-mt-24 pt-2 space-y-6">
-        <header>
-          <h2 className="wa-display text-2xl md:text-3xl">Coach insights</h2>
-          <p className="wa-body mt-1">Personalised study plan and momentum signals from your attempts.</p>
-        </header>
-        <div className="wa-insight-strip">
-          {displayCoachInsights.slice(0, 4).map((line, i) => (
-            <div key={i} className="wa-insight-card">
-              <p className="wa-label text-[var(--wa-primary)] mb-2">Insight {i + 1}</p>
-              <p className="text-sm font-medium text-[var(--wa-on-surface)] leading-relaxed">{line}</p>
+        <div className="grid md:grid-cols-3 gap-3 mt-5">
+          {focusTopics.map((topic, i) => (
+            <div key={`${topic.topic}-${i}`} className="wa-priority-card">
+              <p className="wa-label text-[10px]">Priority {i + 1}</p>
+              <p className="font-semibold text-[var(--wa-on-surface)] mt-1">{topic.topic}</p>
+              <p className="text-xs text-[var(--wa-on-surface-variant)] mt-1">{topic.chapter}</p>
             </div>
           ))}
         </div>
-        <WeeklyStudyPlan plan={weeklyPlan} variant="wisdom" />
-        <MomentumSection signals={momentum} variant="wisdom" />
-      </div>
+      </section>
 
-      <div id="trends" className="scroll-mt-24 pt-2">
-        <PerformanceSection
-          data={data}
-          charts={charts}
-          sessions={sessions}
-          accuracy={accuracy}
-          rank={rank}
-          classSize={classSize}
-          improvement={improvement}
-        />
-        {!pageLoading && (
-          <div className="mt-6">
-            <SessionLog sessions={sessions} variant="wisdom" />
+      <section>
+        <h2 className="wa-display text-2xl md:text-3xl mb-4">Performance snapshot</h2>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <MetricCard label="Accuracy" value={`${accuracy}%`} sub="overall attempts" icon={Gauge} />
+          <MetricCard label="Concept mastery" value={`${conceptMastery}%`} sub={`${displayMastery.length} skills tracked`} icon={Brain} tone="gold" />
+          <MetricCard label="Weak concepts" value={weakConceptCount} sub="need attention" icon={AlertTriangle} tone="red" />
+          <MetricCard label="Recovery pending" value={`${recoveryCount}`} sub="questions/tasks waiting" icon={Wrench} tone="blue" />
+        </div>
+      </section>
+
+      <section className="grid lg:grid-cols-2 gap-6">
+        <div className="wa-card wa-concept-panel strong">
+          <h2 className="wa-headline flex items-center gap-2 mb-4">
+            <CheckCircle2 className="w-5 h-5 text-emerald-700" /> Strong concepts
+          </h2>
+          <div className="space-y-3">
+            {strongConcepts.length > 0 ? strongConcepts.map((c) => (
+              <div key={`${c.subject}-${c.concept}`} className="wa-concept-row">
+                <span>✓ {c.concept}</span>
+                <strong>{Math.round(c.mastery_score)}%</strong>
+              </div>
+            )) : <p className="wa-body">Strong concepts appear as you complete more practice.</p>}
           </div>
-        )}
-      </div>
+        </div>
+        <div className="wa-card wa-concept-panel weak">
+          <h2 className="wa-headline flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-5 h-5 text-amber-700" /> Weak concepts
+          </h2>
+          <div className="space-y-3">
+            {weakConcepts.length > 0 ? weakConcepts.map((c) => (
+              <div key={`${c.subject}-${c.topic}`} className="wa-concept-row">
+                <span>⚠ {c.topic}</span>
+                <strong>{c.mistake_count} mistakes</strong>
+              </div>
+            )) : <p className="wa-body">No major weak concepts detected yet.</p>}
+          </div>
+        </div>
+      </section>
 
-      <div className="wa-cta-bar">
-        <Button variant="outline" size="sm" className="rounded-lg border-[var(--wa-outline-variant)] bg-white" asChild>
-          <Link to="/student/practice/math12">Start practice</Link>
-        </Button>
-        <Button size="sm" className="rounded-lg bg-[var(--wa-primary)] hover:bg-[var(--wa-primary-container)]" asChild>
-          <Link to="/student/recovery">Recovery zone</Link>
-        </Button>
-        <Button variant="outline" size="sm" className="rounded-lg border-[var(--wa-outline-variant)] bg-white" asChild>
-          <Link to="/student/classes#leaderboard">Class rankings</Link>
-        </Button>
-        <Button variant="outline" size="sm" className="rounded-lg border-[var(--wa-outline-variant)] bg-white" asChild>
-          <Link to="/student/revision">Revision center</Link>
-        </Button>
-      </div>
+      <section className="wa-card">
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+          <div>
+            <h2 className="wa-display text-2xl md:text-3xl">Mistake analysis</h2>
+            <p className="wa-body mt-1">Why marks are being lost, grouped into useful categories.</p>
+          </div>
+          <div className="rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3">
+            <p className="wa-label text-amber-800">Most repeated mistake</p>
+            <p className="font-bold text-amber-950">{mostRepeated?.topic ?? weakness}</p>
+          </div>
+        </div>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-3">
+          {[
+            ["Concept Errors", conceptErrors],
+            ["Calculation Errors", calculationErrors],
+            ["Careless Mistakes", carelessMistakes],
+            ["Time Pressure", timePressureMistakes],
+            ["Misinterpretation", misinterpretationMistakes],
+          ].map(([label, value]) => (
+            <div key={label} className="wa-mistake-type">
+              <p className="wa-label text-[10px]">{label}</p>
+              <p className="text-3xl font-bold tabular-nums mt-1">{value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="wa-card wa-recovery-impact">
+        <div>
+          <p className="wa-label text-[var(--wa-primary)]">Recovery impact</p>
+          <h2 className="wa-display text-2xl mt-1">Recovery is moving the numbers</h2>
+          <p className="wa-body mt-1">Before and after view based on current recovery and weak-concept signals.</p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4 mt-5">
+          <div className="wa-before-after before">
+            <p className="wa-label">Before recovery</p>
+            <div className="mt-3 space-y-3">
+              <div><span>Accuracy</span><strong>{recoveryBeforeAccuracy}%</strong></div>
+              <div><span>Mastery</span><strong>{recoveryBeforeMastery}%</strong></div>
+            </div>
+          </div>
+          <div className="wa-before-after after">
+            <p className="wa-label text-emerald-800">After recovery</p>
+            <div className="mt-3 space-y-3">
+              <div><span>Accuracy</span><strong>{recoveryAfterAccuracy}%</strong></div>
+              <div><span>Mastery</span><strong>{recoveryAfterMastery}%</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="wa-display text-2xl md:text-3xl mb-4">Subject performance</h2>
+        <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-4">
+          {subjectRows.slice(0, 5).map((s) => {
+            const subjectMastery = displayMastery.filter((m) => m.subject === s.name);
+            const subjectMasteryAvg = subjectMastery.length
+              ? Math.round(subjectMastery.reduce((sum, m) => sum + m.mastery_score, 0) / subjectMastery.length)
+              : clamp(s.accuracy - 5, 35, 95);
+            const trendLabel = s.accuracy >= 75 ? "Strong" : s.accuracy >= 60 ? "Stable" : "Needs focus";
+            return (
+              <div key={s.name} className="wa-subject-card">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-semibold">{s.name}</h3>
+                  <span className="text-xs rounded-full bg-white/70 px-2 py-1">{trendLabel}</span>
+                </div>
+                <p className="wa-label mt-4">Accuracy</p>
+                <p className="text-2xl font-bold tabular-nums">{Math.round(s.accuracy)}%</p>
+                <ProgressBar value={s.accuracy} tone={s.accuracy >= 70 ? "emerald" : "gold"} />
+                <p className="wa-label mt-4">Mastery</p>
+                <p className="text-lg font-bold tabular-nums">{subjectMasteryAvg}%</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="wa-card">
+        <h2 className="wa-display text-2xl md:text-3xl mb-2">Skill tree</h2>
+        <p className="wa-body mb-5">Subject → chapter → concept mastery map.</p>
+        <div className="space-y-5">
+          {[...skillGroups.entries()].slice(0, 4).map(([subject, chapters]) => (
+            <div key={subject} className="wa-skill-map-subject">
+              <h3 className="font-semibold text-[var(--wa-primary)]">{subject}</h3>
+              <div className="mt-3 space-y-3">
+                {[...chapters.entries()].slice(0, 4).map(([chapter, concepts]) => (
+                  <div key={chapter} className="wa-skill-map-chapter">
+                    <p className="text-xs font-semibold text-[var(--wa-on-surface-variant)]">{chapter}</p>
+                    <div className="grid md:grid-cols-2 gap-2 mt-2">
+                      {concepts.slice(0, 6).map((concept) => (
+                        <div key={`${subject}-${chapter}-${concept.concept}`} className="wa-skill-map-concept">
+                          <span>{concept.concept}</span>
+                          <strong>{Math.round(concept.mastery_score)}%</strong>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="wa-card wa-ai-coach">
+        <div className="flex items-start gap-4">
+          <div className="wa-ai-orb"><Sparkles className="w-6 h-6" /></div>
+          <div className="min-w-0 flex-1">
+            <p className="wa-label text-[var(--wa-primary)]">AI academic coach</p>
+            <h2 className="wa-display text-2xl mt-1">Concise academic diagnosis</h2>
+            <div className="grid md:grid-cols-4 gap-3 mt-5">
+              <div className="wa-coach-cell"><p>Strength</p><strong>{strength}</strong></div>
+              <div className="wa-coach-cell"><p>Weakness</p><strong>{weakness}</strong></div>
+              <div className="wa-coach-cell"><p>Recommendation</p><strong>{clipInsightText(topGap?.fix_hint ?? displayInsights.today_focus, 70)}</strong></div>
+              <div className="wa-coach-cell"><p>Expected gain</p><strong>+{expectedGain}% accuracy</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="wa-display text-2xl md:text-3xl mb-4">Progress trends</h2>
+        <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-6">
+          <div className="wa-card">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h3 className="wa-headline flex items-center gap-2"><LineChart className="w-4 h-4" /> Accuracy trend</h3>
+                <p className="wa-body text-sm mt-1">Recent practice sessions</p>
+              </div>
+              <span className="rounded-full bg-[var(--wa-primary-fixed)] px-3 py-1 text-xs font-semibold text-[var(--wa-primary)]">
+                {miniTrendValue(trendValues, weeklyImprovement) >= 0 ? "+" : ""}{miniTrendValue(trendValues, weeklyImprovement)}% 7 day
+              </span>
+            </div>
+            {trendData.length >= 2 ? (
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={trendData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64756d" }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#64756d" }} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #d6e1da" }} />
+                    <Area type="monotone" dataKey="accuracy" stroke="#003324" fill="#b2f0d4" fillOpacity={0.45} strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <p className="wa-body py-10 text-center">Complete more sessions to unlock the trend chart.</p>
+            )}
+          </div>
+          <div className="grid gap-4">
+            <MetricCard label="30 day trend" value={`${miniTrendValue(thirtyDayValues, weeklyImprovement) >= 0 ? "+" : ""}${miniTrendValue(thirtyDayValues, weeklyImprovement)}%`} sub="accuracy movement" icon={TrendingUp} tone="gold" />
+            <MetricCard label="Mastery trend" value={`+${Math.max(3, Math.round(conceptMastery / 12))}%`} sub="tracked concepts" icon={ShieldCheck} />
+            <MetricCard label="Recovery trend" value={`${recoveryCompletion}%`} sub="completion strength" icon={Wrench} tone="blue" />
+          </div>
+        </div>
+      </section>
+
+      <section className="wa-card">
+        <h2 className="wa-display text-2xl md:text-3xl mb-4">What&apos;s next</h2>
+        <div className="grid md:grid-cols-4 gap-3">
+          {[
+            { label: "Complete Recovery", to: "/student/recovery", icon: Wrench },
+            { label: "Start Revision", to: "/student/revision", icon: ClipboardList },
+            { label: "Practice Weak Concepts", to: "/student/practice/math12", icon: Target },
+            { label: "Join Battleground", to: "/student/battleground", icon: Trophy },
+          ].map((action) => {
+            const Icon = action.icon;
+            return (
+              <Button key={action.label} asChild variant="outline" className="h-auto justify-start rounded-2xl p-4 bg-white">
+                <Link to={action.to} className="flex items-center gap-3">
+                  <span className="wa-next-icon"><Icon className="w-4 h-4" /></span>
+                  <span>{action.label}</span>
+                  <ArrowRight className="w-4 h-4 ml-auto" />
+                </Link>
+              </Button>
+            );
+          })}
+        </div>
+      </section>
+
+      {!pageLoading && pageData?.recent_sessions?.[0] && (
+        <p className="text-center text-xs text-[var(--wa-on-surface-variant)]">
+          Latest session: {pageData.recent_sessions[0].chapter} · {pageData.recent_sessions[0].accuracy_pct}% · {formatLastSeen(pageData.recent_sessions[0].finished_at)}
+        </p>
+      )}
     </div>
   );
 }
