@@ -41,7 +41,7 @@ type Props = {
 };
 
 const ANCHORS = [
-  { id: "mastery", label: "Concept mastery" },
+  { id: "mastery", label: "Skill tree" },
   { id: "mistakes", label: "Mistakes" },
   { id: "coach", label: "Coach" },
   { id: "trends", label: "Trends" },

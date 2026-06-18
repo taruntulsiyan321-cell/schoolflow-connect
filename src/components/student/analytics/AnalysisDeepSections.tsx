@@ -26,6 +26,11 @@ function severityBadge(severity: TopicGapInsight["severity"]) {
   );
 }
 
+function clipText(text: string | undefined, max = 120) {
+  if (!text) return "Not enough attempts yet.";
+  return text.length > max ? `${text.slice(0, max).trim()}…` : text;
+}
+
 export function DiagnosisBanner({ insights }: { insights: AnalyticsInsights | null }) {
   if (!insights?.headline && !insights?.diagnosis) return null;
   return (
@@ -55,23 +60,74 @@ type WisdomVariant = { variant?: "default" | "wisdom" };
 export function TopicDeepCards({ topics, variant = "default" }: { topics: TopicGapInsight[] } & WisdomVariant) {
   if (topics.length === 0) return null;
   const isWisdom = variant === "wisdom";
+  if (isWisdom) {
+    return (
+      <section>
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+          <div>
+            <h3 className="wa-headline text-lg">Focus topics</h3>
+            <p className="wa-body text-sm mt-1">Short, readable reasons and one clear fix per weak spot.</p>
+          </div>
+          <span className="wa-label rounded-full bg-white/80 border border-[var(--wa-outline-variant)] px-3 py-1">
+            {topics.length} topic{topics.length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div className="grid lg:grid-cols-2 gap-4">
+          {topics.map((t, i) => (
+            <article key={`${t.subject}-${t.chapter}-${t.topic}-${i}`} className={`wa-topic-card severity-${t.severity}`}>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="text-base font-semibold text-[var(--wa-on-surface)] truncate">{t.topic}</h3>
+                  <p className="text-xs text-[var(--wa-on-surface-variant)] mt-0.5 truncate">
+                    {t.chapter} · {t.subject}
+                  </p>
+                </div>
+                {severityBadge(t.severity)}
+              </div>
+
+              <div className="mt-4 grid gap-3">
+                <div className="wa-topic-mini-card">
+                  <p className="wa-label text-[10px]">Why it slipped</p>
+                  <p className="text-sm font-medium leading-snug mt-1">{clipText(t.why_weak, 105)}</p>
+                </div>
+                <div className="wa-topic-mini-card">
+                  <p className="wa-label text-[10px]">Do this next</p>
+                  <p className="text-sm font-medium leading-snug mt-1">{clipText(t.fix_hint, 105)}</p>
+                </div>
+              </div>
+
+              {t.misconception && (
+                <div className="mt-3 flex gap-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-950">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                  <span>{clipText(t.misconception, 90)}</span>
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-2 text-[11px]">
+                <span className="rounded-full bg-[var(--wa-surface-low)] px-2 py-1 text-[var(--wa-on-surface-variant)]">
+                  {t.mistake_count} mistake{t.mistake_count === 1 ? "" : "s"}
+                </span>
+                {t.ncert_ref && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-emerald-800">
+                    <BookOpen className="w-3 h-3" /> {t.ncert_ref}
+                  </span>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section>
-      {isWisdom ? (
-        <>
-          <h3 className="wa-headline text-lg">Topic-by-topic breakdown</h3>
-          <p className="wa-body text-sm mb-4 mt-1">
-            Every weak spot traced to NCERT — why it slipped, what to fix, and drills to run today.
-          </p>
-        </>
-      ) : (
-        <>
-          <FlowSectionTitle>Topic-by-topic breakdown</FlowSectionTitle>
-          <p className="text-xs text-muted-foreground mb-4 -mt-1">
-            Every weak spot traced to NCERT — why it slipped, what to fix, and drills to run today.
-          </p>
-        </>
-      )}
+      <>
+        <FlowSectionTitle>Topic-by-topic breakdown</FlowSectionTitle>
+        <p className="text-xs text-muted-foreground mb-4 -mt-1">
+          Every weak spot traced to NCERT — why it slipped, what to fix, and drills to run today.
+        </p>
+      </>
       <div className="space-y-4">
         {topics.map((t, i) => (
           <article

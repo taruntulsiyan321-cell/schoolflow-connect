@@ -17,27 +17,17 @@ type Props = {
   coachFocus: string;
 };
 
-function ProgressRing({ value, label }: { value: number; label: string }) {
-  const r = 42;
-  const circumference = 2 * Math.PI * r;
-  const offset = circumference - (Math.min(100, value) / 100) * circumference;
-
+function ScoreTile({ value, label }: { value: number; label: string }) {
+  const displayLabel = label.toLowerCase().includes("concept mastery") ? "Mastery" : label;
   return (
-    <div className="wa-progress-ring">
-      <svg width="88" height="88" viewBox="0 0 100 100">
-        <circle className="ring-bg" cx="50" cy="50" r={r} />
-        <circle
-          className="ring-fill"
-          cx="50"
-          cy="50"
-          r={r}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
+    <div className="wa-hero-score-tile">
+      <p className="wa-label text-[#5d4611]">Current {displayLabel}</p>
+      <p className="text-4xl font-bold tabular-nums text-[#003324] leading-none mt-1">{value}%</p>
+      <div className="mt-3 h-2 rounded-full bg-[#003324]/10 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-[#003324] to-[#97d3b8]"
+          style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
         />
-      </svg>
-      <div className="ring-label">
-        <span className="text-xl font-semibold tabular-nums">{value}%</span>
-        <span className="wa-label text-white/70 text-[9px]">{label}</span>
       </div>
     </div>
   );
@@ -78,7 +68,7 @@ export function AnalyticsHero({
               {rank ? ` · Class rank #${rank}` : ""}
             </p>
           </div>
-          <ProgressRing value={heroScore} label={heroLabel} />
+          <ScoreTile value={heroScore} label={heroLabel} />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
@@ -109,9 +99,9 @@ export function AnalyticsHero({
               <Sparkles className="w-4 h-4 text-[#251a00]" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="wa-label text-[var(--wa-secondary-fixed)]">Coach insight</p>
-              <p className="text-sm sm:text-base font-semibold text-white mt-0.5 leading-snug">{coachHeadline}</p>
-              <p className="text-xs sm:text-sm text-white/75 mt-1.5 leading-relaxed">{coachFocus}</p>
+              <p className="wa-label text-[var(--wa-primary)]">Coach insight</p>
+              <p className="text-sm sm:text-base font-semibold text-[#072017] mt-0.5 leading-snug">{coachHeadline}</p>
+              <p className="text-xs sm:text-sm text-[#404944] mt-1.5 leading-relaxed">{coachFocus}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mt-4">
@@ -120,7 +110,7 @@ export function AnalyticsHero({
                 Start recovery <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </Link>
             </Button>
-            <Button size="sm" variant="ghost" className="rounded-lg text-white/90 hover:bg-white/10 hover:text-white h-9" asChild>
+            <Button size="sm" variant="ghost" className="rounded-lg text-[#003324] hover:bg-[#003324]/10 hover:text-[#003324] h-9" asChild>
               <Link to="/student/practice/math12">Practice now</Link>
             </Button>
           </div>
