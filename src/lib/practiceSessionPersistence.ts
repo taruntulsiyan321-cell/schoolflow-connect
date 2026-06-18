@@ -2,6 +2,26 @@ import { supabase } from "@/integrations/supabase/client";
 import type { PracticeAttemptSnapshot, PracticeSessionResultState } from "@/lib/practiceSessionSnapshot";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 
+export type RecordPracticeAttemptOptions = {
+  sessionId: string;
+  templateId?: string | null;
+  subject: string;
+  chapter: string;
+  concept?: string;
+  generatedQuestion: {
+    question: string;
+    options: string[];
+    values?: Record<string, unknown>;
+    session_seed?: number;
+    explanation?: string;
+  };
+  correctIndex: number;
+  selectedIndex: number;
+  isCorrect: boolean;
+  score?: number;
+  timeTakenMs?: number;
+};
+
 /** Go to results immediately; sync to Supabase in the background. */
 export function completePracticeSession(
   nav: (path: string, opts?: { replace?: boolean; state?: PracticeSessionResultState }) => void,
@@ -81,6 +101,109 @@ async function syncPracticeSessionToServer(sessionId: string, state: PracticeSes
   }
 
   void correct;
+}
+
+export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemptOptions) {
+  const correctText = opts.generatedQuestion.options[opts.correctIndex] ?? "";
+  const selectedText = opts.generatedQuestion.options[opts.selectedIndex] ?? "";
+  const correctAnswer = { index: opts.correctIndex, text: correctText };
+  const selectedAnswer = { index: opts.selectedIndex, text: selectedText };
+  const score = opts.score ?? (opts.isCorrect ? 1 : 0);
+
+  // Current migration signature. Named args allow old clients to survive SQL param order changes.
+  const currentRpc = await supabase.rpc("rpc_record_question_attempt", {
+    _correct_answer: correctAnswer,
+    _generated_question: opts.generatedQuestion,
+    _is_correct: opts.isCorrect,
+    _selected_answer: selectedAnswer,
+    _session_id: opts.sessionId,
+    _score: score,
+    _skipped: false,
+    _template_id: opts.templateId ?? null,
+    _time_taken_ms: opts.timeTakenMs ?? null,
+  } as {
+    _correct_answer: object;
+    _generated_question: object;
+    _is_correct: boolean;
+    _selected_answer: object;
+    _session_id: string;
+    _score: number;
+    _skipped: boolean;
+    _template_id: string | null;
+    _time_taken_ms: number | null;
+  });
+  if (!currentRpc.error) return { ok: true as const };
+
+  // Legacy migration signature used by older Supabase projects.
+  const legacyRpc = await supabase.rpc("rpc_record_question_attempt", {
+    _session_id: opts.sessionId,
+    _template_id: opts.templateId ?? null,
+    _generated_question: opts.generatedQuestion,
+    _correct_answer: correctAnswer,
+    _selected_answer: selectedAnswer,
+    _is_correct: opts.isCorrect,
+    _score: score,
+  } as {
+    _session_id: string;
+    _template_id: string | null;
+    _generated_question: object;
+    _correct_answer: object;
+    _selected_answer: object;
+    _is_correct: boolean;
+    _score: number;
+  });
+  if (!legacyRpc.error) return { ok: true as const };
+
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth.user?.id;
+  if (!userId) {
+    return { ok: false as const, error: legacyRpc.error ?? currentRpc.error };
+  }
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const direct = await supabase.from("question_attempts").insert({
+    session_id: opts.sessionId,
+    user_id: userId,
+    student_id: student?.id ?? null,
+    template_id: null,
+    generated_question: opts.generatedQuestion,
+    selected_answer: selectedAnswer,
+    correct_answer: correctAnswer,
+    is_correct: opts.isCorrect,
+    score,
+    time_taken_ms: opts.timeTakenMs ?? null,
+    skipped: false,
+    subject: opts.subject,
+    chapter: opts.chapter,
+    concept: opts.concept ?? opts.chapter,
+    subconcept: opts.concept ?? opts.chapter,
+    difficulty: "medium",
+  } as {
+    session_id: string;
+    user_id: string;
+    student_id: string | null;
+    template_id: null;
+    generated_question: object;
+    selected_answer: object;
+    correct_answer: object;
+    is_correct: boolean;
+    score: number;
+    time_taken_ms: number | null;
+    skipped: boolean;
+    subject: string;
+    chapter: string;
+    concept: string;
+    subconcept: string;
+    difficulty: string;
+  });
+
+  if (!direct.error) return { ok: true as const };
+  return { ok: false as const, error: direct.error };
 }
 
 async function tryLegacyRecordRpc(sessionId: string, attempts: PracticeAttemptSnapshot[]) {

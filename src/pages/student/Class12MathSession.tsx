@@ -9,7 +9,6 @@ import type { GeneratedQuestion, QuestionTemplateRow } from "@/engines/class12Ma
 import { cn } from "@/lib/utils";
 import { ArrowLeft, CheckCircle2, Sparkles, XCircle } from "lucide-react";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
-import { toast } from "sonner";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
@@ -17,6 +16,7 @@ import { freshSessionSeed, SEED_STRIDE } from "@/lib/practiceDiversity";
 import { loadMath12TemplatePractice } from "@/lib/templatePracticeLoader";
 import {
   completePracticeSession,
+  recordPracticeAttemptBestEffort,
   type PracticeAttemptSnapshot,
 } from "@/lib/practiceSessionPersistence";
 
@@ -103,24 +103,26 @@ export default function Class12MathSession() {
       explanation: current.generated.explanation,
     });
 
-    const { error: recErr } = await supabase.rpc("rpc_record_question_attempt", {
-      _session_id: sessionId,
-      _template_id: current.template.id,
-      _generated_question: {
+    const saved = await recordPracticeAttemptBestEffort({
+      sessionId,
+      templateId: current.template.id ?? null,
+      subject: "Mathematics",
+      chapter,
+      concept: current.template.chapter,
+      generatedQuestion: {
         question: current.generated.question,
         options: current.generated.options,
         values: current.generated.values,
         session_seed: sessionSeed + idx * SEED_STRIDE,
         explanation: current.generated.explanation,
       },
-      _correct_answer: { index: current.generated.correctIndex, text: current.generated.correctAnswer },
-      _selected_answer: { index: optionIndex, text: current.generated.options[optionIndex] },
-      _is_correct: ok,
-      _score: ok ? 1 : 0,
+      correctIndex: current.generated.correctIndex,
+      selectedIndex: optionIndex,
+      isCorrect: ok,
+      score: ok ? 1 : 0,
     });
-    if (recErr) {
-      console.warn("record attempt:", recErr.message);
-      toast.error("Answer could not be saved to your history.");
+    if (!saved.ok) {
+      console.warn("record attempt:", saved.error?.message);
     }
 
     if (!ok && sessionId) {
