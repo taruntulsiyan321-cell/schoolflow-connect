@@ -5,12 +5,12 @@
   --wa-primary: #003324;
   --wa-primary-container: #074b37;
   --wa-on-primary: #ffffff;
-  --wa-surface: #e7fff2;
-  --wa-surface-low: #defaeb;
-  --wa-surface-high: #d3efe0;
-  --wa-surface-variant: #cde9da;
-  --wa-surface-container-lowest: #f4fff8;
-  --wa-outline-variant: #bfc9c2;
+  --wa-surface: #f0fff7;
+  --wa-surface-low: #e6faef;
+  --wa-surface-high: #d5f1e1;
+  --wa-surface-variant: #d7e8df;
+  --wa-surface-container-lowest: #fbfffc;
+  --wa-outline-variant: #d6e1da;
   --wa-on-surface: #072017;
   --wa-on-surface-variant: #404944;
   --wa-secondary-fixed: #ffdf97;
@@ -21,18 +21,20 @@
   --wa-primary-fixed: #b2f0d4;
   --wa-primary-fixed-dim: #97d3b8;
   --wa-surface-tint: #2e6953;
-  --wa-shadow: 0 4px 20px -2px rgba(8, 33, 24, 0.08);
-  --wa-shadow-elevated: 0 12px 40px -8px rgba(8, 33, 24, 0.14);
+  --wa-shadow: 0 8px 30px -16px rgba(8, 33, 24, 0.2);
+  --wa-shadow-elevated: 0 24px 60px -22px rgba(8, 33, 24, 0.28);
   font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
   color: var(--wa-on-surface);
 }
 
+.wisdom-analytics.wa-gradient-bg,
 .wisdom-analytics .wa-gradient-bg {
-  background: radial-gradient(ellipse 120% 80% at 100% 0%, #b2f0d4 0%, transparent 55%),
-    radial-gradient(ellipse 80% 60% at 0% 100%, #defaeb 0%, transparent 50%),
-    var(--wa-surface-container-lowest);
-  border-radius: 1.25rem;
-  padding: 0.125rem;
+  background:
+    radial-gradient(ellipse 80% 45% at 95% 0%, rgba(178, 240, 212, 0.62) 0%, transparent 58%),
+    radial-gradient(ellipse 65% 50% at 0% 12%, rgba(255, 223, 151, 0.28) 0%, transparent 52%),
+    linear-gradient(180deg, #fbfffc 0%, #f2fbf6 48%, #ffffff 100%);
+  border-radius: 1.75rem;
+  padding: 0.35rem;
 }
 
 .wisdom-analytics .wa-display {
@@ -72,17 +74,18 @@
 }
 
 .wisdom-analytics .wa-card {
-  background: #ffffff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 253, 250, 0.96) 100%);
   border: 1px solid var(--wa-outline-variant);
-  border-radius: 1rem;
+  border-radius: 1.35rem;
   padding: 1.25rem;
   box-shadow: var(--wa-shadow);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .wisdom-analytics .wa-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--wa-shadow-elevated);
+  border-color: rgba(151, 211, 184, 0.7);
 }
 
 .wisdom-analytics .wa-glass {
@@ -94,12 +97,15 @@
 }
 
 .wisdom-analytics .wa-hero {
-  background: linear-gradient(135deg, var(--wa-primary-container) 0%, var(--wa-primary) 100%);
-  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at 90% 20%, rgba(255, 223, 151, 0.24), transparent 34%),
+    linear-gradient(135deg, #0c5f47 0%, var(--wa-primary) 45%, #001f15 100%);
+  border-radius: 2rem;
   color: var(--wa-on-primary);
   box-shadow: var(--wa-shadow-elevated);
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(178, 240, 212, 0.16);
 }
 
 .wisdom-analytics .wa-hero::before {
@@ -215,14 +221,15 @@
 
 .wisdom-analytics .wa-section-pill {
   flex-shrink: 0;
-  padding: 0.5rem 1rem;
+  padding: 0.55rem 1rem;
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
   border: 1px solid var(--wa-outline-variant);
-  background: white;
+  background: rgba(255, 255, 255, 0.82);
   color: var(--wa-on-surface-variant);
   transition: all 0.2s;
+  box-shadow: 0 6px 18px -14px rgba(0, 51, 36, 0.4);
 }
 
 .wisdom-analytics .wa-section-pill:hover {
@@ -253,15 +260,18 @@
   min-width: 220px;
   max-width: 280px;
   padding: 1rem;
-  border-radius: 0.875rem;
+  border-radius: 1.15rem;
   border: 1px solid var(--wa-outline-variant);
-  background: linear-gradient(135deg, white 0%, var(--wa-surface-low) 100%);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.25), transparent 35%),
+    linear-gradient(135deg, white 0%, var(--wa-surface-low) 100%);
+  box-shadow: var(--wa-shadow);
 }
 
 .wisdom-analytics .wa-deep-card {
-  border-radius: 1rem;
+  border-radius: 1.35rem;
   border: 1px solid var(--wa-outline-variant);
-  background: white;
+  background: linear-gradient(180deg, white 0%, #fbfffc 100%);
   padding: 1.25rem;
   box-shadow: var(--wa-shadow);
 }
@@ -278,51 +288,24 @@
   border-left: 4px solid var(--wa-primary-fixed-dim);
 }
 
-.wisdom-analytics .wa-heatmap-cell {
-  aspect-ratio: 1;
-  border-radius: 0.375rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.625rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-align: center;
-  padding: 0.25rem;
-  line-height: 1.1;
-  transition: transform 0.15s ease;
+.wisdom-analytics .wa-feature-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(178, 240, 212, 0.38), transparent 34%),
+    linear-gradient(135deg, #ffffff 0%, #f2fff8 100%);
 }
 
-.wisdom-analytics .wa-heatmap-cell:hover {
-  transform: scale(1.05);
+.wisdom-analytics .wa-mastery-spotlight {
+  border-radius: 1rem;
+  border: 1px solid rgba(151, 211, 184, 0.5);
+  background: rgba(255, 255, 255, 0.78);
+  padding: 1rem;
+  box-shadow: 0 10px 28px -20px rgba(0, 51, 36, 0.35);
 }
 
-.wisdom-analytics .wa-heatmap-mastered {
-  background: var(--wa-primary);
-  color: var(--wa-on-primary);
-}
-
-.wisdom-analytics .wa-heatmap-proficient {
-  background: var(--wa-primary-container);
-  color: #7ebaa0;
-}
-
-.wisdom-analytics .wa-heatmap-learning {
-  background: var(--wa-surface-high);
-  color: var(--wa-on-surface-variant);
-}
-
-.wisdom-analytics .wa-heatmap-review {
-  background: var(--wa-error-container);
-  color: #93000a;
-  border: 1px solid rgba(186, 26, 26, 0.2);
-}
-
-.wisdom-analytics .wa-consistency-cell {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 0.125rem;
-  flex-shrink: 0;
+.wisdom-analytics .wa-rhythm-card {
+  background:
+    radial-gradient(circle at 90% 10%, rgba(255, 223, 151, 0.28), transparent 36%),
+    linear-gradient(135deg, #ffffff 0%, #f6fff9 100%);
 }
 
 .wisdom-analytics .wa-standing-row {

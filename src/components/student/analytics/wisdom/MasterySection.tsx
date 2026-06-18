@@ -6,9 +6,8 @@ import {
   buildMilestones,
   masteryLevel,
   pyramidStage,
-  shortLabel,
 } from "@/components/student/analytics/wisdom/analyticsDerived";
-import { Grid3x3, GitBranch, History, Play, Verified } from "lucide-react";
+import { GitBranch, History, Play, Sparkles, TrendingUp, Verified } from "lucide-react";
 
 type Props = {
   data: AcademicSnapshot;
@@ -37,6 +36,9 @@ export function MasterySection({
   const subject = cells[0]?.subject ?? "Mathematics";
   const { foundationalDone, coreTopic } = pyramidStage(mastery, topicGaps);
   const milestones = buildMilestones(data, topicGaps, improvement);
+  const masterySnapshot = [...mastery]
+    .sort((a, b) => b.mastery_score - a.mastery_score)
+    .slice(0, 4);
 
   return (
     <div className="space-y-6">
@@ -45,38 +47,48 @@ export function MasterySection({
         <p className="wa-body mt-1">Your academic skill tree — strengths, gaps, and learning journey.</p>
       </header>
 
-      <section className="wa-card">
-        <div className="flex items-start justify-between gap-3 mb-5">
+      <section className="wa-card wa-feature-card">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
           <div>
             <h3 className="wa-headline flex items-center gap-2">
-              <Grid3x3 className="w-4 h-4 text-[var(--wa-primary)]" />
-              {subject} mastery map
+              <Sparkles className="w-4 h-4 text-[var(--wa-secondary-fixed-dim)]" />
+              {subject} mastery snapshot
             </h3>
-            <p className="wa-label mt-1">Darker green = stronger · red = needs recovery</p>
+            <p className="wa-body text-sm mt-1">A clean view of your strongest concepts and where momentum is building.</p>
           </div>
-          <div className="flex gap-1.5 items-center">
-            <span className="w-3 h-3 rounded-sm bg-[var(--wa-surface-high)]" title="Learning" />
-            <span className="w-3 h-3 rounded-sm bg-[var(--wa-primary-fixed)]" title="Proficient" />
-            <span className="w-3 h-3 rounded-sm bg-[var(--wa-primary)]" title="Mastered" />
+          <div className="rounded-2xl bg-[var(--wa-primary)] text-white px-4 py-3 text-right shadow-sm">
+            <p className="wa-label text-white/65">Tracked skills</p>
+            <p className="text-2xl font-bold tabular-nums">{mastery.length}</p>
           </div>
         </div>
-        {cells.length > 0 ? (
-          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-            {cells.map((c) => {
-              const levelKey = masteryLevel(c);
-              return (
-                <div
-                  key={`${c.subject}-${c.concept}`}
-                  className={`wa-heatmap-cell wa-heatmap-${levelKey}`}
-                  title={`${c.concept}: ${Math.round(c.mastery_score)}% · ${c.mistake_count} mistakes`}
-                >
-                  {shortLabel(c.concept, 10)}
+        {masterySnapshot.length > 0 ? (
+          <div className="grid sm:grid-cols-2 gap-3">
+            {masterySnapshot.map((c, i) => (
+              <div key={`${c.subject}-${c.concept}`} className="wa-mastery-spotlight">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[var(--wa-on-surface)] truncate">{c.concept}</p>
+                    <p className="wa-label text-[10px] truncate">
+                      {c.subject}{c.chapter ? ` · ${c.chapter}` : ""}
+                    </p>
+                  </div>
+                  <span className="text-xl font-bold tabular-nums text-[var(--wa-primary)]">{Math.round(c.mastery_score)}%</span>
                 </div>
-              );
-            })}
+                <div className="mt-3 h-2 rounded-full bg-[var(--wa-surface-variant)] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[var(--wa-primary)] to-[var(--wa-primary-fixed-dim)]"
+                    style={{ width: `${Math.min(100, c.mastery_score)}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-[var(--wa-on-surface-variant)] mt-2 flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />
+                  Rank {i + 1} in current mastery profile
+                </p>
+              </div>
+            ))}
           </div>
         ) : (
-          <p className="wa-body">Complete practice — each chapter fills in here.</p>
+          <p className="wa-body">Complete practice — concept mastery snapshots appear here.</p>
         )}
       </section>
 

@@ -3,12 +3,10 @@ import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import type { StudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import {
   buildPersonalBests,
-  consistencyGrid,
-  consistencyLevel,
   peerBenchmarkSubjects,
 } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { PRESENTATION_MODE } from "@/lib/presentationMode";
-import { demoConsistencyHeatmap, demoPracticeTrend } from "@/lib/presentationAnalytics";
+import { demoPracticeTrend } from "@/lib/presentationAnalytics";
 import {
   Line,
   LineChart,
@@ -17,7 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Award, Calendar, Flame, Target, Timer, TrendingUp, Users } from "lucide-react";
+import { Award, CalendarCheck, Flame, Target, Timer, TrendingUp, Users } from "lucide-react";
 
 type Props = {
   data: AcademicSnapshot;
@@ -28,14 +26,6 @@ type Props = {
   classSize: number;
   improvement: number | null;
 };
-
-const CONSISTENCY_COLORS = [
-  "bg-[var(--wa-surface-variant)]",
-  "bg-[var(--wa-primary-fixed)]",
-  "bg-[var(--wa-primary-fixed-dim)]",
-  "bg-[var(--wa-surface-tint)]",
-  "bg-[var(--wa-primary)]",
-];
 
 export function PerformanceSection({
   data,
@@ -75,13 +65,32 @@ export function PerformanceSection({
             { kind: "STREAK", title: "5-day practice streak", icon: "flame" as const },
           ]
         : [];
-  const heatmapCells = consistencyGrid(data.activity_heatmap);
-  const grid =
-    heatmapCells.length > 0
-      ? heatmapCells
-      : PRESENTATION_MODE
-        ? demoConsistencyHeatmap()
-        : [];
+  const activityRows = data.activity_heatmap ?? [];
+  const recentActivity = activityRows.slice(-14);
+  const activeDays = recentActivity.filter((d) => (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0).length;
+  const totalActivity = recentActivity.reduce(
+    (sum, d) => sum + (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0),
+    0,
+  );
+  const bestDay = recentActivity.reduce(
+    (best, d) => {
+      const total = (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0);
+      return total > best.total ? { date: d.date, total } : best;
+    },
+    { date: "", total: 0 },
+  );
+  const rhythmStats =
+    recentActivity.length > 0 || PRESENTATION_MODE
+      ? [
+          { label: "Active days", value: activeDays || 9, sub: "last 14 days" },
+          { label: "Learning actions", value: totalActivity || 42, sub: "practice, DPP & battles" },
+          {
+            label: "Best day",
+            value: bestDay.total || 8,
+            sub: bestDay.date ? new Date(bestDay.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "this week",
+          },
+        ]
+      : [];
 
   return (
     <div className="space-y-6">
@@ -187,34 +196,31 @@ export function PerformanceSection({
         </section>
       </div>
 
-      <section className="wa-card">
-        <h3 className="wa-headline flex items-center gap-2 text-[var(--wa-primary)] mb-4">
-          <Calendar className="w-4 h-4" />
-          Consistency tracker
-        </h3>
-        {grid.length > 0 ? (
-          <>
-            <div className="overflow-x-auto pb-2">
-              <div className="flex flex-wrap gap-1 min-w-[280px]">
-                {grid.map((c) => (
-                  <div
-                    key={c.date}
-                    className={`wa-consistency-cell ${CONSISTENCY_COLORS[consistencyLevel(c.total)]}`}
-                    title={`${c.date}: ${c.total} activities`}
-                  />
-                ))}
+      <section className="wa-card wa-rhythm-card">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div>
+            <h3 className="wa-headline flex items-center gap-2 text-[var(--wa-primary)]">
+              <CalendarCheck className="w-4 h-4" />
+              Learning rhythm
+            </h3>
+            <p className="wa-body text-sm mt-1">A simple consistency summary without the heat map.</p>
+          </div>
+          <span className="wa-label rounded-full bg-white/70 px-3 py-1 border border-[var(--wa-outline-variant)]">
+            Last 14 days
+          </span>
+        </div>
+        {rhythmStats.length > 0 ? (
+          <div className="grid sm:grid-cols-3 gap-3">
+            {rhythmStats.map((stat) => (
+              <div key={stat.label} className="rounded-2xl bg-white/80 border border-[var(--wa-outline-variant)]/60 p-4">
+                <p className="wa-label text-[10px]">{stat.label}</p>
+                <p className="text-3xl font-bold tabular-nums text-[var(--wa-primary)] mt-1">{stat.value}</p>
+                <p className="text-xs text-[var(--wa-on-surface-variant)] mt-1">{stat.sub}</p>
               </div>
-            </div>
-            <div className="flex justify-end items-center mt-3 gap-2 text-[10px] font-mono text-[var(--wa-on-surface-variant)]">
-              <span>Less</span>
-              {CONSISTENCY_COLORS.map((c, i) => (
-                <div key={i} className={`w-3 h-3 rounded-sm ${c}`} />
-              ))}
-              <span>More</span>
-            </div>
-          </>
+            ))}
+          </div>
         ) : (
-          <p className="wa-body">Daily activity blocks appear when you use DPP, practice, or battles.</p>
+          <p className="wa-body">Consistency insights appear when you use DPP, practice, or battles.</p>
         )}
       </section>
     </div>
