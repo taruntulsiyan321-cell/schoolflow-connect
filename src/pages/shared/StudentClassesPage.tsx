@@ -4,9 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
-import { BookOpen, GraduationCap, Users, User, Trophy } from "lucide-react";
+import { BookOpen, GraduationCap, Users, User, Trophy, MessageCircle } from "lucide-react";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { LeaderboardPanel } from "@/components/student/LeaderboardPanel";
+import { CommunityDoubtPortal } from "@/components/community/CommunityDoubtPortal";
 import { cn } from "@/lib/utils";
 
 interface SubjectTeacher {
@@ -23,13 +24,14 @@ export default function StudentClassesPage() {
   const [classmates, setClassmates] = useState(0);
   const [classmateRows, setClassmateRows] = useState<{ id: string; full_name: string; roll_number: string | null; user_id: string | null; equipped_badge: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"overview" | "leaderboard">("overview");
+  const [activeSection, setActiveSection] = useState<"overview" | "doubts" | "leaderboard">("overview");
 
   useEffect(() => {
-    if (window.location.hash === "#leaderboard") {
-      setActiveSection("leaderboard");
+    if (window.location.hash === "#leaderboard" || window.location.hash === "#doubts") {
+      const next = window.location.hash === "#doubts" ? "doubts" : "leaderboard";
+      setActiveSection(next);
       requestAnimationFrame(() => {
-        document.getElementById("leaderboard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById(next)?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
   }, []);
@@ -117,12 +119,13 @@ export default function StudentClassesPage() {
     <>
       <PageHeader
         title={`Class ${student.classes.name}-${student.classes.section}`}
-        subtitle="Class info, classmates, and rankings"
+        subtitle="Class info, classmates, doubt discussions, and rankings"
       />
 
       <nav className="flex gap-2 mb-6 p-1 rounded-full bg-muted/50 border border-border/60 w-fit">
         {([
           { id: "overview" as const, label: "Overview" },
+          { id: "doubts" as const, label: "Doubt Portal", icon: MessageCircle },
           { id: "leaderboard" as const, label: "Rankings", icon: Trophy },
         ]).map((tab) => (
           <button
@@ -130,9 +133,9 @@ export default function StudentClassesPage() {
             type="button"
             onClick={() => {
               setActiveSection(tab.id);
-              if (tab.id === "leaderboard") {
-                window.history.replaceState(null, "", "#leaderboard");
-                document.getElementById("leaderboard")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              if (tab.id === "leaderboard" || tab.id === "doubts") {
+                window.history.replaceState(null, "", `#${tab.id}`);
+                document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
               } else {
                 window.history.replaceState(null, "", window.location.pathname);
                 window.scrollTo({ top: 0, behavior: "smooth" });
@@ -151,6 +154,7 @@ export default function StudentClassesPage() {
         ))}
       </nav>
 
+      {activeSection === "overview" && (
       <div id="overview" className="scroll-mt-20">
       <div className="grid grid-cols-2 gap-4 mb-4">
         <StatCard
@@ -250,7 +254,15 @@ export default function StudentClassesPage() {
         </div>
       </Card>
       </div>
+      )}
 
+      {activeSection === "doubts" && (
+        <section id="doubts" className="scroll-mt-20">
+          <CommunityDoubtPortal mode="student" />
+        </section>
+      )}
+
+      {activeSection === "leaderboard" && (
       <section id="leaderboard" className="scroll-mt-20 mt-10 pt-8 border-t border-border/60">
         <div className="flex items-center gap-2 mb-4">
           <Trophy className="w-5 h-5 text-primary" />
@@ -261,6 +273,7 @@ export default function StudentClassesPage() {
         </p>
         <LeaderboardPanel embedded />
       </section>
+      )}
     </>
   );
 }
