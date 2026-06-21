@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, Wallet, FileText, Trophy, BookOpen, NotebookPen, CalendarDays, MessageSquare, User, Sword, Target, Megaphone, Brain, BookMarked, ListChecks, BarChart3, Sparkles, Wrench } from "lucide-react";
+import { ClipboardCheck, Wallet, FileText, Trophy, BookOpen, NotebookPen, MessageSquare, User, Sword, Target, Megaphone, Brain, BarChart3, Wrench } from "lucide-react";
 import RecoveryZone from "./student/RecoveryZone";
 import RecoverySession from "./student/RecoverySession";
 import RecoverySessionResult from "./student/RecoverySessionResult";
@@ -22,7 +22,6 @@ import DppResult from "./student/DppResult";
 import StudentProfilePage from "./shared/StudentProfilePage";
 import StudentClassesPage from "./shared/StudentClassesPage";
 import StudentExamsResultsPage from "./shared/StudentExamsResultsPage";
-import StudentTimetablePage from "./shared/StudentTimetablePage";
 import StudentHomeworkPage from "./shared/StudentHomeworkPage";
 import ChatPage from "./shared/ChatPage";
 import { supabase } from "@/integrations/supabase/client";
@@ -30,10 +29,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import NoticesPage from "./shared/NoticesPage";
-import NotificationsPage from "./shared/NotificationsPage";
 import MyFeesPage from "./shared/MyFeesPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
-import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 
 const nav = [
   { to: "/student", label: "Dashboard", icon: <Brain className="w-4 h-4" /> },
@@ -43,10 +40,7 @@ const nav = [
   { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" />, end: false },
   { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/student/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
-  { to: "/student/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
-  { to: "/student/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/student/exams", label: "Exams & Results", icon: <FileText className="w-4 h-4" /> },
-  { to: "/student/notifications", label: "Notifications", icon: <Bell className="w-4 h-4" /> },
   { to: "/student/notices", label: "Notices", icon: <Megaphone className="w-4 h-4" /> },
   { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
@@ -130,39 +124,6 @@ const Home = () => {
   );
 };
 
-const MyAttendance = () => {
-  const { user } = useAuth();
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    (async () => {
-      if (!user) return;
-      setLoading(true);
-      const { data: s } = await supabase.from("students").select("id").eq("user_id", user.id).maybeSingle();
-      if (!s) { setLoading(false); return; }
-      const { data } = await supabase.from("attendance").select("*").eq("student_id", s.id).order("date", { ascending: false }).limit(60);
-      setRows(data ?? []);
-      setLoading(false);
-    })();
-  }, [user]);
-  const colors: any = { present: "bg-accent/10 text-accent", absent: "bg-destructive/10 text-destructive", leave: "bg-warning/10 text-warning" };
-  return (
-    <>
-      <PageHeader title="My Attendance" subtitle={loading ? "Loading records…" : `Last ${rows.length} days`} />
-      {loading && <StudentListSkeleton rows={6} />}
-      <div className="space-y-2">
-        {!loading && rows.map(r => (
-          <Card key={r.id} className="p-3 flex items-center justify-between shadow-card">
-            <span className="font-medium">{new Date(r.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</span>
-            <span className={`text-xs px-2.5 py-1 rounded-full capitalize font-medium ${colors[r.status]}`}>{r.status}</span>
-          </Card>
-        ))}
-        {!loading && rows.length === 0 && <p className="text-muted-foreground text-center py-8">No records yet.</p>}
-      </div>
-    </>
-  );
-};
-
 export default function StudentDashboard() {
   return (
     <AppLayout nav={nav} title="Student">
@@ -179,11 +140,11 @@ export default function StudentDashboard() {
         <Route path="report" element={<AcademicReport />} />
         <Route path="classes" element={<StudentClassesPage />} />
         <Route path="homework" element={<StudentHomeworkPage />} />
-        <Route path="attendance" element={<MyAttendance />} />
-        <Route path="timetable" element={<StudentTimetablePage />} />
+        <Route path="attendance" element={<Navigate to="/student/classes#attendance" replace />} />
+        <Route path="timetable" element={<Navigate to="/student/classes#timetable" replace />} />
         <Route path="exams" element={<StudentExamsResultsPage />} />
         <Route path="results" element={<Navigate to="/student/exams?tab=results" replace />} />
-        <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="notifications" element={<Navigate to="/student" replace />} />
         <Route path="notices" element={<NoticesPage viewerRole="student" />} />
         <Route path="fees" element={<MyFeesPage />} />
         <Route path="chat" element={<ChatPage userRole="student" />} />

@@ -37,6 +37,11 @@ Minimum 8 characters — matches app signup rules.
 | **Student** | `rohan.singh@wisdomcampus.com` | Class 10-A, roll 3 — battle challenge target |
 | **Student** | `ananya.iyer@wisdomcampus.com` | Class 10-A, roll 4 |
 | **Student** | `vikram.joshi@wisdomcampus.com` | Class 10-A, roll 5 |
+| **Student** | `kavya.nair@wisdomcampus.com` | Class 10-A, roll 6 — doubt portal contributor |
+| **Student** | `ishaan.gupta@wisdomcampus.com` | Class 10-A, roll 7 — high reputation helper |
+| **Student** | `meera.rao@wisdomcampus.com` | Class 10-A, roll 8 |
+| **Student** | `kabir.khan@wisdomcampus.com` | Class 10-A, roll 9 |
+| **Student** | `nisha.das@wisdomcampus.com` | Class 10-A, roll 10 |
 | **Parent** | `mehta.parent@wisdomcampus.com` | Linked to Arjun Mehta |
 | **Parent** | `patel.parent@wisdomcampus.com` | Linked to Priya Patel |
 
@@ -57,6 +62,11 @@ If a user signs up as **student** with metadata `admission_number`, `handle_new_
 | Arjun Mehta | `WC10A001` |
 | Priya Patel | `WC10A002` |
 | Rohan Singh | `WC10A003` |
+| Kavya Nair | `WC10A006` |
+| Ishaan Gupta | `WC10A007` |
+| Meera Rao | `WC10A008` |
+| Kabir Khan | `WC10A009` |
+| Nisha Das | `WC10A010` |
 
 Teachers auto-link by matching `teachers.email` on signup.
 
@@ -65,7 +75,7 @@ Teachers auto-link by matching `teachers.email` on signup.
 | Feature | Demo data |
 |---------|-----------|
 | Classes | 10-A (main), 9-A |
-| Students / teachers / parents | 5 students, 2 teachers, 2 parents |
+| Students / teachers / parents | 10 students, 2 teachers, 2 parents |
 | Attendance | Today + past week; one locked day |
 | Fees | Paid, unpaid, partial months |
 | Exams & marks | Unit test + half-yearly, all students |
@@ -78,6 +88,7 @@ Teachers auto-link by matching `teachers.email` on signup.
 | DPPs | Published (with submitted attempt) + draft |
 | Notifications | Per-user samples |
 | Timetable | 10-A weekly grid |
+| Doubt Portal | Demo doubts, teacher verified answers, accepted answers, votes, reputation |
 | App settings | `Wisdom Campus Demo School` |
 | Inquiries & complaints | Open cases for principal/admin |
 | Staff attendance | Sample teacher present days |
