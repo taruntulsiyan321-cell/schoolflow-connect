@@ -27,7 +27,7 @@ interface HomeworkItem {
   } | null;
 }
 
-export default function StudentHomeworkPage() {
+export default function StudentHomeworkPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [studentId, setStudentId] = useState<string | null>(null);
@@ -155,7 +155,7 @@ export default function StudentHomeworkPage() {
   if (loading) {
     return (
       <>
-        <PageHeader title="Homework" subtitle="Assigned tasks and submissions" />
+        {!embedded && <PageHeader title="Homework" subtitle="Assigned tasks and submissions" />}
         <StudentListSkeleton rows={4} />
       </>
     );
@@ -164,7 +164,7 @@ export default function StudentHomeworkPage() {
   if (noClass) {
     return (
       <>
-        <PageHeader title="Homework" subtitle="Assigned tasks and submissions" />
+        {!embedded && <PageHeader title="Homework" subtitle="Assigned tasks and submissions" />}
         <Card className="p-8 text-center">
           <NotebookPen className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">You need to be assigned to a class before homework appears here.</p>
@@ -186,7 +186,7 @@ export default function StudentHomeworkPage() {
 
   return (
     <>
-      <PageHeader title="Homework" subtitle="Assigned tasks and submissions" />
+      {!embedded && <PageHeader title="Homework" subtitle="Assigned tasks and submissions" />}
 
       <div className="grid grid-cols-3 gap-3 mb-4">
         <StatCard

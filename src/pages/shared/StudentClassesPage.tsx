@@ -4,10 +4,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
-import { BookOpen, CalendarDays, ClipboardCheck, GraduationCap, Users, User, Trophy, MessageCircle } from "lucide-react";
+import { BookOpen, CalendarDays, ClipboardCheck, FileText, GraduationCap, NotebookPen, Users, User, Trophy, MessageCircle } from "lucide-react";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { LeaderboardPanel } from "@/components/student/LeaderboardPanel";
 import { CommunityDoubtPortal } from "@/components/community/CommunityDoubtPortal";
+import StudentHomeworkPage from "@/pages/shared/StudentHomeworkPage";
+import StudentExamsResultsPage from "@/pages/shared/StudentExamsResultsPage";
 import { cn } from "@/lib/utils";
 
 interface SubjectTeacher {
@@ -34,11 +36,11 @@ export default function StudentClassesPage() {
   const [attendanceRows, setAttendanceRows] = useState<any[]>([]);
   const [timetableGrid, setTimetableGrid] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"overview" | "doubts" | "attendance" | "timetable" | "leaderboard">("overview");
+  const [activeSection, setActiveSection] = useState<"overview" | "doubts" | "homework" | "exams" | "attendance" | "timetable" | "leaderboard">("overview");
 
   useEffect(() => {
     const hash = window.location.hash.replace("#", "");
-    if (["doubts", "attendance", "timetable", "leaderboard"].includes(hash)) {
+    if (["doubts", "homework", "exams", "attendance", "timetable", "leaderboard"].includes(hash)) {
       const next = hash as typeof activeSection;
       setActiveSection(next);
       requestAnimationFrame(() => {
@@ -146,13 +148,15 @@ export default function StudentClassesPage() {
     <>
       <PageHeader
         title={`Class ${student.classes.name}-${student.classes.section}`}
-        subtitle="Class info, attendance, timetable, doubt discussions, and rankings"
+        subtitle="Class info, homework, exams, attendance, timetable, doubt discussions, and rankings"
       />
 
       <nav className="flex gap-2 mb-6 p-1 rounded-full bg-muted/50 border border-border/60 w-fit">
         {([
           { id: "overview" as const, label: "Overview" },
           { id: "doubts" as const, label: "Doubt Portal", icon: MessageCircle },
+          { id: "homework" as const, label: "Homework", icon: NotebookPen },
+          { id: "exams" as const, label: "Exams & Results", icon: FileText },
           { id: "attendance" as const, label: "Attendance", icon: ClipboardCheck },
           { id: "timetable" as const, label: "Timetable", icon: CalendarDays },
           { id: "leaderboard" as const, label: "Rankings", icon: Trophy },
@@ -288,6 +292,25 @@ export default function StudentClassesPage() {
       {activeSection === "doubts" && (
         <section id="doubts" className="scroll-mt-20">
           <CommunityDoubtPortal mode="student" />
+        </section>
+      )}
+
+      {activeSection === "homework" && (
+        <section id="homework" className="scroll-mt-20">
+          <div className="mb-4 flex items-center gap-2">
+            <NotebookPen className="w-5 h-5 text-primary" />
+            <div>
+              <h3 className="font-semibold text-lg">Class Homework</h3>
+              <p className="text-sm text-muted-foreground">Assignments and submissions now live inside Classes.</p>
+            </div>
+          </div>
+          <StudentHomeworkPage embedded />
+        </section>
+      )}
+
+      {activeSection === "exams" && (
+        <section id="exams" className="scroll-mt-20">
+          <StudentExamsResultsPage />
         </section>
       )}
 

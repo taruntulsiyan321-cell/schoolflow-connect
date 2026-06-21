@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { ClipboardCheck, Wallet, FileText, Trophy, BookOpen, NotebookPen, MessageSquare, User, Sword, Target, Megaphone, Brain, BarChart3, Wrench } from "lucide-react";
+import { ClipboardCheck, Wallet, Trophy, BookOpen, MessageSquare, User, Sword, Target, Megaphone, Brain, BarChart3, Wrench } from "lucide-react";
 import RecoveryZone from "./student/RecoveryZone";
 import RecoverySession from "./student/RecoverySession";
 import RecoverySessionResult from "./student/RecoverySessionResult";
@@ -21,8 +21,6 @@ import DppAttempt from "./student/DppAttempt";
 import DppResult from "./student/DppResult";
 import StudentProfilePage from "./shared/StudentProfilePage";
 import StudentClassesPage from "./shared/StudentClassesPage";
-import StudentExamsResultsPage from "./shared/StudentExamsResultsPage";
-import StudentHomeworkPage from "./shared/StudentHomeworkPage";
 import ChatPage from "./shared/ChatPage";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -39,8 +37,6 @@ const nav = [
   { to: "/student/analytics", label: "Analysis", icon: <BarChart3 className="w-4 h-4" /> },
   { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" />, end: false },
   { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
-  { to: "/student/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
-  { to: "/student/exams", label: "Exams & Results", icon: <FileText className="w-4 h-4" /> },
   { to: "/student/notices", label: "Notices", icon: <Megaphone className="w-4 h-4" /> },
   { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
@@ -139,11 +135,11 @@ export default function StudentDashboard() {
         <Route path="analytics" element={<AcademicAnalytics />} />
         <Route path="report" element={<AcademicReport />} />
         <Route path="classes" element={<StudentClassesPage />} />
-        <Route path="homework" element={<StudentHomeworkPage />} />
+        <Route path="homework" element={<Navigate to="/student/classes#homework" replace />} />
         <Route path="attendance" element={<Navigate to="/student/classes#attendance" replace />} />
         <Route path="timetable" element={<Navigate to="/student/classes#timetable" replace />} />
-        <Route path="exams" element={<StudentExamsResultsPage />} />
-        <Route path="results" element={<Navigate to="/student/exams?tab=results" replace />} />
+        <Route path="exams" element={<Navigate to="/student/classes#exams" replace />} />
+        <Route path="results" element={<Navigate to="/student/classes?tab=results#exams" replace />} />
         <Route path="notifications" element={<Navigate to="/student" replace />} />
         <Route path="notices" element={<NoticesPage viewerRole="student" />} />
         <Route path="fees" element={<MyFeesPage />} />
