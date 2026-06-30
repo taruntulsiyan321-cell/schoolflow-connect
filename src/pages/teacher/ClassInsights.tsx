@@ -4,8 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader } from "@/components/ui-bits";
 import { AlertTriangle, TrendingUp, Trophy, Lightbulb } from "lucide-react";
+import "./teacher-premium.css";
 
 export default function ClassInsights() {
   const { user } = useAuth();
@@ -44,73 +44,106 @@ export default function ClassInsights() {
     })();
   }, [classId]);
 
+  const atRisk = data?.at_risk ?? [];
+  const improving = data?.improving ?? [];
+  const topPerformers = data?.top_performers ?? [];
+  const weakTopics = data?.class_weak_topics ?? [];
+  const weakConcepts = data?.class_weak_concepts ?? [];
+
   return (
-    <>
-      <PageHeader title="Class insights" subtitle="Students at risk, top performers, and weak concepts across your class" />
+    <div className="teacher-premium tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10 grid lg:grid-cols-[1.1fr_0.9fr] gap-5">
+          <div>
+            <div className="tp-kicker mb-4">Class Intelligence</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Class insights</h1>
+            <p className="text-sm text-white/75 mt-2 max-w-2xl">At-risk learners, mastery gaps, weak concepts, and intervention ideas in one rich teacher view.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{atRisk.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">At risk</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{improving.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Improving</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{weakConcepts.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Weak concepts</p>
+            </div>
+          </div>
+        </div>
+      </section>
       {classes.length === 0 ? (
-        <Card className="p-8 text-center">
+        <Card className="tp-card p-8 text-center">
           <p className="text-muted-foreground text-sm">No classes assigned yet. Ask admin to link you to a class.</p>
         </Card>
       ) : (
       <>
+      <Card className="tp-card p-4">
       <Select value={classId} onValueChange={setClassId}>
         <SelectTrigger className="mb-4 max-w-xs"><SelectValue placeholder="Select class" /></SelectTrigger>
         <SelectContent>{classes.map((c) => <SelectItem key={c.id} value={c.id}>{c.display_name || `${c.name}-${c.section}`}</SelectItem>)}</SelectContent>
       </Select>
+      </Card>
 
       {loading ? (
         <p className="text-muted-foreground text-center py-8">Loading class insights…</p>
       ) : (
       <>
       <div className="grid lg:grid-cols-3 gap-4">
-        <Card className="p-4 shadow-card">
+        <Card className="tp-card p-5">
           <h3 className="font-semibold flex items-center gap-2 mb-3 text-warning"><AlertTriangle className="w-4 h-4" /> At risk</h3>
-          {(data?.at_risk ?? []).map((s: any) => (
-            <div key={s.student_id} className="text-sm py-2 border-b last:border-0">
+          {atRisk.map((s: any) => (
+            <div key={s.student_id} className="tp-row text-sm mb-2">
               <div className="font-medium">{s.name}</div>
               <div className="text-xs text-muted-foreground">Att {s.attendance_pct}% · Acc {s.avg_accuracy}%</div>
             </div>
           ))}
-          {(data?.at_risk ?? []).length === 0 && <p className="text-sm text-muted-foreground">No at-risk flags right now.</p>}
+          {atRisk.length === 0 && <p className="text-sm text-muted-foreground">No at-risk flags right now.</p>}
         </Card>
-        <Card className="p-4 shadow-card">
+        <Card className="tp-card p-5">
           <h3 className="font-semibold flex items-center gap-2 mb-3 text-accent"><TrendingUp className="w-4 h-4" /> Improving</h3>
-          {(data?.improving ?? []).map((s: any) => (
-            <div key={s.student_id} className="text-sm py-2 font-medium">{s.name}</div>
+          {improving.map((s: any) => (
+            <div key={s.student_id} className="tp-row text-sm font-medium mb-2">{s.name}</div>
           ))}
         </Card>
-        <Card className="p-4 shadow-card">
+        <Card className="tp-card tp-gold-card p-5">
           <h3 className="font-semibold flex items-center gap-2 mb-3"><Trophy className="w-4 h-4" /> Top performers</h3>
-          {(data?.top_performers ?? []).map((s: any) => (
-            <div key={s.student_id} className="flex justify-between text-sm py-2">
+          {topPerformers.map((s: any) => (
+            <div key={s.student_id} className="tp-row flex justify-between text-sm mb-2">
               <span>{s.name}</span><Badge variant="outline">{s.xp} XP</Badge>
             </div>
           ))}
         </Card>
       </div>
-      <Card className="p-4 mt-4 shadow-card">
+      <Card className="tp-card p-5 mt-4">
         <h3 className="font-semibold mb-2">Class weak topics (DPP data)</h3>
-        {(data?.class_weak_topics ?? []).map((t: any, i: number) => (
-          <div key={i} className="flex justify-between text-sm py-1">
-            <span>{t.subject} · {t.chapter}</span><span>{t.accuracy}%</span>
+        {weakTopics.map((t: any, i: number) => (
+          <div key={i} className="mb-3">
+            <div className="flex justify-between text-sm mb-1">
+              <span>{t.subject} · {t.chapter}</span><span>{t.accuracy}%</span>
+            </div>
+            <div className="tp-progress"><span style={{ width: `${Math.max(0, Math.min(100, Number(t.accuracy) || 0))}%` }} /></div>
           </div>
         ))}
       </Card>
 
       <div className="grid lg:grid-cols-2 gap-4 mt-4">
-        <Card className="p-4 shadow-card">
+        <Card className="tp-card p-5">
           <h3 className="font-semibold mb-2">Class weak concepts</h3>
-          {(data?.class_weak_concepts ?? []).length === 0 && (
+          {weakConcepts.length === 0 && (
             <p className="text-sm text-muted-foreground">Concept mastery data builds as students practice.</p>
           )}
-          {(data?.class_weak_concepts ?? []).map((t: any, i: number) => (
-            <div key={i} className="flex justify-between text-sm py-1">
+          {weakConcepts.map((t: any, i: number) => (
+            <div key={i} className="tp-row flex justify-between text-sm mb-2">
               <span>{t.subject} · {t.concept}</span>
               <span>{t.avg_mastery}% · {t.students} students</span>
             </div>
           ))}
         </Card>
-        <Card className="p-4 shadow-card">
+        <Card className="tp-card p-5">
           <h3 className="font-semibold mb-2">Mastery distribution</h3>
           {data?.mastery_distribution ? (
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -128,7 +161,7 @@ export default function ClassInsights() {
         </Card>
       </div>
 
-      <Card className="p-4 mt-4 shadow-card">
+      <Card className="tp-card p-5 mt-4">
         <h3 className="font-semibold flex items-center gap-2 mb-3">
           <Lightbulb className="w-4 h-4 text-primary" /> Suggested interventions
         </h3>
@@ -136,7 +169,7 @@ export default function ClassInsights() {
           <p className="text-sm text-muted-foreground">No interventions suggested yet — more class DPP data will unlock these.</p>
         )}
         {(data?.interventions ?? []).map((item: any, i: number) => (
-          <div key={i} className="py-3 border-b last:border-0">
+          <div key={i} className="tp-row mb-2">
             <div className="flex items-center gap-2 mb-1">
               <Badge variant={item.priority === "high" ? "destructive" : item.priority === "medium" ? "default" : "outline"}>
                 {item.priority}
@@ -154,6 +187,6 @@ export default function ClassInsights() {
       )}
       </>
       )}
-    </>
+    </div>
   );
 }

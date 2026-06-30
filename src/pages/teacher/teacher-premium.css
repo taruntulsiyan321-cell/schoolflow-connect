@@ -1,0 +1,162 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap");
+
+.teacher-premium {
+  --tp-ink: #081f18;
+  --tp-muted: #5b6761;
+  --tp-emerald: #063f2f;
+  --tp-emerald-2: #0d6b4d;
+  --tp-mint: #bff4d8;
+  --tp-gold: #ffdf97;
+  --tp-gold-2: #e9bd55;
+  --tp-surface: #fbfffc;
+  --tp-soft: #effdf5;
+  --tp-line: rgba(136, 158, 146, 0.28);
+  --tp-shadow: 0 18px 50px -28px rgba(3, 38, 26, 0.35);
+  --tp-shadow-strong: 0 32px 80px -36px rgba(3, 38, 26, 0.45);
+  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  color: var(--tp-ink);
+}
+
+.teacher-premium .tp-shell {
+  border-radius: 2rem;
+  padding: 0.35rem;
+  background:
+    radial-gradient(ellipse 72% 38% at 100% 0%, rgba(255, 223, 151, 0.35), transparent 62%),
+    radial-gradient(ellipse 70% 42% at 0% 10%, rgba(191, 244, 216, 0.45), transparent 60%),
+    linear-gradient(180deg, #fbfffc 0%, #f3fff8 42%, #ffffff 100%);
+}
+
+.teacher-premium .tp-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 2rem;
+  padding: clamp(1.35rem, 4vw, 2.35rem);
+  background:
+    radial-gradient(circle at 86% 10%, rgba(255, 223, 151, 0.24), transparent 34%),
+    radial-gradient(circle at 8% 100%, rgba(191, 244, 216, 0.18), transparent 34%),
+    linear-gradient(135deg, #0e6a4c 0%, #063f2f 50%, #021d14 100%);
+  color: white;
+  box-shadow: var(--tp-shadow-strong);
+  border: 1px solid rgba(191, 244, 216, 0.18);
+}
+
+.teacher-premium .tp-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -8rem -10rem auto;
+  width: 22rem;
+  height: 22rem;
+  border-radius: 999px;
+  background: rgba(255, 223, 151, 0.13);
+  pointer-events: none;
+}
+
+.teacher-premium .tp-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  background: linear-gradient(90deg, var(--tp-gold), var(--tp-gold-2));
+  color: #251a00;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.teacher-premium .tp-display {
+  font-family: "Sora", ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.teacher-premium .tp-card {
+  border-radius: 1.45rem;
+  border: 1px solid var(--tp-line);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(191, 244, 216, 0.18), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 255, 251, 0.96) 100%);
+  box-shadow: var(--tp-shadow);
+  transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+}
+
+.teacher-premium .tp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--tp-shadow-strong);
+  border-color: rgba(13, 107, 77, 0.24);
+}
+
+.teacher-premium .tp-metric {
+  border-radius: 1.35rem;
+  border: 1px solid var(--tp-line);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fffb 100%);
+  padding: 1.1rem;
+  box-shadow: var(--tp-shadow);
+}
+
+.teacher-premium .tp-icon {
+  width: 2.45rem;
+  height: 2.45rem;
+  border-radius: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tp-mint);
+  color: var(--tp-emerald);
+  flex-shrink: 0;
+}
+
+.teacher-premium .tp-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tp-muted);
+}
+
+.teacher-premium .tp-action {
+  border-radius: 1.3rem;
+  border: 1px solid var(--tp-line);
+  background: rgba(255, 255, 255, 0.86);
+  padding: 1rem;
+  box-shadow: 0 12px 34px -28px rgba(3, 38, 26, 0.35);
+}
+
+.teacher-premium .tp-chip {
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  background: rgba(191, 244, 216, 0.32);
+  color: var(--tp-emerald);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.teacher-premium .tp-row {
+  border-radius: 1rem;
+  border: 1px solid rgba(136, 158, 146, 0.22);
+  background: rgba(255, 255, 255, 0.82);
+  padding: 0.8rem 0.95rem;
+}
+
+.teacher-premium .tp-progress {
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #e2eee7;
+  overflow: hidden;
+}
+
+.teacher-premium .tp-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--tp-emerald), var(--tp-mint));
+}
+
+.teacher-premium .tp-gold-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.38), transparent 36%),
+    linear-gradient(135deg, #ffffff 0%, #fff9e8 100%);
+  border-color: rgba(233, 189, 85, 0.32);
+}

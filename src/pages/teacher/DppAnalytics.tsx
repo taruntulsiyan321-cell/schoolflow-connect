@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { PageHeader, StatCard } from "@/components/ui-bits";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Trophy, Users, Target, Timer } from "lucide-react";
+import "./teacher-premium.css";
 
 export default function DppAnalytics() {
   const { id } = useParams<{ id: string }>();
@@ -92,7 +92,7 @@ export default function DppAnalytics() {
         <Button variant="ghost" size="sm" asChild className="mb-2">
           <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
         </Button>
-        <Card className="p-6">
+        <Card className="tp-card p-6">
           <p className="text-sm text-destructive font-medium">Unable to load analytics.</p>
           <p className="text-sm text-muted-foreground mt-1">{error}</p>
         </Card>
@@ -106,7 +106,7 @@ export default function DppAnalytics() {
         <Button variant="ghost" size="sm" asChild className="mb-2">
           <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
         </Button>
-        <Card className="p-6">
+        <Card className="tp-card p-6">
           <p className="text-sm text-muted-foreground">This DPP is not available.</p>
         </Card>
       </div>
@@ -114,23 +114,45 @@ export default function DppAnalytics() {
   }
 
   return (
-    <>
+    <div className="teacher-premium tp-shell space-y-5">
       <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
-      <PageHeader title={`Analytics · ${dpp.title}`} subtitle={`${dpp.subject} · ${dpp.question_count} questions`} />
+      <section className="tp-hero">
+        <div className="relative z-10 grid lg:grid-cols-[1.1fr_0.9fr] gap-5">
+          <div>
+            <div className="tp-kicker mb-4">Practice Intelligence</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Analytics · {dpp.title}</h1>
+            <p className="text-sm text-white/75 mt-2">{dpp.subject} · {dpp.question_count} questions · DPP mastery snapshot</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{participation}%</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Participation</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{avg.toFixed(0)}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Avg score</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{hardest.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Hard flags</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={<Users className="w-5 h-5" />} label="Participation" value={`${participation}%`} />
-        <StatCard icon={<Trophy className="w-5 h-5" />} label="Avg score" value={avg.toFixed(1)} tone="accent" />
-        <StatCard icon={<Target className="w-5 h-5" />} label="Submitted" value={submitted.length} />
-        <StatCard icon={<Timer className="w-5 h-5" />} label="Avg time" value={`${Math.round(avgTime / 60)}m`} tone="secondary" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <DppMetric icon={<Users className="w-5 h-5" />} label="Participation" value={`${participation}%`} sub={`${submitted.length}/${classmates.length || 0} submitted`} />
+        <DppMetric icon={<Trophy className="w-5 h-5" />} label="Avg score" value={avg.toFixed(1)} sub="class score mean" />
+        <DppMetric icon={<Target className="w-5 h-5" />} label="Submitted" value={submitted.length} sub="completed attempts" />
+        <DppMetric icon={<Timer className="w-5 h-5" />} label="Avg time" value={`${Math.round(avgTime / 60)}m`} sub="per submission" />
       </div>
 
-      <Card className="p-5 mb-4">
-        <h3 className="font-semibold mb-3">Toppers</h3>
+      <Card className="tp-card tp-gold-card p-5">
+        <h3 className="tp-display text-xl mb-3">Toppers</h3>
         {toppers.length === 0 ? <p className="text-sm text-muted-foreground">No submissions yet.</p> : (
           <div className="space-y-2">
             {toppers.map((t, i) => (
-              <div key={t.id} className="flex items-center justify-between">
+              <div key={t.id} className="tp-row flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold">{i + 1}</span>
                   <span className="text-sm font-medium">{t.students?.full_name ?? "Student"}</span>
@@ -143,8 +165,8 @@ export default function DppAnalytics() {
         )}
       </Card>
 
-      <Card className="p-5 mb-4">
-        <h3 className="font-semibold mb-3">Question-wise accuracy</h3>
+      <Card className="tp-card p-5">
+        <h3 className="tp-display text-xl mb-3">Question-wise accuracy</h3>
         <div className="space-y-3">
           {qStats.map((q, i) => (
             <div key={q.id}>
@@ -159,12 +181,12 @@ export default function DppAnalytics() {
         </div>
       </Card>
 
-      <Card className="p-5 mb-4">
-        <h3 className="font-semibold mb-3">Hardest questions</h3>
+      <Card className="tp-card p-5">
+        <h3 className="tp-display text-xl mb-3">Hardest questions</h3>
         {hardest.length === 0 ? <p className="text-sm text-muted-foreground">No data yet.</p> : (
           <div className="space-y-2">
             {hardest.map(q => (
-              <div key={q.id} className="text-sm flex items-center justify-between border-b pb-2 last:border-0">
+              <div key={q.id} className="tp-row text-sm flex items-center justify-between">
                 <span className="truncate flex-1">{q.question}</span>
                 <span className="text-xs text-destructive font-semibold ml-2">{q.accuracy}%</span>
               </div>
@@ -173,11 +195,11 @@ export default function DppAnalytics() {
         )}
       </Card>
 
-      <Card className="p-5">
-        <h3 className="font-semibold mb-3">All submissions</h3>
+      <Card className="tp-card p-5">
+        <h3 className="tp-display text-xl mb-3">All submissions</h3>
         <div className="space-y-1">
           {attempts.map(a => (
-            <div key={a.id} className="flex items-center justify-between py-2 border-b last:border-0 text-sm">
+            <div key={a.id} className="tp-row flex items-center justify-between text-sm mb-2">
               <span>{a.students?.full_name ?? "Student"}</span>
               <span className="text-xs text-muted-foreground">
                 {a.status === "submitted"
@@ -189,6 +211,21 @@ export default function DppAnalytics() {
           {attempts.length === 0 && <p className="text-sm text-muted-foreground">No attempts yet.</p>}
         </div>
       </Card>
-    </>
+    </div>
+  );
+}
+
+function DppMetric({ icon, label, value, sub }: { icon: ReactNode; label: string; value: ReactNode; sub: string }) {
+  return (
+    <Card className="tp-metric">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="tp-label">{label}</p>
+          <p className="text-2xl font-bold mt-2">{value}</p>
+          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+        </div>
+        <div className="tp-icon">{icon}</div>
+      </div>
+    </Card>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { PageHeader, StatCard } from "@/components/ui-bits";
+import "@/pages/teacher/teacher-premium.css";
 import { BarChart3, Users, TrendingUp, TrendingDown, ClipboardCheck } from "lucide-react";
 
 interface StudentPerf {
@@ -169,12 +169,36 @@ export default function StudentPerformancePage() {
   const classAvgMarks = students.length
     ? Math.round(students.reduce((s, st) => s + st.avgMarks, 0) / students.length)
     : 0;
+  const atRiskCount = students.filter((s) => s.attendancePct < 75 || s.avgMarks < 50).length;
+  const improvingCount = students.filter((s) => s.trend === "up").length;
 
   return (
-    <>
-      <PageHeader title="Student Performance" subtitle="Insights into student progress" />
+    <div className="teacher-premium tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10 grid lg:grid-cols-[1.1fr_0.9fr] gap-5">
+          <div>
+            <div className="tp-kicker mb-4">Learner Performance Grid</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Student Performance</h1>
+            <p className="text-sm text-white/75 mt-2 max-w-xl">Attendance, marks, trend direction, and risk signals for every student in the selected class.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{students.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Students</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{atRiskCount}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">At risk</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{improvingCount}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Improving</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <Card className="p-4 mb-4">
+      <Card className="tp-card p-4">
         <Select value={classId} onValueChange={setClassId}>
           <SelectTrigger>
             <SelectValue placeholder="Select class" />
@@ -188,25 +212,17 @@ export default function StudentPerformancePage() {
       </Card>
 
       {!classes.length && (
-        <Card className="p-6 text-center text-sm text-muted-foreground">
+        <Card className="tp-card p-6 text-center text-sm text-muted-foreground">
           You are not assigned to any classes yet. Once classes are linked to your teacher profile, performance insights will appear here.
         </Card>
       )}
 
       {classId && (
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <StatCard
-            icon={<ClipboardCheck className="w-5 h-5" />}
-            label="Avg Attendance"
-            value={`${classAvgAttendance}%`}
-            tone={classAvgAttendance >= 75 ? "accent" : "warning"}
-          />
-          <StatCard
-            icon={<BarChart3 className="w-5 h-5" />}
-            label="Avg Marks"
-            value={`${classAvgMarks}%`}
-            tone={classAvgMarks >= 50 ? "accent" : "warning"}
-          />
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <PerfMetric icon={<ClipboardCheck className="w-5 h-5" />} label="Avg Attendance" value={`${classAvgAttendance}%`} sub={classAvgAttendance >= 75 ? "healthy" : "needs attention"} />
+          <PerfMetric icon={<BarChart3 className="w-5 h-5" />} label="Avg Marks" value={`${classAvgMarks}%`} sub={classAvgMarks >= 50 ? "above support line" : "below support line"} />
+          <PerfMetric icon={<TrendingDown className="w-5 h-5" />} label="Risk Flags" value={atRiskCount} sub="low attendance or marks" />
+          <PerfMetric icon={<TrendingUp className="w-5 h-5" />} label="Improving" value={improvingCount} sub="positive trend" />
         </div>
       )}
 
@@ -215,16 +231,16 @@ export default function StudentPerformancePage() {
           placeholder="Search student…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="mb-4 max-w-md"
+          className="max-w-md"
         />
       )}
 
       {loading ? (
         <p className="text-muted-foreground text-center py-8">Calculating performance…</p>
       ) : (
-        <div className="space-y-2">
+        <div className="grid lg:grid-cols-2 gap-3">
           {filtered.map((s) => (
-            <Card key={s.id} className="p-4 shadow-card">
+            <Card key={s.id} className="tp-card p-4">
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="min-w-0">
                   <div className="font-semibold">{s.full_name}</div>
@@ -269,7 +285,7 @@ export default function StudentPerformancePage() {
             </Card>
           ))}
           {filtered.length === 0 && classId && (
-            <Card className="p-8 text-center">
+            <Card className="tp-card p-8 text-center lg:col-span-2">
               <Users className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
               <p className="text-muted-foreground">
                 {students.length === 0 ? "No students in this class." : "No students match your search."}
@@ -278,6 +294,21 @@ export default function StudentPerformancePage() {
           )}
         </div>
       )}
-    </>
+    </div>
+  );
+}
+
+function PerfMetric({ icon, label, value, sub }: { icon: ReactNode; label: string; value: ReactNode; sub: string }) {
+  return (
+    <Card className="tp-metric">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="tp-label">{label}</p>
+          <p className="text-2xl font-bold mt-2">{value}</p>
+          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+        </div>
+        <div className="tp-icon">{icon}</div>
+      </div>
+    </Card>
   );
 }

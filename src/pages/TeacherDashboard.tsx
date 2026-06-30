@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
 import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User, Target, Sword, Database, TrendingUp, HelpCircle } from "lucide-react";
@@ -17,7 +17,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader, StatCard } from "@/components/ui-bits";
 import { toast } from "sonner";
 import NoticesPage from "./shared/NoticesPage";
 import ExamsPage from "./shared/ExamsPage";
@@ -28,6 +27,7 @@ import BattleTeacherReport from "./teacher/BattleTeacherReport";
 import QuestionBankPage from "./shared/QuestionBankPage";
 import ClassInsights from "./teacher/ClassInsights";
 import { CommunityDoubtPortal } from "@/components/community/CommunityDoubtPortal";
+import "./teacher/teacher-premium.css";
 
 const nav = [
   { to: "/teacher", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -54,15 +54,17 @@ function useTeacherAssignments() {
   const { user } = useAuth();
   const [data, setData] = useState<{
     teacherId: string | null;
+    teacherName: string | null;
+    primarySubject: string | null;
     classTeacherOf: { id: string; name: string; section: string } | null;
     subjectClasses: { id: string; name: string; section: string; subject: string | null }[];
     loading: boolean;
-  }>({ teacherId: null, classTeacherOf: null, subjectClasses: [], loading: true });
+  }>({ teacherId: null, teacherName: null, primarySubject: null, classTeacherOf: null, subjectClasses: [], loading: true });
 
   useEffect(() => {
     (async () => {
       if (!user) return;
-      const { data: t } = await supabase.from("teachers").select("id, class_teacher_of").eq("user_id", user.id).maybeSingle();
+      const { data: t } = await supabase.from("teachers").select("id, full_name, subject, class_teacher_of").eq("user_id", user.id).maybeSingle();
       if (!t) { setData(d => ({ ...d, loading: false })); return; }
       let classTeacherOf = null;
       if (t.class_teacher_of) {
@@ -73,47 +75,120 @@ function useTeacherAssignments() {
       const subjectClasses = (tc ?? []).map((r: any) => ({
         id: r.classes?.id, name: r.classes?.name, section: r.classes?.section, subject: r.subject,
       })).filter(x => x.id);
-      setData({ teacherId: t.id, classTeacherOf, subjectClasses, loading: false });
+      setData({ teacherId: t.id, teacherName: t.full_name ?? null, primarySubject: t.subject ?? null, classTeacherOf, subjectClasses, loading: false });
     })();
   }, [user]);
   return data;
 }
 
+function TeacherMetric({ icon, label, value, sub }: { icon: ReactNode; label: string; value: ReactNode; sub?: string }) {
+  return (
+    <Card className="tp-metric">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="tp-label">{label}</p>
+          <p className="text-2xl font-bold tabular-nums mt-2 truncate">{value}</p>
+          {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+        </div>
+        <div className="tp-icon">{icon}</div>
+      </div>
+    </Card>
+  );
+}
+
 const Overview = () => {
   const a = useTeacherAssignments();
   const navigate = useNavigate();
+  const totalRoles = (a.classTeacherOf ? 1 : 0) + a.subjectClasses.length;
+  const uniqueSubjects = new Set(a.subjectClasses.map((c) => c.subject).filter(Boolean)).size || (a.primarySubject ? 1 : 0);
   return (
-    <>
-      <PageHeader title="Teacher Dashboard" subtitle="Your roles & quick actions" />
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <StatCard icon={<Users className="w-5 h-5" />} label="Class Teacher" value={a.classTeacherOf ? `${a.classTeacherOf.name}-${a.classTeacherOf.section}` : "—"} />
-        <StatCard icon={<BookOpen className="w-5 h-5" />} label="Subject Classes" value={a.subjectClasses.length} tone="accent" />
+    <div className="tp-shell space-y-6">
+      <section className="tp-hero">
+        <div className="relative z-10 grid lg:grid-cols-[1.15fr_0.85fr] gap-6">
+          <div>
+            <div className="tp-kicker mb-4">Wisdom Campus · Teacher Command Center</div>
+            <p className="text-sm text-white/70">Welcome back, {a.teacherName?.split(" ")[0] || "Teacher"}</p>
+            <h1 className="tp-display text-3xl sm:text-5xl mt-1">Teach smarter today.</h1>
+            <p className="text-sm text-white/75 mt-4 max-w-xl">
+              Your classes, practice, attendance, battlegrounds, doubts, and intervention signals are now organized like a premium academic cockpit.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-5">
+              <Button className="bg-white text-emerald-950 hover:bg-white/90" onClick={() => navigate("/teacher/insights")}>Open class insights</Button>
+              <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => navigate("/teacher/dpp")}>Create DPP</Button>
+            </div>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-1 gap-3">
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-4 backdrop-blur">
+              <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Class teacher</p>
+              <p className="text-2xl font-bold mt-1">{a.classTeacherOf ? `${a.classTeacherOf.name}-${a.classTeacherOf.section}` : "Not assigned"}</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-4 backdrop-blur">
+              <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Subject footprint</p>
+              <p className="text-2xl font-bold mt-1">{a.subjectClasses.length} classes · {uniqueSubjects} subject{uniqueSubjects === 1 ? "" : "s"}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <TeacherMetric icon={<Users className="w-5 h-5" />} label="Class Teacher" value={a.classTeacherOf ? `${a.classTeacherOf.name}-${a.classTeacherOf.section}` : "—"} sub="pastoral ownership" />
+        <TeacherMetric icon={<BookOpen className="w-5 h-5" />} label="Subject Classes" value={a.subjectClasses.length} sub="active teaching groups" />
+        <TeacherMetric icon={<Target className="w-5 h-5" />} label="Teaching Roles" value={totalRoles} sub="assigned responsibilities" />
+        <TeacherMetric icon={<TrendingUp className="w-5 h-5" />} label="Insight Engine" value="Live" sub="class signals ready" />
       </div>
 
-      {a.classTeacherOf && (
-        <Card className="p-5 mb-4 cursor-pointer hover:shadow-elevated transition" onClick={() => navigate("/teacher/my-class")}>
-          <div className="flex items-center justify-between">
+      <div className="grid lg:grid-cols-2 gap-4">
+        {a.classTeacherOf && (
+        <Card className="tp-card p-5 cursor-pointer" onClick={() => navigate("/teacher/my-class")}>
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <Badge className="mb-2 bg-primary/15 text-primary border-primary/30" variant="outline">Class Teacher Role</Badge>
+              <Badge className="mb-2 rounded-full bg-primary/15 text-primary border-primary/30" variant="outline">Class Teacher Role</Badge>
               <h3 className="font-bold text-lg">My Class · {a.classTeacherOf.name}-{a.classTeacherOf.section}</h3>
               <p className="text-sm text-muted-foreground">Manage students, attendance, performance & leave approvals</p>
             </div>
-            <Users className="w-8 h-8 text-primary" />
+            <div className="tp-icon"><Users className="w-5 h-5" /></div>
           </div>
         </Card>
-      )}
+        )}
 
-      <Card className="p-5 cursor-pointer hover:shadow-elevated transition" onClick={() => navigate("/teacher/my-subjects")}>
-        <div className="flex items-center justify-between">
+        <Card className="tp-card tp-gold-card p-5 cursor-pointer" onClick={() => navigate("/teacher/my-subjects")}>
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <Badge className="mb-2 bg-accent/15 text-accent border-accent/30" variant="outline">Subject Teacher Role</Badge>
+            <Badge className="mb-2 rounded-full bg-accent/15 text-accent border-accent/30" variant="outline">Subject Teacher Role</Badge>
             <h3 className="font-bold text-lg">My Subjects · {a.subjectClasses.length} class{a.subjectClasses.length === 1 ? "" : "es"}</h3>
             <p className="text-sm text-muted-foreground">Mark subject attendance, upload marks, post class notices</p>
           </div>
-          <BookOpen className="w-8 h-8 text-accent" />
+          <div className="tp-icon bg-amber-100 text-amber-800"><BookOpen className="w-5 h-5" /></div>
         </div>
       </Card>
-    </>
+      </div>
+
+      <Card className="tp-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <p className="tp-label">Today&apos;s teaching priorities</p>
+            <h3 className="tp-display text-xl mt-1">High-leverage actions</h3>
+          </div>
+          <span className="tp-chip">Insight rich</span>
+        </div>
+        <div className="grid md:grid-cols-4 gap-3">
+          {[
+            { label: "Review at-risk students", route: "/teacher/insights", icon: TrendingUp },
+            { label: "Publish practice", route: "/teacher/dpp", icon: Target },
+            { label: "Answer doubts", route: "/teacher/doubts", icon: HelpCircle },
+            { label: "Host live battle", route: "/teacher/battleground", icon: Sword },
+          ].map((action) => {
+            const Icon = action.icon;
+            return (
+              <button key={action.label} type="button" onClick={() => navigate(action.route)} className="tp-action text-left hover:border-primary/30 transition-colors">
+                <div className="tp-icon mb-3"><Icon className="w-4 h-4" /></div>
+                <p className="font-semibold text-sm">{action.label}</p>
+              </button>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
   );
 };
 
@@ -154,20 +229,34 @@ const MyClass = () => {
   };
 
   return (
-    <>
-      <PageHeader title={`My Class · ${a.classTeacherOf.name}-${a.classTeacherOf.section}`} subtitle="Your class teacher responsibilities" />
+    <div className="tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <div className="tp-kicker mb-4">Class Teacher Cockpit</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Class {a.classTeacherOf.name}-{a.classTeacherOf.section}</h1>
+            <p className="text-sm text-white/75 mt-2">Students, leaves, attendance signals, and class care in one premium workspace.</p>
+          </div>
+          <div className="rounded-2xl bg-white/12 border border-white/15 p-4 text-right">
+            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Class health</p>
+            <p className="text-3xl font-bold">{Math.max(0, 100 - leaves.length * 8)}%</p>
+          </div>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <StatCard icon={<Users className="w-5 h-5" />} label="Students" value={students.length} />
-        <StatCard icon={<CalendarOff className="w-5 h-5" />} label="Pending leaves" value={leaves.length} tone="warning" />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <TeacherMetric icon={<Users className="w-5 h-5" />} label="Students" value={students.length} sub="in this class" />
+        <TeacherMetric icon={<CalendarOff className="w-5 h-5" />} label="Pending leaves" value={leaves.length} sub="need review" />
+        <TeacherMetric icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value="Daily" sub="mark and lock" />
+        <TeacherMetric icon={<BarChart3 className="w-5 h-5" />} label="Performance" value="Tracked" sub="class signals" />
       </div>
 
       {leaves.length > 0 && (
-        <Card className="p-4 mb-4">
-          <h3 className="font-semibold mb-3">Pending leave requests</h3>
+        <Card className="tp-card p-5">
+          <h3 className="tp-display text-xl mb-3">Pending leave requests</h3>
           <div className="space-y-2">
             {leaves.map(l => (
-              <div key={l.id} className="flex items-center justify-between border rounded-lg p-3">
+              <div key={l.id} className="tp-row flex items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-medium capitalize">{l.leave_type}</div>
                   <div className="text-xs text-muted-foreground">{l.from_date} → {l.to_date}</div>
@@ -183,18 +272,21 @@ const MyClass = () => {
         </Card>
       )}
 
-      <Card className="p-4">
-        <h3 className="font-semibold mb-3">Students</h3>
-        <div className="space-y-1 max-h-96 overflow-y-auto">
+      <Card className="tp-card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="tp-display text-xl">Students</h3>
+          <span className="tp-chip">{students.length} learners</span>
+        </div>
+        <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
           {students.map(s => (
-            <div key={s.id} className="flex items-center justify-between p-2 border-b last:border-0">
-              <span className="text-sm">{s.full_name}</span>
+            <div key={s.id} className="tp-row flex items-center justify-between">
+              <span className="text-sm font-medium">{s.full_name}</span>
               <span className="text-xs text-muted-foreground">Roll {s.roll_number || "-"}</span>
             </div>
           ))}
         </div>
       </Card>
-    </>
+    </div>
   );
 };
 
@@ -214,11 +306,17 @@ const MySubjects = () => {
     </Card>
   );
   return (
-    <>
-      <PageHeader title="My Subjects" subtitle="Classes you teach as a subject teacher" />
-      <div className="grid sm:grid-cols-2 gap-3">
+    <div className="tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10">
+          <div className="tp-kicker mb-4">Subject Studio</div>
+          <h1 className="tp-display text-3xl sm:text-4xl">My Subjects</h1>
+          <p className="text-sm text-white/75 mt-2">Every teaching group you own, styled for fast class planning and follow-up.</p>
+        </div>
+      </section>
+      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {a.subjectClasses.map(c => (
-          <Card key={`${c.id}-${c.subject}`} className="p-4">
+          <Card key={`${c.id}-${c.subject}`} className="tp-card p-5">
             <div className="flex items-start justify-between">
               <div>
                 <div className="font-semibold">Class {c.name}-{c.section}</div>
@@ -230,7 +328,7 @@ const MySubjects = () => {
         ))}
       </div>
       <p className="text-xs text-muted-foreground mt-4">Use Attendance, Exams, and Notices from the side menu — scoped automatically to your assigned classes.</p>
-    </>
+    </div>
   );
 };
 
@@ -282,9 +380,21 @@ const Attendance = () => {
   };
 
   return (
-    <>
-      <PageHeader title="Mark Attendance" subtitle={new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })} />
-      <Card className="p-4 mb-4 shadow-card">
+    <div className="tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="tp-kicker mb-4">Daily Attendance</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Mark Attendance</h1>
+            <p className="text-sm text-white/75 mt-2">{new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}</p>
+          </div>
+          <div className="rounded-2xl bg-white/12 border border-white/15 p-4">
+            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Selected</p>
+            <p className="text-2xl font-bold">{students.length}</p>
+          </div>
+        </div>
+      </section>
+      <Card className="tp-card p-4">
         <Select value={classId} onValueChange={setClassId}>
           <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
           <SelectContent>{allClasses.map(c => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
@@ -292,7 +402,7 @@ const Attendance = () => {
       </Card>
 
       {isLocked && classId && (
-        <Card className="p-4 mb-4 border-warning bg-warning/10">
+        <Card className="tp-card tp-gold-card p-4">
           <div className="flex items-center gap-2 text-warning-foreground">
             <Check className="w-4 h-4" />
             <span className="text-sm font-medium">Attendance submitted and locked for today. Contact admin for any corrections.</span>
@@ -304,7 +414,7 @@ const Attendance = () => {
 
       <div className="space-y-2">
         {students.map(s => (
-          <Card key={s.id} className={`p-3 flex items-center justify-between shadow-card ${isLocked ? "opacity-75" : ""}`}>
+          <Card key={s.id} className={`tp-card p-3 flex items-center justify-between ${isLocked ? "opacity-75" : ""}`}>
             <div className="min-w-0">
               <div className="font-medium truncate">{s.full_name}</div>
               <div className="text-xs text-muted-foreground">Roll {s.roll_number || "-"}</div>
@@ -326,14 +436,15 @@ const Attendance = () => {
           {saving ? "Saving…" : "Submit Attendance"}
         </Button>
       )}
-    </>
+    </div>
   );
 };
 
 export default function TeacherDashboard() {
   return (
     <AppLayout nav={nav} title="Teacher">
-      <Routes>
+      <div className="teacher-premium">
+        <Routes>
         <Route index element={<Overview />} />
         <Route path="my-class" element={<MyClass />} />
         <Route path="my-subjects" element={<MySubjects />} />
@@ -358,7 +469,8 @@ export default function TeacherDashboard() {
         <Route path="battleground/monitor/:battleId/report/:participantId" element={<BattleTeacherReport />} />
         <Route path="question-bank" element={<QuestionBankPage />} />
         <Route path="*" element={<Navigate to="/teacher" replace />} />
-      </Routes>
+        </Routes>
+      </div>
     </AppLayout>
   );
 }
