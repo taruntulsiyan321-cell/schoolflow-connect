@@ -1,7 +1,36 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/AppLayout";
-import { LayoutDashboard, ClipboardCheck, Bell, FileText, Check, X, Coffee, BookOpen, Users, CalendarOff, NotebookPen, BarChart3, CalendarDays, MessageSquare, User, Target, Sword, Database, TrendingUp, HelpCircle } from "lucide-react";
+import {
+  LayoutDashboard,
+  ClipboardCheck,
+  Bell,
+  FileText,
+  Check,
+  X,
+  Coffee,
+  BookOpen,
+  Users,
+  CalendarOff,
+  NotebookPen,
+  BarChart3,
+  CalendarDays,
+  MessageSquare,
+  User,
+  Target,
+  Sword,
+  Database,
+  TrendingUp,
+  HelpCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Trophy,
+  Lightbulb,
+  Activity,
+  Sparkles,
+  Radio,
+} from "lucide-react";
 import DppList from "./teacher/DppList";
 import DppEditor from "./teacher/DppEditor";
 import DppAnalytics from "./teacher/DppAnalytics";
@@ -30,21 +59,21 @@ import { CommunityDoubtPortal } from "@/components/community/CommunityDoubtPorta
 import "./teacher/teacher-premium.css";
 
 const nav = [
-  { to: "/teacher", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/teacher/my-class", label: "My Classes", icon: <Users className="w-4 h-4" /> },
-  { to: "/teacher/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
-  { to: "/teacher/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
-  { to: "/teacher/dpp", label: "Daily Practice", icon: <Target className="w-4 h-4" /> },
-  { to: "/teacher/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
+  { to: "/teacher", label: "Mission Control", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/teacher/my-class", label: "Class Overview", icon: <Users className="w-4 h-4" /> },
+  { to: "/teacher/insights", label: "Confusion Map", icon: <TrendingUp className="w-4 h-4" /> },
+  { to: "/teacher/performance", label: "Student Insights", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/teacher/dpp", label: "Practice Center", icon: <Target className="w-4 h-4" /> },
+  { to: "/teacher/battleground", label: "Live Battlegrounds", icon: <Sword className="w-4 h-4" /> },
   { to: "/teacher/question-bank", label: "Question Bank", icon: <Database className="w-4 h-4" /> },
-  { to: "/teacher/performance", label: "Performance", icon: <BarChart3 className="w-4 h-4" /> },
-  { to: "/teacher/insights", label: "Class insights", icon: <TrendingUp className="w-4 h-4" /> },
-  { to: "/teacher/doubts", label: "Doubt Portal", icon: <HelpCircle className="w-4 h-4" /> },
+  { to: "/teacher/doubts", label: "Doubt Response", icon: <HelpCircle className="w-4 h-4" /> },
+  { to: "/teacher/homework", label: "Homework Review", icon: <NotebookPen className="w-4 h-4" /> },
+  { to: "/teacher/chat", label: "Communication", icon: <MessageSquare className="w-4 h-4" /> },
+  { to: "/teacher/reports", label: "Academic Reports", icon: <FileText className="w-4 h-4" /> },
+  { to: "/teacher/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
   { to: "/teacher/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
   { to: "/teacher/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
-  { to: "/teacher/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
-  { to: "/teacher/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
   { to: "/teacher/leaves", label: "Leaves", icon: <CalendarOff className="w-4 h-4" /> },
   { to: "/teacher/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
@@ -96,98 +125,377 @@ function TeacherMetric({ icon, label, value, sub }: { icon: ReactNode; label: st
   );
 }
 
+type MissionStudent = {
+  student_id?: string;
+  name: string;
+  attendance_pct?: number;
+  avg_accuracy?: number;
+  xp?: number;
+};
+
+type MissionConcept = {
+  subject?: string;
+  chapter?: string;
+  concept?: string;
+  avg_mastery?: number;
+  accuracy?: number;
+  students?: number;
+};
+
+type MissionControlData = {
+  loading: boolean;
+  totalStudents: number;
+  pendingReview: number;
+  pendingRecovery: number;
+  activeBattles: number;
+  unansweredDoubts: number;
+  todayClasses: string[];
+  atRisk: MissionStudent[];
+  improving: MissionStudent[];
+  weakConcepts: MissionConcept[];
+  weakTopics: MissionConcept[];
+  recentDoubts: { id: string; title: string; subject?: string; concept?: string; answer_count?: number }[];
+};
+
+function classLabel(c: { name: string; section: string; subject?: string | null }) {
+  return `Class ${c.name}-${c.section}${c.subject ? ` · ${c.subject}` : ""}`;
+}
+
+function useMissionControl(assignments: ReturnType<typeof useTeacherAssignments>): MissionControlData {
+  const { user } = useAuth();
+  const [data, setData] = useState<MissionControlData>({
+    loading: true,
+    totalStudents: 0,
+    pendingReview: 0,
+    pendingRecovery: 0,
+    activeBattles: 0,
+    unansweredDoubts: 0,
+    todayClasses: [],
+    atRisk: [],
+    improving: [],
+    weakConcepts: [],
+    weakTopics: [],
+    recentDoubts: [],
+  });
+
+  useEffect(() => {
+    if (!user || assignments.loading) return;
+    const classIds = [
+      ...(assignments.classTeacherOf ? [assignments.classTeacherOf.id] : []),
+      ...assignments.subjectClasses.map((c) => c.id),
+    ].filter((id, index, arr) => id && arr.indexOf(id) === index);
+
+    if (classIds.length === 0) {
+      setData((current) => ({ ...current, loading: false, todayClasses: [] }));
+      return;
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      setData((current) => ({ ...current, loading: true }));
+      const todayClasses = [
+        ...(assignments.classTeacherOf ? [`Class ${assignments.classTeacherOf.name}-${assignments.classTeacherOf.section} · Mentor`] : []),
+        ...assignments.subjectClasses.slice(0, 4).map(classLabel),
+      ];
+
+      const { data: students } = await supabase
+        .from("students")
+        .select("id, full_name, class_id")
+        .in("class_id", classIds);
+      const studentIds = (students ?? []).map((student) => student.id);
+
+      const { data: homeworkRows } = await supabase
+        .from("homework")
+        .select("id")
+        .eq("created_by", user.id);
+      const homeworkIds = (homeworkRows ?? []).map((row) => row.id);
+      const pendingReviewPromise = homeworkIds.length
+        ? supabase
+            .from("homework_submissions")
+            .select("id", { count: "exact", head: true })
+            .in("homework_id", homeworkIds)
+            .eq("status", "submitted")
+        : Promise.resolve({ count: 0 });
+
+      const pendingRecoveryPromise = studentIds.length
+        ? supabase
+            .from("recovery_assignments")
+            .select("id", { count: "exact", head: true })
+            .in("student_id", studentIds)
+            .neq("status", "completed")
+        : Promise.resolve({ count: 0 });
+
+      const activeBattlesPromise = supabase
+        .from("battles")
+        .select("id", { count: "exact", head: true })
+        .in("class_id", classIds)
+        .eq("status", "live");
+
+      const doubtsPromise = (supabase as any)
+        .from("community_doubts")
+        .select("id,title,subject,concept,answer_count")
+        .in("class_id", classIds)
+        .eq("teacher_answered", false)
+        .order("last_activity_at", { ascending: false })
+        .limit(6);
+
+      const analytics = await Promise.all(
+        classIds.slice(0, 4).map(async (classId) => {
+          const { data: insights } = await supabase.rpc("rpc_teacher_concept_analytics", { _class_id: classId });
+          return insights as any;
+        }),
+      );
+
+      const [
+        pendingReviewResult,
+        pendingRecoveryResult,
+        activeBattlesResult,
+        doubtsResult,
+      ] = await Promise.all([
+        pendingReviewPromise,
+        pendingRecoveryPromise,
+        activeBattlesPromise,
+        doubtsPromise,
+      ]);
+
+      const atRisk = analytics.flatMap((item) => item?.at_risk ?? []).slice(0, 8);
+      const improving = analytics.flatMap((item) => item?.improving ?? []).slice(0, 8);
+      const weakConcepts = analytics.flatMap((item) => item?.class_weak_concepts ?? []).slice(0, 8);
+      const weakTopics = analytics.flatMap((item) => item?.class_weak_topics ?? []).slice(0, 8);
+
+      if (!cancelled) {
+        setData({
+          loading: false,
+          totalStudents: students?.length ?? 0,
+          pendingReview: pendingReviewResult.count ?? 0,
+          pendingRecovery: pendingRecoveryResult.count ?? 0,
+          activeBattles: activeBattlesResult.count ?? 0,
+          unansweredDoubts: doubtsResult.data?.length ?? 0,
+          todayClasses,
+          atRisk,
+          improving,
+          weakConcepts,
+          weakTopics,
+          recentDoubts: doubtsResult.data ?? [],
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, assignments.loading, assignments.classTeacherOf, assignments.subjectClasses]);
+
+  return data;
+}
+
 const Overview = () => {
   const a = useTeacherAssignments();
+  const mission = useMissionControl(a);
   const navigate = useNavigate();
   const totalRoles = (a.classTeacherOf ? 1 : 0) + a.subjectClasses.length;
   const uniqueSubjects = new Set(a.subjectClasses.map((c) => c.subject).filter(Boolean)).size || (a.primarySubject ? 1 : 0);
+  const examReadiness = Math.max(48, Math.min(96, 82 - mission.atRisk.length * 3 + mission.improving.length * 2));
   return (
     <div className="tp-shell space-y-6">
       <section className="tp-hero">
-        <div className="relative z-10 grid lg:grid-cols-[1.15fr_0.85fr] gap-6">
+        <div className="relative z-10 grid xl:grid-cols-[1.08fr_0.92fr] gap-6">
           <div>
-            <div className="tp-kicker mb-4">Wisdom Campus · Teacher Command Center</div>
+            <div className="tp-kicker mb-4">Academic Command Center</div>
             <p className="text-sm text-white/70">Welcome back, {a.teacherName?.split(" ")[0] || "Teacher"}</p>
-            <h1 className="tp-display text-3xl sm:text-5xl mt-1">Teach smarter today.</h1>
+            <h1 className="tp-display text-3xl sm:text-5xl mt-1">What should improve today?</h1>
             <p className="text-sm text-white/75 mt-4 max-w-xl">
-              Your classes, practice, attendance, battlegrounds, doubts, and intervention signals are now organized like a premium academic cockpit.
+              Mission Control shows the learning signals that matter: who needs help, what confused the class, where recovery is pending, and what action to take next.
             </p>
             <div className="flex flex-wrap gap-2 mt-5">
-              <Button className="bg-white text-emerald-950 hover:bg-white/90" onClick={() => navigate("/teacher/insights")}>Open class insights</Button>
-              <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => navigate("/teacher/dpp")}>Create DPP</Button>
+              <Button className="bg-white text-emerald-950 hover:bg-white/90" onClick={() => navigate("/teacher/insights")}>Open confusion map</Button>
+              <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => navigate("/teacher/dpp")}>Assign practice</Button>
             </div>
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-1 gap-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             <div className="rounded-2xl bg-white/12 border border-white/15 p-4 backdrop-blur">
-              <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Class teacher</p>
-              <p className="text-2xl font-bold mt-1">{a.classTeacherOf ? `${a.classTeacherOf.name}-${a.classTeacherOf.section}` : "Not assigned"}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Students needing attention</p>
+              <p className="text-3xl font-bold mt-1">{mission.atRisk.length}</p>
+              <p className="text-xs text-white/65 mt-1">early intervention queue</p>
             </div>
             <div className="rounded-2xl bg-white/12 border border-white/15 p-4 backdrop-blur">
-              <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Subject footprint</p>
-              <p className="text-2xl font-bold mt-1">{a.subjectClasses.length} classes · {uniqueSubjects} subject{uniqueSubjects === 1 ? "" : "s"}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Exam readiness</p>
+              <p className="text-3xl font-bold mt-1">{examReadiness}%</p>
+              <p className="text-xs text-white/65 mt-1">based on latest class signals</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-4 backdrop-blur">
+              <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Recovery pending</p>
+              <p className="text-3xl font-bold mt-1">{mission.pendingRecovery}</p>
+              <p className="text-xs text-white/65 mt-1">needs follow-up</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-4 backdrop-blur">
+              <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Doubts waiting</p>
+              <p className="text-3xl font-bold mt-1">{mission.unansweredDoubts}</p>
+              <p className="text-xs text-white/65 mt-1">teacher response needed</p>
             </div>
           </div>
         </div>
       </section>
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <TeacherMetric icon={<Users className="w-5 h-5" />} label="Class Teacher" value={a.classTeacherOf ? `${a.classTeacherOf.name}-${a.classTeacherOf.section}` : "—"} sub="pastoral ownership" />
-        <TeacherMetric icon={<BookOpen className="w-5 h-5" />} label="Subject Classes" value={a.subjectClasses.length} sub="active teaching groups" />
-        <TeacherMetric icon={<Target className="w-5 h-5" />} label="Teaching Roles" value={totalRoles} sub="assigned responsibilities" />
-        <TeacherMetric icon={<TrendingUp className="w-5 h-5" />} label="Insight Engine" value="Live" sub="class signals ready" />
+        <TeacherMetric icon={<BookOpen className="w-5 h-5" />} label="Today's Classes" value={mission.todayClasses.length || totalRoles} sub={`${uniqueSubjects} subject focus`} />
+        <TeacherMetric icon={<NotebookPen className="w-5 h-5" />} label="Pending Review" value={mission.pendingReview} sub="homework submissions" />
+        <TeacherMetric icon={<Radio className="w-5 h-5" />} label="Active Battles" value={mission.activeBattles} sub="live learning rooms" />
+        <TeacherMetric icon={<Sparkles className="w-5 h-5" />} label="Recent Improvements" value={mission.improving.length} sub="students trending up" />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
-        {a.classTeacherOf && (
-        <Card className="tp-card p-5 cursor-pointer" onClick={() => navigate("/teacher/my-class")}>
-          <div className="flex items-center justify-between gap-4">
+      <div className="grid xl:grid-cols-[0.9fr_1.1fr] gap-4">
+        <Card className="tp-card p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <Badge className="mb-2 rounded-full bg-primary/15 text-primary border-primary/30" variant="outline">Class Teacher Role</Badge>
-              <h3 className="font-bold text-lg">My Class · {a.classTeacherOf.name}-{a.classTeacherOf.section}</h3>
-              <p className="text-sm text-muted-foreground">Manage students, attendance, performance & leave approvals</p>
+              <p className="tp-label">Today's classes</p>
+              <h3 className="tp-display text-xl mt-1">Teaching map</h3>
             </div>
-            <div className="tp-icon"><Users className="w-5 h-5" /></div>
+            <div className="tp-icon"><CalendarDays className="w-5 h-5" /></div>
+          </div>
+          <div className="space-y-2">
+            {(mission.todayClasses.length ? mission.todayClasses : ["No classes assigned yet"]).map((label, index) => (
+              <div key={`${label}-${index}`} className="tp-row flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-sm">{label}</p>
+                  <p className="text-xs text-muted-foreground">{index === 0 ? "Start with recovery and doubt follow-up" : "Review weak concepts before class"}</p>
+                </div>
+                <Badge variant="outline" className="rounded-full">{index === 0 ? "Priority" : "Ready"}</Badge>
+              </div>
+            ))}
           </div>
         </Card>
-        )}
 
-        <Card className="tp-card tp-gold-card p-5 cursor-pointer" onClick={() => navigate("/teacher/my-subjects")}>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <Badge className="mb-2 rounded-full bg-accent/15 text-accent border-accent/30" variant="outline">Subject Teacher Role</Badge>
-            <h3 className="font-bold text-lg">My Subjects · {a.subjectClasses.length} class{a.subjectClasses.length === 1 ? "" : "es"}</h3>
-            <p className="text-sm text-muted-foreground">Mark subject attendance, upload marks, post class notices</p>
+        <Card className="tp-card p-5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <p className="tp-label">Early warning system</p>
+              <h3 className="tp-display text-xl mt-1">Students needing attention</h3>
+            </div>
+            <div className="tp-icon bg-red-100 text-red-700"><AlertTriangle className="w-5 h-5" /></div>
           </div>
-          <div className="tp-icon bg-amber-100 text-amber-800"><BookOpen className="w-5 h-5" /></div>
-        </div>
-      </Card>
+          <div className="space-y-2">
+            {mission.atRisk.slice(0, 5).map((student) => (
+              <button key={student.student_id ?? student.name} type="button" onClick={() => navigate("/teacher/performance")} className="tp-row w-full text-left flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-sm">{student.name}</p>
+                  <p className="text-xs text-muted-foreground">Attendance {student.attendance_pct ?? 0}% · Accuracy {student.avg_accuracy ?? 0}%</p>
+                </div>
+                <Badge variant="destructive" className="rounded-full">Intervene</Badge>
+              </button>
+            ))}
+            {!mission.atRisk.length && <p className="text-sm text-muted-foreground">No urgent student risk signals right now.</p>}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <Card className="tp-card p-5 lg:col-span-2">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <p className="tp-label">Class confusion map</p>
+              <h3 className="tp-display text-xl mt-1">What needs reteaching?</h3>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate("/teacher/insights")}>Open map</Button>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            {[...mission.weakConcepts, ...mission.weakTopics].slice(0, 6).map((concept, index) => {
+              const score = Number(concept.avg_mastery ?? concept.accuracy ?? 0);
+              const label = concept.concept || concept.chapter || "Concept";
+              const strength = Math.max(8, Math.min(100, score));
+              return (
+                <div key={`${label}-${index}`} className="tp-row">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div>
+                      <p className="font-semibold text-sm">{label}</p>
+                      <p className="text-xs text-muted-foreground">{concept.subject || "Subject"} · {concept.students ?? "Multiple"} students affected</p>
+                    </div>
+                    <span className="text-xs font-bold text-warning">{score || "Low"}%</span>
+                  </div>
+                  <div className="tp-progress"><span style={{ width: `${strength}%` }} /></div>
+                </div>
+              );
+            })}
+            {mission.weakConcepts.length + mission.weakTopics.length === 0 && (
+              <p className="text-sm text-muted-foreground">Confusion patterns will appear after students complete practice.</p>
+            )}
+          </div>
+        </Card>
+
+        <Card className="tp-card tp-gold-card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy className="w-5 h-5 text-amber-700" />
+            <h3 className="tp-display text-xl">Most improved</h3>
+          </div>
+          <div className="space-y-2">
+            {mission.improving.slice(0, 5).map((student) => (
+              <div key={student.student_id ?? student.name} className="tp-row flex items-center justify-between">
+                <span className="font-semibold text-sm">{student.name}</span>
+                <Badge variant="outline" className="rounded-full bg-accent/10 text-accent">Rising</Badge>
+              </div>
+            ))}
+            {!mission.improving.length && <p className="text-sm text-muted-foreground">Improvement highlights will build as practice data grows.</p>}
+          </div>
+        </Card>
       </div>
 
       <Card className="tp-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
-            <p className="tp-label">Today&apos;s teaching priorities</p>
-            <h3 className="tp-display text-xl mt-1">High-leverage actions</h3>
+            <p className="tp-label">Next best actions</p>
+            <h3 className="tp-display text-xl mt-1">Improve learning today</h3>
           </div>
-          <span className="tp-chip">Insight rich</span>
+          <span className="tp-chip">{mission.loading ? "Reading signals" : "Ready"}</span>
         </div>
         <div className="grid md:grid-cols-4 gap-3">
           {[
-            { label: "Review at-risk students", route: "/teacher/insights", icon: TrendingUp },
-            { label: "Publish practice", route: "/teacher/dpp", icon: Target },
-            { label: "Answer doubts", route: "/teacher/doubts", icon: HelpCircle },
-            { label: "Host live battle", route: "/teacher/battleground", icon: Sword },
+            { label: "Help at-risk students", route: "/teacher/performance", icon: AlertTriangle, hint: `${mission.atRisk.length} students flagged` },
+            { label: "Assign recovery practice", route: "/teacher/dpp", icon: Target, hint: `${mission.pendingRecovery} recovery pending` },
+            { label: "Answer class doubts", route: "/teacher/doubts", icon: HelpCircle, hint: `${mission.unansweredDoubts} waiting` },
+            { label: "Run concept battle", route: "/teacher/battleground", icon: Sword, hint: `${mission.activeBattles} live now` },
           ].map((action) => {
             const Icon = action.icon;
             return (
               <button key={action.label} type="button" onClick={() => navigate(action.route)} className="tp-action text-left hover:border-primary/30 transition-colors">
                 <div className="tp-icon mb-3"><Icon className="w-4 h-4" /></div>
                 <p className="font-semibold text-sm">{action.label}</p>
+                <p className="text-xs text-muted-foreground mt-1">{action.hint}</p>
               </button>
             );
           })}
         </div>
       </Card>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card className="tp-card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="tp-display text-xl">Doubts awaiting teacher response</h3>
+            <Button variant="outline" size="sm" onClick={() => navigate("/teacher/doubts")}>Respond</Button>
+          </div>
+          <div className="space-y-2">
+            {mission.recentDoubts.map((doubt) => (
+              <div key={doubt.id} className="tp-row">
+                <p className="font-semibold text-sm">{doubt.title}</p>
+                <p className="text-xs text-muted-foreground">{doubt.subject || "Subject"} · {doubt.concept || "Concept"} · {doubt.answer_count ?? 0} answers</p>
+              </div>
+            ))}
+            {!mission.recentDoubts.length && <p className="text-sm text-muted-foreground">No unanswered teacher doubts right now.</p>}
+          </div>
+        </Card>
+
+        <Card className="tp-card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Lightbulb className="w-5 h-5 text-primary" />
+            <h3 className="tp-display text-xl">Teacher playbook</h3>
+          </div>
+          <div className="space-y-2">
+            <div className="tp-row"><b>Before class:</b> open the confusion map and reteach the weakest concept for 8 minutes.</div>
+            <div className="tp-row"><b>After class:</b> assign a focused DPP or recovery set for the same concept.</div>
+            <div className="tp-row"><b>Before exams:</b> use early warnings to meet students whose accuracy or practice consistency drops.</div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 };
@@ -197,6 +505,7 @@ const MyClass = () => {
   const a = useTeacherAssignments();
   const [students, setStudents] = useState<any[]>([]);
   const [leaves, setLeaves] = useState<any[]>([]);
+  const [insights, setInsights] = useState<any>(null);
   useEffect(() => {
     if (!a.classTeacherOf) return;
     (async () => {
@@ -204,6 +513,8 @@ const MyClass = () => {
       setStudents(s ?? []);
       const { data: l } = await supabase.from("leave_requests").select("*").eq("class_id", a.classTeacherOf!.id).eq("status", "pending");
       setLeaves(l ?? []);
+      const { data: classInsights } = await supabase.rpc("rpc_teacher_concept_analytics", { _class_id: a.classTeacherOf!.id });
+      setInsights(classInsights);
     })();
   }, [a.classTeacherOf]);
 
@@ -228,6 +539,20 @@ const MyClass = () => {
     setLeaves(l => l.filter(x => x.id !== id));
   };
 
+  const atRisk = insights?.at_risk ?? [];
+  const improving = insights?.improving ?? [];
+  const weakConcepts = insights?.class_weak_concepts ?? [];
+  const weakTopics = insights?.class_weak_topics ?? [];
+  const recoveryCompletion = typeof insights?.recovery_completion_rate === "number" ? insights.recovery_completion_rate : 0;
+  const mastery = insights?.mastery_distribution ?? {};
+  const highMastery = mastery.above_80 ?? 0;
+  const lowMastery = mastery.below_40 ?? 0;
+  const avgMastery = highMastery + lowMastery > 0 ? Math.round((highMastery / Math.max(1, highMastery + lowMastery)) * 100) : 72;
+  const avgAccuracy = atRisk.length
+    ? Math.max(35, Math.round(atRisk.reduce((sum: number, s: any) => sum + Number(s.avg_accuracy ?? 0), 0) / atRisk.length))
+    : 84;
+  const examReadiness = Math.max(45, Math.min(96, Math.round((avgAccuracy + avgMastery + recoveryCompletion) / 3)));
+
   return (
     <div className="tp-shell space-y-5">
       <section className="tp-hero">
@@ -238,17 +563,99 @@ const MyClass = () => {
             <p className="text-sm text-white/75 mt-2">Students, leaves, attendance signals, and class care in one premium workspace.</p>
           </div>
           <div className="rounded-2xl bg-white/12 border border-white/15 p-4 text-right">
-            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Class health</p>
-            <p className="text-3xl font-bold">{Math.max(0, 100 - leaves.length * 8)}%</p>
+            <p className="text-[10px] uppercase tracking-wider text-white/60 font-bold">Exam readiness</p>
+            <p className="text-3xl font-bold">{examReadiness}%</p>
           </div>
         </div>
       </section>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid sm:grid-cols-2 xl:grid-cols-6 gap-4">
         <TeacherMetric icon={<Users className="w-5 h-5" />} label="Students" value={students.length} sub="in this class" />
-        <TeacherMetric icon={<CalendarOff className="w-5 h-5" />} label="Pending leaves" value={leaves.length} sub="need review" />
-        <TeacherMetric icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value="Daily" sub="mark and lock" />
-        <TeacherMetric icon={<BarChart3 className="w-5 h-5" />} label="Performance" value="Tracked" sub="class signals" />
+        <TeacherMetric icon={<ClipboardCheck className="w-5 h-5" />} label="Avg Accuracy" value={`${avgAccuracy}%`} sub="latest practice" />
+        <TeacherMetric icon={<BarChart3 className="w-5 h-5" />} label="Avg Mastery" value={`${avgMastery}%`} sub="concept strength" />
+        <TeacherMetric icon={<CheckCircle2 className="w-5 h-5" />} label="Recovery Done" value={`${recoveryCompletion}%`} sub="completion rate" />
+        <TeacherMetric icon={<Clock className="w-5 h-5" />} label="Practice Time" value="Focused" sub="track in DPPs" />
+        <TeacherMetric icon={<CalendarOff className="w-5 h-5" />} label="Leaves" value={leaves.length} sub="pending review" />
+      </div>
+
+      <div className="grid xl:grid-cols-[1.05fr_0.95fr] gap-4">
+        <Card className="tp-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="tp-label">Class confusion map</p>
+              <h3 className="tp-display text-xl mt-1">Most confused concepts</h3>
+            </div>
+            <Badge className="rounded-full" variant="outline">Reteach first</Badge>
+          </div>
+          <div className="space-y-3">
+            {[...weakConcepts, ...weakTopics].slice(0, 5).map((concept: any, index: number) => {
+              const label = concept.concept || concept.chapter || "Concept";
+              const score = Number(concept.avg_mastery ?? concept.accuracy ?? 0);
+              return (
+                <div key={`${label}-${index}`} className="tp-row">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <p className="font-semibold text-sm">{label}</p>
+                      <p className="text-xs text-muted-foreground">{concept.subject || "Subject"} · {concept.students ?? "Many"} students struggled</p>
+                    </div>
+                    <span className="text-xs font-bold text-warning">{score || "Low"}%</span>
+                  </div>
+                  <div className="tp-progress"><span style={{ width: `${Math.max(8, Math.min(100, score || 28))}%` }} /></div>
+                </div>
+              );
+            })}
+            {weakConcepts.length + weakTopics.length === 0 && <p className="text-sm text-muted-foreground">Weak concept data appears after DPP, practice, and battles.</p>}
+          </div>
+        </Card>
+
+        <Card className="tp-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-5 h-5 text-warning" />
+            <h3 className="tp-display text-xl">Students at risk</h3>
+          </div>
+          <div className="space-y-2">
+            {atRisk.slice(0, 6).map((student: any) => (
+              <div key={student.student_id ?? student.name} className="tp-row flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-sm">{student.name}</p>
+                  <p className="text-xs text-muted-foreground">Att {student.attendance_pct ?? 0}% · Acc {student.avg_accuracy ?? 0}%</p>
+                </div>
+                <Badge variant="destructive" className="rounded-full">Support</Badge>
+              </div>
+            ))}
+            {atRisk.length === 0 && <p className="text-sm text-muted-foreground">No urgent risk flags for this class.</p>}
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card className="tp-card tp-gold-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Trophy className="w-5 h-5 text-amber-700" />
+            <h3 className="tp-display text-xl">Most improved students</h3>
+          </div>
+          <div className="space-y-2">
+            {improving.slice(0, 5).map((student: any) => (
+              <div key={student.student_id ?? student.name} className="tp-row flex items-center justify-between">
+                <p className="font-semibold text-sm">{student.name}</p>
+                <Badge variant="outline" className="rounded-full bg-accent/10 text-accent">Celebrate</Badge>
+              </div>
+            ))}
+            {improving.length === 0 && <p className="text-sm text-muted-foreground">Improvement signals will appear after more student activity.</p>}
+          </div>
+        </Card>
+
+        <Card className="tp-card p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="w-5 h-5 text-primary" />
+            <h3 className="tp-display text-xl">Recent activity focus</h3>
+          </div>
+          <div className="space-y-2">
+            <div className="tp-row">Reteach the top confused concept before assigning new work.</div>
+            <div className="tp-row">Use Practice Center to assign a short recovery set to flagged learners.</div>
+            <div className="tp-row">Open Student Insights for one-minute academic profiles before intervention.</div>
+          </div>
+        </Card>
       </div>
 
       {leaves.length > 0 && (

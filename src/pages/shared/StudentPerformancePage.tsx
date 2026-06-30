@@ -28,6 +28,7 @@ export default function StudentPerformancePage() {
   const [students, setStudents] = useState<StudentPerf[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState("");
 
   // Load teacher's classes
   useEffect(() => {
@@ -155,6 +156,7 @@ export default function StudentPerformancePage() {
       });
 
       setStudents(result);
+      setSelectedId((current) => current || result[0]?.id || "");
       setLoading(false);
     })();
   }, [classId]);
@@ -171,6 +173,9 @@ export default function StudentPerformancePage() {
     : 0;
   const atRiskCount = students.filter((s) => s.attendancePct < 75 || s.avgMarks < 50).length;
   const improvingCount = students.filter((s) => s.trend === "up").length;
+  const selected = students.find((student) => student.id === selectedId) ?? filtered[0] ?? students[0];
+  const selectedRisk =
+    selected && (selected.attendancePct < 75 || selected.avgMarks < 50 || selected.trend === "down");
 
   return (
     <div className="teacher-premium tp-shell space-y-5">
@@ -235,12 +240,55 @@ export default function StudentPerformancePage() {
         />
       )}
 
+      {selected && (
+        <Card className="tp-card p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
+            <div>
+              <p className="tp-label">One-minute academic profile</p>
+              <h2 className="tp-display text-2xl mt-1">{selected.full_name}</h2>
+              <p className="text-sm text-muted-foreground">Roll {selected.roll_number || "—"} · {selected.totalExams} exam{selected.totalExams === 1 ? "" : "s"} tracked</p>
+            </div>
+            <Badge variant={selectedRisk ? "destructive" : "outline"} className="rounded-full">
+              {selectedRisk ? "Needs intervention" : "On track"}
+            </Badge>
+          </div>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="tp-row">
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="tp-label">Accuracy</span>
+                <b>{selected.avgMarks}%</b>
+              </div>
+              <div className="tp-progress"><span style={{ width: `${Math.max(4, selected.avgMarks)}%` }} /></div>
+              <p className="text-xs text-muted-foreground mt-2">{selected.avgMarks >= 70 ? "Strong exam readiness." : selected.avgMarks >= 50 ? "Needs targeted concept practice." : "Assign recovery before next assessment."}</p>
+            </div>
+            <div className="tp-row">
+              <div className="flex items-center justify-between text-xs mb-2">
+                <span className="tp-label">Consistency</span>
+                <b>{selected.attendancePct}%</b>
+              </div>
+              <div className="tp-progress"><span style={{ width: `${Math.max(4, selected.attendancePct)}%` }} /></div>
+              <p className="text-xs text-muted-foreground mt-2">{selected.totalDays ? `${selected.totalPresent}/${selected.totalDays} days present.` : "Attendance data is still building."}</p>
+            </div>
+            <div className="tp-row">
+              <span className="tp-label">Mistake pattern</span>
+              <p className="font-semibold mt-2">{selected.avgMarks < 50 ? "Core concept gaps" : selected.trend === "down" ? "Accuracy declining" : "Stable performance"}</p>
+              <p className="text-xs text-muted-foreground mt-2">Teacher note: review weak concepts, assign a focused set, then check improvement after the next attempt.</p>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-3 mt-4">
+            <div className="tp-row"><b>Recovery progress:</b> {selected.avgMarks >= 60 ? "Healthy" : "Pending support"}</div>
+            <div className="tp-row"><b>Battleground performance:</b> {selected.trend === "up" ? "Improving speed" : "Needs monitoring"}</div>
+            <div className="tp-row"><b>Next action:</b> {selectedRisk ? "Schedule intervention" : "Give stretch practice"}</div>
+          </div>
+        </Card>
+      )}
+
       {loading ? (
         <p className="text-muted-foreground text-center py-8">Calculating performance…</p>
       ) : (
         <div className="grid lg:grid-cols-2 gap-3">
           {filtered.map((s) => (
-            <Card key={s.id} className="tp-card p-4">
+            <Card key={s.id} className={`tp-card p-4 cursor-pointer ${selected?.id === s.id ? "ring-2 ring-primary/30" : ""}`} onClick={() => setSelectedId(s.id)}>
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="min-w-0">
                   <div className="font-semibold">{s.full_name}</div>

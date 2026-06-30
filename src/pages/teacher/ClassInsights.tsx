@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, TrendingUp, Trophy, Lightbulb } from "lucide-react";
+import { AlertTriangle, TrendingUp, Trophy, Lightbulb, Target, CheckCircle2, Clock, Brain } from "lucide-react";
 import "./teacher-premium.css";
 
 export default function ClassInsights() {
@@ -49,15 +49,21 @@ export default function ClassInsights() {
   const topPerformers = data?.top_performers ?? [];
   const weakTopics = data?.class_weak_topics ?? [];
   const weakConcepts = data?.class_weak_concepts ?? [];
+  const recoveryRate = typeof data?.recovery_completion_rate === "number" ? data.recovery_completion_rate : 0;
+  const mastery = data?.mastery_distribution ?? {};
+  const lowMastery = mastery.below_40 ?? 0;
+  const midMastery = (mastery["40_60"] ?? 0) + (mastery["60_80"] ?? 0);
+  const highMastery = mastery.above_80 ?? 0;
+  const avgReadiness = Math.max(45, Math.min(96, 88 - atRisk.length * 4 + improving.length * 2 + Math.round(recoveryRate / 10)));
 
   return (
     <div className="teacher-premium tp-shell space-y-5">
       <section className="tp-hero">
         <div className="relative z-10 grid lg:grid-cols-[1.1fr_0.9fr] gap-5">
           <div>
-            <div className="tp-kicker mb-4">Class Intelligence</div>
-            <h1 className="tp-display text-3xl sm:text-4xl">Class insights</h1>
-            <p className="text-sm text-white/75 mt-2 max-w-2xl">At-risk learners, mastery gaps, weak concepts, and intervention ideas in one rich teacher view.</p>
+            <div className="tp-kicker mb-4">Flagship Academic Intelligence</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Class Confusion Map</h1>
+            <p className="text-sm text-white/75 mt-2 max-w-2xl">See what the class does not understand yet, who needs intervention, and what to reteach before the next lesson.</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
@@ -92,6 +98,44 @@ export default function ClassInsights() {
         <p className="text-muted-foreground text-center py-8">Loading class insights…</p>
       ) : (
       <>
+      <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <InsightMetric icon={<Target className="w-5 h-5" />} label="Exam Readiness" value={`${avgReadiness}%`} sub="current class signal" />
+        <InsightMetric icon={<Brain className="w-5 h-5" />} label="Weak Concepts" value={weakConcepts.length} sub="reteach queue" />
+        <InsightMetric icon={<CheckCircle2 className="w-5 h-5" />} label="Recovery Success" value={`${recoveryRate}%`} sub="completion rate" />
+        <InsightMetric icon={<AlertTriangle className="w-5 h-5" />} label="At Risk" value={atRisk.length} sub="intervention needed" />
+        <InsightMetric icon={<Clock className="w-5 h-5" />} label="Practice Signal" value="Live" sub="DPP + battles" />
+      </div>
+
+      <Card className="tp-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <p className="tp-label">Confusion heat map</p>
+            <h3 className="tp-display text-xl mt-1">Most confused concepts</h3>
+          </div>
+          <Badge variant="outline" className="rounded-full">Teach again first</Badge>
+        </div>
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {weakConcepts.slice(0, 9).map((concept: any, index: number) => {
+            const masteryScore = Number(concept.avg_mastery ?? 0);
+            const struggle = Math.max(12, 100 - masteryScore);
+            return (
+              <div key={`${concept.subject}-${concept.concept}-${index}`} className="tp-row">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <p className="font-bold text-sm">{concept.concept || "Concept gap"}</p>
+                    <p className="text-xs text-muted-foreground">{concept.subject || "Subject"} · {concept.students ?? 0} students struggled</p>
+                  </div>
+                  <span className="rounded-full bg-warning/15 px-2 py-1 text-xs font-bold text-warning">{struggle}% confused</span>
+                </div>
+                <div className="tp-progress"><span style={{ width: `${struggle}%` }} /></div>
+                <p className="text-xs text-muted-foreground mt-2">Action: reteach, then assign a 10-question concept recovery set.</p>
+              </div>
+            );
+          })}
+          {weakConcepts.length === 0 && <p className="text-sm text-muted-foreground">No confused concepts yet. DPP and battle attempts will populate this map.</p>}
+        </div>
+      </Card>
+
       <div className="grid lg:grid-cols-3 gap-4">
         <Card className="tp-card p-5">
           <h3 className="font-semibold flex items-center gap-2 mb-3 text-warning"><AlertTriangle className="w-4 h-4" /> At risk</h3>
@@ -146,11 +190,10 @@ export default function ClassInsights() {
         <Card className="tp-card p-5">
           <h3 className="font-semibold mb-2">Mastery distribution</h3>
           {data?.mastery_distribution ? (
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="p-2 rounded bg-destructive/10">&lt;40%: {data.mastery_distribution.below_40 ?? 0}</div>
-              <div className="p-2 rounded bg-warning/10">40–60%: {data.mastery_distribution["40_60"] ?? 0}</div>
-              <div className="p-2 rounded bg-primary/10">60–80%: {data.mastery_distribution["60_80"] ?? 0}</div>
-              <div className="p-2 rounded bg-accent/10">&gt;80%: {data.mastery_distribution.above_80 ?? 0}</div>
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              <div className="tp-row text-center"><div className="text-2xl font-bold text-destructive">{lowMastery}</div><div className="text-xs text-muted-foreground">Needs rescue</div></div>
+              <div className="tp-row text-center"><div className="text-2xl font-bold text-warning">{midMastery}</div><div className="text-xs text-muted-foreground">Developing</div></div>
+              <div className="tp-row text-center"><div className="text-2xl font-bold text-accent">{highMastery}</div><div className="text-xs text-muted-foreground">Strong</div></div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">No mastery records yet.</p>
@@ -188,5 +231,20 @@ export default function ClassInsights() {
       </>
       )}
     </div>
+  );
+}
+
+function InsightMetric({ icon, label, value, sub }: { icon: ReactNode; label: string; value: ReactNode; sub: string }) {
+  return (
+    <Card className="tp-metric">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="tp-label">{label}</p>
+          <p className="text-2xl font-bold mt-2">{value}</p>
+          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+        </div>
+        <div className="tp-icon">{icon}</div>
+      </div>
+    </Card>
   );
 }

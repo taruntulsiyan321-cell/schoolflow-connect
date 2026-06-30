@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader } from "@/components/ui-bits";
 import { BattleCard } from "@/components/battleground/bg-bits";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Sword, Radio, Zap, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Sword, Radio, Zap, Loader2, Target, Users, Clock, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import "./teacher-premium.css";
 
 type ClassOption = { id: string; label: string };
 
@@ -153,8 +153,37 @@ export default function TeacherBattleground() {
   };
 
   return (
-    <div>
-      <PageHeader title="Battleground" subtitle="Host live quiz battles for your classes" />
+    <div className="teacher-premium tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <div className="tp-kicker mb-4">Battleground Management</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Turn confusion into live competition.</h1>
+            <p className="text-sm text-white/75 mt-2 max-w-2xl">Create class battles, monitor question-wise accuracy, identify struggling students live, and reteach immediately after the match.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{classes.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Classes</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{battles.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Battles</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{perQ}s</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Per Q</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <ArenaMetric icon={<Users className="w-5 h-5" />} label="Target Class" value={classes.find((c) => c.id === classId)?.label || "Select"} sub="participants" />
+        <ArenaMetric icon={<Target className="w-5 h-5" />} label="Difficulty" value={quickDifficulty} sub="question bank mode" />
+        <ArenaMetric icon={<Clock className="w-5 h-5" />} label="Duration" value={`${Math.round((perQ * 5) / 60)}m`} sub="quick battle window" />
+        <ArenaMetric icon={<Activity className="w-5 h-5" />} label="Live Monitor" value="Ready" sub="accuracy + leaderboard" />
+      </div>
 
       {classes.length === 0 ? (
         <Card className="p-6 text-center text-sm text-muted-foreground">
@@ -162,7 +191,7 @@ export default function TeacherBattleground() {
         </Card>
       ) : (
         <>
-          <Card className="p-4 space-y-3">
+          <Card className="tp-card p-4 space-y-3">
             <Label>Target class</Label>
             <Select value={classId} onValueChange={setClassId}>
               <SelectTrigger>
@@ -178,7 +207,7 @@ export default function TeacherBattleground() {
             </Select>
           </Card>
 
-          <Card className="p-5 space-y-4 surface-card">
+          <Card className="tp-card tp-gold-card p-5 space-y-4">
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-warning" />
               <div>
@@ -220,15 +249,15 @@ export default function TeacherBattleground() {
             </Button>
           </Card>
 
-          <Card className="p-5 hero-panel">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-white/70 flex items-center gap-1.5">
+          <Card className="tp-card p-5">
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
               <Sword className="w-3.5 h-3.5" /> Custom battle (optional)
             </div>
-            <h2 className="text-lg font-semibold mt-1 text-white">Write your own questions</h2>
-            <p className="text-sm text-white/75">Use only when you need fully custom items.</p>
+            <h2 className="text-lg font-semibold mt-1">Write your own questions</h2>
+            <p className="text-sm text-muted-foreground">Use only when you need fully custom items.</p>
           </Card>
 
-          <Card className="p-5 space-y-4">
+          <Card className="tp-card p-5 space-y-4">
             <div className="grid md:grid-cols-2 gap-3">
               <div>
                 <Label>Title</Label>
@@ -262,7 +291,7 @@ export default function TeacherBattleground() {
 
           <div className="space-y-3">
             {questions.map((q, i) => (
-              <Card key={i} className="p-4 space-y-3">
+              <Card key={i} className="tp-card p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="font-bold text-sm">Question {i + 1}</div>
                   {questions.length > 1 && (
@@ -331,5 +360,20 @@ export default function TeacherBattleground() {
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
     </div>
+  );
+}
+
+function ArenaMetric({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: React.ReactNode; sub: string }) {
+  return (
+    <Card className="tp-metric">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="tp-label">{label}</p>
+          <p className="text-2xl font-bold mt-2 truncate capitalize">{value}</p>
+          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+        </div>
+        <div className="tp-icon">{icon}</div>
+      </div>
+    </Card>
   );
 }

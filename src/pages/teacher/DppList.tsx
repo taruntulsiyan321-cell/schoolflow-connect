@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { PageHeader } from "@/components/ui-bits";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, BarChart3, FileText, Trash2 } from "lucide-react";
+import { Plus, BarChart3, FileText, Trash2, Target, Clock, CheckCircle2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import "./teacher-premium.css";
 
 export default function DppList() {
   const { user } = useAuth();
@@ -62,26 +62,63 @@ export default function DppList() {
     setRows(prev => prev.filter(row => row.id !== d.id));
   };
 
+  const today = new Date().toISOString().split("T")[0];
+  const published = rows.filter((row) => row.is_published).length;
+  const drafts = rows.length - published;
+  const dueSoon = rows.filter((row) => row.due_at && row.due_at.slice(0, 10) >= today).length;
+  const avgQuestions = rows.length ? Math.round(rows.reduce((sum, row) => sum + Number(row.question_count ?? 0), 0) / rows.length) : 0;
+
   return (
-    <>
-      <PageHeader
-        title="Daily Practice Problems"
-        subtitle="Author, publish and analyze DPPs for your classes"
-        action={<Button onClick={create}><Plus className="w-4 h-4" /> Create DPP</Button>}
-      />
+    <div className="teacher-premium tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <div className="tp-kicker mb-4">Practice Assignment Center</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Assign practice that fixes learning gaps.</h1>
+            <p className="text-sm text-white/75 mt-2 max-w-2xl">Create daily practice, chapter practice, concept practice, revision sets, and recovery assignments from one academic workflow.</p>
+          </div>
+          <Button onClick={create} className="bg-white text-emerald-950 hover:bg-white/90"><Plus className="w-4 h-4 mr-1" /> Create DPP</Button>
+        </div>
+      </section>
+
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <PracticeMetric icon={<Target className="w-5 h-5" />} label="Total Sets" value={rows.length} sub="practice library" />
+        <PracticeMetric icon={<CheckCircle2 className="w-5 h-5" />} label="Published" value={published} sub="visible to students" />
+        <PracticeMetric icon={<FileText className="w-5 h-5" />} label="Drafts" value={drafts} sub="finish and publish" />
+        <PracticeMetric icon={<Clock className="w-5 h-5" />} label="Avg Questions" value={avgQuestions} sub={`${dueSoon} active deadlines`} />
+      </div>
+
+      <Card className="tp-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <p className="tp-label">Assignment modes</p>
+            <h3 className="tp-display text-xl mt-1">Choose the learning objective first</h3>
+          </div>
+          <Badge variant="outline" className="rounded-full">Recovery ready</Badge>
+        </div>
+        <div className="grid md:grid-cols-5 gap-3">
+          {["Daily Practice", "Chapter Practice", "Concept Practice", "Revision Set", "Recovery Assignment"].map((mode) => (
+            <button key={mode} type="button" onClick={create} className="tp-action text-left">
+              <Sparkles className="w-4 h-4 text-primary mb-3" />
+              <p className="font-semibold text-sm">{mode}</p>
+              <p className="text-xs text-muted-foreground mt-1">Subject · chapter · concept · difficulty · deadline</p>
+            </button>
+          ))}
+        </div>
+      </Card>
 
       {loading ? (
         <p className="text-muted-foreground">Loading…</p>
       ) : rows.length === 0 ? (
-        <Card className="p-10 text-center">
+        <Card className="tp-card p-10 text-center">
           <FileText className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground mb-4">No DPPs yet. Create your first one.</p>
           <Button onClick={create}><Plus className="w-4 h-4" /> Create DPP</Button>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="grid lg:grid-cols-2 gap-3">
           {rows.map(d => (
-            <Card key={d.id} className="p-4">
+            <Card key={d.id} className="tp-card p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 mb-1">
@@ -114,6 +151,21 @@ export default function DppList() {
           ))}
         </div>
       )}
-    </>
+    </div>
+  );
+}
+
+function PracticeMetric({ icon, label, value, sub }: { icon: ReactNode; label: string; value: ReactNode; sub: string }) {
+  return (
+    <Card className="tp-metric">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="tp-label">{label}</p>
+          <p className="text-2xl font-bold mt-2">{value}</p>
+          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+        </div>
+        <div className="tp-icon">{icon}</div>
+      </div>
+    </Card>
   );
 }
