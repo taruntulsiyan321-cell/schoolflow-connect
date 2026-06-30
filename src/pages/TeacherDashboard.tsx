@@ -59,17 +59,17 @@ import { CommunityDoubtPortal } from "@/components/community/CommunityDoubtPorta
 import "./teacher/teacher-premium.css";
 
 const nav = [
-  { to: "/teacher", label: "Mission Control", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/teacher/my-class", label: "Class Overview", icon: <Users className="w-4 h-4" /> },
-  { to: "/teacher/insights", label: "Confusion Map", icon: <TrendingUp className="w-4 h-4" /> },
-  { to: "/teacher/performance", label: "Student Insights", icon: <BarChart3 className="w-4 h-4" /> },
-  { to: "/teacher/dpp", label: "Practice Center", icon: <Target className="w-4 h-4" /> },
-  { to: "/teacher/battleground", label: "Live Battlegrounds", icon: <Sword className="w-4 h-4" /> },
+  { to: "/teacher", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { to: "/teacher/my-class", label: "Class", icon: <Users className="w-4 h-4" /> },
+  { to: "/teacher/insights", label: "Insights", icon: <TrendingUp className="w-4 h-4" /> },
+  { to: "/teacher/performance", label: "Students", icon: <BarChart3 className="w-4 h-4" /> },
+  { to: "/teacher/dpp", label: "Practice", icon: <Target className="w-4 h-4" /> },
+  { to: "/teacher/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
   { to: "/teacher/question-bank", label: "Question Bank", icon: <Database className="w-4 h-4" /> },
-  { to: "/teacher/doubts", label: "Doubt Response", icon: <HelpCircle className="w-4 h-4" /> },
-  { to: "/teacher/homework", label: "Homework Review", icon: <NotebookPen className="w-4 h-4" /> },
-  { to: "/teacher/chat", label: "Communication", icon: <MessageSquare className="w-4 h-4" /> },
-  { to: "/teacher/reports", label: "Academic Reports", icon: <FileText className="w-4 h-4" /> },
+  { to: "/teacher/doubts", label: "Doubts", icon: <HelpCircle className="w-4 h-4" /> },
+  { to: "/teacher/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
+  { to: "/teacher/chat", label: "Messages", icon: <MessageSquare className="w-4 h-4" /> },
+  { to: "/teacher/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
   { to: "/teacher/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
   { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
   { to: "/teacher/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
@@ -302,7 +302,7 @@ const Overview = () => {
       <section className="tp-hero">
         <div className="relative z-10 grid xl:grid-cols-[1.08fr_0.92fr] gap-6">
           <div>
-            <div className="tp-kicker mb-4">Academic Command Center</div>
+            <div className="tp-kicker mb-4">Teacher Dashboard</div>
             <p className="text-sm text-white/70">Welcome back, {a.teacherName?.split(" ")[0] || "Teacher"}</p>
             <h1 className="tp-display text-3xl sm:text-5xl mt-1">What should improve today?</h1>
             <p className="text-sm text-white/75 mt-4 max-w-xl">
@@ -349,7 +349,7 @@ const Overview = () => {
         <Card className="tp-card p-5">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <p className="tp-label">Today's classes</p>
+              <p className="tp-label">Today</p>
               <h3 className="tp-display text-xl mt-1">Teaching map</h3>
             </div>
             <div className="tp-icon"><CalendarDays className="w-5 h-5" /></div>
@@ -370,7 +370,7 @@ const Overview = () => {
         <Card className="tp-card p-5">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <p className="tp-label">Early warning system</p>
+              <p className="tp-label">Needs help</p>
               <h3 className="tp-display text-xl mt-1">Students needing attention</h3>
             </div>
             <div className="tp-icon bg-red-100 text-red-700"><AlertTriangle className="w-5 h-5" /></div>
@@ -394,7 +394,7 @@ const Overview = () => {
         <Card className="tp-card p-5 lg:col-span-2">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <p className="tp-label">Class confusion map</p>
+              <p className="tp-label">Weak concepts</p>
               <h3 className="tp-display text-xl mt-1">What needs reteaching?</h3>
             </div>
             <Button variant="outline" size="sm" onClick={() => navigate("/teacher/insights")}>Open map</Button>

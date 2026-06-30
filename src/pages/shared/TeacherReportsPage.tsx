@@ -269,8 +269,8 @@ export default function TeacherReportsPage() {
       <section className="tp-hero">
         <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
           <div>
-            <div className="tp-kicker mb-4">Academic Report Center</div>
-            <h1 className="tp-display text-3xl sm:text-4xl">Reports that explain what to do next.</h1>
+            <div className="tp-kicker mb-4">Reports</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Class reports that guide action.</h1>
             <p className="text-sm text-white/75 mt-2 max-w-2xl">Class, student, recovery, practice, improvement, and readiness signals in one premium teacher report.</p>
           </div>
           {report?.students?.length > 0 && (
