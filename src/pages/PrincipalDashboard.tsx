@@ -16,6 +16,9 @@ import {
   Activity,
   User,
   TrendingUp,
+  Brain,
+  Sparkles,
+  Target,
 } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +43,7 @@ import {
   AttendanceOverview,
 } from "./shared/SchoolFeatures";
 import SchoolEngagement from "./principal/SchoolEngagement";
+import "./teacher/teacher-premium.css";
 
 const nav = [
   { to: "/principal", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -60,27 +64,43 @@ const nav = [
 ];
 
 const Overview = () => {
-  const [stats, setStats] = useState({ students: 0, teachers: 0, classes: 0, pending: 0, present: 0, total: 0 });
+  const [stats, setStats] = useState({
+    students: 0,
+    teachers: 0,
+    classes: 0,
+    pending: 0,
+    present: 0,
+    total: 0,
+    masterySignals: 0,
+    recoveryOpen: 0,
+    practiceAttempts: 0,
+  });
   useEffect(() => {
     (async () => {
       const today = new Date().toISOString().split("T")[0];
-      const [s, t, c, l, attToday] = await Promise.all([
+      const [s, t, c, l, attToday, mastery, recovery, practice] = await Promise.all([
         supabase.from("students").select("id", { count: "exact", head: true }),
         supabase.from("teachers").select("id", { count: "exact", head: true }),
         supabase.from("classes").select("id", { count: "exact", head: true }),
         supabase.from("leave_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("attendance").select("status").eq("date", today),
+        supabase.from("concept_mastery").select("id", { count: "exact", head: true }),
+        supabase.from("recovery_assignments").select("id", { count: "exact", head: true }).neq("status", "completed"),
+        supabase.from("dpp_attempts").select("id", { count: "exact", head: true }),
       ]);
       const present = (attToday.data ?? []).filter(r => r.status === "present").length;
       setStats({
         students: s.count ?? 0, teachers: t.count ?? 0, classes: c.count ?? 0,
         pending: l.count ?? 0, present, total: attToday.data?.length ?? 0,
+        masterySignals: mastery.count ?? 0,
+        recoveryOpen: recovery.count ?? 0,
+        practiceAttempts: practice.count ?? 0,
       });
     })();
   }, []);
   const rate = stats.total ? Math.round((stats.present / stats.total) * 100) : 0;
   return (
-    <>
+    <div className="teacher-premium tp-shell space-y-5">
       <PageHeader title="Principal Overview" subtitle="School-wide academic & operational view" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard icon={<Users className="w-5 h-5" />} label="Students" value={stats.students} />
@@ -93,11 +113,41 @@ const Overview = () => {
         <div className="text-4xl font-bold">{rate}%</div>
         <div className="text-sm opacity-80">{stats.present} of {stats.total} marked present</div>
       </Card>
-      <Card className="p-5">
-        <h3 className="font-semibold mb-2">Principal toolkit</h3>
-        <p className="text-sm text-muted-foreground">Use the side menu to review pending leave requests, post school-wide notices, and monitor exams.</p>
+
+      <Card className="tp-card p-5">
+        <div className="grid lg:grid-cols-[0.9fr_1.1fr] gap-5 items-center">
+          <div>
+            <p className="tp-label">School intelligence sync</p>
+            <h3 className="tp-display text-2xl mt-1">Student panel data is visible to principal oversight.</h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              Student practice, concept mastery, recovery, attendance, and classroom activity are presented as school-wide AI insight for monitoring learning health.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="tp-row text-center">
+              <Brain className="w-5 h-5 mx-auto text-primary mb-2" />
+              <div className="text-2xl font-bold">{stats.masterySignals}</div>
+              <div className="text-xs text-muted-foreground">mastery signals</div>
+            </div>
+            <div className="tp-row text-center">
+              <Target className="w-5 h-5 mx-auto text-warning mb-2" />
+              <div className="text-2xl font-bold">{stats.recoveryOpen}</div>
+              <div className="text-xs text-muted-foreground">open recovery</div>
+            </div>
+            <div className="tp-row text-center">
+              <Sparkles className="w-5 h-5 mx-auto text-accent mb-2" />
+              <div className="text-2xl font-bold">{stats.practiceAttempts}</div>
+              <div className="text-xs text-muted-foreground">practice attempts</div>
+            </div>
+          </div>
+        </div>
       </Card>
-    </>
+
+      <Card className="tp-card p-5">
+        <h3 className="font-semibold mb-2">Principal view</h3>
+        <p className="text-sm text-muted-foreground">Teachers see class-level AI analysis. Principal sees the same student learning layer summarized across the school.</p>
+      </Card>
+    </div>
   );
 };
 

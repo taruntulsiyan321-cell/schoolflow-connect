@@ -294,6 +294,24 @@ export default function TeacherReportsPage() {
         </Select>
       </Card>
 
+      <Card className="tp-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="tp-label">Synced student intelligence</p>
+            <h3 className="tp-display text-xl mt-1">This report is built from student panel activity.</h3>
+            <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
+              Marks, attendance, homework, practice, battles, recovery, concept mastery, and AI weak-topic analysis are presented here for teacher action.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline" className="rounded-full bg-primary/10 text-primary border-primary/30">Student Panel</Badge>
+            <Badge variant="outline" className="rounded-full bg-accent/10 text-accent border-accent/30">AI Analysis</Badge>
+            <Badge variant="outline" className="rounded-full">Teacher View</Badge>
+            <Badge variant="outline" className="rounded-full">Principal View</Badge>
+          </div>
+        </div>
+      </Card>
+
       {!classes.length && (
         <Card className="tp-card p-6 text-center text-sm text-muted-foreground">
           You are not assigned to any classes yet. Once classes are linked to your teacher profile, reports will appear here.

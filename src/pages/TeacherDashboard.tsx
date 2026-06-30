@@ -60,21 +60,12 @@ import "./teacher/teacher-premium.css";
 
 const nav = [
   { to: "/teacher", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
-  { to: "/teacher/my-class", label: "Class", icon: <Users className="w-4 h-4" /> },
+  { to: "/teacher/class", label: "Class", icon: <Users className="w-4 h-4" /> },
   { to: "/teacher/insights", label: "Insights", icon: <TrendingUp className="w-4 h-4" /> },
-  { to: "/teacher/performance", label: "Students", icon: <BarChart3 className="w-4 h-4" /> },
-  { to: "/teacher/dpp", label: "Practice", icon: <Target className="w-4 h-4" /> },
+  { to: "/teacher/practice", label: "Practice", icon: <Target className="w-4 h-4" /> },
   { to: "/teacher/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" /> },
-  { to: "/teacher/question-bank", label: "Question Bank", icon: <Database className="w-4 h-4" /> },
-  { to: "/teacher/doubts", label: "Doubts", icon: <HelpCircle className="w-4 h-4" /> },
-  { to: "/teacher/homework", label: "Homework", icon: <NotebookPen className="w-4 h-4" /> },
-  { to: "/teacher/chat", label: "Messages", icon: <MessageSquare className="w-4 h-4" /> },
+  { to: "/teacher/connect", label: "Connect", icon: <MessageSquare className="w-4 h-4" /> },
   { to: "/teacher/reports", label: "Reports", icon: <FileText className="w-4 h-4" /> },
-  { to: "/teacher/attendance", label: "Attendance", icon: <ClipboardCheck className="w-4 h-4" /> },
-  { to: "/teacher/exams", label: "Exams", icon: <FileText className="w-4 h-4" /> },
-  { to: "/teacher/timetable", label: "Timetable", icon: <CalendarDays className="w-4 h-4" /> },
-  { to: "/teacher/notices", label: "Notices", icon: <Bell className="w-4 h-4" /> },
-  { to: "/teacher/leaves", label: "Leaves", icon: <CalendarOff className="w-4 h-4" /> },
   { to: "/teacher/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
 
@@ -344,6 +335,35 @@ const Overview = () => {
         <TeacherMetric icon={<Radio className="w-5 h-5" />} label="Active Battles" value={mission.activeBattles} sub="live learning rooms" />
         <TeacherMetric icon={<Sparkles className="w-5 h-5" />} label="Recent Improvements" value={mission.improving.length} sub="students trending up" />
       </div>
+
+      <Card className="tp-card p-5">
+        <div className="grid lg:grid-cols-[0.85fr_1.15fr] gap-5 items-center">
+          <div>
+            <p className="tp-label">Student data sync</p>
+            <h3 className="tp-display text-2xl mt-1">Student panel intelligence is visible here.</h3>
+            <p className="text-sm text-muted-foreground mt-2">
+              Practice attempts, homework, doubts, recovery sessions, battles, and mastery signals from student activity appear as teacher-ready AI insights.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="tp-row text-center">
+              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Student Panel</div>
+              <div className="mt-2 text-2xl font-bold">{mission.totalStudents}</div>
+              <div className="text-xs text-muted-foreground">learners tracked</div>
+            </div>
+            <div className="tp-row text-center border-primary/30 bg-primary/5">
+              <div className="text-xs font-bold uppercase tracking-wider text-primary">AI Analysis</div>
+              <div className="mt-2 text-2xl font-bold">{mission.weakConcepts.length + mission.atRisk.length}</div>
+              <div className="text-xs text-muted-foreground">signals generated</div>
+            </div>
+            <div className="tp-row text-center">
+              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Teacher + Principal</div>
+              <div className="mt-2 text-2xl font-bold">Synced</div>
+              <div className="text-xs text-muted-foreground">same intelligence layer</div>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid xl:grid-cols-[0.9fr_1.1fr] gap-4">
         <Card className="tp-card p-5">
@@ -847,12 +867,111 @@ const Attendance = () => {
   );
 };
 
+function WorkspaceTile({
+  icon,
+  title,
+  description,
+  to,
+  badge,
+}: {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  to: string;
+  badge?: string;
+}) {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(to)} className="tp-card p-5 text-left">
+      <div className="flex items-start justify-between gap-3">
+        <div className="tp-icon">{icon}</div>
+        {badge && <Badge variant="outline" className="rounded-full">{badge}</Badge>}
+      </div>
+      <h3 className="tp-display text-xl mt-4">{title}</h3>
+      <p className="text-sm text-muted-foreground mt-2">{description}</p>
+    </button>
+  );
+}
+
+function ClassWorkspace() {
+  return (
+    <div className="tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10">
+          <div className="tp-kicker mb-4">Class</div>
+          <h1 className="tp-display text-3xl sm:text-4xl">Everything about your class in one place.</h1>
+          <p className="text-sm text-white/75 mt-2 max-w-2xl">
+            Class health stays central here. Attendance, exams, timetable, and student care live together instead of becoming separate admin panels.
+          </p>
+        </div>
+      </section>
+
+      <div className="grid md:grid-cols-4 gap-3">
+        <WorkspaceTile icon={<Users className="w-5 h-5" />} title="Class Overview" description="Students, risk signals, confused concepts, and improvement highlights." to="/teacher/my-class" badge="Core" />
+        <WorkspaceTile icon={<ClipboardCheck className="w-5 h-5" />} title="Attendance" description="Mark today quickly, then return to learning signals." to="/teacher/attendance" />
+        <WorkspaceTile icon={<FileText className="w-5 h-5" />} title="Exams" description="Create tests and update marks that power insights." to="/teacher/exams" />
+        <WorkspaceTile icon={<CalendarDays className="w-5 h-5" />} title="Timetable" description="See teaching schedule without leaving the class context." to="/teacher/timetable" />
+      </div>
+
+      <MyClass />
+    </div>
+  );
+}
+
+function PracticeWorkspace() {
+  return (
+    <div className="tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10">
+          <div className="tp-kicker mb-4">Practice</div>
+          <h1 className="tp-display text-3xl sm:text-4xl">Assign, recover, and challenge from one workspace.</h1>
+          <p className="text-sm text-white/75 mt-2 max-w-2xl">
+            Daily practice, homework, question bank, and recovery sets are grouped here because they all serve the same goal: better learning.
+          </p>
+        </div>
+      </section>
+
+      <div className="grid md:grid-cols-3 gap-3">
+        <WorkspaceTile icon={<Target className="w-5 h-5" />} title="Daily Practice" description="Create DPPs, chapter practice, revision sets, and recovery work." to="/teacher/dpp" badge="Main" />
+        <WorkspaceTile icon={<NotebookPen className="w-5 h-5" />} title="Homework" description="Review submissions and spot practice consistency gaps." to="/teacher/homework" />
+        <WorkspaceTile icon={<Database className="w-5 h-5" />} title="Question Bank" description="Generate, import, and organize questions by subject and concept." to="/teacher/question-bank" />
+      </div>
+    </div>
+  );
+}
+
+function ConnectWorkspace() {
+  return (
+    <div className="tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10">
+          <div className="tp-kicker mb-4">Connect</div>
+          <h1 className="tp-display text-3xl sm:text-4xl">All teacher communication in one place.</h1>
+          <p className="text-sm text-white/75 mt-2 max-w-2xl">
+            Doubts, messages, notices, and leave requests are grouped here so communication supports teaching instead of fragmenting it.
+          </p>
+        </div>
+      </section>
+
+      <div className="grid md:grid-cols-4 gap-3">
+        <WorkspaceTile icon={<HelpCircle className="w-5 h-5" />} title="Doubts" description="Reply to unresolved doubts and pin helpful explanations." to="/teacher/doubts" badge="Learning" />
+        <WorkspaceTile icon={<MessageSquare className="w-5 h-5" />} title="Messages" description="Send guidance, reminders, and practice links." to="/teacher/chat" />
+        <WorkspaceTile icon={<Bell className="w-5 h-5" />} title="Notices" description="Post announcements without making the dashboard feel administrative." to="/teacher/notices" />
+        <WorkspaceTile icon={<CalendarOff className="w-5 h-5" />} title="Leaves" description="Review leave requests only when class care requires it." to="/teacher/leaves" />
+      </div>
+    </div>
+  );
+}
+
 export default function TeacherDashboard() {
   return (
     <AppLayout nav={nav} title="Teacher">
       <div className="teacher-premium">
         <Routes>
         <Route index element={<Overview />} />
+        <Route path="class" element={<ClassWorkspace />} />
+        <Route path="practice" element={<PracticeWorkspace />} />
+        <Route path="connect" element={<ConnectWorkspace />} />
         <Route path="my-class" element={<MyClass />} />
         <Route path="my-subjects" element={<MySubjects />} />
         <Route path="attendance" element={<Attendance />} />
