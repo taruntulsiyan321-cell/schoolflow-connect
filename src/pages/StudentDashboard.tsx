@@ -27,7 +27,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import NoticesPage from "./shared/NoticesPage";
-import MyFeesPage from "./shared/MyFeesPage";
 import LeaderboardPage from "./shared/LeaderboardPage";
 
 const nav = [
@@ -38,7 +37,6 @@ const nav = [
   { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" />, end: false },
   { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
   { to: "/student/notices", label: "Notices", icon: <Megaphone className="w-4 h-4" /> },
-  { to: "/student/fees", label: "Fees", icon: <Wallet className="w-4 h-4" /> },
   { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
   { to: "/student/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
 ];
@@ -142,7 +140,7 @@ export default function StudentDashboard() {
         <Route path="results" element={<Navigate to="/student/classes?tab=results#exams" replace />} />
         <Route path="notifications" element={<Navigate to="/student" replace />} />
         <Route path="notices" element={<NoticesPage viewerRole="student" />} />
-        <Route path="fees" element={<MyFeesPage />} />
+        <Route path="fees" element={<Navigate to="/student/profile#fees" replace />} />
         <Route path="chat" element={<ChatPage userRole="student" />} />
         <Route path="profile" element={<StudentProfilePage />} />
         <Route path="leaderboard" element={<LeaderboardPage />} />

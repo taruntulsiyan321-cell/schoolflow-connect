@@ -13,6 +13,7 @@ import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
 import { XPRing } from "@/components/battleground/bg-bits";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
+import MyFeesPage from "@/pages/shared/MyFeesPage";
 import { cn } from "@/lib/utils";
 
 type SubjectStrength = { subject: string; pct: number };
@@ -111,6 +112,14 @@ export default function StudentProfilePage() {
       setLoading(false);
     })();
   }, [user]);
+
+  useEffect(() => {
+    if (window.location.hash === "#fees") {
+      requestAnimationFrame(() => {
+        document.getElementById("fees")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [loading]);
 
   const handleSave = async () => {
     if (!user || !editName.trim()) return;
@@ -271,6 +280,19 @@ export default function StudentProfilePage() {
       )}
 
       {user && <BadgeEquipPanel userId={user.id} />}
+
+      {student && (
+        <section id="fees" className="scroll-mt-20 mb-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-primary" />
+            <div>
+              <h3 className="font-semibold text-lg">Fees</h3>
+              <p className="text-sm text-muted-foreground">Fee summary and payment status are now part of your profile.</p>
+            </div>
+          </div>
+          <MyFeesPage embedded />
+        </section>
+      )}
 
       <div className="h-4" />
 

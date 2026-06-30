@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Bell, Pencil, Trash2, Ban } from "lucide-react";
+import { Plus, Bell, Pencil, Trash2, Ban, Megaphone, Clock, Users, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { formatDistanceToNow } from "date-fns";
@@ -145,26 +145,41 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
   const active = rows.filter(n => !isExpired(n) && !isRevoked(n));
   const expired = rows.filter(n => isExpired(n) && !isRevoked(n));
   const archived = rows.filter(n => isRevoked(n));
+  const pinned = active[0];
+  const classNoticeCount = active.filter((n) => n.audience === "class" || n.audience === "section").length;
+
+  const audienceTone = (audience: string) => {
+    if (audience === "all") return "bg-primary/10 text-primary border-primary/20";
+    if (audience === "students") return "bg-accent/10 text-accent border-accent/20";
+    if (audience === "parents") return "bg-warning/10 text-warning border-warning/20";
+    if (audience === "teachers") return "bg-blue-500/10 text-blue-700 border-blue-500/20";
+    return "bg-secondary/10 text-secondary border-secondary/20";
+  };
 
   const renderList = (list: any[], showState?: "expired" | "revoked") => (
-    <div className="space-y-3">
+    <div className="grid gap-3">
       {list.map(r => (
-        <Card key={r.id} className={`p-5 shadow-card ${showState ? "opacity-70" : ""}`}>
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0"><Bell className="w-5 h-5" /></div>
+        <Card key={r.id} className={`overflow-hidden border-border/70 bg-card/95 p-0 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated ${showState ? "opacity-70" : ""}`}>
+          <div className="flex items-start gap-4 p-5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/15 to-accent/15 text-primary flex items-center justify-center shrink-0 ring-1 ring-primary/10">
+              <Bell className="w-5 h-5" />
+            </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <h3 className="font-semibold">{r.title}</h3>
-                <span className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</span>
+                <h3 className="font-black text-base">{r.title}</h3>
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
+                </span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{r.body}</p>
-              <div className="mt-2 flex gap-2 text-xs flex-wrap items-center">
-                <span className="px-2 py-0.5 rounded bg-secondary/10 text-secondary capitalize">{r.audience}</span>
-                {r.classes && <span className="px-2 py-0.5 rounded bg-accent/10 text-accent">{classLabel(r.classes)}</span>}
-                {showState === "expired" && <span className="px-2 py-0.5 rounded bg-muted">Expired</span>}
-                {showState === "revoked" && <span className="px-2 py-0.5 rounded bg-destructive/10 text-destructive">Revoked</span>}
+              <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap leading-relaxed">{r.body}</p>
+              <div className="mt-4 flex gap-2 text-xs flex-wrap items-center">
+                <span className={`px-2.5 py-1 rounded-full border font-semibold capitalize ${audienceTone(r.audience)}`}>{r.audience}</span>
+                {r.classes && <span className="px-2.5 py-1 rounded-full bg-accent/10 text-accent border border-accent/20 font-semibold">{classLabel(r.classes)}</span>}
+                {showState === "expired" && <span className="px-2.5 py-1 rounded-full bg-muted font-semibold">Expired</span>}
+                {showState === "revoked" && <span className="px-2.5 py-1 rounded-full bg-destructive/10 text-destructive font-semibold">Revoked</span>}
                 {!showState && r.expires_at && (
-                  <span className="px-2 py-0.5 rounded bg-warning/10 text-warning">
+                  <span className="px-2.5 py-1 rounded-full bg-warning/10 text-warning font-semibold">
                     Expires {formatDistanceToNow(new Date(r.expires_at), { addSuffix: true })}
                   </span>
                 )}
@@ -183,7 +198,13 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
           </div>
         </Card>
       ))}
-      {list.length === 0 && <p className="text-muted-foreground text-center py-12">Nothing here.</p>}
+      {list.length === 0 && (
+        <Card className="p-10 text-center">
+          <Megaphone className="w-10 h-10 mx-auto text-muted-foreground opacity-40 mb-2" />
+          <p className="font-semibold">Nothing here.</p>
+          <p className="text-sm text-muted-foreground mt-1">New announcements will appear as soon as they are posted.</p>
+        </Card>
+      )}
     </div>
   );
 
@@ -244,6 +265,38 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
             </DialogContent>
           </Dialog>
         )} />
+
+      <Card className="mb-5 overflow-hidden border-primary/20 bg-gradient-to-br from-[#083f2b] via-[#126847] to-[#b28a28] p-0 text-white shadow-elevated">
+        <div className="grid gap-5 p-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white/75">
+              <Megaphone className="w-3.5 h-3.5" />
+              Campus updates
+            </div>
+            <h2 className="mt-4 text-2xl font-black">{pinned?.title || "No active notices"}</h2>
+            <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-relaxed text-white/75">
+              {pinned?.body || "Important school announcements, class updates, and reminders will appear here."}
+            </p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center">
+              <Sparkles className="w-4 h-4 mx-auto text-white/75" />
+              <p className="mt-1 text-xl font-black">{active.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/65">Active</p>
+            </div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center">
+              <Users className="w-4 h-4 mx-auto text-white/75" />
+              <p className="mt-1 text-xl font-black">{classNoticeCount}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/65">Class</p>
+            </div>
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center">
+              <Clock className="w-4 h-4 mx-auto text-white/75" />
+              <p className="mt-1 text-xl font-black">{expired.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/65">Expired</p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       {canPost ? (
         <Tabs defaultValue="active" className="space-y-4">
