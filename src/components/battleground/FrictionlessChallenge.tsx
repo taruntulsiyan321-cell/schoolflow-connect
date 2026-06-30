@@ -185,7 +185,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
       let error: { message: string } | null = null;
 
       if (mode === "duel") {
-        const res = await supabase.rpc("rpc_challenge_student", {
+        let res = await supabase.rpc("rpc_challenge_student", {
           _opponent_user_id: opponent!.user_id,
           _subject: subject,
           _difficulty: difficulty,
@@ -194,6 +194,16 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
           _chapter: chap,
           _topic: top,
         });
+        if (res.error?.code === "PGRST202" || res.error?.message?.includes("_topic") || res.error?.message?.includes("schema cache")) {
+          res = await supabase.rpc("rpc_challenge_student", {
+            _opponent_user_id: opponent!.user_id,
+            _subject: subject,
+            _difficulty: difficulty,
+            _count: 5,
+            _per_q: 20,
+            _chapter: chap,
+          });
+        }
         battleId = res.data as string;
         error = res.error;
       } else if (mode === "class") {

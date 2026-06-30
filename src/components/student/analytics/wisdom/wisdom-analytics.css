@@ -623,6 +623,13 @@
   flex-shrink: 0;
 }
 
+.wisdom-analytics .wa-ai-orb.small {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.9rem;
+  box-shadow: 0 12px 28px -18px rgba(0, 51, 36, 0.55);
+}
+
 .wisdom-analytics .wa-coach-cell {
   border-radius: 1rem;
   background: rgba(255, 255, 255, 0.88);
@@ -654,4 +661,73 @@
   background: var(--wa-primary-fixed);
   color: var(--wa-primary);
   flex-shrink: 0;
+}
+
+/* Shared premium report surfaces */
+.wisdom-analytics.wa-report-shell {
+  background:
+    radial-gradient(ellipse 55% 26% at 100% 0%, rgba(255, 223, 151, 0.34) 0%, transparent 62%),
+    radial-gradient(ellipse 60% 34% at 0% 8%, rgba(178, 240, 212, 0.42) 0%, transparent 60%),
+    linear-gradient(180deg, #fbfffc 0%, #f5fff9 46%, #ffffff 100%);
+}
+
+.wisdom-analytics .wa-report-hero {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(255, 223, 151, 0.24), transparent 34%),
+    radial-gradient(circle at 12% 100%, rgba(178, 240, 212, 0.18), transparent 34%),
+    linear-gradient(135deg, #0d5c44 0%, #003324 52%, #001e14 100%);
+  border: 1px solid rgba(178, 240, 212, 0.2);
+  border-radius: 2rem;
+  box-shadow: var(--wa-shadow-elevated);
+}
+
+.wisdom-analytics .wa-report-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto -7rem -9rem auto;
+  width: 20rem;
+  height: 20rem;
+  border-radius: 999px;
+  background: rgba(255, 223, 151, 0.14);
+  pointer-events: none;
+}
+
+.wisdom-analytics .wa-coach-premium {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.25), transparent 35%),
+    linear-gradient(135deg, #ffffff 0%, #f5fff9 100%);
+  border-color: rgba(151, 211, 184, 0.58);
+}
+
+.wisdom-analytics .wa-question-card {
+  border-radius: 1.25rem;
+  border: 1px solid var(--wa-outline-variant);
+  background: linear-gradient(180deg, #ffffff 0%, #fbfffc 100%);
+  box-shadow: var(--wa-shadow);
+}
+
+.wisdom-analytics .wa-concept-report-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(178, 240, 212, 0.32), transparent 36%),
+    radial-gradient(circle at 0% 100%, rgba(255, 223, 151, 0.18), transparent 32%),
+    linear-gradient(135deg, #ffffff 0%, #f6fff9 100%);
+  border-color: rgba(151, 211, 184, 0.55);
+}
+
+.wisdom-analytics .wa-mini-metric {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(214, 225, 218, 0.72);
+  box-shadow: 0 10px 24px -22px rgba(0, 51, 36, 0.45);
+}
+
+.wisdom-analytics .wa-insight-panel {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.2), transparent 35%),
+    rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(151, 211, 184, 0.5);
 }

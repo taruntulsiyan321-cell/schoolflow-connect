@@ -11,6 +11,7 @@ import {
   buildRuleConceptReport,
 } from "@/lib/conceptReportFallback";
 import { AlertTriangle, CheckCircle2, Loader2, Sparkles, Target, Timer } from "lucide-react";
+import "@/components/student/analytics/wisdom/wisdom-analytics.css";
 
 type Props = {
   sourceType: "dpp_attempt" | "battle_participant" | "practice_session" | "recovery_assignment";
@@ -35,15 +36,17 @@ export function ConceptRecoveryReport({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
-      const { data, error: err } = await (supabase as any).rpc("rpc_post_assessment_concept_analysis", {
+      const { data, error: err } = await (supabase as any).rpc("rpc_get_concept_recovery_report", {
         _source_type: sourceType,
         _source_id: sourceId,
       });
       if (err) {
         if (fallbackReport) {
+          if (cancelled) return;
           setReport(fallbackReport);
           setInsights(buildRuleConceptReport(fallbackReport));
           setLoading(false);
@@ -53,13 +56,39 @@ export function ConceptRecoveryReport({
         setLoading(false);
         return;
       }
-      const r = data as ConceptRecoveryReport;
+      const r = data as ConceptRecoveryReport | null;
+      if (!r) {
+        if (fallbackReport) {
+          if (cancelled) return;
+          setReport(fallbackReport);
+          setInsights(buildRuleConceptReport(fallbackReport));
+          setLoading(false);
+          return;
+        }
+        setError("No concept analysis data found for this session.");
+        setLoading(false);
+        return;
+      }
       const useFallback = fallbackReport && (r.total_count ?? 0) === 0 && (fallbackReport.total_count ?? 0) > 0;
       const finalReport = useFallback ? fallbackReport : r;
+      if (cancelled) return;
       setReport(finalReport);
       setInsights(finalReport.insights ?? buildRuleConceptReport(finalReport));
       setLoading(false);
+
+      (supabase as any).rpc("rpc_post_assessment_concept_analysis", {
+        _source_type: sourceType,
+        _source_id: sourceId,
+      }).then(({ data: postData }: { data: ConceptRecoveryReport | null }) => {
+        if (cancelled || !postData) return;
+        const refreshed = fallbackReport && (postData.total_count ?? 0) === 0 && (fallbackReport.total_count ?? 0) > 0
+          ? fallbackReport
+          : postData;
+        setReport(refreshed);
+        setInsights(refreshed.insights ?? buildRuleConceptReport(refreshed));
+      });
     })();
+    return () => { cancelled = true; };
   }, [sourceType, sourceId, fallbackReport]);
 
   const fetchAi = async () => {
@@ -80,7 +109,7 @@ export function ConceptRecoveryReport({
 
   if (loading) {
     return (
-      <Card className="p-4 flex items-center gap-2 text-muted-foreground">
+      <Card className="wisdom-analytics wa-card p-4 flex items-center gap-2 text-[var(--wa-on-surface-variant)]">
         <Loader2 className="w-4 h-4 animate-spin" /> Analyzing concepts…
       </Card>
     );
@@ -124,7 +153,7 @@ export function ConceptRecoveryReport({
       );
     }
     return (
-      <Card className="p-4 text-sm text-muted-foreground">
+      <Card className="wisdom-analytics wa-card p-4 text-sm text-[var(--wa-on-surface-variant)]">
         Concept analysis unavailable{error ? `: ${error}` : ""}.
       </Card>
     );
@@ -134,32 +163,33 @@ export function ConceptRecoveryReport({
   const strong = report.strong_concepts ?? [];
 
   return (
-    <Card className="p-5 mb-6 border-primary/20 bg-primary/5 shadow-card">
+    <Card className="wisdom-analytics wa-card wa-concept-report-card p-5 sm:p-6 mb-6">
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
-          <h3 className="font-semibold flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" /> {title}
+          <p className="wa-label text-[var(--wa-primary)]">Learning intelligence</p>
+          <h3 className="wa-headline flex items-center gap-2 mt-1">
+            <span className="wa-ai-orb small"><Sparkles className="w-4 h-4" /></span> {title}
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">NCERT concept-level breakdown after this session</p>
+          <p className="wa-body text-xs mt-1">NCERT concept-level breakdown after this session</p>
         </div>
-        <Button size="sm" variant="outline" onClick={fetchAi} disabled={aiLoading}>
+        <Button size="sm" variant="outline" onClick={fetchAi} disabled={aiLoading} className="rounded-full bg-white/80">
           {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
           {insights?.source === "ai" ? "View insights" : "Get insights"}
         </Button>
       </div>
 
       <div className="grid sm:grid-cols-3 gap-3 mb-4 text-sm">
-        <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60">
+        <div className="wa-mini-metric">
           <Target className="w-4 h-4 text-accent" />
-          <div><div className="text-xs text-muted-foreground">Accuracy</div><div className="font-bold">{report.accuracy_pct}%</div></div>
+          <div><div className="wa-label text-[10px]">Accuracy</div><div className="font-bold">{report.accuracy_pct}%</div></div>
         </div>
-        <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60">
+        <div className="wa-mini-metric">
           <CheckCircle2 className="w-4 h-4 text-primary" />
-          <div><div className="text-xs text-muted-foreground">Score</div><div className="font-bold">{report.correct_count}/{report.total_count}</div></div>
+          <div><div className="wa-label text-[10px]">Score</div><div className="font-bold">{report.correct_count}/{report.total_count}</div></div>
         </div>
-        <div className="flex items-center gap-2 p-2 rounded-lg bg-background/60">
+        <div className="wa-mini-metric">
           <Timer className="w-4 h-4 text-muted-foreground" />
-          <div><div className="text-xs text-muted-foreground">Time</div><div className="font-bold">{report.time_minutes}m</div></div>
+          <div><div className="wa-label text-[10px]">Time</div><div className="font-bold">{report.time_minutes}m</div></div>
         </div>
       </div>
 
@@ -170,7 +200,7 @@ export function ConceptRecoveryReport({
           </h4>
           <div className="flex flex-wrap gap-2">
             {weak.map((w, i) => (
-              <Badge key={i} variant="outline" className="bg-warning/10 border-warning/30">
+              <Badge key={i} variant="outline" className="rounded-full bg-warning/10 border-warning/30">
                 {w.concept} · {w.accuracy}%
               </Badge>
             ))}
@@ -183,14 +213,14 @@ export function ConceptRecoveryReport({
           <h4 className="text-sm font-medium mb-2 text-accent">Strong concepts</h4>
           <div className="flex flex-wrap gap-2">
             {strong.map((s, i) => (
-              <Badge key={i} className="bg-accent/15 text-accent border-0">{s.concept} · {s.accuracy}%</Badge>
+              <Badge key={i} className="rounded-full bg-accent/15 text-accent border-0">{s.concept} · {s.accuracy}%</Badge>
             ))}
           </div>
         </div>
       )}
 
       {insights && (
-        <div className="p-3 rounded-lg bg-background/70 border mb-4">
+        <div className="wa-insight-panel p-4 rounded-2xl mb-4">
           <p className="font-medium text-sm">{insights.headline}</p>
           <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc pl-4">
             {insights.bullets.map((b, i) => <li key={i}>{b}</li>)}

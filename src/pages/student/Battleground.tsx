@@ -117,6 +117,8 @@ function BattleRoom() {
   const [reviewAnswers, setReviewAnswers] = useState<Record<string, any>>({});
   const [readyCount, setReadyCount] = useState<number | null>(null);
   const [pointsFlash, setPointsFlash] = useState<number | null>(null);
+  const [savingAnswer, setSavingAnswer] = useState(false);
+  const [finishingBattle, setFinishingBattle] = useState(false);
   const answeringRef = useRef(false);
   const answeredQRef = useRef<Set<string>>(new Set());
   const timerFiredRef = useRef(false);
@@ -222,8 +224,9 @@ function BattleRoom() {
 
     answeringRef.current = true;
     answeredQRef.current.add(currentQ.id);
-    setSelected(idx >= 0 ? idx : null);
+    setSelected(idx);
     setShowResult(true);
+    setSavingAnswer(true);
     const elapsed = Date.now() - questionStart;
     const correct = idx >= 0 && idx === currentQ.correct_index;
     const pts = correct ? currentQ.points + Math.max(0, Math.floor((battle.per_question_sec * 1000 - elapsed) / 200)) : 0;
@@ -238,25 +241,29 @@ function BattleRoom() {
       setPointsFlash(pts);
       setTimeout(() => setPointsFlash(null), 900);
     }
-    const { error: ansErr } = await supabase.from("battle_answers").upsert(
-      {
-        participant_id: participantId,
-        question_id: currentQ.id,
-        selected_index: idx,
-        is_correct: correct,
-        time_ms: elapsed,
-      },
-      { onConflict: "participant_id,question_id", ignoreDuplicates: false },
-    );
-    if (ansErr && !ansErr.message.includes("duplicate key")) {
-      toast({
-        title: "Answer saved locally for this round",
-        description: "Network sync had a problem, but you can continue to the next question.",
-      });
-    }
-    const { error: partErr } = await supabase.from("battle_participants").update(newMe).eq("id", participantId);
-    if (partErr) {
-      toast({ title: "Score update failed", description: partErr.message, variant: "destructive" });
+    try {
+      const { error: ansErr } = await supabase.from("battle_answers").upsert(
+        {
+          participant_id: participantId,
+          question_id: currentQ.id,
+          selected_index: idx,
+          is_correct: correct,
+          time_ms: elapsed,
+        },
+        { onConflict: "participant_id,question_id", ignoreDuplicates: false },
+      );
+      if (ansErr && !ansErr.message.includes("duplicate key")) {
+        toast({
+          title: "Answer saved locally for this round",
+          description: "Network sync had a problem, but you can continue to the next question.",
+        });
+      }
+      const { error: partErr } = await supabase.from("battle_participants").update(newMe).eq("id", participantId);
+      if (partErr) {
+        toast({ title: "Score update failed", description: partErr.message, variant: "destructive" });
+      }
+    } finally {
+      setSavingAnswer(false);
     }
   }, [showResult, currentQ, participantId, readyCount, battle, questionStart, me]);
 
@@ -290,24 +297,45 @@ function BattleRoom() {
   }, [participants, user, finished, showResult]);
 
   const next = async () => {
-    answeringRef.current = false;
-    timerFiredRef.current = false;
-    setShowResult(false);
-    setSelected(null);
+    if (savingAnswer || finishingBattle) return;
     if (qIdx + 1 >= questions.length) {
       if (!participantId) {
         toast({ title: "Could not finish battle — try rejoining the room", variant: "destructive" });
         return;
       }
-      const { error: finishErr } = await supabase.rpc("rpc_finish_battle", { _participant_id: participantId });
-      if (finishErr) {
-        toast({ title: finishErr.message, variant: "destructive" });
-        return;
+      setFinishingBattle(true);
+      try {
+        const { error: finishErr } = await supabase.rpc("rpc_finish_battle", { _participant_id: participantId });
+        if (finishErr) {
+          const { data: fresh } = await supabase
+            .from("battle_participants")
+            .select("*")
+            .eq("id", participantId)
+            .maybeSingle();
+          if (!fresh?.finished_at) {
+            toast({ title: finishErr.message, variant: "destructive" });
+            return;
+          }
+          setMe(fresh);
+        } else {
+          const { data: fresh } = await supabase
+            .from("battle_participants")
+            .select("*")
+            .eq("id", participantId)
+            .maybeSingle();
+          if (fresh) setMe(fresh);
+        }
+        notifyStudentXpUpdated();
+        setFinished(true);
+      } finally {
+        setFinishingBattle(false);
       }
-      notifyStudentXpUpdated();
-      setFinished(true);
       return;
     }
+    answeringRef.current = false;
+    timerFiredRef.current = false;
+    setShowResult(false);
+    setSelected(null);
     setQIdx(qIdx + 1);
     setTimeLeft(battle.per_question_sec);
     setQuestionStart(Date.now());
@@ -477,8 +505,11 @@ function BattleRoom() {
           <div className={cn("font-bold", selected === currentQ.correct_index ? "text-accent" : "text-destructive")}>
             {selected === currentQ.correct_index ? "✓ Correct! +" + (currentQ.points + Math.max(0, Math.floor((battle.per_question_sec * 1000 - (Date.now() - questionStart)) / 200))) + " XP" : selected === -1 ? "⏱ Time's up" : "✗ Wrong"}
           </div>
-          <Button onClick={next} className="btn-cta">
-            {qIdx + 1 >= questions.length ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
+          <Button onClick={next} className="btn-cta" disabled={savingAnswer || finishingBattle}>
+            {savingAnswer || finishingBattle ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : null}
+            {finishingBattle ? "Finishing" : savingAnswer ? "Saving" : qIdx + 1 >= questions.length ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </div>
       )}

@@ -30,6 +30,73 @@ type Props = {
   className?: string;
 };
 
+function optionLabel(index: number | null | undefined, options: string[], fallback = ""): string {
+  if (typeof index === "number" && index >= 0) {
+    const text = options[index] ?? fallback;
+    return `${String.fromCharCode(65 + index)}. ${text || "Option not available"}`;
+  }
+  return fallback || "";
+}
+
+function normalizeAnswerText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function buildAnswerContext({
+  options,
+  correctIndex,
+  selectedIndex,
+  correctText,
+  selectedText,
+}: {
+  options: string[];
+  correctIndex: number | null;
+  selectedIndex: number | null;
+  correctText: string;
+  selectedText: string;
+}) {
+  const correct = normalizeAnswerText(optionLabel(correctIndex, options, correctText) || correctText);
+  const selected =
+    selectedIndex === -1
+      ? "Not answered / time ran out"
+      : normalizeAnswerText(optionLabel(selectedIndex, options, selectedText) || selectedText || "No answer recorded");
+  return { correct, selected };
+}
+
+function buildDeterministicExplanation({
+  question,
+  options,
+  correctIndex,
+  selectedIndex,
+  correctText,
+  selectedText,
+  subject,
+  chapter,
+  topic,
+  wasCorrect,
+}: Required<Pick<Props, "question" | "options" | "subject" | "chapter" | "topic">> & {
+  correctIndex: number | null;
+  selectedIndex: number | null;
+  correctText: string;
+  selectedText: string;
+  wasCorrect: boolean | null;
+}): Explanation {
+  const { correct, selected } = buildAnswerContext({ options, correctIndex, selectedIndex, correctText, selectedText });
+  const area = [topic, chapter, subject].filter(Boolean).join(" · ") || "this concept";
+  const questionHint = question.length > 120 ? `${question.slice(0, 117).trim()}...` : question;
+
+  return {
+    summary: correct
+      ? `Correct answer: ${correct}.`
+      : "Correct answer is not available in the saved question data.",
+    why_wrong: wasCorrect
+      ? `Your answer matches the correct option. The key is to connect the question statement to ${area} and choose the option that satisfies it exactly.`
+      : `Your answer: ${selected}. Correct answer: ${correct || "not available"}. Re-check the question "${questionHint}" and compare each option against the rule or fact being tested; the correct option is the one that satisfies that condition, while the selected option does not.`,
+    concept: area,
+    how_to_improve: `Before selecting, write the rule/formula for ${area}, eliminate options that contradict it, and only then choose the matching answer.`,
+  };
+}
+
 // Stable, short cache key so identical (question, chosen option) pairs reuse one AI call.
 function hashKey(parts: (string | number | null | undefined)[]): string {
   const s = parts.map((p) => (p ?? "")).join("¦");
@@ -51,6 +118,19 @@ export function ExplainPanel(props: Props) {
   const [aiSource, setAiSource] = useState<"gemini" | null>(null);
   const [open, setOpen] = useState(autoLoad);
   const fetched = useRef(false);
+  const answerContext = buildAnswerContext({ options, correctIndex, selectedIndex, correctText, selectedText });
+  const fallbackExplanation = buildDeterministicExplanation({
+    question,
+    options,
+    correctIndex,
+    selectedIndex,
+    correctText,
+    selectedText,
+    subject,
+    chapter,
+    topic,
+    wasCorrect,
+  });
 
   const load = async () => {
     if (loading || data || fetched.current) return;
@@ -97,11 +177,13 @@ export function ExplainPanel(props: Props) {
         return;
       }
 
-      setError(fnErr || "Could not generate this explanation. Please retry.");
+      setData(fallbackExplanation);
+      setError(fnErr ? "Live explanation is unavailable, so this uses the saved correct answer." : null);
       fetched.current = false;
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? "";
-      setError(msg || "Could not generate this explanation. Please retry.");
+      setData(fallbackExplanation);
+      setError(msg ? `${msg}. Showing the saved correct answer instead.` : null);
       fetched.current = false;
     } finally {
       setLoading(false);
@@ -145,17 +227,28 @@ export function ExplainPanel(props: Props) {
             )}
           </div>
 
+          <div className="mb-3 grid gap-2 sm:grid-cols-2">
+            <AnswerChip label="Correct answer" value={answerContext.correct || "Not available"} tone="correct" />
+            <AnswerChip label="Your answer" value={answerContext.selected} tone={wasCorrect ? "correct" : "selected"} />
+          </div>
+
           {loading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
               <Loader2 className="w-4 h-4 animate-spin" /> Analysing your answer…
             </div>
           )}
 
-          {error && (
+          {error && !data && (
             <div className="text-sm text-destructive flex items-center gap-2">
               <AlertTriangle className="w-4 h-4" /> {error}
               <button onClick={() => { setError(null); setData(null); fetched.current = false; load(); }} className="underline ml-1">Retry</button>
             </div>
+          )}
+
+          {error && data && (
+            <p className="mb-3 text-xs text-muted-foreground flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 text-warning" /> {error}
+            </p>
           )}
 
           {data && !loading && (
@@ -176,6 +269,18 @@ export function ExplainPanel(props: Props) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function AnswerChip({ label, value, tone }: { label: string; value: string; tone: "correct" | "selected" }) {
+  return (
+    <div className={cn(
+      "rounded-lg border px-3 py-2",
+      tone === "correct" ? "bg-accent/10 border-accent/25" : "bg-warning/10 border-warning/25",
+    )}>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">{label}</div>
+      <div className="mt-0.5 text-sm font-medium text-foreground">{value}</div>
     </div>
   );
 }

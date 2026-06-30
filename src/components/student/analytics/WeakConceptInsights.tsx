@@ -14,6 +14,7 @@ import {
   Loader2, Microscope, RefreshCw, Target, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import "@/components/student/analytics/wisdom/wisdom-analytics.css";
 
 const severityStyle: Record<string, { badge: string; stripe: string }> = {
   critical: { badge: "bg-destructive/15 text-destructive border-destructive/30", stripe: "bg-destructive" },
@@ -128,15 +129,16 @@ export function WeakConceptInsights({
   const hasMistakes = mistakeCount > 0 || aggregates.length > 0;
 
   return (
-    <Card className="shadow-card overflow-hidden border-border/80">
-      <div className="p-5 sm:p-6 border-b border-border/60 bg-gradient-to-r from-primary/[0.08] to-accent/[0.04]">
+    <Card className="wisdom-analytics wa-card overflow-hidden p-0">
+      <div className="p-5 sm:p-6 border-b border-[var(--wa-outline-variant)] bg-[radial-gradient(circle_at_100%_0%,rgba(255,223,151,0.24),transparent_36%),linear-gradient(135deg,#ffffff_0%,#f4fff8_100%)]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="font-semibold flex items-center gap-2 text-lg">
-              <Microscope className="w-5 h-5 text-primary" />
+            <p className="wa-label text-[var(--wa-primary)]">Diagnostic intelligence</p>
+            <h3 className="wa-headline flex items-center gap-2 text-lg mt-1">
+              <span className="wa-ai-orb small"><Microscope className="w-4 h-4" /></span>
               Deep topic analysis
             </h3>
-            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+            <p className="wa-body text-sm mt-1 max-w-2xl">
               Exact NCERT <strong className="text-foreground/80">topics</strong> within each chapter — what you got wrong, why, and how to fix it.
             </p>
           </div>
@@ -161,13 +163,13 @@ export function WeakConceptInsights({
 
         {insights && (
           <div className="mt-4 space-y-3">
-            <div className="p-4 rounded-xl bg-background/95 border border-border/50">
+            <div className="wa-insight-panel p-4 rounded-2xl">
               <p className="font-semibold">{insights.headline}</p>
               <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{insights.summary}</p>
             </div>
 
             {insights.diagnosis && (
-              <div className="p-4 rounded-xl bg-primary/5 border border-primary/15">
+              <div className="p-4 rounded-2xl bg-primary/5 border border-primary/15">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Brain className="w-4 h-4 text-primary" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-primary">Diagnosis</span>

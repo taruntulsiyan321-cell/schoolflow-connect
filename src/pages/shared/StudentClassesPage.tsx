@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -25,9 +26,19 @@ const ATTENDANCE_COLORS: Record<string, string> = {
   absent: "bg-destructive/10 text-destructive",
   leave: "bg-warning/10 text-warning",
 };
+const CLASS_SECTIONS = ["doubts", "homework", "exams", "attendance", "timetable", "leaderboard"] as const;
+type ClassSection = "overview" | typeof CLASS_SECTIONS[number];
+
+function normalizeTimetableGrid(grid: unknown): Record<string, string> {
+  if (!grid || typeof grid !== "object" || Array.isArray(grid)) return {};
+  return Object.fromEntries(
+    Object.entries(grid as Record<string, unknown>).map(([key, value]) => [key, String(value ?? "")]),
+  );
+}
 
 export default function StudentClassesPage() {
   const { user } = useAuth();
+  const location = useLocation();
   const [student, setStudent] = useState<any>(null);
   const [classTeacher, setClassTeacher] = useState<any>(null);
   const [subjects, setSubjects] = useState<SubjectTeacher[]>([]);
@@ -36,18 +47,20 @@ export default function StudentClassesPage() {
   const [attendanceRows, setAttendanceRows] = useState<any[]>([]);
   const [timetableGrid, setTimetableGrid] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"overview" | "doubts" | "homework" | "exams" | "attendance" | "timetable" | "leaderboard">("overview");
+  const [activeSection, setActiveSection] = useState<ClassSection>("overview");
 
   useEffect(() => {
-    const hash = window.location.hash.replace("#", "");
-    if (["doubts", "homework", "exams", "attendance", "timetable", "leaderboard"].includes(hash)) {
-      const next = hash as typeof activeSection;
+    const hash = location.hash.replace("#", "");
+    if ((CLASS_SECTIONS as readonly string[]).includes(hash)) {
+      const next = hash as ClassSection;
       setActiveSection(next);
       requestAnimationFrame(() => {
         document.getElementById(next)?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
+    } else {
+      setActiveSection("overview");
     }
-  }, []);
+  }, [location.hash]);
 
   useEffect(() => {
     if (!user) return;
@@ -108,7 +121,7 @@ export default function StudentClassesPage() {
         .select("grid")
         .eq("class_id", s.class_id)
         .maybeSingle();
-      setTimetableGrid((timetable?.grid as Record<string, string>) ?? {});
+      setTimetableGrid(normalizeTimetableGrid(timetable?.grid));
 
       setLoading(false);
     })();
@@ -167,10 +180,10 @@ export default function StudentClassesPage() {
             onClick={() => {
               setActiveSection(tab.id);
               if (tab.id !== "overview") {
-                window.history.replaceState(null, "", `#${tab.id}`);
+                window.history.replaceState(null, "", `${location.pathname}#${tab.id}`);
                 document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
               } else {
-                window.history.replaceState(null, "", window.location.pathname);
+                window.history.replaceState(null, "", location.pathname);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }
             }}

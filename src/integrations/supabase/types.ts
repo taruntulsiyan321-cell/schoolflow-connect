@@ -2782,30 +2782,18 @@ export type Database = {
         }
       }
       rpc_battle_monitor: { Args: { _battle_id: string }; Returns: Json }
-      rpc_challenge_student:
-        | {
-            Args: {
-              _chapter?: string
-              _count?: number
-              _difficulty?: string
-              _opponent_user_id: string
-              _per_q?: number
-              _subject: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _chapter?: string
-              _count?: number
-              _difficulty?: string
-              _opponent_user_id: string
-              _per_q?: number
-              _subject: string
-              _topic?: string
-            }
-            Returns: string
-          }
+      rpc_challenge_student: {
+        Args: {
+          _chapter?: string
+          _count?: number
+          _difficulty?: string
+          _opponent_user_id: string
+          _per_q?: number
+          _subject: string
+          _topic?: string
+        }
+        Returns: string
+      }
       rpc_classmates: {
         Args: never
         Returns: {

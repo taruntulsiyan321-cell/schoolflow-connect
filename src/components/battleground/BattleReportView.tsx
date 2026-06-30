@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
-import type { BattleAiInsights } from "@/lib/battleReportInsights";
+import { buildRuleBattleInsights, type BattleAiInsights } from "@/lib/battleReportInsights";
+import type { ConceptRecoveryReport as ConceptRecoveryReportPayload } from "@/lib/conceptReportFallback";
 import {
   Target, Clock, TrendingUp, TrendingDown, Sparkles, Loader2,
   AlertTriangle, Brain, CheckCircle2, XCircle, Timer, BarChart3,
@@ -14,6 +15,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { MathText } from "@/components/MathText";
+import "@/components/student/analytics/wisdom/wisdom-analytics.css";
 
 export type BattleReportPayload = {
   id: string;
@@ -60,9 +62,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
 
     if (err) { setError(err.message); setLoading(false); return; }
     if (!res) { setError("Report not found — finish the battle and try again."); setLoading(false); return; }
-    const normalized = res.ai_insights?.source === "rule"
-      ? { ...res, ai_insights: null }
-      : res;
+    const normalized = res;
     setData(normalized as BattleReportPayload);
     if (normalized.ai_insights?.source) {
       setAiSource(normalized.ai_insights.source === "gemini" ? "gemini" : "ai");
@@ -102,11 +102,15 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         return;
       }
 
-      setAiError(fnErr || "Could not generate this battle report. Please retry.");
+      const fallback = buildRuleBattleInsights(data.report);
+      await applyInsights(fallback);
+      setAiError(fnErr ? "Live coach is unavailable, so this report is using instant learning insights." : null);
       return;
     } catch (e: unknown) {
       const msg = (e as Error)?.message ?? "Insights could not be loaded";
-      setAiError(msg);
+      const fallback = buildRuleBattleInsights(data.report);
+      await applyInsights(fallback);
+      setAiError(`${msg}. Showing instant learning insights instead.`);
     } finally {
       setAiLoading(false);
     }
@@ -162,20 +166,24 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
   const ai = data.ai_insights;
   const coachSource = aiSource ?? ai?.source ?? null;
   const expiresIn = formatDistanceToNow(new Date(data.expires_at), { addSuffix: true });
+  const conceptFallback = buildBattleConceptFallback(data);
 
   return (
-    <div className="space-y-5 animate-rise max-w-3xl mx-auto">
+    <div className="wisdom-analytics wa-gradient-bg wa-report-shell space-y-5 animate-rise max-w-4xl mx-auto p-1 sm:p-2">
       {/* Expiry urgency */}
-      <div className="flex items-center gap-2 text-xs font-semibold text-warning bg-warning/10 border border-warning/20 rounded-lg px-3 py-2">
+      <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-[#fff4d6] border border-[#f2d486] rounded-2xl px-4 py-3 shadow-sm">
         <Timer className="w-3.5 h-3.5 shrink-0" />
         Detailed report expires {expiresIn} — review while it's available
       </div>
 
       {/* Hero */}
-      <Card className="p-6 hero-panel relative overflow-hidden">
+      <Card className="wa-report-hero p-6 sm:p-8 relative overflow-hidden">
         <div className="relative">
-          {forTeacher && <div className="text-xs uppercase tracking-widest opacity-70 mb-1">{data.display_name}</div>}
-          <h1 className="text-2xl font-semibold text-white">{b.title ?? "Battle report"}</h1>
+          <div className="flex flex-wrap gap-2 mb-4">
+            <span className="wa-gold-pill">Battle Intelligence</span>
+            {forTeacher && <span className="rounded-full bg-white/12 border border-white/15 px-3 py-1 text-[10px] font-semibold text-white/80">{data.display_name}</span>}
+          </div>
+          <h1 className="font-['Sora'] text-3xl sm:text-4xl font-semibold tracking-tight text-white">{b.title ?? "Battle report"}</h1>
           <p className="text-sm text-white/75 mt-1">
             {b.subject}{b.chapter ? ` · ${b.chapter}` : ""}{b.topic ? ` · ${b.topic}` : ""}
           </p>
@@ -193,17 +201,26 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
           sourceType="battle_participant"
           sourceId={participantId}
           title="Battle concept recovery report"
+          fallbackReport={conceptFallback}
         />
       )}
 
       {/* AI coach */}
-      <Card className="p-5 surface-card">
+      <Card className="wa-card wa-coach-premium p-5 sm:p-6">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <Sparkles className="w-5 h-5 text-primary" />
-          <h2 className="font-bold">Performance Coach</h2>
+          <span className="wa-ai-orb small"><Sparkles className="w-4 h-4" /></span>
+          <div>
+            <p className="wa-label text-[var(--wa-primary)]">Personal coach</p>
+            <h2 className="wa-headline">Performance Coach</h2>
+          </div>
+          {coachSource && (
+            <span className="ml-auto rounded-full bg-[var(--wa-primary-fixed)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--wa-primary)]">
+              {coachSource === "rule" ? "Instant" : "Live"} insights
+            </span>
+          )}
         </div>
         {aiError && !aiLoading && (
-          <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1.5">
+          <p className="text-xs text-[var(--wa-on-surface-variant)] mb-3 flex items-center gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" /> {aiError}
           </p>
         )}
@@ -214,14 +231,14 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         )}
         {ai && !aiLoading && (
           <div className="space-y-3">
-            {ai.headline && <p className="font-semibold text-lg">{ai.headline}</p>}
+            {ai.headline && <p className="font-['Sora'] font-semibold text-lg text-[var(--wa-primary)]">{ai.headline}</p>}
             {ai.praise && (
-              <p className="text-sm text-accent flex items-start gap-2">
+              <p className="text-sm text-emerald-800 flex items-start gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2">
                 <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /> {ai.praise}
               </p>
             )}
             {(ai.insights ?? []).map((line: string, i: number) => (
-              <p key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+              <p key={i} className="text-sm text-[var(--wa-on-surface-variant)] flex items-start gap-2">
                 <Brain className="w-4 h-4 shrink-0 mt-0.5 text-primary" /> {line}
               </p>
             ))}
@@ -233,7 +250,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
               </div>
             )}
             {ai.recommendation && (
-              <p className="text-sm font-medium border-t pt-3 mt-2">{ai.recommendation}</p>
+              <p className="text-sm font-medium border-t border-[var(--wa-outline-variant)] pt-3 mt-2">{ai.recommendation}</p>
             )}
           </div>
         )}
@@ -273,10 +290,10 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
 
       {/* Question breakdown */}
       <div>
-        <h2 className="font-bold mb-3 flex items-center gap-2"><BarChart3 className="w-4 h-4" /> Question-wise analysis</h2>
+        <h2 className="wa-display text-2xl mb-3 flex items-center gap-2"><BarChart3 className="w-5 h-5" /> Question-wise analysis</h2>
         <div className="space-y-3">
           {questions.map((q: any, i: number) => (
-            <Card key={q.question_id ?? i} className={cn("p-4", q.skipped && "opacity-80 border-dashed")}>
+            <Card key={q.question_id ?? i} className={cn("wa-question-card p-4", q.skipped && "opacity-80 border-dashed")}>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <span className="text-xs text-muted-foreground">Q{q.order_index + 1}</span>
                 {q.skipped ? (
@@ -317,6 +334,40 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
       )}
     </div>
   );
+}
+
+function buildBattleConceptFallback(data: BattleReportPayload): ConceptRecoveryReportPayload {
+  const report = data.report ?? {};
+  const summary = report.summary ?? {};
+  const battle = report.battle ?? {};
+  const topics = report.topics ?? {};
+  const weak = Array.isArray(topics.weak) ? topics.weak : [];
+  const strong = Array.isArray(topics.strong) ? topics.strong : [];
+
+  return {
+    source_type: "battle_participant",
+    source_id: data.participant_id,
+    accuracy_pct: Number(summary.accuracy_pct ?? 0),
+    correct_count: Number(summary.correct_count ?? 0),
+    total_count: Number(summary.answered_count ?? 0),
+    time_minutes: Math.round(Number(summary.total_time_sec ?? 0) / 60),
+    weak_concepts: weak.map((item: any) => ({
+      subject: battle.subject ?? "General",
+      chapter: item.chapter ?? battle.chapter,
+      concept: item.label ?? item.topic ?? battle.topic ?? battle.chapter ?? battle.subject ?? "General",
+      accuracy: Number(item.accuracy ?? 0),
+      attempts: Number(item.total ?? 0),
+      correct: Number(item.correct ?? 0),
+    })),
+    strong_concepts: strong.map((item: any) => ({
+      subject: battle.subject ?? "General",
+      chapter: item.chapter ?? battle.chapter,
+      concept: item.label ?? item.topic ?? battle.topic ?? battle.chapter ?? battle.subject ?? "General",
+      accuracy: Number(item.accuracy ?? 100),
+    })),
+    recovery_assignments: [],
+    improvement_areas: weak.map((item: any) => item.label ?? item.topic ?? "Weak concept"),
+  };
 }
 
 function MiniStat({ label, value }: { label: string; value: React.ReactNode }) {
