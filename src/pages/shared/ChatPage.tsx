@@ -283,10 +283,12 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       <div className="mb-5">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">Messages</p>
         <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold text-foreground mt-1 tracking-tight">
-          Chat
+          {userRole === "teacher" ? "Class Messages" : "Chat"}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Connect with teachers, classmates, and school staff.
+          {userRole === "teacher"
+            ? "Share announcements, practice links, recovery reminders, and quick guidance with students and families."
+            : "Connect with teachers, classmates, and school staff."}
         </p>
       </div>
 

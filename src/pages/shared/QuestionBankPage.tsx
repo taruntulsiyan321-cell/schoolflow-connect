@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -9,9 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PageHeader } from "@/components/ui-bits";
-import { Sparkles, Database, Upload, Check, Trash2, Library } from "lucide-react";
+import { Sparkles, Database, Upload, Check, Trash2, Library, Target, Brain, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import "@/pages/teacher/teacher-premium.css";
 
 const SUBJECTS = ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "Social Studies", "General Knowledge", "Computer Science", "Economics", "Accountancy", "Business Studies"];
 const DIFFS = ["easy", "medium", "hard"];
@@ -153,13 +153,43 @@ export default function QuestionBankPage() {
       </div>
     </div>
   );
+  const topSubject = summary[0]?.subject ?? subject;
 
   return (
-    <>
-      <PageHeader title="Question Bank" subtitle="Grow the battle & DPP question pool from topics or CSV import" />
+    <div className="teacher-premium tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10 grid lg:grid-cols-[1fr_0.9fr] gap-5">
+          <div>
+            <div className="tp-kicker mb-4">Question Bank</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Build questions around concepts.</h1>
+            <p className="text-sm text-white/75 mt-2 max-w-2xl">Generate, import, preview, and organize questions for practice, recovery assignments, and live battles.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{total}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Questions</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold">{summary.length}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Subjects</p>
+            </div>
+            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+              <p className="text-2xl font-bold capitalize">{difficulty}</p>
+              <p className="text-[10px] uppercase tracking-wider text-white/60">Level</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <BankMetric icon={<Database className="w-5 h-5" />} label="Question Pool" value={total} sub="ready to assign" />
+        <BankMetric icon={<Brain className="w-5 h-5" />} label="Top Subject" value={topSubject} sub="largest pool" />
+        <BankMetric icon={<Target className="w-5 h-5" />} label="Class" value={classLevel ? `Class ${classLevel}` : "Any"} sub="current filter" />
+        <BankMetric icon={<SlidersHorizontal className="w-5 h-5" />} label="Mode" value={tab === "generate" ? "Generate" : "Import"} sub="creation workflow" />
+      </div>
 
       {/* Bank summary */}
-      <Card className="p-4 mb-4">
+      <Card className="tp-card p-5">
         <div className="flex items-center gap-2 mb-3">
           <Database className="w-4 h-4 text-primary" />
           <span className="font-semibold text-sm">Bank contains</span>
@@ -178,7 +208,16 @@ export default function QuestionBankPage() {
         )}
       </Card>
 
-      <Card className="p-4 mb-4">{metaBar}</Card>
+      <Card className="tp-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <p className="tp-label">Question filters</p>
+            <h3 className="tp-display text-xl mt-1">Choose subject, chapter, concept level</h3>
+          </div>
+          <Badge variant="outline" className="rounded-full">Assignment ready</Badge>
+        </div>
+        {metaBar}
+      </Card>
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-4">
@@ -188,7 +227,7 @@ export default function QuestionBankPage() {
 
         {/* AI GENERATE */}
         <TabsContent value="generate" className="space-y-4">
-          <Card className="p-4 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent space-y-3">
+          <Card className="tp-card p-5 border-primary/30 space-y-3">
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold">Generate from a topic, URL, or notes</span>
@@ -215,7 +254,7 @@ export default function QuestionBankPage() {
           </Card>
 
           {drafts.length > 0 && (
-            <Card className="p-4 space-y-3">
+            <Card className="tp-card p-5 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-sm">{drafts.filter((d) => d.include).length} of {drafts.length} selected</span>
                 <Button size="sm" onClick={saveDrafts} disabled={saving}>
@@ -224,7 +263,7 @@ export default function QuestionBankPage() {
               </div>
               <div className="space-y-3">
                 {drafts.map((d, i) => (
-                  <div key={i} className={`p-3 rounded-lg border ${d.include ? "border-primary/30 bg-primary/5" : "border-border opacity-60"}`}>
+                  <div key={i} className={`tp-row ${d.include ? "border-primary/30 bg-primary/5" : "border-border opacity-60"}`}>
                     <div className="flex items-start gap-2">
                       <input type="checkbox" checked={d.include} onChange={(e) => setDrafts((p) => p.map((q, k) => k === i ? { ...q, include: e.target.checked } : q))} className="mt-1.5" />
                       <div className="flex-1 min-w-0 space-y-2">
@@ -260,7 +299,7 @@ export default function QuestionBankPage() {
 
         {/* CSV IMPORT */}
         <TabsContent value="csv" className="space-y-4">
-          <Card className="p-4 space-y-3">
+          <Card className="tp-card p-5 space-y-3">
             <div className="flex items-center gap-2">
               <Library className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold">Paste CSV rows</span>
@@ -282,7 +321,22 @@ export default function QuestionBankPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </>
+    </div>
+  );
+}
+
+function BankMetric({ icon, label, value, sub }: { icon: ReactNode; label: string; value: ReactNode; sub: string }) {
+  return (
+    <Card className="tp-metric">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="tp-label">{label}</p>
+          <p className="text-2xl font-bold mt-2 truncate">{value}</p>
+          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+        </div>
+        <div className="tp-icon">{icon}</div>
+      </div>
+    </Card>
   );
 }
 

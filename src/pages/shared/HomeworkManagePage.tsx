@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -9,9 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { PageHeader, StatCard } from "@/components/ui-bits";
-import { NotebookPen, Plus, Calendar, BookOpen, Users, Check, X, Clock } from "lucide-react";
+import { NotebookPen, Plus, Calendar, BookOpen, Users, Check, X, Clock, AlertTriangle, Target, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import "@/pages/teacher/teacher-premium.css";
 
 interface Homework {
   id: string;
@@ -174,16 +174,27 @@ export default function HomeworkManagePage() {
   const today = new Date().toISOString().split("T")[0];
   const active = homework.filter(h => !h.due_date || h.due_date >= today);
   const past = homework.filter(h => h.due_date && h.due_date < today);
+  const totalSubmissions = homework.reduce((sum, item) => sum + (item.submissionCount ?? 0), 0);
+  const totalExpected = homework.reduce((sum, item) => sum + (item.totalStudents ?? 0), 0);
+  const completionRate = totalExpected ? Math.round((totalSubmissions / totalExpected) * 100) : 0;
+  const needsReview = homework.reduce((sum, item) => {
+    const expected = item.totalStudents ?? 0;
+    const submitted = item.submissionCount ?? 0;
+    return sum + Math.max(0, expected - submitted);
+  }, 0);
 
   return (
-    <>
-      <PageHeader
-        title="Homework Management"
-        subtitle="Assign, track and grade homework"
-        action={
+    <div className="teacher-premium tp-shell space-y-5">
+      <section className="tp-hero">
+        <div className="relative z-10 flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <div className="tp-kicker mb-4">Homework</div>
+            <h1 className="tp-display text-3xl sm:text-4xl">Review practice, spot gaps, act fast.</h1>
+            <p className="text-sm text-white/75 mt-2 max-w-2xl">Track completion, review submitted work, and use homework as an early signal for concept recovery.</p>
+          </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-gradient-primary text-primary-foreground">
+              <Button className="bg-white text-emerald-950 hover:bg-white/90">
                 <Plus className="w-4 h-4 mr-1" /> Assign
               </Button>
             </DialogTrigger>
@@ -226,21 +237,38 @@ export default function HomeworkManagePage() {
               </div>
             </DialogContent>
           </Dialog>
-        }
-      />
+        </div>
+      </section>
 
       {loading ? (
         <p className="text-muted-foreground text-center py-8">Loading…</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <StatCard icon={<NotebookPen className="w-5 h-5" />} label="Active" value={active.length} tone="accent" />
-            <StatCard icon={<Clock className="w-5 h-5" />} label="Past Due" value={past.length} />
+          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+            <HomeworkMetric icon={<NotebookPen className="w-5 h-5" />} label="Active Work" value={active.length} sub="open assignments" />
+            <HomeworkMetric icon={<CheckCircle2 className="w-5 h-5" />} label="Completion" value={`${completionRate}%`} sub={`${totalSubmissions}/${totalExpected || 0} submitted`} />
+            <HomeworkMetric icon={<AlertTriangle className="w-5 h-5" />} label="Missing" value={needsReview} sub="students to remind" />
+            <HomeworkMetric icon={<Target className="w-5 h-5" />} label="Action" value="Review" sub="grade and recover" />
           </div>
+
+          <Card className="tp-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <p className="tp-label">Teacher action queue</p>
+                <h3 className="tp-display text-xl mt-1">What homework tells you</h3>
+              </div>
+              <Badge variant="outline" className="rounded-full">Practice signal</Badge>
+            </div>
+            <div className="grid md:grid-cols-3 gap-3">
+              <div className="tp-row">Low completion means practice consistency is dropping.</div>
+              <div className="tp-row">Repeated wrong work should become a recovery assignment.</div>
+              <div className="tp-row">Strong submissions can move into challenge practice.</div>
+            </div>
+          </Card>
 
           {/* Viewing submissions for a specific homework */}
           {viewingHw && (
-            <Card className="p-4 mb-4 border-primary/30">
+            <Card className="tp-card p-5 border-primary/30">
               <div className="flex items-center justify-between mb-3">
                 <div>
                   <h3 className="font-semibold">{viewingHw.title} — Submissions</h3>
@@ -252,7 +280,7 @@ export default function HomeworkManagePage() {
                 {submissionStudents.map(s => {
                   const sub = submissions.find(x => x.student_id === s.id);
                   return (
-                    <div key={s.id} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div key={s.id} className="tp-row flex items-center justify-between">
                       <div>
                         <div className="text-sm font-medium">{s.full_name}</div>
                         <div className="text-xs text-muted-foreground">Roll {s.roll_number || "—"}</div>
@@ -284,8 +312,8 @@ export default function HomeworkManagePage() {
           {/* Active homework */}
           {active.length > 0 && (
             <>
-              <h3 className="font-semibold mb-3">📋 Active Homework</h3>
-              <div className="space-y-2 mb-6">
+              <h3 className="tp-display text-xl">Active Homework</h3>
+              <div className="grid lg:grid-cols-2 gap-3">
                 {active.map(h => (
                   <HwCard key={h.id} hw={h} onView={() => viewSubmissions(h)} onDelete={() => deleteHomework(h.id)} />
                 ))}
@@ -296,8 +324,8 @@ export default function HomeworkManagePage() {
           {/* Past homework */}
           {past.length > 0 && (
             <>
-              <h3 className="font-semibold mb-3">📁 Past Homework</h3>
-              <div className="space-y-2">
+              <h3 className="tp-display text-xl">Past Homework</h3>
+              <div className="grid lg:grid-cols-2 gap-3">
                 {past.map(h => (
                   <HwCard key={h.id} hw={h} onView={() => viewSubmissions(h)} onDelete={() => deleteHomework(h.id)} isPast />
                 ))}
@@ -306,14 +334,29 @@ export default function HomeworkManagePage() {
           )}
 
           {homework.length === 0 && (
-            <Card className="p-8 text-center">
+            <Card className="tp-card p-8 text-center">
               <NotebookPen className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
               <p className="text-muted-foreground">No homework assigned yet. Click "Assign" to get started.</p>
             </Card>
           )}
         </>
       )}
-    </>
+    </div>
+  );
+}
+
+function HomeworkMetric({ icon, label, value, sub }: { icon: ReactNode; label: string; value: ReactNode; sub: string }) {
+  return (
+    <Card className="tp-metric">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="tp-label">{label}</p>
+          <p className="text-2xl font-bold mt-2">{value}</p>
+          <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+        </div>
+        <div className="tp-icon">{icon}</div>
+      </div>
+    </Card>
   );
 }
 
@@ -322,7 +365,7 @@ function HwCard({ hw, onView, onDelete, isPast }: { hw: Homework; onView: () => 
     ? new Date(hw.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
     : "No due date";
   return (
-    <Card className={`p-4 shadow-card ${isPast ? "opacity-75" : ""}`}>
+    <Card className={`tp-card p-4 ${isPast ? "opacity-75" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="font-semibold">{hw.title}</div>
@@ -332,9 +375,8 @@ function HwCard({ hw, onView, onDelete, isPast }: { hw: Homework; onView: () => 
           {hw.description && (
             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{hw.description}</p>
           )}
-          <div className="text-xs text-muted-foreground mt-2">
-            📩 {hw.submissionCount ?? 0}/{hw.totalStudents ?? 0} submitted
-          </div>
+          <div className="text-xs text-muted-foreground mt-2">{hw.submissionCount ?? 0}/{hw.totalStudents ?? 0} submitted</div>
+          <div className="tp-progress mt-3"><span style={{ width: `${Math.min(100, Math.round(((hw.submissionCount ?? 0) / Math.max(1, hw.totalStudents ?? 0)) * 100))}%` }} /></div>
         </div>
         <div className="flex gap-1 shrink-0">
           <Button variant="outline" size="sm" onClick={onView}>
