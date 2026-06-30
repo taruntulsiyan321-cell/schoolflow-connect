@@ -28,6 +28,7 @@ export function ArenaLiveBattleCard({
     question_count: number;
     per_question_sec: number;
     mode?: string;
+    joinedByMe?: boolean;
   };
   participants: Participant[];
   onJoin: () => void;
@@ -126,7 +127,7 @@ export function ArenaLiveBattleCard({
             : "ba-gold-shimmer text-[var(--ba-on-surface)]",
         )}
       >
-        {live ? "Join match" : "Join match"}
+        {battle.joinedByMe ? "Continue match" : "Join match"}
       </button>
     </div>
   );

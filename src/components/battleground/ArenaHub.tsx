@@ -119,24 +119,36 @@ export function ArenaHub() {
     } else {
       battleQuery = battleQuery.eq("mode", "open");
     }
-    const { data: b } = await battleQuery.order("starts_at", { ascending: true }).limit(6);
-    const battleList = b ?? [];
-    setBattles(battleList);
+    const { data: b } = await battleQuery.order("starts_at", { ascending: true }).limit(8);
+    let battleList = b ?? [];
 
     if (battleList.length > 0) {
       const ids = battleList.map((x) => x.id);
       const { data: parts } = await supabase
         .from("battle_participants")
-        .select("battle_id, display_name")
+        .select("battle_id, display_name, user_id, finished_at")
         .in("battle_id", ids)
         .order("joined_at", { ascending: true });
+      const finishedByMe = new Set(
+        (parts ?? [])
+          .filter((p) => p.user_id === user.id && p.finished_at)
+          .map((p) => p.battle_id),
+      );
+      battleList = battleList.filter((battle) => !finishedByMe.has(battle.id)).slice(0, 6);
+      battleList = battleList.map((battle) => ({
+        ...battle,
+        joinedByMe: (parts ?? []).some((p) => p.battle_id === battle.id && p.user_id === user.id && !p.finished_at),
+      }));
+      setBattles(battleList);
       const map: Record<string, { display_name: string }[]> = {};
       (parts ?? []).forEach((p) => {
+        if (!battleList.some((battle) => battle.id === p.battle_id)) return;
         if (!map[p.battle_id]) map[p.battle_id] = [];
         map[p.battle_id].push({ display_name: p.display_name });
       });
       setParticipantsByBattle(map);
     } else {
+      setBattles([]);
       setParticipantsByBattle({});
     }
 

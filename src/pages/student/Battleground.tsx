@@ -150,16 +150,29 @@ function BattleRoom() {
           if (existing.finished_at) setFinished(true);
         }
         setParticipantId(pid);
+        let didAutoFinish = false;
         if (pid) {
           const { data: prior } = await supabase
             .from("battle_answers")
             .select("question_id")
             .eq("participant_id", pid);
-          answeredQRef.current = new Set((prior ?? []).map((a) => a.question_id));
+          const priorAnswered = new Set((prior ?? []).map((a) => a.question_id));
+          answeredQRef.current = priorAnswered;
+          const firstUnanswered = (qs ?? []).findIndex((q: any) => !priorAnswered.has(q.id));
+          if (firstUnanswered > 0) {
+            setQIdx(firstUnanswered);
+          } else if (firstUnanswered === -1 && (qs ?? []).length > 0 && !existing?.finished_at) {
+            const { error: finishErr } = await supabase.rpc("rpc_finish_battle", { _participant_id: pid });
+            if (!finishErr) {
+              notifyStudentXpUpdated();
+              setFinished(true);
+              didAutoFinish = true;
+            }
+          }
         }
         setQuestionStart(Date.now());
         if (b) setTimeLeft(b.per_question_sec);
-        if ((qs ?? []).length > 0) setReadyCount(3);
+        if ((qs ?? []).length > 0 && !existing?.finished_at && !didAutoFinish) setReadyCount(3);
       } finally {
         setBattleLoading(false);
       }
@@ -236,12 +249,10 @@ function BattleRoom() {
       { onConflict: "participant_id,question_id", ignoreDuplicates: false },
     );
     if (ansErr && !ansErr.message.includes("duplicate key")) {
-      answeredQRef.current.delete(currentQ.id);
-      toast({ title: "Could not save your answer", description: ansErr.message, variant: "destructive" });
-      answeringRef.current = false;
-      setShowResult(false);
-      setSelected(null);
-      return;
+      toast({
+        title: "Answer saved locally for this round",
+        description: "Network sync had a problem, but you can continue to the next question.",
+      });
     }
     const { error: partErr } = await supabase.from("battle_participants").update(newMe).eq("id", participantId);
     if (partErr) {
