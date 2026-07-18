@@ -659,6 +659,232 @@ export type Database = {
         }
         Relationships: []
       }
+      community_doubt_answers: {
+        Row: {
+          author_name: string
+          author_role: string
+          body: string
+          created_at: string
+          doubt_id: string
+          id: string
+          image_url: string | null
+          is_accepted: boolean
+          is_teacher_verified: boolean
+          updated_at: string
+          upvote_count: number
+          user_id: string
+        }
+        Insert: {
+          author_name?: string
+          author_role?: string
+          body: string
+          created_at?: string
+          doubt_id: string
+          id?: string
+          image_url?: string | null
+          is_accepted?: boolean
+          is_teacher_verified?: boolean
+          updated_at?: string
+          upvote_count?: number
+          user_id: string
+        }
+        Update: {
+          author_name?: string
+          author_role?: string
+          body?: string
+          created_at?: string
+          doubt_id?: string
+          id?: string
+          image_url?: string | null
+          is_accepted?: boolean
+          is_teacher_verified?: boolean
+          updated_at?: string
+          upvote_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_doubt_answers_doubt_id_fkey"
+            columns: ["doubt_id"]
+            isOneToOne: false
+            referencedRelation: "community_doubts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_doubt_views: {
+        Row: {
+          doubt_id: string
+          id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          doubt_id: string
+          id?: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          doubt_id?: string
+          id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_doubt_views_doubt_id_fkey"
+            columns: ["doubt_id"]
+            isOneToOne: false
+            referencedRelation: "community_doubts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_doubt_votes: {
+        Row: {
+          answer_id: string | null
+          created_at: string
+          doubt_id: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          answer_id?: string | null
+          created_at?: string
+          doubt_id?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          answer_id?: string | null
+          created_at?: string
+          doubt_id?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_doubt_votes_answer_id_fkey"
+            columns: ["answer_id"]
+            isOneToOne: false
+            referencedRelation: "community_doubt_answers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_doubt_votes_doubt_id_fkey"
+            columns: ["doubt_id"]
+            isOneToOne: false
+            referencedRelation: "community_doubts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_doubts: {
+        Row: {
+          accepted_answer_id: string | null
+          answer_count: number
+          body: string
+          chapter: string
+          class_id: string | null
+          class_label: string
+          concept: string
+          created_at: string
+          id: string
+          image_url: string | null
+          last_activity_at: string
+          status: string
+          student_id: string | null
+          student_name: string
+          subject: string
+          teacher_answered: boolean
+          title: string
+          updated_at: string
+          upvote_count: number
+          user_id: string
+          view_count: number
+        }
+        Insert: {
+          accepted_answer_id?: string | null
+          answer_count?: number
+          body: string
+          chapter?: string
+          class_id?: string | null
+          class_label?: string
+          concept?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          last_activity_at?: string
+          status?: string
+          student_id?: string | null
+          student_name?: string
+          subject?: string
+          teacher_answered?: boolean
+          title: string
+          updated_at?: string
+          upvote_count?: number
+          user_id: string
+          view_count?: number
+        }
+        Update: {
+          accepted_answer_id?: string | null
+          answer_count?: number
+          body?: string
+          chapter?: string
+          class_id?: string | null
+          class_label?: string
+          concept?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          last_activity_at?: string
+          status?: string
+          student_id?: string | null
+          student_name?: string
+          subject?: string
+          teacher_answered?: boolean
+          title?: string
+          updated_at?: string
+          upvote_count?: number
+          user_id?: string
+          view_count?: number
+        }
+        Relationships: []
+      }
+      community_reputation: {
+        Row: {
+          accepted_count: number
+          answer_count: number
+          badges: string[]
+          points: number
+          top_subject: string | null
+          updated_at: string
+          upvote_count: number
+          user_id: string
+        }
+        Insert: {
+          accepted_count?: number
+          answer_count?: number
+          badges?: string[]
+          points?: number
+          top_subject?: string | null
+          updated_at?: string
+          upvote_count?: number
+          user_id: string
+        }
+        Update: {
+          accepted_count?: number
+          answer_count?: number
+          badges?: string[]
+          points?: number
+          top_subject?: string | null
+          updated_at?: string
+          upvote_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       concept_mastery: {
         Row: {
           chapter: string | null
@@ -1619,7 +1845,7 @@ export type Database = {
           selected_answer: Json | null
           session_id: string | null
           student_id: string | null
-          template_id: string
+          template_id: string | null
           user_id: string
         }
         Insert: {
@@ -1632,7 +1858,7 @@ export type Database = {
           selected_answer?: Json | null
           session_id?: string | null
           student_id?: string | null
-          template_id: string
+          template_id?: string | null
           user_id: string
         }
         Update: {
@@ -1645,7 +1871,7 @@ export type Database = {
           selected_answer?: Json | null
           session_id?: string | null
           student_id?: string | null
-          template_id?: string
+          template_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -2564,6 +2790,15 @@ export type Database = {
         Returns: undefined
       }
       _class_grade: { Args: { _class_id: string }; Returns: number }
+      _community_author_name: {
+        Args: { _role: string; _uid: string }
+        Returns: string
+      }
+      _community_refresh_reputation: {
+        Args: { _uid: string }
+        Returns: undefined
+      }
+      _community_user_role: { Args: { _uid: string }; Returns: string }
       _compute_mastery_score: {
         Args: {
           _attempts: number
@@ -2743,6 +2978,10 @@ export type Database = {
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
       link_portal_on_auth: { Args: { _uid?: string }; Returns: undefined }
       normalize_phone: { Args: { _raw: string }; Returns: string }
+      rpc_add_community_answer: {
+        Args: { _body: string; _doubt_id: string; _image_url?: string }
+        Returns: string
+      }
       rpc_assign_concept_recovery: {
         Args: {
           _accuracy?: number
@@ -2818,6 +3057,17 @@ export type Database = {
           _per_q?: number
           _subject: string
           _topic?: string
+        }
+        Returns: string
+      }
+      rpc_create_community_doubt: {
+        Args: {
+          _body: string
+          _chapter: string
+          _concept: string
+          _image_url?: string
+          _subject: string
+          _title: string
         }
         Returns: string
       }
@@ -2908,6 +3158,10 @@ export type Database = {
           user_id: string
         }[]
       }
+      rpc_mark_best_community_answer: {
+        Args: { _answer_id: string }
+        Returns: undefined
+      }
       rpc_parent_child_snapshot: {
         Args: { _student_id?: string }
         Returns: Json
@@ -2947,6 +3201,10 @@ export type Database = {
       }
       rpc_principal_concept_analytics: { Args: never; Returns: Json }
       rpc_principal_school_health: { Args: never; Returns: Json }
+      rpc_record_community_doubt_view: {
+        Args: { _doubt_id: string }
+        Returns: number
+      }
       rpc_record_concept_mistake: {
         Args: {
           _assessment_type: string
@@ -2965,18 +3223,33 @@ export type Database = {
         }
         Returns: string
       }
-      rpc_record_question_attempt: {
-        Args: {
-          _correct_answer: Json
-          _generated_question: Json
-          _is_correct?: boolean
-          _score?: number
-          _selected_answer?: Json
-          _session_id: string
-          _template_id: string
-        }
-        Returns: string
-      }
+      rpc_record_question_attempt:
+        | {
+            Args: {
+              _correct_answer: Json
+              _generated_question: Json
+              _is_correct?: boolean
+              _score?: number
+              _selected_answer?: Json
+              _session_id: string
+              _template_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _correct_answer: Json
+              _generated_question: Json
+              _is_correct: boolean
+              _score?: number
+              _selected_answer: Json
+              _session_id: string
+              _skipped?: boolean
+              _template_id: string
+              _time_taken_ms?: number
+            }
+            Returns: string
+          }
       rpc_save_battle_ai_insights: {
         Args: { _insights: Json; _participant_id: string }
         Returns: undefined
@@ -3012,6 +3285,12 @@ export type Database = {
         Args: { _class_id: string }
         Returns: Json
       }
+      rpc_teacher_doubt_dashboard: { Args: never; Returns: Json }
+      rpc_vote_community_answer: {
+        Args: { _answer_id: string }
+        Returns: number
+      }
+      rpc_vote_community_doubt: { Args: { _doubt_id: string }; Returns: number }
       student_class_id: { Args: { _user_id: string }; Returns: string }
       teacher_teaches_class: {
         Args: { _class_id: string; _user_id: string }
