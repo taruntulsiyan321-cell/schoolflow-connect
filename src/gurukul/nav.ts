@@ -1,0 +1,83 @@
+import type { PageKey } from "@/gurukul/data/mock";
+
+/** Design page keys → React Router paths under /student */
+export const PAGE_PATH: Record<PageKey, string> = {
+  dashboard: "/student",
+  practice: "/student/practice",
+  aicoach: "/student/aicoach",
+  analysis: "/student/analysis",
+  recovery: "/student/recovery",
+  revision: "/student/revision",
+  mistakebook: "/student/mistakes",
+  battleground: "/student/battleground",
+  leaderboard: "/student/leaderboard",
+  achievements: "/student/achievements",
+  resources: "/student/resources",
+  doubtportal: "/student/doubts",
+  assignments: "/student/homework",
+  attendance: "/student/attendance",
+  profile: "/student/profile",
+  timetable: "/student/timetable",
+  calendar: "/student/calendar",
+  tests: "/student/tests",
+  learninghub: "/student/learning",
+  classhub: "/student/class",
+};
+
+const LEARNING: PageKey[] = ["learninghub", "analysis", "recovery", "revision", "mistakebook"];
+const CLASS: PageKey[] = [
+  "classhub", "timetable", "calendar", "attendance", "assignments",
+  "tests", "doubtportal", "leaderboard", "achievements", "resources",
+];
+
+/** Resolve current pathname to the closest design PageKey */
+export function pathToPage(pathname: string): PageKey {
+  const p = pathname.replace(/\/+$/, "") || "/student";
+
+  // Deep functional routes still belong to a hub
+  if (p.startsWith("/student/recovery")) return "recovery";
+  if (p.startsWith("/student/practice")) return "practice";
+  if (p.startsWith("/student/battleground")) return "battleground";
+  if (p.startsWith("/student/dpp")) return "practice";
+  if (p.startsWith("/student/mistakes")) return "mistakebook";
+  if (p.startsWith("/student/analytics") || p.startsWith("/student/analysis") || p.startsWith("/student/report"))
+    return "analysis";
+  if (p.startsWith("/student/revision") || p.startsWith("/student/plans")) return "revision";
+  if (p.startsWith("/student/chat") || p.startsWith("/student/notices")) return "classhub";
+  if (p.startsWith("/student/classes")) return "classhub";
+  if (p.startsWith("/student/fees")) return "profile";
+
+  const match = (Object.entries(PAGE_PATH) as [PageKey, string][]).find(([, path]) => path === p);
+  if (match) return match[0];
+
+  if (LEARNING.some((k) => PAGE_PATH[k] === p)) return p.split("/").pop() as PageKey;
+  if (CLASS.some((k) => PAGE_PATH[k] === p)) return p.split("/").pop() as PageKey;
+
+  return "dashboard";
+}
+
+export function pageTitle(page: PageKey): string {
+  const titles: Record<PageKey, string> = {
+    dashboard: "Home",
+    practice: "Practice",
+    aicoach: "AI Coach",
+    analysis: "Analysis",
+    recovery: "Recovery",
+    revision: "Revision",
+    mistakebook: "Mistake Book",
+    battleground: "Battleground",
+    leaderboard: "Rankings",
+    achievements: "Achievements",
+    resources: "Resources",
+    doubtportal: "Doubts",
+    assignments: "Homework",
+    attendance: "Attendance",
+    profile: "Profile",
+    timetable: "Timetable",
+    calendar: "Calendar",
+    tests: "Tests",
+    learninghub: "Learning",
+    classhub: "Class",
+  };
+  return titles[page];
+}

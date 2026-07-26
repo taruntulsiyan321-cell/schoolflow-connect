@@ -1,159 +1,170 @@
-import { useEffect, useState } from "react";
-import { Routes, Route, Navigate, Link } from "react-router-dom";
-import { AppLayout } from "@/components/AppLayout";
-import { ClipboardCheck, Wallet, Trophy, BookOpen, MessageSquare, User, Sword, Target, Megaphone, Brain, BarChart3, Wrench } from "lucide-react";
-import RecoveryZone from "./student/RecoveryZone";
+import { useEffect, useMemo, useState } from "react";
+import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import type { PageKey } from "@/gurukul/data/mock";
+import { PAGE_PATH, pathToPage } from "@/gurukul/nav";
+import Layout from "@/gurukul/components/Layout";
+import { GurukulStudentProvider } from "@/gurukul/StudentContext";
+import { student as mockStudent } from "@/gurukul/data/mock";
+import "@/gurukul/theme.css";
+
+import Dashboard from "@/gurukul/pages/Dashboard";
+import Practice from "@/gurukul/pages/Practice";
+import AICoach from "@/gurukul/pages/AICoach";
+import Analysis from "@/gurukul/pages/Analysis";
+import Recovery from "@/gurukul/pages/Recovery";
+import Revision from "@/gurukul/pages/Revision";
+import MistakeBook from "@/gurukul/pages/MistakeBook";
+import BattlegroundDesign from "@/gurukul/pages/Battleground";
+import Leaderboard from "@/gurukul/pages/Leaderboard";
+import Achievements from "@/gurukul/pages/Achievements";
+import Resources from "@/gurukul/pages/Resources";
+import DoubtPortal from "@/gurukul/pages/DoubtPortal";
+import Assignments from "@/gurukul/pages/Assignments";
+import Attendance from "@/gurukul/pages/Attendance";
+import Profile from "@/gurukul/pages/Profile";
+import Timetable from "@/gurukul/pages/Timetable";
+import Calendar from "@/gurukul/pages/Calendar";
+import Tests from "@/gurukul/pages/Tests";
+import LearningHub from "@/gurukul/pages/LearningHub";
+import ClassHub from "@/gurukul/pages/ClassHub";
+
+/* Keep deep functional flows from the live app */
 import RecoverySession from "./student/RecoverySession";
 import RecoverySessionResult from "./student/RecoverySessionResult";
 import RecoveryCompletionReportPage from "./student/RecoveryCompletionReportPage";
-import StudentSuccessHome from "./student/StudentSuccessHome";
-import MistakeBank from "./student/MistakeBank";
-import RevisionQueue from "./student/RevisionQueue";
-import ImprovementPlans from "./student/ImprovementPlans";
-import AcademicAnalytics from "./student/AcademicAnalytics";
-import AcademicReport from "./student/AcademicReport";
-import Battleground from "./student/Battleground";
-import Class12MathPractice from "./student/Class12MathPractice";
 import Class12MathSession from "./student/Class12MathSession";
 import Class12AiSession from "./student/Class12AiSession";
 import PracticeSessionResult from "./student/PracticeSessionResult";
 import DppAttempt from "./student/DppAttempt";
 import DppResult from "./student/DppResult";
-import StudentProfilePage from "./shared/StudentProfilePage";
-import StudentClassesPage from "./shared/StudentClassesPage";
+import BattlegroundLive from "./student/Battleground";
 import ChatPage from "./shared/ChatPage";
+import NoticesPage from "./shared/NoticesPage";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Card } from "@/components/ui/card";
-import { PageHeader, StatCard } from "@/components/ui-bits";
-import NoticesPage from "./shared/NoticesPage";
-import LeaderboardPage from "./shared/LeaderboardPage";
 
-const nav = [
-  { to: "/student", label: "Dashboard", icon: <Brain className="w-4 h-4" /> },
-  { to: "/student/practice/math12", label: "Practice", icon: <Target className="w-4 h-4" /> },
-  { to: "/student/recovery", label: "Recovery", icon: <Wrench className="w-4 h-4" />, end: false },
-  { to: "/student/analytics", label: "Analysis", icon: <BarChart3 className="w-4 h-4" /> },
-  { to: "/student/battleground", label: "Battleground", icon: <Sword className="w-4 h-4" />, end: false },
-  { to: "/student/classes", label: "Classes", icon: <BookOpen className="w-4 h-4" /> },
-  { to: "/student/notices", label: "Notices", icon: <Megaphone className="w-4 h-4" /> },
-  { to: "/student/chat", label: "Chat", icon: <MessageSquare className="w-4 h-4" /> },
-  { to: "/student/profile", label: "Profile", icon: <User className="w-4 h-4" /> },
-];
-
-const Home = () => {
+export default function StudentDashboard() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
-  const [student, setStudent] = useState<any>(null);
-  const [pct, setPct] = useState(0);
-  const [pendingFees, setPendingFees] = useState(0);
-  const [latestNotices, setLatestNotices] = useState<any[]>([]);
-  const [xp, setXp] = useState<any>(null);
-  const [rank, setRank] = useState<number | null>(null);
+  const page = useMemo(() => pathToPage(location.pathname), [location.pathname]);
+  const setPage = (p: PageKey) => navigate(PAGE_PATH[p]);
+
+  const [profile, setProfile] = useState<{
+    name?: string;
+    firstName?: string;
+    class?: string;
+    avatar?: string;
+    xp?: number;
+    level?: number;
+    streak?: number;
+    rank?: number;
+  }>({});
 
   useEffect(() => {
     (async () => {
       if (!user) return;
-      const { data: s } = await supabase.from("students").select("*, classes(name,section)").eq("user_id", user.id).maybeSingle();
-      setStudent(s);
-      if (s) {
-        const { data: att } = await supabase.from("attendance").select("status").eq("student_id", s.id);
-        if (att?.length) setPct(Math.round((att.filter(a => a.status === "present").length / att.length) * 100));
-        const { data: f } = await supabase.from("fees").select("amount,paid_amount,status").eq("student_id", s.id);
-        const owed = (f ?? []).filter(r => r.status !== "paid").reduce((sum, r) => sum + (Number(r.amount) - Number(r.paid_amount)), 0);
-        setPendingFees(owed);
-      }
-      const { data: x } = await supabase.from("student_xp").select("xp, level, current_streak").eq("user_id", user.id).maybeSingle();
-      setXp(x);
-      const { data: lb } = await supabase.rpc("rpc_leaderboard", { _scope: "class", _category: "xp", _subject: undefined, _limit: 200 });
+      const { data: s } = await supabase
+        .from("students")
+        .select("full_name, roll_number, classes(name, section)")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const { data: x } = await supabase
+        .from("student_xp")
+        .select("xp, level, current_streak")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      let rank: number | undefined;
+      const { data: lb } = await supabase.rpc("rpc_leaderboard", {
+        _scope: "class",
+        _category: "xp",
+        _subject: undefined,
+        _limit: 200,
+      });
       if (Array.isArray(lb)) {
-        const i = lb.findIndex((r: any) => r.user_id === user.id);
-        setRank(i >= 0 ? i + 1 : null);
+        const i = lb.findIndex((r: { user_id?: string }) => r.user_id === user.id);
+        if (i >= 0) rank = i + 1;
       }
-      const { data: n } = await supabase.from("notices").select("*").order("created_at", { ascending: false }).limit(3);
-      setLatestNotices(n ?? []);
+
+      const fullName = s?.full_name?.trim() || user.email?.split("@")[0] || "Student";
+      const parts = fullName.split(/\s+/);
+      const initials = (parts[0]?.[0] || "S") + (parts[1]?.[0] || parts[0]?.[1] || "");
+      const cls = s?.classes
+        ? `${(s.classes as { name?: string; section?: string }).name}-${(s.classes as { name?: string; section?: string }).section}`
+        : undefined;
+
+      setProfile({
+        name: fullName,
+        firstName: parts[0] || fullName,
+        class: cls,
+        avatar: initials.toUpperCase(),
+        xp: x?.xp,
+        level: x?.level,
+        streak: x?.current_streak,
+        rank,
+      });
     })();
   }, [user]);
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Student workspace"
-        title={`Welcome, ${student?.full_name?.split(" ")[0] || "Student"}`}
-        subtitle={student?.classes ? `Class ${student.classes.name}-${student.classes.section} · Roll ${student.roll_number || "—"}` : "Your academic hub"}
-      />
-
-      <Link to="/student/battleground" className="block mb-6 group">
-        <Card className="hero-panel p-5 transition-shadow hover:shadow-elevated">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center ring-1 ring-white/15">
-              <Sword className="w-6 h-6" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">Competition</div>
-              <div className="font-semibold text-lg mt-0.5">Battleground</div>
-              <div className="text-sm text-white/75 mt-0.5">Live quizzes, class rankings, and progress analytics</div>
-            </div>
-            <span className="text-xs px-3 py-2 rounded-lg bg-primary text-primary-foreground font-semibold shrink-0">Open</span>
-          </div>
-        </Card>
-      </Link>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Attendance" value={`${pct}%`} tone={pct >= 75 ? "accent" : "warning"} />
-        <StatCard icon={<Wallet className="w-5 h-5" />} label="Pending Fees" value={pendingFees ? `₹${pendingFees}` : "₹0"} tone={pendingFees > 0 ? "warning" : "accent"} />
-        <Link to="/student/battleground/progress"><StatCard icon={<Sword className="w-5 h-5" />} label="Level / XP" value={xp ? `L${xp.level} · ${xp.xp}` : "L1 · 0"} /></Link>
-        <Link to="/student/classes#leaderboard"><StatCard icon={<Trophy className="w-5 h-5" />} label="Class Rank" value={rank ? `#${rank}` : "—"} tone="accent" /></Link>
-      </div>
-      <h3 className="font-semibold mb-3">Latest notices</h3>
-      <div className="space-y-2">
-        {latestNotices.map(n => (
-          <Card key={n.id} className="p-4 shadow-card">
-            <div className="font-medium">{n.title}</div>
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{n.body}</p>
-          </Card>
-        ))}
-        {latestNotices.length === 0 && <p className="text-muted-foreground text-sm">No notices.</p>}
-      </div>
-    </>
+  const mergedStudent = useMemo(
+    () => ({
+      ...mockStudent,
+      ...Object.fromEntries(Object.entries(profile).filter(([, v]) => v !== undefined && v !== null && v !== "")),
+    }),
+    [profile],
   );
-};
 
-export default function StudentDashboard() {
   return (
-    <AppLayout nav={nav} title="Student">
-      <Routes>
-        <Route index element={<StudentSuccessHome />} />
-        <Route path="revision" element={<RevisionQueue />} />
-        <Route path="plans" element={<ImprovementPlans />} />
-        <Route path="recovery" element={<RecoveryZone />} />
-        <Route path="recovery/:id/complete" element={<RecoveryCompletionReportPage />} />
-        <Route path="recovery/:id/result" element={<RecoverySessionResult />} />
-        <Route path="recovery/:id" element={<RecoverySession />} />
-        <Route path="mistakes" element={<MistakeBank />} />
-        <Route path="analytics" element={<AcademicAnalytics />} />
-        <Route path="report" element={<AcademicReport />} />
-        <Route path="classes" element={<StudentClassesPage />} />
-        <Route path="homework" element={<Navigate to="/student/classes#homework" replace />} />
-        <Route path="attendance" element={<Navigate to="/student/classes#attendance" replace />} />
-        <Route path="timetable" element={<Navigate to="/student/classes#timetable" replace />} />
-        <Route path="exams" element={<Navigate to="/student/classes#exams" replace />} />
-        <Route path="results" element={<Navigate to="/student/classes?tab=results#exams" replace />} />
-        <Route path="notifications" element={<Navigate to="/student" replace />} />
-        <Route path="notices" element={<NoticesPage viewerRole="student" />} />
-        <Route path="fees" element={<Navigate to="/student/profile#fees" replace />} />
-        <Route path="chat" element={<ChatPage userRole="student" />} />
-        <Route path="profile" element={<StudentProfilePage />} />
-        <Route path="leaderboard" element={<LeaderboardPage />} />
-        <Route path="battleground/*" element={<Battleground />} />
-        <Route path="dpp" element={<Navigate to="/student" replace />} />
-        <Route path="practice/math12" element={<Class12MathPractice />} />
-        <Route path="practice/math12/session" element={<Class12MathSession />} />
-        <Route path="practice/ai/session" element={<Class12AiSession />} />
-        <Route path="practice/session/:id/result" element={<PracticeSessionResult />} />
-        <Route path="dpp/:id/attempt" element={<DppAttempt />} />
-        <Route path="dpp/:id/result" element={<DppResult />} />
-        <Route path="*" element={<Navigate to="/student" replace />} />
-      </Routes>
-    </AppLayout>
+    <div className="gurukul-student dark min-h-screen">
+      <GurukulStudentProvider value={mergedStudent}>
+      <Layout page={page} setPage={setPage} profile={profile}>
+        <Routes>
+          {/* Design student panel */}
+          <Route index element={<Dashboard setPage={setPage} />} />
+          <Route path="practice" element={<Practice setPage={setPage} />} />
+          <Route path="aicoach" element={<AICoach setPage={setPage} />} />
+          <Route path="analysis" element={<Analysis />} />
+          <Route path="analytics" element={<Navigate to="/student/analysis" replace />} />
+          <Route path="report" element={<Navigate to="/student/analysis" replace />} />
+          <Route path="recovery" element={<Recovery setPage={setPage} />} />
+          <Route path="revision" element={<Revision setPage={setPage} />} />
+          <Route path="plans" element={<Navigate to="/student/revision" replace />} />
+          <Route path="mistakes" element={<MistakeBook setPage={setPage} />} />
+          <Route path="battleground" element={<BattlegroundDesign setPage={setPage} />} />
+          <Route path="battleground/live/*" element={<BattlegroundLive />} />
+          <Route path="leaderboard" element={<Leaderboard />} />
+          <Route path="achievements" element={<Achievements />} />
+          <Route path="resources" element={<Resources />} />
+          <Route path="doubts" element={<DoubtPortal />} />
+          <Route path="homework" element={<Assignments />} />
+          <Route path="attendance" element={<Attendance />} />
+          <Route path="profile" element={<Profile setPage={setPage} />} />
+          <Route path="timetable" element={<Timetable />} />
+          <Route path="calendar" element={<Calendar />} />
+          <Route path="tests" element={<Tests />} />
+          <Route path="learning" element={<LearningHub setPage={setPage} />} />
+          <Route path="class" element={<ClassHub setPage={setPage} />} />
+
+          {/* Legacy / deep functional routes */}
+          <Route path="recovery/:id/complete" element={<RecoveryCompletionReportPage />} />
+          <Route path="recovery/:id/result" element={<RecoverySessionResult />} />
+          <Route path="recovery/:id" element={<RecoverySession />} />
+          <Route path="practice/math12" element={<Navigate to="/student/practice" replace />} />
+          <Route path="practice/math12/session" element={<Class12MathSession />} />
+          <Route path="practice/ai/session" element={<Class12AiSession />} />
+          <Route path="practice/session/:id/result" element={<PracticeSessionResult />} />
+          <Route path="dpp/:id/attempt" element={<DppAttempt />} />
+          <Route path="dpp/:id/result" element={<DppResult />} />
+          <Route path="chat" element={<ChatPage userRole="student" />} />
+          <Route path="notices" element={<NoticesPage viewerRole="student" />} />
+          <Route path="classes" element={<Navigate to="/student/class" replace />} />
+          <Route path="*" element={<Navigate to="/student" replace />} />
+        </Routes>
+      </Layout>
+      </GurukulStudentProvider>
+    </div>
   );
 }
