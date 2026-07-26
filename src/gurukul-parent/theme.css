@@ -1,0 +1,54 @@
+/* Gurukul / Wisdom Campus parent panel — scoped emerald theme */
+.gurukul-parent {
+  --background: 240 6% 5.5%;
+  --foreground: 255 14% 95%;
+  --card: 240 6% 8%;
+  --card-foreground: 255 14% 95%;
+  --popover: 240 6% 8%;
+  --popover-foreground: 255 14% 95%;
+  --primary: 160 84% 39%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 240 6% 12%;
+  --secondary-foreground: 240 8% 66%;
+  --muted: 240 6% 12%;
+  --muted-foreground: 240 8% 52%;
+  --accent: 160 84% 39%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 348 55% 56%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 240 5% 18%;
+  --input: 240 6% 12%;
+  --ring: 160 84% 39%;
+  --radius: 0.875rem;
+  --sidebar-background: 240 8% 4%;
+  --sidebar-foreground: 255 10% 90%;
+  --sidebar-primary: 160 84% 39%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 6% 12%;
+  --sidebar-accent-foreground: 255 14% 95%;
+  --sidebar-border: 240 5% 14%;
+  --font-display: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
+
+  min-height: 100vh;
+  background: #0d0d0f;
+  color: #f0eff3;
+  font-family: var(--font-body);
+}
+
+.gurukul-parent h1,
+.gurukul-parent h2,
+.gurukul-parent h3,
+.gurukul-parent h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.gurukul-parent ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.gurukul-parent ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+}
