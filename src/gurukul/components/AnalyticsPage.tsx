@@ -174,7 +174,7 @@ function GlassCard({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-4">
-      <div className="w-1 h-4 rounded-full bg-[#6366f1]" />
+      <div className="w-1 h-4 rounded-full bg-[#3b5bdb]" />
       <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">{children}</span>
     </div>
   );
@@ -251,7 +251,7 @@ function XPBar({ xp, level }: { xp: number; level: number }) {
           className="h-full rounded-full"
           style={{
             width: `${progress}%`,
-            background: "linear-gradient(90deg, #6366f1, #4b9fd4)",
+            background: "linear-gradient(90deg, #3b5bdb, #4b9fd4)",
             boxShadow: "0 0 8px #4b9fd480",
             transition: "width 1s ease",
           }}
@@ -303,7 +303,7 @@ export default function AnalyticsPage() {
       <header className="sticky top-0 z-30 border-b border-white/5 bg-[#0d0d0f]/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#6366f1] to-[#8f7dd6] flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center">
               <BarChart2 className="w-4 h-4 text-white" />
             </div>
             <span className="text-sm font-semibold text-white tracking-tight">Analytics Studio</span>
@@ -319,7 +319,7 @@ export default function AnalyticsPage() {
             </div>
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white"
-              style={{ background: "linear-gradient(135deg, #6366f1, #8f7dd6)" }}
+              style={{ background: "linear-gradient(135deg, #3b5bdb, #6882e8)" }}
             >
               {student.avatar}
             </div>
@@ -350,7 +350,7 @@ export default function AnalyticsPage() {
                 {[
                   { label: "Accuracy", value: `${student.accuracy}%`, color: "#4b9fd4" },
                   { label: "Attendance", value: `${student.attendance}%`, color: "#4aa87a" },
-                  { label: "Level", value: `Lv.${student.level}`, color: "#8f7dd6" },
+                  { label: "Level", value: `Lv.${student.level}`, color: "#6882e8" },
                 ].map((m) => (
                   <div key={m.label} className="bg-white/4 rounded-xl px-3 py-2.5 border border-white/5">
                     <div className="text-[10px] uppercase tracking-wider text-[#78788c]">{m.label}</div>
@@ -379,7 +379,7 @@ export default function AnalyticsPage() {
                     dataKey="subject"
                     tick={{ fill: "#78788c", fontSize: 10, fontWeight: 600 }}
                   />
-                  <Radar name="Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} strokeWidth={2} />
+                  <Radar name="Score" dataKey="score" stroke="#3b5bdb" fill="#3b5bdb" fillOpacity={0.2} strokeWidth={2} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -395,7 +395,7 @@ export default function AnalyticsPage() {
               className={cn(
                 "px-4 py-1.5 rounded-lg text-sm transition-all duration-200",
                 activeTab === t.key
-                  ? "bg-[#6366f1] text-white shadow-lg shadow-[#6366f1]/20"
+                  ? "bg-[#3b5bdb] text-white shadow-lg shadow-[#3b5bdb]/20"
                   : "text-[#78788c] hover:text-white"
               )}
             >
@@ -449,7 +449,7 @@ export default function AnalyticsPage() {
               <div className="flex items-start gap-3 mb-4">
                 <div
                   className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: "linear-gradient(135deg, #8f7dd6, #6366f1)" }}
+                  style={{ background: "linear-gradient(135deg, #6882e8, #3b5bdb)" }}
                 >
                   <Brain className="w-4 h-4 text-white" />
                 </div>
@@ -619,7 +619,7 @@ export default function AnalyticsPage() {
                   <RadarChart data={radarData}>
                     <PolarGrid stroke="rgba(255,255,255,0.06)" />
                     <PolarAngleAxis dataKey="subject" tick={{ fill: "#a0aec0", fontSize: 12, fontWeight: 600 }} />
-                    <Radar name="Mastery" dataKey="score" stroke="#8f7dd6" fill="#8f7dd6" fillOpacity={0.25} strokeWidth={2.5} />
+                    <Radar name="Mastery" dataKey="score" stroke="#6882e8" fill="#6882e8" fillOpacity={0.25} strokeWidth={2.5} />
                     <Tooltip content={<CustomTooltip />} />
                   </RadarChart>
                 </ResponsiveContainer>
@@ -637,7 +637,7 @@ export default function AnalyticsPage() {
               <SectionLabel>This Week — Questions Attempted</SectionLabel>
               <div className="flex gap-4 mb-4">
                 {[
-                  { label: "DPP", color: "#6366f1" },
+                  { label: "DPP", color: "#3b5bdb" },
                   { label: "Practice", color: "#4b9fd4" },
                   { label: "Battles", color: "#c08a3a" },
                 ].map((l) => (
@@ -654,7 +654,7 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="day" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="dpp" name="DPP" stackId="a" fill="#6366f1" />
+                    <Bar dataKey="dpp" name="DPP" stackId="a" fill="#3b5bdb" />
                     <Bar dataKey="practice" name="Practice" stackId="a" fill="#4b9fd4" />
                     <Bar dataKey="battles" name="Battles" stackId="a" fill="#c08a3a" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -708,7 +708,7 @@ export default function AnalyticsPage() {
               {[
                 { icon: <Trophy className="w-5 h-5" />, label: "Class Rank", value: `#${student.rank}`, color: "#c08a3a", bg: "#c08a3a20" },
                 { icon: <Flame className="w-5 h-5" />, label: "Streak", value: `${student.streak}d`, color: "#f97316", bg: "#f9731620" },
-                { icon: <Zap className="w-5 h-5" />, label: "Total XP", value: student.xp.toLocaleString(), color: "#6366f1", bg: "#6366f120" },
+                { icon: <Zap className="w-5 h-5" />, label: "Total XP", value: student.xp.toLocaleString(), color: "#3b5bdb", bg: "#3b5bdb20" },
                 { icon: <Activity className="w-5 h-5" />, label: "Sessions", value: "38", color: "#4aa87a", bg: "#4aa87a20" },
               ].map((item) => (
                 <GlassCard key={item.label} className="p-4 hover:border-white/15 transition-colors">
@@ -756,7 +756,7 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-xs font-bold text-[#8f7dd6]">{p.xp.toLocaleString()} XP</div>
+                      <div className="text-xs font-bold text-[#6882e8]">{p.xp.toLocaleString()} XP</div>
                       <div className="text-[10px] text-[#78788c]">{p.accuracy}% acc</div>
                     </div>
                   </div>
@@ -769,9 +769,9 @@ export default function AnalyticsPage() {
         {/* ── Footer quick actions ───────────── */}
         <div className="flex flex-wrap gap-3 justify-center pb-4">
           {[
-            { label: "Start Practice", icon: <BookOpen className="w-4 h-4" />, color: "#6366f1" },
+            { label: "Start Practice", icon: <BookOpen className="w-4 h-4" />, color: "#3b5bdb" },
             { label: "Recovery Zone", icon: <Target className="w-4 h-4" />, color: "#c08a3a" },
-            { label: "Battleground", icon: <Zap className="w-4 h-4" />, color: "#8f7dd6" },
+            { label: "Battleground", icon: <Zap className="w-4 h-4" />, color: "#6882e8" },
           ].map((a) => (
             <button
               key={a.label}

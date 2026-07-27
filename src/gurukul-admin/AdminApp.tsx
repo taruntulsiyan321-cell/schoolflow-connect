@@ -92,13 +92,13 @@ function Sidebar({
         "flex items-center gap-3 px-4 py-5 border-b border-white/7",
         collapsed && !mobile && "justify-center px-2"
       )}>
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#8f7dd6] flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <Shield className="w-4 h-4 text-white" />
         </div>
         {(!collapsed || mobile) && (
           <div className="min-w-0">
             <div className="text-sm font-black text-white">Gurukul</div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[#6366f1]">Admin Panel</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[#3b5bdb]">Admin Panel</div>
           </div>
         )}
         {!mobile && (
@@ -130,7 +130,7 @@ function Sidebar({
                     "w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left text-sm font-medium transition-all duration-150",
                     collapsed && !mobile && "justify-center px-2",
                     active
-                      ? "bg-[#6366f1]/15 text-[#6366f1] border border-[#6366f1]/25"
+                      ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
                       : "text-[#78788c] hover:text-white hover:bg-white/5 border border-transparent"
                   )}
                   title={collapsed && !mobile ? item.label : undefined}
@@ -142,7 +142,7 @@ function Sidebar({
                       {item.badge && (
                         <span className={cn(
                           "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-                          active ? "bg-[#6366f1]/30 text-[#a5b4fc]" : "bg-white/8 text-[#78788c]"
+                          active ? "bg-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/8 text-[#78788c]"
                         )}>
                           {item.badge}
                         </span>
@@ -233,11 +233,11 @@ export default function AdminApp() {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-1.5 bg-[#6366f1]/10 border border-[#6366f1]/20 rounded-full px-2.5 py-1">
-              <Shield className="w-3 h-3 text-[#6366f1]" />
-              <span className="text-[10px] font-bold text-[#6366f1]">Super Admin</span>
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-full px-2.5 py-1">
+              <Shield className="w-3 h-3 text-[#3b5bdb]" />
+              <span className="text-[10px] font-bold text-[#3b5bdb]">Super Admin</span>
             </div>
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#8f7dd6] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
               <span className="text-[11px] font-black text-white">SA</span>
             </div>
           </div>

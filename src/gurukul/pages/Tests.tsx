@@ -5,7 +5,7 @@ import { Trophy, TrendingUp, TrendingDown, Clock, CheckCircle2, AlertCircle, Bar
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from "recharts";
 
 const TYPE_COLOR: Record<string, string> = {
-  "quiz":      "#8f7dd6",
+  "quiz":      "#6882e8",
   "unit-test": "#4b9fd4",
   "mid-term":  "#cc5069",
   "final":     "#c08a3a",
@@ -41,7 +41,7 @@ export default function Tests() {
       {/* Stats row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label:"Tests Given",   value:graded.length,      color:"#6366f1" },
+          { label:"Tests Given",   value:graded.length,      color:"#3b5bdb" },
           { label:"Avg Score",     value:`${avgPct}%`,       color:"#4b9fd4" },
           { label:"Best Rank",     value:`#${bestRank}`,     color:"#c08a3a" },
           { label:"Upcoming",      value:upcoming.length,    color:"#cc5069" },
@@ -62,7 +62,7 @@ export default function Tests() {
               <button key={f} onClick={() => setFilter(f)}
                 className={cn(
                   "px-4 py-1.5 rounded-xl text-xs font-semibold transition-all capitalize",
-                  filter===f ? "bg-[#6366f1] text-white" : "border border-white/7 text-[#78788c] hover:text-white hover:border-white/20"
+                  filter===f ? "bg-[#3b5bdb] text-white" : "border border-white/7 text-[#78788c] hover:text-white hover:border-white/20"
                 )}>{f}</button>
             ))}
           </div>
@@ -135,7 +135,7 @@ export default function Tests() {
                       {isGraded && t.avgScore && (
                         <div className="grid grid-cols-3 gap-3">
                           {[
-                            {label:"Your Score", value:`${t.scored}/${t.totalMarks}`, color:"#6366f1"},
+                            {label:"Your Score", value:`${t.scored}/${t.totalMarks}`, color:"#3b5bdb"},
                             {label:"Class Avg",  value:`${t.avgScore}/${t.totalMarks}`,color:"#78788c"},
                             {label:"Top Score",  value:`${t.topScore}/${t.totalMarks}`,color:"#c08a3a"},
                           ].map(s=>(
@@ -163,7 +163,7 @@ export default function Tests() {
                 <RadarChart data={radarData}>
                   <PolarGrid stroke="rgba(255,255,255,0.06)"/>
                   <PolarAngleAxis dataKey="subject" tick={{fill:"#78788c",fontSize:10}}/>
-                  <Radar dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.15} strokeWidth={2} isAnimationActive={false}/>
+                  <Radar dataKey="score" stroke="#3b5bdb" fill="#3b5bdb" fillOpacity={0.15} strokeWidth={2} isAnimationActive={false}/>
                   <Tooltip contentStyle={{background:"#131316",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,fontSize:12}}/>
                 </RadarChart>
               </ResponsiveContainer>

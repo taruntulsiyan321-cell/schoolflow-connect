@@ -82,7 +82,7 @@ export default function Doubts() {
         {filtered.map((d) => (
           <div key={d.id}
             className={cn("bg-[#131316] border rounded-2xl overflow-hidden transition-all",
-              d.status === "open" ? "border-[#f59e0b]/20" : "border-white/7")}>
+              d.status === "open" ? "border-[#3b5bdb]/20" : "border-white/7")}>
             {/* Header row */}
             <button onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
               className="w-full flex items-start gap-3 p-4 hover:bg-white/3 transition-all text-left">
@@ -91,7 +91,7 @@ export default function Doubts() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="text-xs font-bold text-white">{d.studentName}</div>
                   <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-                    d.status === "open" ? "bg-[#f59e0b]/15 text-[#f59e0b]" : "bg-[#10b981]/15 text-[#10b981]")}>
+                    d.status === "open" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "bg-[#10b981]/15 text-[#10b981]")}>
                     {d.status}
                   </span>
                   <span className="text-[9px] text-[#46465a]">{d.className} {d.section} · {d.subject}</span>
@@ -132,7 +132,7 @@ export default function Doubts() {
                     <div className={cn("flex-1 max-w-[80%]", r.from === "teacher" && "text-right")}>
                       <div className={cn("inline-block px-3 py-2 rounded-xl text-xs leading-relaxed",
                         r.from === "teacher"
-                          ? "bg-[#f59e0b]/10 text-[#fcd34d]"
+                          ? "bg-[#3b5bdb]/10 text-[#fcd34d]"
                           : "bg-white/5 text-[#b0b0c0]")}>
                         {r.text}
                       </div>
@@ -149,12 +149,12 @@ export default function Doubts() {
                       onChange={(e) => setReplyText((p) => ({ ...p, [d.id]: e.target.value }))}
                       rows={2}
                       placeholder="Type your reply…"
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-[#46465a] outline-none focus:border-[#f59e0b]/40 resize-none transition-all"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
                     />
                     <div className="flex flex-col gap-2">
                       <button onClick={() => sendReply(d.id)}
                         disabled={!replyText[d.id]?.trim()}
-                        className="w-9 h-9 rounded-xl bg-[#f59e0b] text-black flex items-center justify-center hover:bg-[#d97706] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                        className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-black flex items-center justify-center hover:bg-[#d97706] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                         <Send className="w-4 h-4" />
                       </button>
                       <button className="w-9 h-9 rounded-xl bg-white/5 text-[#78788c] flex items-center justify-center hover:bg-white/10 transition-all" title="Attach file">

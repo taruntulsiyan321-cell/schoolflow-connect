@@ -1,18 +1,18 @@
 @import url("https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap");
 
 .teacher-premium {
-  --tp-ink: #081f18;
-  --tp-muted: #5b6761;
-  --tp-emerald: #063f2f;
-  --tp-emerald-2: #0d6b4d;
-  --tp-mint: #bff4d8;
-  --tp-gold: #ffdf97;
-  --tp-gold-2: #e9bd55;
-  --tp-surface: #fbfffc;
-  --tp-soft: #effdf5;
-  --tp-line: rgba(136, 158, 146, 0.28);
-  --tp-shadow: 0 18px 50px -28px rgba(3, 38, 26, 0.35);
-  --tp-shadow-strong: 0 32px 80px -36px rgba(3, 38, 26, 0.45);
+  --tp-ink: #0f172a;
+  --tp-muted: #64748b;
+  --tp-emerald: #0f1b35;
+  --tp-emerald-2: #3b5bdb;
+  --tp-mint: #e8ecff;
+  --tp-gold: #6882e8;
+  --tp-gold-2: #3b5bdb;
+  --tp-surface: #ffffff;
+  --tp-soft: #f4f5f7;
+  --tp-line: rgba(148, 163, 184, 0.28);
+  --tp-shadow: 0 18px 50px -28px rgba(15, 27, 53, 0.25);
+  --tp-shadow-strong: 0 32px 80px -36px rgba(15, 27, 53, 0.35);
   font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
   color: var(--tp-ink);
 }
@@ -21,9 +21,9 @@
   border-radius: 2rem;
   padding: 0.35rem;
   background:
-    radial-gradient(ellipse 72% 38% at 100% 0%, rgba(255, 223, 151, 0.35), transparent 62%),
-    radial-gradient(ellipse 70% 42% at 0% 10%, rgba(191, 244, 216, 0.45), transparent 60%),
-    linear-gradient(180deg, #fbfffc 0%, #f3fff8 42%, #ffffff 100%);
+    radial-gradient(ellipse 72% 38% at 100% 0%, rgba(104, 130, 232, 0.2), transparent 62%),
+    radial-gradient(ellipse 70% 42% at 0% 10%, rgba(232, 236, 255, 0.55), transparent 60%),
+    linear-gradient(180deg, #ffffff 0%, #f4f5f7 42%, #ffffff 100%);
 }
 
 .teacher-premium .tp-hero {
@@ -32,12 +32,12 @@
   border-radius: 2rem;
   padding: clamp(1.35rem, 4vw, 2.35rem);
   background:
-    radial-gradient(circle at 86% 10%, rgba(255, 223, 151, 0.24), transparent 34%),
-    radial-gradient(circle at 8% 100%, rgba(191, 244, 216, 0.18), transparent 34%),
-    linear-gradient(135deg, #0e6a4c 0%, #063f2f 50%, #021d14 100%);
+    radial-gradient(circle at 86% 10%, rgba(104, 130, 232, 0.24), transparent 34%),
+    radial-gradient(circle at 8% 100%, rgba(232, 236, 255, 0.22), transparent 34%),
+    linear-gradient(135deg, #3b5bdb 0%, #1e3a5f 50%, #0f1b35 100%);
   color: white;
   box-shadow: var(--tp-shadow-strong);
-  border: 1px solid rgba(191, 244, 216, 0.18);
+  border: 1px solid rgba(232, 236, 255, 0.18);
 }
 
 .teacher-premium .tp-hero::after {

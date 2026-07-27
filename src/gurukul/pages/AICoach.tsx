@@ -81,9 +81,9 @@ const MOCK_CONVOS: Conversation[] = [
 ];
 
 const SUGGESTIONS = [
-  { icon:<HelpCircle className="w-4 h-4"/>,    text:"Explain integration by parts",        color:"#6366f1" },
+  { icon:<HelpCircle className="w-4 h-4"/>,    text:"Explain integration by parts",        color:"#3b5bdb" },
   { icon:<Layers className="w-4 h-4"/>,         text:"Help me understand this chapter",      color:"#4b9fd4" },
-  { icon:<BookOpen className="w-4 h-4"/>,       text:"Prepare me for tomorrow's test",       color:"#8f7dd6" },
+  { icon:<BookOpen className="w-4 h-4"/>,       text:"Prepare me for tomorrow's test",       color:"#6882e8" },
   { icon:<Brain className="w-4 h-4"/>,          text:"Teach me using Feynman technique",     color:"#4aa87a" },
   { icon:<Sparkles className="w-4 h-4"/>,       text:"Create 10 practice questions",         color:"#c08a3a" },
   { icon:<MessageSquare className="w-4 h-4"/>,  text:"Solve this question step by step",     color:"#cc5069" },
@@ -93,9 +93,9 @@ const SUGGESTIONS = [
 
 const ATTACH_TYPES = [
   { type:"image"      as const, icon:<Image className="w-4 h-4"/>,        label:"Image",        color:"#4b9fd4" },
-  { type:"screenshot" as const, icon:<Camera className="w-4 h-4"/>,       label:"Camera / Screenshot", color:"#6366f1" },
+  { type:"screenshot" as const, icon:<Camera className="w-4 h-4"/>,       label:"Camera / Screenshot", color:"#3b5bdb" },
   { type:"pdf"        as const, icon:<FileText className="w-4 h-4"/>,      label:"PDF",          color:"#cc5069" },
-  { type:"doc"        as const, icon:<FileText className="w-4 h-4"/>,      label:"Word Document",color:"#8f7dd6" },
+  { type:"doc"        as const, icon:<FileText className="w-4 h-4"/>,      label:"Word Document",color:"#6882e8" },
   { type:"ppt"        as const, icon:<Presentation className="w-4 h-4"/>,  label:"Presentation", color:"#c08a3a" },
 ];
 
@@ -144,11 +144,11 @@ function VoiceOrb({ state, onStop }: { state: VoiceState; onStop: () => void }) 
       <div className="relative w-36 h-36 rounded-full flex items-center justify-center"
         style={{
           background: state === "listening"
-            ? "radial-gradient(circle at 35% 35%, #60a5fa, #6366f1, #4338ca)"
+            ? "radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb, #4338ca)"
             : state === "speaking"
             ? "radial-gradient(circle at 35% 35%, #67e8f9, #4b9fd4, #0891b2)"
             : state === "processing"
-            ? "radial-gradient(circle at 35% 35%, #c4b5fd, #8f7dd6, #7c3aed)"
+            ? "radial-gradient(circle at 35% 35%, #c4b5fd, #6882e8, #7c3aed)"
             : "radial-gradient(circle at 35% 35%, #4b5563, #374151, #1f2937)",
           boxShadow: state === "listening"
             ? "0 0 60px rgba(59,130,246,0.6), 0 0 120px rgba(59,130,246,0.3)"
@@ -248,7 +248,7 @@ function MessageBubble({ msg, onBookmark, onRegen, isLast }: {
       {/* Avatar */}
       {isNova && (
         <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center mt-1"
-          style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #6366f1)", boxShadow:"0 0 12px rgba(59,130,246,0.4)" }}>
+          style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb)", boxShadow:"0 0 12px rgba(59,130,246,0.4)" }}>
           <Brain className="w-4 h-4 text-white"/>
         </div>
       )}
@@ -272,7 +272,7 @@ function MessageBubble({ msg, onBookmark, onRegen, isLast }: {
             ? "bg-[#131316] border border-white/7 text-[#c8d4e8]"
             : "text-white"
         )}
-        style={!isNova ? { background:"linear-gradient(135deg,#6366f1,#2563eb)", boxShadow:"0 4px 16px rgba(59,130,246,0.25)" } : {}}>
+        style={!isNova ? { background:"linear-gradient(135deg,#3b5bdb,#2563eb)", boxShadow:"0 4px 16px rgba(59,130,246,0.25)" } : {}}>
           {renderText(msg.text)}
         </div>
 
@@ -326,7 +326,7 @@ function SuggestionGrid({ onSelect }: { onSelect: (text: string) => void }) {
     <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
       {/* Nova orb */}
       <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5"
-        style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #6366f1, #4338ca)", boxShadow:"0 0 40px rgba(59,130,246,0.4)" }}>
+        style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb, #4338ca)", boxShadow:"0 0 40px rgba(59,130,246,0.4)" }}>
         <Brain className="w-9 h-9 text-white"/>
       </div>
       <h2 className="text-2xl font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
@@ -339,9 +339,9 @@ function SuggestionGrid({ onSelect }: { onSelect: (text: string) => void }) {
       {/* Academic context mini-card */}
       <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
         {[
-          { label: "Class 12", color:"#6366f1" },
+          { label: "Class 12", color:"#3b5bdb" },
           { label: "CBSE",     color:"#4b9fd4" },
-          { label: student.goal, color:"#8f7dd6" },
+          { label: student.goal, color:"#6882e8" },
           ...subjects.slice(0,3).map(s => ({ label: s.name, color: s.color })),
         ].map(item => (
           <span key={item.label} className="text-[11px] px-2.5 py-1 rounded-full border font-medium"
@@ -396,7 +396,7 @@ function Sidebar({
     return (
       <div className={cn(
         "group relative flex items-start gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all",
-        isActive ? "bg-[#6366f1]/12 border border-[#6366f1]/20" : "hover:bg-white/4"
+        isActive ? "bg-[#3b5bdb]/12 border border-[#3b5bdb]/20" : "hover:bg-white/4"
       )} onClick={() => onSelect(c.id)}>
         <div className="flex-1 min-w-0 pt-0.5">
           <div className="flex items-center gap-1.5 mb-0.5">
@@ -447,7 +447,7 @@ function Sidebar({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background:"radial-gradient(circle, #6366f1, #4338ca)" }}>
+              style={{ background:"radial-gradient(circle, #3b5bdb, #4338ca)" }}>
               <Brain className="w-3.5 h-3.5 text-white"/>
             </div>
             <span className="text-sm font-black text-white" style={{fontFamily:"var(--font-display)"}}>Nova</span>
@@ -470,7 +470,7 @@ function Sidebar({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#78788c]"/>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search conversations…"
-            className="w-full bg-white/4 border border-white/6 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder:text-[#78788c] outline-none focus:border-[#6366f1]/30 transition-colors"/>
+            className="w-full bg-white/4 border border-white/6 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/30 transition-colors"/>
         </div>
       </div>
 
@@ -550,13 +550,13 @@ function InputBar({
         </div>
       )}
 
-      <div className="flex items-end gap-2 bg-[#131316] border border-white/10 rounded-2xl p-2 focus-within:border-[#6366f1]/30 transition-all">
+      <div className="flex items-end gap-2 bg-[#131316] border border-white/10 rounded-2xl p-2 focus-within:border-[#3b5bdb]/30 transition-all">
         {/* Attach button */}
         <div className="relative">
           <button onClick={() => setAttachMenu(m => !m)} title="Attach"
             className={cn(
               "w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
-              attachMenu ? "text-[#6366f1] bg-[#6366f1]/12" : "text-[#78788c] hover:text-white hover:bg-white/6"
+              attachMenu ? "text-[#3b5bdb] bg-[#3b5bdb]/12" : "text-[#78788c] hover:text-white hover:bg-white/6"
             )}>
             <Paperclip className="w-4 h-4"/>
           </button>
@@ -589,7 +589,7 @@ function InputBar({
 
         {/* Voice button */}
         <button onClick={onVoiceStart} title="Voice"
-          className="w-8 h-8 rounded-xl flex items-center justify-center text-[#78788c] hover:text-[#6366f1] hover:bg-[#6366f1]/10 transition-all shrink-0 mb-0.5"
+          className="w-8 h-8 rounded-xl flex items-center justify-center text-[#78788c] hover:text-[#3b5bdb] hover:bg-[#3b5bdb]/10 transition-all shrink-0 mb-0.5"
           style={{ boxShadow: "0 0 0 0 rgba(59,130,246,0)" }}>
           <Mic className="w-4 h-4"/>
         </button>
@@ -599,7 +599,7 @@ function InputBar({
           className={cn(
             "w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
             (text.trim() || pending.length > 0)
-              ? "bg-[#6366f1] text-white hover:bg-blue-500"
+              ? "bg-[#3b5bdb] text-white hover:bg-blue-500"
               : "text-[#78788c]/40 cursor-not-allowed"
           )}>
           <Send className="w-4 h-4"/>
@@ -808,7 +808,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           {renaming === activeId ? (
             <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
               onBlur={commitRename} onKeyDown={e => e.key==="Enter" && commitRename()}
-              className="flex-1 bg-transparent text-sm font-semibold text-white outline-none border-b border-[#6366f1]/40 pb-0.5"/>
+              className="flex-1 bg-transparent text-sm font-semibold text-white outline-none border-b border-[#3b5bdb]/40 pb-0.5"/>
           ) : (
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-white truncate">
@@ -867,12 +867,12 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
               {isTyping && (
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #6366f1)" }}>
+                    style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb)" }}>
                     <Brain className="w-4 h-4 text-white"/>
                   </div>
                   <div className="px-4 py-3 rounded-2xl bg-[#131316] border border-white/7 flex items-center gap-1.5">
                     {[0,1,2].map(i => (
-                      <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#6366f1] animate-bounce"
+                      <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] animate-bounce"
                         style={{ animationDelay:`${i*0.15}s` }}/>
                     ))}
                   </div>

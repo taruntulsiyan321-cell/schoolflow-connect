@@ -100,13 +100,13 @@ function Sidebar({
       mobile ? "w-64" : collapsed ? "w-16" : "w-60"
     )}>
       <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-white/7", collapsed && !mobile && "justify-center px-2")}>
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <BookOpen className="w-4 h-4 text-white" />
         </div>
         {(!collapsed || mobile) && (
           <div className="min-w-0">
             <div className="text-sm font-black text-white">Gurukul</div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-[#10b981]">Parent Panel</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[#3b5bdb]">Parent Panel</div>
           </div>
         )}
         {!mobile && (
@@ -127,7 +127,7 @@ function Sidebar({
               key={c.id}
               className={cn(
                 "flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all cursor-pointer",
-                c.id === activeChildId ? "bg-[#10b981]/10 text-[#10b981]" : "hover:bg-white/3 text-[#78788c]",
+                c.id === activeChildId ? "bg-[#3b5bdb]/10 text-[#3b5bdb]" : "hover:bg-white/3 text-[#78788c]",
               )}
               onClick={() => {
                 setActiveChildId(c.id);
@@ -138,8 +138,8 @@ function Sidebar({
               <div
                 className="w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-black shrink-0"
                 style={{
-                  background: c.id === activeChildId ? "#10b98125" : "#ffffff12",
-                  color: c.id === activeChildId ? "#10b981" : "#78788c",
+                  background: c.id === activeChildId ? "#3b5bdb25" : "#ffffff12",
+                  color: c.id === activeChildId ? "#3b5bdb" : "#78788c",
                 }}
               >
                 {c.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
@@ -173,7 +173,7 @@ function Sidebar({
                     "w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left transition-all duration-150 mb-0.5",
                     collapsed && !mobile && "justify-center px-2",
                     active
-                      ? "bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/25"
+                      ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
                       : "text-[#78788c] hover:text-white hover:bg-white/5 border border-transparent",
                   )}
                   title={collapsed && !mobile ? item.label : undefined}
@@ -185,7 +185,7 @@ function Sidebar({
                       {item.badge ? (
                         <span className={cn(
                           "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-                          active ? "bg-[#10b981]/30 text-[#10b981]" : "bg-[#cc5069]/20 text-[#cc5069]",
+                          active ? "bg-[#3b5bdb]/30 text-[#3b5bdb]" : "bg-[#cc5069]/20 text-[#cc5069]",
                         )}>
                           {item.badge}
                         </span>
@@ -202,7 +202,7 @@ function Sidebar({
       {(!collapsed || mobile) && (
         <div className="px-3 py-4 border-t border-white/7 space-y-2">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
               <span className="text-[11px] font-black text-white">RM</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -310,18 +310,18 @@ export default function ParentApp() {
             >
               <MessageSquare className="w-4 h-4" />
               {unreadMsg > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#10b981] rounded-full text-[8px] font-bold text-white flex items-center justify-center">
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#3b5bdb] rounded-full text-[8px] font-bold text-white flex items-center justify-center">
                   {unreadMsg}
                 </span>
               )}
             </button>
-            <div className="hidden sm:flex items-center gap-1.5 bg-[#10b981]/10 border border-[#10b981]/20 rounded-full px-2.5 py-1">
-              <BookOpen className="w-3 h-3 text-[#10b981]" />
-              <span className="text-[10px] font-bold text-[#10b981]">Parent Panel</span>
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-full px-2.5 py-1">
+              <BookOpen className="w-3 h-3 text-[#3b5bdb]" />
+              <span className="text-[10px] font-bold text-[#3b5bdb]">Parent Panel</span>
             </div>
             <button
               onClick={() => setPage("profile")}
-              className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center shrink-0"
+              className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"
             >
               <span className="text-[11px] font-black text-white">RM</span>
             </button>

@@ -60,7 +60,7 @@ export default function Leave() {
           <div className="text-[10px] text-[#78788c] mt-0.5">Days Approved</div>
         </div>
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-          <div className="text-xl font-black text-[#f59e0b]">{pending}</div>
+          <div className="text-xl font-black text-[#3b5bdb]">{pending}</div>
           <div className="text-[10px] text-[#78788c] mt-0.5">Pending Requests</div>
         </div>
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
@@ -78,14 +78,14 @@ export default function Leave() {
       {/* Apply button */}
       {!applying && (
         <button onClick={() => setApplying(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
           <Plus className="w-4 h-4" /> Apply for Leave
         </button>
       )}
 
       {/* Application form */}
       {applying && (
-        <div className="bg-[#131316] border border-[#f59e0b]/20 rounded-2xl p-5 space-y-4">
+        <div className="bg-[#131316] border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-white">Apply for Leave</div>
             <button onClick={() => setApplying(false)}><X className="w-4 h-4 text-[#78788c]" /></button>
@@ -102,23 +102,23 @@ export default function Leave() {
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">From Date *</label>
               <input type="date" value={form.fromDate} onChange={(e) => setForm((p) => ({ ...p, fromDate: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">To Date *</label>
               <input type="date" value={form.toDate} min={form.fromDate} onChange={(e) => setForm((p) => ({ ...p, toDate: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Reason *</label>
               <textarea value={form.reason} onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))} rows={3}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40 resize-none" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40 resize-none" />
             </div>
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setApplying(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10">Cancel</button>
             <button onClick={applyLeave} disabled={!form.fromDate || !form.toDate || !form.reason}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-40 transition-all">
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
               <Check className="w-3.5 h-3.5" /> Submit Application
             </button>
           </div>

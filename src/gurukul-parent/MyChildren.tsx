@@ -20,7 +20,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   return (
     <button onClick={onClick}
       className={cn("text-[10px] font-semibold px-3 py-1.5 rounded-xl whitespace-nowrap transition-all",
-        active ? "bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/25" : "text-[#78788c] hover:text-white border border-transparent")}>
+        active ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25" : "text-[#78788c] hover:text-white border border-transparent")}>
       {children}
     </button>
   );
@@ -48,7 +48,7 @@ function AttendanceCalendar({ data }: { data: AttendanceDayStatus[] }) {
   const startDow = (firstDate.getDay() + 6) % 7; // Mon=0
 
   const statusColor: Record<string, string> = {
-    present: "#10b981",
+    present: "#3b5bdb",
     absent: "#cc5069",
     holiday: "#c08a3a",
     half_day: "#6366f1",
@@ -59,9 +59,9 @@ function AttendanceCalendar({ data }: { data: AttendanceDayStatus[] }) {
     <div className="space-y-4">
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#10b981]/10 border border-[#10b981]/20 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-[#10b981]">{present}</div>
-          <div className="text-[9px] text-[#10b981] uppercase tracking-wide font-bold">Present</div>
+        <div className="bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-xl p-3 text-center">
+          <div className="text-lg font-black text-[#3b5bdb]">{present}</div>
+          <div className="text-[9px] text-[#3b5bdb] uppercase tracking-wide font-bold">Present</div>
         </div>
         <div className="bg-[#cc5069]/10 border border-[#cc5069]/20 rounded-xl p-3 text-center">
           <div className="text-lg font-black text-[#cc5069]">{absent}</div>
@@ -75,7 +75,7 @@ function AttendanceCalendar({ data }: { data: AttendanceDayStatus[] }) {
 
       {/* Legend */}
       <div className="flex flex-wrap gap-3">
-        {[["present", "#10b981", "Present"], ["absent", "#cc5069", "Absent"], ["holiday", "#c08a3a", "Holiday"], ["half_day", "#6366f1", "Half Day"]].map(([k, c, l]) => (
+        {[["present", "#3b5bdb", "Present"], ["absent", "#cc5069", "Absent"], ["holiday", "#c08a3a", "Holiday"], ["half_day", "#6366f1", "Half Day"]].map(([k, c, l]) => (
           <div key={k} className="flex items-center gap-1.5 text-[10px] text-[#78788c]">
             <div className="w-2.5 h-2.5 rounded-sm" style={{ background: c }} />
             {l}
@@ -118,7 +118,7 @@ function HomeworkTab({ childId }: { childId: string }) {
   });
 
   const statusColor: Record<string, string> = {
-    pending: "#c08a3a", submitted: "#10b981", late: "#cc5069", graded: "#6366f1",
+    pending: "#c08a3a", submitted: "#3b5bdb", late: "#cc5069", graded: "#6366f1",
   };
   const statusLabel: Record<string, string> = {
     pending: "Pending", submitted: "Submitted", late: "Late", graded: "Graded",
@@ -131,7 +131,7 @@ function HomeworkTab({ childId }: { childId: string }) {
         {(["all", "pending", "submitted", "graded"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={cn("text-[10px] font-semibold px-3 py-1 rounded-lg capitalize transition-all",
-              filter === f ? "bg-[#10b981]/15 text-[#10b981]" : "bg-white/5 text-[#78788c] hover:text-white")}>
+              filter === f ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "bg-white/5 text-[#78788c] hover:text-white")}>
             {f === "all" ? "All" : statusLabel[f]}
           </button>
         ))}
@@ -169,7 +169,7 @@ function HomeworkTab({ childId }: { childId: string }) {
                 <div className="text-[10px] text-[#78788c]">Due</div>
                 <div className="text-xs font-bold text-white">{h.dueDate}</div>
                 {h.marks !== undefined && (
-                  <div className="text-xs font-bold text-[#10b981] mt-1">{h.marks}/{h.totalMarks}</div>
+                  <div className="text-xs font-bold text-[#3b5bdb] mt-1">{h.marks}/{h.totalMarks}</div>
                 )}
               </div>
             </div>
@@ -198,9 +198,9 @@ function ExaminationsTab({ childId }: { childId: string }) {
         {exams.map((e) => (
           <button key={e.id} onClick={() => setSelected(e.id)}
             className={cn("text-xs font-semibold px-4 py-2 rounded-xl transition-all",
-              selected === e.id ? "bg-[#10b981]/15 text-[#10b981] border border-[#10b981]/25" : "bg-white/5 text-[#78788c] hover:text-white border border-transparent")}>
+              selected === e.id ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25" : "bg-white/5 text-[#78788c] hover:text-white border border-transparent")}>
             {e.name}
-            {e.resultPublished && <span className="ml-1.5 text-[8px] uppercase bg-[#10b981]/20 text-[#10b981] px-1 py-0.5 rounded-full">Results</span>}
+            {e.resultPublished && <span className="ml-1.5 text-[8px] uppercase bg-[#3b5bdb]/20 text-[#3b5bdb] px-1 py-0.5 rounded-full">Results</span>}
           </button>
         ))}
       </div>
@@ -243,7 +243,7 @@ function ExaminationsTab({ childId }: { childId: string }) {
                 <div key={r.subject} className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-white">{r.subject}</div>
-                    <ScoreBar value={r.marksObtained} max={r.totalMarks} color="#10b981" />
+                    <ScoreBar value={r.marksObtained} max={r.totalMarks} color="#3b5bdb" />
                   </div>
                   <div className="text-right shrink-0 ml-2">
                     <div className="text-xs font-bold text-white">{r.marksObtained}/{r.totalMarks}</div>
@@ -312,9 +312,9 @@ function TestResultsTab({ childId }: { childId: string }) {
               <div className="px-4 pb-4 space-y-3 border-t border-white/5">
                 {/* Score vs class average */}
                 <div className="grid grid-cols-2 gap-2 mt-3">
-                  <div className="bg-[#10b981]/10 rounded-xl p-3 text-center">
-                    <div className="text-base font-black text-[#10b981]">{r.percentage}%</div>
-                    <div className="text-[9px] text-[#10b981]">Your Score</div>
+                  <div className="bg-[#3b5bdb]/10 rounded-xl p-3 text-center">
+                    <div className="text-base font-black text-[#3b5bdb]">{r.percentage}%</div>
+                    <div className="text-[9px] text-[#3b5bdb]">Your Score</div>
                   </div>
                   <div className="bg-white/5 rounded-xl p-3 text-center">
                     <div className="text-base font-black text-white">{Math.round((r.classAverage / r.totalMarks) * 100)}%</div>
@@ -356,9 +356,9 @@ function PerformanceTab({ childId }: { childId: string }) {
     <div className="space-y-4">
       {/* Overview */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#10b981]/10 border border-[#10b981]/20 rounded-2xl p-4 text-center">
-          <div className="text-2xl font-black text-[#10b981]">{insights.overallPercentage}%</div>
-          <div className="text-[9px] text-[#10b981] uppercase tracking-wide mt-0.5">Overall Score</div>
+        <div className="bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-2xl p-4 text-center">
+          <div className="text-2xl font-black text-[#3b5bdb]">{insights.overallPercentage}%</div>
+          <div className="text-[9px] text-[#3b5bdb] uppercase tracking-wide mt-0.5">Overall Score</div>
         </div>
         <div className="bg-[#6366f1]/10 border border-[#6366f1]/20 rounded-2xl p-4 text-center">
           <div className="text-2xl font-black text-[#6366f1]">#{insights.classRank}</div>
@@ -383,9 +383,9 @@ function PerformanceTab({ childId }: { childId: string }) {
               <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden relative">
                 {/* Class average marker */}
                 <div className="absolute top-0 bottom-0 w-0.5 bg-white/20 z-10" style={{ left: `${s.classAvg}%` }} />
-                <div className="h-full rounded-full" style={{ width: `${s.score}%`, background: s.score >= s.classAvg ? "#10b981" : "#c08a3a" }} />
+                <div className="h-full rounded-full" style={{ width: `${s.score}%`, background: s.score >= s.classAvg ? "#3b5bdb" : "#c08a3a" }} />
               </div>
-              <span className="text-[10px] font-bold tabular-nums" style={{ color: s.score >= s.classAvg ? "#10b981" : "#c08a3a" }}>{s.score}%</span>
+              <span className="text-[10px] font-bold tabular-nums" style={{ color: s.score >= s.classAvg ? "#3b5bdb" : "#c08a3a" }}>{s.score}%</span>
             </div>
           </div>
         ))}
@@ -393,11 +393,11 @@ function PerformanceTab({ childId }: { childId: string }) {
 
       {/* Weak / Strong */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-4 rounded-2xl bg-[#10b981]/8 border border-[#10b981]/15">
-          <div className="text-[10px] font-bold text-[#10b981] uppercase tracking-wider mb-2">Strong Subjects</div>
+        <div className="p-4 rounded-2xl bg-[#3b5bdb]/8 border border-[#3b5bdb]/15">
+          <div className="text-[10px] font-bold text-[#3b5bdb] uppercase tracking-wider mb-2">Strong Subjects</div>
           <div className="flex flex-wrap gap-1.5">
             {insights.strongSubjects.map((s) => (
-              <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-[#10b981]/15 text-[#10b981]">{s}</span>
+              <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-[#3b5bdb]/15 text-[#3b5bdb]">{s}</span>
             ))}
           </div>
         </div>
@@ -442,7 +442,7 @@ function InsightsTab({ childId }: { childId: string }) {
         <div className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Attendance vs Class</div>
         <div className="space-y-2">
           {[
-            { label: "My Attendance", value: insights.attendanceVsClass.mine, color: "#10b981" },
+            { label: "My Attendance", value: insights.attendanceVsClass.mine, color: "#3b5bdb" },
             { label: "Class Average", value: insights.attendanceVsClass.classAvg, color: "#6366f1" },
           ].map((item) => (
             <div key={item.label} className="flex items-center gap-3">
@@ -461,7 +461,7 @@ function InsightsTab({ childId }: { childId: string }) {
         <div className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Homework Completion vs Class</div>
         <div className="space-y-2">
           {[
-            { label: "My Completion", value: insights.homeworkCompletion, color: "#10b981" },
+            { label: "My Completion", value: insights.homeworkCompletion, color: "#3b5bdb" },
             { label: "Class Average", value: insights.classHomeworkAvg, color: "#6366f1" },
           ].map((item) => (
             <div key={item.label} className="flex items-center gap-3">
@@ -520,10 +520,10 @@ export default function MyChildren({ activeChildId, setActiveChildId }: { active
             <button key={c.id} onClick={() => { setActiveChildId(c.id); setTab("profile"); }}
               className={cn("flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all text-left",
                 c.id === activeChildId
-                  ? "bg-[#10b981]/10 border-[#10b981]/30 text-[#10b981]"
+                  ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
                   : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15")}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs"
-                style={{ background: c.id === activeChildId ? "#10b98130" : "#ffffff18", color: c.id === activeChildId ? "#10b981" : "#78788c" }}>
+                style={{ background: c.id === activeChildId ? "#3b5bdb30" : "#ffffff18", color: c.id === activeChildId ? "#3b5bdb" : "#78788c" }}>
                 {c.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
               </div>
               <div>
@@ -538,8 +538,8 @@ export default function MyChildren({ activeChildId, setActiveChildId }: { active
       {/* Panel */}
       <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
         {/* Header */}
-        <div className="p-5 border-b border-white/7 flex items-center gap-4 bg-gradient-to-r from-[#10b981]/5 to-transparent">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center shrink-0">
+        <div className="p-5 border-b border-white/7 flex items-center gap-4 bg-gradient-to-r from-[#3b5bdb]/5 to-transparent">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
             <span className="text-lg font-black text-white">{child.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
           </div>
           <div className="flex-1 min-w-0">

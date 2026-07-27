@@ -35,7 +35,7 @@ const FEATURES = [
     label:    "Revision",
     sub:      "Spaced-repetition review for long-term memory",
     icon:     <RotateCcw className="w-6 h-6"/>,
-    color:    "#8f7dd6",
+    color:    "#6882e8",
     glow:     "shadow-[0_0_32px_rgba(167,139,250,0.07)]",
     stat:     `${revisionItems.filter(r => r.dueIn === "Now" || r.dueIn === "Today").length} due today`,
     statSub:  "items",
@@ -76,7 +76,7 @@ export default function LearningHub({ setPage }: Props) {
         {[
           { label:"Overall Accuracy", value:`${overallAccuracy}%`,  color:"#4b9fd4" },
           { label:"To Recover",       value:pendingRecovery,        color:"#cc5069" },
-          { label:"Due for Revision", value:dueRevision,            color:"#8f7dd6" },
+          { label:"Due for Revision", value:dueRevision,            color:"#6882e8" },
           { label:"Unresolved",       value:unresolvedErrors,       color:"#c08a3a" },
         ].map(s => (
           <GlassCard key={s.label} className="p-4 text-center">
@@ -142,7 +142,7 @@ export default function LearningHub({ setPage }: Props) {
         {/* Subject mastery rings */}
         <GlassCard className="p-5">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-[#6366f1]"/>
+            <div className="w-1 h-4 rounded-full bg-[#3b5bdb]"/>
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Subject Accuracy</span>
           </div>
           <div className="space-y-3">
@@ -172,11 +172,11 @@ export default function LearningHub({ setPage }: Props) {
       <GlassCard className="p-5 border-dashed border-white/10">
         <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#78788c]">
           {[
-            {label:"Practice",    color:"#6366f1", done:true},
+            {label:"Practice",    color:"#3b5bdb", done:true},
             {label:"Analyse",     color:"#4b9fd4", done:true},
             {label:"Mistake Book",color:"#c08a3a", done:true},
             {label:"Recover",     color:"#cc5069", done:false, active:true},
-            {label:"Revise",      color:"#8f7dd6", done:false},
+            {label:"Revise",      color:"#6882e8", done:false},
           ].map((step, i, arr) => (
             <span key={step.label} className="flex items-center gap-2">
               <span className={cn(

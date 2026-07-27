@@ -25,7 +25,7 @@ function AnnouncementForm({ initial, onSave, onCancel }: {
   const availableClasses = assignedClasses.map((c) => ({ label: `${c.className} ${c.section}`, className: c.className, section: c.section }));
 
   return (
-    <div className="bg-[#131316] border border-[#f59e0b]/20 rounded-2xl p-5 space-y-4">
+    <div className="bg-[#131316] border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm font-bold text-white">{initial?.id ? "Edit Announcement" : "New Announcement"}</div>
         <button onClick={onCancel}><X className="w-4 h-4 text-[#78788c]" /></button>
@@ -35,13 +35,13 @@ function AnnouncementForm({ initial, onSave, onCancel }: {
         <div className="col-span-2 flex flex-col gap-1">
           <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Title *</label>
           <input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
         </div>
 
         <div className="col-span-2 flex flex-col gap-1">
           <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Message Body *</label>
           <textarea value={form.body} onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))} rows={4}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40 resize-none" />
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40 resize-none" />
         </div>
 
         <div className="flex flex-col gap-1">
@@ -82,7 +82,7 @@ function AnnouncementForm({ initial, onSave, onCancel }: {
           <div className="flex flex-col gap-1">
             <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Schedule For</label>
             <input type="datetime-local" value={form.scheduledFor} onChange={(e) => setForm((p) => ({ ...p, scheduledFor: e.target.value }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
           </div>
         )}
 
@@ -96,7 +96,7 @@ function AnnouncementForm({ initial, onSave, onCancel }: {
       <div className="flex gap-3 justify-end pt-2">
         <button onClick={onCancel} className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10">Cancel</button>
         <button onClick={() => onSave(form)} disabled={!form.title || !form.body}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-40 transition-all">
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
           <Save className="w-3.5 h-3.5" /> {form.status === "draft" ? "Save Draft" : form.status === "scheduled" ? "Schedule" : "Publish"}
         </button>
       </div>
@@ -152,7 +152,7 @@ export default function Announcements() {
           <div className="text-[10px] text-[#78788c] mt-0.5">Only for your assigned classes — not school-wide</div>
         </div>
         <button onClick={() => setCreating(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
           <Plus className="w-3.5 h-3.5" /> New Announcement
         </button>
       </div>

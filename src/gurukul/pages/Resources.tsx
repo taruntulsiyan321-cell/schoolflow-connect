@@ -12,7 +12,7 @@ export default function Resources() {
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#78788c]" />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search resources…"
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#78788c] focus:outline-none focus:border-[#6366f1]/50 transition-colors" />
+          className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50 transition-colors" />
       </div>
 
       <GlassCard className="p-5">

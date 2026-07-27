@@ -14,7 +14,7 @@ const FEATURES = [
     label:    "Timetable",
     sub:      "Daily class schedule with periods, teachers & rooms",
     icon:     <Clock className="w-6 h-6"/>,
-    color:    "#6366f1",
+    color:    "#3b5bdb",
     badge:    "Today: 6 periods",
   },
   {
@@ -46,7 +46,7 @@ const FEATURES = [
     label:    "Tests",
     sub:      "Your test scores, rank & upcoming exams",
     icon:     <FlaskConical className="w-6 h-6"/>,
-    color:    "#8f7dd6",
+    color:    "#6882e8",
     badge:    `${tests.filter(t=>t.status==="upcoming").length} upcoming`,
   },
   {
@@ -164,7 +164,7 @@ export default function ClassHub({ setPage }: Props) {
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-4 rounded-full bg-[#4aa87a]"/>
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Attendance</span>
-            <button onClick={() => setPage("attendance")} className="ml-auto text-[10px] text-[#6366f1] hover:text-[#a5b4fc] transition-colors">View →</button>
+            <button onClick={() => setPage("attendance")} className="ml-auto text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors">View →</button>
           </div>
           <div className="flex items-center gap-3 mb-4">
             <MiniRing pct={attendanceData.overall} color="#4aa87a"/>
@@ -192,13 +192,13 @@ export default function ClassHub({ setPage }: Props) {
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-4 rounded-full bg-[#c08a3a]"/>
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Rankings</span>
-            <button onClick={() => setPage("leaderboard")} className="ml-auto text-[10px] text-[#6366f1] hover:text-[#a5b4fc] transition-colors">View →</button>
+            <button onClick={() => setPage("leaderboard")} className="ml-auto text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors">View →</button>
           </div>
 
           {/* You */}
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20 mb-3">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 mb-3">
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0"
-              style={{background:"linear-gradient(135deg,#6366f1,#8f7dd6)"}}>
+              style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
               {student.avatar}
             </div>
             <div className="flex-1 min-w-0">
@@ -229,7 +229,7 @@ export default function ClassHub({ setPage }: Props) {
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-4 rounded-full bg-amber-400"/>
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Achievements</span>
-            <button onClick={() => setPage("achievements")} className="ml-auto text-[10px] text-[#6366f1] hover:text-[#a5b4fc] transition-colors">View →</button>
+            <button onClick={() => setPage("achievements")} className="ml-auto text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors">View →</button>
           </div>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">

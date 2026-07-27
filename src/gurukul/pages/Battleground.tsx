@@ -64,7 +64,7 @@ const BATTLES: BattleCard[] = [
   { id:"fb3", type:"team",  title:"Chem League — Round 3",      subject:"Chemistry",   status:"live",      players:8, maxPlayers:8,   timeLeft:"8:45",         xpReward:250, hot:true },
   { id:"fb4", type:"1v1",   title:"Physics 1v1",               subject:"Physics",     status:"pending",   players:1, maxPlayers:2,  opponent:"Rahul Mehta",  opponentAvatar:"RM", opponentColor:"#4b9fd4", xpReward:120 },
   { id:"fb5", type:"1v1",   title:"Chemistry Duel",            subject:"Chemistry",   status:"completed", players:2, maxPlayers:2,  opponent:"Sneha Patel",  opponentAvatar:"SP", opponentColor:"#4aa87a", myScore:8, theirScore:5, result:"won",  date:"Today",   xpReward:150 },
-  { id:"fb6", type:"1v1",   title:"Biology Battle",            subject:"Biology",     status:"completed", players:2, maxPlayers:2,  opponent:"Karan Joshi",  opponentAvatar:"KJ", opponentColor:"#8f7dd6", myScore:4, theirScore:9, result:"lost", date:"Yesterday",xpReward:50 },
+  { id:"fb6", type:"1v1",   title:"Biology Battle",            subject:"Biology",     status:"completed", players:2, maxPlayers:2,  opponent:"Karan Joshi",  opponentAvatar:"KJ", opponentColor:"#6882e8", myScore:4, theirScore:9, result:"lost", date:"Yesterday",xpReward:50 },
   { id:"fb7", type:"class", title:"Mathematics Championship",  subject:"Mathematics", status:"upcoming",  players:32, maxPlayers:50, startsIn:"Starts in 2h", xpReward:500 },
   { id:"fb8", type:"team",  title:"Science Olympiad",          subject:"Mixed",       status:"upcoming",  players:12, maxPlayers:20, startsIn:"Starts in 45m",xpReward:400 },
 ];
@@ -101,7 +101,7 @@ function AvatarBubble({ initials, color, size=8 }: { initials:string; color:stri
 // ── Type badge ────────────────────────────────────────────────────────────────
 function TypeBadge({ type }: { type: BattleType }) {
   const map = { "1v1":{ color:"#cc5069", label:"1v1", icon:<Swords className="w-3 h-3"/> },
-                "team":{ color:"#6366f1", label:"TEAM", icon:<Users className="w-3 h-3"/> },
+                "team":{ color:"#3b5bdb", label:"TEAM", icon:<Users className="w-3 h-3"/> },
                 "class":{ color:"#c08a3a", label:"CLASS", icon:<Globe className="w-3 h-3"/> } };
   const m = map[type];
   return (
@@ -134,7 +134,7 @@ function StatusDot({ status }: { status: BattleCard["status"] }) {
 function BCard({ b, onJoin, onView }: { b: BattleCard; onJoin:(id:string)=>void; onView:(id:string)=>void }) {
   const subj = subjects.find(s => s.name === b.subject);
   const resultColor = b.result==="won"?"#4aa87a":b.result==="lost"?"#cc5069":"#78788c";
-  const borderColor = b.status==="live"?"#cc506930":b.status==="upcoming"?"#c08a3a20":b.featured?"#6366f120":"rgba(255,255,255,0.07)";
+  const borderColor = b.status==="live"?"#cc506930":b.status==="upcoming"?"#c08a3a20":b.featured?"#3b5bdb20":"rgba(255,255,255,0.07)";
 
   return (
     <div className="relative flex flex-col p-4 rounded-2xl border bg-[#131316] transition-all duration-200 hover:border-white/15 overflow-hidden"
@@ -171,7 +171,7 @@ function BCard({ b, onJoin, onView }: { b: BattleCard; onJoin:(id:string)=>void;
       {/* 1v1 score comparison */}
       {b.type==="1v1" && b.opponent && b.status==="live" && b.myScore!==undefined && (
         <div className="flex items-center gap-2 mb-3 bg-white/3 rounded-xl p-2.5">
-          <AvatarBubble initials="AS" color="#6366f1" size={7}/>
+          <AvatarBubble initials="AS" color="#3b5bdb" size={7}/>
           <div className="flex-1">
             <div className="flex justify-between text-xs font-bold mb-1">
               <span className="text-white">{b.myScore}</span>
@@ -179,7 +179,7 @@ function BCard({ b, onJoin, onView }: { b: BattleCard; onJoin:(id:string)=>void;
               <span style={{color:b.opponentColor}}>{b.theirScore}</span>
             </div>
             <div className="relative h-1.5 rounded-full bg-white/8 overflow-hidden">
-              <div className="absolute left-0 h-full rounded-full bg-[#6366f1] transition-all" style={{width:`${(b.myScore!/10)*100}%`}}/>
+              <div className="absolute left-0 h-full rounded-full bg-[#3b5bdb] transition-all" style={{width:`${(b.myScore!/10)*100}%`}}/>
               <div className="absolute right-0 h-full rounded-full transition-all" style={{width:`${(b.theirScore!/10)*100}%`,background:b.opponentColor}}/>
             </div>
           </div>
@@ -201,7 +201,7 @@ function BCard({ b, onJoin, onView }: { b: BattleCard; onJoin:(id:string)=>void;
           <Users className="w-3 h-3"/>
           <span>{b.players}/{b.maxPlayers} players</span>
           <div className="flex-1 h-1 rounded-full bg-white/8 overflow-hidden ml-1">
-            <div className="h-full rounded-full bg-[#6366f1]/60" style={{width:`${(b.players/b.maxPlayers)*100}%`}}/>
+            <div className="h-full rounded-full bg-[#3b5bdb]/60" style={{width:`${(b.players/b.maxPlayers)*100}%`}}/>
           </div>
         </div>
       )}
@@ -211,7 +211,7 @@ function BCard({ b, onJoin, onView }: { b: BattleCard; onJoin:(id:string)=>void;
         {b.status==="pending" && (
           <button onClick={()=>onJoin(b.id)}
             className="flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90"
-            style={{background:"linear-gradient(135deg,#4b9fd4,#6366f1)",boxShadow:"0 4px 12px rgba(34,211,238,0.25)"}}>
+            style={{background:"linear-gradient(135deg,#4b9fd4,#3b5bdb)",boxShadow:"0 4px 12px rgba(34,211,238,0.25)"}}>
             Accept Challenge
           </button>
         )}
@@ -248,9 +248,9 @@ function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBatt
 
   const stats = [
     { label:"Battles Won", value:"24",   color:"#4aa87a", icon:<Trophy className="w-4 h-4"/> },
-    { label:"Win Rate",    value:"68%",  color:"#6366f1", icon:<Target className="w-4 h-4"/> },
+    { label:"Win Rate",    value:"68%",  color:"#3b5bdb", icon:<Target className="w-4 h-4"/> },
     { label:"Class Rank",  value:"#3",   color:"#c08a3a", icon:<Crown className="w-4 h-4"/> },
-    { label:"Battle XP",   value:"3,840",color:"#8f7dd6", icon:<Zap className="w-4 h-4"/> },
+    { label:"Battle XP",   value:"3,840",color:"#6882e8", icon:<Zap className="w-4 h-4"/> },
   ];
 
   const tabBattles: Record<HomeTab, BattleCard[]> = {
@@ -321,9 +321,9 @@ function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBatt
         <div className="flex gap-2">
           <input value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())}
             placeholder="Enter invite code e.g. A3X9TK"
-            className="flex-1 bg-[#131316] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#6366f1]/30 font-mono tracking-widest"/>
+            className="flex-1 bg-[#131316] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/30 font-mono tracking-widest"/>
           <button onClick={onStartBattle}
-            className="px-5 py-2.5 rounded-xl bg-[#6366f1] text-white text-sm font-bold hover:bg-blue-500 transition-all">
+            className="px-5 py-2.5 rounded-xl bg-[#3b5bdb] text-white text-sm font-bold hover:bg-blue-500 transition-all">
             Join
           </button>
         </div>
@@ -378,7 +378,7 @@ function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBatt
       {/* Recommended */}
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="w-4 h-4 text-[#8f7dd6]"/>
+          <Sparkles className="w-4 h-4 text-[#6882e8]"/>
           <span className="text-xs font-bold text-[#78788c] uppercase tracking-wider">Recommended for you</span>
         </div>
         <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
@@ -422,7 +422,7 @@ function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:Battl
 
   const TYPE_OPTIONS = [
     { key:"1v1"  as BattleType, icon:<Swords className="w-6 h-6"/>,  label:"1 vs 1 Challenge", desc:"Go head-to-head against one opponent",       color:"#cc5069" },
-    { key:"team" as BattleType, icon:<Users className="w-6 h-6"/>,   label:"Team vs Team",      desc:"Compete as a team of 2–5 students",           color:"#6366f1" },
+    { key:"team" as BattleType, icon:<Users className="w-6 h-6"/>,   label:"Team vs Team",      desc:"Compete as a team of 2–5 students",           color:"#3b5bdb" },
     { key:"class"as BattleType, icon:<Globe className="w-6 h-6"/>,   label:"Class Battle",      desc:"Open challenge for the entire class to join",  color:"#c08a3a" },
   ];
 
@@ -504,7 +504,7 @@ function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:Battl
             <div>
               <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-2">Difficulty</div>
               <div className="flex gap-2">
-                {[["easy","#4aa87a"],["medium","#c08a3a"],["hard","#cc5069"],["mixed","#8f7dd6"]].map(([d,c])=>(
+                {[["easy","#4aa87a"],["medium","#c08a3a"],["hard","#cc5069"],["mixed","#6882e8"]].map(([d,c])=>(
                   <button key={d} onClick={()=>setDifficulty(d)}
                     className={cn("flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all",
                       difficulty===d?"text-white":"border border-white/7 text-[#78788c] hover:text-white"
@@ -543,13 +543,13 @@ function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:Battl
               <div className="flex gap-2">
                 <button onClick={()=>setVisibility("public")}
                   className={cn("flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all",
-                    visibility==="public"?"bg-[#6366f1] text-white shadow-lg":"border border-white/7 text-[#78788c] hover:text-white"
+                    visibility==="public"?"bg-[#3b5bdb] text-white shadow-lg":"border border-white/7 text-[#78788c] hover:text-white"
                   )}>
                   <Globe className="w-3.5 h-3.5"/> Public
                 </button>
                 <button onClick={()=>setVisibility("private")}
                   className={cn("flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all",
-                    visibility==="private"?"bg-[#8f7dd6] text-white shadow-lg":"border border-white/7 text-[#78788c] hover:text-white"
+                    visibility==="private"?"bg-[#6882e8] text-white shadow-lg":"border border-white/7 text-[#78788c] hover:text-white"
                   )}>
                   <Lock className="w-3.5 h-3.5"/> Private
                 </button>
@@ -588,21 +588,21 @@ function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:Battl
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#78788c]"/>
                   <input value={opponent} onChange={e=>setOpponent(e.target.value)}
                     placeholder="Search by name…"
-                    className="w-full bg-white/4 border border-white/8 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#6366f1]/30"/>
+                    className="w-full bg-white/4 border border-white/8 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/30"/>
                 </div>
                 <div className="space-y-1.5">
                   {leaderboard.filter(l=>!l.you).slice(0,3).map(l=>(
                     <button key={l.rank} onClick={()=>setOpponent(l.name)}
                       className={cn(
                         "w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left",
-                        opponent===l.name?"border-[#6366f1]/30 bg-[#6366f1]/8":"border-white/5 hover:border-white/12 hover:bg-white/3"
+                        opponent===l.name?"border-[#3b5bdb]/30 bg-[#3b5bdb]/8":"border-white/5 hover:border-white/12 hover:bg-white/3"
                       )}>
                       <AvatarBubble initials={l.avatar} color={l.color} size={8}/>
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-semibold text-white">{l.name}</div>
                         <div className="text-[10px] text-[#78788c]">Rank #{l.rank} · {l.accuracy}% accuracy</div>
                       </div>
-                      <UserPlus className={cn("w-3.5 h-3.5 shrink-0 transition-colors",opponent===l.name?"text-[#6366f1]":"text-[#78788c]")}/>
+                      <UserPlus className={cn("w-3.5 h-3.5 shrink-0 transition-colors",opponent===l.name?"text-[#3b5bdb]":"text-[#78788c]")}/>
                     </button>
                   ))}
                 </div>
@@ -713,10 +713,10 @@ function BattleArena({ config, onFinish }: { config:BattleConfig; onFinish:(res:
         <div className="flex items-center gap-3">
           {/* Me */}
           <div className="flex-1 flex items-center gap-2">
-            <AvatarBubble initials="AS" color="#6366f1" size={9}/>
+            <AvatarBubble initials="AS" color="#3b5bdb" size={9}/>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold text-white truncate">You</div>
-              <div className="text-lg font-black text-[#6366f1] tabular-nums">{correct}</div>
+              <div className="text-lg font-black text-[#3b5bdb] tabular-nums">{correct}</div>
             </div>
           </div>
           {/* Timer */}
@@ -735,7 +735,7 @@ function BattleArena({ config, onFinish }: { config:BattleConfig; onFinish:(res:
         </div>
         {/* Dual progress */}
         <div className="relative h-1.5 rounded-full bg-white/6 mt-3 overflow-hidden">
-          <div className="absolute left-0 h-full rounded-full transition-all duration-500 bg-[#6366f1]" style={{width:`${(correct/qs.length)*100}%`}}/>
+          <div className="absolute left-0 h-full rounded-full transition-all duration-500 bg-[#3b5bdb]" style={{width:`${(correct/qs.length)*100}%`}}/>
           <div className="absolute right-0 h-full rounded-full transition-all duration-500" style={{width:`${(oppScore/qs.length)*100}%`,background:oppColor}}/>
         </div>
         {winning && <div className="text-center text-[10px] text-emerald-400 font-bold mt-1.5 animate-pulse">🔥 You're ahead!</div>}
@@ -747,7 +747,7 @@ function BattleArena({ config, onFinish }: { config:BattleConfig; onFinish:(res:
       <GlassCard glow="blue" className="p-5">
         <div className="flex items-center justify-between mb-3">
           <span className="text-[10px] uppercase tracking-widest text-[#78788c]">Question {qIdx+1}</span>
-          <SubjectBadge subject={q.subject} color={subjects.find(s=>s.name===q.subject)?.color??"#6366f1"}/>
+          <SubjectBadge subject={q.subject} color={subjects.find(s=>s.name===q.subject)?.color??"#3b5bdb"}/>
         </div>
         <div className="text-base font-semibold text-white leading-relaxed">{q.text}</div>
       </GlassCard>
@@ -824,7 +824,7 @@ function Results({ result, onHome, onReplay }: { result:BattleResult; onHome:()=
         {/* Score VS */}
         <div className="flex items-center justify-center gap-6 mb-6">
           <div className="text-center">
-            <AvatarBubble initials="AS" color="#6366f1" size={12}/>
+            <AvatarBubble initials="AS" color="#3b5bdb" size={12}/>
             <div className="text-3xl font-black text-white mt-2 tabular-nums">{myScore}</div>
             <div className="text-[11px] text-[#78788c]">You</div>
           </div>
@@ -839,7 +839,7 @@ function Results({ result, onHome, onReplay }: { result:BattleResult; onHome:()=
         {/* Stats grid */}
         <div className="grid grid-cols-4 gap-2 mb-6">
           {[
-            {label:"Accuracy",  value:`${pct}%`,           color:"#6366f1"},
+            {label:"Accuracy",  value:`${pct}%`,           color:"#3b5bdb"},
             {label:"Correct",   value:myScore,              color:"#4aa87a"},
             {label:"Wrong",     value:total-myScore,        color:"#cc5069"},
             {label:"Time",      value:`${mm}m${ss}s`,       color:"#4b9fd4"},
@@ -982,7 +982,7 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
           {LB_SUBJECT.map(s=>(
             <button key={s} onClick={()=>setSelSubj(s)}
               className={cn("shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
-                selSubj===s?"bg-[#6366f1] text-white":"border border-white/7 text-[#78788c] hover:text-white"
+                selSubj===s?"bg-[#3b5bdb] text-white":"border border-white/7 text-[#78788c] hover:text-white"
               )}>{s}</button>
           ))}
         </div>
@@ -1012,7 +1012,7 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
           {entries.map(e => (
             <div key={e.rank} className={cn(
               "flex items-center gap-3 p-3 rounded-xl transition-all",
-              e.you?"border border-[#6366f1]/30 bg-[#6366f1]/8":"hover:bg-white/3"
+              e.you?"border border-[#3b5bdb]/30 bg-[#3b5bdb]/8":"hover:bg-white/3"
             )}>
               <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
                 style={{color:medalColor(e.rank),background:`${medalColor(e.rank)}15`}}>
@@ -1022,7 +1022,7 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-bold text-white truncate">{e.name}</span>
-                  {e.you && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#6366f1]/20 text-[#6366f1] border border-[#6366f1]/25">YOU</span>}
+                  {e.you && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#3b5bdb]/20 text-[#3b5bdb] border border-[#3b5bdb]/25">YOU</span>}
                 </div>
                 <div className="flex items-center gap-2 text-[10px] text-[#78788c] mt-0.5">
                   <span>🔥 {e.streak}</span>
@@ -1060,7 +1060,7 @@ function BattleHistory({ onBack, onReplay }: { onBack:()=>void; onReplay:()=>voi
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          {label:"Battles",  value:totBattles, color:"#6366f1"},
+          {label:"Battles",  value:totBattles, color:"#3b5bdb"},
           {label:"Won",      value:totWins,    color:"#4aa87a"},
           {label:"Total XP", value:totalXP,   color:"#c08a3a"},
         ].map(s=>(
@@ -1110,7 +1110,7 @@ function BattleHistory({ onBack, onReplay }: { onBack:()=>void; onReplay:()=>voi
               <div className="text-right shrink-0">
                 <div className="flex items-center gap-1 text-amber-400 text-xs font-bold mb-1"><Zap className="w-3 h-3"/>+{h.xp}</div>
                 <div className="text-[10px] text-[#78788c]">🪙 +{h.coins}</div>
-                <button onClick={onReplay} className="mt-2 text-[10px] text-[#6366f1] hover:text-[#a5b4fc] transition-colors flex items-center gap-0.5">
+                <button onClick={onReplay} className="mt-2 text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors flex items-center gap-0.5">
                   <Repeat className="w-3 h-3"/> Rematch
                 </button>
               </div>

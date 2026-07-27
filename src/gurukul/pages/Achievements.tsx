@@ -14,7 +14,7 @@ export default function Achievements() {
           <div className="text-[11px] text-[#78788c] mt-0.5">Milestones reached</div>
         </div>
         <div className="p-4 rounded-2xl border border-white/7 bg-[#131316]/70 text-center">
-          <div className="text-2xl font-black text-[#8f7dd6]" style={{ fontFamily: "var(--font-display)" }}>
+          <div className="text-2xl font-black text-[#6882e8]" style={{ fontFamily: "var(--font-display)" }}>
             {unlocked.reduce((s, a) => s + a.xp, 0).toLocaleString()}
           </div>
           <div className="text-[11px] text-[#78788c] mt-0.5">XP earned from milestones</div>

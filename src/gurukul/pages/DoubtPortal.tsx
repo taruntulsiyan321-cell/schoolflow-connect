@@ -35,7 +35,7 @@ const MOCK_DOUBTS: Doubt[] = [
     id:"d1", title:"Why doesn't SN2 work for tertiary alkyl halides?",
     body:"I understand that SN2 is a bimolecular mechanism, but I'm confused about why tertiary substrates don't undergo SN2. Is it purely steric? What role does the leaving group play?",
     subject:"Chemistry", chapter:"Organic Chemistry", topic:"Reaction Mechanisms",
-    authorName:"Arjun Sharma", authorAvatar:"AS", authorColor:"#6366f1",
+    authorName:"Arjun Sharma", authorAvatar:"AS", authorColor:"#3b5bdb",
     authorRank:3, date:"Jun 11", time:"10:24 AM", status:"answered",
     views:42, upvotes:8, upvotedByMe:true, bookmarked:true, mine:true,
     tags:["SN2","substitution","organic"],
@@ -43,7 +43,7 @@ const MOCK_DOUBTS: Doubt[] = [
     replies:[
       { id:"r1", author:"Mr. Khan", avatar:"MK", authorColor:"#c08a3a", text:"Great question Arjun! SN2 requires a backside attack — the nucleophile approaches from 180° opposite the leaving group. In tertiary halides, the three bulky alkyl groups create steric hindrance that physically blocks this approach. The activation energy becomes prohibitively high. The leaving group quality doesn't directly affect this; it's purely the steric environment of the central carbon.", time:"10:41 AM", likes:12, likedByMe:false, isTeacher:true, isAccepted:true, isHelpful:true, isAI:false },
       { id:"r2", author:"Priya Nair", avatar:"PN", authorColor:"#c08a3a", text:"To add to Sir's answer — a good way to remember this: tertiary carbons have THREE groups blocking the back. SN2 is essentially impossible. Tertiary substrates instead go via SN1 since they form stable 3° carbocations. Primary → SN2 preferred, Tertiary → SN1 preferred.", time:"11:02 AM", likes:7, likedByMe:true, isTeacher:false, isAccepted:false, isHelpful:true, isAI:false },
-      { id:"r3", author:"Nova AI", avatar:"AI", authorColor:"#8f7dd6", text:"Supplementary: Steric hindrance isn't just about number of groups — it's about their bulk too. A neopentyl system (primary but with tert-butyl group adjacent) is also resistant to SN2 for the same reason. The key rule: SN2 rate = f(nucleophile strength, substrate steric environment). Tertiary > Secondary > Primary in SN1; Primary > Secondary > Tertiary in SN2.", time:"11:05 AM", likes:5, likedByMe:false, isTeacher:false, isAccepted:false, isHelpful:false, isAI:true },
+      { id:"r3", author:"Nova AI", avatar:"AI", authorColor:"#6882e8", text:"Supplementary: Steric hindrance isn't just about number of groups — it's about their bulk too. A neopentyl system (primary but with tert-butyl group adjacent) is also resistant to SN2 for the same reason. The key rule: SN2 rate = f(nucleophile strength, substrate steric environment). Tertiary > Secondary > Primary in SN1; Primary > Secondary > Tertiary in SN2.", time:"11:05 AM", likes:5, likedByMe:false, isTeacher:false, isAccepted:false, isHelpful:false, isAI:true },
     ],
   },
   {
@@ -70,7 +70,7 @@ const MOCK_DOUBTS: Doubt[] = [
     attachments:[],
     replies:[
       { id:"r5", author:"Ms. Iyer", avatar:"MI", authorColor:"#4aa87a", text:"These three are genuinely distinct. **Complete dominance**: A masks a entirely (Aa looks like AA). **Incomplete dominance**: blend — RR=red, rr=white, Rr=PINK (intermediate). **Codominance**: both expressed simultaneously — AB blood type shows both A and B antigens on the same cell surface. No blending, no masking. Use blood groups as your anchor for codominance.", time:"9:00 AM", likes:21, likedByMe:false, isTeacher:true, isAccepted:true, isHelpful:true, isAI:false },
-      { id:"r6", author:"Karan Joshi", avatar:"KJ", authorColor:"#8f7dd6", text:"Memory trick that helped me: Incomplete = intermediate (pink flower), Codominance = clear co-existence (AB blood). Complete dominance = 100% one phenotype.", time:"9:22 AM", likes:6, likedByMe:false, isTeacher:false, isAccepted:false, isHelpful:false, isAI:false },
+      { id:"r6", author:"Karan Joshi", avatar:"KJ", authorColor:"#6882e8", text:"Memory trick that helped me: Incomplete = intermediate (pink flower), Codominance = clear co-existence (AB blood). Complete dominance = 100% one phenotype.", time:"9:22 AM", likes:6, likedByMe:false, isTeacher:false, isAccepted:false, isHelpful:false, isAI:false },
     ],
   },
   {
@@ -136,7 +136,7 @@ function AvatarBubble({ initials, color, size=8, isTeacher=false, isAI=false }: 
   const s = `w-${size} h-${size}`;
   if (isAI) return (
     <div className={cn(s,"rounded-full flex items-center justify-center shrink-0 text-white")}
-      style={{background:"linear-gradient(135deg,#8f7dd6,#7c3aed)"}}>
+      style={{background:"linear-gradient(135deg,#6882e8,#7c3aed)"}}>
       <Sparkles className="w-3.5 h-3.5"/>
     </div>
   );
@@ -234,7 +234,7 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
   function sendReply() {
     if (!replyText.trim()) return;
     const newReply: Reply = {
-      id: `r${Date.now()}`, author:"You", avatar:"AS", authorColor:"#6366f1",
+      id: `r${Date.now()}`, author:"You", avatar:"AS", authorColor:"#3b5bdb",
       text: replyText, time:"Just now", likes:0, likedByMe:false,
       isTeacher:false, isAccepted:false, isHelpful:false,
     };
@@ -358,13 +358,13 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
       {localDoubt.status !== "closed" && (
         <GlassCard className="p-4">
           <div className="flex items-center gap-2 mb-3">
-            <AvatarBubble initials="AS" color="#6366f1" size={7}/>
+            <AvatarBubble initials="AS" color="#3b5bdb" size={7}/>
             <span className="text-xs font-semibold text-white">Add your reply</span>
           </div>
           <textarea value={replyText} onChange={e => setReplyText(e.target.value)}
             placeholder="Share what you know, ask a follow-up, or add a helpful explanation..."
             rows={3}
-            className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#6366f1]/30 resize-none leading-relaxed"/>
+            className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#3b5bdb]/30 resize-none leading-relaxed"/>
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-1.5 text-[#78788c]">
               <button className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-all"><Image className="w-3.5 h-3.5"/></button>
@@ -415,7 +415,7 @@ function AskDoubt({ onBack, onPost }: { onBack: () => void; onPost: (d: Doubt) =
       title: title || "Untitled Doubt",
       body: body || "",
       subject, chapter, topic,
-      authorName: student.name, authorAvatar: student.avatar, authorColor:"#6366f1",
+      authorName: student.name, authorAvatar: student.avatar, authorColor:"#3b5bdb",
       authorRank: student.rank,
       date: "Jun 12", time: "Now",
       status: "pending",
@@ -469,14 +469,14 @@ function AskDoubt({ onBack, onPost }: { onBack: () => void; onPost: (d: Doubt) =
           <div>
             <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Subject *</label>
             <select value={subject} onChange={e => setSubject(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#6366f1]/30 appearance-none">
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/30 appearance-none">
               {SUBJECTS.filter(s => s !== "All").map(s => <option key={s} value={s} className="bg-[#131316]">{s}</option>)}
             </select>
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Chapter</label>
             <select value={chapter} onChange={e => setChapter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#6366f1]/30 appearance-none">
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/30 appearance-none">
               <option value="" className="bg-[#131316]">Select chapter...</option>
               {(CHAPTERS[subject] || []).map(c => <option key={c} value={c} className="bg-[#131316]">{c}</option>)}
             </select>
@@ -487,14 +487,14 @@ function AskDoubt({ onBack, onPost }: { onBack: () => void; onPost: (d: Doubt) =
         <div>
           <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Topic (optional)</label>
           <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Integration by parts, SN2 mechanism..."
-            className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#6366f1]/30"/>
+            className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#3b5bdb]/30"/>
         </div>
 
         {/* Title */}
         <div>
           <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Doubt Title *</label>
           <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ask your question clearly in one sentence..."
-            className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#6366f1]/30"/>
+            className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#3b5bdb]/30"/>
         </div>
 
         {/* Body */}
@@ -502,7 +502,7 @@ function AskDoubt({ onBack, onPost }: { onBack: () => void; onPost: (d: Doubt) =
           <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Details</label>
           <textarea value={body} onChange={e => setBody(e.target.value)} rows={4}
             placeholder="Explain what you've tried, where you're stuck, and any specific context..."
-            className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#6366f1]/30 resize-none leading-relaxed"/>
+            className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#3b5bdb]/30 resize-none leading-relaxed"/>
         </div>
 
         {/* Attachment strip */}
@@ -517,7 +517,7 @@ function AskDoubt({ onBack, onPost }: { onBack: () => void; onPost: (d: Doubt) =
             ].map(a => (
               <button key={a.type} onClick={() => setAttachType(t => t === a.type ? null : a.type)}
                 className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all",
-                  attachType === a.type ? "bg-[#6366f1]/15 border-[#6366f1]/30 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white hover:bg-white/10")}>
+                  attachType === a.type ? "bg-[#3b5bdb]/15 border-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white hover:bg-white/10")}>
                 {a.icon} {a.label}
               </button>
             ))}
@@ -584,7 +584,7 @@ function MyDoubts({ doubts, onOpen }: { doubts: Doubt[]; onOpen: (d: Doubt) => v
         {tabs.map(t => (
           <button key={t.val} onClick={() => setTab(t.val as any)}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
-              tab === t.val ? "bg-[#6366f1]/15 border border-[#6366f1]/30 text-[#a5b4fc]" : "bg-white/5 border border-white/10 text-[#78788c] hover:bg-white/10")}>
+              tab === t.val ? "bg-[#3b5bdb]/15 border border-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/5 border border-white/10 text-[#78788c] hover:bg-white/10")}>
             {t.label}
             <span className={cn("text-[10px] font-bold px-1 rounded-full", tab === t.val ? "bg-blue-500/30 text-blue-200" : "bg-white/10 text-[#78788c]")}>{t.count}</span>
           </button>
@@ -654,7 +654,7 @@ export default function DoubtPortal() {
 
       {/* Notification banner */}
       {showNotif && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/10 border border-[#6366f1]/20">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/10 border border-[#3b5bdb]/20">
           <Bell className="w-4 h-4 text-[#818cf8] shrink-0"/>
           <p className="text-xs text-[#a5b4fc] flex-1">
             <span className="font-bold">Mr. Khan</span> replied to your doubt on SN2 mechanisms · 2 minutes ago
@@ -667,10 +667,10 @@ export default function DoubtPortal() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label:"Total Doubts",  value:doubts.length, color:"#6366f1", icon:<MessageCircle className="w-4 h-4"/> },
+          { label:"Total Doubts",  value:doubts.length, color:"#3b5bdb", icon:<MessageCircle className="w-4 h-4"/> },
           { label:"Unanswered",    value:pending,        color:"#c08a3a", icon:<Clock className="w-4 h-4"/> },
           { label:"Answered",      value:answered,       color:"#4aa87a", icon:<CheckCircle2 className="w-4 h-4"/> },
-          { label:"My Doubts",     value:myDoubts,       color:"#8f7dd6", icon:<User className="w-4 h-4"/> },
+          { label:"My Doubts",     value:myDoubts,       color:"#6882e8", icon:<User className="w-4 h-4"/> },
         ].map(s => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
@@ -689,7 +689,7 @@ export default function DoubtPortal() {
         ].map(tab => (
           <button key={tab.key} onClick={() => setView(tab.key)}
             className={cn("px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
-              view === tab.key ? "bg-[#6366f1]/15 border border-[#6366f1]/30 text-[#a5b4fc]" : "text-[#78788c] hover:text-white")}>
+              view === tab.key ? "bg-[#3b5bdb]/15 border border-[#3b5bdb]/30 text-[#a5b4fc]" : "text-[#78788c] hover:text-white")}>
             {tab.label}
           </button>
         ))}
@@ -705,7 +705,7 @@ export default function DoubtPortal() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#78788c]"/>
               <input value={search} onChange={e => setSearch(e.target.value)}
                 placeholder="Search doubts, topics, chapters..."
-                className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#6366f1]/30"/>
+                className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#3b5bdb]/30"/>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex gap-1.5">
@@ -721,7 +721,7 @@ export default function DoubtPortal() {
                 {STATUS_OPTS.map(o => (
                   <button key={o.val} onClick={() => setStatusFilter(o.val)}
                     className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
-                      statusFilter === o.val ? "bg-[#6366f1]/15 border border-[#6366f1]/30 text-[#a5b4fc]" : "bg-white/5 border border-white/8 text-[#78788c] hover:bg-white/10")}>
+                      statusFilter === o.val ? "bg-[#3b5bdb]/15 border border-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/5 border border-white/8 text-[#78788c] hover:bg-white/10")}>
                     {o.label}
                   </button>
                 ))}

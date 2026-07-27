@@ -63,8 +63,8 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
   return (
     <div className="space-y-6">
       {/* Welcome */}
-      <div className="bg-gradient-to-r from-[#f59e0b]/10 to-[#f59e0b]/5 border border-[#f59e0b]/20 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#f59e0b] to-[#d97706] flex items-center justify-center shrink-0">
+      <div className="bg-gradient-to-r from-[#3b5bdb]/10 to-[#f59e0b]/5 border border-[#3b5bdb]/20 rounded-2xl p-5 flex items-center gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <span className="text-lg font-black text-white">AR</span>
         </div>
         <div className="flex-1 min-w-0">
@@ -77,7 +77,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-xs font-bold text-[#f59e0b]">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</div>
+          <div className="text-xs font-bold text-[#3b5bdb]">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</div>
         </div>
       </div>
 
@@ -107,9 +107,9 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-white/7">
-            <Calendar className="w-4 h-4 text-[#f59e0b]" />
+            <Calendar className="w-4 h-4 text-[#3b5bdb]" />
             <div className="text-sm font-bold text-white">Today&apos;s Classes</div>
-            <span className="ml-auto text-[9px] font-bold text-[#f59e0b] bg-[#f59e0b]/10 px-1.5 py-0.5 rounded-full">{todayClasses.length}</span>
+            <span className="ml-auto text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-1.5 py-0.5 rounded-full">{todayClasses.length}</span>
           </div>
           <div className="p-3 space-y-2">
             {todayClasses.length === 0 && (
@@ -120,8 +120,8 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
               return (
                 <button key={c.id} onClick={() => setPage("myclasses")}
                   className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/6 transition-all text-left group">
-                  <div className="w-8 h-8 rounded-lg bg-[#f59e0b]/15 flex items-center justify-center shrink-0">
-                    <BookOpen className="w-4 h-4 text-[#f59e0b]" />
+                  <div className="w-8 h-8 rounded-lg bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
+                    <BookOpen className="w-4 h-4 text-[#3b5bdb]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-bold text-white">{c.className} {c.section} — {c.subject}</div>
@@ -130,7 +130,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
                       {slot?.time}
                     </div>
                   </div>
-                  {c.isClassTeacher && <span className="text-[8px] font-bold text-[#f59e0b] bg-[#f59e0b]/10 px-1.5 py-0.5 rounded-full shrink-0">CT</span>}
+                  {c.isClassTeacher && <span className="text-[8px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-1.5 py-0.5 rounded-full shrink-0">CT</span>}
                   <ChevronRight className="w-3 h-3 text-[#46465a] group-hover:text-white transition-all" />
                 </button>
               );
@@ -194,7 +194,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
               </button>
             ))}
             {openDoubts > 3 && (
-              <button onClick={() => setPage("doubts")} className="w-full text-center text-[10px] text-[#f59e0b] hover:underline py-1">
+              <button onClick={() => setPage("doubts")} className="w-full text-center text-[10px] text-[#3b5bdb] hover:underline py-1">
                 View all {openDoubts} open doubts →
               </button>
             )}

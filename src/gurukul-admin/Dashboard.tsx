@@ -56,13 +56,13 @@ function AttendanceBar({ label, value, color }: { label: string; value: number; 
 
 const activityColor: Record<string, string> = {
   student_added: "#4aa87a",
-  teacher_added: "#6366f1",
+  teacher_added: "#3b5bdb",
   student_deleted: "#cc5069",
   teacher_deleted: "#cc5069",
   password_reset: "#c08a3a",
   class_changed: "#4b9fd4",
-  student_promoted: "#8f7dd6",
-  announcement: "#6366f1",
+  student_promoted: "#6882e8",
+  announcement: "#3b5bdb",
   suspension: "#cc5069",
 };
 
@@ -93,9 +93,9 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         <div className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider mb-3">Quick Actions</div>
         <div className="flex flex-wrap gap-2">
           {[
-            { icon: <UserPlus className="w-4 h-4" />, label: "Add Student", color: "#6366f1", action: () => setPage("students") },
+            { icon: <UserPlus className="w-4 h-4" />, label: "Add Student", color: "#3b5bdb", action: () => setPage("students") },
             { icon: <Plus className="w-4 h-4" />, label: "Add Teacher", color: "#4b9fd4", action: () => setPage("teachers") },
-            { icon: <UserCheck className="w-4 h-4" />, label: "Add Parent", color: "#8f7dd6", action: () => setPage("parents") },
+            { icon: <UserCheck className="w-4 h-4" />, label: "Add Parent", color: "#6882e8", action: () => setPage("parents") },
             { icon: <Bell className="w-4 h-4" />, label: "Create Announcement", color: "#c08a3a", action: () => setPage("announcements") },
             { icon: <ClipboardEdit className="w-4 h-4" />, label: "Edit Today's Attendance", color: "#4aa87a", action: () => setPage("classes") },
           ].map((item) => (
@@ -120,9 +120,9 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard label="Total Students" value={stats.totalStudents} icon={<GraduationCap className="w-5 h-5" />} color="#6366f1" delta={3} sub={`+${stats.newStudentsThisMonth} this month`} />
+        <StatCard label="Total Students" value={stats.totalStudents} icon={<GraduationCap className="w-5 h-5" />} color="#3b5bdb" delta={3} sub={`+${stats.newStudentsThisMonth} this month`} />
         <StatCard label="Total Teachers" value={stats.totalTeachers} icon={<Users className="w-5 h-5" />} color="#4b9fd4" delta={1} sub={`+${stats.newTeachersThisMonth} this month`} />
-        <StatCard label="Total Parents" value={stats.totalParents} icon={<UserCheck className="w-5 h-5" />} color="#8f7dd6" />
+        <StatCard label="Total Parents" value={stats.totalParents} icon={<UserCheck className="w-5 h-5" />} color="#6882e8" />
         <StatCard label="Classes" value={stats.totalClasses} icon={<Building2 className="w-5 h-5" />} color="#4aa87a" sub="4 sections each" />
         <StatCard label="Active Today" value={stats.activeUsersToday} icon={<Activity className="w-5 h-5" />} color="#c08a3a" sub="students + teachers" />
         <StatCard label="Pending" value={stats.pendingRequests} icon={<AlertCircle className="w-5 h-5" />} color="#cc5069" sub={`${stats.pendingDoubts} doubts`} />
@@ -134,7 +134,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-white">{"Today's Attendance"}</div>
-            <button onClick={() => setPage("classes")} className="text-[10px] text-[#6366f1] hover:underline flex items-center gap-1">
+            <button onClick={() => setPage("classes")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
               Edit <ClipboardEdit className="w-3 h-3" />
             </button>
           </div>
@@ -163,9 +163,9 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
                   {cls.submitted ? (
                     <>
                       <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-[#6366f1]" style={{ width: `${pct}%` }} />
+                        <div className="h-full rounded-full bg-[#3b5bdb]" style={{ width: `${pct}%` }} />
                       </div>
-                      <div className="text-[9px] font-bold text-[#6366f1] w-8 text-right shrink-0">{pct}%</div>
+                      <div className="text-[9px] font-bold text-[#3b5bdb] w-8 text-right shrink-0">{pct}%</div>
                       <CheckCircle2 className="w-3.5 h-3.5 text-[#4aa87a] shrink-0" />
                     </>
                   ) : (
@@ -186,7 +186,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-bold text-white">Recent Students</div>
-            <button onClick={() => setPage("students")} className="text-[10px] text-[#6366f1] hover:underline flex items-center gap-1">
+            <button onClick={() => setPage("students")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
               View all <ChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -211,7 +211,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-bold text-white">Recent Teachers</div>
-            <button onClick={() => setPage("teachers")} className="text-[10px] text-[#6366f1] hover:underline flex items-center gap-1">
+            <button onClick={() => setPage("teachers")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
               View all <ChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -284,14 +284,14 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           {/* Announcements */}
           <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 flex-1">
             <div className="flex items-center gap-2 mb-4">
-              <Bell className="w-4 h-4 text-[#6366f1]" />
+              <Bell className="w-4 h-4 text-[#3b5bdb]" />
               <div className="text-sm font-bold text-white">Announcements</div>
             </div>
             <div className="space-y-3">
               {announcements.map((a) => (
                 <div key={a.id} className="space-y-1">
                   <div className="flex items-center gap-2">
-                    {a.pinned && <span className="text-[8px] font-bold text-[#6366f1] uppercase">Pinned</span>}
+                    {a.pinned && <span className="text-[8px] font-bold text-[#3b5bdb] uppercase">Pinned</span>}
                     <div className="text-xs font-semibold text-white">{a.title}</div>
                   </div>
                   <div className="text-[10px] text-[#78788c]">{a.content}</div>

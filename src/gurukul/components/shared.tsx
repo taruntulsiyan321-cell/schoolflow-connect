@@ -12,10 +12,10 @@ export function GlassCard({ children, className, glow, onClick }: {
   onClick?: () => void;
 }) {
   const glows: Record<string, string> = {
-    blue:   "border-[#6366f1]/20",
+    blue:   "border-[#3b5bdb]/20",
     cyan:   "border-[#4b9fd4]/20",
     amber:  "border-[#c08a3a]/20",
-    purple: "border-[#8f7dd6]/20",
+    purple: "border-[#6882e8]/20",
     green:  "border-[#4aa87a]/20",
     rose:   "border-[#cc5069]/20",
   };
@@ -32,14 +32,14 @@ export function GlassCard({ children, className, glow, onClick }: {
 export function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div className={cn("flex items-center gap-2 mb-4", className)}>
-      <div className="w-1 h-4 rounded-full bg-[#6366f1]" />
+      <div className="w-1 h-4 rounded-full bg-[#3b5bdb]" />
       <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">{children}</span>
     </div>
   );
 }
 
 const SUBJECT_COLORS: Record<string,string> = {
-  Mathematics:"#6366f1", Physics:"#4b9fd4", Chemistry:"#8f7dd6",
+  Mathematics:"#3b5bdb", Physics:"#4b9fd4", Chemistry:"#6882e8",
   Biology:"#4aa87a", English:"#c08a3a",
 };
 
@@ -62,8 +62,8 @@ export function StatusBadge({ status }: { status: string }) {
     "won":         {label:"Won",          color:"#4aa87a",bg:"#4aa87a15"},
     "lost":        {label:"Lost",         color:"#cc5069",bg:"#cc506915"},
     "answered":    {label:"Answered",     color:"#4aa87a",bg:"#4aa87a15"},
-    "submitted":   {label:"Submitted",    color:"#6366f1",bg:"#6366f115"},
-    "graded":      {label:"Graded",       color:"#8f7dd6",bg:"#8f7dd615"},
+    "submitted":   {label:"Submitted",    color:"#3b5bdb",bg:"#3b5bdb15"},
+    "graded":      {label:"Graded",       color:"#6882e8",bg:"#6882e815"},
     "in-progress": {label:"In Progress",  color:"#c08a3a",bg:"#c08a3a15"},
     "not-started": {label:"Not Started",  color:"#78788c",bg:"#78788c15"},
   };
@@ -75,7 +75,7 @@ export function Avatar({ initials, color, size="md" }: { initials:string; color?
   const sizes = {sm:"w-7 h-7 text-[10px]", md:"w-9 h-9 text-xs", lg:"w-12 h-12 text-sm"};
   return (
     <div className={cn("rounded-full flex items-center justify-center font-black text-white shrink-0", sizes[size])}
-      style={{background: color ? `linear-gradient(135deg,${color},${color}99)` : "linear-gradient(135deg,#6366f1,#8f7dd6)"}}>
+      style={{background: color ? `linear-gradient(135deg,${color},${color}99)` : "linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
       {initials}
     </div>
   );
@@ -100,7 +100,7 @@ export function ProgressRing({ score, size=80, color }: { score:number; size?:nu
   );
 }
 
-export function ProgressBar({ value, max=100, color="#6366f1", height="h-2" }: {
+export function ProgressBar({ value, max=100, color="#3b5bdb", height="h-2" }: {
   value:number; max?:number; color?:string; height?:string;
 }) {
   const pct = Math.min(100,(value/max)*100);
@@ -131,7 +131,7 @@ export function XPBar({ xp, level }: { xp:number; level:number }) {
         <span className="text-[11px] text-[#78788c]">{xp%1000}/1000 XP</span>
       </div>
       <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-        <div className="h-full rounded-full" style={{width:`${progress}%`,background:"linear-gradient(90deg,#6366f1,#8f7dd6)",transition:"width 1s ease"}}/>
+        <div className="h-full rounded-full" style={{width:`${progress}%`,background:"linear-gradient(90deg,#3b5bdb,#6882e8)",transition:"width 1s ease"}}/>
       </div>
     </div>
   );
@@ -164,6 +164,6 @@ export function DifficultyBadge({ level }: { level:"easy"|"medium"|"hard"|string
 }
 
 export const subjectColor: Record<string,string> = {
-  Mathematics:"#6366f1", Physics:"#4b9fd4", Chemistry:"#8f7dd6",
+  Mathematics:"#3b5bdb", Physics:"#4b9fd4", Chemistry:"#6882e8",
   Biology:"#4aa87a", English:"#c08a3a",
 };

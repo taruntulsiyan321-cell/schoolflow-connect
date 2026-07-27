@@ -12,7 +12,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
       {/* Hero card */}
       <GlassCard glow="blue" className="p-6">
         <div className="flex items-start gap-4">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-white shrink-0" style={{ background: "linear-gradient(135deg,#6366f1,#8f7dd6)" }}>
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-white shrink-0" style={{ background: "linear-gradient(135deg,#3b5bdb,#6882e8)" }}>
             {student.avatar}
           </div>
           <div className="flex-1 min-w-0">
@@ -20,7 +20,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
               <div>
                 <h2 className="text-xl font-black text-white leading-tight" style={{ fontFamily: "var(--font-display)" }}>{student.name}</h2>
                 <div className="text-sm text-[#78788c]">{student.class} · Roll #{student.rollNo} · Section {student.section}</div>
-                <div className="text-xs text-[#6366f1] mt-0.5">Goal: {student.goal}</div>
+                <div className="text-xs text-[#3b5bdb] mt-0.5">Goal: {student.goal}</div>
               </div>
               <button className="ml-auto text-[#78788c] hover:text-white transition-colors">
                 <Edit3 className="w-4 h-4" />
@@ -39,7 +39,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           { label: "Class rank",    value: `#${student.rank}`,            color: "#c08a3a", icon: <Trophy className="w-4 h-4" /> },
           { label: "Accuracy",      value: `${student.accuracy}%`,        color: "#4b9fd4", icon: <Target className="w-4 h-4" /> },
           { label: "Streak",        value: `${student.streak} days`,      color: "#f97316", icon: <Flame className="w-4 h-4" /> },
-          { label: "Total XP",      value: student.xp.toLocaleString(),   color: "#8f7dd6", icon: <Zap className="w-4 h-4" /> },
+          { label: "Total XP",      value: student.xp.toLocaleString(),   color: "#6882e8", icon: <Zap className="w-4 h-4" /> },
         ].map((s) => (
           <div key={s.label} className="p-4 rounded-2xl border border-white/7 bg-[#131316]/70">
             <div className="flex items-center gap-2 mb-1" style={{ color: s.color }}>
@@ -107,16 +107,16 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             <div className="w-1 h-4 rounded-full bg-amber-400"/>
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Class Rankings</span>
             {setPage && (
-              <button onClick={() => setPage("leaderboard")} className="ml-auto flex items-center gap-1 text-[10px] text-[#6366f1] hover:text-blue-300 transition-colors">
+              <button onClick={() => setPage("leaderboard")} className="ml-auto flex items-center gap-1 text-[10px] text-[#3b5bdb] hover:text-blue-300 transition-colors">
                 Full board <ArrowRight className="w-3 h-3"/>
               </button>
             )}
           </div>
           {/* My position */}
           {myRankRow && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/25 mb-3">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-[#3b5bdb]/10 border border-[#3b5bdb]/25 mb-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0"
-                style={{background:"linear-gradient(135deg,#6366f1,#8f7dd6)"}}>
+                style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
                 {student.avatar}
               </div>
               <div className="flex-1 min-w-0">
@@ -150,7 +150,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             <div className="w-1 h-4 rounded-full bg-purple-400"/>
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Achievements</span>
             {setPage && (
-              <button onClick={() => setPage("achievements")} className="ml-auto flex items-center gap-1 text-[10px] text-[#6366f1] hover:text-blue-300 transition-colors">
+              <button onClick={() => setPage("achievements")} className="ml-auto flex items-center gap-1 text-[10px] text-[#3b5bdb] hover:text-blue-300 transition-colors">
                 All <ArrowRight className="w-3 h-3"/>
               </button>
             )}

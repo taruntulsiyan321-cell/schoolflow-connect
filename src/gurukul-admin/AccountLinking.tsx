@@ -75,12 +75,12 @@ function LinkRow({
       {value ? (
         <div className="flex items-center gap-2">
           <div className="text-xs text-white flex-1 truncate">{value}</div>
-          <button onClick={onEdit} className="text-[10px] text-[#6366f1] hover:underline">Change</button>
+          <button onClick={onEdit} className="text-[10px] text-[#3b5bdb] hover:underline">Change</button>
         </div>
       ) : (
         <button
           onClick={onLink}
-          className="flex items-center gap-1.5 text-[10px] text-[#6366f1] hover:underline"
+          className="flex items-center gap-1.5 text-[10px] text-[#3b5bdb] hover:underline"
         >
           <Link className="w-3 h-3" /> Link account
         </button>
@@ -113,7 +113,7 @@ function LinkModal({
           value={val}
           onChange={(e) => setVal(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#6366f1]/50"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
         />
         <div className="flex gap-3 justify-end">
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">
@@ -121,7 +121,7 @@ function LinkModal({
           </button>
           <button
             onClick={() => { if (val.trim()) { onSave(val.trim()); onClose(); } }}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all"
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all"
           >
             Save
           </button>
@@ -213,7 +213,7 @@ export function AccountLinkingPanel({ entityType, status }: AccountLinkingProps)
         <ActionButton
           icon={<Send className="w-3.5 h-3.5" />}
           label={account.activationSent ? "Invitation Sent" : "Send Activation Invitation"}
-          color="#6366f1"
+          color="#3b5bdb"
           onClick={sendActivation}
         />
         <ActionButton

@@ -37,10 +37,10 @@ function ChildSelector({ activeId, setActiveId }: { activeId: string; setActiveI
         <button key={c.id} onClick={() => setActiveId(c.id)}
           className={cn("flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
             activeId === c.id
-              ? "bg-[#10b981]/10 border-[#10b981]/30 text-[#10b981]"
+              ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
               : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15")}>
           <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black"
-            style={{ background: activeId === c.id ? "#10b98130" : "#ffffff18", color: activeId === c.id ? "#10b981" : "#78788c" }}>
+            style={{ background: activeId === c.id ? "#3b5bdb30" : "#ffffff18", color: activeId === c.id ? "#3b5bdb" : "#78788c" }}>
             {c.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
           </div>
           <div className="text-left">
@@ -83,8 +83,8 @@ export default function ParentDashboard({
       <ChildSelector activeId={activeChildId} setActiveId={setActiveChildId} />
 
       {/* Child hero */}
-      <div className="bg-gradient-to-br from-[#131316] to-[#0d1a14] border border-[#10b981]/15 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center shrink-0">
+      <div className="bg-gradient-to-br from-[#131316] to-[#0d1a14] border border-[#3b5bdb]/15 rounded-2xl p-5 flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <span className="text-lg font-black text-white">{child.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
         </div>
         <div className="flex-1 min-w-0">
@@ -94,7 +94,7 @@ export default function ParentDashboard({
         </div>
         <div className="text-right shrink-0">
           <div className={cn("text-xs font-bold px-3 py-1.5 rounded-xl",
-            todayStatus === "present" ? "bg-[#10b981]/15 text-[#10b981]"
+            todayStatus === "present" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
             : todayStatus === "absent" ? "bg-[#cc5069]/15 text-[#cc5069]"
             : "bg-white/8 text-[#78788c]"
           )}>
@@ -106,9 +106,9 @@ export default function ParentDashboard({
 
       {/* Quick stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <QuickStat label="Attendance" value={`${attendancePct}%`} sub={`${presentDays}/${schoolDays} days`} color="#10b981" icon={<UserCheck className="w-5 h-5" />} />
+        <QuickStat label="Attendance" value={`${attendancePct}%`} sub={`${presentDays}/${schoolDays} days`} color="#3b5bdb" icon={<UserCheck className="w-5 h-5" />} />
         <QuickStat label="Overall Score" value={`${insights.overallPercentage}%`} sub={`Rank ${insights.classRank} of ${insights.totalStudents}`} color="#6366f1" icon={<TrendingUp className="w-5 h-5" />} />
-        <QuickStat label="Pending Homework" value={pendingHw.length} sub={`${dueToday.length} due today`} color={pendingHw.length > 0 ? "#c08a3a" : "#10b981"} icon={<BookOpen className="w-5 h-5" />} />
+        <QuickStat label="Pending Homework" value={pendingHw.length} sub={`${dueToday.length} due today`} color={pendingHw.length > 0 ? "#c08a3a" : "#3b5bdb"} icon={<BookOpen className="w-5 h-5" />} />
         <QuickStat label="Notifications" value={unreadNotifications} sub="unread" color={unreadNotifications > 0 ? "#cc5069" : "#78788c"} icon={<Bell className="w-5 h-5" />} />
       </div>
 
@@ -118,7 +118,7 @@ export default function ParentDashboard({
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-white">Academic Snapshot</div>
-            <button onClick={() => setPage("children")} className="text-[10px] text-[#10b981] hover:underline flex items-center gap-1">
+            <button onClick={() => setPage("children")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
               View all <ChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -127,11 +127,11 @@ export default function ParentDashboard({
               <div key={s.subject} className="flex items-center gap-3">
                 <div className="text-[10px] text-[#78788c] w-20 shrink-0 truncate">{s.subject}</div>
                 <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full rounded-full" style={{ width: `${s.score}%`, background: s.score >= 85 ? "#10b981" : s.score >= 70 ? "#6366f1" : "#c08a3a" }} />
+                  <div className="h-full rounded-full" style={{ width: `${s.score}%`, background: s.score >= 85 ? "#3b5bdb" : s.score >= 70 ? "#6366f1" : "#c08a3a" }} />
                 </div>
                 <div className="text-[10px] font-bold tabular-nums text-white w-8 text-right shrink-0">{s.score}%</div>
                 <div className="shrink-0">
-                  {s.trend === "up" ? <TrendingUp className="w-3 h-3 text-[#10b981]" /> : s.trend === "down" ? <TrendingDown className="w-3 h-3 text-[#cc5069]" /> : <div className="w-3 h-3" />}
+                  {s.trend === "up" ? <TrendingUp className="w-3 h-3 text-[#3b5bdb]" /> : s.trend === "down" ? <TrendingDown className="w-3 h-3 text-[#cc5069]" /> : <div className="w-3 h-3" />}
                 </div>
               </div>
             ))}
@@ -142,7 +142,7 @@ export default function ParentDashboard({
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-bold text-white">Latest Test Result</div>
-            <button onClick={() => setPage("children")} className="text-[10px] text-[#10b981] hover:underline flex items-center gap-1">
+            <button onClick={() => setPage("children")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
               All results <ChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -159,7 +159,7 @@ export default function ParentDashboard({
                 <div className="text-2xl font-black text-white tabular-nums">{lastTest.marksObtained}<span className="text-sm font-normal text-[#46465a]">/{lastTest.totalMarks}</span></div>
                 <div className="flex-1">
                   <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-[#10b981]" style={{ width: `${lastTest.percentage}%` }} />
+                    <div className="h-full rounded-full bg-[#3b5bdb]" style={{ width: `${lastTest.percentage}%` }} />
                   </div>
                   <div className="text-[9px] text-[#78788c] mt-1">Class avg: {lastTest.classAverage}/{lastTest.totalMarks}</div>
                 </div>
@@ -178,7 +178,7 @@ export default function ParentDashboard({
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-bold text-white">Homework Due Today</div>
-            <button onClick={() => setPage("children")} className="text-[10px] text-[#10b981] hover:underline flex items-center gap-1">
+            <button onClick={() => setPage("children")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
               View all <ChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -196,7 +196,7 @@ export default function ParentDashboard({
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2 py-6">
-              <CheckCircle2 className="w-8 h-8 text-[#10b981]/30" />
+              <CheckCircle2 className="w-8 h-8 text-[#3b5bdb]/30" />
               <div className="text-xs text-[#78788c]">No homework due today</div>
             </div>
           )}
@@ -244,7 +244,7 @@ export default function ParentDashboard({
               <Bell className="w-4 h-4 text-[#c08a3a]" />
               <div className="text-sm font-bold text-white">Announcements</div>
             </div>
-            <button onClick={() => setPage("announcements")} className="text-[10px] text-[#10b981] hover:underline flex items-center gap-1">
+            <button onClick={() => setPage("announcements")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
               View all <ChevronRight className="w-3 h-3" />
             </button>
           </div>
@@ -266,7 +266,7 @@ export default function ParentDashboard({
           <div className="text-sm font-bold text-white mb-4">Quick Actions</div>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: "View Attendance", icon: <UserCheck className="w-4 h-4" />, color: "#10b981", page: "children" as ParentPageKey },
+              { label: "View Attendance", icon: <UserCheck className="w-4 h-4" />, color: "#3b5bdb", page: "children" as ParentPageKey },
               { label: "Homework", icon: <BookOpen className="w-4 h-4" />, color: "#c08a3a", page: "children" as ParentPageKey },
               { label: "Message Teacher", icon: <MessageSquare className="w-4 h-4" />, color: "#6366f1", page: "messages" as ParentPageKey },
               { label: "Announcements", icon: <Bell className="w-4 h-4" />, color: "#8f7dd6", page: "announcements" as ParentPageKey },

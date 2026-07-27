@@ -85,7 +85,7 @@ function ResolveModal({
           <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Remarks (optional)</label>
           <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3}
             placeholder="Add a note or reason for this decision..."
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#6366f1]/50" />
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#3b5bdb]/50" />
         </div>
         <div className="flex gap-3 justify-end">
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">Cancel</button>
@@ -149,7 +149,7 @@ function LeaveDetail({
 
           {request.document && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-white/3">
-              <FileText className="w-4 h-4 text-[#6366f1] shrink-0" />
+              <FileText className="w-4 h-4 text-[#3b5bdb] shrink-0" />
               <div className="text-xs text-[#a5b4fc]">{request.document}</div>
             </div>
           )}
@@ -233,10 +233,10 @@ export default function LeaveRequests() {
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#46465a]" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by teacher or reason..."
-            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#6366f1]/50" />
+            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50" />
         </div>
         <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#6366f1]/50">
+          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50">
           <option value="all">All Leave Types</option>
           {Object.entries(LEAVE_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
@@ -252,9 +252,9 @@ export default function LeaveRequests() {
         ] as { key: LeaveStatus | "all"; label: string }[]).map((tab) => (
           <button key={tab.key} onClick={() => setStatusTab(tab.key)}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
-              statusTab === tab.key ? "bg-[#6366f1]/15 text-[#6366f1]" : "text-[#78788c] hover:text-white")}>
+              statusTab === tab.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#78788c] hover:text-white")}>
             {tab.label}
-            <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full", statusTab === tab.key ? "bg-[#6366f1]/20 text-[#a5b4fc]" : "bg-white/5 text-[#46465a]")}>
+            <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full", statusTab === tab.key ? "bg-[#3b5bdb]/20 text-[#a5b4fc]" : "bg-white/5 text-[#46465a]")}>
               {tabCounts[tab.key] ?? 0}
             </span>
           </button>
@@ -290,7 +290,7 @@ export default function LeaveRequests() {
                     <span>{new Date(req.requestedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
                   </div>
                   <div className="text-xs text-[#78788c] line-clamp-1">{req.reason}</div>
-                  {req.document && <div className="flex items-center gap-1 mt-1 text-[9px] text-[#6366f1]"><FileText className="w-2.5 h-2.5" /> {req.document}</div>}
+                  {req.document && <div className="flex items-center gap-1 mt-1 text-[9px] text-[#3b5bdb]"><FileText className="w-2.5 h-2.5" /> {req.document}</div>}
                 </div>
 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">

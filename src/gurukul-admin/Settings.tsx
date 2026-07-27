@@ -49,7 +49,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
   return (
     <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
-        <div className="w-8 h-8 rounded-xl bg-[#6366f1]/15 flex items-center justify-center text-[#6366f1]">{icon}</div>
+        <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
         <div className="text-sm font-bold text-white">{title}</div>
       </div>
       <div className="p-5">{children}</div>
@@ -108,7 +108,7 @@ export default function Settings() {
     setShowUnsavedWarning(false);
   }
 
-  const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#6366f1]/50 w-full";
+  const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50 w-full";
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -131,7 +131,7 @@ export default function Settings() {
           )}
           <button onClick={handleSave} disabled={!isDirty}
             className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-              isDirty ? "text-white bg-[#6366f1] hover:bg-[#5254cc]" : "text-[#46465a] bg-white/5 cursor-not-allowed")}>
+              isDirty ? "text-white bg-[#3b5bdb] hover:bg-[#2f4fc4]" : "text-[#46465a] bg-white/5 cursor-not-allowed")}>
             <Save className="w-3.5 h-3.5" />
             {isDirty ? "Save Changes" : "All Saved"}
           </button>
@@ -155,7 +155,7 @@ export default function Settings() {
                   {form.logoUrl ? (
                     <img src={form.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                   ) : (
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#8f7dd6] flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center">
                       <span className="text-xs font-black text-white">G</span>
                     </div>
                   )}
@@ -239,7 +239,7 @@ export default function Settings() {
                   <button key={day} onClick={() => toggleDay(day)}
                     className={cn("px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all",
                       form.workingDays.includes(day)
-                        ? "bg-[#6366f1]/15 border-[#6366f1]/30 text-[#a5b4fc]"
+                        ? "bg-[#3b5bdb]/15 border-[#3b5bdb]/30 text-[#a5b4fc]"
                         : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
                     {day.slice(0, 3)}
                   </button>
@@ -261,7 +261,7 @@ export default function Settings() {
             <button onClick={handleCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">
               Discard
             </button>
-            <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+            <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
               <Save className="w-3.5 h-3.5" /> Save Changes
             </button>
           </div>

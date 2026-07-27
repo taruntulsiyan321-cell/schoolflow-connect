@@ -10,7 +10,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
   return (
     <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
-        <div className="w-8 h-8 rounded-xl bg-[#10b981]/15 flex items-center justify-center text-[#10b981]">{icon}</div>
+        <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
         <div className="text-sm font-bold text-white">{title}</div>
       </div>
       <div className="p-5">{children}</div>
@@ -24,7 +24,7 @@ function EditableField({ label, value, editing, onChange, type = "text" }: { lab
       <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">{label}</label>
       {editing ? (
         <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-          className="bg-white/5 border border-[#10b981]/30 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#10b981]/60 transition-all" />
+          className="bg-white/5 border border-[#3b5bdb]/30 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/60 transition-all" />
       ) : (
         <div className="text-sm text-white px-0.5">{value || <span className="text-[#46465a]">Not set</span>}</div>
       )}
@@ -76,14 +76,14 @@ export default function ParentProfile() {
   return (
     <div className="space-y-5 max-w-2xl">
       {flash && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#10b981]/15 border border-[#10b981]/25 text-[#10b981] text-xs font-semibold">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#3b5bdb]/15 border border-[#3b5bdb]/25 text-[#3b5bdb] text-xs font-semibold">
           <Check className="w-3.5 h-3.5" /> {flash}
         </div>
       )}
 
       {/* Avatar + edit toggle */}
       <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#10b981] to-[#059669] flex items-center justify-center shrink-0">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <span className="text-xl font-black text-white">{profile.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
         </div>
         <div className="flex-1 min-w-0">
@@ -93,7 +93,7 @@ export default function ParentProfile() {
         </div>
         {!editing ? (
           <button onClick={startEdit}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#10b981] hover:bg-[#059669] transition-all shrink-0">
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#3b5bdb] hover:bg-[#6882e8] transition-all shrink-0">
             <Edit2 className="w-3.5 h-3.5" /> Edit Profile
           </button>
         ) : (
@@ -101,7 +101,7 @@ export default function ParentProfile() {
             <button onClick={cancelEdit} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all">
               <X className="w-3.5 h-3.5" /> Cancel
             </button>
-            <button onClick={saveEdit} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#10b981] hover:bg-[#059669] transition-all">
+            <button onClick={saveEdit} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#3b5bdb] hover:bg-[#6882e8] transition-all">
               <Save className="w-3.5 h-3.5" /> Save
             </button>
           </div>
@@ -138,7 +138,7 @@ export default function ParentProfile() {
             </div>
             {profile.googleLinked ? (
               <div className="flex items-center gap-2">
-                <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">Linked</span>
+                <span className="text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/15 px-2 py-0.5 rounded-full">Linked</span>
                 <button onClick={() => { setProfile((p) => ({ ...p, googleLinked: false })); showFlash("Google account unlinked"); }}
                   className="text-[10px] text-[#cc5069] hover:underline flex items-center gap-0.5">
                   <Link2Off className="w-3 h-3" /> Remove
@@ -154,15 +154,15 @@ export default function ParentProfile() {
 
           {/* Mobile */}
           <div className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
-            <div className="w-8 h-8 rounded-lg bg-[#10b981]/15 flex items-center justify-center">
-              <Smartphone className="w-4 h-4 text-[#10b981]" />
+            <div className="w-8 h-8 rounded-lg bg-[#3b5bdb]/15 flex items-center justify-center">
+              <Smartphone className="w-4 h-4 text-[#3b5bdb]" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-white">Mobile Number</div>
               <div className="text-[10px] text-[#78788c]">{profile.mobileLinked ? profile.phone : "Not linked"}</div>
             </div>
             {profile.mobileLinked ? (
-              <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">Verified</span>
+              <span className="text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/15 px-2 py-0.5 rounded-full">Verified</span>
             ) : (
               <button onClick={() => { setProfile((p) => ({ ...p, mobileLinked: true })); showFlash("Mobile number linked"); }}
                 className="text-[10px] text-[#6366f1] hover:underline flex items-center gap-0.5">
@@ -206,7 +206,7 @@ export default function ParentProfile() {
               <div key={f.key} className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">{f.label}</label>
                 <input type="password" value={pwdForm[f.key]} onChange={(e) => setPwdForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#10b981]/40" />
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/40" />
               </div>
             ))}
             {pwdForm.next && pwdForm.confirm && pwdForm.next !== pwdForm.confirm && (
@@ -218,7 +218,7 @@ export default function ParentProfile() {
               </button>
               <button onClick={handleChangePwd}
                 disabled={!pwdForm.current || !pwdForm.next || pwdForm.next !== pwdForm.confirm}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#10b981] hover:bg-[#059669] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                 Change Password
               </button>
             </div>

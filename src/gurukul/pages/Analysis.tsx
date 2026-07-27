@@ -52,7 +52,7 @@ const weekComparison = [
 
 const subjectData = [
   {
-    name: "Mathematics", color: "#6366f1", score: 91, accuracy: 91,
+    name: "Mathematics", color: "#3b5bdb", score: 91, accuracy: 91,
     questions: 210, timeHrs: 38, trend: +7,
     status: "best", rankInClass: 2,
   },
@@ -62,7 +62,7 @@ const subjectData = [
     status: "good", rankInClass: 4,
   },
   {
-    name: "Chemistry", color: "#8f7dd6", score: 73, accuracy: 73,
+    name: "Chemistry", color: "#6882e8", score: 73, accuracy: 73,
     questions: 98, timeHrs: 24, trend: -2,
     status: "needs-attention", rankInClass: 22,
   },
@@ -81,13 +81,13 @@ const subjectData = [
 const radarData = subjectData.map((s) => ({ subject: s.name.slice(0, 4), score: s.score }));
 
 const chapterData = [
-  { chapter: "Integration", subject: "Mathematics", color: "#6366f1", completion: 85, questions: 48, accuracy: 94, trend: +8, status: "ready" },
-  { chapter: "Matrices", subject: "Mathematics", color: "#6366f1", completion: 92, questions: 35, accuracy: 89, trend: +3, status: "ready" },
-  { chapter: "Differential Equations", subject: "Mathematics", color: "#6366f1", completion: 55, questions: 25, accuracy: 62, trend: -2, status: "practice-more" },
+  { chapter: "Integration", subject: "Mathematics", color: "#3b5bdb", completion: 85, questions: 48, accuracy: 94, trend: +8, status: "ready" },
+  { chapter: "Matrices", subject: "Mathematics", color: "#3b5bdb", completion: 92, questions: 35, accuracy: 89, trend: +3, status: "ready" },
+  { chapter: "Differential Equations", subject: "Mathematics", color: "#3b5bdb", completion: 55, questions: 25, accuracy: 62, trend: -2, status: "practice-more" },
   { chapter: "Optics", subject: "Physics", color: "#4b9fd4", completion: 90, questions: 35, accuracy: 91, trend: +5, status: "ready" },
   { chapter: "Electrostatics", subject: "Physics", color: "#4b9fd4", completion: 65, questions: 28, accuracy: 69, trend: +1, status: "practice-more" },
-  { chapter: "Organic Chemistry", subject: "Chemistry", color: "#8f7dd6", completion: 40, questions: 30, accuracy: 51, trend: -4, status: "needs-work" },
-  { chapter: "Electrochemistry", subject: "Chemistry", color: "#8f7dd6", completion: 30, questions: 18, accuracy: 55, trend: 0, status: "needs-work" },
+  { chapter: "Organic Chemistry", subject: "Chemistry", color: "#6882e8", completion: 40, questions: 30, accuracy: 51, trend: -4, status: "needs-work" },
+  { chapter: "Electrochemistry", subject: "Chemistry", color: "#6882e8", completion: 30, questions: 18, accuracy: 55, trend: 0, status: "needs-work" },
   { chapter: "Genetics", subject: "Biology", color: "#4aa87a", completion: 35, questions: 20, accuracy: 48, trend: -3, status: "needs-work" },
   { chapter: "Cell Biology", subject: "Biology", color: "#4aa87a", completion: 78, questions: 32, accuracy: 82, trend: +6, status: "ready" },
 ];
@@ -220,11 +220,11 @@ const milestones = [
 ];
 
 const personalInsights = [
-  { label: "Your strongest subject right now", value: "Mathematics", sub: "91% accuracy · Rank #2 in class", color: "#6366f1", icon: <Star className="w-4 h-4" /> },
+  { label: "Your strongest subject right now", value: "Mathematics", sub: "91% accuracy · Rank #2 in class", color: "#3b5bdb", icon: <Star className="w-4 h-4" /> },
   { label: "Subject needing more practice", value: "Biology", sub: "65% accuracy · 5 topics pending", color: "#c08a3a", icon: <Target className="w-4 h-4" /> },
   { label: "Chapter you improved the most", value: "Matrices", sub: "+9% improvement this week", color: "#4aa87a", icon: <TrendingUp className="w-4 h-4" /> },
   { label: "Chapter taking the most time", value: "Organic Chemistry", sub: "54 sec avg per question", color: "#cc5069", icon: <Clock className="w-4 h-4" /> },
-  { label: "Best study day this week", value: "Saturday", sub: "4.2 hours · 60 questions", color: "#8f7dd6", icon: <Calendar className="w-4 h-4" /> },
+  { label: "Best study day this week", value: "Saturday", sub: "4.2 hours · 60 questions", color: "#6882e8", icon: <Calendar className="w-4 h-4" /> },
   { label: "Suggested priority today", value: "Organic Chemistry Recovery", sub: "5 pending topics · do 15 min now", color: "#4b9fd4", icon: <ChevronRight className="w-4 h-4" /> },
 ];
 
@@ -293,7 +293,7 @@ export default function Analysis() {
             q: "What should I study next?",
             a: "Organic Chemistry recovery",
             sub: "5 unresolved topics · suggested: 15 min now",
-            color: "#6366f1",
+            color: "#3b5bdb",
             icon: <BookOpen className="w-4 h-4" />,
           },
         ].map((item) => (
@@ -321,7 +321,7 @@ export default function Analysis() {
             className={cn(
               "shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-150 whitespace-nowrap",
               tab === t.key
-                ? "border-[#6366f1] text-white"
+                ? "border-[#3b5bdb] text-white"
                 : "border-transparent text-[#78788c] hover:text-white"
             )}
           >
@@ -342,8 +342,8 @@ export default function Analysis() {
               { label: "Average score",      value: `${overview.avgScore}%`,                  color: "#c08a3a" },
               { label: "Practice sessions",  value: overview.practiceCompleted,               color: "#e8eaf0" },
               { label: "Tests completed",    value: overview.testsCompleted,                  color: "#e8eaf0" },
-              { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "#8f7dd6" },
-              { label: "Exam readiness",     value: `${overview.examReadiness}%`,             color: "#6366f1" },
+              { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "#6882e8" },
+              { label: "Exam readiness",     value: `${overview.examReadiness}%`,             color: "#3b5bdb" },
             ].map((s) => (
               <Metric key={s.label} label={s.label} value={s.value} color={s.color} />
             ))}
@@ -356,16 +356,16 @@ export default function Analysis() {
                 <AreaChart data={scoreTrend}>
                   <defs>
                     <linearGradient id="an-scGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#3b5bdb" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#3b5bdb" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="week" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis domain={[50, 100]} tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="score" name="Score" stroke="#6366f1" strokeWidth={2.5} fill="url(#an-scGrad)"
-                    isAnimationActive={false} dot={{ r: 4, fill: "#6366f1", strokeWidth: 0 }} activeDot={{ r: 6, fill: "#6366f1", stroke: "#0d0d0f", strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="score" name="Score" stroke="#3b5bdb" strokeWidth={2.5} fill="url(#an-scGrad)"
+                    isAnimationActive={false} dot={{ r: 4, fill: "#3b5bdb", strokeWidth: 0 }} activeDot={{ r: 6, fill: "#3b5bdb", stroke: "#0d0d0f", strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -384,7 +384,7 @@ export default function Analysis() {
                   <XAxis dataKey="day" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="thisWeek" name="This week" fill="#6366f1" radius={[4, 4, 0, 0]} isAnimationActive={false}/>
+                  <Bar dataKey="thisWeek" name="This week" fill="#3b5bdb" radius={[4, 4, 0, 0]} isAnimationActive={false}/>
                   <Bar dataKey="lastWeek" name="Last week" fill="rgba(255,255,255,0.08)" radius={[4, 4, 0, 0]} isAnimationActive={false}/>
                 </BarChart>
               </ResponsiveContainer>
@@ -423,7 +423,7 @@ export default function Analysis() {
                   <RadarChart data={radarData}>
                     <PolarGrid stroke="rgba(255,255,255,0.06)" />
                     <PolarAngleAxis dataKey="subject" tick={{ fill: "#a0a0b0", fontSize: 12, fontWeight: 600 }} />
-                    <Radar name="Score" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.2} strokeWidth={2.5} isAnimationActive={false}/>
+                    <Radar name="Score" dataKey="score" stroke="#3b5bdb" fill="#3b5bdb" fillOpacity={0.2} strokeWidth={2.5} isAnimationActive={false}/>
                     <Tooltip content={<ChartTooltip />} />
                   </RadarChart>
                 </ResponsiveContainer>
@@ -515,7 +515,7 @@ export default function Analysis() {
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: "Topics completed",   value: learningProgress.completed,  color: "#4aa87a", icon: <CheckCircle2 className="w-5 h-5" /> },
-              { label: "Topics in progress", value: learningProgress.inProgress, color: "#6366f1", icon: <BookOpen className="w-5 h-5" /> },
+              { label: "Topics in progress", value: learningProgress.inProgress, color: "#3b5bdb", icon: <BookOpen className="w-5 h-5" /> },
               { label: "Yet to begin",        value: learningProgress.notStarted, color: "#78788c", icon: <Minus className="w-5 h-5" /> },
             ].map((item) => (
               <div key={item.label} className="p-4 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
@@ -572,7 +572,7 @@ export default function Analysis() {
               <div className="space-y-2">
                 {topicGroups.improving.map((t) => (
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
-                    <TrendingUp className="w-4 h-4 text-[#6366f1] shrink-0" />
+                    <TrendingUp className="w-4 h-4 text-[#3b5bdb] shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">{t.topic}</div>
                       <div className="text-[11px] text-[#78788c]">{t.subject}</div>
@@ -654,10 +654,10 @@ export default function Analysis() {
               <SLabel>Due for revision today</SLabel>
               <div className="space-y-2">
                 {revisionData.dueToday.map((topic) => (
-                  <div key={topic} className="flex items-center gap-3 p-3 rounded-xl border border-[#6366f1]/20 bg-[#6366f1]/5">
-                    <Clock className="w-4 h-4 text-[#6366f1] shrink-0" />
+                  <div key={topic} className="flex items-center gap-3 p-3 rounded-xl border border-[#3b5bdb]/20 bg-[#3b5bdb]/5">
+                    <Clock className="w-4 h-4 text-[#3b5bdb] shrink-0" />
                     <span className="text-sm text-white">{topic}</span>
-                    <span className="ml-auto text-[10px] text-[#6366f1] font-semibold">Due today</span>
+                    <span className="ml-auto text-[10px] text-[#3b5bdb] font-semibold">Due today</span>
                   </div>
                 ))}
               </div>
@@ -674,7 +674,7 @@ export default function Analysis() {
             <SLabel>Your practice this week</SLabel>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Done today",        value: `${practiceStats.todayDone}/${practiceStats.todayTarget}`,  color: "#6366f1" },
+                { label: "Done today",        value: `${practiceStats.todayDone}/${practiceStats.todayTarget}`,  color: "#3b5bdb" },
                 { label: "Done this week",    value: `${practiceStats.weekDone}/${practiceStats.weekTarget}`,   color: "#4b9fd4" },
                 { label: "Practice streak",   value: `${practiceStats.streakDays} days`,                        color: "#c08a3a" },
                 { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "#4aa87a" },
@@ -693,7 +693,7 @@ export default function Analysis() {
                   <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="done" name="Questions" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                     {practiceMonthly.map((_, i) => (
-                      <Cell key={i} fill={i === practiceMonthly.length - 1 ? "#6366f1" : "rgba(59,130,246,0.35)"} />
+                      <Cell key={i} fill={i === practiceMonthly.length - 1 ? "#3b5bdb" : "rgba(59,130,246,0.35)"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -773,7 +773,7 @@ export default function Analysis() {
       {tab === "activity" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Metric label="Total study time"    value={`${studyActivity.totalHrs}h`}       color="#8f7dd6" />
+            <Metric label="Total study time"    value={`${studyActivity.totalHrs}h`}       color="#6882e8" />
             <Metric label="Average per day"     value={`${studyActivity.avgDailyMin} min`} color="#e8eaf0" />
             <Metric label="Most active day"     value={studyActivity.bestDay}              color="#c08a3a" />
             <Metric label="Most productive hour" value={studyActivity.bestHour}            color="#4b9fd4" />
@@ -793,7 +793,7 @@ export default function Analysis() {
                   <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                     {studyActivity.weeklyHrs.map((v, i) => (
-                      <Cell key={i} fill={v === Math.max(...studyActivity.weeklyHrs) ? "#8f7dd6" : "rgba(167,139,250,0.3)"} />
+                      <Cell key={i} fill={v === Math.max(...studyActivity.weeklyHrs) ? "#6882e8" : "rgba(167,139,250,0.3)"} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -902,7 +902,7 @@ export default function Analysis() {
                       <span className="text-xs text-[#78788c]">{m.progress}/{m.target} {m.unit}</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#6366f1,#4b9fd4)" }} />
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#3b5bdb,#4b9fd4)" }} />
                     </div>
                     <div className="text-[10px] text-[#78788c] mt-1">{pct}% complete</div>
                   </div>
@@ -916,9 +916,9 @@ export default function Analysis() {
             <SLabel>Download & share your report</SLabel>
             <div className="grid sm:grid-cols-2 gap-3">
               {[
-                { label: "Download PDF report",   icon: <Download className="w-4 h-4" />,  color: "#6366f1",  desc: "Full performance report as PDF" },
+                { label: "Download PDF report",   icon: <Download className="w-4 h-4" />,  color: "#3b5bdb",  desc: "Full performance report as PDF" },
                 { label: "Share with teacher",    icon: <Share2 className="w-4 h-4" />,    color: "#4aa87a",  desc: "Send a link to your teacher" },
-                { label: "Share with parents",    icon: <Share2 className="w-4 h-4" />,    color: "#8f7dd6",  desc: "Send a summary to your parents" },
+                { label: "Share with parents",    icon: <Share2 className="w-4 h-4" />,    color: "#6882e8",  desc: "Send a summary to your parents" },
                 { label: "Print report",          icon: <Printer className="w-4 h-4" />,   color: "#c08a3a",  desc: "Print a physical copy" },
               ].map((r) => (
                 <button
@@ -957,7 +957,7 @@ function Card({ label, children }: { label: string; children: React.ReactNode })
 function SLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-0">
-      <div className="w-1 h-3.5 rounded-full bg-[#6366f1]" />
+      <div className="w-1 h-3.5 rounded-full bg-[#3b5bdb]" />
       <span className="text-[11px] uppercase tracking-[0.14em] text-[#78788c]">{children}</span>
     </div>
   );

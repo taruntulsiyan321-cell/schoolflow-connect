@@ -18,7 +18,7 @@ function TabBtn({ label, active, onClick, badge }: { label: string; active: bool
   return (
     <button onClick={onClick}
       className={cn("relative px-4 py-2.5 text-xs font-semibold transition-all whitespace-nowrap border-b-2",
-        active ? "border-[#f59e0b] text-[#f59e0b]" : "border-transparent text-[#78788c] hover:text-white")}>
+        active ? "border-[#3b5bdb] text-[#3b5bdb]" : "border-transparent text-[#78788c] hover:text-white")}>
       {label}
       {badge != null && badge > 0 && (
         <span className="ml-1.5 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#cc5069]/20 text-[#cc5069]">{badge}</span>
@@ -34,14 +34,14 @@ function ClassSelector({ selected, onSelect }: { selected: ClassInfo | null; onS
         <button key={c.id} onClick={() => onSelect(c)}
           className={cn("flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
             selected?.id === c.id
-              ? "bg-[#f59e0b]/10 border-[#f59e0b]/30 text-[#f59e0b]"
+              ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
               : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15 hover:text-white")}>
           <div className="w-6 h-6 rounded-lg flex items-center justify-center text-[8px] font-black"
             style={{ background: selected?.id === c.id ? "#f59e0b20" : "#ffffff12", color: selected?.id === c.id ? "#f59e0b" : "#78788c" }}>
             {c.section}
           </div>
           {c.className} {c.section} · {c.subject}
-          {c.isClassTeacher && <span className="text-[8px] font-bold text-[#f59e0b] bg-[#f59e0b]/10 px-1 py-0.5 rounded-full">CT</span>}
+          {c.isClassTeacher && <span className="text-[8px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-1 py-0.5 rounded-full">CT</span>}
         </button>
       ))}
     </div>
@@ -119,7 +119,7 @@ function StudentProfile({ student, onBack }: { student: Student; onBack: () => v
           <div className="text-[10px] text-[#78788c] mt-0.5">Attendance</div>
         </div>
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-          <div className="text-lg font-black text-[#f59e0b] tabular-nums">{student.performanceScore}</div>
+          <div className="text-lg font-black text-[#3b5bdb] tabular-nums">{student.performanceScore}</div>
           <div className="text-[10px] text-[#78788c] mt-0.5">Performance Score</div>
         </div>
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
@@ -239,7 +239,7 @@ function AttendanceTab({ classId, isClassTeacher }: { classId: string; isClassTe
       <div className="flex gap-3 pt-2">
         {!submitted && (
           <button onClick={() => { setSubmitted(true); showFlash("Attendance submitted for approval"); }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
             <Save className="w-4 h-4" /> Submit Attendance
           </button>
         )}
@@ -297,14 +297,14 @@ function HomeworkTab({ classId }: { classId: string }) {
       <div className="flex items-center justify-between">
         <div className="text-[10px] text-[#46465a]">{items.length} homework items</div>
         <button onClick={() => setCreating(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
           <Plus className="w-3.5 h-3.5" /> New Homework
         </button>
       </div>
 
       {/* Create form */}
       {creating && (
-        <div className="bg-[#131316] border border-[#f59e0b]/20 rounded-2xl p-5 space-y-4">
+        <div className="bg-[#131316] border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-white">New Homework</div>
             <button onClick={() => setCreating(false)}><X className="w-4 h-4 text-[#78788c]" /></button>
@@ -313,28 +313,28 @@ function HomeworkTab({ classId }: { classId: string }) {
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Title *</label>
               <input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Description</label>
               <textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} rows={2}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40 resize-none" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40 resize-none" />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Instructions</label>
               <textarea value={form.instructions} onChange={(e) => setForm((p) => ({ ...p, instructions: e.target.value }))} rows={2}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40 resize-none" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40 resize-none" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Due Date *</label>
               <input type="date" value={form.dueDate} onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setCreating(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all">Cancel</button>
             <button onClick={createHw} disabled={!form.title || !form.dueDate}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-40 transition-all">
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
               <Save className="w-3.5 h-3.5" /> Create Homework
             </button>
           </div>
@@ -345,8 +345,8 @@ function HomeworkTab({ classId }: { classId: string }) {
         <div key={hw.id} className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
           <button onClick={() => setExpandedId(expandedId === hw.id ? null : hw.id)}
             className="w-full flex items-center gap-3 p-4 hover:bg-white/3 transition-all text-left">
-            <div className="w-9 h-9 rounded-xl bg-[#f59e0b]/15 flex items-center justify-center shrink-0">
-              <BookOpen className="w-4 h-4 text-[#f59e0b]" />
+            <div className="w-9 h-9 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
+              <BookOpen className="w-4 h-4 text-[#3b5bdb]" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -451,13 +451,13 @@ function AssignmentsTab({ classId }: { classId: string }) {
       <div className="flex items-center justify-between">
         <div className="text-[10px] text-[#46465a]">{items.length} assignments</div>
         <button onClick={() => setCreating(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
           <Plus className="w-3.5 h-3.5" /> New Assignment
         </button>
       </div>
 
       {creating && (
-        <div className="bg-[#131316] border border-[#f59e0b]/20 rounded-2xl p-5 space-y-4">
+        <div className="bg-[#131316] border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-white">New Assignment</div>
             <button onClick={() => setCreating(false)}><X className="w-4 h-4 text-[#78788c]" /></button>
@@ -466,28 +466,28 @@ function AssignmentsTab({ classId }: { classId: string }) {
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Title *</label>
               <input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Description</label>
               <textarea value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} rows={2}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40 resize-none" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40 resize-none" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Due Date *</label>
               <input type="date" value={form.dueDate} onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Max Marks</label>
               <input type="number" value={form.maxMarks} onChange={(e) => setForm((p) => ({ ...p, maxMarks: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
           </div>
           <div className="flex gap-3 justify-end">
             <button onClick={() => setCreating(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5">Cancel</button>
             <button onClick={createAsgn} disabled={!form.title || !form.dueDate}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-40 transition-all">
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
               <Save className="w-3.5 h-3.5" /> Create
             </button>
           </div>
@@ -505,7 +505,7 @@ function AssignmentsTab({ classId }: { classId: string }) {
               <div className="text-[10px] text-[#78788c] mt-0.5">Max: {a.maxMarks} marks · Due: {a.dueDate}</div>
               <div className="flex gap-3 mt-1">
                 <span className="text-[9px] text-[#10b981]">{a.submitted} submitted</span>
-                <span className="text-[9px] text-[#f59e0b]">{a.submitted - a.graded} to grade</span>
+                <span className="text-[9px] text-[#3b5bdb]">{a.submitted - a.graded} to grade</span>
                 <span className="text-[9px] text-[#46465a]">{a.graded} graded</span>
               </div>
             </div>
@@ -519,7 +519,7 @@ function AssignmentsTab({ classId }: { classId: string }) {
                   setGradeInputs(init);
                   setGradingId(a.id);
                 }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
                   <Star className="w-3 h-3" /> Grade
                 </button>
               )}
@@ -554,7 +554,7 @@ function AssignmentsTab({ classId }: { classId: string }) {
               <div className="flex gap-3 justify-end">
                 <button onClick={() => setGradingId(null)} className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5">Cancel</button>
                 <button onClick={() => saveGrades(a.id)}
-                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
                   <Save className="w-3.5 h-3.5" /> Save Grades
                 </button>
               </div>
@@ -617,13 +617,13 @@ function TestsTab({ classInfo }: { classInfo: ClassInfo }) {
       <div className="flex items-center justify-between">
         <div className="text-[10px] text-[#46465a]">{tests.length} tests</div>
         <button onClick={() => setCreating(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
           <Plus className="w-3.5 h-3.5" /> Create Test
         </button>
       </div>
 
       {creating && (
-        <div className="bg-[#131316] border border-[#f59e0b]/20 rounded-2xl p-5 space-y-4">
+        <div className="bg-[#131316] border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-white">Create Test</div>
             <button onClick={() => setCreating(false)}><X className="w-4 h-4 text-[#78788c]" /></button>
@@ -632,49 +632,49 @@ function TestsTab({ classInfo }: { classInfo: ClassInfo }) {
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Test Name *</label>
               <input value={form.testName} onChange={(e) => setForm((p) => ({ ...p, testName: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Date *</label>
               <input type="date" value={form.testDate} onChange={(e) => setForm((p) => ({ ...p, testDate: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="flex gap-2">
               <div className="flex flex-col gap-1 flex-1">
                 <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Start</label>
                 <input type="time" value={form.startTime} onChange={(e) => setForm((p) => ({ ...p, startTime: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
               </div>
               <div className="flex flex-col gap-1 flex-1">
                 <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">End</label>
                 <input type="time" value={form.endTime} onChange={(e) => setForm((p) => ({ ...p, endTime: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
               </div>
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Total Questions</label>
               <input type="number" value={form.totalQuestions} onChange={(e) => setForm((p) => ({ ...p, totalQuestions: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Total Marks</label>
               <input type="number" value={form.totalMarks} onChange={(e) => setForm((p) => ({ ...p, totalMarks: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Chapters (comma-separated)</label>
               <input value={form.chapters} onChange={(e) => setForm((p) => ({ ...p, chapters: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Topics (comma-separated)</label>
               <input value={form.topics} onChange={(e) => setForm((p) => ({ ...p, topics: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Instructions</label>
               <textarea value={form.instructions} onChange={(e) => setForm((p) => ({ ...p, instructions: e.target.value }))} rows={2}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#f59e0b]/40 resize-none" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40 resize-none" />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Publish</label>
@@ -688,7 +688,7 @@ function TestsTab({ classInfo }: { classInfo: ClassInfo }) {
           <div className="flex gap-3 justify-end">
             <button onClick={() => setCreating(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5">Cancel</button>
             <button onClick={createTest} disabled={!form.testName || !form.testDate}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-40 transition-all">
+              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
               <Save className="w-3.5 h-3.5" /> {form.status === "draft" ? "Save Draft" : "Schedule Test"}
             </button>
           </div>
@@ -722,7 +722,7 @@ function TestsTab({ classInfo }: { classInfo: ClassInfo }) {
             )}
             {(t.status === "completed" || t.status === "scheduled") && !t.marksPublished && (
               <button onClick={() => setMarksTest(t)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold text-[#f59e0b] bg-[#f59e0b]/10 hover:bg-[#f59e0b]/15 transition-all">
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 hover:bg-[#3b5bdb]/15 transition-all">
                 <Edit2 className="w-3 h-3" /> Marks
               </button>
             )}
@@ -805,12 +805,12 @@ function MarksEntry({ test, onBack, onSave }: { test: Test; onBack: () => void; 
                   onChange={(ev) => setEntries((p) => ({ ...p, [sm.studentId]: { ...p[sm.studentId], marks: ev.target.value } }))}
                   placeholder={`/${test.totalMarks}`}
                   className={cn("w-20 bg-white/5 border rounded-xl px-3 py-1.5 text-xs text-white outline-none text-center",
-                    isInvalid ? "border-[#cc5069]/40" : "border-white/10 focus:border-[#f59e0b]/40")} />
+                    isInvalid ? "border-[#cc5069]/40" : "border-white/10 focus:border-[#3b5bdb]/40")} />
                 <input
                   value={e?.remarks ?? ""}
                   onChange={(ev) => setEntries((p) => ({ ...p, [sm.studentId]: { ...p[sm.studentId], remarks: ev.target.value } }))}
                   placeholder="Remarks…"
-                  className="w-40 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[#f59e0b]/40" />
+                  className="w-40 bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
                 <button className="w-7 h-7 rounded-lg bg-white/5 text-[#46465a] flex items-center justify-center hover:bg-white/10 transition-all" title="Upload answer sheet">
                   <Upload className="w-3 h-3" />
                 </button>
@@ -831,7 +831,7 @@ function MarksEntry({ test, onBack, onSave }: { test: Test; onBack: () => void; 
           <Save className="w-3.5 h-3.5" /> Save Draft
         </button>
         <button onClick={publish}
-          className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+          className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
           <Eye className="w-3.5 h-3.5" /> Publish Marks
         </button>
       </div>
@@ -895,7 +895,7 @@ function TestAnalytics({ test, onBack }: { test: Test; onBack: () => void }) {
             <div className="text-[10px] text-[#78788c]">Not Attempted</div>
           </div>
           <div className="text-center">
-            <div className="text-xl font-black text-[#f59e0b]">{attemptPct}%</div>
+            <div className="text-xl font-black text-[#3b5bdb]">{attemptPct}%</div>
             <div className="text-[10px] text-[#78788c]">Attempt Rate</div>
           </div>
         </div>
@@ -913,9 +913,9 @@ function TestAnalytics({ test, onBack }: { test: Test; onBack: () => void }) {
             <div className="text-lg font-black text-[#cc5069]">{lowest}</div>
             <div className="text-[9px] text-[#cc5069]">Lowest</div>
           </div>
-          <div className="text-center p-3 rounded-xl bg-[#f59e0b]/10">
-            <div className="text-lg font-black text-[#f59e0b]">{average}</div>
-            <div className="text-[9px] text-[#f59e0b]">Average</div>
+          <div className="text-center p-3 rounded-xl bg-[#3b5bdb]/10">
+            <div className="text-lg font-black text-[#3b5bdb]">{average}</div>
+            <div className="text-[9px] text-[#3b5bdb]">Average</div>
           </div>
           <div className="text-center p-3 rounded-xl bg-[#6366f1]/10">
             <div className="text-lg font-black text-[#6366f1]">{avgPct}%</div>
@@ -927,7 +927,7 @@ function TestAnalytics({ test, onBack }: { test: Test; onBack: () => void }) {
       {/* Leaderboard */}
       <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
-          <Star className="w-4 h-4 text-[#f59e0b]" />
+          <Star className="w-4 h-4 text-[#3b5bdb]" />
           <div className="text-xs font-bold text-white">Leaderboard</div>
         </div>
         <div className="p-3">
@@ -939,7 +939,7 @@ function TestAnalytics({ test, onBack }: { test: Test; onBack: () => void }) {
           <div className="space-y-1.5">
             {filteredLb.map((e) => (
               <div key={e.studentId} className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
-                e.rank <= 3 ? "bg-[#f59e0b]/5 border border-[#f59e0b]/15" : "bg-white/3")}>
+                e.rank <= 3 ? "bg-[#3b5bdb]/5 border border-[#3b5bdb]/15" : "bg-white/3")}>
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black shrink-0"
                   style={{ background: e.rank === 1 ? "#f59e0b30" : e.rank === 2 ? "#78788c30" : e.rank === 3 ? "#c08a3a30" : "#ffffff10",
                     color: e.rank === 1 ? "#f59e0b" : e.rank === 2 ? "#b0b0c0" : e.rank === 3 ? "#c08a3a" : "#46465a" }}>
@@ -987,7 +987,7 @@ function TestAnalytics({ test, onBack }: { test: Test; onBack: () => void }) {
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
           <div className="text-xs font-bold text-white mb-3">Student Insights</div>
           <div className="space-y-2">
-            <div className="text-[10px] font-bold text-[#f59e0b] uppercase tracking-wider">Top Performers</div>
+            <div className="text-[10px] font-bold text-[#3b5bdb] uppercase tracking-wider">Top Performers</div>
             {topPerformers.map((e) => (
               <div key={e.studentId} className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
@@ -1038,7 +1038,7 @@ function ClassInsightsTab({ classId }: { classId: string }) {
     <div className="space-y-5">
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-          <div className="text-xl font-black text-[#f59e0b]">{avgPerf}</div>
+          <div className="text-xl font-black text-[#3b5bdb]">{avgPerf}</div>
           <div className="text-[10px] text-[#78788c] mt-0.5">Avg Performance Score</div>
         </div>
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">

@@ -20,7 +20,7 @@ export function InitialsAvatar({
     .map((w) => w[0])
     .slice(0, 2)
     .join("");
-  const colors = ["#6366f1", "#4b9fd4", "#8f7dd6", "#4aa87a", "#c08a3a"];
+  const colors = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
   const bg = color ?? colors[name.charCodeAt(0) % colors.length];
   const cls = { sm: "w-7 h-7 text-[9px]", md: "w-9 h-9 text-[11px]", lg: "w-14 h-14 text-base" }[size];
   return (
@@ -82,7 +82,7 @@ export function ConfirmModal({
           </button>
           <button
             onClick={onConfirm}
-            className={cn("px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all", danger ? "bg-[#cc5069] hover:bg-[#b84460]" : "bg-[#6366f1] hover:bg-[#5254cc]")}
+            className={cn("px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all", danger ? "bg-[#cc5069] hover:bg-[#b84460]" : "bg-[#3b5bdb] hover:bg-[#2f4fc4]")}
           >
             {confirmLabel}
           </button>
@@ -116,7 +116,7 @@ export function UndoToast({ state, onClose }: { state: UndoToastState; onClose: 
     return () => clearInterval(iv);
   }, [state.expiresAt, onClose]);
 
-  const colors = { success: "#4aa87a", error: "#cc5069", info: "#6366f1" };
+  const colors = { success: "#4aa87a", error: "#cc5069", info: "#3b5bdb" };
   const color = colors[state.type];
 
   return (

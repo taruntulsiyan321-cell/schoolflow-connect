@@ -4,7 +4,7 @@ import { cn, InitialsAvatar } from "./shared";
 import { messageThreads, type MessageThread, type Message } from "./data";
 
 function RoleChip({ role }: { role: string }) {
-  const map: Record<string, string> = { parent: "#10b981", teacher: "#6366f1", admin: "#c08a3a" };
+  const map: Record<string, string> = { parent: "#3b5bdb", teacher: "#6366f1", admin: "#c08a3a" };
   const color = map[role] ?? "#78788c";
   return <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: `${color}18`, color }}>{role}</span>;
 }
@@ -14,12 +14,12 @@ function MessageBubble({ msg }: { msg: Message }) {
   return (
     <div className={cn("flex gap-2 max-w-[85%]", isOwn ? "ml-auto flex-row-reverse" : "")}>
       <div className="w-6 h-6 rounded-lg shrink-0 flex items-center justify-center text-[9px] font-black"
-        style={{ background: isOwn ? "#10b98120" : "#6366f120", color: isOwn ? "#10b981" : "#6366f1" }}>
+        style={{ background: isOwn ? "#3b5bdb20" : "#6366f120", color: isOwn ? "#3b5bdb" : "#6366f1" }}>
         {msg.from.charAt(0)}
       </div>
       <div className={cn("flex flex-col gap-1", isOwn ? "items-end" : "")}>
         <div className={cn("px-4 py-3 rounded-2xl text-xs leading-relaxed",
-          isOwn ? "bg-[#10b981]/15 text-white rounded-br-sm" : "bg-white/8 text-[#d0d0e0] rounded-bl-sm")}>
+          isOwn ? "bg-[#3b5bdb]/15 text-white rounded-br-sm" : "bg-white/8 text-[#d0d0e0] rounded-bl-sm")}>
           {msg.body}
         </div>
         {msg.hasAttachment && (
@@ -114,10 +114,10 @@ export default function ParentMessages() {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm font-bold text-white">Messages</div>
-          {totalUnread > 0 && <div className="text-[10px] text-[#10b981] mt-0.5">{totalUnread} unread</div>}
+          {totalUnread > 0 && <div className="text-[10px] text-[#3b5bdb] mt-0.5">{totalUnread} unread</div>}
         </div>
         <button onClick={() => setShowCompose(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#10b981] hover:bg-[#059669] transition-all">
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#3b5bdb] hover:bg-[#6882e8] transition-all">
           <Plus className="w-3.5 h-3.5" /> New Message
         </button>
       </div>
@@ -132,14 +132,14 @@ export default function ParentMessages() {
             {threads.map((t) => (
               <button key={t.id} onClick={() => openThread(t.id)}
                 className={cn("w-full text-left p-4 border-b border-white/5 hover:bg-white/3 transition-all",
-                  activeThreadId === t.id && "bg-[#10b981]/8 border-l-2 border-l-[#10b981]")}>
+                  activeThreadId === t.id && "bg-[#3b5bdb]/8 border-l-2 border-l-[#3b5bdb]")}>
                 <div className="flex items-start gap-3">
                   <InitialsAvatar name={t.participantName} size="sm" color="#6366f1" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <div className="text-xs font-semibold text-white truncate">{t.participantName}</div>
                       {t.unreadCount > 0 && (
-                        <span className="text-[9px] font-bold bg-[#10b981] text-white rounded-full w-4 h-4 flex items-center justify-center shrink-0 ml-1">
+                        <span className="text-[9px] font-bold bg-[#3b5bdb] text-white rounded-full w-4 h-4 flex items-center justify-center shrink-0 ml-1">
                           {t.unreadCount}
                         </span>
                       )}
@@ -185,10 +185,10 @@ export default function ParentMessages() {
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
                   placeholder="Type your reply… (Enter to send)"
                   rows={2}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-[#46465a] outline-none focus:border-[#10b981]/40 resize-none" />
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none" />
                 <div className="flex flex-col gap-2">
                   <button onClick={sendReply} disabled={!newMessage.trim()}
-                    className="p-2.5 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+                    className="p-2.5 rounded-xl bg-[#3b5bdb] hover:bg-[#6882e8] text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                     <Send className="w-3.5 h-3.5" />
                   </button>
                   <button className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-[#78788c] hover:text-white transition-all">
@@ -222,23 +222,23 @@ export default function ParentMessages() {
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">To</label>
                 <input value={composeTo} onChange={(e) => setComposeTo(e.target.value)} placeholder="Teacher / Staff name"
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] outline-none focus:border-[#10b981]/40" />
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Subject</label>
                 <input value={composeSubject} onChange={(e) => setComposeSubject(e.target.value)} placeholder="Subject"
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] outline-none focus:border-[#10b981]/40" />
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Message</label>
                 <textarea value={composeBody} onChange={(e) => setComposeBody(e.target.value)} placeholder="Write your message…" rows={5}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] outline-none focus:border-[#10b981]/40 resize-none" />
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none" />
               </div>
               <div className="flex gap-3 justify-end mt-2">
                 <button onClick={() => setShowCompose(false)} className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">
                   Cancel
                 </button>
-                <button onClick={sendCompose} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#10b981] hover:bg-[#059669] transition-all">
+                <button onClick={sendCompose} className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#3b5bdb] hover:bg-[#6882e8] transition-all">
                   <Send className="w-3.5 h-3.5" /> Send
                 </button>
               </div>

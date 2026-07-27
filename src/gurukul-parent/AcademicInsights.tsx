@@ -99,10 +99,10 @@ function ComparisonBar({ label, mine, classAvg }: { label: string; mine: number;
       <div className="flex items-center gap-2">
         <div className="relative flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
           <div className="absolute top-0 bottom-0 w-0.5 bg-white/20 z-10" style={{ left: `${classAvg}%` }} />
-          <div className="h-full rounded-full transition-all" style={{ width: `${mine}%`, background: diff >= 0 ? "#10b981" : "#c08a3a" }} />
+          <div className="h-full rounded-full transition-all" style={{ width: `${mine}%`, background: diff >= 0 ? "#3b5bdb" : "#c08a3a" }} />
         </div>
-        <span className="text-[10px] font-bold tabular-nums w-10 text-right shrink-0" style={{ color: diff >= 0 ? "#10b981" : "#c08a3a" }}>{mine}%</span>
-        <span className={cn("text-[9px] font-bold shrink-0", diff >= 0 ? "text-[#10b981]" : "text-[#c08a3a]")}>
+        <span className="text-[10px] font-bold tabular-nums w-10 text-right shrink-0" style={{ color: diff >= 0 ? "#3b5bdb" : "#c08a3a" }}>{mine}%</span>
+        <span className={cn("text-[9px] font-bold shrink-0", diff >= 0 ? "text-[#3b5bdb]" : "text-[#c08a3a]")}>
           {diff >= 0 ? "+" : ""}{diff.toFixed(1)}
         </span>
       </div>
@@ -118,10 +118,10 @@ function ChildSelector({ activeId, setActiveId }: { activeId: string; setActiveI
         <button key={c.id} onClick={() => setActiveId(c.id)}
           className={cn("flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
             activeId === c.id
-              ? "bg-[#10b981]/10 border-[#10b981]/30 text-[#10b981]"
+              ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
               : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15")}>
           <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black"
-            style={{ background: activeId === c.id ? "#10b98130" : "#ffffff18", color: activeId === c.id ? "#10b981" : "#78788c" }}>
+            style={{ background: activeId === c.id ? "#3b5bdb30" : "#ffffff18", color: activeId === c.id ? "#3b5bdb" : "#78788c" }}>
             {c.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
           </div>
           <div className="text-left">
@@ -155,23 +155,23 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
       <ChildSelector activeId={activeChildId} setActiveId={setActiveChildId} />
 
       {/* AI Academic Summary */}
-      <div className="bg-gradient-to-br from-[#10b981]/8 to-[#059669]/4 border border-[#10b981]/20 rounded-2xl p-5 space-y-3">
+      <div className="bg-gradient-to-br from-[#3b5bdb]/8 to-[#6882e8]/4 border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-3">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-xl bg-[#10b981]/20 flex items-center justify-center">
-            <Brain className="w-3.5 h-3.5 text-[#10b981]" />
+          <div className="w-7 h-7 rounded-xl bg-[#3b5bdb]/20 flex items-center justify-center">
+            <Brain className="w-3.5 h-3.5 text-[#3b5bdb]" />
           </div>
           <div className="text-sm font-bold text-white">Academic Summary — {child.name}</div>
-          <span className="text-[9px] font-bold bg-[#10b981]/15 text-[#10b981] px-2 py-0.5 rounded-full uppercase tracking-wide ml-auto">
+          <span className="text-[9px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb] px-2 py-0.5 rounded-full uppercase tracking-wide ml-auto">
             Updated Jul 26, 2026
           </span>
         </div>
         <p className="text-sm text-[#c8c8d8] leading-relaxed">{genOverallSummary(ins, child.name)}</p>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
           {[
-            { label: "Overall Score", value: `${ins.overallPercentage}%`, color: "#10b981" },
+            { label: "Overall Score", value: `${ins.overallPercentage}%`, color: "#3b5bdb" },
             { label: "Grade", value: ins.overallGrade, color: "#6366f1" },
             { label: "Class Rank", value: `#${ins.classRank}`, color: "#8f7dd6" },
-            { label: "vs Previous", value: `${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)}%`, color: overallDelta >= 0 ? "#10b981" : "#cc5069" },
+            { label: "vs Previous", value: `${overallDelta >= 0 ? "+" : ""}${overallDelta.toFixed(1)}%`, color: overallDelta >= 0 ? "#3b5bdb" : "#cc5069" },
           ].map((s) => (
             <div key={s.label} className="bg-black/20 rounded-xl p-3 text-center">
               <div className="text-sm font-black tabular-nums" style={{ color: s.color }}>{s.value}</div>
@@ -188,9 +188,9 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
         <InsightCard color="#6366f1" icon={<BarChart2 className="w-4 h-4" />} title="Academic Performance">
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
-              <div className="bg-[#10b981]/10 rounded-xl p-3 text-center">
-                <div className="text-base font-black text-[#10b981]">{bestSubject.subject}</div>
-                <div className="text-[9px] text-[#10b981] mt-0.5">Best Subject · {bestSubject.score}%</div>
+              <div className="bg-[#3b5bdb]/10 rounded-xl p-3 text-center">
+                <div className="text-base font-black text-[#3b5bdb]">{bestSubject.subject}</div>
+                <div className="text-[9px] text-[#3b5bdb] mt-0.5">Best Subject · {bestSubject.score}%</div>
               </div>
               <div className="bg-[#c08a3a]/10 rounded-xl p-3 text-center">
                 <div className="text-base font-black text-[#c08a3a]">{worstSubject.subject}</div>
@@ -204,8 +204,8 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-white">{s.subject}</span>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold tabular-nums" style={{ color: s.score >= 85 ? "#10b981" : s.score >= 70 ? "#6366f1" : "#c08a3a" }}>{s.score}%</span>
-                      {s.trend === "up" ? <TrendingUp className="w-3 h-3 text-[#10b981]" /> : s.trend === "down" ? <TrendingDown className="w-3 h-3 text-[#cc5069]" /> : <Minus className="w-3 h-3 text-[#78788c]" />}
+                      <span className="text-xs font-bold tabular-nums" style={{ color: s.score >= 85 ? "#3b5bdb" : s.score >= 70 ? "#6366f1" : "#c08a3a" }}>{s.score}%</span>
+                      {s.trend === "up" ? <TrendingUp className="w-3 h-3 text-[#3b5bdb]" /> : s.trend === "down" ? <TrendingDown className="w-3 h-3 text-[#cc5069]" /> : <Minus className="w-3 h-3 text-[#78788c]" />}
                     </div>
                   </div>
                   <p className="text-[10px] text-[#78788c] leading-relaxed">{genSubjectSummary(s)}</p>
@@ -216,12 +216,12 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
         </InsightCard>
 
         {/* Attendance Insights */}
-        <InsightCard color="#10b981" icon={<CheckCircle2 className="w-4 h-4" />} title="Attendance Insights">
+        <InsightCard color="#3b5bdb" icon={<CheckCircle2 className="w-4 h-4" />} title="Attendance Insights">
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-[#10b981]/10 rounded-xl p-3 text-center">
-                <div className="text-lg font-black text-[#10b981]">{ins.presentDays}</div>
-                <div className="text-[9px] text-[#10b981]">Present</div>
+              <div className="bg-[#3b5bdb]/10 rounded-xl p-3 text-center">
+                <div className="text-lg font-black text-[#3b5bdb]">{ins.presentDays}</div>
+                <div className="text-[9px] text-[#3b5bdb]">Present</div>
               </div>
               <div className="bg-[#cc5069]/10 rounded-xl p-3 text-center">
                 <div className="text-lg font-black text-[#cc5069]">{ins.absentDays}</div>
@@ -250,7 +250,7 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: "Today", value: ins.questionsToday, color: "#10b981" },
+                { label: "Today", value: ins.questionsToday, color: "#3b5bdb" },
                 { label: "This Week", value: ins.questionsThisWeek, color: "#6366f1" },
                 { label: "This Month", value: ins.questionsThisMonth, color: "#8f7dd6" },
                 { label: "Total", value: ins.questionsTotal, color: "#4b9fd4" },
@@ -263,10 +263,10 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
             </div>
             <div className="space-y-0">
               <StatRow label="Practice Sessions" value={ins.practiceSessionsTotal} />
-              <StatRow label="Practice Consistency" value={`${ins.practiceConsistency}%`} valueColor={ins.practiceConsistency >= 80 ? "#10b981" : "#c08a3a"} />
+              <StatRow label="Practice Consistency" value={`${ins.practiceConsistency}%`} valueColor={ins.practiceConsistency >= 80 ? "#3b5bdb" : "#c08a3a"} />
               <StatRow label="Learning Streak" value={`${ins.learningStreak} days`} valueColor="#c08a3a" />
-              <StatRow label="Homework Completion" value={`${ins.homeworkCompletion}%`} valueColor={ins.homeworkCompletion >= 85 ? "#10b981" : "#c08a3a"} />
-              <StatRow label="Assignment Completion" value={`${asnPct}%`} valueColor={asnPct >= 85 ? "#10b981" : "#c08a3a"} />
+              <StatRow label="Homework Completion" value={`${ins.homeworkCompletion}%`} valueColor={ins.homeworkCompletion >= 85 ? "#3b5bdb" : "#c08a3a"} />
+              <StatRow label="Assignment Completion" value={`${asnPct}%`} valueColor={asnPct >= 85 ? "#3b5bdb" : "#c08a3a"} />
             </div>
             <div className="p-3 rounded-xl bg-white/3">
               <SummaryText text={genPracticeSummary(ins)} />
@@ -284,9 +284,9 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
                   <div className="text-base font-black text-white">{ins.homeworkAssigned}</div>
                   <div className="text-[9px] text-[#78788c]">Assigned</div>
                 </div>
-                <div className="bg-[#10b981]/10 rounded-xl p-3 text-center">
-                  <div className="text-base font-black text-[#10b981]">{ins.homeworkCompleted}</div>
-                  <div className="text-[9px] text-[#10b981]">Completed</div>
+                <div className="bg-[#3b5bdb]/10 rounded-xl p-3 text-center">
+                  <div className="text-base font-black text-[#3b5bdb]">{ins.homeworkCompleted}</div>
+                  <div className="text-[9px] text-[#3b5bdb]">Completed</div>
                 </div>
                 <div className="bg-[#c08a3a]/10 rounded-xl p-3 text-center">
                   <div className="text-base font-black text-[#c08a3a]">{ins.homeworkAssigned - ins.homeworkCompleted}</div>
@@ -302,9 +302,9 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
                   <div className="text-base font-black text-white">{ins.assignmentsTotal}</div>
                   <div className="text-[9px] text-[#78788c]">Total</div>
                 </div>
-                <div className="bg-[#10b981]/10 rounded-xl p-3 text-center">
-                  <div className="text-base font-black text-[#10b981]">{ins.assignmentsSubmitted}</div>
-                  <div className="text-[9px] text-[#10b981]">Submitted</div>
+                <div className="bg-[#3b5bdb]/10 rounded-xl p-3 text-center">
+                  <div className="text-base font-black text-[#3b5bdb]">{ins.assignmentsSubmitted}</div>
+                  <div className="text-[9px] text-[#3b5bdb]">Submitted</div>
                 </div>
                 <div className="bg-[#c08a3a]/10 rounded-xl p-3 text-center">
                   <div className="text-base font-black text-[#c08a3a]">{ins.assignmentsTotal - ins.assignmentsSubmitted}</div>
@@ -325,15 +325,15 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
           <div className="space-y-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Star className="w-3.5 h-3.5 text-[#10b981]" />
-                <div className="text-[10px] font-bold text-[#10b981] uppercase tracking-wider">Strong Areas</div>
+                <Star className="w-3.5 h-3.5 text-[#3b5bdb]" />
+                <div className="text-[10px] font-bold text-[#3b5bdb] uppercase tracking-wider">Strong Areas</div>
               </div>
               <div className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider mb-1">Subjects</div>
-              <TagList items={ins.strongSubjects} color="#10b981" />
+              <TagList items={ins.strongSubjects} color="#3b5bdb" />
               <div className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider mt-3 mb-1">Chapters</div>
-              <TagList items={ins.strongChapters} color="#10b981" />
+              <TagList items={ins.strongChapters} color="#3b5bdb" />
               <div className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider mt-3 mb-1">Topics</div>
-              <TagList items={ins.strongTopics} color="#10b981" />
+              <TagList items={ins.strongTopics} color="#3b5bdb" />
             </div>
             <div className="border-t border-white/7 pt-4">
               <div className="flex items-center gap-2 mb-2">
@@ -402,7 +402,7 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
                 return (
                   <div key={s.subject} className="flex items-start gap-2 text-[10px]">
                     {diff > 0
-                      ? <CheckCircle2 className="w-3 h-3 text-[#10b981] shrink-0 mt-0.5" />
+                      ? <CheckCircle2 className="w-3 h-3 text-[#3b5bdb] shrink-0 mt-0.5" />
                       : <AlertCircle className="w-3 h-3 text-[#c08a3a] shrink-0 mt-0.5" />}
                     <span className="text-[#78788c]">
                       {diff > 0
@@ -414,7 +414,7 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
               })}
               {ins.attendancePct > ins.attendanceVsClass.classAvg && (
                 <div className="flex items-start gap-2 text-[10px]">
-                  <CheckCircle2 className="w-3 h-3 text-[#10b981] shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-3 h-3 text-[#3b5bdb] shrink-0 mt-0.5" />
                   <span className="text-[#78788c]">Attendance is higher than most classmates.</span>
                 </div>
               )}
@@ -431,7 +431,7 @@ export default function AcademicInsights({ activeChildId, setActiveChildId }: { 
       </div>
 
       {/* Teacher Feedback — full width */}
-      <InsightCard color="#10b981" icon={<Star className="w-4 h-4" />} title="Teacher Feedback">
+      <InsightCard color="#3b5bdb" icon={<Star className="w-4 h-4" />} title="Teacher Feedback">
         <div className="space-y-4">
           {ins.teacherFeedback.map((fb, i) => (
             <div key={i} className="p-4 rounded-2xl bg-white/3 border border-white/5 space-y-3">

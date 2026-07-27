@@ -30,9 +30,9 @@ interface ReportDef {
 
 const REPORTS: ReportDef[] = [
   // Academic
-  { key: "school-attendance", label: "Overall School Attendance", description: "Attendance summary across all classes and sections", category: "academic", icon: <Globe className="w-4 h-4" />, color: "#6366f1" },
+  { key: "school-attendance", label: "Overall School Attendance", description: "Attendance summary across all classes and sections", category: "academic", icon: <Globe className="w-4 h-4" />, color: "#3b5bdb" },
   { key: "class-attendance", label: "Class-wise Attendance", description: "Attendance breakdown per class and section", category: "academic", icon: <GraduationCap className="w-4 h-4" />, color: "#4b9fd4" },
-  { key: "student-attendance", label: "Student Attendance", description: "Individual student attendance records", category: "academic", icon: <Users className="w-4 h-4" />, color: "#8f7dd6" },
+  { key: "student-attendance", label: "Student Attendance", description: "Individual student attendance records", category: "academic", icon: <Users className="w-4 h-4" />, color: "#6882e8" },
   { key: "teacher-attendance", label: "Teacher Attendance", description: "Individual teacher attendance records", category: "academic", icon: <UserCheck className="w-4 h-4" />, color: "#4aa87a" },
   // Account
   { key: "students-no-account", label: "Students Without Login Accounts", description: "Students who have not been assigned login credentials", category: "account", icon: <XCircle className="w-4 h-4" />, color: "#cc5069" },
@@ -45,9 +45,9 @@ const REPORTS: ReportDef[] = [
   { key: "active-users", label: "Active Users Report", description: "Users active within the selected date range", category: "platform", icon: <Activity className="w-4 h-4" />, color: "#4aa87a" },
   { key: "inactive-users", label: "Inactive Users Report", description: "Users who have not logged in recently", category: "platform", icon: <XCircle className="w-4 h-4" />, color: "#78788c" },
   { key: "login-report", label: "User Login Report", description: "Login history across all user types", category: "platform", icon: <TrendingUp className="w-4 h-4" />, color: "#4b9fd4" },
-  { key: "platform-usage", label: "Platform Usage Report", description: "Feature usage and session analytics", category: "platform", icon: <BarChart2 className="w-4 h-4" />, color: "#8f7dd6" },
+  { key: "platform-usage", label: "Platform Usage Report", description: "Feature usage and session analytics", category: "platform", icon: <BarChart2 className="w-4 h-4" />, color: "#6882e8" },
   // Communication
-  { key: "announcement-delivery", label: "Announcement Delivery Report", description: "Delivery rates for all published announcements", category: "communication", icon: <Bell className="w-4 h-4" />, color: "#6366f1" },
+  { key: "announcement-delivery", label: "Announcement Delivery Report", description: "Delivery rates for all published announcements", category: "communication", icon: <Bell className="w-4 h-4" />, color: "#3b5bdb" },
   { key: "announcement-read", label: "Announcement Read Report", description: "Read rates and unread counts per announcement", category: "communication", icon: <CheckCircle2 className="w-4 h-4" />, color: "#4aa87a" },
 ];
 
@@ -66,7 +66,7 @@ function generateReportData(key: ReportKey, filters: Filters): { rows: Row[]; su
   switch (key) {
     case "school-attendance": {
       const summary = [
-        { label: "Total Students", value: adminStudents.length, color: "#6366f1" },
+        { label: "Total Students", value: adminStudents.length, color: "#3b5bdb" },
         { label: "Avg. Attendance", value: `${Math.round(adminStudents.reduce((s, x) => s + x.attendance, 0) / adminStudents.length)}%`, color: "#4aa87a" },
         { label: "Below 75%", value: adminStudents.filter((s) => s.attendance < 75).length, color: "#cc5069" },
         { label: "Above 90%", value: adminStudents.filter((s) => s.attendance >= 90).length, color: "#4b9fd4" },
@@ -75,14 +75,14 @@ function generateReportData(key: ReportKey, filters: Filters): { rows: Row[]; su
       return { rows, summary };
     }
     case "class-attendance": {
-      const summary = adminClasses.map((c) => ({ label: c.name, value: `${Math.round(c.sections.reduce((s, sec) => s + sec.attendanceToday, 0) / c.sections.length)}%`, color: "#6366f1" }));
+      const summary = adminClasses.map((c) => ({ label: c.name, value: `${Math.round(c.sections.reduce((s, sec) => s + sec.attendanceToday, 0) / c.sections.length)}%`, color: "#3b5bdb" }));
       const rows = adminClasses.flatMap((c) => c.sections.map((sec) => ({ Class: c.name, Section: sec.name, Students: sec.totalStudents, "Today Attendance %": sec.attendanceToday })));
       return { rows, summary };
     }
     case "student-attendance": {
       const filtered = applyStudentFilters(adminStudents, filters);
       const summary = [
-        { label: "Students", value: filtered.length, color: "#6366f1" },
+        { label: "Students", value: filtered.length, color: "#3b5bdb" },
         { label: "Avg. Attendance", value: `${filtered.length ? Math.round(filtered.reduce((s, x) => s + x.attendance, 0) / filtered.length) : 0}%`, color: "#4aa87a" },
         { label: "Critical (<75%)", value: filtered.filter((s) => s.attendance < 75).length, color: "#cc5069" },
       ];
@@ -91,7 +91,7 @@ function generateReportData(key: ReportKey, filters: Filters): { rows: Row[]; su
     }
     case "teacher-attendance": {
       const summary = [
-        { label: "Teachers", value: adminTeachers.length, color: "#6366f1" },
+        { label: "Teachers", value: adminTeachers.length, color: "#3b5bdb" },
         { label: "Avg. Attendance", value: `${Math.round(adminTeachers.reduce((s, x) => s + x.attendance, 0) / adminTeachers.length)}%`, color: "#4aa87a" },
       ];
       const rows = adminTeachers.map((t) => ({ "Employee ID": t.employeeId, Name: t.fullName, Department: t.department, "Attendance %": t.attendance, Status: t.status }));
@@ -154,7 +154,7 @@ function generateReportData(key: ReportKey, filters: Filters): { rows: Row[]; su
         { title: "Annual Sports Day Registration", recipients: 497, delivered: 490, read: 423, failed: 7 },
       ];
       const summary = [
-        { label: "Total Sent", value: anns.reduce((s, a) => s + a.recipients, 0), color: "#6366f1" },
+        { label: "Total Sent", value: anns.reduce((s, a) => s + a.recipients, 0), color: "#3b5bdb" },
         { label: "Total Delivered", value: anns.reduce((s, a) => s + a.delivered, 0), color: "#4b9fd4" },
         { label: "Total Read", value: anns.reduce((s, a) => s + a.read, 0), color: "#4aa87a" },
         { label: "Total Failed", value: anns.reduce((s, a) => s + a.failed, 0), color: "#cc5069" },
@@ -163,7 +163,7 @@ function generateReportData(key: ReportKey, filters: Filters): { rows: Row[]; su
       return { rows, summary };
     }
     default: {
-      const summary = [{ label: "Total Records", value: adminStudents.length + adminTeachers.length + adminParents.length, color: "#6366f1" }];
+      const summary = [{ label: "Total Records", value: adminStudents.length + adminTeachers.length + adminParents.length, color: "#3b5bdb" }];
       const rows = adminStudents.slice(0, 10).map((s) => ({ Name: s.fullName, Type: "Student", Status: s.status }));
       return { rows, summary };
     }
@@ -316,10 +316,10 @@ export default function Reports() {
       <div className="bg-[#131316] border border-white/7 rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
           <button onClick={() => setShowFilters((f) => !f)}
-            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-[#6366f1] transition-colors">
+            className="flex items-center gap-2 text-sm font-semibold text-white hover:text-[#3b5bdb] transition-colors">
             <Filter className="w-4 h-4" />
             Report Filters
-            {hasActiveFilters && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#6366f1]/20 text-[#6366f1]">Active</span>}
+            {hasActiveFilters && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#3b5bdb]/20 text-[#3b5bdb]">Active</span>}
             <ChevronDown className={cn("w-4 h-4 transition-transform", showFilters && "rotate-180")} />
           </button>
           {hasActiveFilters && (
@@ -336,14 +336,14 @@ export default function Reports() {
               <div key={key} className="flex flex-col gap-1">
                 <label className="text-[9px] font-bold text-[#78788c] uppercase tracking-wider">{label}</label>
                 <input type={type} value={filters[key]} onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#6366f1]/50" />
+                  className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#3b5bdb]/50" />
               </div>
             ))}
 
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#78788c] uppercase tracking-wider">Class</label>
               <select value={filters.classFilter} onChange={(e) => setFilters((f) => ({ ...f, classFilter: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#6366f1]/50">
+                className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#3b5bdb]/50">
                 <option value="">All Classes</option>
                 {adminClasses.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
@@ -352,7 +352,7 @@ export default function Reports() {
             <div className="flex flex-col gap-1">
               <label className="text-[9px] font-bold text-[#78788c] uppercase tracking-wider">Section</label>
               <select value={filters.sectionFilter} onChange={(e) => setFilters((f) => ({ ...f, sectionFilter: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#6366f1]/50">
+                className="bg-white/5 border border-white/10 rounded-xl px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#3b5bdb]/50">
                 <option value="">All Sections</option>
                 {["A", "B"].map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
@@ -366,7 +366,7 @@ export default function Reports() {
         {CATEGORIES.map((cat) => (
           <button key={cat.key} onClick={() => setActiveCategory(cat.key)}
             className={cn("flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all",
-              activeCategory === cat.key ? "bg-[#6366f1]/15 text-[#6366f1] border border-[#6366f1]/25" : "bg-[#131316] border border-white/7 text-[#78788c] hover:text-white")}>
+              activeCategory === cat.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25" : "bg-[#131316] border border-white/7 text-[#78788c] hover:text-white")}>
             {cat.icon} {cat.label}
             <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-[#46465a]">
               {REPORTS.filter((r) => r.category === cat.key).length}
@@ -388,7 +388,7 @@ export default function Reports() {
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${report.color}20`, color: report.color }}>
                   {report.icon}
                 </div>
-                <div className="flex items-center gap-1 text-[#46465a] group-hover:text-[#6366f1] transition-colors">
+                <div className="flex items-center gap-1 text-[#46465a] group-hover:text-[#3b5bdb] transition-colors">
                   <span className="text-xs">View Report</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </div>

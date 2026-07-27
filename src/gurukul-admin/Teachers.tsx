@@ -29,12 +29,12 @@ function TeacherForm({ teacher, onSave, onClose }: { teacher?: AdminTeacher; onS
         <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">{label}</label>
         {opts ? (
           <select value={form[key] as string} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50">
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50">
             {opts.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
         ) : (
           <input type={type} value={form[key] as string} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#6366f1]/50" />
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50" />
         )}
       </div>
     );
@@ -56,7 +56,7 @@ function TeacherForm({ teacher, onSave, onClose }: { teacher?: AdminTeacher; onS
           {opts.map((o) => (
             <button key={o} onClick={() => toggleMulti(key, o)}
               className={cn("text-xs px-2.5 py-1 rounded-lg border transition-all",
-                arr.includes(o) ? "bg-[#6366f1]/20 border-[#6366f1]/40 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
+                arr.includes(o) ? "bg-[#3b5bdb]/20 border-[#3b5bdb]/40 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
               {o}
             </button>
           ))}
@@ -96,7 +96,7 @@ function TeacherForm({ teacher, onSave, onClose }: { teacher?: AdminTeacher; onS
         </div>
         <div className="sticky bottom-0 bg-[#0d0d0f] border-t border-white/7 px-6 py-4 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">Cancel</button>
-          <button onClick={handleSave} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+          <button onClick={handleSave} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
             {teacher ? "Save Changes" : "Add Teacher"}
           </button>
         </div>
@@ -132,7 +132,7 @@ function TeacherDetail({ teacher, onClose, onEdit }: { teacher: AdminTeacher; on
           {tabs.map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={cn("text-[10px] font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all",
-                tab === t.key ? "bg-[#6366f1]/20 text-[#6366f1]" : "text-[#78788c] hover:text-white")}>
+                tab === t.key ? "bg-[#3b5bdb]/20 text-[#3b5bdb]" : "text-[#78788c] hover:text-white")}>
               {t.label}
             </button>
           ))}
@@ -161,7 +161,7 @@ function TeacherDetail({ teacher, onClose, onEdit }: { teacher: AdminTeacher; on
               <div className="p-3 rounded-xl bg-white/3">
                 <div className="text-[9px] text-[#46465a] uppercase tracking-wider mb-2">Subjects</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {teacher.subjects.map((s) => <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-[#6366f1]/15 text-[#a5b4fc]">{s}</span>)}
+                  {teacher.subjects.map((s) => <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-[#3b5bdb]/15 text-[#a5b4fc]">{s}</span>)}
                 </div>
               </div>
               <div className="p-3 rounded-xl bg-white/3">
@@ -190,7 +190,7 @@ function TeacherDetail({ teacher, onClose, onEdit }: { teacher: AdminTeacher; on
           {tab === "account" && <AccountLinkingPanel entityName={teacher.fullName} entityType="teacher" status={teacher.status} />}
         </div>
         <div className="p-4 border-t border-white/7">
-          <button onClick={onEdit} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+          <button onClick={onEdit} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
             Edit Teacher
           </button>
         </div>
@@ -285,29 +285,29 @@ export default function TeacherManagement() {
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#46465a]" />
           <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search teachers..."
-            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#6366f1]/50" />
+            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50" />
         </div>
         <select value={filterDept} onChange={(e) => { setFilterDept(e.target.value); setPage(1); }}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#6366f1]/50">
+          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50">
           <option value="all">All Departments</option>
           {departments.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
         <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#6366f1]/50">
+          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50">
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
           <option value="suspended">Suspended</option>
         </select>
         <button onClick={() => setEditTeacher("new")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
           <Plus className="w-3.5 h-3.5" /> Add Teacher
         </button>
       </div>
 
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20">
-          <Users className="w-4 h-4 text-[#6366f1]" />
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#3b5bdb]/10 border border-[#3b5bdb]/20">
+          <Users className="w-4 h-4 text-[#3b5bdb]" />
           <span className="text-sm text-white font-semibold">{selected.size} selected</span>
           <div className="ml-auto flex gap-2">
             <button onClick={() => handleBulkStatus("active")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#4aa87a] bg-[#4aa87a]/10 hover:bg-[#4aa87a]/20 transition-all">
@@ -329,7 +329,7 @@ export default function TeacherManagement() {
             <tr className="border-b border-white/7">
               <th className="px-4 py-3 text-left w-10">
                 <button onClick={toggleAll} className="text-[#78788c] hover:text-white">
-                  {allSelected ? <CheckSquare className="w-4 h-4 text-[#6366f1]" /> : <Square className="w-4 h-4" />}
+                  {allSelected ? <CheckSquare className="w-4 h-4 text-[#3b5bdb]" /> : <Square className="w-4 h-4" />}
                 </button>
               </th>
               {([
@@ -353,7 +353,7 @@ export default function TeacherManagement() {
               <tr key={t.id} className="hover:bg-white/2 transition-colors group">
                 <td className="px-4 py-3">
                   <button onClick={() => setSelected((prev) => { const next = new Set(prev); next.has(t.id) ? next.delete(t.id) : next.add(t.id); return next; })} className="text-[#78788c] hover:text-white">
-                    {selected.has(t.id) ? <CheckSquare className="w-4 h-4 text-[#6366f1]" /> : <Square className="w-4 h-4" />}
+                    {selected.has(t.id) ? <CheckSquare className="w-4 h-4 text-[#3b5bdb]" /> : <Square className="w-4 h-4" />}
                   </button>
                 </td>
                 <td className="px-4 py-3">
@@ -378,7 +378,7 @@ export default function TeacherManagement() {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1">
                     {t.subjects.slice(0, 2).map((s) => (
-                      <span key={s} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#8f7dd6]/15 text-[#8f7dd6]">{s}</span>
+                      <span key={s} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#6882e8]/15 text-[#6882e8]">{s}</span>
                     ))}
                     {t.subjects.length > 2 && <span className="text-[9px] text-[#46465a]">+{t.subjects.length - 2}</span>}
                   </div>

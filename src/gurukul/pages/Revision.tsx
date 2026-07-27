@@ -74,7 +74,7 @@ function DueTag({ dueIn }: { dueIn: string }) {
     dueIn === "Today" ? { color:"#c08a3a", bg:"rgba(245,158,11,0.12)", label:"Today" } :
     dueIn === "Tomorrow" ? { color:"#fb923c", bg:"rgba(251,146,60,0.12)", label:"Tomorrow" } :
     dueIn === "Done" ? { color:"#4aa87a", bg:"rgba(52,211,153,0.12)", label:"Done" } :
-    { color:"#8f7dd6", bg:"rgba(167,139,250,0.12)", label:dueIn };
+    { color:"#6882e8", bg:"rgba(167,139,250,0.12)", label:dueIn };
   return (
     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{color:cfg.color,background:cfg.bg}}>
       {cfg.label}
@@ -351,7 +351,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           { label:"Due Now",   value:dueNow,     color:"#cc5069", icon:<Zap className="w-4 h-4"/> },
           { label:"Upcoming",  value:upcoming,   color:"#c08a3a", icon:<Calendar className="w-4 h-4"/> },
           { label:"Completed", value:completed,  color:"#4aa87a", icon:<CheckCircle2 className="w-4 h-4"/> },
-          { label:"Total Items",value:REVISION_ITEMS.length, color:"#8f7dd6", icon:<Layers className="w-4 h-4"/> },
+          { label:"Total Items",value:REVISION_ITEMS.length, color:"#6882e8", icon:<Layers className="w-4 h-4"/> },
         ].map(s => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}

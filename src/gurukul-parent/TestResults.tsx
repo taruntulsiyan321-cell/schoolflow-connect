@@ -13,10 +13,10 @@ function ChildSelector({ activeId, setActiveId }: { activeId: string; setActiveI
         <button key={c.id} onClick={() => setActiveId(c.id)}
           className={cn("flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
             activeId === c.id
-              ? "bg-[#10b981]/10 border-[#10b981]/30 text-[#10b981]"
+              ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
               : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15")}>
           <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black"
-            style={{ background: activeId === c.id ? "#10b98130" : "#ffffff18", color: activeId === c.id ? "#10b981" : "#78788c" }}>
+            style={{ background: activeId === c.id ? "#3b5bdb30" : "#ffffff18", color: activeId === c.id ? "#3b5bdb" : "#78788c" }}>
             {c.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
           </div>
           <div className="text-left">
@@ -41,9 +41,9 @@ function ScoreVsClass({ score, classAvg, total }: { score: number; classAvg: num
       </div>
       <div className="relative flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
         <div className="absolute top-0 bottom-0 w-0.5 bg-white/20 z-10" style={{ left: `${classPct}%` }} />
-        <div className="h-full rounded-full" style={{ width: `${myPct}%`, background: diff >= 0 ? "#10b981" : "#c08a3a" }} />
+        <div className="h-full rounded-full" style={{ width: `${myPct}%`, background: diff >= 0 ? "#3b5bdb" : "#c08a3a" }} />
       </div>
-      <div className="text-[9px]" style={{ color: diff >= 0 ? "#10b981" : "#c08a3a" }}>
+      <div className="text-[9px]" style={{ color: diff >= 0 ? "#3b5bdb" : "#c08a3a" }}>
         {diff >= 0 ? `+${diff}% above` : `${Math.abs(diff)}% below`} class average
       </div>
     </div>
@@ -109,7 +109,7 @@ export default function TestResults({ activeChildId, setActiveChildId }: { activ
             <div className="text-[10px] text-[#78788c] mt-0.5">Total Tests</div>
           </div>
           <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-xl font-black text-[#10b981] tabular-nums">{avg}%</div>
+            <div className="text-xl font-black text-[#3b5bdb] tabular-nums">{avg}%</div>
             <div className="text-[10px] text-[#78788c] mt-0.5">Average Score</div>
           </div>
           <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
@@ -144,7 +144,7 @@ export default function TestResults({ activeChildId, setActiveChildId }: { activ
         {([["date", "Date"], ["marks", "Marks"], ["percentage", "Score %"]] as [SortKey, string][]).map(([key, label]) => (
           <button key={key} onClick={() => toggleSort(key)}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-semibold transition-all",
-              sortKey === key ? "bg-[#10b981]/15 text-[#10b981]" : "bg-white/5 text-[#78788c] hover:text-white")}>
+              sortKey === key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "bg-white/5 text-[#78788c] hover:text-white")}>
             {label}
             {sortKey === key && <SortIcon className="w-3 h-3" />}
           </button>
@@ -164,11 +164,11 @@ export default function TestResults({ activeChildId, setActiveChildId }: { activ
               className="w-full flex items-center gap-4 p-4 hover:bg-white/3 transition-all text-left">
               {/* Score donut-ish */}
               <div className="w-12 h-12 rounded-2xl flex flex-col items-center justify-center shrink-0"
-                style={{ background: r.percentage >= 85 ? "#10b98115" : r.percentage >= 70 ? "#6366f115" : "#c08a3a15" }}>
-                <div className="text-sm font-black tabular-nums" style={{ color: r.percentage >= 85 ? "#10b981" : r.percentage >= 70 ? "#6366f1" : "#c08a3a" }}>
+                style={{ background: r.percentage >= 85 ? "#3b5bdb15" : r.percentage >= 70 ? "#6366f115" : "#c08a3a15" }}>
+                <div className="text-sm font-black tabular-nums" style={{ color: r.percentage >= 85 ? "#3b5bdb" : r.percentage >= 70 ? "#6366f1" : "#c08a3a" }}>
                   {r.percentage}
                 </div>
-                <div className="text-[7px] font-bold" style={{ color: r.percentage >= 85 ? "#10b981" : r.percentage >= 70 ? "#6366f1" : "#c08a3a" }}>%</div>
+                <div className="text-[7px] font-bold" style={{ color: r.percentage >= 85 ? "#3b5bdb" : r.percentage >= 70 ? "#6366f1" : "#c08a3a" }}>%</div>
               </div>
 
               <div className="flex-1 min-w-0">
@@ -201,9 +201,9 @@ export default function TestResults({ activeChildId, setActiveChildId }: { activ
 
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="bg-[#10b981]/10 rounded-xl p-3 text-center">
-                    <div className="text-sm font-black text-[#10b981]">{r.marksObtained}/{r.totalMarks}</div>
-                    <div className="text-[9px] text-[#10b981]">Marks</div>
+                  <div className="bg-[#3b5bdb]/10 rounded-xl p-3 text-center">
+                    <div className="text-sm font-black text-[#3b5bdb]">{r.marksObtained}/{r.totalMarks}</div>
+                    <div className="text-[9px] text-[#3b5bdb]">Marks</div>
                   </div>
                   <div className="bg-[#6366f1]/10 rounded-xl p-3 text-center">
                     <div className="text-sm font-black text-[#6366f1]">#{r.classRank}</div>

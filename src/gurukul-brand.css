@@ -1,0 +1,14 @@
+/* Gurukul brand tokens — principal executive palette (shared app-wide) */
+:root {
+  --gurukul-navy: #0f1b35;
+  --gurukul-navy-mid: #1e3a5f;
+  --gurukul-indigo: #3b5bdb;
+  --gurukul-indigo-light: #e8ecff;
+  --gurukul-indigo-mid: #6882e8;
+  --gurukul-bg: #f4f5f7;
+  --gurukul-surface: #ffffff;
+  --gurukul-teal: #0ea5a0;
+  --gurukul-emerald: #10b981;
+  --gurukul-amber: #f59e0b;
+  --gurukul-rose: #f43f5e;
+}

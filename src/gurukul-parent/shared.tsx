@@ -5,14 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const ACCENT = "#10b981"; // emerald
+export const ACCENT = "#3b5bdb"; // emerald
 export const ACCENT_LIGHT = "#34d399";
-export const ACCENT_DIM = "#10b98120";
+export const ACCENT_DIM = "#3b5bdb20";
 
 export function InitialsAvatar({ name, size = "md", color }: { name: string; size?: "sm" | "md" | "lg"; color?: string }) {
   const initials = name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   const sz = { sm: "w-7 h-7 text-[9px]", md: "w-9 h-9 text-xs", lg: "w-12 h-12 text-sm" }[size];
-  const bg = color ?? "#10b981";
+  const bg = color ?? "#3b5bdb";
   return (
     <div className={`${sz} rounded-xl flex items-center justify-center font-black text-white shrink-0`} style={{ background: `${bg}30`, color: bg }}>
       {initials}
@@ -33,7 +33,7 @@ export function PriorityBadge({ priority }: { priority: "normal" | "important" |
 }
 
 export function GradeChip({ grade }: { grade: string }) {
-  const color = grade.startsWith("A+") ? "#10b981" : grade.startsWith("A") ? "#4aa87a" : grade.startsWith("B") ? "#6366f1" : grade.startsWith("C") ? "#c08a3a" : "#cc5069";
+  const color = grade.startsWith("A+") ? "#3b5bdb" : grade.startsWith("A") ? "#4aa87a" : grade.startsWith("B") ? "#6366f1" : grade.startsWith("C") ? "#c08a3a" : "#cc5069";
   return (
     <span className="text-[10px] font-black px-2 py-0.5 rounded-lg" style={{ background: `${color}20`, color }}>{grade}</span>
   );

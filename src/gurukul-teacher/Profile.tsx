@@ -9,7 +9,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
   return (
     <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
-        <div className="w-8 h-8 rounded-xl bg-[#f59e0b]/15 flex items-center justify-center text-[#f59e0b]">{icon}</div>
+        <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
         <div className="text-sm font-bold text-white">{title}</div>
       </div>
       <div className="p-5">{children}</div>
@@ -23,7 +23,7 @@ function Field({ label, value, editing, onChange, type = "text" }: { label: stri
       <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">{label}</label>
       {editing ? (
         <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-          className="bg-white/5 border border-[#f59e0b]/30 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#f59e0b]/60 transition-all" />
+          className="bg-white/5 border border-[#3b5bdb]/30 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/60 transition-all" />
       ) : (
         <div className="text-sm text-white px-0.5">{value || <span className="text-[#46465a]">Not set</span>}</div>
       )}
@@ -58,7 +58,7 @@ export default function TeacherProfile() {
 
       {/* Avatar card */}
       <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#f59e0b] to-[#d97706] flex items-center justify-center shrink-0">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <span className="text-xl font-black text-black">AR</span>
         </div>
         <div className="flex-1 min-w-0">
@@ -66,14 +66,14 @@ export default function TeacherProfile() {
           <div className="text-xs text-[#78788c] mt-0.5">{profile.subjects.join(" & ")} Teacher</div>
           <div className="text-[10px] text-[#46465a] mt-0.5">{profile.employeeId} · {profile.department}</div>
           {profile.isClassTeacher && (
-            <span className="inline-block mt-1 text-[9px] font-bold text-[#f59e0b] bg-[#f59e0b]/10 px-2 py-0.5 rounded-full">
+            <span className="inline-block mt-1 text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-2 py-0.5 rounded-full">
               Class Teacher — {profile.classTeacherOf?.className} {profile.classTeacherOf?.section}
             </span>
           )}
         </div>
         {!editing ? (
           <button onClick={() => { setDraft(profile); setEditing(true); }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all shrink-0">
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all shrink-0">
             <Edit2 className="w-3.5 h-3.5" /> Edit Profile
           </button>
         ) : (
@@ -83,7 +83,7 @@ export default function TeacherProfile() {
               <X className="w-3.5 h-3.5" /> Cancel
             </button>
             <button onClick={() => { setProfile(draft); setEditing(false); showFlash("Profile updated successfully"); }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-black bg-[#f59e0b] hover:bg-[#d97706] transition-all">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
               <Save className="w-3.5 h-3.5" /> Save
             </button>
           </div>
@@ -115,7 +115,7 @@ export default function TeacherProfile() {
             <div className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider mb-1.5">Role</div>
             <div className="text-sm text-white">
               {profile.isClassTeacher ? (
-                <span>Class Teacher of <span className="text-[#f59e0b]">{profile.classTeacherOf?.className} {profile.classTeacherOf?.section}</span>, Subject Teacher for all assigned classes</span>
+                <span>Class Teacher of <span className="text-[#3b5bdb]">{profile.classTeacherOf?.className} {profile.classTeacherOf?.section}</span>, Subject Teacher for all assigned classes</span>
               ) : "Subject Teacher"}
             </div>
           </div>
@@ -143,7 +143,7 @@ export default function TeacherProfile() {
               </div>
             ) : (
               <button onClick={() => { setProfile((p) => ({ ...p, googleLinked: true, googleEmail: "ananya.rajan@gmail.com" })); showFlash("Google account linked"); }}
-                className="text-[10px] text-[#f59e0b] hover:underline flex items-center gap-0.5">
+                className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-0.5">
                 <Link2 className="w-3 h-3" /> Link
               </button>
             )}
@@ -161,7 +161,7 @@ export default function TeacherProfile() {
               <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">Verified</span>
             ) : (
               <button onClick={() => { setProfile((p) => ({ ...p, mobileLinked: true })); showFlash("Mobile number linked"); }}
-                className="text-[10px] text-[#f59e0b] hover:underline flex items-center gap-0.5">
+                className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-0.5">
                 <Link2 className="w-3 h-3" /> Link
               </button>
             )}
@@ -177,7 +177,7 @@ export default function TeacherProfile() {
             <div className="text-[10px] text-[#78788c]">Last changed 2 months ago</div>
           </div>
           <button onClick={() => setChangePwdOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#f59e0b] bg-[#f59e0b]/10 hover:bg-[#f59e0b]/15 transition-all">
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#3b5bdb] bg-[#3b5bdb]/10 hover:bg-[#3b5bdb]/15 transition-all">
             <Lock className="w-3.5 h-3.5" /> Change
           </button>
         </div>
@@ -200,7 +200,7 @@ export default function TeacherProfile() {
               <div key={f.key} className="flex flex-col gap-1">
                 <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">{f.label}</label>
                 <input type="password" value={pwdForm[f.key]} onChange={(e) => setPwdForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#f59e0b]/40" />
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/40" />
               </div>
             ))}
             {pwdForm.next && pwdForm.confirm && pwdForm.next !== pwdForm.confirm && (
@@ -211,7 +211,7 @@ export default function TeacherProfile() {
               <button
                 onClick={() => { setChangePwdOpen(false); setPwdForm({ current: "", next: "", confirm: "" }); showFlash("Password changed successfully"); }}
                 disabled={!pwdForm.current || !pwdForm.next || pwdForm.next !== pwdForm.confirm}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-black bg-[#f59e0b] hover:bg-[#d97706] disabled:opacity-40 transition-all">
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
                 Change Password
               </button>
             </div>

@@ -5,9 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const ACCENT = "#f59e0b";
-export const ACCENT_BG = "#f59e0b18";
-export const ACCENT_MUTED = "#f59e0b";
+export const ACCENT = "#3b5bdb";
+export const ACCENT_BG = "#3b5bdb18";
+export const ACCENT_MUTED = "#3b5bdb";
 
 export function InitialsAvatar({ name, size = "md", color }: { name: string; size?: "sm" | "md" | "lg"; color?: string }) {
   const initials = name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();

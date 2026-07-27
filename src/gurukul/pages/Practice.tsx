@@ -31,11 +31,11 @@ const MODES: Mode[] = [
   { key:"daily",      label:"Daily Practice",         desc:"Today's personalised question set — auto-generated every morning",
     icon:<Flame className="w-5 h-5"/>,      color:"#c08a3a", cat:"source",   badge:"30 Qs ready", instant:true, hot:true },
   { key:"subject",    label:"Subject Practice",       desc:"Practice questions from a subject of your choice",
-    icon:<BookOpen className="w-5 h-5"/>,   color:"#6366f1", cat:"content",  badge:"5 subjects" },
+    icon:<BookOpen className="w-5 h-5"/>,   color:"#3b5bdb", cat:"content",  badge:"5 subjects" },
   { key:"chapter",    label:"Chapter Practice",       desc:"Focus on a specific chapter to reinforce concepts",
     icon:<Layers className="w-5 h-5"/>,     color:"#4b9fd4", cat:"content",  badge:"42 chapters" },
   { key:"topic",      label:"Topic Practice",         desc:"Drill down to a precise concept or sub-topic",
-    icon:<Target className="w-5 h-5"/>,     color:"#8f7dd6", cat:"content",  badge:"180+ topics" },
+    icon:<Target className="w-5 h-5"/>,     color:"#6882e8", cat:"content",  badge:"180+ topics" },
   { key:"custom",     label:"Custom Practice",        desc:"Pick subjects, chapters, topics, difficulty, and question count",
     icon:<SlidersHorizontal className="w-5 h-5"/>, color:"#4aa87a", cat:"content", badge:"Full control" },
   { key:"teacher",    label:"Teacher Assigned",       desc:"Practice sets assigned by your teachers with due dates",
@@ -43,7 +43,7 @@ const MODES: Mode[] = [
   { key:"pyq",        label:"Previous Year Questions",desc:"Board and competitive exam questions from past years",
     icon:<FileText className="w-5 h-5"/>,   color:"#cc5069", cat:"source",  badge:"2018–2024" },
   { key:"qbank",      label:"Question Bank",          desc:"Browse the full repository and filter by any parameter",
-    icon:<Globe className="w-5 h-5"/>,      color:"#6366f1", cat:"source",  badge:"12,400+ Qs" },
+    icon:<Globe className="w-5 h-5"/>,      color:"#3b5bdb", cat:"source",  badge:"12,400+ Qs" },
   { key:"timed",      label:"Timed Practice",         desc:"Solve questions against the clock — choose your time limit",
     icon:<Timer className="w-5 h-5"/>,      color:"#cc5069", cat:"type",    badge:"Speed mode" },
   { key:"untimed",    label:"Untimed Practice",       desc:"No time pressure — focus on understanding, not speed",
@@ -53,7 +53,7 @@ const MODES: Mode[] = [
   { key:"mock",       label:"Mock Tests",             desc:"Full-length exam simulation under real test conditions",
     icon:<Trophy className="w-5 h-5"/>,     color:"#c08a3a", cat:"type",    badge:"4 available" },
   { key:"difficulty", label:"Difficulty-Based",       desc:"Choose Easy, Medium, Hard or Mixed to match your prep level",
-    icon:<BarChart2 className="w-5 h-5"/>,  color:"#8f7dd6", cat:"type",    badge:"Pick level" },
+    icon:<BarChart2 className="w-5 h-5"/>,  color:"#6882e8", cat:"type",    badge:"Pick level" },
   { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from topics where your accuracy is below 70%",
     icon:<TrendingDown className="w-5 h-5"/>, color:"#cc5069", cat:"targeted", badge:"8 topics", instant:true, hot:true },
   { key:"incorrect",  label:"Incorrect Questions",    desc:"Reattempt questions you got wrong in previous sessions",
@@ -63,7 +63,7 @@ const MODES: Mode[] = [
   { key:"bookmarked", label:"Bookmarked Questions",   desc:"Practice questions you saved for later review",
     icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"17 saved", instant:true },
   { key:"random",     label:"Random Practice",        desc:"Surprise yourself — questions picked randomly from your syllabus",
-    icon:<Shuffle className="w-5 h-5"/>,    color:"#6366f1", cat:"type",    badge:"Surprise me", instant:true },
+    icon:<Shuffle className="w-5 h-5"/>,    color:"#3b5bdb", cat:"type",    badge:"Surprise me", instant:true },
 ];
 
 const CATS: { key: Cat; label: string }[] = [
@@ -105,7 +105,7 @@ const DIFFICULTIES = [
   { key:"easy",   label:"Easy",   color:"#4aa87a", desc:"Foundation level — build confidence" },
   { key:"medium", label:"Medium", color:"#c08a3a", desc:"Board exam level — solid preparation" },
   { key:"hard",   label:"Hard",   color:"#cc5069", desc:"Competitive level — push your limits" },
-  { key:"mixed",  label:"Mixed",  color:"#8f7dd6", desc:"Varied — best for overall practice" },
+  { key:"mixed",  label:"Mixed",  color:"#6882e8", desc:"Varied — best for overall practice" },
 ];
 
 // ── Shared components ────────────────────────────────────────────────────────
@@ -166,7 +166,7 @@ function Hub({ onMode }: { onMode: (key: ModeKey) => void }) {
       {/* ── Quick Start ── */}
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-1 h-4 rounded-full bg-[#6366f1]"/>
+          <div className="w-1 h-4 rounded-full bg-[#3b5bdb]"/>
           <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Quick Start</span>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -197,7 +197,7 @@ function Hub({ onMode }: { onMode: (key: ModeKey) => void }) {
             <input
               value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search practice modes…"
-              className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#6366f1]/40 transition-colors"
+              className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/40 transition-colors"
             />
           </div>
           <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
@@ -205,7 +205,7 @@ function Hub({ onMode }: { onMode: (key: ModeKey) => void }) {
               <button key={c.key} onClick={() => setCat(c.key)}
                 className={cn(
                   "shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all",
-                  cat === c.key ? "bg-[#6366f1] text-white shadow-lg shadow-blue-500/20" : "border border-white/7 text-[#78788c] hover:text-white hover:border-white/20"
+                  cat === c.key ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-white/7 text-[#78788c] hover:text-white hover:border-white/20"
                 )}>{c.label}</button>
             ))}
           </div>
@@ -265,7 +265,7 @@ function Hub({ onMode }: { onMode: (key: ModeKey) => void }) {
               <div className="w-1 h-4 rounded-full bg-[#4b9fd4]"/>
               <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Saved Sessions</span>
             </div>
-            <button className="flex items-center gap-1 text-[10px] text-[#6366f1] hover:text-blue-300 transition-colors">
+            <button className="flex items-center gap-1 text-[10px] text-[#3b5bdb] hover:text-blue-300 transition-colors">
               <Save className="w-3 h-3"/> Save current
             </button>
           </div>
@@ -289,7 +289,7 @@ function Hub({ onMode }: { onMode: (key: ModeKey) => void }) {
         {/* Practice History */}
         <GlassCard className="p-5">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-[#8f7dd6]"/>
+            <div className="w-1 h-4 rounded-full bg-[#6882e8]"/>
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Practice History</span>
           </div>
           <div className="space-y-2">
@@ -545,7 +545,7 @@ function SubjectPicker({ selected, onSelect }: { selected:string|null; onSelect:
         <button onClick={() => onSelect(null)}
           className={cn(
             "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-            selected === null ? "bg-[#6366f1] text-white shadow-lg shadow-blue-500/20" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+            selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
           )}>All</button>
         {subjects.map(s => (
           <button key={s.id} onClick={() => onSelect(s.name)}
@@ -681,7 +681,7 @@ function Session({
               <span className="text-xs text-[#78788c]">{correct}/{attempted} correct</span>
             </div>
           </div>
-          <ProgressBar value={idx} max={qs.length} color="#6366f1" height="h-1"/>
+          <ProgressBar value={idx} max={qs.length} color="#3b5bdb" height="h-1"/>
         </div>
       </div>
 
@@ -752,7 +752,7 @@ function Session({
         )}
         {phase === "fb" && (
           <button onClick={next}
-            className="flex-1 py-3 rounded-2xl bg-[#6366f1] hover:bg-blue-500 text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
+            className="flex-1 py-3 rounded-2xl bg-[#3b5bdb] hover:bg-blue-500 text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
             {idx+1 >= qs.length ? "See Results" : "Next Question"} <ChevronRight className="w-4 h-4"/>
           </button>
         )}
@@ -803,7 +803,7 @@ function Summary({ results, onRetry, onHub }: {
         <div className="space-y-2.5">
           <button onClick={onRetry}
             className="w-full py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
-            style={{ background:`linear-gradient(135deg,#6366f1,#4b9fd4)`, boxShadow:"0 8px 24px rgba(59,130,246,0.3)" }}>
+            style={{ background:`linear-gradient(135deg,#3b5bdb,#4b9fd4)`, boxShadow:"0 8px 24px rgba(59,130,246,0.3)" }}>
             <RotateCcw className="w-4 h-4"/> Retry Same Mode
           </button>
           {total - correct > 0 && (

@@ -155,12 +155,12 @@ function ComposeModal({ announcement, onSave, onClose }: {
       <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">{label}</label>
       {opts ? (
         <select value={form[key] as string} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
-          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50">
+          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50">
           {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       ) : (
         <input type={type} value={form[key] as string} onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
-          className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50",
+          className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50",
             errors[key] ? "border-[#cc5069]/50" : "border-white/10")} />
       )}
       {errors[key] && <span className="text-[9px] text-[#cc5069]">{errors[key]}</span>}
@@ -181,7 +181,7 @@ function ComposeModal({ announcement, onSave, onClose }: {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Title</label>
             <input value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} placeholder="Announcement title..."
-              className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50", errors.title ? "border-[#cc5069]/50" : "border-white/10")} />
+              className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50", errors.title ? "border-[#cc5069]/50" : "border-white/10")} />
             {errors.title && <span className="text-[9px] text-[#cc5069]">{errors.title}</span>}
           </div>
 
@@ -189,14 +189,14 @@ function ComposeModal({ announcement, onSave, onClose }: {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Short Description</label>
             <input value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))} placeholder="Brief summary..."
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50" />
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50" />
           </div>
 
           {/* Content */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Content</label>
             <textarea value={form.content} onChange={(e) => setForm((p) => ({ ...p, content: e.target.value }))} rows={6} placeholder="Write announcement content..."
-              className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#6366f1]/50", errors.content ? "border-[#cc5069]/50" : "border-white/10")} />
+              className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#3b5bdb]/50", errors.content ? "border-[#cc5069]/50" : "border-white/10")} />
             {errors.content && <span className="text-[9px] text-[#cc5069]">{errors.content}</span>}
           </div>
 
@@ -205,7 +205,7 @@ function ComposeModal({ announcement, onSave, onClose }: {
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Priority</label>
               <select value={form.priority} onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value as Priority }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50">
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50">
                 <option value="normal">Normal</option>
                 <option value="important">Important</option>
                 <option value="urgent">Urgent</option>
@@ -214,12 +214,12 @@ function ComposeModal({ announcement, onSave, onClose }: {
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Schedule Publish At</label>
               <input type="datetime-local" value={form.publishAt} onChange={(e) => setForm((p) => ({ ...p, publishAt: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50" />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Expiry Date & Time</label>
               <input type="datetime-local" value={form.expiresAt} onChange={(e) => setForm((p) => ({ ...p, expiresAt: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50" />
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50" />
             </div>
           </div>
 
@@ -242,7 +242,7 @@ function ComposeModal({ announcement, onSave, onClose }: {
                     : addAudience(opt.type, undefined, opt.label)
                   }
                     className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all",
-                      active ? "bg-[#6366f1]/15 border-[#6366f1]/30 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
+                      active ? "bg-[#3b5bdb]/15 border-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
                     {opt.icon} {opt.label}
                   </button>
                 );
@@ -312,7 +312,7 @@ function ComposeModal({ announcement, onSave, onClose }: {
               <Clock className="w-4 h-4" /> Schedule
             </button>
           )}
-          <button onClick={() => handleAction("publish")} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+          <button onClick={() => handleAction("publish")} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
             <Send className="w-4 h-4" /> Publish Now
           </button>
         </div>
@@ -352,7 +352,7 @@ function AnnouncementDetail({ ann, onClose, onEdit }: { ann: AnnouncementRecord;
             <div className="text-[10px] text-[#46465a] uppercase tracking-wider mb-2">Target Audience</div>
             <div className="flex flex-wrap gap-2">
               {ann.audiences.map((a, i) => (
-                <span key={i} className="text-[10px] px-2.5 py-1 rounded-lg bg-[#6366f1]/10 text-[#a5b4fc]">{a.label}</span>
+                <span key={i} className="text-[10px] px-2.5 py-1 rounded-lg bg-[#3b5bdb]/10 text-[#a5b4fc]">{a.label}</span>
               ))}
             </div>
           </div>
@@ -363,7 +363,7 @@ function AnnouncementDetail({ ann, onClose, onEdit }: { ann: AnnouncementRecord;
               <div className="text-[10px] text-[#46465a] uppercase tracking-wider mb-3">Delivery Analytics</div>
               <div className="grid grid-cols-4 gap-2 mb-4">
                 {[
-                  { label: "Recipients", value: ann.totalRecipients, color: "#6366f1" },
+                  { label: "Recipients", value: ann.totalRecipients, color: "#3b5bdb" },
                   { label: "Delivered", value: ann.delivered, color: "#4b9fd4" },
                   { label: "Read", value: ann.read, color: "#4aa87a" },
                   { label: "Failed", value: ann.failed, color: "#cc5069" },
@@ -411,7 +411,7 @@ function AnnouncementDetail({ ann, onClose, onEdit }: { ann: AnnouncementRecord;
         </div>
 
         <div className="p-4 border-t border-white/7">
-          <button onClick={onEdit} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+          <button onClick={onEdit} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
             Edit Announcement
           </button>
         </div>
@@ -492,17 +492,17 @@ export default function AnnouncementManagement() {
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#46465a]" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search announcements..."
-            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#6366f1]/50" />
+            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50" />
         </div>
         <select value={filterPriority} onChange={(e) => setFilterPriority(e.target.value)}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#6366f1]/50">
+          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50">
           <option value="all">All Priorities</option>
           <option value="normal">Normal</option>
           <option value="important">Important</option>
           <option value="urgent">Urgent</option>
         </select>
         <select value={filterAudience} onChange={(e) => setFilterAudience(e.target.value)}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#6366f1]/50">
+          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50">
           <option value="all">All Audiences</option>
           <option value="school">Entire School</option>
           <option value="student">Students</option>
@@ -513,7 +513,7 @@ export default function AnnouncementManagement() {
         <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">
           <Download className="w-3.5 h-3.5" /> Export
         </button>
-        <button onClick={() => setCompose("new")} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+        <button onClick={() => setCompose("new")} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
           <Plus className="w-3.5 h-3.5" /> Compose
         </button>
       </div>
@@ -523,10 +523,10 @@ export default function AnnouncementManagement() {
         {STATUS_TABS.map((tab) => (
           <button key={tab.key} onClick={() => setStatusTab(tab.key)}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
-              statusTab === tab.key ? "bg-[#6366f1]/15 text-[#6366f1]" : "text-[#78788c] hover:text-white")}>
+              statusTab === tab.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#78788c] hover:text-white")}>
             {tab.label}
             <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full",
-              statusTab === tab.key ? "bg-[#6366f1]/20 text-[#a5b4fc]" : "bg-white/5 text-[#46465a]")}>
+              statusTab === tab.key ? "bg-[#3b5bdb]/20 text-[#a5b4fc]" : "bg-white/5 text-[#46465a]")}>
               {tabCounts[tab.key] ?? 0}
             </span>
           </button>

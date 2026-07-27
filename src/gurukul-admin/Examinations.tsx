@@ -163,14 +163,14 @@ function ExamForm({ exam, onSave, onClose }: { exam?: Examination; onSave: (e: E
             <div className="col-span-2 flex flex-col gap-1">
               <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Examination Name</label>
               <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="e.g. Unit Test 1 — July 2026"
-                className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50", errors.name ? "border-[#cc5069]/50" : "border-white/10")} />
+                className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50", errors.name ? "border-[#cc5069]/50" : "border-white/10")} />
               {errors.name && <span className="text-[9px] text-[#cc5069]">{errors.name}</span>}
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Academic Year</label>
               <select value={form.academicYear} onChange={(e) => setForm((f) => ({ ...f, academicYear: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50">
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50">
                 {["2025-26", "2026-27", "2027-28"].map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
@@ -178,7 +178,7 @@ function ExamForm({ exam, onSave, onClose }: { exam?: Examination; onSave: (e: E
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Examination Type</label>
               <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as ExamType }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50">
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50">
                 {Object.entries(EXAM_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
@@ -186,14 +186,14 @@ function ExamForm({ exam, onSave, onClose }: { exam?: Examination; onSave: (e: E
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Start Date</label>
               <input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-                className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50", errors.startDate ? "border-[#cc5069]/50" : "border-white/10")} />
+                className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50", errors.startDate ? "border-[#cc5069]/50" : "border-white/10")} />
               {errors.startDate && <span className="text-[9px] text-[#cc5069]">{errors.startDate}</span>}
             </div>
 
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">End Date</label>
               <input type="date" value={form.endDate} onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-                className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50", errors.endDate ? "border-[#cc5069]/50" : "border-white/10")} />
+                className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50", errors.endDate ? "border-[#cc5069]/50" : "border-white/10")} />
               {errors.endDate && <span className="text-[9px] text-[#cc5069]">{errors.endDate}</span>}
             </div>
           </div>
@@ -207,7 +207,7 @@ function ExamForm({ exam, onSave, onClose }: { exam?: Examination; onSave: (e: E
                 {classes.map((cls) => (
                   <button key={cls} onClick={() => toggleClass(cls)}
                     className={cn("px-4 py-2 rounded-xl text-sm font-semibold border transition-all",
-                      form.applicableClasses.includes(cls) ? "bg-[#6366f1]/15 border-[#6366f1]/30 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
+                      form.applicableClasses.includes(cls) ? "bg-[#3b5bdb]/15 border-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
                     Class {cls}
                   </button>
                 ))}
@@ -219,7 +219,7 @@ function ExamForm({ exam, onSave, onClose }: { exam?: Examination; onSave: (e: E
                 {sections.map((sec) => (
                   <button key={sec} onClick={() => toggleSection(sec)}
                     className={cn("px-4 py-2 rounded-xl text-sm font-semibold border transition-all",
-                      form.applicableSections.includes(sec) ? "bg-[#6366f1]/15 border-[#6366f1]/30 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
+                      form.applicableSections.includes(sec) ? "bg-[#3b5bdb]/15 border-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
                     Section {sec}
                   </button>
                 ))}
@@ -231,7 +231,7 @@ function ExamForm({ exam, onSave, onClose }: { exam?: Examination; onSave: (e: E
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Subject Schedule</label>
-              <button onClick={addSubject} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#6366f1] bg-[#6366f1]/10 hover:bg-[#6366f1]/20 transition-all">
+              <button onClick={addSubject} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#3b5bdb] bg-[#3b5bdb]/10 hover:bg-[#3b5bdb]/20 transition-all">
                 <Plus className="w-3 h-3" /> Add Subject
               </button>
             </div>
@@ -293,14 +293,14 @@ function ExamForm({ exam, onSave, onClose }: { exam?: Examination; onSave: (e: E
             <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Examination Instructions</label>
             <textarea value={form.instructions} onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))} rows={4}
               placeholder="Enter instructions for students and invigilators..."
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#6366f1]/50" />
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#3b5bdb]/50" />
           </div>
         </div>
 
         <div className="sticky bottom-0 bg-[#0d0d0f] border-t border-white/7 px-6 py-4 flex flex-wrap gap-3 justify-end">
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">Cancel</button>
           <button onClick={() => handleSave(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] border border-white/10 hover:text-white hover:bg-white/5 transition-all">Save as Draft</button>
-          <button onClick={() => handleSave(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+          <button onClick={() => handleSave(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
             <Send className="w-4 h-4" /> Publish
           </button>
         </div>
@@ -322,8 +322,8 @@ function ExamDetail({ exam, onClose, onEdit }: { exam: Examination; onClose: () 
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
       <div className="relative z-50 w-96 sm:w-[480px] bg-[#0a0a0c] border-l border-white/7 flex flex-col h-full overflow-hidden">
         <div className="p-5 border-b border-white/7 flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#6366f1]/15 flex items-center justify-center shrink-0">
-            <FileText className="w-5 h-5 text-[#6366f1]" />
+          <div className="w-10 h-10 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
+            <FileText className="w-5 h-5 text-[#3b5bdb]" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -359,7 +359,7 @@ function ExamDetail({ exam, onClose, onEdit }: { exam: Examination; onClose: () 
               <div>
                 <div className="text-[9px] text-[#46465a] uppercase tracking-wider mb-1">Classes</div>
                 <div className="flex gap-1">
-                  {exam.applicableClasses.map((c) => <span key={c} className="text-xs font-bold text-[#a5b4fc] bg-[#6366f1]/10 px-2 py-0.5 rounded">{c}</span>)}
+                  {exam.applicableClasses.map((c) => <span key={c} className="text-xs font-bold text-[#a5b4fc] bg-[#3b5bdb]/10 px-2 py-0.5 rounded">{c}</span>)}
                 </div>
               </div>
               <div>
@@ -377,8 +377,8 @@ function ExamDetail({ exam, onClose, onEdit }: { exam: Examination; onClose: () 
             <div className="space-y-2">
               {exam.subjects.map((sub, i) => (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
-                  <div className="w-8 h-8 rounded-lg bg-[#8f7dd6]/15 flex items-center justify-center shrink-0">
-                    <BookOpen className="w-3.5 h-3.5 text-[#8f7dd6]" />
+                  <div className="w-8 h-8 rounded-lg bg-[#6882e8]/15 flex items-center justify-center shrink-0">
+                    <BookOpen className="w-3.5 h-3.5 text-[#6882e8]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-bold text-white">{sub.subject}</div>
@@ -403,7 +403,7 @@ function ExamDetail({ exam, onClose, onEdit }: { exam: Examination; onClose: () 
         </div>
 
         <div className="p-4 border-t border-white/7">
-          <button onClick={onEdit} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+          <button onClick={onEdit} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
             Edit Examination
           </button>
         </div>
@@ -478,14 +478,14 @@ export default function ExaminationManagement() {
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#46465a]" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search examinations..."
-            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#6366f1]/50" />
+            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50" />
         </div>
         <select value={filterType} onChange={(e) => setFilterType(e.target.value)}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#6366f1]/50">
+          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50">
           <option value="all">All Types</option>
           {Object.entries(EXAM_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <button onClick={() => setFormOpen("new")} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+        <button onClick={() => setFormOpen("new")} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
           <Plus className="w-3.5 h-3.5" /> Create Examination
         </button>
       </div>
@@ -495,10 +495,10 @@ export default function ExaminationManagement() {
         {STATUS_TABS.map((tab) => (
           <button key={tab.key} onClick={() => setStatusTab(tab.key)}
             className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
-              statusTab === tab.key ? "bg-[#6366f1]/15 text-[#6366f1]" : "text-[#78788c] hover:text-white")}>
+              statusTab === tab.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#78788c] hover:text-white")}>
             {tab.label}
             <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full",
-              statusTab === tab.key ? "bg-[#6366f1]/20 text-[#a5b4fc]" : "bg-white/5 text-[#46465a]")}>
+              statusTab === tab.key ? "bg-[#3b5bdb]/20 text-[#a5b4fc]" : "bg-white/5 text-[#46465a]")}>
               {tabCounts[tab.key] ?? 0}
             </span>
           </button>
@@ -517,8 +517,8 @@ export default function ExaminationManagement() {
         {filtered.map((exam) => (
           <div key={exam.id} className="bg-[#131316] border border-white/7 rounded-2xl p-5 hover:border-white/12 transition-all group">
             <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-[#6366f1]/15 flex items-center justify-center shrink-0">
-                <FileText className="w-5 h-5 text-[#6366f1]" />
+              <div className="w-10 h-10 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5 text-[#3b5bdb]" />
               </div>
 
               <div className="flex-1 min-w-0">
@@ -538,7 +538,7 @@ export default function ExaminationManagement() {
 
                 <div className="flex items-center gap-2 flex-wrap">
                   {exam.applicableClasses.map((c) => (
-                    <span key={c} className="text-[9px] px-2 py-0.5 rounded-full bg-[#6366f1]/10 text-[#a5b4fc]">Class {c}</span>
+                    <span key={c} className="text-[9px] px-2 py-0.5 rounded-full bg-[#3b5bdb]/10 text-[#a5b4fc]">Class {c}</span>
                   ))}
                   {exam.applicableSections.map((s) => (
                     <span key={s} className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-[#78788c]">Section {s}</span>

@@ -9,7 +9,7 @@ const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 type EventType = "test" | "deadline" | "event" | "holiday" | "exam";
 
 const TYPE_META: Record<EventType, { label: string; color: string; icon: React.ReactNode }> = {
-  test:     { label:"Test",     color:"#6366f1", icon:<BookOpen className="w-3 h-3"/> },
+  test:     { label:"Test",     color:"#3b5bdb", icon:<BookOpen className="w-3 h-3"/> },
   deadline: { label:"Deadline", color:"#c08a3a", icon:<ClipboardList className="w-3 h-3"/> },
   event:    { label:"Event",    color:"#4aa87a", icon:<Star className="w-3 h-3"/> },
   holiday:  { label:"Holiday",  color:"#78788c", icon:<CalendarDays className="w-3 h-3"/> },
@@ -111,13 +111,13 @@ export default function Calendar() {
                 <button key={idx} onClick={() => setSelectedDate(isSelected ? null : key)}
                   className={cn(
                     "aspect-square flex flex-col items-center justify-between rounded-xl p-1 transition-all duration-150 text-xs font-semibold relative",
-                    isSelected ? "bg-[#6366f1] text-white" : isToday ? "bg-[#6366f1]/15 text-blue-400 border border-[#6366f1]/30" : isHoliday ? "opacity-40 text-[#78788c]" : "text-[#a0aec0] hover:bg-white/5 hover:text-white"
+                    isSelected ? "bg-[#3b5bdb] text-white" : isToday ? "bg-[#3b5bdb]/15 text-blue-400 border border-[#3b5bdb]/30" : isHoliday ? "opacity-40 text-[#78788c]" : "text-[#a0aec0] hover:bg-white/5 hover:text-white"
                   )}>
                   <span className="mt-1">{day}</span>
                   {events.length > 0 && (
                     <div className="flex gap-0.5 mb-1 flex-wrap justify-center">
                       {hasExam && <span className="w-1.5 h-1.5 rounded-full" style={{background:"#cc5069"}}/>}
-                      {hasTest && <span className="w-1.5 h-1.5 rounded-full" style={{background:"#6366f1"}}/>}
+                      {hasTest && <span className="w-1.5 h-1.5 rounded-full" style={{background:"#3b5bdb"}}/>}
                       {hasDeadline && <span className="w-1.5 h-1.5 rounded-full" style={{background:"#c08a3a"}}/>}
                       {hasEvent && <span className="w-1.5 h-1.5 rounded-full" style={{background:"#4aa87a"}}/>}
                     </div>

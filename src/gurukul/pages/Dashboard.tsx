@@ -10,11 +10,11 @@ import {
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 
 const LOOP_STEPS = [
-  { key:"practice",       label:"Practice",  icon:<BookOpen className="w-3.5 h-3.5"/>,       color:"#6366f1", done:true  },
+  { key:"practice",       label:"Practice",  icon:<BookOpen className="w-3.5 h-3.5"/>,       color:"#3b5bdb", done:true  },
   { key:"analysis",       label:"Analyse",   icon:<BarChart2 className="w-3.5 h-3.5"/>,      color:"#4b9fd4", done:true  },
   { key:"mistakebook",    label:"Weakness",  icon:<AlertTriangle className="w-3.5 h-3.5"/>,   color:"#c08a3a", done:true  },
   { key:"recovery",       label:"Recover",   icon:<RefreshCw className="w-3.5 h-3.5"/>,      color:"#cc5069", done:false, active:true },
-  { key:"revision",       label:"Revise",    icon:<RotateCcw className="w-3.5 h-3.5"/>,      color:"#8f7dd6", done:false },
+  { key:"revision",       label:"Revise",    icon:<RotateCcw className="w-3.5 h-3.5"/>,      color:"#6882e8", done:false },
   { key:"aicoach",        label:"Coach",     icon:<Brain className="w-3.5 h-3.5"/>,          color:"#4aa87a", done:false },
 ];
 
@@ -22,7 +22,7 @@ function WeeklyRing({ sessions }: { sessions: number }) {
   const goal=7, pct=Math.min(sessions/goal,1);
   const size=120, stroke=9, r=(size-stroke)/2, c=2*Math.PI*r;
   const offset=c-pct*c;
-  const color=pct>=0.85?"#4b9fd4":pct>=0.57?"#c08a3a":"#8f7dd6";
+  const color=pct>=0.85?"#4b9fd4":pct>=0.57?"#c08a3a":"#6882e8";
   return (
     <div className="relative inline-flex" style={{width:size,height:size}}>
       <svg width={size} height={size} className="-rotate-90">
@@ -63,7 +63,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <div className="grid grid-cols-3 gap-3 mt-4">
               <StatTile label="Accuracy"   value={`${student.accuracy}%`}   color="#4b9fd4"/>
               <StatTile label="Class Rank" value={`#${student.rank}`}       color="#c08a3a"/>
-              <StatTile label="Level"      value={`Lv.${student.level}`}    color="#8f7dd6"/>
+              <StatTile label="Level"      value={`Lv.${student.level}`}    color="#6882e8"/>
             </div>
             <div className="mt-3"><XPBar xp={student.xp} level={student.level}/></div>
           </div>
@@ -115,9 +115,9 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <SectionLabel>{"Today's Mission"}</SectionLabel>
         <div className="grid sm:grid-cols-3 gap-4">
           {[
-            {label:"Practice", done:mission.practiceDone, target:mission.practiceTarget, color:"#6366f1", icon:<BookOpen className="w-4 h-4"/>, page:"practice"},
+            {label:"Practice", done:mission.practiceDone, target:mission.practiceTarget, color:"#3b5bdb", icon:<BookOpen className="w-4 h-4"/>, page:"practice"},
             {label:"Recovery", done:mission.recoveryDone, target:mission.recoveryTarget, color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/>, page:"recovery"},
-            {label:"Revision", done:mission.revisionDone, target:mission.revisionTarget, color:"#8f7dd6", icon:<RotateCcw className="w-4 h-4"/>, page:"revision"},
+            {label:"Revision", done:mission.revisionDone, target:mission.revisionTarget, color:"#6882e8", icon:<RotateCcw className="w-4 h-4"/>, page:"revision"},
           ].map((m) => (
             <GlassCard key={m.label} className="p-4 cursor-pointer hover:border-white/15" onClick={() => setPage(m.page as PageKey)}>
               <div className="flex items-center gap-2 mb-2">
@@ -138,8 +138,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <SectionLabel>Quick Actions</SectionLabel>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {[
-            {label:"Practice",    sub:"30 questions today",  icon:<BookOpen className="w-5 h-5"/>,  color:"#6366f1", page:"practice"},
-            {label:"AI Coach",    sub:"Nova is ready",       icon:<Brain className="w-5 h-5"/>,    color:"#8f7dd6", page:"aicoach"},
+            {label:"Practice",    sub:"30 questions today",  icon:<BookOpen className="w-5 h-5"/>,  color:"#3b5bdb", page:"practice"},
+            {label:"AI Coach",    sub:"Nova is ready",       icon:<Brain className="w-5 h-5"/>,    color:"#6882e8", page:"aicoach"},
             {label:"Battleground",sub:"2 open challenges",   icon:<Swords className="w-5 h-5"/>,   color:"#c08a3a", page:"battleground"},
             {label:"Analysis",    sub:"Last updated now",    icon:<BarChart2 className="w-5 h-5"/>,color:"#4b9fd4", page:"analysis"},
           ].map((a) => (
@@ -162,14 +162,14 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <AreaChart data={weeklyActivity}>
               <defs>
                 <linearGradient id="dash-actGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                  <stop offset="5%" stopColor="#3b5bdb" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#3b5bdb" stopOpacity={0}/>
                 </linearGradient>
               </defs>
               <XAxis dataKey="day" tick={{fill:"#78788c",fontSize:10}} axisLine={false} tickLine={false}/>
               <Tooltip contentStyle={{background:"#131316",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,fontSize:12}} labelStyle={{color:"#78788c"}}/>
-              <Area type="monotone" dataKey="total" name="Questions" stroke="#6366f1" strokeWidth={2} fill="url(#dash-actGrad)"
-                isAnimationActive={false} dot={{r:3,fill:"#6366f1",strokeWidth:0}} activeDot={{r:5,fill:"#6366f1"}}/>
+              <Area type="monotone" dataKey="total" name="Questions" stroke="#3b5bdb" strokeWidth={2} fill="url(#dash-actGrad)"
+                isAnimationActive={false} dot={{r:3,fill:"#3b5bdb",strokeWidth:0}} activeDot={{r:5,fill:"#3b5bdb"}}/>
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -216,7 +216,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 <div className="flex items-center gap-1 text-amber-400"><Zap className="w-3 h-3"/><span className="text-xs font-bold">{a.xp}</span></div>
               </div>
             ))}
-            <button onClick={() => setPage("achievements")} className="w-full text-center text-xs text-[#6366f1] hover:text-[#a5b4fc] transition-colors">
+            <button onClick={() => setPage("achievements")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors">
               View all achievements →
             </button>
           </div>
@@ -232,7 +232,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <div className="text-[#78788c] text-sm">of {student.totalStudents} students</div>
             <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-semibold"><Star className="w-4 h-4"/>Top 10% this week</div>
           </div>
-          <button onClick={() => setPage("leaderboard")} className="w-full text-center text-xs text-[#6366f1] hover:text-[#a5b4fc] transition-colors mt-2">
+          <button onClick={() => setPage("leaderboard")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors mt-2">
             See full leaderboard →
           </button>
         </GlassCard>

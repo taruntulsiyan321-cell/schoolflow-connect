@@ -41,7 +41,7 @@ function StudentForm({
           <select
             value={form[key] as string}
             onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#6366f1]/50"
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
           >
             {opts.map((o) => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -50,7 +50,7 @@ function StudentForm({
             type={type}
             value={form[key] as string}
             onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#6366f1]/50"
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
           />
         )}
       </div>
@@ -94,7 +94,7 @@ function StudentForm({
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">
             Cancel
           </button>
-          <button onClick={handleSave} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all">
+          <button onClick={handleSave} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
             {student ? "Save Changes" : "Add Student"}
           </button>
         </div>
@@ -149,7 +149,7 @@ function StudentDetail({
               onClick={() => setTab(t.key)}
               className={cn(
                 "text-[10px] font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all",
-                tab === t.key ? "bg-[#6366f1]/20 text-[#6366f1]" : "text-[#78788c] hover:text-white"
+                tab === t.key ? "bg-[#3b5bdb]/20 text-[#3b5bdb]" : "text-[#78788c] hover:text-white"
               )}
             >
               {t.label}
@@ -183,8 +183,8 @@ function StudentDetail({
 
           {tab === "attendance" && (
             <div className="space-y-4">
-              <div className="p-4 rounded-2xl bg-[#6366f1]/10 border border-[#6366f1]/20 text-center">
-                <div className="text-4xl font-black text-[#6366f1]">{student.attendance}%</div>
+              <div className="p-4 rounded-2xl bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 text-center">
+                <div className="text-4xl font-black text-[#3b5bdb]">{student.attendance}%</div>
                 <div className="text-xs text-[#78788c] mt-1">Overall Attendance</div>
               </div>
               <div className="text-xs text-[#78788c] text-center">Monthly breakdown not available in demo mode.</div>
@@ -233,7 +233,7 @@ function StudentDetail({
         <div className="p-4 border-t border-white/7">
           <button
             onClick={onEdit}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all"
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all"
           >
             Edit Student
           </button>
@@ -334,13 +334,13 @@ export default function StudentManagement() {
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             placeholder="Search students..."
-            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#6366f1]/50"
+            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <select
           value={filterClass}
           onChange={(e) => { setFilterClass(e.target.value); setPage(1); }}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#6366f1]/50"
+          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50"
         >
           <option value="all">All Classes</option>
           {classes.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -348,7 +348,7 @@ export default function StudentManagement() {
         <select
           value={filterStatus}
           onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#6366f1]/50"
+          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50"
         >
           <option value="all">All Statuses</option>
           <option value="active">Active</option>
@@ -357,7 +357,7 @@ export default function StudentManagement() {
         </select>
         <button
           onClick={() => setEditStudent("new")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#6366f1] hover:bg-[#5254cc] transition-all"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all"
         >
           <Plus className="w-3.5 h-3.5" /> Add Student
         </button>
@@ -365,8 +365,8 @@ export default function StudentManagement() {
 
       {/* Bulk actions */}
       {selected.size > 0 && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20">
-          <Users className="w-4 h-4 text-[#6366f1]" />
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#3b5bdb]/10 border border-[#3b5bdb]/20">
+          <Users className="w-4 h-4 text-[#3b5bdb]" />
           <span className="text-sm text-white font-semibold">{selected.size} selected</span>
           <div className="ml-auto flex gap-2">
             <button onClick={() => handleBulkStatus("active")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#4aa87a] bg-[#4aa87a]/10 hover:bg-[#4aa87a]/20 transition-all">
@@ -389,7 +389,7 @@ export default function StudentManagement() {
             <tr className="border-b border-white/7">
               <th className="px-4 py-3 text-left w-10">
                 <button onClick={toggleAll} className="text-[#78788c] hover:text-white">
-                  {allSelected ? <CheckSquare className="w-4 h-4 text-[#6366f1]" /> : <Square className="w-4 h-4" />}
+                  {allSelected ? <CheckSquare className="w-4 h-4 text-[#3b5bdb]" /> : <Square className="w-4 h-4" />}
                 </button>
               </th>
               {([
@@ -414,7 +414,7 @@ export default function StudentManagement() {
               <tr key={s.id} className="hover:bg-white/2 transition-colors group">
                 <td className="px-4 py-3">
                   <button onClick={() => setSelected((prev) => { const next = new Set(prev); next.has(s.id) ? next.delete(s.id) : next.add(s.id); return next; })} className="text-[#78788c] hover:text-white">
-                    {selected.has(s.id) ? <CheckSquare className="w-4 h-4 text-[#6366f1]" /> : <Square className="w-4 h-4" />}
+                    {selected.has(s.id) ? <CheckSquare className="w-4 h-4 text-[#3b5bdb]" /> : <Square className="w-4 h-4" />}
                   </button>
                 </td>
                 <td className="px-4 py-3">
@@ -431,7 +431,7 @@ export default function StudentManagement() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full bg-[#6366f1]" style={{ width: `${s.attendance}%` }} />
+                      <div className="h-full rounded-full bg-[#3b5bdb]" style={{ width: `${s.attendance}%` }} />
                     </div>
                     <span className="text-xs font-bold text-white tabular-nums">{s.attendance}%</span>
                   </div>

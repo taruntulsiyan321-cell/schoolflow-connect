@@ -28,7 +28,7 @@ export default function ParentAnnouncements() {
   const detail = announcements.find((a) => a.id === selected);
 
   const audienceLabel: Record<string, string> = { school: "School", class: "Class", section: "Section" };
-  const audienceColor: Record<string, string> = { school: "#6366f1", class: "#10b981", section: "#c08a3a" };
+  const audienceColor: Record<string, string> = { school: "#6366f1", class: "#3b5bdb", section: "#c08a3a" };
 
   return (
     <div className="space-y-4">
@@ -73,10 +73,10 @@ export default function ParentAnnouncements() {
           {filtered.map((a) => (
             <button key={a.id} onClick={() => openAnnouncement(a.id)}
               className={cn("w-full text-left p-4 rounded-2xl border transition-all",
-                selected === a.id ? "bg-[#10b981]/8 border-[#10b981]/25" : "bg-[#131316] border-white/7 hover:border-white/15")}>
+                selected === a.id ? "bg-[#3b5bdb]/8 border-[#3b5bdb]/25" : "bg-[#131316] border-white/7 hover:border-white/15")}>
               <div className="flex items-start gap-3">
                 <div className="flex flex-col items-center gap-1.5 mt-0.5">
-                  {!a.read && <div className="w-2 h-2 rounded-full bg-[#10b981] shrink-0" />}
+                  {!a.read && <div className="w-2 h-2 rounded-full bg-[#3b5bdb] shrink-0" />}
                   {a.read && <div className="w-2 h-2 rounded-full bg-transparent shrink-0" />}
                 </div>
                 <div className="flex-1 min-w-0">

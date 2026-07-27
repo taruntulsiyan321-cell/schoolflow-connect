@@ -27,7 +27,7 @@ const sidebarNav: NavEntry[] = [
   { type:"link", key:"battleground", label:"Battleground", icon:<Swords className="w-4 h-4"/> },
 
   {
-    type:"group", hubKey:"learninghub", label:"Learning", color:"#6366f1",
+    type:"group", hubKey:"learninghub", label:"Learning", color:"#3b5bdb",
     icon:<GraduationCap className="w-4 h-4"/>,
     items:[
       { key:"analysis",       label:"Analysis",     icon:<BarChart2 className="w-3.5 h-3.5"/> },
@@ -166,7 +166,7 @@ export default function Layout({
         onClick={() => { setPage(entry.key); setMobileOpen(false); }}
         className={cn(
           "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-all duration-150",
-          active ? "bg-[#6366f1] text-white shadow-lg shadow-[#6366f1]/15" : "text-[#78788c] hover:text-white hover:bg-white/5",
+          active ? "bg-[#3b5bdb] text-white shadow-lg shadow-[#3b5bdb]/15" : "text-[#78788c] hover:text-white hover:bg-white/5",
           collapsed && "justify-center px-2"
         )}
         title={collapsed ? entry.label : undefined}>
@@ -186,7 +186,7 @@ export default function Layout({
       <div>
         <div className={cn(
           "flex items-center rounded-xl transition-all duration-150",
-          isHubActive && "bg-[#6366f1] shadow-lg shadow-[#6366f1]/15",
+          isHubActive && "bg-[#3b5bdb] shadow-lg shadow-[#3b5bdb]/15",
           collapsed && "justify-center"
         )}>
           <button
@@ -233,7 +233,7 @@ export default function Layout({
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo */}
       <div className={cn("flex items-center gap-3 px-4 py-4 border-b border-white/5 shrink-0", collapsed && "justify-center px-2")}>
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#6366f1] to-[#8f7dd6] flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <Brain className="w-4 h-4 text-white"/>
         </div>
         {!collapsed && (
@@ -249,7 +249,7 @@ export default function Layout({
         <div className="px-3 py-3 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-2.5 mb-2.5">
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0"
-              style={{background:"linear-gradient(135deg,#6366f1,#8f7dd6)"}}>
+              style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
               {student.avatar}
             </div>
             <div className="min-w-0">
@@ -332,7 +332,7 @@ export default function Layout({
                 <span className="text-xs font-bold text-amber-400">{student.streak}d</span>
               </div>
               {/* XP */}
-              <div className="hidden sm:flex items-center gap-1.5 bg-[#6366f1]/10 border border-[#6366f1]/20 rounded-full px-2.5 py-1">
+              <div className="hidden sm:flex items-center gap-1.5 bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-full px-2.5 py-1">
                 <Zap className="w-3 h-3 text-blue-400"/>
                 <span className="text-xs font-bold text-blue-400">{student.xp.toLocaleString()}</span>
               </div>
@@ -345,7 +345,7 @@ export default function Layout({
               {onOpenAdmin && (
                 <button
                   onClick={onOpenAdmin}
-                  className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-[#78788c] hover:text-[#a5b4fc] border border-white/10 hover:border-[#6366f1]/40 hover:bg-[#6366f1]/8 rounded-full px-2.5 py-1 transition-all"
+                  className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-[#78788c] hover:text-[#a5b4fc] border border-white/10 hover:border-[#3b5bdb]/40 hover:bg-[#3b5bdb]/8 rounded-full px-2.5 py-1 transition-all"
                   title="Switch to Admin Panel"
                 >
                   <Settings className="w-3 h-3" />
@@ -359,10 +359,10 @@ export default function Layout({
                   onClick={() => setProfileOpen(o => !o)}
                   className={cn(
                     "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white transition-all ring-2 ring-offset-2 ring-offset-[#0d0d0f]",
-                    profileOpen ? "ring-[#6366f1]" : "ring-transparent hover:ring-white/20",
-                    page === "profile" && "ring-[#6366f1]"
+                    profileOpen ? "ring-[#3b5bdb]" : "ring-transparent hover:ring-white/20",
+                    page === "profile" && "ring-[#3b5bdb]"
                   )}
-                  style={{background:"linear-gradient(135deg,#6366f1,#8f7dd6)"}}>
+                  style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
                   {student.avatar}
                 </button>
 
@@ -373,7 +373,7 @@ export default function Layout({
                     <div className="px-4 py-4 border-b border-white/5">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white shrink-0"
-                          style={{background:"linear-gradient(135deg,#6366f1,#8f7dd6)"}}>
+                          style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
                           {student.avatar}
                         </div>
                         <div className="min-w-0">
@@ -392,11 +392,11 @@ export default function Layout({
                         <button key={item.key} onClick={() => { setPage(item.key); setProfileOpen(false); }}
                           className={cn(
                             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-all",
-                            page === item.key ? "bg-[#6366f1]/15 text-[#6366f1]" : "text-[#a0a0b0] hover:text-white hover:bg-white/5"
+                            page === item.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#a0a0b0] hover:text-white hover:bg-white/5"
                           )}>
-                          <span className={page === item.key ? "text-[#6366f1]" : "text-[#78788c]"}>{item.icon}</span>
+                          <span className={page === item.key ? "text-[#3b5bdb]" : "text-[#78788c]"}>{item.icon}</span>
                           {item.label}
-                          {page === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#6366f1]"/>}
+                          {page === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#3b5bdb]"/>}
                         </button>
                       ))}
                     </div>
@@ -436,7 +436,7 @@ export default function Layout({
                 <button key={item.key} onClick={() => setPage(item.key)}
                   className={cn(
                     "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-all",
-                    active ? "text-[#6366f1]" : "text-[#78788c]"
+                    active ? "text-[#3b5bdb]" : "text-[#78788c]"
                   )}>
                   <span className={cn("transition-transform duration-150", active && "scale-110")}>{item.icon}</span>
                   {item.label}
@@ -448,13 +448,13 @@ export default function Layout({
               onClick={() => setPage("profile")}
               className={cn(
                 "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-all",
-                page === "profile" ? "text-[#6366f1]" : "text-[#78788c]"
+                page === "profile" ? "text-[#3b5bdb]" : "text-[#78788c]"
               )}>
               <div className={cn(
                 "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white transition-transform",
-                page === "profile" ? "scale-110 ring-2 ring-[#6366f1] ring-offset-1 ring-offset-[#0d0d0f]" : ""
+                page === "profile" ? "scale-110 ring-2 ring-[#3b5bdb] ring-offset-1 ring-offset-[#0d0d0f]" : ""
               )}
-                style={{background:"linear-gradient(135deg,#6366f1,#8f7dd6)"}}>
+                style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
                 {student.avatar}
               </div>
               Profile

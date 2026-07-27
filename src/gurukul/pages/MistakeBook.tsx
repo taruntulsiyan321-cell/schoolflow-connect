@@ -100,10 +100,10 @@ const MISTAKES: Mistake[] = [
 ];
 
 const SOURCE_COLORS: Record<string, { color: string; bg: string }> = {
-  practice:    { color:"#6366f1", bg:"rgba(59,130,246,0.12)" },
+  practice:    { color:"#3b5bdb", bg:"rgba(59,130,246,0.12)" },
   tests:       { color:"#4b9fd4", bg:"rgba(34,211,238,0.12)" },
   battleground:{ color:"#cc5069", bg:"rgba(244,63,94,0.12)" },
-  homework:    { color:"#8f7dd6", bg:"rgba(167,139,250,0.12)" },
+  homework:    { color:"#6882e8", bg:"rgba(167,139,250,0.12)" },
   pyq:         { color:"#c08a3a", bg:"rgba(245,158,11,0.12)" },
   qbank:       { color:"#4aa87a", bg:"rgba(52,211,153,0.12)" },
 };
@@ -119,7 +119,7 @@ function SourceTag({ source, label }: { source: string; label: string }) {
 
 function FreqBadge({ freq }: { freq: number }) {
   if (freq < 2) return null;
-  const color = freq >= 4 ? "#cc5069" : freq >= 3 ? "#c08a3a" : "#8f7dd6";
+  const color = freq >= 4 ? "#cc5069" : freq >= 3 ? "#c08a3a" : "#6882e8";
   return (
     <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{color,background:`${color}15`}}>
       ×{freq}

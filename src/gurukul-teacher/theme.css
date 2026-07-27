@@ -1,37 +1,37 @@
-/* Gurukul / Wisdom Campus teacher panel — scoped amber theme */
+/* Gurukul / Wisdom Campus teacher panel — principal indigo theme */
 .gurukul-teacher {
-  --background: 240 6% 5.5%;
-  --foreground: 255 14% 95%;
-  --card: 240 6% 8%;
-  --card-foreground: 255 14% 95%;
-  --popover: 240 6% 8%;
-  --popover-foreground: 255 14% 95%;
-  --primary: 38 92% 50%;
-  --primary-foreground: 0 0% 0%;
-  --secondary: 240 6% 12%;
-  --secondary-foreground: 240 8% 66%;
-  --muted: 240 6% 12%;
-  --muted-foreground: 240 8% 52%;
-  --accent: 38 92% 50%;
-  --accent-foreground: 0 0% 0%;
+  --background: 222 47% 8%;
+  --foreground: 220 14% 95%;
+  --card: 222 40% 11%;
+  --card-foreground: 220 14% 95%;
+  --popover: 222 40% 11%;
+  --popover-foreground: 220 14% 95%;
+  --primary: 228 71% 55%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 214 52% 18%;
+  --secondary-foreground: 220 10% 66%;
+  --muted: 222 30% 14%;
+  --muted-foreground: 220 8% 52%;
+  --accent: 228 73% 66%;
+  --accent-foreground: 0 0% 100%;
   --destructive: 348 55% 56%;
   --destructive-foreground: 0 0% 100%;
-  --border: 240 5% 18%;
-  --input: 240 6% 12%;
-  --ring: 38 92% 50%;
+  --border: 222 24% 18%;
+  --input: 222 30% 14%;
+  --ring: 228 71% 55%;
   --radius: 0.875rem;
-  --sidebar-background: 240 8% 4%;
-  --sidebar-foreground: 255 10% 90%;
-  --sidebar-primary: 38 92% 50%;
-  --sidebar-primary-foreground: 0 0% 0%;
-  --sidebar-accent: 240 6% 12%;
-  --sidebar-accent-foreground: 255 14% 95%;
-  --sidebar-border: 240 5% 14%;
+  --sidebar-background: 222 56% 13%;
+  --sidebar-foreground: 220 14% 90%;
+  --sidebar-primary: 228 71% 55%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 214 52% 24%;
+  --sidebar-accent-foreground: 220 14% 95%;
+  --sidebar-border: 214 52% 20%;
   --font-display: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
   --font-body: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
 
   min-height: 100vh;
-  background: #0d0d0f;
+  background: var(--gurukul-navy);
   color: #f0eff3;
   font-family: var(--font-body);
 }

@@ -43,7 +43,7 @@ export default function Timetable() {
                 <button key={d} onClick={() => setDayIdx(i)}
                   className={cn(
                     "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
-                    i===dayIdx ? "bg-[#6366f1] text-white" : "text-[#78788c] hover:text-white hover:bg-white/5"
+                    i===dayIdx ? "bg-[#3b5bdb] text-white" : "text-[#78788c] hover:text-white hover:bg-white/5"
                   )}>
                   {d.slice(0,3)}
                 </button>
@@ -77,7 +77,7 @@ export default function Timetable() {
           return (
             <div key={idx} className={cn(
               "flex items-stretch gap-4 rounded-2xl border transition-all duration-200",
-              isCurrent ? "border-[#6366f1]/40 bg-[#6366f1]/8 shadow-[0_0_24px_rgba(59,130,246,0.12)]" : "border-white/5 bg-[#131316]/70",
+              isCurrent ? "border-[#3b5bdb]/40 bg-[#3b5bdb]/8 shadow-[0_0_24px_rgba(59,130,246,0.12)]" : "border-white/5 bg-[#131316]/70",
               isBreak && "opacity-50"
             )}>
               {/* Color stripe */}
@@ -93,8 +93,8 @@ export default function Timetable() {
                         {period.subject}
                       </span>
                       {isCurrent && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#6366f1]/20 text-[#6366f1]">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#6366f1] animate-pulse"/>NOW
+                        <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#3b5bdb]/20 text-[#3b5bdb]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] animate-pulse"/>NOW
                         </span>
                       )}
                     </div>
@@ -137,7 +137,7 @@ export default function Timetable() {
               <div key={d.day}>
                 <div className={cn(
                   "text-center text-xs font-bold mb-2 py-1.5 rounded-lg",
-                  di===dayIdx ? "bg-[#6366f1]/20 text-[#6366f1]" : "text-[#78788c]"
+                  di===dayIdx ? "bg-[#3b5bdb]/20 text-[#3b5bdb]" : "text-[#78788c]"
                 )}>{d.day.slice(0,3)}</div>
                 <div className="space-y-1">
                   {d.periods.filter(p=>p.teacher).map((p, pi) => (

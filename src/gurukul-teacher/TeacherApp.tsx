@@ -70,13 +70,13 @@ function Sidebar({
       mobile ? "w-64" : collapsed ? "w-16" : "w-60",
     )}>
       <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-white/7 min-h-[72px]", collapsed && !mobile && "justify-center px-2")}>
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#f59e0b] to-[#d97706] flex items-center justify-center shrink-0">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <GraduationCap className="w-4 h-4 text-black" />
         </div>
         {(!collapsed || mobile) && (
           <div className="flex-1 min-w-0">
             <div className="text-xs font-black text-white leading-none">Gurukul</div>
-            <div className="text-[9px] text-[#f59e0b] font-semibold mt-0.5">Teacher Panel</div>
+            <div className="text-[9px] text-[#3b5bdb] font-semibold mt-0.5">Teacher Panel</div>
           </div>
         )}
         {!mobile && (
@@ -103,18 +103,18 @@ function Sidebar({
                 "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left group",
                 collapsed && !mobile && "justify-center px-2",
                 active
-                  ? "bg-[#f59e0b]/10 text-[#f59e0b]"
+                  ? "bg-[#3b5bdb]/10 text-[#3b5bdb]"
                   : "text-[#78788c] hover:bg-white/5 hover:text-white",
               )}
               title={collapsed && !mobile ? item.label : undefined}
             >
-              <div className={cn("shrink-0 transition-all", active ? "text-[#f59e0b]" : "text-[#46465a] group-hover:text-white")}>
+              <div className={cn("shrink-0 transition-all", active ? "text-[#3b5bdb]" : "text-[#46465a] group-hover:text-white")}>
                 {item.icon}
               </div>
               {(!collapsed || mobile) && (
                 <>
                   <span className="text-xs font-semibold truncate">{item.label}</span>
-                  {active && <div className="w-1.5 h-1.5 rounded-full bg-[#f59e0b] ml-auto shrink-0" />}
+                  {active && <div className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] ml-auto shrink-0" />}
                 </>
               )}
             </button>
@@ -125,7 +125,7 @@ function Sidebar({
       {(!collapsed || mobile) && (
         <div className="p-3 border-t border-white/7 space-y-2">
           <div className="flex items-center gap-2 px-1">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#f59e0b] to-[#d97706] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
               <span className="text-[11px] font-black text-black">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -217,7 +217,7 @@ export default function TeacherApp() {
           </div>
           <button
             onClick={() => setPage("profile")}
-            className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#f59e0b] to-[#d97706] flex items-center justify-center shrink-0"
+            className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"
           >
             <span className="text-xs font-black text-black">{initials}</span>
           </button>

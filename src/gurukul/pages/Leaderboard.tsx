@@ -38,7 +38,7 @@ export default function Leaderboard() {
         {["overall", ...subjects.map((s) => s.name)].map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={cn("shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
-              filter === f ? "bg-[#6366f1] text-white" : "border border-white/10 text-[#78788c] hover:border-white/25 hover:text-white")}>
+              filter === f ? "bg-[#3b5bdb] text-white" : "border border-white/10 text-[#78788c] hover:border-white/25 hover:text-white")}>
             {f}
           </button>
         ))}
