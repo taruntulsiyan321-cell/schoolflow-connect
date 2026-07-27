@@ -1,0 +1,55 @@
+/* Gurukul Principal — executive light SaaS theme (scoped) */
+.gurukul-principal {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f9fafb;
+  --border: #e5e7eb;
+  --border-subtle: #f0f1f3;
+  --navy: #0f1b35;
+  --navy-mid: #1e3a5f;
+  --indigo: #3b5bdb;
+  --indigo-light: #e8ecff;
+  --indigo-mid: #6882e8;
+  --teal: #0ea5a0;
+  --amber: #f59e0b;
+  --rose: #f43f5e;
+  --emerald: #10b981;
+  --text-primary: #0f172a;
+  --text-secondary: #4b5563;
+  --text-muted: #9ca3af;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.07), 0 1px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.gurukul-principal .font-display {
+  font-family: "DM Serif Display", Georgia, serif;
+}
+
+.gurukul-principal .font-mono-data {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.gurukul-principal ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.gurukul-principal ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.gurukul-principal ::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+.gurukul-principal ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
