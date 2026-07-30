@@ -127,6 +127,23 @@ Service write → DB trigger → academic_events row
 
 No panel should manually update dashboards after attendance/marks/homework.
 
+## Academic Engine (Phase 5) — analytics, AI data, audit
+
+| Layer | Module | Rule |
+|-------|--------|------|
+| Analytics | `src/academic/analytics` + `AnalyticsService` | Compute from profiles/facts — never duplicate stores |
+| AI data | `src/academic/ai` + `AiSummaryService` | AI receives structured summaries only |
+| Audit read | `src/academic/audit` + `AuditReadService` | Admin/principal history (who/when/before/after) |
+| Notifications | Phase 4 SQL `_notify_student_circle` | Auto on academic events |
+
+```ts
+import { AnalyticsService, AiSummaryService, AuditReadService } from "@/academic";
+
+await AnalyticsService.forStudent(ctx, studentId);
+await AiSummaryService.student(ctx, studentId);
+await AuditReadService.recent(ctx);
+```
+
 ## Panel → tables
 
 | Panel | Primary tables |

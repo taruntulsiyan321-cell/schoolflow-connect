@@ -37,3 +37,4 @@ export {
 };
 
 export { ForbiddenError, isSchoolOperator } from "./context";
+export { AnalyticsService, AiSummaryService, AuditReadService } from "./readServices";

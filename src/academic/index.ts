@@ -77,6 +77,8 @@ export {
   type ServiceContext,
 } from "./services";
 
+export { AnalyticsService, AiSummaryService, AuditReadService } from "./services/readServices";
+
 export {
   SyncEngine,
   processPendingEvents,
@@ -85,3 +87,20 @@ export {
   plannedTargets,
   type SyncRunResult,
 } from "./sync";
+
+export {
+  AnalyticsFoundation,
+  getStudentAnalytics,
+  getClassPerformance,
+  getSchoolPerformance,
+} from "./analytics";
+
+export {
+  AiDataLayer,
+  buildStudentAiSummary,
+  buildClassAiSummary,
+  buildSchoolAiSummary,
+  buildTeacherAiSummary,
+} from "./ai";
+
+export { AuditService, listAuditForEntity, listRecentAudit } from "./audit";
