@@ -58,3 +58,5 @@ export {
   validateRemarkBody,
   validateTeacherSubjectAssignment,
 } from "./validation/rules";
+
+export * as academicRepo from "./repository";

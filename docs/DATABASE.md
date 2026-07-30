@@ -60,6 +60,27 @@ Canonical TypeScript contracts live in `src/academic/`.
 | `write_academic_audit(...)` | Append audit row |
 | `ensure_student_academic_profile(student_id)` | Upsert profile shell |
 
+## Academic Engine (Phase 2) — repositories
+
+School-scoped data access lives in `src/academic/repository/`.
+
+| Repository | Responsibility |
+|------------|----------------|
+| `attendanceRepository` | Class/student attendance reads + upsert (tenant + uniqueness checks) |
+| `homeworkRepository` | Homework + submissions (assignment alias) |
+| `marksRepository` | Exams + marks publish with max-marks + assignment gates |
+| `remarksRepository` | Teacher remarks |
+| `academicProfileRepository` | Read-only profiles + ensure RPC |
+| `eventsRepository` | Emit events / audit via RPCs; list pending outbox |
+| `teacherAssignmentRepository` | Central teacher–class–subject ownership check |
+
+Rules:
+
+- Every write takes `RepoContext { schoolId, userId? }`
+- Cross-school student access throws `TenantViolationError`
+- Validation runs in the repository before DB writes
+- Panels must not query academic tables directly once services (Phase 3) land
+
 ## Panel → tables
 
 | Panel | Primary tables |
