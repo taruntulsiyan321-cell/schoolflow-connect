@@ -12,12 +12,53 @@ Order matters:
 
 1. `20260730000000_auth_multitenant_foundation.sql` — schools, profiles.school_id, auth RPCs  
 2. `20260730010000_complete_panel_database.sql` — full panel schema + school isolation  
+3. `20260730020000_academic_engine_foundation.sql` — academic engine backbone (years, profiles, events, audit, remarks)
 
 After push, regenerate types:
 
 ```bash
 supabase gen types typescript --local > src/integrations/supabase/types.ts
 ```
+
+## Academic Engine (Phase 1)
+
+Canonical TypeScript contracts live in `src/academic/`.
+
+| Concern | Location |
+|---------|----------|
+| Entity → table registry | `src/academic/entities.ts` |
+| Ownership (who writes / who reads) | `src/academic/ownership.ts` |
+| Event catalog + sync targets | `src/academic/events.ts` |
+| Tenant helpers | `src/academic/tenant.ts` |
+| Validation rules | `src/academic/validation/rules.ts` |
+
+### New tables (migration 20260730020000)
+
+| Table | Purpose |
+|-------|---------|
+| `academic_years` | Formal school year; `classes` / `academic_terms` link via `academic_year_id` |
+| `student_academic_profiles` | Auto-maintained one profile per student (dashboards / AI) |
+| `academic_events` | Event outbox for automatic synchronization |
+| `academic_audit` | Immutable audit (who/when/before/after) |
+| `teacher_remarks` | First-class remarks owned by Teacher |
+
+### Product aliases (do not create duplicate tables)
+
+| Product name | Physical table |
+|--------------|----------------|
+| Assignment | `homework` |
+| Assignment submission | `homework_submissions` |
+| Test | `dpps` |
+| Examination marks | `marks` |
+| Section | `classes.section` |
+
+### Engine RPCs
+
+| RPC | Purpose |
+|-----|---------|
+| `emit_academic_event(...)` | Publish to outbox |
+| `write_academic_audit(...)` | Append audit row |
+| `ensure_student_academic_profile(student_id)` | Upsert profile shell |
 
 ## Panel → tables
 
