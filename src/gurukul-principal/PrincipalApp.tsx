@@ -8,7 +8,8 @@ import {
   principalPathToPage,
 } from './nav'
 import {
-  AreaChart, Area, BarChart, Bar,
+  AreaChart, Area, BarChart, Bar, LineChart, Line, ComposedChart,
+  PieChart, Pie, Legend,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
 } from 'recharts'
 import {
@@ -613,75 +614,535 @@ function DashboardPage() {
 
 // ── PAGE: Analytics ───────────────────────────────────────────────────────────
 
+const analyticsMonthly = [
+  { month: 'Feb', avg: 73, attendance: 89, homework: 71, tests: 18, practice: 48 },
+  { month: 'Mar', avg: 75, attendance: 91, homework: 74, tests: 22, practice: 51 },
+  { month: 'Apr', avg: 72, attendance: 87, homework: 70, tests: 19, practice: 46 },
+  { month: 'May', avg: 78, attendance: 93, homework: 77, tests: 26, practice: 55 },
+  { month: 'Jun', avg: 76, attendance: 90, homework: 75, tests: 21, practice: 52 },
+  { month: 'Jul', avg: 80, attendance: 92, homework: 78, tests: 24, practice: 54 },
+]
+
+const weeklyActivity = [
+  { day: 'Mon', logins: 1620, testsSubmitted: 184, homeworkSubmitted: 312, practiceQuestions: 2140 },
+  { day: 'Tue', logins: 1580, testsSubmitted: 210, homeworkSubmitted: 278, practiceQuestions: 1980 },
+  { day: 'Wed', logins: 1710, testsSubmitted: 198, homeworkSubmitted: 340, practiceQuestions: 2310 },
+  { day: 'Thu', logins: 1540, testsSubmitted: 172, homeworkSubmitted: 295, practiceQuestions: 1870 },
+  { day: 'Fri', logins: 1690, testsSubmitted: 224, homeworkSubmitted: 360, practiceQuestions: 2200 },
+  { day: 'Sat', logins: 890,  testsSubmitted: 98,  homeworkSubmitted: 180, practiceQuestions: 1240 },
+]
+
+const homeworkBySubject = [
+  { subject: 'Mathematics', assigned: 48, submitted: 36, color: '#f43f5e' },
+  { subject: 'Science',     assigned: 42, submitted: 35, color: '#0ea5a0' },
+  { subject: 'English',     assigned: 38, submitted: 34, color: '#3b5bdb' },
+  { subject: 'History',     assigned: 30, submitted: 26, color: '#f59e0b' },
+  { subject: 'Commerce',    assigned: 28, submitted: 19, color: '#6882e8' },
+  { subject: 'Chemistry',   assigned: 35, submitted: 24, color: '#10b981' },
+]
+
+const testsByClass = [
+  { class: '6A', tests: 8,  avgScore: 79 },
+  { class: '7B', tests: 10, avgScore: 74 },
+  { class: '8A', tests: 14, avgScore: 91 },
+  { class: '9A', tests: 12, avgScore: 88 },
+  { class: '10B', tests: 9, avgScore: 71 },
+  { class: '11A', tests: 11, avgScore: 85 },
+  { class: '12A', tests: 10, avgScore: 79 },
+]
+
+const engagementBreakdown = [
+  { name: 'Tests Attempted', value: 34, fill: '#3b5bdb' },
+  { name: 'Homework Done', value: 28, fill: '#0ea5a0' },
+  { name: 'Practice Only', value: 22, fill: '#f59e0b' },
+  { name: 'Inactive', value: 16, fill: '#e5e7eb' },
+]
+
+const teacherActivity = [
+  { name: 'Ms. Priya Singh',    tests: 12, homework: 34, marks: 10, attendance: 22 },
+  { name: 'Mr. Ramesh Kumar',   tests: 18, homework: 28, marks: 16, attendance: 22 },
+  { name: 'Ms. Anita Sharma',   tests: 10, homework: 42, marks: 8,  attendance: 22 },
+  { name: 'Mr. Suresh Nair',    tests: 8,  homework: 22, marks: 6,  attendance: 18 },
+  { name: 'Ms. Kavitha Reddy',  tests: 14, homework: 38, marks: 12, attendance: 22 },
+  { name: 'Mr. Arun Pillai',    tests: 11, homework: 19, marks: 9,  attendance: 20 },
+]
+
+const ATABS = ['Overview', 'Tests & Exams', 'Homework & Practice', 'App Engagement', 'Teacher Activity'] as const
+type ATab = typeof ATABS[number]
+
 function AnalyticsPage() {
-  const monthlyPerf = [
-    { month: 'Feb', avg: 73 }, { month: 'Mar', avg: 75 }, { month: 'Apr', avg: 72 },
-    { month: 'May', avg: 78 }, { month: 'Jun', avg: 76 }, { month: 'Jul', avg: 80 },
-  ]
+  const [tab, setTab] = useState<ATab>('Overview')
+  const [range, setRange] = useState('This Month')
+
+  const totalLogins    = weeklyActivity.reduce((s, d) => s + d.logins, 0)
+  const totalTests     = weeklyActivity.reduce((s, d) => s + d.testsSubmitted, 0)
+  const totalHW        = weeklyActivity.reduce((s, d) => s + d.homeworkSubmitted, 0)
+  const totalPractice  = weeklyActivity.reduce((s, d) => s + d.practiceQuestions, 0)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <SectionTitle sub="School-wide performance trends and academic analytics">Academic Analytics</SectionTitle>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
-        <KPICard icon={TrendingUp} label="School Avg This Month" value="79.4%" delta="+4.2%" deltaDir="up" color="#10b981" />
-        <KPICard icon={Award} label="Top Class Avg" value="91%" color="#3b5bdb" sub="Class 8A" />
-        <KPICard icon={AlertTriangle} label="Lowest Class Avg" value="71%" color="#f43f5e" sub="Class 10B" />
-        <KPICard icon={BookOpen} label="Homework Completion" value="78%" delta="+3%" deltaDir="up" color="#6882e8" />
-        <KPICard icon={ClipboardList} label="Assignment Completion" value="65%" delta="-2%" deltaDir="down" color="#f59e0b" />
-        <KPICard icon={Activity} label="Practice Activity" value="54%" delta="-5%" deltaDir="down" color="#f43f5e" />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
-        <Card>
-          <SectionTitle sub="6-month school performance trend">Monthly Performance</SectionTitle>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={monthlyPerf} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gm" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b5bdb" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#3b5bdb" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="#f0f1f3" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis domain={[65, 90]} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
-              <Area type="monotone" dataKey="avg" stroke="#3b5bdb" strokeWidth={2.5} fill="url(#gm)" name="School Avg %" dot={{ fill: '#3b5bdb', r: 4 }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </Card>
-        <Card>
-          <SectionTitle sub="Subject performance breakdown">By Subject</SectionTitle>
-          {subjectData.map(s => (
-            <div key={s.subject} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.fill, flexShrink: 0 }} />
-              <div style={{ width: 90, fontSize: 12, color: 'var(--text-secondary)' }}>{s.subject}</div>
-              <ProgressBar value={s.score} color={s.fill} />
-              <div className="font-mono-data" style={{ width: 36, fontSize: 12, fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>{s.score}%</div>
-            </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div>
+          <h2 className="font-display" style={{ fontSize: 22, fontWeight: 400, margin: 0 }}>Academic Analytics</h2>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '3px 0 0' }}>Comprehensive school activity and performance data</p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['This Week', 'This Month', 'This Term'].map(r => (
+            <button key={r} onClick={() => setRange(r)} style={{
+              fontSize: 12, fontWeight: 600, padding: '6px 14px', borderRadius: 8, border: '1px solid var(--border)',
+              cursor: 'pointer', background: range === r ? 'var(--navy)' : 'var(--surface)',
+              color: range === r ? '#fff' : 'var(--text-secondary)', transition: 'all 0.15s',
+            }}>{r}</button>
           ))}
-        </Card>
+        </div>
       </div>
 
-      <Card>
-        <SectionTitle sub="Class-wise performance comparison">Class-wise Analysis</SectionTitle>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={classPerformance} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-            <CartesianGrid stroke="#f0f1f3" vertical={false} />
-            <XAxis dataKey="class" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-            <YAxis domain={[60, 100]} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} cursor={{ fill: '#f4f5f7' }} />
-            <Bar dataKey="score" radius={[5, 5, 0, 0]} name="Avg Score">
-              {classPerformance.map((entry, i) => (
-                <Cell key={i} fill={entry.score >= 85 ? '#10b981' : entry.score >= 75 ? '#3b5bdb' : '#f43f5e'} />
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 2, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 5 }}>
+        {ATABS.map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            flex: 1, fontSize: 12, fontWeight: 600, padding: '8px 12px', borderRadius: 8, border: 'none',
+            cursor: 'pointer', whiteSpace: 'nowrap',
+            background: tab === t ? 'var(--navy)' : 'transparent',
+            color: tab === t ? '#fff' : 'var(--text-muted)',
+            transition: 'all 0.15s',
+          }}>{t}</button>
+        ))}
+      </div>
+
+      {/* ── Overview Tab ── */}
+      {tab === 'Overview' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 }}>
+            <KPICard icon={TrendingUp}    label="School Avg Score"       value="79.4%"  delta="+4.2%"  deltaDir="up"   color="#3b5bdb" sub="vs. last month" />
+            <KPICard icon={UserCheck}     label="Avg Attendance"         value="92.3%"  delta="-1.4%"  deltaDir="down" color="#10b981" sub="This week" />
+            <KPICard icon={ClipboardList} label="Tests Conducted"        value="74"     delta="+8"     deltaDir="up"   color="#6882e8" sub="This month" />
+            <KPICard icon={BookOpen}      label="Homework Assigned"      value="221"    delta="+14"    deltaDir="up"   color="#f59e0b" sub="This month" />
+            <KPICard icon={Activity}      label="Homework Completion"    value="78%"    delta="+3%"    deltaDir="up"   color="#0ea5a0" />
+            <KPICard icon={Award}         label="Practice Questions Done" value="11.7k" delta="+12%"   deltaDir="up"   color="#f43f5e" sub="This week" />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+            <Card>
+              <SectionTitle sub="6-month trend across key metrics">Performance vs Activity</SectionTitle>
+              <ResponsiveContainer width="100%" height={240}>
+                <ComposedChart data={analyticsMonthly} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gAvg" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b5bdb" stopOpacity={0.12} />
+                      <stop offset="95%" stopColor="#3b5bdb" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gAtt" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.10} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid stroke="#f0f1f3" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="left"  domain={[60, 100]} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="right" orientation="right" domain={[0, 40]} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                  <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 12 }} />
+                  <Area yAxisId="left"  type="monotone" dataKey="avg"        name="Avg Score %"   stroke="#3b5bdb" strokeWidth={2.5} fill="url(#gAvg)" dot={false} />
+                  <Area yAxisId="left"  type="monotone" dataKey="attendance" name="Attendance %"   stroke="#10b981" strokeWidth={2}   fill="url(#gAtt)" dot={false} />
+                  <Bar  yAxisId="right" dataKey="tests"  name="Tests Conducted" fill="#6882e820" stroke="#6882e8" strokeWidth={1} radius={[3,3,0,0]} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </Card>
+            <Card>
+              <SectionTitle sub="Subject performance scores">By Subject</SectionTitle>
+              {subjectData.map(s => (
+                <div key={s.subject} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 13 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.fill, flexShrink: 0 }} />
+                  <div style={{ width: 86, fontSize: 12, color: 'var(--text-secondary)', flexShrink: 0 }}>{s.subject}</div>
+                  <ProgressBar value={s.score} color={s.fill} />
+                  <div className="font-mono-data" style={{ width: 36, fontSize: 12, fontWeight: 700, color: s.score < 72 ? '#f43f5e' : 'var(--text-primary)', textAlign: 'right' }}>{s.score}%</div>
+                </div>
               ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
+            </Card>
+          </div>
+
+          <Card>
+            <SectionTitle sub="Class-wise performance with test counts">Class Performance Summary</SectionTitle>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>{['Class', 'Avg Score', 'Tests Conducted', 'Homework %', 'Attendance %', 'Practice Score', 'Status'].map(h => (
+                    <th key={h} style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'left', padding: '7px 16px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {testsByClass.map((row, i) => {
+                    const hw  = Math.min(95, Math.max(55, row.avgScore - 8))
+                    const att = Math.min(98, Math.max(75, row.avgScore + 3))
+                    const prc = Math.min(90, Math.max(40, row.avgScore - 15))
+                    const ok  = row.avgScore >= 80
+                    return (
+                      <tr key={row.class} style={{ background: i % 2 === 0 ? 'transparent' : '#fafafa' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 700, fontSize: 14 }}>{row.class}</td>
+                        <td style={{ padding: '12px 16px' }} className="font-mono-data">
+                          <span style={{ color: row.avgScore >= 85 ? '#10b981' : row.avgScore >= 75 ? '#3b5bdb' : '#f43f5e', fontWeight: 700 }}>{row.avgScore}%</span>
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: 13 }} className="font-mono-data">{row.tests}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <ProgressBar value={hw} color={hw >= 75 ? '#10b981' : '#f59e0b'} />
+                            <span className="font-mono-data" style={{ fontSize: 11, width: 30 }}>{hw}%</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px' }} className="font-mono-data">
+                          <span style={{ color: att >= 90 ? '#10b981' : '#f59e0b', fontWeight: 600 }}>{att}%</span>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <ProgressBar value={prc} color="#6882e8" />
+                            <span className="font-mono-data" style={{ fontSize: 11, width: 30 }}>{prc}%</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}><Chip color={ok ? '#10b981' : '#f43f5e'}>{ok ? 'On Track' : 'Attention'}</Chip></td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </>
+      )}
+
+      {/* ── Tests & Exams Tab ── */}
+      {tab === 'Tests & Exams' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 }}>
+            <KPICard icon={ClipboardList} label="Tests Conducted"     value="74"    delta="+8"   deltaDir="up"   color="#3b5bdb" sub="This month" />
+            <KPICard icon={Activity}      label="Avg Test Score"      value="74.2%" delta="+1.8%" deltaDir="up"  color="#10b981" />
+            <KPICard icon={Users}         label="Students Attempted"  value="1,734" delta="+42"  deltaDir="up"   color="#6882e8" />
+            <KPICard icon={AlertTriangle} label="Failed Threshold"    value="214"   delta="-18"  deltaDir="up"   color="#f43f5e" sub="Below 50%" />
+            <KPICard icon={Award}         label="Scored 90%+"         value="312"   delta="+28"  deltaDir="up"   color="#f59e0b" />
+            <KPICard icon={CalendarDays}  label="Upcoming Tests"      value="12"    color="#0ea5a0" />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 20 }}>
+            <Card>
+              <SectionTitle sub="Tests conducted per class with average scores">Tests by Class</SectionTitle>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={testsByClass} margin={{ top: 0, right: 0, left: -20, bottom: 0 }} barGap={4}>
+                  <CartesianGrid stroke="#f0f1f3" vertical={false} />
+                  <XAxis dataKey="class" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="left"  tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="right" orientation="right" domain={[60, 100]} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} cursor={{ fill: '#f4f5f7' }} />
+                  <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 12 }} />
+                  <Bar yAxisId="left"  dataKey="tests"    name="Tests Conducted" fill="#3b5bdb" radius={[4,4,0,0]} />
+                  <Bar yAxisId="right" dataKey="avgScore" name="Avg Score %"     fill="#10b981" radius={[4,4,0,0]} opacity={0.7} />
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+            <Card>
+              <SectionTitle sub="Tests by subject this month">Tests by Subject</SectionTitle>
+              {[
+                { subject: 'Mathematics', tests: 18, avg: 68, color: '#f43f5e' },
+                { subject: 'Science',     tests: 14, avg: 79, color: '#0ea5a0' },
+                { subject: 'English',     tests: 12, avg: 85, color: '#3b5bdb' },
+                { subject: 'History',     tests: 10, avg: 82, color: '#f59e0b' },
+                { subject: 'Commerce',    tests: 11, avg: 74, color: '#6882e8' },
+                { subject: 'Chemistry',   tests: 9,  avg: 77, color: '#10b981' },
+              ].map(s => (
+                <div key={s.subject} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <div style={{ width: 7, height: 7, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                  <div style={{ flex: 1, fontSize: 12, color: 'var(--text-secondary)' }}>{s.subject}</div>
+                  <div className="font-mono-data" style={{ fontSize: 12, color: 'var(--text-muted)', width: 28 }}>{s.tests}</div>
+                  <div className="font-mono-data" style={{ fontSize: 13, fontWeight: 700, color: s.avg < 72 ? '#f43f5e' : '#10b981', width: 40, textAlign: 'right' }}>{s.avg}%</div>
+                </div>
+              ))}
+            </Card>
+          </div>
+
+          <Card>
+            <SectionTitle sub="Daily test submissions this week">Test Submission Trend</SectionTitle>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={weeklyActivity} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gTS" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b5bdb" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#3b5bdb" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="#f0f1f3" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                <Area type="monotone" dataKey="testsSubmitted" name="Tests Submitted" stroke="#3b5bdb" strokeWidth={2.5} fill="url(#gTS)" dot={{ fill: '#3b5bdb', r: 4 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+        </>
+      )}
+
+      {/* ── Homework & Practice Tab ── */}
+      {tab === 'Homework & Practice' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 }}>
+            <KPICard icon={BookOpen}   label="Homework Assigned"      value="221"  delta="+14"  deltaDir="up"   color="#3b5bdb" sub="This month" />
+            <KPICard icon={CheckCircle} label="Homework Submitted"    value="172"  delta="+18"  deltaDir="up"   color="#10b981" />
+            <KPICard icon={Activity}   label="Completion Rate"         value="78%"  delta="+3%"  deltaDir="up"   color="#0ea5a0" />
+            <KPICard icon={FileText}   label="Assignments Assigned"    value="86"   delta="+6"   deltaDir="up"   color="#6882e8" sub="This month" />
+            <KPICard icon={Target}     label="Assignment Completion"   value="65%"  delta="-2%"  deltaDir="down" color="#f59e0b" />
+            <KPICard icon={Zap}        label="Practice Questions Done" value="11.7k" delta="+12%" deltaDir="up"  color="#f43f5e" sub="This week" />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 20 }}>
+            <Card>
+              <SectionTitle sub="Assigned vs submitted homework by subject">Homework by Subject</SectionTitle>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={homeworkBySubject} layout="vertical" margin={{ top: 0, right: 20, left: 60, bottom: 0 }} barGap={4}>
+                  <CartesianGrid stroke="#f0f1f3" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} domain={[0, 55]} />
+                  <YAxis type="category" dataKey="subject" tick={{ fontSize: 12, fill: '#4b5563' }} axisLine={false} tickLine={false} width={70} />
+                  <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                  <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+                  <Bar dataKey="assigned"  name="Assigned"  fill="#e8ecff" stroke="#3b5bdb" strokeWidth={1} radius={[0,4,4,0]} />
+                  <Bar dataKey="submitted" name="Submitted" radius={[0,4,4,0]}>
+                    {homeworkBySubject.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+            <Card>
+              <SectionTitle sub="Daily homework submissions this week">Submission Trend</SectionTitle>
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={weeklyActivity} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid stroke="#f0f1f3" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                  <Line type="monotone" dataKey="homeworkSubmitted" name="Homework Submitted" stroke="#10b981" strokeWidth={2.5} dot={{ fill: '#10b981', r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+              <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 14 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10 }}>Practice Activity</div>
+                {[
+                  { label: 'Questions Attempted', value: '11,740', color: '#6882e8' },
+                  { label: 'Avg per Student', value: '6.4', color: '#0ea5a0' },
+                  { label: 'Active Practitioners', value: '54%', color: '#f59e0b' },
+                ].map(m => (
+                  <div key={m.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{m.label}</span>
+                    <span className="font-mono-data" style={{ fontSize: 13, fontWeight: 700, color: m.color }}>{m.value}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <Card>
+              <SectionTitle sub="Classes with lowest homework submission rates">Homework Laggards</SectionTitle>
+              {[
+                { class: '10B', rate: 62, teacher: 'Mr. Arun Pillai', subject: 'Physics' },
+                { class: '7C', rate: 68, teacher: 'Ms. Rekha Iyer', subject: 'Social Studies' },
+                { class: '12A', rate: 70, teacher: 'Mr. Suresh Nair', subject: 'History' },
+                { class: '9B', rate: 72, teacher: 'Mr. Ramesh Kumar', subject: 'Mathematics' },
+              ].map((c, i) => (
+                <div key={c.class} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: i < 3 ? '1px solid var(--border-subtle)' : 'none' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 9, background: '#fff1f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <AlertTriangle size={16} color="#f43f5e" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>Class {c.class}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{c.teacher} · {c.subject}</div>
+                  </div>
+                  <div className="font-mono-data" style={{ fontSize: 18, fontWeight: 700, color: '#f43f5e' }}>{c.rate}%</div>
+                </div>
+              ))}
+            </Card>
+            <Card>
+              <SectionTitle sub="Classes with highest practice activity">Practice Leaders</SectionTitle>
+              {[
+                { class: '8A', rate: 82, students: 36 },
+                { class: '9A', rate: 76, students: 33 },
+                { class: '11A', rate: 71, students: 28 },
+                { class: '6A', rate: 68, students: 30 },
+              ].map((c, i) => (
+                <div key={c.class} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 0', borderBottom: i < 3 ? '1px solid var(--border-subtle)' : 'none' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 9, background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, fontWeight: 700, color: '#10b981' }}>#{i + 1}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>Class {c.class}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{c.students} active students</div>
+                  </div>
+                  <div className="font-mono-data" style={{ fontSize: 18, fontWeight: 700, color: '#10b981' }}>{c.rate}%</div>
+                </div>
+              ))}
+            </Card>
+          </div>
+        </>
+      )}
+
+      {/* ── App Engagement Tab ── */}
+      {tab === 'App Engagement' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 }}>
+            <KPICard icon={Users}         label="Daily Active Users"   value="1,650"  delta="+4.2%"  deltaDir="up"   color="#3b5bdb" sub="Avg this week" />
+            <KPICard icon={Activity}      label="Total Logins (Week)"  value={totalLogins.toLocaleString()} delta="+320" deltaDir="up" color="#10b981" />
+            <KPICard icon={ClipboardList} label="Tests Submitted"      value={totalTests.toLocaleString()}  delta="+64"  deltaDir="up" color="#6882e8" sub="This week" />
+            <KPICard icon={BookOpen}      label="Homework Submitted"   value={totalHW.toLocaleString()}     delta="+88"  deltaDir="up" color="#f59e0b" />
+            <KPICard icon={Zap}           label="Practice Questions"   value={totalPractice.toLocaleString()} delta="+1.2k" deltaDir="up" color="#0ea5a0" />
+            <KPICard icon={TrendingUp}    label="Engagement Rate"      value="89.7%"  delta="+2.1%"  deltaDir="up"   color="#f43f5e" />
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 20 }}>
+            <Card>
+              <SectionTitle sub="Daily app activity across all users this week">App Usage — This Week</SectionTitle>
+              <ResponsiveContainer width="100%" height={260}>
+                <ComposedChart data={weeklyActivity} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <CartesianGrid stroke="#f0f1f3" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="left"  tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                  <Legend iconSize={8} wrapperStyle={{ fontSize: 11, paddingTop: 12 }} />
+                  <Bar  yAxisId="left"  dataKey="logins"             name="App Logins"          fill="#3b5bdb20" stroke="#3b5bdb" strokeWidth={1} radius={[3,3,0,0]} />
+                  <Line yAxisId="right" type="monotone" dataKey="testsSubmitted"    name="Tests Submitted"    stroke="#6882e8" strokeWidth={2} dot={{ r: 4, fill: '#6882e8' }} />
+                  <Line yAxisId="right" type="monotone" dataKey="homeworkSubmitted" name="Homework Submitted" stroke="#10b981" strokeWidth={2} dot={{ r: 4, fill: '#10b981' }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </Card>
+            <Card>
+              <SectionTitle sub="How students are engaging">Engagement Breakdown</SectionTitle>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                <PieChart width={180} height={180}>
+                  <Pie data={engagementBreakdown} cx={90} cy={90} innerRadius={52} outerRadius={82} dataKey="value" paddingAngle={3}>
+                    {engagementBreakdown.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                </PieChart>
+              </div>
+              {engagementBreakdown.map(e => (
+                <div key={e.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid var(--border-subtle)' }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 3, background: e.fill, flexShrink: 0 }} />
+                  <div style={{ flex: 1, fontSize: 12, color: 'var(--text-secondary)' }}>{e.name}</div>
+                  <div className="font-mono-data" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{e.value}%</div>
+                </div>
+              ))}
+            </Card>
+          </div>
+
+          <Card>
+            <SectionTitle sub="Practice questions attempted per day">Practice Activity Trend</SectionTitle>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={weeklyActivity} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gPrac" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0ea5a0" stopOpacity={0.18} />
+                    <stop offset="95%" stopColor="#0ea5a0" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="#f0f1f3" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                <Area type="monotone" dataKey="practiceQuestions" name="Practice Questions" stroke="#0ea5a0" strokeWidth={2.5} fill="url(#gPrac)" dot={{ fill: '#0ea5a0', r: 4 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+        </>
+      )}
+
+      {/* ── Teacher Activity Tab ── */}
+      {tab === 'Teacher Activity' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 14 }}>
+            <KPICard icon={Users}         label="Active Teachers"       value="93"   delta="+2"    deltaDir="up"   color="#3b5bdb" />
+            <KPICard icon={ClipboardList} label="Tests Created"         value="74"   delta="+8"    deltaDir="up"   color="#6882e8" sub="This month" />
+            <KPICard icon={BookOpen}      label="Homework Assigned"     value="221"  delta="+14"   deltaDir="up"   color="#10b981" />
+            <KPICard icon={FileText}      label="Mark Sheets Uploaded"  value="61"   delta="+5"    deltaDir="up"   color="#f59e0b" />
+            <KPICard icon={UserCheck}     label="Attendance Submitted"  value="98%"  delta="+1%"   deltaDir="up"   color="#0ea5a0" sub="Of classes" />
+            <KPICard icon={Clock}         label="Pending Tasks"         value="8"    delta="+3"    deltaDir="down" color="#f43f5e" />
+          </div>
+
+          <Card>
+            <SectionTitle sub="Actions taken by each teacher this month">Teacher Activity Breakdown</SectionTitle>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>{['Teacher', 'Tests Created', 'Homework Assigned', 'Marks Uploaded', 'Attendance Marked', 'Total Actions', 'Engagement'].map(h => (
+                    <th key={h} style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'left', padding: '8px 16px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {teacherActivity.map((t, i) => {
+                    const total = t.tests + t.homework + t.marks + t.attendance
+                    const max = 90
+                    const pct = Math.round((total / max) * 100)
+                    const avatarStr = t.name.split(' ').map(w => w[0]).filter((_, i) => i === 1 || i === 2).join('')
+                    return (
+                      <tr key={t.name} style={{ background: i % 2 === 0 ? 'transparent' : '#fafafa', transition: 'background 0.1s', cursor: 'default' }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#f0f4ff'}
+                        onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : '#fafafa'}
+                      >
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--indigo-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'var(--indigo)', flexShrink: 0 }}>{avatarStr}</div>
+                            <span style={{ fontSize: 13, fontWeight: 600 }}>{t.name}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px' }} className="font-mono-data"><span style={{ fontWeight: 700, color: '#3b5bdb' }}>{t.tests}</span></td>
+                        <td style={{ padding: '12px 16px' }} className="font-mono-data"><span style={{ fontWeight: 700, color: '#10b981' }}>{t.homework}</span></td>
+                        <td style={{ padding: '12px 16px' }} className="font-mono-data"><span style={{ fontWeight: 700, color: '#f59e0b' }}>{t.marks}</span></td>
+                        <td style={{ padding: '12px 16px' }} className="font-mono-data"><span style={{ fontWeight: 700, color: '#0ea5a0' }}>{t.attendance}</span></td>
+                        <td style={{ padding: '12px 16px' }} className="font-mono-data"><span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{total}</span></td>
+                        <td style={{ padding: '12px 16px', minWidth: 130 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <ProgressBar value={pct} color={pct >= 75 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#f43f5e'} />
+                            <span className="font-mono-data" style={{ fontSize: 11, width: 34, color: 'var(--text-secondary)' }}>{pct}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <Card>
+              <SectionTitle sub="Tests created by teacher this month">Tests by Teacher</SectionTitle>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={teacherActivity.map(t => ({ name: t.name.split(' ').slice(-1)[0], tests: t.tests }))} layout="vertical" margin={{ top: 0, right: 20, left: 60, bottom: 0 }}>
+                  <CartesianGrid stroke="#f0f1f3" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#4b5563' }} axisLine={false} tickLine={false} width={58} />
+                  <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                  <Bar dataKey="tests" name="Tests Created" radius={[0,4,4,0]}>
+                    {teacherActivity.map((_, i) => <Cell key={i} fill={['#3b5bdb','#0ea5a0','#6882e8','#f59e0b','#10b981','#f43f5e'][i % 6]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+            <Card>
+              <SectionTitle sub="Homework assigned by teacher this month">Homework by Teacher</SectionTitle>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={teacherActivity.map(t => ({ name: t.name.split(' ').slice(-1)[0], homework: t.homework }))} layout="vertical" margin={{ top: 0, right: 20, left: 60, bottom: 0 }}>
+                  <CartesianGrid stroke="#f0f1f3" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#4b5563' }} axisLine={false} tickLine={false} width={58} />
+                  <Tooltip contentStyle={{ fontSize: 12, border: '1px solid #e5e7eb', borderRadius: 8 }} />
+                  <Bar dataKey="homework" name="Homework Assigned" radius={[0,4,4,0]}>
+                    {teacherActivity.map((_, i) => <Cell key={i} fill={['#10b981','#3b5bdb','#f59e0b','#6882e8','#0ea5a0','#f43f5e'][i % 6]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </Card>
+          </div>
+        </>
+      )}
+
+      <div style={{ height: 20 }} />
     </div>
   )
 }
-
 // ── PAGE: Teachers ────────────────────────────────────────────────────────────
 
 function TeachersPage() {
