@@ -76,3 +76,12 @@ export {
   isSchoolOperator,
   type ServiceContext,
 } from "./services";
+
+export {
+  SyncEngine,
+  processPendingEvents,
+  processEvent,
+  refreshStudentProfile,
+  plannedTargets,
+  type SyncRunResult,
+} from "./sync";

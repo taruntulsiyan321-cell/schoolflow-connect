@@ -104,6 +104,29 @@ await AttendanceService.mark(ctx, { studentId, classId, date, status: "present" 
 
 Panels must call services — never repositories or raw tables for academic mutations.
 
+## Academic Engine (Phase 4) — synchronization
+
+Outbox + automatic fan-out:
+
+| Piece | Location |
+|-------|----------|
+| SQL refresh rollup | `refresh_student_academic_profile(student_id)` |
+| SQL event processor | `process_academic_event` / `process_pending_academic_events` |
+| Auto-process trigger | `trg_academic_events_autoprocess` on `academic_events` insert |
+| TS facade | `src/academic/sync/` |
+
+Flow:
+
+```
+Service write → DB trigger → academic_events row
+  → process_academic_event
+    → refresh student_academic_profiles
+    → notifications (student + parents)
+    → school_activity_feed
+```
+
+No panel should manually update dashboards after attendance/marks/homework.
+
 ## Panel → tables
 
 | Panel | Primary tables |
