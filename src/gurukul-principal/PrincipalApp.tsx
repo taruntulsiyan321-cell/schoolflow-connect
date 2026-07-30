@@ -79,75 +79,9 @@ function StatTile({ label, value, color, icon: Icon }: { label: string; value: s
 }
 
 // ── Data ──────────────────────────────────────────────────────────────────────
-
-const attendanceTrend = [
-  { day: 'Mon', students: 94, teachers: 96 },
-  { day: 'Tue', students: 91, teachers: 98 },
-  { day: 'Wed', students: 96, teachers: 95 },
-  { day: 'Thu', students: 88, teachers: 97 },
-  { day: 'Fri', students: 92, teachers: 94 },
-  { day: 'Sat', students: 85, teachers: 92 },
-]
-
-const classPerformance = [
-  { class: '6A', score: 82 }, { class: '7B', score: 76 }, { class: '8A', score: 91 },
-  { class: '9A', score: 88 }, { class: '10B', score: 71 }, { class: '11A', score: 85 }, { class: '12A', score: 79 },
-]
-
-const subjectData = [
-  { subject: 'Mathematics', score: 68, fill: '#f43f5e' },
-  { subject: 'Science', score: 79, fill: '#0ea5a0' },
-  { subject: 'English', score: 85, fill: '#3b5bdb' },
-  { subject: 'History', score: 82, fill: '#f59e0b' },
-  { subject: 'Commerce', score: 74, fill: '#6882e8' },
-]
-
-const completionData = [
-  { name: 'Homework', value: 78, fill: '#3b5bdb' },
-  { name: 'Assignments', value: 65, fill: '#0ea5a0' },
-  { name: 'Practice', value: 54, fill: '#f59e0b' },
-]
-
-const recentActivities = [
-  { id: 1, actor: 'Mr. Ramesh Kumar', action: 'published a Mathematics test for Class 9A', time: '8 min ago', icon: ClipboardList, color: '#3b5bdb' },
-  { id: 2, actor: 'Ms. Priya Singh', action: 'uploaded exam marks for Class 8B Science', time: '23 min ago', icon: FileText, color: '#10b981' },
-  { id: 3, actor: 'Ms. Anita Sharma', action: 'submitted attendance for Class 7A', time: '41 min ago', icon: UserCheck, color: '#0ea5a0' },
-  { id: 4, actor: 'Admin Office', action: 'published Annual Sports Day announcement', time: '1 hr ago', icon: Megaphone, color: '#f59e0b' },
-  { id: 5, actor: 'Examination Cell', action: 'created Mid-Term Examination schedule', time: '2 hr ago', icon: CalendarDays, color: '#6882e8' },
-  { id: 6, actor: 'Mr. Suresh Nair', action: 'leave request approved for 2 days', time: '3 hr ago', icon: CheckCircle, color: '#10b981' },
-  { id: 7, actor: 'Ms. Kavitha Reddy', action: 'assigned homework for Class 10A Chemistry', time: '4 hr ago', icon: BookOpen, color: '#f43f5e' },
-]
-
-const pendingApprovals = [
-  { id: 1, type: 'Leave', name: 'Mr. Vikram Mehta', detail: 'Sick Leave · 3 days · From 28 Jul', urgency: 'today', avatar: 'VM' },
-  { id: 2, type: 'Leave', name: 'Ms. Deepika Joshi', detail: 'Personal Leave · 1 day · From 29 Jul', urgency: 'tomorrow', avatar: 'DJ' },
-  { id: 3, type: 'Announcement', name: 'Parent-Teacher Meet Notice', detail: 'Scheduled · 5 Aug · For all classes', urgency: 'review', avatar: 'PT' },
-  { id: 4, type: 'Leave', name: 'Mr. Arun Pillai', detail: 'Medical Leave · 5 days · From 30 Jul', urgency: 'urgent', avatar: 'AP' },
-]
-
-const insights = [
-  { text: 'Overall school performance has improved by 4.2% compared to last month across all classes.', type: 'positive', icon: TrendingUp },
-  { text: 'Mathematics requires immediate attention — average score dropped to 68% across 7 classes.', type: 'negative', icon: AlertTriangle },
-  { text: 'Class 8A is performing 13 points above the school average, driven by Science and English.', type: 'positive', icon: Star },
-  { text: 'Homework completion rate at 78% is strong, but practice activity remains low at 54%.', type: 'neutral', icon: BookOpen },
-  { text: 'Science assignment submission is 22% below target — curriculum review recommended.', type: 'negative', icon: FlaskConical },
-  { text: 'Low attendance in Classes 10B and 7C is correlated with declining test scores this week.', type: 'negative', icon: UserX },
-]
-
-const studentInsights = [
-  { label: 'Requiring Academic Attention', count: 34, color: '#f43f5e', icon: AlertTriangle },
-  { label: 'High Performing Students', count: 127, color: '#10b981', icon: Star },
-  { label: 'Low Attendance (< 75%)', count: 18, color: '#f59e0b', icon: UserX },
-  { label: 'Pending Homework', count: 203, color: '#6882e8', icon: BookOpen },
-  { label: 'Low Practice Activity', count: 89, color: '#0ea5a0', icon: Activity },
-]
-
-const classInsights = [
-  { class: '8A', type: 'Best', avg: 91, attendance: 96, homework: 88 },
-  { class: '9A', type: 'Best', avg: 88, attendance: 94, homework: 85 },
-  { class: '10B', type: 'Attention', avg: 71, attendance: 79, homework: 62 },
-  { class: '7C', type: 'Attention', avg: 74, attendance: 77, homework: 68 },
-]
+// Academic mocks (attendance trends, class/subject scores, rankings, exam schedules)
+// have been removed — those pages now render live Academic Engine data instead.
+// Remaining mocks below are non-academic (teacher directory, announcements, messages).
 
 const teachers = [
   { name: 'Ms. Priya Singh', subject: 'Science', classes: ['8A', '8B', '9A'], avg: 88, attendance: '98%', tests: 12, homework: 34, status: 'active', avatar: 'PS' },
@@ -156,37 +90,6 @@ const teachers = [
   { name: 'Mr. Suresh Nair', subject: 'History', classes: ['11A', '12A'], avg: 82, attendance: '91%', tests: 8, homework: 22, status: 'on-leave', avatar: 'SN' },
   { name: 'Ms. Kavitha Reddy', subject: 'Chemistry', classes: ['10A', '11A', '12A'], avg: 77, attendance: '96%', tests: 14, homework: 38, status: 'active', avatar: 'KR' },
   { name: 'Mr. Arun Pillai', subject: 'Physics', classes: ['10B', '11B'], avg: 69, attendance: '93%', tests: 11, homework: 19, status: 'leave-pending', avatar: 'AP' },
-]
-
-const students = [
-  { name: 'Arjun Mehta', class: '9A', roll: '9A-01', attendance: 96, avg: 92, status: 'excellent', avatar: 'AM' },
-  { name: 'Sneha Kapoor', class: '8A', roll: '8A-05', attendance: 94, avg: 88, status: 'good', avatar: 'SK' },
-  { name: 'Rohan Gupta', class: '10B', roll: '10B-12', attendance: 72, avg: 64, status: 'attention', avatar: 'RG' },
-  { name: 'Priya Nair', class: '7C', roll: '7C-08', attendance: 68, avg: 71, status: 'attention', avatar: 'PN' },
-  { name: 'Karthik Reddy', class: '11A', roll: '11A-03', attendance: 98, avg: 90, status: 'excellent', avatar: 'KR' },
-  { name: 'Anjali Singh', class: '6A', roll: '6A-15', attendance: 88, avg: 79, status: 'good', avatar: 'AS' },
-  { name: 'Dev Sharma', class: '12A', roll: '12A-07', attendance: 74, avg: 68, status: 'attention', avatar: 'DS' },
-  { name: 'Meera Pillai', class: '8A', roll: '8A-11', attendance: 99, avg: 95, status: 'excellent', avatar: 'MP' },
-]
-
-const exams = [
-  { name: 'Mid-Term Examination', classes: 'All Classes', date: '5 Aug 2025', status: 'upcoming', subjects: 6, duration: '2h 30m' },
-  { name: 'Unit Test — Mathematics', classes: 'Class 9A, 9B', date: '28 Jul 2025', status: 'ongoing', subjects: 1, duration: '1h' },
-  { name: 'Science Practical', classes: 'Class 11A, 12A', date: '30 Jul 2025', status: 'upcoming', subjects: 1, duration: '3h' },
-  { name: 'First Term Examination', classes: 'All Classes', date: '15 Jun 2025', status: 'completed', subjects: 6, duration: '2h 30m' },
-  { name: 'Unit Test — English', classes: 'Class 7A, 7B, 7C', date: '10 Jul 2025', status: 'completed', subjects: 1, duration: '1h' },
-  { name: 'Pre-Board Examination', classes: 'Class 12', date: '20 Aug 2025', status: 'upcoming', subjects: 5, duration: '3h' },
-]
-
-const attendanceClasses = [
-  { class: '6A', teacher: 'Ms. Anjali Roy', students: 42, present: 40, status: 'approved' },
-  { class: '7B', teacher: 'Mr. Sanjay Verma', students: 38, present: 34, status: 'approved' },
-  { class: '7C', teacher: 'Ms. Rekha Iyer', students: 40, present: 28, status: 'pending' },
-  { class: '8A', teacher: 'Ms. Priya Singh', students: 44, present: 43, status: 'approved' },
-  { class: '9A', teacher: 'Mr. Ramesh Kumar', students: 41, present: 39, status: 'approved' },
-  { class: '10B', teacher: 'Mr. Arun Pillai', students: 39, present: 30, status: 'pending' },
-  { class: '11A', teacher: 'Ms. Kavitha Reddy', students: 35, present: 34, status: 'approved' },
-  { class: '12A', teacher: 'Mr. Suresh Nair', students: 32, present: 28, status: 'pending' },
 ]
 
 const announcements = [
@@ -270,9 +173,9 @@ function DashboardPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <SectionTitle sub="AnalyticsService · AttendanceService · AiSummaryService">School Overview</SectionTitle>
-      <PrincipalSchoolOverview />
+      <Card><PrincipalSchoolOverview /></Card>
       <SectionTitle sub="Per-class averages from AnalyticsService.classRollups">Class Performance</SectionTitle>
-      <PrincipalClassRollups />
+      <Card><PrincipalClassRollups /></Card>
     </div>
   )
 }
@@ -282,11 +185,11 @@ function AnalyticsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <SectionTitle sub="Academic Engine analytics — no mock charts">Academic Analytics</SectionTitle>
-      <PrincipalSchoolOverview />
+      <Card><PrincipalSchoolOverview /></Card>
       <SectionTitle>Class Rollups</SectionTitle>
-      <PrincipalClassRollups />
+      <Card><PrincipalClassRollups /></Card>
       <SectionTitle>Student Rankings</SectionTitle>
-      <PrincipalStudentRankings />
+      <Card><PrincipalStudentRankings /></Card>
     </div>
   )
 }
@@ -373,7 +276,7 @@ function StudentsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <SectionTitle sub="Rankings from AcademicProfileService.listForSchool">Students</SectionTitle>
-      <PrincipalStudentRankings />
+      <Card><PrincipalStudentRankings /></Card>
     </div>
   )
 }
@@ -383,9 +286,9 @@ function ExaminationsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <SectionTitle sub="Exam / test averages from AnalyticsService (no mock exam schedule stats)">Examinations & Tests</SectionTitle>
-      <PrincipalSchoolOverview />
+      <Card><PrincipalSchoolOverview /></Card>
       <SectionTitle>Class exam & test rollups</SectionTitle>
-      <PrincipalClassRollups />
+      <Card><PrincipalClassRollups /></Card>
     </div>
   )
 }
@@ -395,7 +298,7 @@ function AttendancePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <SectionTitle sub="AttendanceService.summarizeSchoolDate">Attendance</SectionTitle>
-      <PrincipalAttendanceLive />
+      <Card><PrincipalAttendanceLive /></Card>
     </div>
   )
 }
