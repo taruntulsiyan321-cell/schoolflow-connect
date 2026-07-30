@@ -7,4 +7,5 @@ export * from "./homeworkRepository";
 export * from "./remarksRepository";
 export * from "./eventsRepository";
 export * from "./teacherAssignmentRepository";
+export * from "./teacherClassesRepository";
 export * from "./examRepository";

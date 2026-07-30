@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { AcademicProfileService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +22,7 @@ type SubjectStrength = { subject: string; pct: number };
 
 export default function StudentProfilePage() {
   const { user } = useAuth();
+  const { ctx, ready } = useAcademicContext();
   const { equipped, earned } = useStudentBadges(user?.id);
   const [student, setStudent] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -39,7 +42,7 @@ export default function StudentProfilePage() {
   const [strengths, setStrengths] = useState<SubjectStrength[]>([]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !ready || !ctx) return;
     (async () => {
       // Fetch profile
       const { data: p } = await supabase
@@ -70,16 +73,11 @@ export default function StudentProfilePage() {
       }
 
       if (s) {
-        // Attendance stats
-        const { data: att } = await supabase
-          .from("attendance")
-          .select("status")
-          .eq("student_id", s.id);
-        const total = att?.length ?? 0;
-        const present = att?.filter((a) => a.status === "present").length ?? 0;
-        setTotalDays(total);
-        setPresentDays(present);
-        setAttendancePct(total > 0 ? Math.round((present / total) * 100) : 0);
+        // Attendance from Academic Engine profile (single source of truth)
+        const academic = await AcademicProfileService.get(ctx, s.id);
+        setTotalDays(academic?.attendanceTotal ?? 0);
+        setPresentDays(academic?.attendancePresent ?? 0);
+        setAttendancePct(Math.round(academic?.attendancePct ?? 0));
 
         // Fee stats
         const { data: fees } = await supabase
@@ -111,7 +109,7 @@ export default function StudentProfilePage() {
 
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, ready, ctx]);
 
   useEffect(() => {
     if (window.location.hash === "#fees") {

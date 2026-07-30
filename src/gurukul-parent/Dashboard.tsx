@@ -9,9 +9,9 @@ import {
   children as childrenList,
   homeworkByChild, testResultsByChild, examinationsByChild,
   parentAnnouncements, parentNotifications, academicInsightsByChild,
-  attendanceByChild,
 } from "./data";
 import type { ParentPageKey } from "./nav";
+import { useChildAttendancePct, useParentLiveChildren } from "./ParentLiveAttendance";
 
 function QuickStat({ label, value, sub, color, icon }: { label: string; value: string | number; sub?: string; color: string; icon: React.ReactNode }) {
   return (
@@ -29,7 +29,10 @@ function QuickStat({ label, value, sub, color, icon }: { label: string; value: s
 }
 
 function ChildSelector({ activeId, setActiveId }: { activeId: string; setActiveId: (id: string) => void }) {
-  const { children } = { children: childrenList };
+  const { children: live } = useParentLiveChildren();
+  const children = live.length
+    ? live.map((c) => ({ id: c.id, name: c.fullName, className: c.classLabel, section: "" }))
+    : childrenList.map((c) => ({ id: c.id, name: c.name, className: c.className, section: c.section }));
   if (children.length <= 1) return null;
   return (
     <div className="flex gap-2">
@@ -45,7 +48,7 @@ function ChildSelector({ activeId, setActiveId }: { activeId: string; setActiveI
           </div>
           <div className="text-left">
             <div className="text-xs font-bold leading-none">{c.name}</div>
-            <div className="text-[9px] opacity-60 mt-0.5">{c.className} · {c.section}</div>
+            <div className="text-[9px] opacity-60 mt-0.5">{c.className}{c.section ? ` · ${c.section}` : ""}</div>
           </div>
         </button>
       ))}
@@ -61,53 +64,54 @@ export default function ParentDashboard({
   activeChildId: string;
   setActiveChildId: (id: string) => void;
 }) {
+  const { children: liveChildren } = useParentLiveChildren();
+  const liveChild = liveChildren.find((c) => c.id === activeChildId) ?? liveChildren[0];
+  const attendanceId = liveChild?.id ?? null;
+  const { pct: attendancePct, present: presentDays, total: schoolDays, todayStatus } =
+    useChildAttendancePct(attendanceId);
+
   const hw = homeworkByChild[child.id] ?? [];
   const tests = testResultsByChild[child.id] ?? [];
   const exams = examinationsByChild[child.id] ?? [];
   const insights = academicInsightsByChild[child.id];
-  const attendance = attendanceByChild[child.id] ?? [];
 
-  const todayStatus = attendance.find((a) => a.date === "2026-07-26")?.status ?? "unknown";
   const pendingHw = hw.filter((h) => h.submissionStatus === "pending" || h.submissionStatus === "late");
   const dueToday = hw.filter((h) => h.dueDate === "2026-07-26" && h.submissionStatus === "pending");
   const lastTest = tests[0];
   const nextExam = exams.find((e) => !e.resultPublished);
   const unreadNotifications = parentNotifications.filter((n) => !n.read).length;
-  const presentDays = attendance.filter((a) => a.status === "present").length;
-  const schoolDays = attendance.filter((a) => a.status === "present" || a.status === "absent").length;
-  const attendancePct = schoolDays ? Math.round((presentDays / schoolDays) * 100) : 0;
+
+  const displayName = liveChild?.fullName ?? child.name;
+  const displayClass = liveChild?.classLabel ?? `${child.className} · Section ${child.section}`;
+  const displayRoll = liveChild?.rollNumber ?? child.rollNumber;
 
   return (
     <div className="space-y-6">
-      {/* Child selector — only shown when multiple children */}
       <ChildSelector activeId={activeChildId} setActiveId={setActiveChildId} />
 
-      {/* Child hero */}
       <div className="bg-gradient-to-br from-[#131316] to-[#0d1a14] border border-[#3b5bdb]/15 rounded-2xl p-5 flex items-center gap-4">
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <span className="text-lg font-black text-white">{child.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+          <span className="text-lg font-black text-white">{displayName.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-black text-white">{child.name}</div>
-          <div className="text-xs text-[#78788c] mt-0.5">{child.className} · Section {child.section} · Roll No. {child.rollNumber}</div>
+          <div className="text-base font-black text-white">{displayName}</div>
+          <div className="text-xs text-[#78788c] mt-0.5">{displayClass} · Roll No. {displayRoll}</div>
           <div className="text-[10px] text-[#46465a] mt-0.5">{child.school} · {child.academicYear}</div>
         </div>
         <div className="text-right shrink-0">
-          <div className={cn("text-xs font-bold px-3 py-1.5 rounded-xl",
-            todayStatus === "present" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
+          <div className={cn("text-xs font-bold px-3 py-1.5 rounded-xl capitalize",
+            todayStatus === "present" || todayStatus === "late" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
             : todayStatus === "absent" ? "bg-[#cc5069]/15 text-[#cc5069]"
             : "bg-white/8 text-[#78788c]"
           )}>
-            {todayStatus === "present" ? "Present Today" : todayStatus === "absent" ? "Absent Today" : "Weekend"}
+            {todayStatus ? `${todayStatus.replace("_", " ")} today` : "Not marked today"}
           </div>
-          <div className="text-[10px] text-[#46465a] mt-1">Jul 26, 2026</div>
         </div>
       </div>
 
-      {/* Quick stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickStat label="Attendance" value={`${attendancePct}%`} sub={`${presentDays}/${schoolDays} days`} color="#3b5bdb" icon={<UserCheck className="w-5 h-5" />} />
-        <QuickStat label="Overall Score" value={`${insights.overallPercentage}%`} sub={`Rank ${insights.classRank} of ${insights.totalStudents}`} color="#6366f1" icon={<TrendingUp className="w-5 h-5" />} />
+        <QuickStat label="Overall Score" value={`${insights?.overallPercentage ?? 0}%`} sub={`Rank ${insights?.classRank ?? "—"} of ${insights?.totalStudents ?? "—"}`} color="#6366f1" icon={<TrendingUp className="w-5 h-5" />} />
         <QuickStat label="Pending Homework" value={pendingHw.length} sub={`${dueToday.length} due today`} color={pendingHw.length > 0 ? "#c08a3a" : "#3b5bdb"} icon={<BookOpen className="w-5 h-5" />} />
         <QuickStat label="Notifications" value={unreadNotifications} sub="unread" color={unreadNotifications > 0 ? "#cc5069" : "#78788c"} icon={<Bell className="w-5 h-5" />} />
       </div>
@@ -123,7 +127,7 @@ export default function ParentDashboard({
             </button>
           </div>
           <div className="space-y-3">
-            {insights.subjectPerformance.slice(0, 4).map((s) => (
+            {(insights?.subjectPerformance ?? []).slice(0, 4).map((s) => (
               <div key={s.subject} className="flex items-center gap-3">
                 <div className="text-[10px] text-[#78788c] w-20 shrink-0 truncate">{s.subject}</div>
                 <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">

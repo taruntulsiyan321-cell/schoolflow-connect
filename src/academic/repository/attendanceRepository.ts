@@ -9,7 +9,15 @@ import {
   normalizePage,
 } from "./base";
 
-export type AttendanceStatus = "present" | "absent" | "leave";
+export type AttendanceStatus = "present" | "absent" | "leave" | "late" | "half_day";
+
+export const ATTENDANCE_STATUSES: AttendanceStatus[] = [
+  "present",
+  "absent",
+  "leave",
+  "late",
+  "half_day",
+];
 
 export interface AttendanceRecord {
   id: string;
@@ -102,12 +110,12 @@ export async function upsertAttendance(
   const dateCheck = validateAttendanceDate(input.date);
   if (!dateCheck.ok) throw new ValidationFailedError(dateCheck.issues);
 
-  if (!["present", "absent", "leave"].includes(input.status)) {
+  if (!ATTENDANCE_STATUSES.includes(input.status)) {
     throw new ValidationFailedError([
       {
         field: "status",
         code: "invalid",
-        message: "Attendance status must be present, absent, or leave",
+        message: "Attendance status must be present, absent, leave, late, or half_day",
       },
     ]);
   }
@@ -119,7 +127,7 @@ export async function upsertAttendance(
     .maybeSingle();
 
   throwIfError(sErr, "Failed to verify student");
-  if (!student || student.school_id !== schoolId) {
+  if (!student || (student as { school_id?: string }).school_id !== schoolId) {
     throw new TenantViolationError("Student is outside the current school");
   }
   if (student.class_id !== input.classId) {

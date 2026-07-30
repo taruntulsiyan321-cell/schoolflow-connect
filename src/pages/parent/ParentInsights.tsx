@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { AcademicProfileService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useParentWeeklyDigest, type ParentAlert } from "@/hooks/useParentWeeklyDigest";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,13 +30,14 @@ const alertTone: Record<ParentAlert["kind"], string> = {
 
 export default function ParentInsights() {
   const { user } = useAuth();
+  const { ctx, ready } = useAcademicContext();
   const { data: digest, loading: digestLoading, reload: reloadDigest } = useParentWeeklyDigest();
   const [kids, setKids] = useState<ChildInsight[]>([]);
   const [conceptData, setConceptData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !ready || !ctx) return;
     (async () => {
       setLoading(true);
       const { data: students } = await supabase
@@ -46,52 +49,12 @@ export default function ParentInsights() {
       for (const s of students ?? []) {
         const classLabel = s.classes ? `Class ${s.classes.name}-${s.classes.section}` : "Unassigned";
 
-        const { data: att } = await supabase.from("attendance").select("status").eq("student_id", s.id);
-        const attTotal = att?.length ?? 0;
-        const present = att?.filter((a) => a.status === "present").length ?? 0;
-        const attPct = attTotal ? Math.round((present / attTotal) * 100) : 0;
-
-        let homeworkDone = 0;
-        let homeworkTotal = 0;
-        const hwIds: string[] = [];
-        if (s.class_id) {
-          const { data: hw } = await supabase.from("homework").select("id").eq("class_id", s.class_id);
-          hwIds.push(...(hw ?? []).map((h) => h.id));
-          homeworkTotal = hwIds.length;
-        }
-        if (hwIds.length) {
-          const { data: subs } = await supabase
-            .from("homework_submissions")
-            .select("homework_id, status")
-            .eq("student_id", s.id)
-            .in("homework_id", hwIds);
-          homeworkDone = (subs ?? []).filter((x) => x.status === "submitted" || x.status === "graded").length;
-          homeworkTotal = hwIds.length;
-        }
-
-        let avgMarksPct = 0;
-        if (s.class_id) {
-          const { data: exams } = await supabase.from("exams").select("id, max_marks").eq("class_id", s.class_id);
-          const examIds = (exams ?? []).map((e) => e.id);
-          const maxByExam: Record<string, number> = {};
-          exams?.forEach((e) => {
-            maxByExam[e.id] = Number(e.max_marks) || 100;
-          });
-          if (examIds.length) {
-            const { data: marks } = await supabase
-              .from("marks")
-              .select("marks_obtained, exam_id")
-              .eq("student_id", s.id)
-              .in("exam_id", examIds);
-            const pcts = (marks ?? [])
-              .map((m) => {
-                const max = maxByExam[m.exam_id] || 100;
-                return max ? (Number(m.marks_obtained) / max) * 100 : 0;
-              })
-              .filter((p) => !Number.isNaN(p));
-            avgMarksPct = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length) : 0;
-          }
-        }
+        // Attendance / homework / exams from Academic Engine profile (single source of truth)
+        const profile = await AcademicProfileService.get(ctx, s.id);
+        const attPct = Math.round(profile?.attendancePct ?? 0);
+        const homeworkDone = profile?.homeworkSubmitted ?? 0;
+        const homeworkTotal = profile?.homeworkAssigned ?? 0;
+        const avgMarksPct = Math.round(profile?.examsAvgPct ?? 0);
 
         const { data: fees } = await supabase.from("fees").select("amount, paid_amount, status").eq("student_id", s.id);
         const pendingFees = (fees ?? [])
@@ -114,7 +77,7 @@ export default function ParentInsights() {
       setConceptData(concepts);
       setLoading(false);
     })();
-  }, [user]);
+  }, [user, ready, ctx]);
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n || 0);

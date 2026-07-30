@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { AcademicProfileService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +25,7 @@ interface StudentPerf {
 
 export default function StudentPerformancePage() {
   const { user } = useAuth();
+  const { ctx, ready } = useAcademicContext();
   const [classes, setClasses] = useState<any[]>([]);
   const [classId, setClassId] = useState("");
   const [students, setStudents] = useState<StudentPerf[]>([]);
@@ -72,12 +75,11 @@ export default function StudentPerformancePage() {
     })();
   }, [user]);
 
-  // Load students & compute performance
+  // Load students & compute performance (attendance from Academic Engine profiles)
   useEffect(() => {
-    if (!classId) return;
+    if (!classId || !ready || !ctx) return;
     setLoading(true);
     (async () => {
-      // Get students
       const { data: studs } = await supabase
         .from("students")
         .select("id,full_name,roll_number")
@@ -91,14 +93,9 @@ export default function StudentPerformancePage() {
       }
 
       const studentIds = studs.map((s) => s.id);
+      const profiles = await AcademicProfileService.listForClass(ctx, classId, { limit: 200 });
+      const profileByStudent = new Map(profiles.map((p) => [p.studentId, p]));
 
-      // Get attendance for all students
-      const { data: allAtt } = await supabase
-        .from("attendance")
-        .select("student_id,status")
-        .in("student_id", studentIds);
-
-      // Get exams for this class
       const { data: exams } = await supabase
         .from("exams")
         .select("id,max_marks")
@@ -106,7 +103,6 @@ export default function StudentPerformancePage() {
       const examIds = (exams ?? []).map((e) => e.id);
       const maxMarksMap = new Map((exams ?? []).map((e) => [e.id, e.max_marks]));
 
-      // Get marks
       const { data: allMarks } = examIds.length > 0
         ? await supabase
             .from("marks")
@@ -115,16 +111,15 @@ export default function StudentPerformancePage() {
             .in("exam_id", examIds)
         : { data: [] };
 
-      // Compute per-student metrics
       const result: StudentPerf[] = studs.map((s) => {
-        const att = (allAtt ?? []).filter((a) => a.student_id === s.id);
-        const totalDays = att.length;
-        const totalPresent = att.filter((a) => a.status === "present").length;
-        const attendancePct = totalDays > 0 ? Math.round((totalPresent / totalDays) * 100) : 0;
+        const academic = profileByStudent.get(s.id);
+        const attendancePct = Math.round(academic?.attendancePct ?? 0);
+        const totalDays = academic?.attendanceTotal ?? 0;
+        const totalPresent = academic?.attendancePresent ?? 0;
 
         const marks = (allMarks ?? []).filter((m) => m.student_id === s.id);
-        let avgMarks = 0;
-        if (marks.length > 0) {
+        let avgMarks = Math.round(academic?.examsAvgPct ?? 0);
+        if (!academic && marks.length > 0) {
           const totalPct = marks.reduce((sum, m) => {
             const max = maxMarksMap.get(m.exam_id) || 100;
             return sum + (Number(m.marks_obtained) / max) * 100;
@@ -132,12 +127,11 @@ export default function StudentPerformancePage() {
           avgMarks = Math.round(totalPct / marks.length);
         }
 
-        // Simple trend: compare first half vs second half of marks
         let trend: "up" | "down" | "stable" = "stable";
         if (marks.length >= 4) {
           const mid = Math.floor(marks.length / 2);
-          const firstHalf = marks.slice(0, mid).reduce((s, m) => s + Number(m.marks_obtained), 0) / mid;
-          const secondHalf = marks.slice(mid).reduce((s, m) => s + Number(m.marks_obtained), 0) / (marks.length - mid);
+          const firstHalf = marks.slice(0, mid).reduce((acc, m) => acc + Number(m.marks_obtained), 0) / mid;
+          const secondHalf = marks.slice(mid).reduce((acc, m) => acc + Number(m.marks_obtained), 0) / (marks.length - mid);
           if (secondHalf > firstHalf * 1.05) trend = "up";
           else if (secondHalf < firstHalf * 0.95) trend = "down";
         }
@@ -150,7 +144,7 @@ export default function StudentPerformancePage() {
           totalPresent,
           totalDays,
           avgMarks,
-          totalExams: marks.length,
+          totalExams: academic?.examsRecorded ?? marks.length,
           trend,
         };
       });
@@ -159,7 +153,7 @@ export default function StudentPerformancePage() {
       setSelectedId((current) => current || result[0]?.id || "");
       setLoading(false);
     })();
-  }, [classId]);
+  }, [classId, ready, ctx]);
 
   const filtered = students.filter(
     (s) => !search || s.full_name.toLowerCase().includes(search.toLowerCase())

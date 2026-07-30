@@ -185,7 +185,7 @@ export function AttendanceOverview() {
       studentId: s.id,
       classId: editClass.id,
       date,
-      status: (editMarks[s.id] ?? "present") as "present" | "absent" | "leave",
+      status: (editMarks[s.id] ?? "present") as "present" | "absent" | "leave" | "late" | "half_day",
     }));
     try {
       await AttendanceService.markBulk(ctx, rows);

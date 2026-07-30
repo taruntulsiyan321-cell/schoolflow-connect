@@ -13,6 +13,7 @@ import {
 } from "./nav";
 import TeacherHome from "./Dashboard";
 import MyClasses from "./MyClasses";
+import TeacherAttendancePage from "./TeacherAttendancePage";
 import Doubts from "./Doubts";
 import Communication from "./Communication";
 import Announcements from "./Announcements";
@@ -228,6 +229,9 @@ export default function TeacherApp() {
             <Routes>
               <Route index element={<TeacherHome setPage={setPage} />} />
               <Route path="classes" element={<MyClasses />} />
+              <Route path="classes/:classId/attendance" element={<TeacherAttendancePage />} />
+              <Route path="attendance" element={<TeacherAttendancePage />} />
+              <Route path="attendance/:classId" element={<TeacherAttendancePage />} />
               <Route path="doubts" element={<Doubts />} />
               <Route path="communication" element={<Communication />} />
               <Route path="announcements" element={<Announcements />} />
@@ -236,7 +240,6 @@ export default function TeacherApp() {
               <Route path="class" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="my-class" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="my-subjects" element={<Navigate to="/teacher/classes" replace />} />
-              <Route path="attendance" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="exams" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="timetable" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="performance" element={<Navigate to="/teacher/classes" replace />} />

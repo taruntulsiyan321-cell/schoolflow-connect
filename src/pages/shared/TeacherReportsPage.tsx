@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { AcademicProfileService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +12,7 @@ import "@/pages/teacher/teacher-premium.css";
 
 export default function TeacherReportsPage() {
   const { user } = useAuth();
+  const { ctx, ready } = useAcademicContext();
   const [classes, setClasses] = useState<any[]>([]);
   const [classId, setClassId] = useState("");
   const [report, setReport] = useState<any>(null);
@@ -51,7 +54,7 @@ export default function TeacherReportsPage() {
 
   // Generate report
   useEffect(() => {
-    if (!classId) return;
+    if (!classId || !ready || !ctx) return;
     setLoading(true);
     (async () => {
       // Students
@@ -69,11 +72,9 @@ export default function TeacherReportsPage() {
         return;
       }
 
-      // Attendance
-      const { data: allAtt } = await supabase
-        .from("attendance")
-        .select("student_id,status")
-        .in("student_id", studentIds);
+      // Attendance from Academic Engine profiles
+      const profiles = await AcademicProfileService.listForClass(ctx, classId, { limit: 200 });
+      const profileByStudent = new Map(profiles.map((p) => [p.studentId, p]));
 
       // Exams + marks
       const { data: exams } = await supabase
@@ -123,10 +124,10 @@ export default function TeacherReportsPage() {
 
       // Compute per-student
       const studentReport = studs.map((s) => {
-        const att = (allAtt ?? []).filter((a) => a.student_id === s.id);
-        const totalDays = att.length;
-        const present = att.filter((a) => a.status === "present").length;
-        const attPct = totalDays > 0 ? Math.round((present / totalDays) * 100) : 0;
+        const academic = profileByStudent.get(s.id);
+        const totalDays = academic?.attendanceTotal ?? 0;
+        const present = academic?.attendancePresent ?? 0;
+        const attPct = Math.round(academic?.attendancePct ?? 0);
 
         const marks = (allMarks ?? []).filter((m) => m.student_id === s.id);
         let avgPct = 0;
@@ -246,7 +247,7 @@ export default function TeacherReportsPage() {
       });
       setLoading(false);
     })();
-  }, [classId]);
+  }, [classId, ready, ctx]);
 
   const exportCSV = () => {
     if (!report?.students?.length) return;

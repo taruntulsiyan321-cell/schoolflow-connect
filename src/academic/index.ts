@@ -80,6 +80,15 @@ export {
   type ServiceContext,
 } from "./services";
 
+export type {
+  AttendanceRecord,
+  AttendanceStatus,
+  UpsertAttendanceInput,
+  AssignedClass,
+  ClassStudentRow,
+  ParentChildRow,
+} from "./services/attendanceService";
+
 export { AnalyticsService, AiSummaryService, AuditReadService } from "./services/readServices";
 
 export { useAcademicContext } from "./hooks/useAcademicContext";

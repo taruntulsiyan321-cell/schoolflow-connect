@@ -1,16 +1,31 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BookOpen, ClipboardList, CheckSquare, BarChart2, Search, Plus, Edit2, Trash2,
   ChevronDown, ChevronRight, Check, X, Save, Upload, Eye, Info, Star, AlertCircle,
-  Calendar, Clock, Lock, RotateCcw,
+  Calendar, Clock, Lock, RotateCcw, Loader2,
 } from "lucide-react";
 import { cn, GradeChip, InitialsAvatar } from "./shared";
 import {
-  assignedClasses, studentsByClass, todayAttendance, homeworkByClass, assignmentsByClass, testsByClass,
-  type ClassInfo, type Student, type AttendanceRecord, type HomeworkItem, type Assignment, type Test,
+  studentsByClass, homeworkByClass, assignmentsByClass, testsByClass,
+  type ClassInfo, type Student, type HomeworkItem, type Assignment, type Test,
 } from "./data";
+import { TeacherAttendanceWorkspace } from "./TeacherAttendancePage";
+import { AttendanceService, type AssignedClass } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 type SubTab = "students" | "attendance" | "homework" | "assignments" | "tests" | "marks" | "analytics" | "insights";
+
+function assignedToClassInfo(c: AssignedClass): ClassInfo {
+  return {
+    id: c.id,
+    className: c.name,
+    section: c.section,
+    subject: c.subject ?? "—",
+    isClassTeacher: c.isClassTeacher,
+    studentCount: c.studentCount,
+    schedule: [],
+  };
+}
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -27,10 +42,25 @@ function TabBtn({ label, active, onClick, badge }: { label: string; active: bool
   );
 }
 
-function ClassSelector({ selected, onSelect }: { selected: ClassInfo | null; onSelect: (c: ClassInfo) => void }) {
+function ClassSelector({
+  classes,
+  selected,
+  onSelect,
+}: {
+  classes: ClassInfo[];
+  selected: ClassInfo | null;
+  onSelect: (c: ClassInfo) => void;
+}) {
+  if (classes.length === 0) {
+    return (
+      <div className="text-xs text-[#78788c] py-2">
+        No classes assigned via Teacher–Class–Subject mapping.
+      </div>
+    );
+  }
   return (
     <div className="flex gap-2 flex-wrap">
-      {assignedClasses.map((c) => (
+      {classes.map((c) => (
         <button key={c.id} onClick={() => onSelect(c)}
           className={cn("flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
             selected?.id === c.id
@@ -141,124 +171,14 @@ function StudentProfile({ student, onBack }: { student: Student; onBack: () => v
   );
 }
 
-// ── Attendance sub-tab ────────────────────────────────────────────────────────
+// ── Attendance sub-tab — Academic Engine (AttendanceService) ──────────────────
 
-function AttendanceTab({ classId, isClassTeacher }: { classId: string; isClassTeacher: boolean }) {
-  const initial = todayAttendance[classId];
-  const [records, setRecords] = useState<AttendanceRecord[]>(initial?.records ?? []);
-  const [submitted, setSubmitted] = useState(initial?.submitted ?? false);
-  const [approved, setApproved] = useState(initial?.approved ?? false);
-  const [flash, setFlash] = useState<string | null>(null);
-
-  function showFlash(msg: string) {
-    setFlash(msg);
-    setTimeout(() => setFlash(null), 3000);
-  }
-
-  function setStatus(studentId: string, status: AttendanceRecord["status"]) {
-    setRecords((prev) => prev.map((r) => r.studentId === studentId ? { ...r, status } : r));
-  }
-
-  const counts = records.reduce(
-    (acc, r) => { acc[r.status] = (acc[r.status] ?? 0) + 1; return acc; },
-    {} as Record<string, number>
-  );
-
-  const statusColor = { present: "#10b981", absent: "#cc5069", late: "#f59e0b", excused: "#78788c" };
-
-  if (!isClassTeacher) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 p-4 rounded-2xl bg-[#46465a]/10 border border-white/7">
-          <Lock className="w-4 h-4 text-[#46465a]" />
-          <div className="text-xs text-[#78788c]">You have <strong className="text-white">read-only access</strong> to attendance for this class. Only the assigned Class Teacher can mark or approve attendance.</div>
-        </div>
-        <div className="space-y-2">
-          {records.map((r) => (
-            <div key={r.studentId} className="flex items-center gap-3 p-3 bg-[#131316] border border-white/7 rounded-xl">
-              <InitialsAvatar name={r.studentName} size="sm" />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold text-white">{r.studentName}</div>
-                <div className="text-[10px] text-[#46465a]">{r.rollNumber}</div>
-              </div>
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full capitalize"
-                style={{ background: `${statusColor[r.status]}18`, color: statusColor[r.status] }}>{r.status}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {flash && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#10b981]/15 border border-[#10b981]/25 text-[#10b981] text-xs font-semibold">
-          <Check className="w-3.5 h-3.5" /> {flash}
-        </div>
-      )}
-
-      {/* Summary strip */}
-      <div className="flex gap-3 flex-wrap">
-        {(["present", "absent", "late", "excused"] as const).map((s) => (
-          <div key={s} className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold"
-            style={{ background: `${statusColor[s]}15`, color: statusColor[s] }}>
-            {counts[s] ?? 0} {s}
-          </div>
-        ))}
-        {approved && <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#6366f1]/15 text-[#6366f1] text-xs font-semibold"><Check className="w-3 h-3" /> Approved</div>}
-      </div>
-
-      {/* Records */}
-      <div className="space-y-2">
-        {records.map((r) => (
-          <div key={r.studentId} className="flex items-center gap-3 p-3 bg-[#131316] border border-white/7 rounded-xl">
-            <InitialsAvatar name={r.studentName} size="sm" />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-white">{r.studentName}</div>
-              <div className="text-[10px] text-[#46465a]">{r.rollNumber}</div>
-            </div>
-            <div className="flex gap-1">
-              {(["present", "absent", "late", "excused"] as const).map((s) => (
-                <button key={s} onClick={() => !approved && setStatus(r.studentId, s)}
-                  disabled={approved}
-                  className={cn("px-2 py-1 rounded-lg text-[9px] font-bold transition-all capitalize",
-                    r.status === s
-                      ? "text-white"
-                      : "text-[#46465a] bg-white/3 hover:bg-white/8 disabled:cursor-not-allowed")}
-                  style={r.status === s ? { background: `${statusColor[s]}25`, color: statusColor[s] } : {}}>
-                  {s.slice(0, 3)}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-3 pt-2">
-        {!submitted && (
-          <button onClick={() => { setSubmitted(true); showFlash("Attendance submitted for approval"); }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] transition-all">
-            <Save className="w-4 h-4" /> Submit Attendance
-          </button>
-        )}
-        {submitted && !approved && (
-          <button onClick={() => { setApproved(true); showFlash("Attendance approved and published"); }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#10b981] hover:bg-[#059669] transition-all">
-            <Check className="w-4 h-4" /> Approve & Publish
-          </button>
-        )}
-        {submitted && !approved && (
-          <button onClick={() => { setSubmitted(false); showFlash("Attendance recall for editing"); }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all">
-            <RotateCcw className="w-3.5 h-3.5" /> Recall
-          </button>
-        )}
-      </div>
-    </div>
-  );
+function AttendanceTab({ classId }: { classId: string }) {
+  return <TeacherAttendanceWorkspace fixedClassId={classId} showBackLink={false} />;
 }
+
+// ── Homework sub-tab ──────────────────────────────────────────────────────────
+
 
 // ── Homework sub-tab ──────────────────────────────────────────────────────────
 
@@ -1100,8 +1020,60 @@ function ClassInsightsTab({ classId }: { classId: string }) {
 // ── Main MyClasses page ───────────────────────────────────────────────────────
 
 export default function MyClasses() {
-  const [selectedClass, setSelectedClass] = useState<ClassInfo>(assignedClasses[0]!);
+  const { ctx, ready } = useAcademicContext();
+  const [liveClasses, setLiveClasses] = useState<ClassInfo[]>([]);
+  const [selectedClass, setSelectedClass] = useState<ClassInfo | null>(null);
   const [subTab, setSubTab] = useState<SubTab>("students");
+  const [loadingClasses, setLoadingClasses] = useState(true);
+  const [classError, setClassError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingClasses(true);
+      setClassError(null);
+      try {
+        const list = await AttendanceService.listAssignedClasses(ctx);
+        if (cancelled) return;
+        const mapped = list.map(assignedToClassInfo);
+        setLiveClasses(mapped);
+        setSelectedClass((prev) => {
+          if (prev && mapped.some((c) => c.id === prev.id)) return prev;
+          return mapped[0] ?? null;
+        });
+      } catch (e) {
+        if (!cancelled) {
+          setClassError(e instanceof Error ? e.message : "Failed to load assigned classes");
+          setLiveClasses([]);
+          setSelectedClass(null);
+        }
+      } finally {
+        if (!cancelled) setLoadingClasses(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx]);
+
+  if (loadingClasses) {
+    return (
+      <div className="flex items-center justify-center py-20 text-[#78788c] text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading assigned classes…
+      </div>
+    );
+  }
+
+  if (!selectedClass) {
+    return (
+      <div className="space-y-3 py-10 text-center">
+        <div className="text-sm text-[#78788c]">
+          {classError ?? "No classes assigned. Ask admin to create Teacher–Class–Subject mapping."}
+        </div>
+      </div>
+    );
+  }
 
   const students = studentsByClass[selectedClass.id] ?? [];
   const hw = homeworkByClass[selectedClass.id] ?? [];
@@ -1113,7 +1085,7 @@ export default function MyClasses() {
   const testsNoMarks = tests.filter((t) => (t.status === "completed" || t.status === "scheduled") && !t.marksPublished).length;
 
   const subTabs: { key: SubTab; label: string; badge?: number }[] = [
-    { key: "students", label: `Students (${students.length})` },
+    { key: "students", label: `Students (${selectedClass.studentCount || students.length})` },
     { key: "attendance", label: "Attendance" },
     { key: "homework", label: "Homework", badge: hwPending },
     { key: "assignments", label: "Assignments", badge: asgnToGrade },
@@ -1123,23 +1095,27 @@ export default function MyClasses() {
 
   return (
     <div className="space-y-5">
-      {/* Class selector */}
       <div>
         <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-3">Select Class</div>
-        <ClassSelector selected={selectedClass} onSelect={(c) => { setSelectedClass(c); setSubTab("students"); }} />
+        <ClassSelector
+          classes={liveClasses}
+          selected={selectedClass}
+          onSelect={(c) => {
+            setSelectedClass(c);
+            setSubTab("students");
+          }}
+        />
       </div>
 
-      {/* Sub navigation */}
       <div className="border-b border-white/7 flex gap-0 overflow-x-auto -mb-px">
         {subTabs.map((t) => (
           <TabBtn key={t.key} label={t.label} active={subTab === t.key} onClick={() => setSubTab(t.key)} badge={t.badge} />
         ))}
       </div>
 
-      {/* Content */}
       <div>
         {subTab === "students" && <StudentsTab classId={selectedClass.id} />}
-        {subTab === "attendance" && <AttendanceTab classId={selectedClass.id} isClassTeacher={selectedClass.isClassTeacher} />}
+        {subTab === "attendance" && <AttendanceTab classId={selectedClass.id} />}
         {subTab === "homework" && <HomeworkTab classId={selectedClass.id} />}
         {subTab === "assignments" && <AssignmentsTab classId={selectedClass.id} />}
         {subTab === "tests" && <TestsTab classInfo={selectedClass} />}

@@ -7,10 +7,10 @@ import {
 } from "lucide-react";
 import { cn, InitialsAvatar, GradeChip, ScoreBar, Card, ACCENT } from "./shared";
 import {
-  children, attendanceByChild, homeworkByChild, testResultsByChild,
+  children, homeworkByChild, testResultsByChild,
   examinationsByChild, academicInsightsByChild, type Child,
-  type AttendanceDayStatus,
 } from "./data";
+import { ParentLiveAttendance, useParentLiveChildren } from "./ParentLiveAttendance";
 
 type ChildTab = "profile" | "attendance" | "homework" | "exams";
 
@@ -31,77 +31,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div className="flex flex-col gap-0.5 p-3 rounded-xl bg-white/3">
       <div className="text-[9px] text-[#46465a] uppercase tracking-wider">{label}</div>
       <div className="text-xs text-white">{value}</div>
-    </div>
-  );
-}
-
-// ── Attendance Calendar ───────────────────────────────────────────────────────
-
-function AttendanceCalendar({ data }: { data: AttendanceDayStatus[] }) {
-  const weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const present = data.filter((d) => d.status === "present").length;
-  const absent = data.filter((d) => d.status === "absent").length;
-  const schoolDays = present + absent;
-  const pct = schoolDays ? Math.round((present / schoolDays) * 100) : 0;
-
-  const firstDate = new Date(data[0]?.date ?? "2026-07-01");
-  const startDow = (firstDate.getDay() + 6) % 7; // Mon=0
-
-  const statusColor: Record<string, string> = {
-    present: "#3b5bdb",
-    absent: "#cc5069",
-    holiday: "#c08a3a",
-    half_day: "#6366f1",
-    weekend: "#1e1e24",
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Summary row */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-[#3b5bdb]">{present}</div>
-          <div className="text-[9px] text-[#3b5bdb] uppercase tracking-wide font-bold">Present</div>
-        </div>
-        <div className="bg-[#cc5069]/10 border border-[#cc5069]/20 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-[#cc5069]">{absent}</div>
-          <div className="text-[9px] text-[#cc5069] uppercase tracking-wide font-bold">Absent</div>
-        </div>
-        <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-white">{pct}%</div>
-          <div className="text-[9px] text-[#78788c] uppercase tracking-wide font-bold">Rate</div>
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-3">
-        {[["present", "#3b5bdb", "Present"], ["absent", "#cc5069", "Absent"], ["holiday", "#c08a3a", "Holiday"], ["half_day", "#6366f1", "Half Day"]].map(([k, c, l]) => (
-          <div key={k} className="flex items-center gap-1.5 text-[10px] text-[#78788c]">
-            <div className="w-2.5 h-2.5 rounded-sm" style={{ background: c }} />
-            {l}
-          </div>
-        ))}
-      </div>
-
-      {/* Calendar grid */}
-      <div>
-        <div className="grid grid-cols-7 gap-1 mb-1">
-          {weekdays.map((d) => <div key={d} className="text-[8px] text-[#46465a] text-center font-bold">{d}</div>)}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: startDow }).map((_, i) => <div key={`empty-${i}`} />)}
-          {data.map((day) => {
-            const d = parseInt(day.date.split("-")[2]);
-            return (
-              <div key={day.date} title={`${day.date}: ${day.status}`}
-                className="aspect-square rounded-md flex items-center justify-center text-[9px] font-bold transition-all hover:scale-110 cursor-default"
-                style={{ background: `${statusColor[day.status]}30`, color: statusColor[day.status] }}>
-                {d}
-              </div>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }
@@ -502,7 +431,16 @@ function InsightsTab({ childId }: { childId: string }) {
 
 export default function MyChildren({ activeChildId, setActiveChildId }: { activeChildId: string; setActiveChildId: (id: string) => void }) {
   const [tab, setTab] = useState<ChildTab>("profile");
-  const child = children.find((c) => c.id === activeChildId) ?? children[0];
+  const { children: liveChildren, loading: liveLoading } = useParentLiveChildren();
+
+  const liveChild = liveChildren.find((c) => c.id === activeChildId) ?? liveChildren[0];
+  const mockChild = children.find((c) => c.id === activeChildId) ?? children[0];
+
+  // Prefer engine-linked children for identity; fall back to mock only for non-attendance tabs.
+  const displayName = liveChild?.fullName ?? mockChild?.name ?? "Child";
+  const displayClass = liveChild?.classLabel ?? (mockChild ? `${mockChild.className} · ${mockChild.section}` : "");
+  const displayRoll = liveChild?.rollNumber ?? mockChild?.rollNumber ?? "—";
+  const attendanceStudentId = liveChild?.id ?? null;
 
   const tabs: { key: ChildTab; label: string }[] = [
     { key: "profile", label: "Profile" },
@@ -511,81 +449,91 @@ export default function MyChildren({ activeChildId, setActiveChildId }: { active
     { key: "exams", label: "Exams" },
   ];
 
+  const switcher = liveChildren.length > 0 ? liveChildren.map((c) => ({
+    id: c.id,
+    name: c.fullName,
+    sub: c.classLabel,
+  })) : children.map((c) => ({
+    id: c.id,
+    name: c.name,
+    sub: `${c.className} · ${c.section}`,
+  }));
+
   return (
     <div className="space-y-4">
-      {/* Child Switcher */}
-      {children.length > 1 && (
+      {switcher.length > 1 && (
         <div className="flex gap-2">
-          {children.map((c) => (
+          {switcher.map((c) => (
             <button key={c.id} onClick={() => { setActiveChildId(c.id); setTab("profile"); }}
               className={cn("flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all text-left",
-                c.id === activeChildId
+                c.id === (liveChild?.id ?? activeChildId)
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
                   : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15")}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs"
-                style={{ background: c.id === activeChildId ? "#3b5bdb30" : "#ffffff18", color: c.id === activeChildId ? "#3b5bdb" : "#78788c" }}>
+                style={{ background: c.id === (liveChild?.id ?? activeChildId) ? "#3b5bdb30" : "#ffffff18", color: c.id === (liveChild?.id ?? activeChildId) ? "#3b5bdb" : "#78788c" }}>
                 {c.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
               </div>
               <div>
                 <div className="text-xs font-bold">{c.name}</div>
-                <div className="text-[10px] opacity-70">{c.className} · {c.section}</div>
+                <div className="text-[10px] opacity-70">{c.sub}</div>
               </div>
             </button>
           ))}
         </div>
       )}
 
-      {/* Panel */}
       <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
-        {/* Header */}
         <div className="p-5 border-b border-white/7 flex items-center gap-4 bg-gradient-to-r from-[#3b5bdb]/5 to-transparent">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-            <span className="text-lg font-black text-white">{child.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+            <span className="text-lg font-black text-white">{displayName.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-base font-black text-white">{child.name}</div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">{child.className} · Section {child.section} · Roll {child.rollNumber}</div>
-            <div className="text-[9px] text-[#46465a] mt-0.5">Adm: {child.admissionNumber} · {child.academicYear}</div>
-          </div>
-          <div className="hidden sm:flex flex-col items-end gap-1">
-            <div className="text-[10px] text-[#46465a]">Class Teacher</div>
-            <div className="text-xs font-semibold text-white">{child.classTeacher}</div>
+            <div className="text-base font-black text-white">{displayName}</div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">{displayClass} · Roll {displayRoll}</div>
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-1 px-4 py-3 border-b border-white/7 overflow-x-auto">
           {tabs.map((t) => <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>)}
         </div>
 
-        {/* Tab content */}
         <div className="p-5">
-          {tab === "profile" && (
+          {tab === "profile" && mockChild && (
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: "Full Name", value: child.name },
-                { label: "Class", value: `${child.className} · Section ${child.section}` },
-                { label: "Roll Number", value: child.rollNumber },
-                { label: "Admission No.", value: child.admissionNumber },
-                { label: "Academic Year", value: child.academicYear },
-                { label: "Date of Birth", value: child.dob },
-                { label: "Gender", value: child.gender.charAt(0).toUpperCase() + child.gender.slice(1) },
-                { label: "Blood Group", value: child.bloodGroup },
-                { label: "House", value: child.house },
-                { label: "Class Teacher", value: child.classTeacher },
-                { label: "School", value: child.school },
+                { label: "Full Name", value: displayName },
+                { label: "Class", value: displayClass },
+                { label: "Roll Number", value: displayRoll },
+                { label: "Admission No.", value: mockChild.admissionNumber },
+                { label: "Academic Year", value: mockChild.academicYear },
+                { label: "Date of Birth", value: mockChild.dob },
+                { label: "Gender", value: mockChild.gender.charAt(0).toUpperCase() + mockChild.gender.slice(1) },
+                { label: "Blood Group", value: mockChild.bloodGroup },
+                { label: "House", value: mockChild.house },
+                { label: "Class Teacher", value: mockChild.classTeacher },
+                { label: "School", value: mockChild.school },
               ].map((row) => <InfoRow key={row.label} label={row.label} value={row.value} />)}
             </div>
           )}
 
-          {tab === "attendance" && <AttendanceCalendar data={attendanceByChild[child.id] ?? []} />}
-          {tab === "homework" && <HomeworkTab childId={child.id} />}
-          {tab === "exams" && (
+          {tab === "attendance" && (
+            liveLoading ? (
+              <div className="text-xs text-[#78788c] py-8 text-center">Loading linked children…</div>
+            ) : attendanceStudentId ? (
+              <ParentLiveAttendance studentId={attendanceStudentId} />
+            ) : (
+              <div className="text-xs text-[#78788c] py-8 text-center">
+                No linked children found. Link a student via parent portal mapping to see live attendance from the Academic Engine.
+              </div>
+            )
+          )}
+          {tab === "homework" && mockChild && <HomeworkTab childId={mockChild.id} />}
+          {tab === "exams" && mockChild && (
             <div className="space-y-6">
-              <ExaminationsTab childId={child.id} />
+              <ExaminationsTab childId={mockChild.id} />
               <div className="border-t border-white/7 pt-6">
                 <div className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider mb-4">Test Results</div>
-                <TestResultsTab childId={child.id} />
+                <TestResultsTab childId={mockChild.id} />
               </div>
             </div>
           )}
