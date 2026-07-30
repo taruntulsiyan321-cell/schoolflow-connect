@@ -60,3 +60,19 @@ export {
 } from "./validation/rules";
 
 export * as academicRepo from "./repository";
+
+export {
+  AcademicServices,
+  AttendanceService,
+  HomeworkService,
+  AssignmentService,
+  MarksService,
+  RemarksService,
+  AcademicProfileService,
+  assertCanOwn,
+  assertCanConsume,
+  toRepoContext,
+  ForbiddenError,
+  isSchoolOperator,
+  type ServiceContext,
+} from "./services";

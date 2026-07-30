@@ -81,6 +81,29 @@ Rules:
 - Validation runs in the repository before DB writes
 - Panels must not query academic tables directly once services (Phase 3) land
 
+## Academic Engine (Phase 3) — domain services
+
+Reusable write/read APIs with ownership enforcement: `src/academic/services/`.
+
+| Service | Owns writes | Consumers |
+|---------|-------------|-----------|
+| `AttendanceService` | Teacher | Student, Parent, Principal, Admin |
+| `HomeworkService` / `AssignmentService` | Teacher (assign), Student (submit) | All academic roles |
+| `MarksService` | Teacher (assigned subject) / Admin / Principal | Student, Parent, Staff |
+| `RemarksService` | Teacher | Student, Parent, Staff |
+| `AcademicProfileService` | Sync engine only (ensure = operators) | Dashboards / AI |
+
+Usage:
+
+```ts
+import { AttendanceService, type ServiceContext } from "@/academic";
+
+const ctx: ServiceContext = { schoolId, userId, role: "teacher" };
+await AttendanceService.mark(ctx, { studentId, classId, date, status: "present" });
+```
+
+Panels must call services — never repositories or raw tables for academic mutations.
+
 ## Panel → tables
 
 | Panel | Primary tables |
