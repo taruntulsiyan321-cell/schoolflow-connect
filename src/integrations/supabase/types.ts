@@ -104,6 +104,36 @@ export type Database = {
         }
         Relationships: []
       }
+      schools: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          slug: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          slug?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       attendance: {
         Row: {
           class_id: string
@@ -1810,8 +1840,10 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          is_active: boolean
           phone: string | null
           photo_url: string | null
+          school_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1819,8 +1851,10 @@ export type Database = {
           email?: string | null
           full_name?: string
           id: string
+          is_active?: boolean
           phone?: string | null
           photo_url?: string | null
+          school_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1828,11 +1862,21 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          is_active?: boolean
           phone?: string | null
           photo_url?: string | null
+          school_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       question_attempts: {
         Row: {
@@ -2952,6 +2996,21 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
       }
+      get_auth_context: {
+        Args: never
+        Returns: {
+          email: string | null
+          full_name: string | null
+          is_active: boolean | null
+          photo_url: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          school_id: string | null
+          school_logo_url: string | null
+          school_name: string | null
+          school_slug: string | null
+          user_id: string
+        }[]
+      }
       get_chat_contacts: {
         Args: never
         Returns: {
@@ -2960,6 +3019,11 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_my_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      get_my_school_id: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2970,6 +3034,13 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      admin_set_unique_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
       }
       is_class_teacher_of_student: {
         Args: { _student_id: string; _uid: string }
@@ -3298,7 +3369,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "teacher" | "student" | "parent" | "principal"
+      app_role: "admin" | "teacher" | "student" | "parent" | "principal" | "super_admin"
       attendance_status: "present" | "absent" | "leave"
       badge_tier: "bronze" | "silver" | "gold" | "platinum"
       battle_status: "scheduled" | "live" | "finished" | "cancelled"
@@ -3444,7 +3515,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "teacher", "student", "parent", "principal"],
+      app_role: ["admin", "teacher", "student", "parent", "principal", "super_admin"],
       attendance_status: ["present", "absent", "leave"],
       badge_tier: ["bronze", "silver", "gold", "platinum"],
       battle_status: ["scheduled", "live", "finished", "cancelled"],

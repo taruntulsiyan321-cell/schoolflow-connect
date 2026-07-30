@@ -1,24 +1,29 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, dashboardForRole } from "@/auth";
 import Landing from "./Landing";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Index() {
-  const { user, role, loading, signOut } = useAuth();
+  const { user, role, loading, status, signOut, homePath } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && user && role) {
-      navigate(`/${role}`, { replace: true });
+    if (loading || status === "loading") return;
+    if (user && role && status === "authenticated") {
+      navigate(homePath || dashboardForRole(role), { replace: true });
     }
-  }, [user, role, loading, navigate]);
+    if (user && (status === "disabled" || status === "missing_role" || status === "missing_profile")) {
+      navigate("/unauthorized", { replace: true, state: { reason: status === "disabled" ? "disabled" : status } });
+    }
+  }, [user, role, loading, status, navigate, homePath]);
 
-  if (loading || (user && role)) {
+  if (loading || status === "loading" || (user && role && status === "authenticated")) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <p className="text-sm text-muted-foreground">Loading…</p>
       </div>
     );
   }

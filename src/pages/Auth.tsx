@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, dashboardForRole, canAccessPath, mapAuthError } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,6 @@ import {
   Loader2,
   BookOpen,
   Users,
-  ShieldCheck,
   Eye,
   EyeOff,
   ArrowLeft,
@@ -30,7 +29,8 @@ import { cn } from "@/lib/utils";
 const pwSchema = z.string().min(8, { message: "Min 8 chars" }).max(72);
 const nameSchema = z.string().trim().min(1).max(100);
 
-type SignUpRole = "admin" | "teacher" | "student" | "parent";
+/** Public self-signup is limited — school staff are provisioned by admins */
+type SignUpRole = "student" | "parent";
 
 const ROLE_OPTIONS: {
   value: SignUpRole;
@@ -40,14 +40,12 @@ const ROLE_OPTIONS: {
 }[] = [
   { value: "student", label: "Student", desc: "Attendance, exams & notices", icon: BookOpen },
   { value: "parent", label: "Parent", desc: "Track your child's progress", icon: Users },
-  { value: "teacher", label: "Teacher", desc: "Classes, marks & attendance", icon: GraduationCap },
-  { value: "admin", label: "Admin", desc: "Full school management", icon: ShieldCheck },
 ];
 
 const TRUST_POINTS = [
   "Secure cloud authentication",
   "Role-based portal access",
-  "Built for Indian schools",
+  "Multi-school ready",
 ];
 
 function PasswordField({
@@ -102,7 +100,7 @@ function PasswordField({
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, status, signIn, requestPasswordReset, homePath } = useAuth();
   const [tab, setTab] = useState<"signin" | "signup">("signin");
   const [busy, setBusy] = useState(false);
 
@@ -120,11 +118,22 @@ export default function Auth() {
   const [suRole, setSuRole] = useState<SignUpRole>("student");
 
   useEffect(() => {
-    if (!loading && user && role) {
-      const dest = from && from !== "/auth" ? from : `/${role}`;
+    if (loading || status === "loading") return;
+    if (user && (status === "disabled" || status === "missing_role" || status === "missing_profile")) {
+      navigate("/unauthorized", {
+        replace: true,
+        state: { reason: status === "disabled" ? "disabled" : status },
+      });
+      return;
+    }
+    if (user && role && status === "authenticated") {
+      const dest =
+        from && from !== "/auth" && canAccessPath(role, from)
+          ? from
+          : homePath || dashboardForRole(role);
       navigate(dest, { replace: true });
     }
-  }, [user, role, loading, navigate, from]);
+  }, [user, role, loading, status, navigate, from, homePath]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,9 +148,9 @@ export default function Auth() {
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: ev.email, password: siPw });
+    const { error } = await signIn({ email: ev.email, password: siPw });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(error);
     toast.success("Welcome back!");
   };
 
@@ -158,38 +167,49 @@ export default function Auth() {
     }
     if (!pv.success) return toast.error(pv.error.issues[0].message);
     setBusy(true);
+    // Role is assigned by school admin / portal linking — never trust client role for staff.
     const { data, error } = await supabase.auth.signUp({
       email: ev.email,
       password: pv.data,
       options: {
         emailRedirectTo: `${window.location.origin}/`,
-        data: { full_name: nv.data },
+        data: { full_name: nv.data, intended_role: suRole },
       },
     });
     if (error) {
       setBusy(false);
-      return toast.error(error.message);
+      return toast.error(mapAuthError(error));
     }
-    if (data.user) {
-      await supabase.from("user_roles").insert({ user_id: data.user.id, role: suRole });
+    // Best-effort role hint for student/parent self-serve; portal linking / admin is source of truth.
+    if (data.user && (suRole === "student" || suRole === "parent")) {
+      const { error: roleErr } = await supabase
+        .from("user_roles")
+        .insert({ user_id: data.user.id, role: suRole });
+      if (roleErr) {
+        // Ignore — ensure_default_role / portal link will assign on next session
+        console.warn("[auth] role insert skipped:", roleErr.message);
+      }
     }
     setBusy(false);
-    toast.success("Account created!");
+    toast.success(
+      data.session
+        ? "Account created!"
+        : "Account created — check your email to confirm, then sign in.",
+    );
+    if (!data.session) setTab("signin");
   };
 
   const handleReset = async () => {
     if (busy) return;
     const ev = validateEmail(siEmail);
     if (!ev.ok) {
-      toast.error(ev.message);
+      toast.error("Enter your email above, then tap Forgot password");
       return;
     }
     setBusy(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(ev.email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    const { error } = await requestPasswordReset(ev.email);
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(error);
     toast.success("Reset link sent — check your inbox");
   };
 
@@ -207,7 +227,7 @@ export default function Auth() {
     setBusy(false);
   };
 
-  if (loading || (user && role)) {
+  if (loading || (user && role && status === "authenticated")) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-soft gap-3 animate-fade-in">
         <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-elevated">
