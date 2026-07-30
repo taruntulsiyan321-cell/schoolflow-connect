@@ -15,6 +15,20 @@ type AuthContextRow = {
   school_logo_url: string | null;
 };
 
+const ROLE_PRIORITY: AppRole[] = [
+  "super_admin",
+  "admin",
+  "principal",
+  "teacher",
+  "student",
+  "parent",
+];
+
+function pickRole(roles: { role: string }[] | null | undefined): AppRole | null {
+  const owned = (roles ?? []).map((r) => r.role as AppRole);
+  return ROLE_PRIORITY.find((p) => owned.includes(p)) ?? null;
+}
+
 function mapRow(row: AuthContextRow): AuthContextData {
   return {
     userId: row.user_id,
@@ -33,100 +47,113 @@ function mapRow(row: AuthContextRow): AuthContextData {
           slug: row.school_slug,
           logoUrl: row.school_logo_url,
         }
-      : null,
+      : {
+          id: DEFAULT_SCHOOL_ID,
+          name: "Wisdom Campus",
+          slug: "wisdom-campus",
+          logoUrl: null,
+        },
   };
 }
 
 /**
- * Load profile + role + school for the signed-in user.
- * Prefers the `get_auth_context` RPC; falls back to direct queries
- * if the migration has not been applied yet.
+ * Same role resolution as the pre-refactor AuthProvider:
+ * link portal → read user_roles → ensure_default_role if empty → pick by priority.
  */
-export async function loadAuthContext(userId: string): Promise<AuthContextData | null> {
-  const { data: rpcData, error: rpcError } = await supabase.rpc("get_auth_context");
-
-  if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
-    return mapRow(rpcData[0] as AuthContextRow);
-  }
-
+async function resolveRole(userId: string): Promise<AppRole | null> {
   try {
     await supabase.rpc("link_portal_on_auth", { _uid: userId });
   } catch {
-    /* optional */
+    /* optional — portal linking may not exist in all envs */
   }
 
-  const [{ data: profile }, { data: roles }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id, email, full_name, photo_url, school_id, is_active")
-      .eq("id", userId)
-      .maybeSingle(),
-    supabase.from("user_roles").select("role").eq("user_id", userId),
-  ]);
+  let { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
 
-  if (!profile) {
-    return {
-      userId,
-      profile: {
-        id: userId,
-        email: null,
-        fullName: "",
-        photoUrl: null,
-        isActive: true,
-      },
-      role: null,
-      school: {
-        id: DEFAULT_SCHOOL_ID,
-        name: "Wisdom Campus",
-        slug: "wisdom-campus",
-        logoUrl: null,
-      },
-    };
+  if (!data || data.length === 0) {
+    try {
+      await supabase.rpc("ensure_default_role");
+    } catch {
+      /* optional */
+    }
+    const again = await supabase.from("user_roles").select("role").eq("user_id", userId);
+    data = again.data ?? [];
   }
 
-  const priority: AppRole[] = [
-    "super_admin",
-    "admin",
-    "principal",
-    "teacher",
-    "student",
-    "parent",
-  ];
-  const owned = (roles ?? []).map((r) => r.role as AppRole);
-  const role = priority.find((p) => owned.includes(p)) ?? null;
+  return pickRole(data);
+}
 
-  const schoolId = profile.school_id ?? DEFAULT_SCHOOL_ID;
-  const isActive = profile.is_active !== false;
+/**
+ * Load profile + role + school for the signed-in user.
+ *
+ * Role resolution always uses the proven user_roles path (same as before the
+ * auth refactor). Optional get_auth_context / school columns enrich the
+ * payload but must never wipe a successfully resolved role.
+ */
+export async function loadAuthContext(userId: string): Promise<AuthContextData | null> {
+  // 1) Resolve role first — this is what broke after the refactor
+  const role = await resolveRole(userId);
 
+  // 2) Optional enriched context (may be missing until migrations are applied)
+  const { data: rpcData, error: rpcError } = await supabase.rpc("get_auth_context");
+  if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
+    const row = rpcData[0] as AuthContextRow;
+    // Prefer RPC profile/school, but never trust a null role over user_roles
+    return mapRow({
+      ...row,
+      role: row.role ?? role,
+    });
+  }
+
+  // 3) Profile fallback — use columns that always existed; school fields optional
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, photo_url")
+    .eq("id", userId)
+    .maybeSingle();
+
+  // Best-effort school fields (ignore errors if columns not migrated yet)
+  let schoolId: string | null = DEFAULT_SCHOOL_ID;
+  let isActive = true;
   let schoolName = "Wisdom Campus";
   let schoolSlug: string | null = "wisdom-campus";
   let schoolLogo: string | null = null;
 
-  if (profile.school_id) {
-    const { data: school } = await supabase
-      .from("schools")
-      .select("name, slug, logo_url")
-      .eq("id", profile.school_id)
-      .maybeSingle();
-    if (school) {
-      schoolName = school.name;
-      schoolSlug = school.slug;
-      schoolLogo = school.logo_url;
+  const enriched = await supabase
+    .from("profiles")
+    .select("school_id, is_active")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (!enriched.error && enriched.data) {
+    schoolId = (enriched.data as { school_id?: string | null }).school_id ?? DEFAULT_SCHOOL_ID;
+    isActive = (enriched.data as { is_active?: boolean }).is_active !== false;
+
+    if (schoolId && schoolId !== DEFAULT_SCHOOL_ID) {
+      const { data: school } = await supabase
+        .from("schools")
+        .select("name, slug, logo_url")
+        .eq("id", schoolId)
+        .maybeSingle();
+      if (school) {
+        schoolName = school.name;
+        schoolSlug = school.slug;
+        schoolLogo = school.logo_url;
+      }
     }
   }
 
   return {
     userId,
     profile: {
-      id: profile.id,
-      email: profile.email,
-      fullName: profile.full_name ?? "",
-      photoUrl: profile.photo_url,
+      id: profile?.id ?? userId,
+      email: profile?.email ?? null,
+      fullName: profile?.full_name ?? "",
+      photoUrl: profile?.photo_url ?? null,
       isActive,
     },
     role,
     school: {
-      id: schoolId,
+      id: schoolId ?? DEFAULT_SCHOOL_ID,
       name: schoolName,
       slug: schoolSlug,
       logoUrl: schoolLogo,

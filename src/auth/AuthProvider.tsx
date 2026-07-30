@@ -90,6 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (sess?.user) {
+        // Keep loading=true until role/profile resolve — same as pre-refactor.
+        // Without this, Auth/Index briefly see user+!role and send users to
+        // /unauthorized ("No portal role") before loadAuthContext finishes.
+        setLoading(true);
         // Defer DB work to avoid auth deadlock
         setTimeout(() => {
           void applyContext(sess.user.id);
