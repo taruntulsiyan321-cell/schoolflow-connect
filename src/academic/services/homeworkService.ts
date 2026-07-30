@@ -16,7 +16,14 @@ import {
   type CreateHomeworkInput,
 } from "../repository/homeworkRepository";
 import { emitEvent } from "../repository/eventsRepository";
+import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
+import { assertMayAccessStudent } from "./parentAccess";
+
+export interface StudentHomeworkRow {
+  homework: HomeworkRecord;
+  submission: HomeworkSubmissionRecord | null;
+}
 
 /**
  * HomeworkService — covers Homework and Assignment product language.
@@ -35,6 +42,74 @@ export const HomeworkService = {
   ): Promise<HomeworkRecord[]> {
     assertCanConsume(ctx, "homework");
     return listHomeworkForClass(toRepoContext(ctx), classId, page);
+  },
+
+  /** Class homework + submission counts (computed in service). */
+  async listForClassWithStats(
+    ctx: ServiceContext,
+    classId: string,
+    page?: PageParams,
+  ): Promise<
+    (HomeworkRecord & {
+      submitted: number;
+      graded: number;
+      pending: number;
+      totalStudents: number;
+    })[]
+  > {
+    assertCanConsume(ctx, "homework");
+    const repo = toRepoContext(ctx);
+    const items = await listHomeworkForClass(repo, classId, page);
+    const { count, error } = await getClient(repo)
+      .from("students")
+      .select("id", { count: "exact", head: true })
+      .eq("school_id", schoolIdOf(repo))
+      .eq("class_id", classId);
+    throwIfError(error, "Failed to count students");
+    const totalStudents = count ?? 0;
+
+    const out = [];
+    for (const hw of items) {
+      const subs = await listSubmissionsForHomework(repo, hw.id);
+      const submitted = subs.filter((s) => s.status === "submitted" || s.status === "graded").length;
+      const graded = subs.filter((s) => s.status === "graded").length;
+      out.push({
+        ...hw,
+        submitted,
+        graded,
+        pending: Math.max(0, totalStudents - submitted),
+        totalStudents,
+      });
+    }
+    return out;
+  },
+
+  async listForStudent(
+    ctx: ServiceContext,
+    studentId: string,
+  ): Promise<StudentHomeworkRow[]> {
+    assertCanConsume(ctx, "homework");
+    await assertMayAccessStudent(ctx, studentId);
+    const repo = toRepoContext(ctx);
+    const { data: student, error } = await getClient(repo)
+      .from("students")
+      .select("id, class_id")
+      .eq("id", studentId)
+      .eq("school_id", schoolIdOf(repo))
+      .maybeSingle();
+    throwIfError(error, "Failed to load student");
+    if (!student?.class_id) return [];
+
+    const homework = await listHomeworkForClass(repo, student.class_id, { limit: 100 });
+    const rows: StudentHomeworkRow[] = [];
+    for (const hw of homework) {
+      const subs = await listSubmissionsForHomework(repo, hw.id);
+      rows.push({
+        homework: hw,
+        submission: subs.find((s) => s.studentId === studentId) ?? null,
+      });
+    }
+    return rows;
   },
 
   async assign(ctx: ServiceContext, input: CreateHomeworkInput): Promise<HomeworkRecord> {

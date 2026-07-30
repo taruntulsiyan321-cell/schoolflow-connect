@@ -118,6 +118,23 @@ export async function listClassAcademicProfiles(
   return (data ?? []).map((row) => mapProfile(row as ProfileRow));
 }
 
+/** School-wide profiles for admin/principal rankings & reports (engine-owned). */
+export async function listSchoolAcademicProfiles(
+  ctx: RepoContext,
+  page?: PageParams,
+): Promise<StudentAcademicProfile[]> {
+  const schoolId = schoolIdOf(ctx);
+  const { limit, offset } = normalizePage(page);
+  const { data, error } = await getClient(ctx)
+    .from("student_academic_profiles")
+    .select("*")
+    .eq("school_id", schoolId)
+    .order("exams_avg_pct", { ascending: false })
+    .range(offset, offset + limit - 1);
+  throwIfError(error, "Failed to list school academic profiles");
+  return (data ?? []).map((row) => mapProfile(row as ProfileRow));
+}
+
 /** Ensure profile shell exists (SECURITY DEFINER RPC). */
 export async function ensureAcademicProfile(ctx: RepoContext, studentId: string): Promise<string> {
   const { data, error } = await getClient(ctx).rpc("ensure_student_academic_profile", {

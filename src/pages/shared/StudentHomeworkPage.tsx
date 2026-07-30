@@ -1,6 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { HomeworkService } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
@@ -30,8 +28,7 @@ interface HomeworkItem {
 }
 
 export default function StudentHomeworkPage({ embedded = false }: { embedded?: boolean }) {
-  const { user } = useAuth();
-  const { ctx } = useAcademicContext();
+  const { ctx, ready, studentId: ctxStudentId } = useAcademicContext();
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,65 +37,52 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
   const [submitText, setSubmitText] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      // Get student record
-      const { data: s } = await supabase
-        .from("students")
-        .select("id, class_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!s?.class_id) {
+    if (!ready || !ctx || !ctxStudentId) {
+      if (ready && !ctxStudentId) {
         setNoClass(true);
         setLoading(false);
-        return;
       }
-      setNoClass(false);
-      setStudentId(s.id);
-
-      // Get homework for this class
-      const { data: hw } = await supabase
-        .from("homework")
-        .select("*")
-        .eq("class_id", s.class_id)
-        .order("created_at", { ascending: false });
-
-      if (!hw || hw.length === 0) {
-        setHomework([]);
-        setLoading(false);
-        return;
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        setStudentId(ctxStudentId);
+        setNoClass(false);
+        const rows = await HomeworkService.listForStudent(ctx, ctxStudentId);
+        if (cancelled) return;
+        setHomework(
+          rows.map(({ homework: h, submission: sub }) => ({
+            id: h.id,
+            subject: h.subject,
+            title: h.title,
+            description: h.description ?? "",
+            due_date: h.dueDate,
+            created_at: "",
+            submission: sub
+              ? {
+                  id: sub.id,
+                  status: sub.status,
+                  content: sub.content || "",
+                  grade: sub.grade,
+                  teacher_remarks: sub.teacherRemarks,
+                  submitted_at: sub.submittedAt,
+                }
+              : null,
+          })),
+        );
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Failed to load homework");
+        if (!cancelled) setHomework([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      // Get student's submissions
-      const hwIds = hw.map((h) => h.id);
-      const { data: subs } = await supabase
-        .from("homework_submissions")
-        .select("*")
-        .eq("student_id", s.id)
-        .in("homework_id", hwIds);
-
-      const items: HomeworkItem[] = hw.map((h) => {
-        const sub = subs?.find((sub) => sub.homework_id === h.id);
-        return {
-          ...h,
-          submission: sub
-            ? {
-                id: sub.id,
-                status: sub.status,
-                content: sub.content || "",
-                grade: sub.grade,
-                teacher_remarks: sub.teacher_remarks,
-                submitted_at: sub.submitted_at,
-              }
-            : null,
-        };
-      });
-
-      setHomework(items);
-      setLoading(false);
     })();
-  }, [user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, ctxStudentId]);
 
   const submitHomework = async (hwId: string) => {
     if (!studentId) return;

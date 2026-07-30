@@ -89,6 +89,8 @@ export type {
   ParentChildRow,
 } from "./services/attendanceService";
 
+export type { StudentHomeworkRow } from "./services/homeworkService";
+
 export { AnalyticsService, AiSummaryService, AuditReadService } from "./services/readServices";
 
 export { useAcademicContext } from "./hooks/useAcademicContext";

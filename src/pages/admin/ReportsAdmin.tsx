@@ -13,6 +13,12 @@ import {
 import FinancialReportsPage from "./FinancialReportsPage";
 import { InquiriesReport, ComplaintsReport } from "@/pages/shared/OperationalCases";
 import { downloadCSV, downloadExcel } from "@/lib/exportData";
+import {
+  AcademicProfileService,
+  AnalyticsService,
+  AttendanceService,
+} from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 type TabKey =
   | "financial"
@@ -273,44 +279,56 @@ function StudentsReport() {
 }
 
 function AttendanceReport({ from, to }: { from: string; to: string }) {
+  const { ctx, ready } = useAcademicContext();
   const [rows, setRows] = useState<any[]>([]);
+  const [dayRate, setDayRate] = useState(0);
+  const [profileAvg, setProfileAvg] = useState(0);
+  const [present, setPresent] = useState(0);
+  const [absent, setAbsent] = useState(0);
+  const [leave, setLeave] = useState(0);
+
   useEffect(() => {
+    if (!ready || !ctx) return;
     (async () => {
-      const { data } = await supabase
-        .from("attendance")
-        .select("date, status, students(full_name, admission_number), classes(name, section, display_name, kind)")
-        .gte("date", from).lte("date", to);
-      setRows(data ?? []);
-    })();
-  }, [from, to]);
-
-  const total = rows.length;
-  const present = rows.filter(r => r.status === "present").length;
-  const absent = rows.filter(r => r.status === "absent").length;
-  const leave = rows.filter(r => r.status === "leave").length;
-  const rate = total ? Math.round((present / total) * 100) : 0;
-
-  const absentees = rows
-    .filter(r => r.status === "absent")
-    .map((r: any) => ({
-      date: r.date,
-      student: r.students?.full_name,
-      admission: r.students?.admission_number,
-      class: r.classes ? (r.classes.kind === "batch" ? r.classes.display_name : `${r.classes.name}-${r.classes.section}`) : "",
-    }));
+      const [day, school, profiles] = await Promise.all([
+        AttendanceService.summarizeSchoolDate(ctx, to),
+        AnalyticsService.forSchool(ctx),
+        AcademicProfileService.listForSchool(ctx, { limit: 500 }),
+      ]);
+      setDayRate(day.overallDayRatePct);
+      setProfileAvg(Math.round(school.avgAttendancePct));
+      setPresent(day.present);
+      setAbsent(day.absent);
+      setLeave(day.classes.reduce((a, c) => a + c.leave, 0));
+      setRows(
+        profiles
+          .filter((p) => Math.round(p.attendancePct) < 75)
+          .slice(0, 50)
+          .map((p) => ({
+            studentId: p.studentId.slice(0, 8),
+            attendance_pct: Math.round(p.attendancePct),
+            present: p.attendancePresent,
+            total: p.attendanceTotal,
+          })),
+      );
+      void from;
+    })().catch(() => {
+      setRows([]);
+    });
+  }, [ready, ctx, from, to]);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-4 gap-3">
-        <Stat label="Records" value={total} />
-        <Stat label="Present" value={present} tone="text-accent" />
-        <Stat label="Absent" value={absent} tone="text-destructive" />
-        <Stat label="Attendance %" value={`${rate}%`} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat label="Day rate (to)" value={`${dayRate}%`} />
+        <Stat label="Profile avg" value={`${profileAvg}%`} />
+        <Stat label="Present (day)" value={present} tone="text-accent" />
+        <Stat label="Absent (day)" value={absent} tone="text-warning" />
       </div>
-      <div className="text-xs text-muted-foreground">{leave} marked on leave</div>
-      <Section title="Absentees" action={<ExportBtn rows={absentees} name="absentees.csv" />}>
-        {absentees.length === 0 ? <Empty msg="No absentees in range." /> : <SimpleTable rows={absentees} />}
+      <Section title="Students below 75% (AcademicProfileService)" action={<ExportBtn rows={rows} name="attendance.csv" />}>
+        {rows.length === 0 ? <Empty /> : <SimpleTable rows={rows} />}
       </Section>
+      <p className="text-xs text-muted-foreground">Rates from AttendanceService / AnalyticsService — not recalculated in UI. Leave count: {leave}</p>
     </div>
   );
 }
@@ -419,69 +437,70 @@ function SalaryReport() {
 }
 
 function ExamsReport({ from, to }: { from: string; to: string }) {
+  const { ctx, ready } = useAcademicContext();
   const [rows, setRows] = useState<any[]>([]);
+  const [schoolAvg, setSchoolAvg] = useState(0);
+
   useEffect(() => {
+    if (!ready || !ctx) return;
     (async () => {
-      const { data } = await supabase
-        .from("exams")
-        .select("name, subject, exam_date, max_marks, classes(name, section, display_name, kind), marks(marks_obtained)")
-        .gte("exam_date", from).lte("exam_date", to)
-        .order("exam_date", { ascending: false });
-      setRows((data ?? []).map((e: any) => {
-        const ms = (e.marks ?? []).map((m: any) => Number(m.marks_obtained || 0));
-        const avg = ms.length ? ms.reduce((a: number, b: number) => a + b, 0) / ms.length : 0;
-        return {
-          exam: e.name,
-          subject: e.subject,
-          class: e.classes ? (e.classes.kind === "batch" ? e.classes.display_name : `${e.classes.name}-${e.classes.section}`) : "",
-          date: e.exam_date || "",
-          max: e.max_marks,
-          students: ms.length,
-          average: ms.length ? avg.toFixed(1) : "—",
-        };
-      }));
-    })();
-  }, [from, to]);
+      const [rollups, school] = await Promise.all([
+        AnalyticsService.classRollups(ctx),
+        AnalyticsService.forSchool(ctx),
+      ]);
+      setSchoolAvg(Math.round(school.avgExamsPct));
+      setRows(
+        rollups.map((r) => ({
+          class: `${r.className}-${r.section}`,
+          students: r.studentCount,
+          exam_avg_pct: `${Math.round(r.avgExamsPct)}%`,
+          tests_avg_pct: `${Math.round(r.avgTestsPct)}%`,
+          homework_pct: `${Math.round(r.avgHomeworkCompletionPct)}%`,
+        })),
+      );
+      void from;
+      void to;
+    })().catch(() => setRows([]));
+  }, [ready, ctx, from, to]);
+
   return (
-    <Section title="Exam summary" action={<ExportBtn rows={rows} name="exams.csv" />}>
-      {rows.length === 0 ? <Empty /> : <SimpleTable rows={rows} />}
-    </Section>
+    <div className="space-y-4">
+      <Stat label="School exam avg (AnalyticsService)" value={`${schoolAvg}%`} />
+      <Section title="Class exam / test averages" action={<ExportBtn rows={rows} name="exams.csv" />}>
+        {rows.length === 0 ? <Empty /> : <SimpleTable rows={rows} />}
+      </Section>
+      <p className="text-xs text-muted-foreground">
+        Averages from AnalyticsService.classRollups (profiles). Date range is not re-aggregated in React.
+      </p>
+    </div>
   );
 }
 
 function PerformanceReport({ from, to }: { from: string; to: string }) {
+  const { ctx, ready } = useAcademicContext();
   const [rows, setRows] = useState<any[]>([]);
+
   useEffect(() => {
+    if (!ready || !ctx) return;
     (async () => {
-      const [att, exams, classes] = await Promise.all([
-        supabase.from("attendance").select("class_id, status").gte("date", from).lte("date", to),
-        supabase.from("exams").select("class_id, max_marks, marks(marks_obtained)").gte("exam_date", from).lte("exam_date", to),
-        supabase.from("classes").select("id, name, section, kind, display_name"),
-      ]);
-      const byClass: Record<string, { present: number; total: number; marks: number[]; max: number }> = {};
-      (att.data ?? []).forEach((r: any) => {
-        const k = r.class_id; if (!byClass[k]) byClass[k] = { present: 0, total: 0, marks: [], max: 0 };
-        byClass[k].total++; if (r.status === "present") byClass[k].present++;
-      });
-      (exams.data ?? []).forEach((e: any) => {
-        const k = e.class_id; if (!byClass[k]) byClass[k] = { present: 0, total: 0, marks: [], max: 0 };
-        (e.marks ?? []).forEach((m: any) => byClass[k].marks.push((Number(m.marks_obtained || 0) / Number(e.max_marks || 1)) * 100));
-      });
-      setRows((classes.data ?? []).map((c: any) => {
-        const b = byClass[c.id] || { present: 0, total: 0, marks: [] as number[], max: 0 };
-        const att = b.total ? Math.round((b.present / b.total) * 100) : 0;
-        const avg = b.marks.length ? b.marks.reduce((a, x) => a + x, 0) / b.marks.length : 0;
-        return {
-          class: c.kind === "batch" ? c.display_name : `Class ${c.name}-${c.section}`,
-          attendance_pct: b.total ? `${att}%` : "—",
-          exam_avg_pct: b.marks.length ? `${avg.toFixed(1)}%` : "—",
-          records: b.total,
-        };
-      }));
-    })();
-  }, [from, to]);
+      const rollups = await AnalyticsService.classRollups(ctx);
+      setRows(
+        rollups.map((r) => ({
+          class: `${r.className}-${r.section}`,
+          attendance_pct: `${Math.round(r.avgAttendancePct)}%`,
+          homework_pct: `${Math.round(r.avgHomeworkCompletionPct)}%`,
+          exam_avg_pct: `${Math.round(r.avgExamsPct)}%`,
+          tests_avg_pct: `${Math.round(r.avgTestsPct)}%`,
+          students: r.studentCount,
+        })),
+      );
+      void from;
+      void to;
+    })().catch(() => setRows([]));
+  }, [ready, ctx, from, to]);
+
   return (
-    <Section title="Class performance rollup" action={<ExportBtn rows={rows} name="performance.csv" />}>
+    <Section title="Class performance rollup (AnalyticsService)" action={<ExportBtn rows={rows} name="performance.csv" />}>
       {rows.length === 0 ? <Empty /> : <SimpleTable rows={rows} />}
     </Section>
   );

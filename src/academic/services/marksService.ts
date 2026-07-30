@@ -51,6 +51,10 @@ export const MarksService = {
     if (ctx.role === "student" && ctx.studentId && ctx.studentId !== studentId) {
       throw new ForbiddenError("Students may only view their own marks");
     }
+    if (ctx.role === "parent") {
+      const { assertParentOwnsStudent } = await import("./parentAccess");
+      await assertParentOwnsStudent(ctx, studentId);
+    }
     return listMarksForStudent(toRepoContext(ctx), studentId, page);
   },
 

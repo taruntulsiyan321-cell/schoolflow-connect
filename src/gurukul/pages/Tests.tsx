@@ -1,231 +1,215 @@
-import { useState } from "react";
-import { tests, subjects } from "@/gurukul/data/mock";
-import { GlassCard, SectionLabel, ProgressBar, SubjectBadge, cn } from "@/gurukul/components/shared";
-import { Trophy, TrendingUp, TrendingDown, Clock, CheckCircle2, AlertCircle, BarChart2 } from "lucide-react";
-import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Trophy, BarChart2 } from "lucide-react";
+import {
+  AnalyticsService,
+  MarksService,
+  TestService,
+  type MarksRecord,
+} from "@/academic";
+import type { ExamRecord } from "@/academic/repository/marksRepository";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/gurukul/components/shared";
 
-const TYPE_COLOR: Record<string, string> = {
-  "quiz":      "#6882e8",
-  "unit-test": "#4b9fd4",
-  "mid-term":  "#cc5069",
-  "final":     "#c08a3a",
-};
-
-const TYPE_LABEL: Record<string, string> = {
-  "quiz":      "Quiz",
-  "unit-test": "Unit Test",
-  "mid-term":  "Mid-Term",
-  "final":     "Final Exam",
-};
-
+/**
+ * Student Tests — MarksService + TestService + AnalyticsService (no mock tests / ranks).
+ */
 export default function Tests() {
-  const [filter, setFilter] = useState<"all"|"graded"|"upcoming">("all");
-  const [selected, setSelected] = useState<typeof tests[0] | null>(null);
+  const { ctx, ready, studentId, classId } = useAcademicContext();
+  const [marks, setMarks] = useState<MarksRecord[]>([]);
+  const [exams, setExams] = useState<ExamRecord[]>([]);
+  const [upcoming, setUpcoming] = useState<{ id: string; title: string; subject: string }[]>([]);
+  const [avgPct, setAvgPct] = useState(0);
+  const [testsAvg, setTestsAvg] = useState(0);
+  const [filter, setFilter] = useState<"all" | "graded" | "upcoming">("all");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const graded   = tests.filter(t => t.status === "graded");
-  const upcoming = tests.filter(t => t.status === "upcoming");
-  const filtered = filter==="all" ? tests : filter==="graded" ? graded : upcoming;
+  useEffect(() => {
+    if (!ready || !ctx || !studentId) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [markRows, analytics, examRows, tests] = await Promise.all([
+          MarksService.listForStudent(ctx, studentId, { limit: 100 }),
+          AnalyticsService.forStudent(ctx, studentId),
+          classId ? MarksService.listExamsForClass(ctx, classId, { limit: 50 }) : Promise.resolve([]),
+          classId ? TestService.listForClass(ctx, classId) : Promise.resolve([]),
+        ]);
+        if (cancelled) return;
+        setMarks(markRows);
+        setExams(examRows);
+        setAvgPct(Math.round(analytics.exams.averagePct));
+        setTestsAvg(Math.round(analytics.tests.averagePct));
+        setUpcoming(
+          (tests as { id: string; title: string; subject?: string }[]).map((t) => ({
+            id: t.id,
+            title: t.title,
+            subject: t.subject ?? "—",
+          })),
+        );
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load tests");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, studentId, classId]);
 
-  const avgPct = graded.length
-    ? Math.round(graded.reduce((s,t) => s + (t.scored!/t.totalMarks)*100, 0) / graded.length)
-    : 0;
-  const bestRank = Math.min(...graded.filter(t=>t.rank).map(t=>t.rank!));
+  const examById = useMemo(() => new Map(exams.map((e) => [e.id, e])), [exams]);
 
-  const radarData = subjects.map(s => ({
-    subject: s.name.slice(0,4),
-    score: Math.round((graded.filter(t=>t.subject===s.name).reduce((a,t)=>a+(t.scored!/t.totalMarks)*100,0) / Math.max(1,graded.filter(t=>t.subject===s.name).length))),
-  }));
+  const bySubject = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const m of marks) {
+      const exam = examById.get(m.examId);
+      const key = exam?.subject || "General";
+      const max = exam?.maxMarks ?? 100;
+      const pct = max ? (m.marksObtained / max) * 100 : 0;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(pct);
+    }
+    return [...map.entries()].map(([subject, vals]) => ({
+      subject,
+      score: Math.round(vals.reduce((a, b) => a + b, 0) / vals.length),
+    }));
+  }, [marks, examById]);
+
+  if (!ready || loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading tests…
+      </div>
+    );
+  }
+
+  if (!studentId) {
+    return (
+      <div className="text-center text-sm text-[#78788c] py-16">
+        No student profile linked to this account.
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-center text-sm text-[#cc5069] py-16">{error}</div>;
+  }
+
+  const showGraded = filter === "all" || filter === "graded";
+  const showUpcoming = filter === "all" || filter === "upcoming";
 
   return (
     <div className="space-y-6">
-      {/* Stats row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label:"Tests Given",   value:graded.length,      color:"#3b5bdb" },
-          { label:"Avg Score",     value:`${avgPct}%`,       color:"#4b9fd4" },
-          { label:"Best Rank",     value:`#${bestRank}`,     color:"#c08a3a" },
-          { label:"Upcoming",      value:upcoming.length,    color:"#cc5069" },
-        ].map(s => (
-          <GlassCard key={s.label} className="p-4 text-center">
-            <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-            <div className="text-[11px] text-[#78788c] mt-0.5">{s.label}</div>
-          </GlassCard>
+      <div className="grid grid-cols-3 gap-3">
+        <GlassCard className="p-4 text-center">
+          <div className="text-2xl font-black text-white">{avgPct}%</div>
+          <div className="text-[10px] text-[#78788c]">Exam avg (AnalyticsService)</div>
+        </GlassCard>
+        <GlassCard className="p-4 text-center">
+          <div className="text-2xl font-black text-[#6882e8]">{testsAvg}%</div>
+          <div className="text-[10px] text-[#78788c]">Tests avg</div>
+        </GlassCard>
+        <GlassCard className="p-4 text-center">
+          <div className="text-2xl font-black text-[#4aa87a]">{marks.length}</div>
+          <div className="text-[10px] text-[#78788c]">Marked exams</div>
+        </GlassCard>
+      </div>
+
+      <div className="flex gap-2">
+        {(["all", "graded", "upcoming"] as const).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={cn(
+              "text-[10px] font-bold px-3 py-1.5 rounded-xl capitalize",
+              filter === f
+                ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
+                : "text-[#78788c] border border-white/7",
+            )}
+          >
+            {f}
+          </button>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-[1fr_280px] gap-6">
-        {/* Test list */}
-        <div className="space-y-4">
-          {/* Filter */}
-          <div className="flex gap-2">
-            {(["all","graded","upcoming"] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={cn(
-                  "px-4 py-1.5 rounded-xl text-xs font-semibold transition-all capitalize",
-                  filter===f ? "bg-[#3b5bdb] text-white" : "border border-white/7 text-[#78788c] hover:text-white hover:border-white/20"
-                )}>{f}</button>
-            ))}
-          </div>
-
+      {showGraded && (
+        <GlassCard className="p-5">
+          <SectionLabel>Exam marks · MarksService</SectionLabel>
           <div className="space-y-3">
-            {filtered.map(t => {
-              const isGraded = t.status === "graded";
-              const pct = isGraded ? Math.round((t.scored!/t.totalMarks)*100) : null;
-              const classAvgPct = isGraded && t.avgScore ? Math.round((t.avgScore/t.totalMarks)*100) : null;
-              const typeColor = TYPE_COLOR[t.type] ?? "#78788c";
-              const subj = subjects.find(s=>s.name===t.subject);
-              const isSelected = selected?.id === t.id;
-
+            {marks.length === 0 && (
+              <div className="text-xs text-[#46465a] py-6 text-center">No marks published yet.</div>
+            )}
+            {marks.map((m) => {
+              const exam = examById.get(m.examId);
+              const max = exam?.maxMarks ?? 100;
+              const pct = max ? Math.round((m.marksObtained / max) * 100) : 0;
+              const col = subjectColor[exam?.subject ?? ""] ?? "#78788c";
               return (
-                <GlassCard key={t.id} glow={isSelected?"blue":undefined}
-                  className={cn("p-5 cursor-pointer transition-all", isSelected && "border-blue-500/30")}
-                  onClick={() => setSelected(isSelected ? null : t)}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{color:typeColor,background:`${typeColor}15`}}>
-                          {TYPE_LABEL[t.type]}
-                        </span>
-                        {subj && <SubjectBadge subject={t.subject} color={subj.color}/>}
-                        {!isGraded && (
-                          <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-amber-400 bg-amber-400/10">
-                            <Clock className="w-3 h-3"/> Upcoming
-                          </span>
-                        )}
+                <div key={m.id} className="p-4 rounded-xl border border-white/7 bg-white/2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-white">{exam?.name ?? "Exam"}</div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <SubjectBadge subject={exam?.subject || "—"} color={col} />
+                        <span className="text-[11px] text-[#78788c]">{exam?.examDate ?? ""}</span>
                       </div>
-                      <div className="text-sm font-bold text-white">{t.title}</div>
-                      <div className="text-[11px] text-[#78788c] mt-0.5">{t.date} · {t.totalMarks} marks</div>
                     </div>
-
-                    {isGraded && pct !== null && (
-                      <div className="flex flex-col items-end shrink-0">
-                        <div className="text-2xl font-black tabular-nums"
-                          style={{color:pct>=75?"#4aa87a":pct>=50?"#c08a3a":"#cc5069"}}>
-                          {t.scored}/{t.totalMarks}
-                        </div>
-                        <div className="text-[11px] text-[#78788c]">{pct}%</div>
+                    <div className="text-right">
+                      <div className="text-lg font-black text-white">
+                        {m.marksObtained}/{max}
                       </div>
-                    )}
-                    {!isGraded && (
-                      <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-amber-400/10 border border-amber-400/20 shrink-0">
-                        <AlertCircle className="w-5 h-5 text-amber-400"/>
-                      </div>
-                    )}
+                      <div className="text-[10px] text-[#78788c]">{pct}%</div>
+                    </div>
                   </div>
-
-                  {isGraded && pct !== null && (
-                    <div className="mt-3">
-                      <ProgressBar value={pct} color={pct>=75?"#4aa87a":pct>=50?"#c08a3a":"#cc5069"} height="h-1.5"/>
-                      <div className="flex justify-between mt-1.5">
-                        <span className="text-[10px] text-[#78788c]">Class avg: {classAvgPct}%</span>
-                        <span className="text-[10px] text-[#78788c]">Rank #{t.rank} of {t.totalStudents}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Expanded detail */}
-                  {isSelected && (
-                    <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
-                      <div className="text-[11px] text-[#78788c] uppercase tracking-widest">Topics Covered</div>
-                      <div className="flex flex-wrap gap-2">
-                        {t.topics.map(topic => (
-                          <span key={topic} className="text-[11px] px-2.5 py-1 rounded-lg border border-white/8 text-[#a0aec0] bg-white/3">{topic}</span>
-                        ))}
-                      </div>
-                      {isGraded && t.avgScore && (
-                        <div className="grid grid-cols-3 gap-3">
-                          {[
-                            {label:"Your Score", value:`${t.scored}/${t.totalMarks}`, color:"#3b5bdb"},
-                            {label:"Class Avg",  value:`${t.avgScore}/${t.totalMarks}`,color:"#78788c"},
-                            {label:"Top Score",  value:`${t.topScore}/${t.totalMarks}`,color:"#c08a3a"},
-                          ].map(s=>(
-                            <div key={s.label} className="bg-white/4 rounded-xl p-2.5 text-center border border-white/5">
-                              <div className="text-sm font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-                              <div className="text-[10px] text-[#78788c] mt-0.5">{s.label}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </GlassCard>
+                </div>
               );
             })}
           </div>
-        </div>
+        </GlassCard>
+      )}
 
-        {/* Side: performance radar + rank progression */}
-        <div className="space-y-4">
-          <GlassCard glow="purple" className="p-5">
-            <SectionLabel>Subject-wise Performance</SectionLabel>
-            <div className="h-52">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={radarData}>
-                  <PolarGrid stroke="rgba(255,255,255,0.06)"/>
-                  <PolarAngleAxis dataKey="subject" tick={{fill:"#78788c",fontSize:10}}/>
-                  <Radar dataKey="score" stroke="#3b5bdb" fill="#3b5bdb" fillOpacity={0.15} strokeWidth={2} isAnimationActive={false}/>
-                  <Tooltip contentStyle={{background:"#131316",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,fontSize:12}}/>
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </GlassCard>
-
-          <GlassCard className="p-5">
-            <SectionLabel>Rank History</SectionLabel>
-            <div className="space-y-3">
-              {graded.filter(t=>t.rank).map(t => {
-                const subj = subjects.find(s=>s.name===t.subject);
-                const isTop3 = (t.rank??99) <= 3;
-                return (
-                  <div key={t.id} className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black shrink-0",
-                      isTop3 ? "bg-amber-400/15 text-amber-400" : "bg-white/5 text-[#78788c]"
-                    )}>
-                      #{t.rank}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold text-white truncate">{t.title}</div>
-                      <div className="text-[10px] text-[#78788c]">{t.date}</div>
-                    </div>
-                    {subj && (
-                      <div className="w-6 h-6 rounded-md flex items-center justify-center text-sm shrink-0"
-                        style={{background:`${subj.color}15`}}>{subj.icon}</div>
-                    )}
-                    {isTop3 && <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0"/>}
-                  </div>
-                );
-              })}
-            </div>
-          </GlassCard>
-
-          <GlassCard glow="amber" className="p-5">
-            <SectionLabel>Upcoming Tests</SectionLabel>
-            {upcoming.length === 0
-              ? <p className="text-sm text-[#78788c]">No upcoming tests</p>
-              : (
-                <div className="space-y-2.5">
-                  {upcoming.map(t => {
-                    const subj = subjects.find(s=>s.name===t.subject);
-                    return (
-                      <div key={t.id} className="flex items-center gap-3 p-3 rounded-xl border border-amber-400/10 bg-amber-400/5">
-                        {subj && (
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
-                            style={{background:`${subj.color}15`}}>{subj.icon}</div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-white truncate">{t.title}</div>
-                          <div className="text-[10px] text-[#78788c]">{t.date} · {t.totalMarks} marks</div>
-                        </div>
-                      </div>
-                    );
-                  })}
+      {showUpcoming && (
+        <GlassCard className="p-5">
+          <SectionLabel>Class tests · TestService</SectionLabel>
+          <div className="space-y-3">
+            {upcoming.length === 0 && (
+              <div className="text-xs text-[#46465a] py-6 text-center">No class tests scheduled.</div>
+            )}
+            {upcoming.map((t) => (
+              <div key={t.id} className="p-4 rounded-xl border border-white/7 bg-white/2 flex items-center gap-3">
+                <Trophy className="w-4 h-4 text-[#c08a3a]" />
+                <div>
+                  <div className="text-sm font-semibold text-white">{t.title}</div>
+                  <div className="text-[11px] text-[#78788c]">{t.subject}</div>
                 </div>
-              )
-            }
-          </GlassCard>
-        </div>
-      </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
+
+      {bySubject.length > 0 && (
+        <GlassCard className="p-5">
+          <SectionLabel>
+            <span className="inline-flex items-center gap-2">
+              <BarChart2 className="w-3.5 h-3.5" /> Subject averages (from MarksService)
+            </span>
+          </SectionLabel>
+          <div className="space-y-2">
+            {bySubject.map((s) => (
+              <div key={s.subject} className="flex items-center justify-between text-sm">
+                <span className="text-[#a0aec0]">{s.subject}</span>
+                <span className="font-black text-white">{s.score}%</span>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      )}
     </div>
   );
 }

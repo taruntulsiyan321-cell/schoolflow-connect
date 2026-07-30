@@ -1,78 +1,160 @@
-import { attendanceData } from "@/gurukul/data/mock";
-import { GlassCard, SectionLabel, ProgressBar, subjectColor, cn } from "@/gurukul/components/shared";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
+import {
+  AcademicProfileService,
+  AttendanceService,
+  type AttendanceRecord,
+} from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/shared";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const JUNE_DAYS = Array.from({ length: 30 }, (_, i) => i + 1);
-const firstDay = new Date(2025, 5, 1).getDay(); // 0=Sun, so Monday offset = (firstDay + 6) % 7
-const offset = (firstDay + 6) % 7;
-
+/**
+ * Student Attendance — AcademicProfileService + AttendanceService only.
+ * No mock calendar / by-subject percentages in the UI.
+ */
 export default function Attendance() {
-  const pct = attendanceData.overall;
+  const { ctx, ready, studentId } = useAcademicContext();
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [pct, setPct] = useState(0);
+  const [present, setPresent] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ready || !ctx || !studentId) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const [profile, list] = await Promise.all([
+          AcademicProfileService.get(ctx, studentId),
+          AttendanceService.listForStudent(ctx, studentId, { limit: 120 }),
+        ]);
+        if (cancelled) return;
+        setRecords(list);
+        setPct(Math.round(profile?.attendancePct ?? 0));
+        setPresent(profile?.attendancePresent ?? 0);
+        setTotal(profile?.attendanceTotal ?? 0);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load attendance");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, studentId]);
+
+  const byStatus = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const r of records) map[r.status] = (map[r.status] ?? 0) + 1;
+    return map;
+  }, [records]);
+
   const col = pct >= 90 ? "#4aa87a" : pct >= 75 ? "#c08a3a" : "#cc5069";
+  const calendarDays = useMemo(
+    () => [...records].sort((a, b) => a.date.localeCompare(b.date)),
+    [records],
+  );
+
+  if (!ready || loading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading attendance…
+      </div>
+    );
+  }
+
+  if (!studentId) {
+    return (
+      <div className="text-center text-sm text-[#78788c] py-16">
+        No student profile linked to this account.
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-center text-sm text-[#cc5069] py-16">{error}</div>;
+  }
 
   return (
     <div className="space-y-5">
-      {/* Overall */}
       <GlassCard glow={pct >= 90 ? "green" : "amber"} className="p-6 flex items-center gap-6">
         <OverallRing pct={pct} col={col} />
         <div>
-          <div className="text-sm text-[#78788c] mb-0.5">Overall attendance</div>
-          <div className="text-4xl font-black" style={{ color: col, fontFamily: "var(--font-display)" }}>{pct}%</div>
-          <div className="text-xs text-[#78788c] mt-1">{pct >= 75 ? "You meet the minimum 75% requirement." : "Below minimum — attendance needed."}</div>
+          <div className="text-sm text-[#78788c] mb-0.5">Overall attendance (Academic Engine)</div>
+          <div className="text-4xl font-black" style={{ color: col, fontFamily: "var(--font-display)" }}>
+            {pct}%
+          </div>
+          <div className="text-xs text-[#78788c] mt-1">
+            {present} present-equivalent · {total} days marked
+          </div>
         </div>
       </GlassCard>
 
-      {/* Calendar */}
       <GlassCard className="p-5">
-        <SectionLabel>June 2025</SectionLabel>
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {DAYS.map((d) => <div key={d} className="text-center text-[10px] text-[#78788c]">{d}</div>)}
-        </div>
+        <SectionLabel>Recent attendance</SectionLabel>
         <div className="grid grid-cols-7 gap-1">
-          {Array(offset).fill(null).map((_, i) => <div key={`empty-${i}`} />)}
-          {JUNE_DAYS.map((d) => {
-            const key = `2025-06-${String(d).padStart(2, "0")}`;
-            const status = attendanceData.calendar[key];
-            const bg = status === "present" ? "bg-emerald-400/20 text-emerald-400" :
-                       status === "absent" ? "bg-rose-400/20 text-rose-400" :
-                       status === "holiday" ? "bg-white/5 text-[#78788c]" :
-                       "bg-transparent text-[#78788c]/40";
+          {calendarDays.length === 0 && (
+            <div className="col-span-7 text-center text-xs text-[#46465a] py-8">
+              No attendance recorded yet.
+            </div>
+          )}
+          {calendarDays.map((day) => {
+            const d = parseInt(day.date.split("-")[2] ?? "0", 10);
+            const bg =
+              day.status === "present"
+                ? "bg-emerald-400/20 text-emerald-400"
+                : day.status === "absent"
+                  ? "bg-rose-400/20 text-rose-400"
+                  : day.status === "late" || day.status === "half_day"
+                    ? "bg-amber-400/20 text-amber-400"
+                    : "bg-white/5 text-[#78788c]";
             return (
-              <div key={d} className={cn("h-8 rounded-lg flex items-center justify-center text-xs font-semibold transition-all hover:scale-110", bg)}>
+              <div
+                key={`${day.date}-${day.id}`}
+                title={`${day.date}: ${day.status}`}
+                className={cn(
+                  "h-8 rounded-lg flex items-center justify-center text-xs font-semibold",
+                  bg,
+                )}
+              >
                 {d}
               </div>
             );
           })}
         </div>
-        <div className="flex gap-4 mt-3 justify-center">
-          {[["#4aa87a", "Present"], ["#cc5069", "Absent"], ["#78788c", "Holiday"]].map(([c, l]) => (
-            <div key={l} className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-sm" style={{ background: `${c}50`, border: `1px solid ${c}` }} />
-              <span className="text-[10px] text-[#78788c]">{l}</span>
-            </div>
-          ))}
-        </div>
       </GlassCard>
 
-      {/* By subject */}
       <GlassCard className="p-5">
-        <SectionLabel>Attendance by subject</SectionLabel>
+        <SectionLabel>Status breakdown (from AttendanceService)</SectionLabel>
         <div className="space-y-3">
-          {attendanceData.bySubject.map((s) => {
-            const col = s.pct >= 90 ? "#4aa87a" : s.pct >= 75 ? "#c08a3a" : "#cc5069";
+          {Object.entries(byStatus).map(([status, count]) => {
+            const share = total ? Math.round((count / Math.max(records.length, 1)) * 100) : 0;
+            const statusCol =
+              status === "present" ? "#4aa87a" : status === "absent" ? "#cc5069" : "#c08a3a";
             return (
-              <div key={s.subject} className="flex items-center gap-3">
-                <div className="w-28 text-sm text-[#a0aec0] shrink-0">{s.subject}</div>
-                <div className="flex-1">
-                  <ProgressBar value={s.pct} color={col} height="h-2" />
+              <div key={status} className="flex items-center gap-3">
+                <div className="w-28 text-sm text-[#a0aec0] shrink-0 capitalize">
+                  {status.replace("_", " ")}
                 </div>
-                <div className="w-20 text-right shrink-0">
-                  <span className="text-sm font-black tabular-nums" style={{ color: col }}>{s.pct}%</span>
-                  <span className="text-[11px] text-[#78788c] ml-1">{s.present}/{s.total}</span>
+                <div className="flex-1">
+                  <ProgressBar value={share} color={statusCol} height="h-2" />
+                </div>
+                <div className="w-16 text-right shrink-0 text-sm font-black tabular-nums" style={{ color: statusCol }}>
+                  {count}
                 </div>
               </div>
             );
           })}
+          {Object.keys(byStatus).length === 0 && (
+            <div className="text-xs text-[#46465a]">No status records yet.</div>
+          )}
         </div>
       </GlassCard>
     </div>
@@ -80,20 +162,31 @@ export default function Attendance() {
 }
 
 function OverallRing({ pct, col }: { pct: number; col: string }) {
-  const size = 100; const stroke = 8;
+  const size = 100;
+  const stroke = 8;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const offset = c - (pct / 100) * c;
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={col} strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 6px ${col})` }} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={col}
+          strokeWidth={stroke}
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+        />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-black" style={{ color: col }}>{pct}%</span>
+        <span className="text-sm font-black" style={{ color: col }}>
+          {pct}%
+        </span>
       </div>
     </div>
   );

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Search, Send, Paperclip, MessageCircle, Users, ChevronRight } from "lucide-react";
 import { cn } from "./shared";
-import { teacherMessages, assignedClasses, type TeacherMessage } from "./data";
+import { teacherMessages, type TeacherMessage } from "./data";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { AttendanceService, type AssignedClass } from "@/academic";
 
 const roleColor: Record<string, string> = {
   student: "#6366f1",
@@ -128,10 +130,19 @@ function ChatView({ thread }: { thread: TeacherMessage }) {
 }
 
 export default function Communication() {
+  const { ctx, ready } = useAcademicContext();
+  const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [threads, setThreads] = useState<TeacherMessage[]>(teacherMessages);
   const [selectedId, setSelectedId] = useState<string | null>(threads[0]?.id ?? null);
   const [showNew, setShowNew] = useState(false);
   const [newForm, setNewForm] = useState({ to: "", role: "student", subject: "", message: "" });
+
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    void AttendanceService.listAssignedClasses(ctx)
+      .then(setAssignedClasses)
+      .catch(() => setAssignedClasses([]));
+  }, [ready, ctx]);
 
   const selectedThread = threads.find((t) => t.id === selectedId) ?? null;
 
@@ -183,7 +194,7 @@ export default function Communication() {
             <button key={c.id}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-white/5 transition-all group">
               <Users className="w-3.5 h-3.5 text-[#46465a] group-hover:text-[#3b5bdb] transition-all" />
-              <span className="text-[10px] text-[#78788c] group-hover:text-white transition-all">{c.className} {c.section} — {c.subject}</span>
+              <span className="text-[10px] text-[#78788c] group-hover:text-white transition-all">{c.name} {c.section} — {c.subject ?? "—"}</span>
               <ChevronRight className="w-3 h-3 text-[#46465a] ml-auto" />
             </button>
           ))}

@@ -3,6 +3,7 @@ export {
   getStudentAnalytics,
   getClassPerformance,
   getSchoolPerformance,
+  getSchoolClassRollups,
   attendanceFromProfile,
   homeworkCompletionFromProfile,
   averageMarksFromProfile,

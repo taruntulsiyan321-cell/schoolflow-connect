@@ -1,4 +1,4 @@
-// ── Teacher Panel — Mock Data ─────────────────────────────────────────────────
+﻿// â”€â”€ Teacher Panel â€” Mock Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface TeacherProfile {
   id: string;
@@ -155,7 +155,7 @@ export interface LeaveRequest {
   adminRemarks?: string;
 }
 
-// ── Teacher Profile ───────────────────────────────────────────────────────────
+// â”€â”€ Teacher Profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const teacherProfile: TeacherProfile = {
   id: "t1",
@@ -176,217 +176,15 @@ export const teacherProfile: TeacherProfile = {
   mobileLinked: true,
 };
 
-// ── Assigned Classes ──────────────────────────────────────────────────────────
+// â”€â”€ Assigned Classes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export const assignedClasses: ClassInfo[] = [
-  { id: "c10a", className: "Class 10", section: "A", subject: "Mathematics", isClassTeacher: true, studentCount: 42, schedule: [{ day: "Monday", time: "08:00–08:45" }, { day: "Wednesday", time: "10:00–10:45" }, { day: "Friday", time: "09:00–09:45" }] },
-  { id: "c10b", className: "Class 10", section: "B", subject: "Mathematics", isClassTeacher: false, studentCount: 40, schedule: [{ day: "Tuesday", time: "09:00–09:45" }, { day: "Thursday", time: "08:00–08:45" }] },
-  { id: "c9a", className: "Class 9", section: "A", subject: "Physics", isClassTeacher: false, studentCount: 45, schedule: [{ day: "Monday", time: "11:00–11:45" }, { day: "Friday", time: "11:00–11:45" }] },
-];
-
-// ── Students ──────────────────────────────────────────────────────────────────
-
-export const studentsByClass: Record<string, Student[]> = {
-  c10a: [
-    { id: "s1", name: "Arjun Mehta", rollNumber: "10A-01", admissionNumber: "GKL/2019/0421", gender: "male", parentName: "Rajesh Mehta", parentPhone: "+91 98765 43210", attendancePct: 91, performanceScore: 88, status: "active" },
-    { id: "s2", name: "Priya Sharma", rollNumber: "10A-02", admissionNumber: "GKL/2019/0422", gender: "female", parentName: "Suresh Sharma", parentPhone: "+91 98765 43211", attendancePct: 96, performanceScore: 93, status: "active" },
-    { id: "s3", name: "Rohan Verma", rollNumber: "10A-03", admissionNumber: "GKL/2019/0423", gender: "male", parentName: "Anil Verma", parentPhone: "+91 98765 43212", attendancePct: 78, performanceScore: 65, status: "active" },
-    { id: "s4", name: "Sneha Pillai", rollNumber: "10A-04", admissionNumber: "GKL/2019/0424", gender: "female", parentName: "Ravi Pillai", parentPhone: "+91 98765 43213", attendancePct: 88, performanceScore: 79, status: "active" },
-    { id: "s5", name: "Karan Singh", rollNumber: "10A-05", admissionNumber: "GKL/2019/0425", gender: "male", parentName: "Gurpreet Singh", parentPhone: "+91 98765 43214", attendancePct: 72, performanceScore: 58, status: "active" },
-    { id: "s6", name: "Meera Nair", rollNumber: "10A-06", admissionNumber: "GKL/2019/0426", gender: "female", parentName: "Sunil Nair", parentPhone: "+91 98765 43215", attendancePct: 94, performanceScore: 91, status: "active" },
-    { id: "s7", name: "Vijay Kumar", rollNumber: "10A-07", admissionNumber: "GKL/2019/0427", gender: "male", parentName: "Ramesh Kumar", parentPhone: "+91 98765 43216", attendancePct: 85, performanceScore: 74, status: "active" },
-    { id: "s8", name: "Anita Desai", rollNumber: "10A-08", admissionNumber: "GKL/2019/0428", gender: "female", parentName: "Mahesh Desai", parentPhone: "+91 98765 43217", attendancePct: 99, performanceScore: 97, status: "active" },
-  ],
-  c10b: [
-    { id: "s9", name: "Riya Patel", rollNumber: "10B-01", admissionNumber: "GKL/2019/0451", gender: "female", parentName: "Dinesh Patel", parentPhone: "+91 98765 43230", attendancePct: 90, performanceScore: 82, status: "active" },
-    { id: "s10", name: "Aman Gupta", rollNumber: "10B-02", admissionNumber: "GKL/2019/0452", gender: "male", parentName: "Sandeep Gupta", parentPhone: "+91 98765 43231", attendancePct: 83, performanceScore: 71, status: "active" },
-    { id: "s11", name: "Divya Rao", rollNumber: "10B-03", admissionNumber: "GKL/2019/0453", gender: "female", parentName: "Prasad Rao", parentPhone: "+91 98765 43232", attendancePct: 95, performanceScore: 89, status: "active" },
-  ],
-  c9a: [
-    { id: "s12", name: "Lakshmi Iyer", rollNumber: "9A-01", admissionNumber: "GKL/2020/0301", gender: "female", parentName: "Venkat Iyer", parentPhone: "+91 98765 43250", attendancePct: 92, performanceScore: 86, status: "active" },
-    { id: "s13", name: "Harsh Jain", rollNumber: "9A-02", admissionNumber: "GKL/2020/0302", gender: "male", parentName: "Piyush Jain", parentPhone: "+91 98765 43251", attendancePct: 76, performanceScore: 61, status: "active" },
-    { id: "s14", name: "Pooja Mishra", rollNumber: "9A-03", admissionNumber: "GKL/2020/0303", gender: "female", parentName: "Rajendra Mishra", parentPhone: "+91 98765 43252", attendancePct: 89, performanceScore: 80, status: "active" },
-  ],
-};
-
-// ── Today's Attendance ────────────────────────────────────────────────────────
-
-export const todayAttendance: Record<string, { submitted: boolean; approved: boolean; records: AttendanceRecord[] }> = {
-  c10a: {
-    submitted: false,
-    approved: false,
-    records: (studentsByClass.c10a ?? []).map((s) => ({
-      studentId: s.id,
-      studentName: s.name,
-      rollNumber: s.rollNumber,
-      status: "present" as const,
-    })),
-  },
-  c10b: {
-    submitted: true,
-    approved: true,
-    records: (studentsByClass.c10b ?? []).map((s, i) => ({
-      studentId: s.id,
-      studentName: s.name,
-      rollNumber: s.rollNumber,
-      status: (i === 1 ? "absent" : "present") as AttendanceRecord["status"],
-    })),
-  },
-  c9a: {
-    submitted: true,
-    approved: false,
-    records: (studentsByClass.c9a ?? []).map((s, i) => ({
-      studentId: s.id,
-      studentName: s.name,
-      rollNumber: s.rollNumber,
-      status: (i === 1 ? "late" : "present") as AttendanceRecord["status"],
-    })),
-  },
-};
-
-// ── Homework ──────────────────────────────────────────────────────────────────
-
-export const homeworkByClass: Record<string, HomeworkItem[]> = {
-  c10a: [
-    {
-      id: "hw1",
-      classId: "c10a",
-      subject: "Mathematics",
-      title: "Quadratic Equations Practice",
-      description: "Complete exercises 5.1 and 5.2 from NCERT",
-      instructions: "Show all working steps. Neat presentation required.",
-      assignedDate: "2026-07-24",
-      dueDate: "2026-07-27",
-      totalStudents: 8,
-      submitted: 5,
-      pending: 3,
-      status: "active",
-      submissions: [
-        { studentId: "s1", studentName: "Arjun Mehta", submittedAt: "2026-07-25", status: "submitted" },
-        { studentId: "s2", studentName: "Priya Sharma", submittedAt: "2026-07-24", status: "submitted" },
-        { studentId: "s6", studentName: "Meera Nair", submittedAt: "2026-07-25", status: "submitted", remarks: "Excellent work" },
-        { studentId: "s7", studentName: "Vijay Kumar", submittedAt: "2026-07-26", status: "submitted" },
-        { studentId: "s8", studentName: "Anita Desai", submittedAt: "2026-07-24", status: "submitted", remarks: "Outstanding" },
-        { studentId: "s3", studentName: "Rohan Verma", submittedAt: "", status: "pending" },
-        { studentId: "s4", studentName: "Sneha Pillai", submittedAt: "", status: "pending" },
-        { studentId: "s5", studentName: "Karan Singh", submittedAt: "", status: "pending" },
-      ],
-    },
-    {
-      id: "hw2",
-      classId: "c10a",
-      subject: "Mathematics",
-      title: "Polynomials — Revision Sheet",
-      description: "Complete the revision worksheet distributed in class",
-      instructions: "All 20 questions must be attempted.",
-      assignedDate: "2026-07-20",
-      dueDate: "2026-07-23",
-      totalStudents: 8,
-      submitted: 7,
-      pending: 1,
-      status: "closed",
-      submissions: [
-        { studentId: "s1", studentName: "Arjun Mehta", submittedAt: "2026-07-22", status: "submitted" },
-        { studentId: "s2", studentName: "Priya Sharma", submittedAt: "2026-07-21", status: "submitted" },
-        { studentId: "s3", studentName: "Rohan Verma", submittedAt: "2026-07-23", status: "late" },
-        { studentId: "s4", studentName: "Sneha Pillai", submittedAt: "2026-07-22", status: "submitted" },
-        { studentId: "s5", studentName: "Karan Singh", submittedAt: "", status: "pending" },
-        { studentId: "s6", studentName: "Meera Nair", submittedAt: "2026-07-21", status: "submitted" },
-        { studentId: "s7", studentName: "Vijay Kumar", submittedAt: "2026-07-22", status: "submitted" },
-        { studentId: "s8", studentName: "Anita Desai", submittedAt: "2026-07-21", status: "submitted" },
-      ],
-    },
-  ],
-};
-
-// ── Assignments ───────────────────────────────────────────────────────────────
-
-export const assignmentsByClass: Record<string, Assignment[]> = {
-  c10a: [
-    {
-      id: "asgn1",
-      classId: "c10a",
-      subject: "Mathematics",
-      title: "Statistics Project — Data Collection",
-      description: "Collect data on any real-world topic, tabulate it, and compute mean, median, mode.",
-      dueDate: "2026-07-30",
-      maxMarks: 20,
-      assignedDate: "2026-07-20",
-      totalStudents: 8,
-      submitted: 4,
-      graded: 2,
-      status: "active",
-      submissions: [
-        { studentId: "s2", studentName: "Priya Sharma", submittedAt: "2026-07-24", status: "graded", marks: 18, feedback: "Excellent data selection and accurate calculations." },
-        { studentId: "s8", studentName: "Anita Desai", submittedAt: "2026-07-23", status: "graded", marks: 19, feedback: "Outstanding work. Well-presented and analytically strong." },
-        { studentId: "s1", studentName: "Arjun Mehta", submittedAt: "2026-07-25", status: "submitted" },
-        { studentId: "s6", studentName: "Meera Nair", submittedAt: "2026-07-25", status: "submitted" },
-        { studentId: "s3", studentName: "Rohan Verma", submittedAt: "", status: "pending" },
-        { studentId: "s4", studentName: "Sneha Pillai", submittedAt: "", status: "pending" },
-        { studentId: "s5", studentName: "Karan Singh", submittedAt: "", status: "pending" },
-        { studentId: "s7", studentName: "Vijay Kumar", submittedAt: "", status: "pending" },
-      ],
-    },
-  ],
-};
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
-export const testsByClass: Record<string, Test[]> = {
-  c10a: [
-    {
-      id: "test1",
-      classId: "c10a",
-      className: "Class 10",
-      section: "A",
-      subject: "Mathematics",
-      testName: "Unit Test 3",
-      testDate: "2026-08-05",
-      startTime: "10:00",
-      endTime: "11:30",
-      duration: "90 mins",
-      totalQuestions: 25,
-      totalMarks: 40,
-      chapters: ["Quadratic Equations", "Arithmetic Progressions"],
-      topics: ["Nature of roots", "Sum of AP", "General term"],
-      instructions: "Attempt all questions. Show all working steps. Calculator not permitted.",
-      status: "scheduled",
-      marksPublished: false,
-      studentMarks: (studentsByClass.c10a ?? []).map((s) => ({ studentId: s.id, studentName: s.name, rollNumber: s.rollNumber, marks: null, percentage: null, grade: null, remarks: "", answerSheetUploaded: false })),
-    },
-    {
-      id: "test2",
-      classId: "c10a",
-      className: "Class 10",
-      section: "A",
-      subject: "Mathematics",
-      testName: "Unit Test 2",
-      testDate: "2026-07-10",
-      startTime: "10:00",
-      endTime: "11:30",
-      duration: "90 mins",
-      totalQuestions: 20,
-      totalMarks: 40,
-      chapters: ["Polynomials", "Pair of Linear Equations"],
-      topics: ["Zeroes of polynomial", "Graphical method", "Substitution method"],
-      instructions: "Attempt all questions.",
-      status: "marks_published",
-      marksPublished: true,
-      studentMarks: [
-        { studentId: "s1", studentName: "Arjun Mehta", rollNumber: "10A-01", marks: 38, percentage: 95, grade: "A+", remarks: "Excellent command over quadratic equations.", answerSheetUploaded: true },
-        { studentId: "s2", studentName: "Priya Sharma", rollNumber: "10A-02", marks: 39, percentage: 97.5, grade: "A+", remarks: "Outstanding. Perfect in all sections.", answerSheetUploaded: false },
-        { studentId: "s3", studentName: "Rohan Verma", rollNumber: "10A-03", marks: 24, percentage: 60, grade: "C+", remarks: "Work on simultaneous equations. Needs more practice.", answerSheetUploaded: false },
-        { studentId: "s4", studentName: "Sneha Pillai", rollNumber: "10A-04", marks: 31, percentage: 77.5, grade: "B+", remarks: "Good effort. Some calculation errors.", answerSheetUploaded: false },
-        { studentId: "s5", studentName: "Karan Singh", rollNumber: "10A-05", marks: 21, percentage: 52.5, grade: "C", remarks: "Needs significant improvement. Please revise all chapters.", answerSheetUploaded: false },
-        { studentId: "s6", studentName: "Meera Nair", rollNumber: "10A-06", marks: 37, percentage: 92.5, grade: "A+", remarks: "Very strong performance.", answerSheetUploaded: false },
-        { studentId: "s7", studentName: "Vijay Kumar", rollNumber: "10A-07", marks: 29, percentage: 72.5, grade: "B", remarks: "Decent performance. Focus on application problems.", answerSheetUploaded: false },
-        { studentId: "s8", studentName: "Anita Desai", rollNumber: "10A-08", marks: 40, percentage: 100, grade: "A+", remarks: "Perfect score. Exceptional work!", answerSheetUploaded: true },
-      ],
-    },
-  ],
-};
-
-// ── Doubts ────────────────────────────────────────────────────────────────────
+/** @deprecated Academic mocks removed â€” panels use Academic Engine. Kept empty for type-only imports. */
+export const assignedClasses: ClassInfo[] = [];
+export const studentsByClass: Record<string, Student[]> = {};
+export const todayAttendance: Record<string, { submitted: boolean; approved: boolean; records: AttendanceRecord[] }> = {};
+export const homeworkByClass: Record<string, HomeworkItem[]> = {};
+export const assignmentsByClass: Record<string, Assignment[]> = {};
+export const testsByClass: Record<string, Test[]> = {};
 
 export const teacherDoubts: Doubt[] = [
   {
@@ -415,7 +213,7 @@ export const teacherDoubts: Doubt[] = [
     hasAttachment: true,
     attachmentName: "AP_formula_sheet.jpg",
     replies: [
-      { from: "teacher", text: "Great question, Rohan! Both formulas are correct — you use the first formula when you know 'a' and 'd', and the second formula when you know the first term 'a' and the last term 'l'. In most problems, you'll use the first formula since 'l' is not always given. Does that help?", timestamp: "2026-07-24 9:00 PM" },
+      { from: "teacher", text: "Great question, Rohan! Both formulas are correct â€” you use the first formula when you know 'a' and 'd', and the second formula when you know the first term 'a' and the last term 'l'. In most problems, you'll use the first formula since 'l' is not always given. Does that help?", timestamp: "2026-07-24 9:00 PM" },
       { from: "student", text: "Yes! That makes it very clear. Thank you, ma'am!", timestamp: "2026-07-24 9:15 PM" },
     ],
   },
@@ -431,7 +229,7 @@ export const teacherDoubts: Doubt[] = [
     status: "open",
     hasAttachment: false,
     replies: [
-      { from: "teacher", text: "Sure Karan! To complete the square for x² + 6x + 5 = 0: First move the constant → x² + 6x = -5. Then add (6/2)² = 9 to both sides → x² + 6x + 9 = 4. Now factor → (x+3)² = 4. Take square root → x+3 = ±2. So x = -1 or x = -5. Try this method with Exercise 4.3 Q1.", timestamp: "2026-07-23 8:30 PM" },
+      { from: "teacher", text: "Sure Karan! To complete the square for xÂ² + 6x + 5 = 0: First move the constant â†’ xÂ² + 6x = -5. Then add (6/2)Â² = 9 to both sides â†’ xÂ² + 6x + 9 = 4. Now factor â†’ (x+3)Â² = 4. Take square root â†’ x+3 = Â±2. So x = -1 or x = -5. Try this method with Exercise 4.3 Q1.", timestamp: "2026-07-23 8:30 PM" },
     ],
   },
   {
@@ -449,7 +247,7 @@ export const teacherDoubts: Doubt[] = [
   },
 ];
 
-// ── Messages ──────────────────────────────────────────────────────────────────
+// â”€â”€ Messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const teacherMessages: TeacherMessage[] = [
   {
@@ -471,7 +269,7 @@ export const teacherMessages: TeacherMessage[] = [
     threadId: "tm2",
     participantName: "Arjun Mehta",
     participantRole: "student",
-    subject: "Doubt — Quadratic Equations",
+    subject: "Doubt â€” Quadratic Equations",
     lastMessage: "Thank you ma'am! That explanation was really helpful.",
     lastTimestamp: "2026-07-24 5:00 PM",
     unreadCount: 1,
@@ -496,15 +294,15 @@ export const teacherMessages: TeacherMessage[] = [
   },
 ];
 
-// ── Announcements ─────────────────────────────────────────────────────────────
+// â”€â”€ Announcements â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const teacherAnnouncements: TeacherAnnouncement[] = [
-  { id: "ta1", title: "Unit Test 3 Schedule Confirmed", body: "Unit Test 3 for Class 10A Mathematics will be held on 5th August 2026, 10:00–11:30 AM. Syllabus: Quadratic Equations and Arithmetic Progressions. Bring all required stationery.", targetClass: "Class 10", targetSection: "A", status: "published", publishedAt: "2026-07-24", hasAttachment: false, priority: "important" },
+  { id: "ta1", title: "Unit Test 3 Schedule Confirmed", body: "Unit Test 3 for Class 10A Mathematics will be held on 5th August 2026, 10:00â€“11:30 AM. Syllabus: Quadratic Equations and Arithmetic Progressions. Bring all required stationery.", targetClass: "Class 10", targetSection: "A", status: "published", publishedAt: "2026-07-24", hasAttachment: false, priority: "important" },
   { id: "ta2", title: "Homework Submission Reminder", body: "All pending homework from the Quadratic Equations chapter must be submitted by 27th July without fail. Late submissions will not be accepted after this date.", targetClass: "Class 10", targetSection: "A", status: "published", publishedAt: "2026-07-25", hasAttachment: false, priority: "normal" },
   { id: "ta3", title: "Statistics Project Guidelines", body: "Please refer to the attached document for detailed guidelines on the Statistics Data Collection project. Deadline: 30th July.", targetClass: "Class 10", targetSection: "A", status: "draft", hasAttachment: true, attachmentName: "Statistics_Project_Guidelines.pdf", priority: "normal" },
 ];
 
-// ── Leave Requests ────────────────────────────────────────────────────────────
+// â”€â”€ Leave Requests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const leaveRequests: LeaveRequest[] = [
   { id: "l1", leaveType: "casual", fromDate: "2026-08-15", toDate: "2026-08-15", days: 1, reason: "Independence Day family function", status: "approved", appliedAt: "2026-07-20", adminRemarks: "Approved. Enjoy the holiday." },

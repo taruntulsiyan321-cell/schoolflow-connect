@@ -1,46 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Plus, Trash2, Edit2, ChevronDown, ChevronRight, X,
   Building2, UserCheck, BookOpen, History, Clock, User,
-  Check, AlertTriangle,
+  Check, AlertTriangle, Loader2,
 } from "lucide-react";
 import { cn, InitialsAvatar, ConfirmModal, UndoToast, useUndoDelete } from "./shared";
 import { adminClasses as initial, adminTeachers, adminStudents, type AdminClass, type AdminSection } from "./data";
+import { AttendanceService, type AttendanceStatus, type ClassStudentRow } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
-// ── Attendance audit types ────────────────────────────────────────────────────
-
-interface AttendanceRecord {
-  studentId: string;
-  date: string;
-  present: boolean;
-}
-
-interface AttendanceEdit {
-  id: string;
-  sectionId: string;
-  studentId: string;
-  studentName: string;
-  date: string;
-  originalStatus: boolean;
-  newStatus: boolean;
-  modifiedBy: string;
-  modifiedAt: string;
-  reason: string;
-}
-
-// Seed some mock attendance records per section
-function seedAttendance(sectionId: string, studentIds: string[]): AttendanceRecord[] {
-  const dates = ["2026-07-24", "2026-07-25", "2026-07-26"];
-  return dates.flatMap((date) =>
-    studentIds.map((sid) => ({
-      studentId: sid,
-      date,
-      present: Math.random() > 0.15,
-    }))
-  );
-}
-
-// ── Attendance Management Panel ───────────────────────────────────────────────
+// ── Attendance Management Panel (Academic Engine) ─────────────────────────────
 
 function AttendancePanel({
   section,
@@ -51,117 +20,121 @@ function AttendancePanel({
   cls: AdminClass;
   onClose: () => void;
 }) {
-  const students = adminStudents.filter((s) => s.className === cls.name && s.section === section.name);
-  const [records, setRecords] = useState<AttendanceRecord[]>(() => seedAttendance(section.id, students.map((s) => s.id)));
-  const [auditLog, setAuditLog] = useState<AttendanceEdit[]>([]);
-  const [selectedDate, setSelectedDate] = useState("2026-07-26");
-  const [editReason, setEditReason] = useState<Record<string, string>>({});
-  const [editMode, setEditMode] = useState<Record<string, boolean>>({});
-  const [activeTab, setActiveTab] = useState<"attendance" | "audit">("attendance");
+  const { ctx, ready } = useAcademicContext();
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [classId, setClassId] = useState<string | null>(null);
+  const [students, setStudents] = useState<ClassStudentRow[]>([]);
+  const [statusByStudent, setStatusByStudent] = useState<Record<string, AttendanceStatus>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
 
-  const todayRecords = records.filter((r) => r.date === selectedDate);
-  const dates = [...new Set(records.map((r) => r.date))].sort().reverse();
-
-  function getRecord(studentId: string) {
-    return todayRecords.find((r) => r.studentId === studentId) ?? { studentId, date: selectedDate, present: false };
-  }
-
-  function togglePresent(studentId: string) {
-    const student = students.find((s) => s.id === studentId);
-    if (!student) return;
-    const current = getRecord(studentId);
-    const newPresent = !current.present;
-
-    // require reason for edits to existing records
-    const isEdit = todayRecords.some((r) => r.studentId === studentId);
-    if (isEdit) {
-      setEditMode((prev) => ({ ...prev, [studentId]: true }));
-      return;
-    }
-
-    applyChange(studentId, student.fullName, current.present, newPresent, "");
-  }
-
-  function applyChange(studentId: string, studentName: string, original: boolean, newStatus: boolean, reason: string) {
-    const now = new Date().toISOString();
-    const edit: AttendanceEdit = {
-      id: `ae${Date.now()}`,
-      sectionId: section.id,
-      studentId,
-      studentName,
-      date: selectedDate,
-      originalStatus: original,
-      newStatus,
-      modifiedBy: "Super Admin",
-      modifiedAt: now,
-      reason,
-    };
-
-    setRecords((prev) => {
-      const existing = prev.findIndex((r) => r.studentId === studentId && r.date === selectedDate);
-      if (existing >= 0) {
-        const next = [...prev];
-        next[existing] = { ...next[existing], present: newStatus };
-        return next;
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const day = await AttendanceService.summarizeSchoolDate(ctx, selectedDate);
+        const match = day.classes.find(
+          (c) =>
+            c.className === cls.name &&
+            (c.section === section.name || `${c.className}-${c.section}` === `${cls.name}-${section.name}`),
+        );
+        if (!match) {
+          if (!cancelled) {
+            setClassId(null);
+            setStudents([]);
+            setStatusByStudent({});
+            setError(`No live class found for ${cls.name} ${section.name}. Use Attendance Control for real classes.`);
+          }
+          return;
+        }
+        const [roster, records] = await Promise.all([
+          AttendanceService.listClassStudents(ctx, match.classId),
+          AttendanceService.listForClassDate(ctx, match.classId, selectedDate),
+        ]);
+        if (cancelled) return;
+        const map: Record<string, AttendanceStatus> = {};
+        roster.forEach((s) => {
+          map[s.id] = (records.find((r) => r.studentId === s.id)?.status as AttendanceStatus) ?? "present";
+        });
+        setClassId(match.classId);
+        setStudents(roster);
+        setStatusByStudent(map);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load attendance");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      return [...prev, { studentId, date: selectedDate, present: newStatus }];
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, selectedDate, cls.name, section.name]);
 
-    setAuditLog((prev) => [edit, ...prev]);
-    setEditMode((prev) => { const n = { ...prev }; delete n[studentId]; return n; });
-    setEditReason((prev) => { const n = { ...prev }; delete n[studentId]; return n; });
+  async function save() {
+    if (!ctx || !classId) return;
+    setSaving(true);
+    try {
+      await AttendanceService.markBulk(
+        ctx,
+        students.map((s) => ({
+          studentId: s.id,
+          classId,
+          date: selectedDate,
+          status: statusByStudent[s.id] ?? "present",
+        })),
+      );
+      setFlash("Saved via AttendanceService");
+      setTimeout(() => setFlash(null), 2500);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function confirmEdit(studentId: string) {
-    const student = students.find((s) => s.id === studentId);
-    if (!student) return;
-    const current = getRecord(studentId);
-    applyChange(studentId, student.fullName, current.present, !current.present, editReason[studentId] ?? "");
-  }
-
-  const presentCount = todayRecords.filter((r) => r.present).length;
-  const absentCount = students.length - presentCount;
+  const presentCount = Object.values(statusByStudent).filter((s) => s === "present" || s === "late" || s === "half_day").length;
+  const absentCount = Object.values(statusByStudent).filter((s) => s === "absent").length;
 
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
       <div className="relative z-50 w-96 sm:w-[480px] bg-[#0a0a0c] border-l border-white/7 flex flex-col h-full overflow-hidden">
-        {/* Header */}
         <div className="p-5 border-b border-white/7 flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
             <Building2 className="w-5 h-5 text-[#3b5bdb]" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-white">Attendance — {cls.name} {section.name}</div>
-            <div className="text-[10px] text-[#78788c]">Review and edit submitted attendance records</div>
+            <div className="text-[10px] text-[#78788c]">AttendanceService · live roster</div>
           </div>
           <button onClick={onClose} className="text-[#78788c] hover:text-white shrink-0"><X className="w-4 h-4" /></button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 px-4 py-2 border-b border-white/7">
-          {([{ key: "attendance", label: "Attendance" }, { key: "audit", label: `Audit Log (${auditLog.length})` }] as const).map((t) => (
-            <button key={t.key} onClick={() => setActiveTab(t.key)}
-              className={cn("text-[10px] font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all",
-                activeTab === t.key ? "bg-[#3b5bdb]/20 text-[#3b5bdb]" : "text-[#78788c] hover:text-white")}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider shrink-0">Date</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
+            />
+          </div>
 
-        <div className="flex-1 overflow-y-auto">
-          {activeTab === "attendance" && (
-            <div className="p-4 space-y-4">
-              {/* Date selector */}
-              <div className="flex items-center gap-3">
-                <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider shrink-0">Date</label>
-                <select value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50">
-                  {dates.map((d) => <option key={d} value={d}>{d}</option>)}
-                </select>
-              </div>
+          {flash && <div className="text-xs text-[#4aa87a] font-semibold">{flash}</div>}
+          {error && <div className="text-xs text-[#cc5069]">{error}</div>}
 
-              {/* Summary */}
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-[#78788c] text-xs">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+            </div>
+          ) : (
+            <>
               <div className="grid grid-cols-3 gap-2">
                 <div className="p-3 rounded-xl bg-white/3 text-center">
                   <div className="text-lg font-black text-white">{students.length}</div>
@@ -169,7 +142,7 @@ function AttendancePanel({
                 </div>
                 <div className="p-3 rounded-xl bg-[#4aa87a]/10 text-center">
                   <div className="text-lg font-black text-[#4aa87a]">{presentCount}</div>
-                  <div className="text-[9px] text-[#78788c]">Present</div>
+                  <div className="text-[9px] text-[#78788c]">Present+</div>
                 </div>
                 <div className="p-3 rounded-xl bg-[#cc5069]/10 text-center">
                   <div className="text-lg font-black text-[#cc5069]">{absentCount}</div>
@@ -177,94 +150,56 @@ function AttendancePanel({
                 </div>
               </div>
 
-              {/* Student list */}
               {students.length === 0 ? (
-                <div className="text-xs text-[#78788c] text-center py-8">No students linked to this section</div>
+                <div className="text-xs text-[#78788c] text-center py-8">No live roster for this section</div>
               ) : (
                 <div className="space-y-2">
                   {students.map((s) => {
-                    const rec = getRecord(s.id);
-                    const inEditMode = editMode[s.id];
+                    const status = statusByStudent[s.id] ?? "present";
+                    const present = status === "present" || status === "late" || status === "half_day";
                     return (
-                      <div key={s.id} className="bg-white/3 rounded-xl p-3 space-y-2">
-                        <div className="flex items-center gap-3">
-                          <InitialsAvatar name={s.fullName} size="sm" />
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-semibold text-white">{s.fullName}</div>
-                            <div className="text-[9px] text-[#78788c]">{s.admissionNumber}</div>
-                          </div>
-                          <button
-                            onClick={() => togglePresent(s.id)}
-                            className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all",
-                              rec.present ? "bg-[#4aa87a]/15 text-[#4aa87a] hover:bg-[#cc5069]/15 hover:text-[#cc5069]" : "bg-[#cc5069]/15 text-[#cc5069] hover:bg-[#4aa87a]/15 hover:text-[#4aa87a]"
-                            )}
-                          >
-                            {rec.present ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                            {rec.present ? "Present" : "Absent"}
-                          </button>
+                      <div key={s.id} className="bg-white/3 rounded-xl p-3 flex items-center gap-3">
+                        <InitialsAvatar name={s.fullName} size="sm" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-xs font-semibold text-white">{s.fullName}</div>
+                          <div className="text-[9px] text-[#78788c]">{s.rollNumber ?? "—"}</div>
                         </div>
-
-                        {/* Reason input for edits */}
-                        {inEditMode && (
-                          <div className="flex gap-2">
-                            <input
-                              value={editReason[s.id] ?? ""}
-                              onChange={(e) => setEditReason((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                              placeholder="Reason for editing (optional)"
-                              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
-                            />
-                            <button onClick={() => confirmEdit(s.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
-                              Save
-                            </button>
-                            <button onClick={() => setEditMode((prev) => { const n = { ...prev }; delete n[s.id]; return n; })}
-                              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#78788c] hover:text-white bg-white/5 transition-all">
-                              Cancel
-                            </button>
-                          </div>
-                        )}
+                        <select
+                          value={status}
+                          onChange={(e) =>
+                            setStatusByStudent((prev) => ({
+                              ...prev,
+                              [s.id]: e.target.value as AttendanceStatus,
+                            }))
+                          }
+                          className={cn(
+                            "px-2 py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10",
+                            present ? "text-[#4aa87a]" : "text-[#cc5069]",
+                          )}
+                        >
+                          <option value="present">Present</option>
+                          <option value="absent">Absent</option>
+                          <option value="late">Late</option>
+                          <option value="half_day">Half day</option>
+                          <option value="leave">Leave</option>
+                        </select>
                       </div>
                     );
                   })}
                 </div>
               )}
-            </div>
+            </>
           )}
+        </div>
 
-          {activeTab === "audit" && (
-            <div className="p-4">
-              {auditLog.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 py-12">
-                  <History className="w-8 h-8 text-[#46465a]" />
-                  <div className="text-sm text-[#78788c]">No attendance edits recorded yet</div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {auditLog.map((entry) => (
-                    <div key={entry.id} className="p-3 rounded-xl bg-white/3 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-xs font-semibold text-white">{entry.studentName}</div>
-                        <div className="text-[9px] text-[#46465a]">{new Date(entry.modifiedAt).toLocaleString("en-IN")}</div>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px]">
-                        <span className={cn("px-1.5 py-0.5 rounded font-bold", entry.originalStatus ? "bg-[#4aa87a]/15 text-[#4aa87a]" : "bg-[#cc5069]/15 text-[#cc5069]")}>
-                          {entry.originalStatus ? "Present" : "Absent"}
-                        </span>
-                        <span className="text-[#46465a]">→</span>
-                        <span className={cn("px-1.5 py-0.5 rounded font-bold", entry.newStatus ? "bg-[#4aa87a]/15 text-[#4aa87a]" : "bg-[#cc5069]/15 text-[#cc5069]")}>
-                          {entry.newStatus ? "Present" : "Absent"}
-                        </span>
-                        <span className="text-[#46465a] ml-auto">Date: {entry.date}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[9px] text-[#78788c]">
-                        <User className="w-3 h-3" /> {entry.modifiedBy}
-                        {entry.reason && <span className="ml-2 text-[#46465a]">· "{entry.reason}"</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+        <div className="p-4 border-t border-white/7">
+          <button
+            disabled={!classId || saving || loading}
+            onClick={() => void save()}
+            className="w-full py-2.5 rounded-xl text-sm font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40"
+          >
+            {saving ? "Saving…" : "Save via AttendanceService"}
+          </button>
         </div>
       </div>
     </div>
@@ -314,7 +249,7 @@ function SectionDetailView({
               <div className="grid grid-cols-2 gap-3">
                 {[
                   { label: "Students", value: section.totalStudents, color: "#3b5bdb" },
-                  { label: "Today Att.", value: `${section.attendanceToday}%`, color: "#4aa87a" },
+                  { label: "Today Att.", value: "Engine", color: "#4aa87a" },
                   { label: "Teachers", value: section.subjectTeacherIds.length, color: "#4b9fd4" },
                   { label: "Class Teacher", value: classTeacher ? "Assigned" : "None", color: "#c08a3a" },
                 ].map((item) => (
@@ -514,7 +449,7 @@ function ClassCard({ cls, onViewSection, onEditSection, onDeleteSection, onAddSe
                     <div className="text-[8px] text-[#78788c]">Students</div>
                   </div>
                   <div className="p-2 rounded-lg bg-white/3">
-                    <div className="text-base font-black text-[#4aa87a]">{section.attendanceToday}%</div>
+                    <div className="text-base font-black text-[#4aa87a]">Live</div>
                     <div className="text-[8px] text-[#78788c]">Today</div>
                   </div>
                 </div>

@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { AttendanceService } from "@/academic";
+import { AttendanceService, AnalyticsService } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -72,11 +72,11 @@ export function UsersDirectory() {
   const filtered = rows.filter(r => !q || r.email?.toLowerCase().includes(q.toLowerCase()) || r.phone?.includes(q));
   return (
     <>
-      <PageHeader title="User Management" subtitle={`${rows.length} registered users · assign or revoke roles`} />
+      <PageHeader title="User Management" subtitle={`${rows.length} registered users Â· assign or revoke roles`} />
       <div className="flex gap-3 mb-4">
-        <Input placeholder="Search by email or phone…" value={q} onChange={e => setQ(e.target.value)} />
+        <Input placeholder="Search by email or phoneâ€¦" value={q} onChange={e => setQ(e.target.value)} />
       </div>
-      {loading ? <p className="text-muted-foreground text-center py-8">Loading…</p> : (
+      {loading ? <p className="text-muted-foreground text-center py-8">Loadingâ€¦</p> : (
         <div className="space-y-2">
           {filtered.map(u => {
             const available = ALL_ROLES.filter(r => !(u.roles ?? []).includes(r));
@@ -125,207 +125,246 @@ export function UsersDirectory() {
    ATTENDANCE OVERVIEW (admin & principal)
    ============================================================ */
 export function AttendanceOverview() {
-  const { user } = useAuth();
-  const { ctx } = useAcademicContext();
+  const { ctx, ready } = useAcademicContext();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [classes, setClasses] = useState<any[]>([]);
-  const [att, setAtt] = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
-  const [locks, setLocks] = useState<any[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
-  const [editClass, setEditClass] = useState<any>(null);
+  const [summary, setSummary] = useState<Awaited<
+    ReturnType<typeof AttendanceService.summarizeSchoolDate>
+  > | null>(null);
+  const [schoolAvg, setSchoolAvg] = useState(0);
+  const [editClass, setEditClass] = useState<{
+    classId: string;
+    className: string;
+    section: string;
+  } | null>(null);
+  const [students, setStudents] = useState<{ id: string; fullName: string; rollNumber: string | null }[]>([]);
   const [editMarks, setEditMarks] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+
+  const reload = async () => {
+    if (!ctx) return;
+    setLoading(true);
+    try {
+      const [day, school] = await Promise.all([
+        AttendanceService.summarizeSchoolDate(ctx, date),
+        AnalyticsService.forSchool(ctx),
+      ]);
+      setSummary(day);
+      setSchoolAvg(Math.round(school.avgAttendancePct));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to load attendance");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    supabase.from("classes").select("*").order("name").then(({ data }) => setClasses(data ?? []));
-    supabase.from("students").select("id,full_name,roll_number,class_id").then(({ data }) => setStudents(data ?? []));
-  }, []);
+    if (!ready || !ctx) return;
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, ctx, date]);
 
-  const reloadDate = async () => {
-    const [a, l, h] = await Promise.all([
-      supabase.from("attendance").select("*").eq("date", date),
-      supabase.from("attendance_locks").select("class_id,locked_at").eq("date", date),
-      supabase.from("attendance_audit").select("*").eq("date", date).order("edited_at", { ascending: false }).limit(100),
-    ]);
-    setAtt(a.data ?? []); setLocks(l.data ?? []); setHistory(h.data ?? []);
-  };
-  useEffect(() => { reloadDate(); }, [date]);
-
-  const byClass = classes.map(c => {
-    const total = students.filter(s => s.class_id === c.id).length;
-    const records = att.filter(a => a.class_id === c.id);
-    const present = records.filter(r => r.status === "present").length;
-    const absent = records.filter(r => r.status === "absent").length;
-    const leave = records.filter(r => r.status === "leave").length;
-    const rate = total ? Math.round((present / total) * 100) : 0;
-    const locked = locks.some(l => l.class_id === c.id);
-    return { ...c, total, present, absent, leave, rate, marked: records.length, locked };
-  });
-  const totals = byClass.reduce((a, c) => ({
-    total: a.total + c.total, present: a.present + c.present, absent: a.absent + c.absent,
-  }), { total: 0, present: 0, absent: 0 });
-  const overall = totals.total ? Math.round((totals.present / totals.total) * 100) : 0;
-
-  const openEdit = (c: any) => {
-    const classStudents = students.filter(s => s.class_id === c.id);
-    const classAtt = att.filter(a => a.class_id === c.id);
-    const m: Record<string, string> = {};
-    classStudents.forEach(s => {
-      const rec = classAtt.find(a => a.student_id === s.id);
-      m[s.id] = rec?.status ?? "present";
-    });
-    setEditMarks(m);
-    setEditClass(c);
+  const openEdit = async (c: {
+    classId: string;
+    className: string;
+    section: string;
+  }) => {
+    if (!ctx) return;
+    try {
+      const [roster, records] = await Promise.all([
+        AttendanceService.listClassStudents(ctx, c.classId),
+        AttendanceService.listForClassDate(ctx, c.classId, date),
+      ]);
+      const m: Record<string, string> = {};
+      roster.forEach((s) => {
+        const rec = records.find((r) => r.studentId === s.id);
+        m[s.id] = rec?.status ?? "present";
+      });
+      setStudents(
+        roster.map((s) => ({
+          id: s.id,
+          fullName: s.fullName,
+          rollNumber: s.rollNumber,
+        })),
+      );
+      setEditMarks(m);
+      setEditClass(c);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to open editor");
+    }
   };
 
   const saveEdit = async () => {
-    if (!ctx) return toast.error("Sign in required");
-    const classStudents = students.filter(s => s.class_id === editClass.id);
-    const rows = classStudents.map(s => ({
+    if (!ctx || !editClass) return toast.error("Sign in required");
+    const rows = students.map((s) => ({
       studentId: s.id,
-      classId: editClass.id,
+      classId: editClass.classId,
       date,
-      status: (editMarks[s.id] ?? "present") as "present" | "absent" | "leave" | "late" | "half_day",
+      status: (editMarks[s.id] ?? "present") as
+        | "present"
+        | "absent"
+        | "leave"
+        | "late"
+        | "half_day",
     }));
     try {
       await AttendanceService.markBulk(ctx, rows);
-      toast.success("Attendance updated");
+      toast.success("Attendance updated via AttendanceService");
       setEditClass(null);
-      reloadDate();
+      await reload();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save attendance");
     }
   };
 
   const unlock = async (classId: string) => {
-    const { error } = await supabase.from("attendance_locks").delete().eq("class_id", classId).eq("date", date);
+    const { error } = await supabase
+      .from("attendance_locks")
+      .delete()
+      .eq("class_id", classId)
+      .eq("date", date);
     if (error) return toast.error(error.message);
-    setLocks(l => l.filter(x => x.class_id !== classId));
     toast.success("Attendance unlocked for this class");
+    await reload();
   };
 
-  const classStudentsForEdit = editClass ? students.filter(s => s.class_id === editClass.id) : [];
-  const studentName = (id: string) => students.find(s => s.id === id)?.full_name ?? id.slice(0, 8);
+  if (!ready) {
+    return <p className="text-muted-foreground text-center py-12">Loading session…</p>;
+  }
 
   return (
     <>
-      <PageHeader title="Attendance Control" subtitle="Admin view: edit, unlock, and audit attendance" />
+      <PageHeader
+        title="Attendance Control"
+        subtitle="Admin view via AttendanceService · AnalyticsService"
+      />
       <Card className="p-4 mb-4 flex items-center gap-3">
         <Label className="shrink-0">Date</Label>
-        <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="max-w-xs" />
+        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="max-w-xs" />
       </Card>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard icon={<UserCheck className="w-5 h-5" />} label="Present" value={totals.present} />
-        <StatCard icon={<ClipboardCheck className="w-5 h-5" />} label="Absent" value={totals.absent} tone="warning" />
-        <StatCard icon={<Users className="w-5 h-5" />} label="Total" value={totals.total} tone="secondary" />
-        <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Rate" value={`${overall}%`} tone="accent" />
+        <StatCard icon={<UserCheck className="w-5 h-5" />} label="Present today" value={summary?.present ?? 0} />
+        <StatCard
+          icon={<ClipboardCheck className="w-5 h-5" />}
+          label="Absent today"
+          value={summary?.absent ?? 0}
+          tone="warning"
+        />
+        <StatCard
+          icon={<Users className="w-5 h-5" />}
+          label="Total students"
+          value={summary?.totalStudents ?? 0}
+          tone="secondary"
+        />
+        <StatCard
+          icon={<TrendingUp className="w-5 h-5" />}
+          label="Day rate / Profile avg"
+          value={`${summary?.overallDayRatePct ?? 0}% / ${schoolAvg}%`}
+          tone="accent"
+        />
       </div>
 
-      <Tabs defaultValue="classes">
-        <TabsList className="mb-4">
-          <TabsTrigger value="classes">Classes</TabsTrigger>
-          <TabsTrigger value="history">
-            <History className="w-3.5 h-3.5 mr-1" />Edit History {history.length > 0 && `(${history.length})`}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="classes">
-          <div className="grid sm:grid-cols-2 gap-3">
-            {byClass.map(c => (
-              <Card key={c.id} className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="font-semibold">{classLabel(c)}</div>
-                  <div className="flex items-center gap-2">
-                    {c.locked
-                      ? <Badge variant="outline" className="gap-1"><Lock className="w-3 h-3" />Locked</Badge>
-                      : <Badge variant="outline" className="text-muted-foreground gap-1"><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground inline-block" />Open</Badge>}
-                    <Badge variant="outline">{c.rate}%</Badge>
-                  </div>
+      {loading ? (
+        <p className="text-muted-foreground text-center py-8">Loading attendance summaryâ€¦</p>
+      ) : (
+        <div className="grid sm:grid-cols-2 gap-3">
+          {(summary?.classes ?? []).map((c) => (
+            <Card key={c.classId} className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-semibold">
+                  {c.className}-{c.section}
                 </div>
-                <div className="text-xs text-muted-foreground mb-3">
-                  Present {c.present} · Absent {c.absent} · Leave {c.leave} · of {c.total}
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => openEdit(c)}>
-                    Edit Attendance
-                  </Button>
-                  {c.locked && (
-                    <Button size="sm" variant="outline" className="text-xs" onClick={() => unlock(c.id)}>
-                      <Unlock className="w-3 h-3 mr-1" />Unlock
-                    </Button>
+                <div className="flex items-center gap-2">
+                  {c.locked ? (
+                    <Badge variant="outline" className="gap-1">
+                      <Lock className="w-3 h-3" />
+                      Locked
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      Open
+                    </Badge>
                   )}
+                  <Badge variant="outline">{c.dayRatePct}%</Badge>
                 </div>
-              </Card>
-            ))}
-            {classes.length === 0 && <p className="text-muted-foreground col-span-full text-center py-8">No classes.</p>}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="history">
-          {history.length === 0 ? (
-            <Card className="p-8 text-center">
-              <History className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-muted-foreground text-sm">No attendance edits recorded for this date.</p>
+              </div>
+              <div className="text-xs text-muted-foreground mb-3">
+                Present {c.present} Â· Absent {c.absent} Â· Late {c.late} Â· Half {c.halfDay} Â· of{" "}
+                {c.totalStudents} Â· marked {c.marked}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs"
+                  onClick={() =>
+                    void openEdit({
+                      classId: c.classId,
+                      className: c.className,
+                      section: c.section,
+                    })
+                  }
+                >
+                  Edit Attendance
+                </Button>
+                {c.locked && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs"
+                    onClick={() => void unlock(c.classId)}
+                  >
+                    <Unlock className="w-3 h-3 mr-1" />
+                    Unlock
+                  </Button>
+                )}
+              </div>
             </Card>
-          ) : (
-            <div className="space-y-2">
-              {history.map(h => (
-                <Card key={h.id} className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{studentName(h.student_id)}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        Class {classes.find(c => c.id === h.class_id)?.name ?? "—"} · {h.date}
-                      </div>
-                      <div className="flex items-center gap-2 mt-2 text-xs">
-                        <span className="px-2 py-0.5 rounded-full bg-destructive/15 text-destructive capitalize">{h.prev_status}</span>
-                        <span className="text-muted-foreground">→</span>
-                        <span className="px-2 py-0.5 rounded-full bg-accent/15 text-accent capitalize">{h.new_status}</span>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-xs text-muted-foreground">Edited</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {h.edited_at ? new Date(h.edited_at).toLocaleString() : "—"}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
+          ))}
+          {(summary?.classes.length ?? 0) === 0 && (
+            <p className="text-muted-foreground col-span-full text-center py-8">No classes.</p>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
 
-      <Dialog open={!!editClass} onOpenChange={v => !v && setEditClass(null)}>
+      <Dialog open={!!editClass} onOpenChange={(v) => !v && setEditClass(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Attendance · {classLabel(editClass)} · {date}</DialogTitle>
+            <DialogTitle>
+              Edit Attendance Â· {editClass?.className}-{editClass?.section} Â· {date}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-2 my-2">
-            {classStudentsForEdit.map(s => (
+            {students.map((s) => (
               <div key={s.id} className="flex items-center justify-between p-2 border rounded-lg">
                 <div>
-                  <div className="text-sm font-medium">{s.full_name}</div>
-                  <div className="text-xs text-muted-foreground">Roll {s.roll_number || "-"}</div>
+                  <div className="text-sm font-medium">{s.fullName}</div>
+                  <div className="text-xs text-muted-foreground">Roll {s.rollNumber ?? "â€”"}</div>
                 </div>
-                <div className="flex gap-1">
-                  {([["present", Check, "bg-accent text-accent-foreground"], ["absent", X, "bg-destructive text-destructive-foreground"], ["leave", Coffee, "bg-warning text-warning-foreground"]] as const).map(([st, Icon, cls]) => (
-                    <button key={st} onClick={() => setEditMarks(m => ({ ...m, [s.id]: st }))}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs transition-all ${editMarks[s.id] === st ? cls : "bg-muted text-muted-foreground"}`}>
-                      <Icon className="w-3.5 h-3.5" />
-                    </button>
-                  ))}
-                </div>
+                <Select
+                  value={editMarks[s.id] ?? "present"}
+                  onValueChange={(v) => setEditMarks((m) => ({ ...m, [s.id]: v }))}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["present", "absent", "late", "half_day", "leave"].map((st) => (
+                      <SelectItem key={st} value={st} className="capitalize">
+                        {st.replace("_", " ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             ))}
           </div>
-          <Button className="w-full bg-gradient-primary text-primary-foreground" onClick={saveEdit}>Save Changes</Button>
+          <Button onClick={() => void saveEdit()}>Save via AttendanceService</Button>
         </DialogContent>
       </Dialog>
     </>
   );
 }
+
 
 /* ============================================================
    REPORTS (admin & principal)
@@ -367,7 +406,7 @@ export function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!stats) return <p className="text-muted-foreground text-center py-8">Loading…</p>;
+  if (!stats) return <p className="text-muted-foreground text-center py-8">Loadingâ€¦</p>;
   return (
     <>
       <PageHeader title="Reports" subtitle="Operational and academic snapshot"
@@ -381,11 +420,11 @@ export function ReportsPage() {
       <div className="grid md:grid-cols-3 gap-4">
         <Card className="p-5">
           <div className="text-xs uppercase text-muted-foreground">Fees collected</div>
-          <div className="text-2xl font-bold text-accent">₹{stats.feeCollected}</div>
+          <div className="text-2xl font-bold text-accent">â‚¹{stats.feeCollected}</div>
         </Card>
         <Card className="p-5">
           <div className="text-xs uppercase text-muted-foreground">Outstanding</div>
-          <div className="text-2xl font-bold text-destructive">₹{stats.feeOutstanding}</div>
+          <div className="text-2xl font-bold text-destructive">â‚¹{stats.feeOutstanding}</div>
         </Card>
         <Card className="p-5">
           <div className="text-xs uppercase text-muted-foreground">Pending leaves</div>
@@ -441,13 +480,13 @@ export function TimetablePage({ title = "Timetable" }: { title?: string }) {
 
   return (
     <>
-      <PageHeader title={title} subtitle="Weekly class timetable — shared with the whole class" />
+      <PageHeader title={title} subtitle="Weekly class timetable â€” shared with the whole class" />
       <Card className="p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
         <Select value={classId} onValueChange={setClassId}>
           <SelectTrigger className="max-w-xs"><SelectValue placeholder="Pick a class" /></SelectTrigger>
           <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{classLabel(c)}</SelectItem>)}</SelectContent>
         </Select>
-        <Button onClick={save} disabled={saving || !dirty}>{saving ? "Saving…" : dirty ? "Save timetable" : "Saved"}</Button>
+        <Button onClick={save} disabled={saving || !dirty}>{saving ? "Savingâ€¦" : dirty ? "Save timetable" : "Saved"}</Button>
       </Card>
       {classId && (
         <Card className="p-4 overflow-x-auto">
@@ -462,7 +501,7 @@ export function TimetablePage({ title = "Timetable" }: { title?: string }) {
                   {PERIODS.map(p => (
                     <td key={p} className="p-1">
                       <Input className="h-8 text-xs min-w-[80px]"
-                        placeholder={p === "Lunch" ? "—" : "Subject"}
+                        placeholder={p === "Lunch" ? "â€”" : "Subject"}
                         value={grid[`${d}-${p}`] || ""}
                         onChange={e => update(d, p, e.target.value)} />
                     </td>
@@ -575,7 +614,7 @@ export function AppSettingsPage() {
 
   return (
     <>
-      <PageHeader title="App Settings" subtitle="Branding, locale and modules — shared across the school" />
+      <PageHeader title="App Settings" subtitle="Branding, locale and modules â€” shared across the school" />
       <Card className="p-5 max-w-2xl space-y-4">
         <div><Label>School name</Label><Input value={settings.schoolName} disabled={loading} onChange={e => setSettings({ ...settings, schoolName: e.target.value })} /></div>
         <div className="grid grid-cols-2 gap-3">
@@ -595,7 +634,7 @@ export function AppSettingsPage() {
           ))}
         </div>
         <Button onClick={save} disabled={loading || saving} className="bg-gradient-primary text-primary-foreground">
-          {saving ? "Saving…" : "Save settings"}
+          {saving ? "Savingâ€¦" : "Save settings"}
         </Button>
       </Card>
     </>
@@ -626,7 +665,7 @@ export function SystemPage() {
           <Database className="w-6 h-6" />
           <div>
             <div className="font-semibold">Database connected</div>
-            <div className="text-xs opacity-80">Lovable Cloud · live</div>
+            <div className="text-xs opacity-80">Lovable Cloud Â· live</div>
           </div>
         </div>
       </Card>
@@ -683,7 +722,7 @@ export function ProfilePage() {
         <div><Label>Full name</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
         <div><Label>Email</Label><Input value={user?.email ?? ""} disabled /></div>
         <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Contact number" /></div>
-        <Button onClick={save} disabled={saving} className="bg-gradient-primary text-primary-foreground">{saving ? "Saving…" : "Save"}</Button>
+        <Button onClick={save} disabled={saving} className="bg-gradient-primary text-primary-foreground">{saving ? "Savingâ€¦" : "Save"}</Button>
       </Card>
     </>
   );
@@ -739,9 +778,9 @@ export function StudentsDirectory() {
           <Card key={r.id} className="p-4 flex items-center justify-between">
             <div>
               <div className="font-semibold">{r.full_name}</div>
-              <div className="text-xs text-muted-foreground">Adm# {r.admission_number} · {r.classes ? `Class ${r.classes.name}-${r.classes.section}` : "Unassigned"}</div>
+              <div className="text-xs text-muted-foreground">Adm# {r.admission_number} Â· {r.classes ? `Class ${r.classes.name}-${r.classes.section}` : "Unassigned"}</div>
             </div>
-            <Badge variant="outline">{r.parent_mobile || "—"}</Badge>
+            <Badge variant="outline">{r.parent_mobile || "â€”"}</Badge>
           </Card>
         ))}
         {filtered.length === 0 && <p className="text-muted-foreground text-center py-8">No students.</p>}
@@ -754,26 +793,47 @@ export function StudentsDirectory() {
    PRINCIPAL: PRESENT TODAY
    ============================================================ */
 export function PresentToday() {
+  const { ctx, ready } = useAcademicContext();
   const today = new Date().toISOString().slice(0, 10);
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<
+    { className: string; section: string; present: number; total: number; dayRatePct: number }[]
+  >([]);
   useEffect(() => {
-    supabase.from("attendance").select("status, students(full_name, admission_number, classes(name,section))").eq("date", today).eq("status", "present")
-      .then(({ data }) => setRows(data ?? []));
-  }, [today]);
+    if (!ready || !ctx) return;
+    void AttendanceService.summarizeSchoolDate(ctx, today)
+      .then((day) =>
+        setRows(
+          day.classes.map((c) => ({
+            className: c.className,
+            section: c.section,
+            present: c.present,
+            total: c.totalStudents,
+            dayRatePct: c.dayRatePct,
+          })),
+        ),
+      )
+      .catch(() => setRows([]));
+  }, [ready, ctx, today]);
   return (
     <>
-      <PageHeader title="Present Students" subtitle={`Live snapshot · ${today}`} />
+      <PageHeader title="Present Students" subtitle={`AttendanceService · ${today}`} />
       <div className="space-y-2">
-        {rows.map((r, i) => (
-          <Card key={i} className="p-3 flex items-center justify-between">
+        {rows.map((r) => (
+          <Card key={`${r.className}-${r.section}`} className="p-3 flex items-center justify-between">
             <div>
-              <div className="font-medium">{r.students?.full_name}</div>
-              <div className="text-xs text-muted-foreground">Adm# {r.students?.admission_number}</div>
+              <div className="font-medium">
+                {r.className}-{r.section}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Present {r.present} of {r.total}
+              </div>
             </div>
-            {r.students?.classes && <Badge variant="outline">Class {r.students.classes.name}-{r.students.classes.section}</Badge>}
+            <Badge variant="outline">{r.dayRatePct}%</Badge>
           </Card>
         ))}
-        {rows.length === 0 && <p className="text-muted-foreground text-center py-8">No present records yet today.</p>}
+        {rows.length === 0 && (
+          <p className="text-muted-foreground text-center py-8">No class summaries for today.</p>
+        )}
       </div>
     </>
   );
@@ -797,8 +857,8 @@ export function TeachersDirectory() {
             <div>
               <div className="font-semibold">{r.full_name}</div>
               <div className="text-xs text-muted-foreground">
-                {r.subject || "—"} · {r.mobile || "no mobile"}
-                {r.class_teacher && <> · Class teacher of {r.class_teacher.name}-{r.class_teacher.section}</>}
+                {r.subject || "â€”"} Â· {r.mobile || "no mobile"}
+                {r.class_teacher && <> Â· Class teacher of {r.class_teacher.name}-{r.class_teacher.section}</>}
               </div>
             </div>
             {r.is_class_teacher && <Badge>Class Teacher</Badge>}
@@ -824,7 +884,7 @@ export function PerformancePage() {
         const examMarks = marks?.filter(m => m.exam_id === e.id) ?? [];
         examMarks.forEach(m => {
           const k = e.class_id;
-          if (!byClass[k]) byClass[k] = { total: 0, out: 0, name: e.classes ? `${e.classes.name}-${e.classes.section}` : "—" };
+          if (!byClass[k]) byClass[k] = { total: 0, out: 0, name: e.classes ? `${e.classes.name}-${e.classes.section}` : "â€”" };
           byClass[k].total += Number(m.marks_obtained);
           byClass[k].out += Number(e.max_marks);
         });
@@ -868,14 +928,14 @@ export function FeesOverview() {
       });
     });
   }, []);
-  if (!stats) return <p className="text-muted-foreground text-center py-8">Loading…</p>;
+  if (!stats) return <p className="text-muted-foreground text-center py-8">Loadingâ€¦</p>;
   const rate = stats.totalDue ? Math.round((stats.totalPaid / stats.totalDue) * 100) : 0;
   return (
     <>
       <PageHeader title="Fees Overview" subtitle="School-wide fee collection summary" />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <StatCard icon={<Wallet className="w-5 h-5" />} label="Collected" value={`₹${stats.totalPaid}`} tone="accent" />
-        <StatCard icon={<Wallet className="w-5 h-5" />} label="Outstanding" value={`₹${stats.outstanding}`} tone="warning" />
+        <StatCard icon={<Wallet className="w-5 h-5" />} label="Collected" value={`â‚¹${stats.totalPaid}`} tone="accent" />
+        <StatCard icon={<Wallet className="w-5 h-5" />} label="Outstanding" value={`â‚¹${stats.outstanding}`} tone="warning" />
         <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Collection rate" value={`${rate}%`} />
         <StatCard icon={<FileText className="w-5 h-5" />} label="Records" value={stats.records} tone="secondary" />
       </div>
@@ -904,7 +964,7 @@ export function ActivityLogPage() {
           <Card key={r.id} className="p-4 flex items-center justify-between">
             <div>
               <div className="font-medium">{r.action}</div>
-              <div className="text-xs text-muted-foreground">{r.entity || "system"} · {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</div>
+              <div className="text-xs text-muted-foreground">{r.entity || "system"} Â· {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</div>
             </div>
             <Activity className="w-4 h-4 text-muted-foreground" />
           </Card>

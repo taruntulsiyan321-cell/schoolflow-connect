@@ -36,6 +36,15 @@ export const AnalyticsService = {
     }
     return AnalyticsFoundation.getSchoolPerformance(toRepoContext(ctx));
   },
+
+  /** Per-class academic rollups — attendance/homework/marks averages from profiles. */
+  async classRollups(ctx: ServiceContext) {
+    assertCanConsume(ctx, "analytics");
+    if (ctx.role === "student" || ctx.role === "parent" || ctx.role === "teacher") {
+      throw new ForbiddenError("Class rollups are admin/principal-only");
+    }
+    return AnalyticsFoundation.getSchoolClassRollups(toRepoContext(ctx));
+  },
 };
 
 export const AiSummaryService = {

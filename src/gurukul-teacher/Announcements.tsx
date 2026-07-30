@@ -1,28 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Megaphone, Plus, Edit2, Trash2, X, Save, Clock, Check, Paperclip, Calendar,
 } from "lucide-react";
-import { teacherAnnouncements, assignedClasses, type TeacherAnnouncement } from "./data";
+import { teacherAnnouncements, type TeacherAnnouncement } from "./data";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { AttendanceService, type AssignedClass } from "@/academic";
 
 const priorityColor = { normal: "#78788c", important: "#f59e0b", urgent: "#cc5069" };
 const statusColor = { draft: "#46465a", published: "#10b981", scheduled: "#6366f1" };
 
-function AnnouncementForm({ initial, onSave, onCancel }: {
+function AnnouncementForm({
+  initial,
+  onSave,
+  onCancel,
+  classes,
+}: {
   initial?: Partial<TeacherAnnouncement>;
   onSave: (a: Partial<TeacherAnnouncement>) => void;
   onCancel: () => void;
+  classes: AssignedClass[];
 }) {
   const [form, setForm] = useState({
     title: initial?.title ?? "",
     body: initial?.body ?? "",
-    targetClass: initial?.targetClass ?? assignedClasses[0]?.className ?? "",
-    targetSection: initial?.targetSection ?? assignedClasses[0]?.section ?? "",
+    targetClass: initial?.targetClass ?? classes[0]?.name ?? "",
+    targetSection: initial?.targetSection ?? classes[0]?.section ?? "",
     priority: initial?.priority ?? "normal" as TeacherAnnouncement["priority"],
     status: initial?.status ?? "draft" as TeacherAnnouncement["status"],
     scheduledFor: initial?.scheduledFor ?? "",
   });
 
-  const availableClasses = assignedClasses.map((c) => ({ label: `${c.className} ${c.section}`, className: c.className, section: c.section }));
+  const availableClasses = classes.map((c) => ({
+    label: `${c.name} ${c.section}`,
+    className: c.name,
+    section: c.section,
+  }));
 
   return (
     <div className="bg-[#131316] border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
@@ -105,10 +117,19 @@ function AnnouncementForm({ initial, onSave, onCancel }: {
 }
 
 export default function Announcements() {
+  const { ctx, ready } = useAcademicContext();
+  const [classes, setClasses] = useState<AssignedClass[]>([]);
   const [items, setItems] = useState<TeacherAnnouncement[]>(teacherAnnouncements);
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    void AttendanceService.listAssignedClasses(ctx)
+      .then(setClasses)
+      .catch(() => setClasses([]));
+  }, [ready, ctx]);
 
   function showFlash(msg: string) {
     setFlash(msg);
@@ -164,14 +185,14 @@ export default function Announcements() {
       )}
 
       {creating && (
-        <AnnouncementForm onSave={handleCreate} onCancel={() => setCreating(false)} />
+        <AnnouncementForm classes={classes} onSave={handleCreate} onCancel={() => setCreating(false)} />
       )}
 
       <div className="space-y-3">
         {items.map((a) => (
           <div key={a.id}>
             {editingId === a.id ? (
-              <AnnouncementForm initial={a} onSave={(form) => handleEdit(a.id, form)} onCancel={() => setEditingId(null)} />
+              <AnnouncementForm classes={classes} initial={a} onSave={(form) => handleEdit(a.id, form)} onCancel={() => setEditingId(null)} />
             ) : (
               <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
                 <div className="flex items-start gap-3">

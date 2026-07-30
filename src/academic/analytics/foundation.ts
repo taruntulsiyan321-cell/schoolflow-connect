@@ -118,6 +118,8 @@ export async function getSchoolPerformance(ctx: RepoContext): Promise<{
   teacherCount: number;
   avgAttendancePct: number;
   avgExamsPct: number;
+  avgHomeworkCompletionPct: number;
+  avgTestsPct: number;
 }> {
   const schoolId = schoolIdOf(ctx);
   const client = getClient(ctx);
@@ -128,7 +130,7 @@ export async function getSchoolPerformance(ctx: RepoContext): Promise<{
     client.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", schoolId),
     client
       .from("student_academic_profiles")
-      .select("attendance_pct, exams_avg_pct")
+      .select("attendance_pct, exams_avg_pct, homework_completion_pct, tests_avg_pct")
       .eq("school_id", schoolId)
       .limit(5000),
   ]);
@@ -140,18 +142,52 @@ export async function getSchoolPerformance(ctx: RepoContext): Promise<{
 
   const rows = profiles.data ?? [];
   const n = rows.length || 1;
-  const avgAtt =
-    rows.reduce((a, r) => a + Number((r as { attendance_pct: number }).attendance_pct ?? 0), 0) / n;
-  const avgExam =
-    rows.reduce((a, r) => a + Number((r as { exams_avg_pct: number }).exams_avg_pct ?? 0), 0) / n;
+  const avg = (key: string) =>
+    rows.reduce((a, r) => a + Number((r as Record<string, unknown>)[key] ?? 0), 0) / n;
 
   return {
     classCount: classes.count ?? 0,
     studentCount: students.count ?? 0,
     teacherCount: teachers.count ?? 0,
-    avgAttendancePct: round(avgAtt),
-    avgExamsPct: round(avgExam),
+    avgAttendancePct: round(avg("attendance_pct")),
+    avgExamsPct: round(avg("exams_avg_pct")),
+    avgHomeworkCompletionPct: round(avg("homework_completion_pct")),
+    avgTestsPct: round(avg("tests_avg_pct")),
   };
+}
+
+/** Per-class rollups for admin/principal reports — computed in engine, not React. */
+export async function getSchoolClassRollups(ctx: RepoContext): Promise<
+  {
+    classId: string;
+    className: string;
+    section: string;
+    studentCount: number;
+    avgAttendancePct: number;
+    avgHomeworkCompletionPct: number;
+    avgExamsPct: number;
+    avgTestsPct: number;
+  }[]
+> {
+  const schoolId = schoolIdOf(ctx);
+  const { data: classes, error } = await getClient(ctx)
+    .from("classes")
+    .select("id, name, section")
+    .eq("school_id", schoolId)
+    .order("name");
+  throwIfError(error, "Failed to list classes for rollups");
+
+  const out = [];
+  for (const cls of classes ?? []) {
+    const perf = await getClassPerformance(ctx, cls.id);
+    out.push({
+      classId: cls.id,
+      className: cls.name,
+      section: cls.section ?? "",
+      ...perf,
+    });
+  }
+  return out;
 }
 
 function round(n: number): number {
@@ -162,6 +198,7 @@ export const AnalyticsFoundation = {
   getStudentAnalytics,
   getClassPerformance,
   getSchoolPerformance,
+  getSchoolClassRollups,
   attendanceFromProfile,
   homeworkCompletionFromProfile,
   averageMarksFromProfile,

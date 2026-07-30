@@ -1,8 +1,9 @@
+import { useEffect, useState } from "react";
 import {
   GraduationCap, Users, UserCheck, Building2, Activity,
   AlertCircle, CheckCircle2, TrendingUp, TrendingDown,
   Bell, Plus, ChevronRight,
-  BarChart2, UserPlus, ClipboardEdit,
+  BarChart2, UserPlus, ClipboardEdit, Loader2,
 } from "lucide-react";
 import { cn, InitialsAvatar } from "./shared";
 import type { AdminPageKey } from "./nav";
@@ -10,6 +11,8 @@ import {
   adminStats, recentActivities, pendingRequests, announcements,
   adminStudents, adminTeachers,
 } from "./data";
+import { AnalyticsService, AttendanceService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 function StatCard({
   label, value, sub, icon, color, delta,
@@ -72,19 +75,55 @@ const priorityColor: Record<string, string> = {
   low: "#4aa87a",
 };
 
-const TODAY_CLASSES = [
-  { name: "Class 10-A", total: 42, present: 38, submitted: true },
-  { name: "Class 10-B", total: 40, present: 35, submitted: true },
-  { name: "Class 9-A", total: 45, present: 40, submitted: false },
-  { name: "Class 9-B", total: 43, present: 0, submitted: false },
-];
-
 export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey) => void }) {
+  const { ctx, ready } = useAcademicContext();
   const stats = adminStats;
-  const todayTotalStudents = TODAY_CLASSES.reduce((s, c) => s + c.total, 0);
-  const todayPresent = TODAY_CLASSES.reduce((s, c) => s + c.present, 0);
-  const todayAbsent = todayTotalStudents - todayPresent;
-  const todayPct = Math.round((todayPresent / todayTotalStudents) * 100);
+  const [todayPresent, setTodayPresent] = useState(0);
+  const [todayAbsent, setTodayAbsent] = useState(0);
+  const [todayPct, setTodayPct] = useState(0);
+  const [profileAvg, setProfileAvg] = useState(0);
+  const [classRows, setClassRows] = useState<
+    { name: string; total: number; present: number; submitted: boolean; dayRatePct: number }[]
+  >([]);
+  const [attLoading, setAttLoading] = useState(true);
+
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    (async () => {
+      setAttLoading(true);
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const [day, school] = await Promise.all([
+          AttendanceService.summarizeSchoolDate(ctx, today),
+          AnalyticsService.forSchool(ctx),
+        ]);
+        if (cancelled) return;
+        setTodayPresent(day.present);
+        setTodayAbsent(day.absent);
+        setTodayPct(day.overallDayRatePct);
+        setProfileAvg(Math.round(school.avgAttendancePct));
+        setClassRows(
+          day.classes.map((c) => ({
+            name: `${c.className}-${c.section}`,
+            total: c.totalStudents,
+            present: c.present,
+            submitted: c.marked > 0,
+            dayRatePct: c.dayRatePct,
+          })),
+        );
+      } catch {
+        if (!cancelled) {
+          setClassRows([]);
+        }
+      } finally {
+        if (!cancelled) setAttLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx]);
 
   return (
     <div className="space-y-6">
@@ -155,8 +194,16 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           </div>
           {/* Per-class status */}
           <div className="space-y-2">
-            {TODAY_CLASSES.map((cls) => {
-              const pct = cls.submitted ? Math.round((cls.present / cls.total) * 100) : 0;
+            {attLoading && (
+              <div className="flex items-center gap-2 text-[10px] text-[#78788c] py-2">
+                <Loader2 className="w-3 h-3 animate-spin" /> Loading AttendanceService…
+              </div>
+            )}
+            {!attLoading && classRows.length === 0 && (
+              <div className="text-[10px] text-[#46465a]">No class attendance for today.</div>
+            )}
+            {classRows.map((cls) => {
+              const pct = cls.dayRatePct;
               return (
                 <div key={cls.name} className="flex items-center gap-3">
                   <div className="text-[10px] text-[#78788c] w-20 shrink-0">{cls.name}</div>
@@ -179,7 +226,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
               );
             })}
           </div>
-          <AttendanceBar label="Teachers" value={stats.teacherAttendanceToday} color="#4aa87a" />
+          <AttendanceBar label="Profile avg" value={profileAvg} color="#4aa87a" />
         </div>
 
         {/* Recent Students */}

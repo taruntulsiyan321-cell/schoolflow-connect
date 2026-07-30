@@ -20,7 +20,8 @@ import ParentNotifications from "./Notifications";
 import ParentProfile from "./Profile";
 import AcademicInsights from "./AcademicInsights";
 import TestResults from "./TestResults";
-import { children, parentNotifications, messageThreads } from "./data";
+import { parentNotifications, messageThreads } from "./data";
+import { useParentLiveChildren } from "./ParentLiveAttendance";
 import { useAuth } from "@/hooks/useAuth";
 
 export type { ParentPageKey } from "./nav";
@@ -92,7 +93,15 @@ function Sidebar({
     },
   ];
 
-  const activeChild = children.find((c) => c.id === activeChildId);
+  const { children: liveChildren } = useParentLiveChildren();
+  const children = liveChildren.map((c) => ({
+    id: c.id,
+    name: c.fullName,
+    className: c.classLabel,
+    section: "",
+  }));
+
+  const activeChild = children.find((c) => c.id === activeChildId) ?? children[0];
 
   return (
     <div className={cn(
@@ -233,9 +242,7 @@ export default function ParentApp() {
   const setPage = (p: ParentPageKey) => navigate(PARENT_PAGE_PATH[p]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeChildId, setActiveChildId] = useState(children[0]?.id ?? "c1");
-
-  const activeChild = children.find((c) => c.id === activeChildId) ?? children[0];
+  const [activeChildId, setActiveChildId] = useState("");
   const unreadNotif = parentNotifications.filter((n) => !n.read).length;
   const unreadMsg = messageThreads.reduce((s, t) => s + t.unreadCount, 0);
 
@@ -335,7 +342,6 @@ export default function ParentApp() {
                 index
                 element={
                   <ParentHome
-                    child={activeChild}
                     setPage={setPage}
                     activeChildId={activeChildId}
                     setActiveChildId={setActiveChildId}
