@@ -167,12 +167,12 @@ export default function Auth() {
     }
     if (!pv.success) return toast.error(pv.error.issues[0].message);
     setBusy(true);
-    // Role is assigned by school admin / portal linking — never trust client role for staff.
+    // Staff roles are admin-provisioned. Student/parent may self-claim via intended_role + RPC.
     const { data, error } = await supabase.auth.signUp({
       email: ev.email,
       password: pv.data,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}/auth`,
         data: { full_name: nv.data, intended_role: suRole },
       },
     });
@@ -180,20 +180,17 @@ export default function Auth() {
       setBusy(false);
       return toast.error(mapAuthError(error));
     }
-    // Best-effort role hint for student/parent self-serve; portal linking / admin is source of truth.
-    if (data.user && (suRole === "student" || suRole === "parent")) {
-      const { error: roleErr } = await supabase
-        .from("user_roles")
-        .insert({ user_id: data.user.id, role: suRole });
+    // Prefer SECURITY DEFINER RPC (bypasses RLS) over direct user_roles insert
+    if (data.session && data.user && (suRole === "student" || suRole === "parent")) {
+      const { error: roleErr } = await supabase.rpc("claim_signup_role", { _role: suRole });
       if (roleErr) {
-        // Ignore — ensure_default_role / portal link will assign on next session
-        console.warn("[auth] role insert skipped:", roleErr.message);
+        console.warn("[auth] claim_signup_role:", roleErr.message);
       }
     }
     setBusy(false);
     toast.success(
       data.session
-        ? "Account created!"
+        ? "Account created! Taking you to your dashboard…"
         : "Account created — check your email to confirm, then sign in.",
     );
     if (!data.session) setTab("signin");
@@ -473,6 +470,9 @@ export default function Auth() {
 
                 <div className="space-y-2">
                   <Label>I am a</Label>
+                  <p className="text-[11px] text-muted-foreground -mt-1">
+                    Teachers, principals, and school admins are invited by your school — they cannot self-register here.
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     {ROLE_OPTIONS.map(({ value, label, desc, icon: Icon }) => (
                       <button

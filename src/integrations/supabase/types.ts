@@ -1757,6 +1757,375 @@ export type Database = {
           },
         ]
       }
+      parents: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          gender: Database["public"]["Enums"]["gender_type"]
+          id: string
+          occupation: string | null
+          phone: string | null
+          photo_url: string | null
+          portal_email: string | null
+          portal_phone: string | null
+          school_id: string
+          status: Database["public"]["Enums"]["person_status"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          gender?: Database["public"]["Enums"]["gender_type"]
+          id?: string
+          occupation?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          portal_email?: string | null
+          portal_phone?: string | null
+          school_id?: string
+          status?: Database["public"]["Enums"]["person_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          gender?: Database["public"]["Enums"]["gender_type"]
+          id?: string
+          occupation?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          portal_email?: string | null
+          portal_phone?: string | null
+          school_id?: string
+          status?: Database["public"]["Enums"]["person_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      parent_students: {
+        Row: {
+          created_at: string
+          id: string
+          is_primary: boolean
+          parent_id: string
+          relationship: string
+          school_id: string
+          student_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          parent_id: string
+          relationship?: string
+          school_id?: string
+          student_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          parent_id?: string
+          relationship?: string
+          school_id?: string
+          student_id?: string
+        }
+        Relationships: []
+      }
+      school_calendar_events: {
+        Row: {
+          all_day: boolean
+          audience: Database["public"]["Enums"]["notice_audience"]
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string | null
+          event_type: Database["public"]["Enums"]["calendar_event_type"]
+          id: string
+          school_id: string
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          all_day?: boolean
+          audience?: Database["public"]["Enums"]["notice_audience"]
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          event_type?: Database["public"]["Enums"]["calendar_event_type"]
+          id?: string
+          school_id?: string
+          starts_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          all_day?: boolean
+          audience?: Database["public"]["Enums"]["notice_audience"]
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string | null
+          event_type?: Database["public"]["Enums"]["calendar_event_type"]
+          id?: string
+          school_id?: string
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      learning_resources: {
+        Row: {
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_published: boolean
+          published_at: string | null
+          resource_type: Database["public"]["Enums"]["resource_type"]
+          school_id: string
+          storage_path: string | null
+          subject: string | null
+          title: string
+          updated_at: string
+          url: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          published_at?: string | null
+          resource_type?: Database["public"]["Enums"]["resource_type"]
+          school_id?: string
+          storage_path?: string | null
+          subject?: string | null
+          title: string
+          updated_at?: string
+          url?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_published?: boolean
+          published_at?: string | null
+          resource_type?: Database["public"]["Enums"]["resource_type"]
+          school_id?: string
+          storage_path?: string | null
+          subject?: string | null
+          title?: string
+          updated_at?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      subjects: {
+        Row: {
+          code: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          school_id: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          school_id?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          school_id?: string
+        }
+        Relationships: []
+      }
+      academic_terms: {
+        Row: {
+          academic_year: string
+          created_at: string
+          ends_on: string
+          id: string
+          is_current: boolean
+          name: string
+          school_id: string
+          starts_on: string
+        }
+        Insert: {
+          academic_year: string
+          created_at?: string
+          ends_on: string
+          id?: string
+          is_current?: boolean
+          name: string
+          school_id?: string
+          starts_on: string
+        }
+        Update: {
+          academic_year?: string
+          created_at?: string
+          ends_on?: string
+          id?: string
+          is_current?: boolean
+          name?: string
+          school_id?: string
+          starts_on?: string
+        }
+        Relationships: []
+      }
+      approval_requests: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          related_leave_id: string | null
+          related_notice_id: string | null
+          request_type: string
+          requested_by: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          school_id: string
+          status: string
+          title: string
+          urgency: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          related_leave_id?: string | null
+          related_notice_id?: string | null
+          request_type: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id?: string
+          status?: string
+          title: string
+          urgency?: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          related_leave_id?: string | null
+          related_notice_id?: string | null
+          request_type?: string
+          requested_by?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          school_id?: string
+          status?: string
+          title?: string
+          urgency?: string
+        }
+        Relationships: []
+      }
+      timetable_slots: {
+        Row: {
+          class_id: string
+          day_of_week: number
+          ends_at: string | null
+          id: string
+          period_number: number
+          room: string | null
+          school_id: string
+          starts_at: string | null
+          subject: string
+          teacher_id: string | null
+        }
+        Insert: {
+          class_id: string
+          day_of_week: number
+          ends_at?: string | null
+          id?: string
+          period_number: number
+          room?: string | null
+          school_id?: string
+          starts_at?: string | null
+          subject: string
+          teacher_id?: string | null
+        }
+        Update: {
+          class_id?: string
+          day_of_week?: number
+          ends_at?: string | null
+          id?: string
+          period_number?: number
+          room?: string | null
+          school_id?: string
+          starts_at?: string | null
+          subject?: string
+          teacher_id?: string | null
+        }
+        Relationships: []
+      }
+      school_activity_feed: {
+        Row: {
+          action: string
+          actor_name: string | null
+          actor_user_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          metadata: Json
+          school_id: string
+        }
+        Insert: {
+          action: string
+          actor_name?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json
+          school_id?: string
+        }
+        Update: {
+          action?: string
+          actor_name?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json
+          school_id?: string
+        }
+        Relationships: []
+      }
       phone_otps: {
         Row: {
           attempts: number
@@ -2992,6 +3361,10 @@ export type Database = {
         Args: { _active: boolean; _teacher_id: string }
         Returns: undefined
       }
+      claim_signup_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       ensure_default_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
@@ -3388,6 +3761,25 @@ export type Database = {
         | "teachers"
         | "parents"
         | "students"
+      person_status: "active" | "inactive" | "suspended" | "alumni"
+      gender_type: "male" | "female" | "other" | "unspecified"
+      notice_priority: "low" | "normal" | "high" | "urgent"
+      calendar_event_type:
+        | "holiday"
+        | "exam"
+        | "meeting"
+        | "sports"
+        | "cultural"
+        | "deadline"
+        | "other"
+      resource_type:
+        | "pdf"
+        | "video"
+        | "link"
+        | "notes"
+        | "worksheet"
+        | "presentation"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never

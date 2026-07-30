@@ -1,67 +1,55 @@
 # Gurukul Authentication
 
-Central auth lives in `src/auth/`. All pages should consume `useAuth()` from `@/auth` (or the compatible re-export `@/hooks/useAuth`).
+Central auth lives in `src/auth/`. Prefer `import { useAuth } from "@/auth"`.
 
 ## Stack
 
-- **Provider:** Supabase Auth only (email + password today)
-- **Session:** persisted + auto-refreshed by the Supabase JS client
-- **Profile / role / school:** loaded via `get_auth_context()` RPC after sign-in
+- **Provider:** Supabase Auth (email + password; Google OAuth hook reserved)
+- **Session:** persisted + auto-refreshed
+- **Bootstrap:** `get_auth_context()` → profile + role + school
 
 ## Roles
 
-| Role | Dashboard | Notes |
-|------|-----------|-------|
-| `admin` | `/admin` | School Admin |
-| `principal` | `/principal` | |
-| `teacher` | `/teacher` | |
-| `student` | `/student` | |
-| `parent` | `/parent` | |
-| `super_admin` | (future) | Platform operator — enum reserved |
+| Role | Dashboard | How created |
+|------|-----------|-------------|
+| `admin` | `/admin` | School admin invites / portal link |
+| `principal` | `/principal` | Admin provisions |
+| `teacher` | `/teacher` | Admin provisions |
+| `student` | `/student` | Self-signup **or** portal link |
+| `parent` | `/parent` | Self-signup **or** portal link |
+| `super_admin` | (future) | Platform only |
 
-Each account has **exactly one** role (`user_roles.user_id` unique).
+One role per account (`UNIQUE user_roles.user_id`).
+
+## Signup (rechecked)
+
+1. Public signup only offers **Student** or **Parent**.
+2. `intended_role` is stored in Auth user metadata.
+3. `handle_new_user` + `get_auth_context` assign that role server-side.
+4. Client also calls `claim_signup_role(_role)` (SECURITY DEFINER) when a session exists immediately after signup — **no direct `user_roles` insert** (RLS blocked that before).
+5. Staff cannot self-register; UI explains they must be invited.
+
+## Login / session / logout
+
+- Sign-in via `signIn({ email, password })` → Supabase → context load → role home
+- Cross-role URLs → `/unauthorized`
+- Disabled `profiles.is_active` → `/unauthorized`
+- Logout clears Supabase session + React Query + app caches
+
+## Password reset
+
+1. Forgot password on `/auth` → `resetPasswordForEmail` → `/reset-password`
+2. Recovery session verified before form
+3. After update → **sign out** → redirect to `/auth` (clean login)
 
 ## Multi-tenant
 
-- `schools` table = tenants
-- `profiles.school_id` = the user’s school
-- Client exposes `schoolId` / `school` from `useAuth()`
-- SQL helper: `get_my_school_id()` for RLS (`school_id = public.get_my_school_id()`)
-- Default seeded school: Wisdom Campus (`00000000-0000-4000-8000-000000000001`)
+- `profiles.school_id` + `useAuth().schoolId`
+- Filter all tenant queries by school
+- See `docs/DATABASE.md`
 
-Apply migration:
+## Apply DB
 
 ```bash
 supabase db push
-# or run supabase/migrations/20260730000000_auth_multitenant_foundation.sql
 ```
-
-## Client API
-
-```ts
-const {
-  user, session, role, profile, school, schoolId,
-  loading, isAuthenticated, status,
-  signIn, signOut, requestPasswordReset, updatePassword,
-  refreshAuth, homePath,
-} = useAuth();
-```
-
-## Route protection
-
-- Unauthenticated → `/auth` (preserves `from`)
-- Wrong role → `/unauthorized`
-- Disabled account → `/unauthorized`
-
-Never rely on UI alone — keep RLS policies using `has_role` + `get_my_school_id()`.
-
-## Admin-provisioned users
-
-Create Auth users via Edge Function `admin-link-account` (service role) or portal email reservation + first login (`link_portal_on_auth`).
-
-## Future (architecture-ready, not implemented)
-
-- Google / Microsoft OAuth (hook points exist via Lovable OAuth bridge)
-- MFA
-- Super Admin console
-- Multiple campuses per school

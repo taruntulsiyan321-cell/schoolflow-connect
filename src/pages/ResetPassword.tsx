@@ -15,7 +15,7 @@ import { Loader2, Lock, GraduationCap } from "lucide-react";
  */
 export default function ResetPassword() {
   const navigate = useNavigate();
-  const { updatePassword, homePath, user, loading } = useAuth();
+  const { updatePassword, user, loading } = useAuth();
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
@@ -54,10 +54,14 @@ export default function ResetPassword() {
     if (pw !== pw2) return toast.error("Passwords do not match");
     setBusy(true);
     const { error } = await updatePassword(pw);
+    if (error) {
+      setBusy(false);
+      return toast.error(error);
+    }
+    toast.success("Password updated. Please sign in with your new password.");
+    await supabase.auth.signOut();
     setBusy(false);
-    if (error) return toast.error(error);
-    toast.success("Password updated — you can sign in now");
-    navigate(user ? homePath || "/" : "/auth", { replace: true });
+    navigate("/auth", { replace: true });
   };
 
   if (loading || checking) {
