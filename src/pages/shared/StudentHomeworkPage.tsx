@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { HomeworkService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +31,7 @@ interface HomeworkItem {
 
 export default function StudentHomeworkPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
+  const { ctx } = useAcademicContext();
   const [homework, setHomework] = useState<HomeworkItem[]>([]);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,56 +102,36 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
 
   const submitHomework = async (hwId: string) => {
     if (!studentId) return;
+    if (!ctx) return toast.error("Sign in required");
     const content = submitText[hwId]?.trim() || "";
     setSubmitting(hwId);
 
-    // Check if submission exists
-    const existing = homework.find((h) => h.id === hwId)?.submission;
-
-    if (existing) {
-      // Update
-      const { error } = await supabase
-        .from("homework_submissions")
-        .update({
-          content,
-          status: "submitted",
-          submitted_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id);
-      if (error) { toast.error(error.message); setSubmitting(null); return; }
-    } else {
-      // Insert
-      const { error } = await supabase
-        .from("homework_submissions")
-        .insert({
-          homework_id: hwId,
-          student_id: studentId,
-          content,
-          status: "submitted",
-          submitted_at: new Date().toISOString(),
-        });
-      if (error) { toast.error(error.message); setSubmitting(null); return; }
+    try {
+      const submission = await HomeworkService.submit(
+        { ...ctx, studentId },
+        { homeworkId: hwId, studentId, content },
+      );
+      toast.success("Homework submitted!");
+      setHomework((prev) =>
+        prev.map((h) =>
+          h.id === hwId
+            ? {
+                ...h,
+                submission: {
+                  id: submission.id,
+                  status: submission.status,
+                  content: submission.content || "",
+                  grade: submission.grade,
+                  teacher_remarks: submission.teacherRemarks,
+                  submitted_at: submission.submittedAt,
+                },
+              }
+            : h,
+        ),
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit");
     }
-
-    toast.success("Homework submitted!");
-    // Update local state
-    setHomework((prev) =>
-      prev.map((h) =>
-        h.id === hwId
-          ? {
-              ...h,
-              submission: {
-                id: existing?.id || "new",
-                status: "submitted",
-                content,
-                grade: null,
-                teacher_remarks: null,
-                submitted_at: new Date().toISOString(),
-              },
-            }
-          : h
-      )
-    );
     setSubmitting(null);
   };
 

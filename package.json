@@ -15,6 +15,7 @@
     "db:migrate": "node scripts/apply-pending-migrations.mjs",
     "db:migrate:all": "node scripts/apply-pending-migrations.mjs --all",
     "db:check-migrations": "node scripts/check-pending-migrations.mjs",
+    "db:types": "npx --yes supabase@latest gen types typescript --project-id kdmjipeksjdyojjdokbi > src/integrations/supabase/types.ts",
     "seed:math12": "node scripts/seed-class12-math-templates.mjs",
     "functions:sync": "node scripts/sync-gemini-to-functions.mjs",
     "functions:deploy-analytics": "npm run functions:sync && npx --yes supabase@latest functions deploy ai-analytics-insights --project-ref kdmjipeksjdyojjdokbi --use-api",

@@ -93,6 +93,17 @@ async function syncPracticeSessionToServer(sessionId: string, state: PracticeSes
     } as { _session_id: string; _attempts: ReturnType<typeof attemptsToFinishPayload> });
   }
 
+  await supabase.rpc("emit_academic_event", {
+    _event_type: "practice.session.completed",
+    _entity_type: "practice",
+    _entity_id: sessionId,
+    _school_id: null,
+    _student_id: null,
+    _class_id: null,
+    _teacher_id: null,
+    _payload: { session_id: sessionId, correct },
+  }).catch(() => undefined);
+
   if (!fin1 && state.attempts.length > 0) {
     await (supabase as any).rpc("rpc_post_assessment_concept_analysis", {
       _source_type: "practice_session",

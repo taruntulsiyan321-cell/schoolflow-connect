@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { AttendanceService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +126,7 @@ export function UsersDirectory() {
    ============================================================ */
 export function AttendanceOverview() {
   const { user } = useAuth();
+  const { ctx } = useAcademicContext();
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [classes, setClasses] = useState<any[]>([]);
   const [att, setAtt] = useState<any[]>([]);
@@ -176,17 +179,22 @@ export function AttendanceOverview() {
   };
 
   const saveEdit = async () => {
+    if (!ctx) return toast.error("Sign in required");
     const classStudents = students.filter(s => s.class_id === editClass.id);
     const rows = classStudents.map(s => ({
-      student_id: s.id, class_id: editClass.id, date,
-      status: (editMarks[s.id] ?? "present") as any,
-      marked_by: user?.id,
+      studentId: s.id,
+      classId: editClass.id,
+      date,
+      status: (editMarks[s.id] ?? "present") as "present" | "absent" | "leave",
     }));
-    const { error } = await supabase.from("attendance").upsert(rows, { onConflict: "student_id,date" });
-    if (error) return toast.error(error.message);
-    toast.success("Attendance updated");
-    setEditClass(null);
-    reloadDate();
+    try {
+      await AttendanceService.markBulk(ctx, rows);
+      toast.success("Attendance updated");
+      setEditClass(null);
+      reloadDate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save attendance");
+    }
   };
 
   const unlock = async (classId: string) => {

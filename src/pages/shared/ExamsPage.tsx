@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { MarksService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +18,7 @@ interface Props { isAdmin?: boolean; }
 
 export default function ExamsPage({ isAdmin = false }: Props) {
   const { user } = useAuth();
+  const { ctx } = useAcademicContext();
   const [classes, setClasses] = useState<any[]>([]);
   const [exams, setExams] = useState<any[]>([]);
   const [students, setStudents] = useState<any[]>([]);
@@ -62,24 +65,34 @@ export default function ExamsPage({ isAdmin = false }: Props) {
 
   const submit = async () => {
     if (!form.name || !form.class_id || !form.subject) return toast.error("Name, class and subject required");
-    const payload = {
-      name: form.name, exam_type: form.exam_type as any, class_id: form.class_id,
-      subject: form.subject, max_marks: Number(form.max_marks), exam_date: form.exam_date || null,
-    };
-    const { error } = editId
-      ? await supabase.from("exams").update(payload).eq("id", editId)
-      : await supabase.from("exams").insert({ ...payload, created_by: user?.id });
-    if (error) return toast.error(error.message);
-    toast.success(editId ? "Exam updated" : "Exam created");
-    setOpen(false); setEditId(null); setForm(emptyForm); loadExams();
+    if (!ctx) return toast.error("Sign in required");
+    try {
+      await MarksService.upsertExam(ctx, {
+        id: editId ?? undefined,
+        classId: form.class_id,
+        name: form.name,
+        subject: form.subject,
+        maxMarks: Number(form.max_marks),
+        examDate: form.exam_date || null,
+        examType: form.exam_type,
+      });
+      toast.success(editId ? "Exam updated" : "Exam created");
+      setOpen(false); setEditId(null); setForm(emptyForm); loadExams();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save exam");
+    }
   };
 
   const remove = async (e: any) => {
     if (!window.confirm(`Delete "${e.name}"? This also removes all marks entered for it.`)) return;
-    await supabase.from("marks").delete().eq("exam_id", e.id);
-    const { error } = await supabase.from("exams").delete().eq("id", e.id);
-    if (error) return toast.error(error.message);
-    toast.success("Exam deleted"); loadExams();
+    if (!ctx) return toast.error("Sign in required");
+    try {
+      await MarksService.removeExam(ctx, e.id);
+      toast.success("Exam deleted");
+      loadExams();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete exam");
+    }
   };
 
   const openMarks = async (exam: any) => {
@@ -93,13 +106,18 @@ export default function ExamsPage({ isAdmin = false }: Props) {
   };
 
   const saveMarks = async () => {
+    if (!ctx) return toast.error("Sign in required");
     const rows = Object.entries(marks)
       .filter(([, v]) => v !== "")
-      .map(([student_id, v]) => ({ exam_id: activeExam.id, student_id, marks_obtained: Number(v) }));
+      .map(([studentId, v]) => ({ studentId, marksObtained: Number(v) }));
     if (!rows.length) return toast.error("Enter at least one mark");
-    const { error } = await supabase.from("marks").upsert(rows, { onConflict: "exam_id,student_id" });
-    if (error) return toast.error(error.message);
-    toast.success("Marks saved"); setActiveExam(null);
+    try {
+      await MarksService.publishBatch(ctx, activeExam.id, rows);
+      toast.success("Marks saved");
+      setActiveExam(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save marks");
+    }
   };
 
   return (

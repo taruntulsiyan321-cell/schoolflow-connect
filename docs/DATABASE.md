@@ -13,11 +13,14 @@ Order matters:
 1. `20260730000000_auth_multitenant_foundation.sql` — schools, profiles.school_id, auth RPCs  
 2. `20260730010000_complete_panel_database.sql` — full panel schema + school isolation  
 3. `20260730020000_academic_engine_foundation.sql` — academic engine backbone (years, profiles, events, audit, remarks)
+4. `20260730030000_academic_sync_engine.sql` — sync processors + notifications
+5. `20260730040000_academic_sync_large_class.sql` — large-class profile refresh enqueue
 
 After push, regenerate types:
 
 ```bash
-supabase gen types typescript --local > src/integrations/supabase/types.ts
+npm run db:types
+# or: supabase gen types typescript --local > src/integrations/supabase/types.ts
 ```
 
 ## Academic Engine (Phase 1)
@@ -126,6 +129,21 @@ Service write → DB trigger → academic_events row
 ```
 
 No panel should manually update dashboards after attendance/marks/homework.
+
+## Panel wiring (Phase 6)
+
+Write paths now go through Academic Engine services:
+
+| Page | Service |
+|------|---------|
+| `SchoolFeatures` AttendanceOverview | `AttendanceService.markBulk` |
+| `HomeworkManagePage` | `HomeworkService.assign/remove/grade` |
+| `StudentHomeworkPage` | `HomeworkService.submit` |
+| `ExamsPage` | `MarksService.upsertExam/removeExam/publishBatch` |
+| `DppList` | `TestService.create/remove` |
+| Doubts / practice finish | `emit_academic_event` RPC (sync outbox) |
+
+Use `useAcademicContext()` to build `ServiceContext` from auth.
 
 ## Academic Engine (Phase 5) — analytics, AI data, audit
 

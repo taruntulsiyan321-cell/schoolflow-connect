@@ -78,9 +78,9 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
   },
   attendance: {
     entity: "attendance",
-    owners: ["teacher"],
+    owners: ["teacher", "admin", "principal"],
     consumers: ["teacher", "student", "parent", "principal", "admin"],
-    description: "Daily attendance — teacher creates; others consume",
+    description: "Daily attendance — teacher creates; admin/principal may correct; others consume",
   },
   homework: {
     entity: "homework",

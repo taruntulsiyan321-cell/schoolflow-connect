@@ -21,6 +21,10 @@ describe("academic services — ownership gates", () => {
     expect(canOwn("teacher", "attendance")).toBe(true);
   });
 
+  it("allows admin to correct attendance", () => {
+    expect(() => assertCanOwn(ctx("admin"), "attendance")).not.toThrow();
+  });
+
   it("blocks student from owning attendance writes", () => {
     expect(() => assertCanOwn(ctx("student"), "attendance")).toThrow(ForbiddenError);
   });

@@ -205,3 +205,48 @@ export async function upsertHomeworkSubmission(
   throwIfError(error, "Failed to submit homework");
   return mapSubmission(data as SubmissionRow);
 }
+
+export async function deleteHomework(ctx: RepoContext, homeworkId: string): Promise<void> {
+  const schoolId = schoolIdOf(ctx);
+  await getHomework(ctx, homeworkId);
+  const { error } = await getClient(ctx)
+    .from("homework")
+    .delete()
+    .eq("id", homeworkId)
+    .eq("school_id", schoolId);
+  throwIfError(error, "Failed to delete homework");
+}
+
+export async function gradeHomeworkSubmission(
+  ctx: RepoContext,
+  input: { submissionId: string; grade: string; remarks?: string | null },
+): Promise<HomeworkSubmissionRecord> {
+  const schoolId = schoolIdOf(ctx);
+  const { data, error } = await getClient(ctx)
+    .from("homework_submissions")
+    .update({
+      grade: input.grade,
+      teacher_remarks: input.remarks ?? null,
+      status: "graded",
+      graded_at: new Date().toISOString(),
+      school_id: schoolId,
+    } as never)
+    .eq("id", input.submissionId)
+    .select("*")
+    .single();
+
+  throwIfError(error, "Failed to grade homework");
+  const submission = mapSubmission(data as SubmissionRow);
+
+  // Emit graded event for sync fan-out
+  const { emitEvent } = await import("./eventsRepository");
+  await emitEvent(ctx, {
+    eventType: "homework.submission.graded",
+    entityType: "homework_submission",
+    entityId: submission.id,
+    studentId: submission.studentId,
+    payload: { grade: input.grade, homeworkId: submission.homeworkId },
+  }).catch(() => undefined);
+
+  return submission;
+}

@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { HomeworkService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +30,7 @@ interface Homework {
 
 export default function HomeworkManagePage() {
   const { user } = useAuth();
+  const { ctx } = useAcademicContext();
   const [classes, setClasses] = useState<any[]>([]);
   const [homework, setHomework] = useState<Homework[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,32 +115,34 @@ export default function HomeworkManagePage() {
       toast.error("Title and class are required");
       return;
     }
+    if (!ctx) return toast.error("Sign in required");
     setSaving(true);
-    const { error } = await supabase.from("homework").insert({
-      class_id: formClassId,
-      subject: formSubject || classes.find(c => c.id === formClassId)?.subject || "",
-      title: formTitle.trim(),
-      description: formDesc.trim(),
-      due_date: formDue || null,
-      created_by: user!.id,
-    });
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      await HomeworkService.assign(ctx, {
+        classId: formClassId,
+        subject: formSubject || classes.find(c => c.id === formClassId)?.subject || "",
+        title: formTitle.trim(),
+        description: formDesc.trim(),
+        dueDate: formDue || null,
+      });
       toast.success("Homework assigned!");
       setFormTitle(""); setFormDesc(""); setFormDue(""); setFormClassId(""); setFormSubject("");
       setDialogOpen(false);
       await loadHomework();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to assign homework");
     }
     setSaving(false);
   };
 
   const deleteHomework = async (id: string) => {
-    const { error } = await supabase.from("homework").delete().eq("id", id);
-    if (error) toast.error(error.message);
-    else {
+    if (!ctx) return toast.error("Sign in required");
+    try {
+      await HomeworkService.remove(ctx, id);
       toast.success("Homework deleted");
       setHomework(h => h.filter(x => x.id !== id));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete homework");
     }
   };
 
@@ -160,14 +165,13 @@ export default function HomeworkManagePage() {
   };
 
   const gradeSubmission = async (subId: string, grade: string, remarks: string) => {
-    const { error } = await supabase
-      .from("homework_submissions")
-      .update({ grade, teacher_remarks: remarks, status: "graded", graded_at: new Date().toISOString() })
-      .eq("id", subId);
-    if (error) toast.error(error.message);
-    else {
+    if (!ctx) return toast.error("Sign in required");
+    try {
+      await HomeworkService.grade(ctx, { submissionId: subId, grade, remarks });
       toast.success("Graded!");
       setSubmissions(s => s.map(x => x.id === subId ? { ...x, grade, teacher_remarks: remarks, status: "graded" } : x));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to grade");
     }
   };
 

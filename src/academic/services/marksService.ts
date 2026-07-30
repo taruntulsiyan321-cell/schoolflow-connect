@@ -80,4 +80,39 @@ export const MarksService = {
       teacherAssignedToSubject: assigned,
     });
   },
+
+  async upsertExam(
+    ctx: ServiceContext,
+    input: import("../repository/examRepository").UpsertExamInput,
+  ): Promise<ExamRecord> {
+    assertCanOwn(ctx, "examination");
+    const { upsertExam } = await import("../repository/examRepository");
+    return upsertExam(toRepoContext(ctx), input);
+  },
+
+  async removeExam(ctx: ServiceContext, examId: string): Promise<void> {
+    assertCanOwn(ctx, "examination");
+    const { deleteExam } = await import("../repository/examRepository");
+    await deleteExam(toRepoContext(ctx), examId);
+  },
+
+  async publishBatch(
+    ctx: ServiceContext,
+    examId: string,
+    rows: { studentId: string; marksObtained: number; remarks?: string | null }[],
+  ): Promise<number> {
+    assertCanOwn(ctx, "marks");
+    const exam = await getExam(toRepoContext(ctx), examId);
+    let assigned = isSchoolOperator(ctx.role);
+    if (!assigned) {
+      assigned = await teacherAssignedToClassSubject(toRepoContext(ctx), {
+        teacherUserId: ctx.userId,
+        classId: exam.classId,
+        subject: exam.subject,
+        subjectId: exam.subjectId,
+      });
+    }
+    const { publishMarksBatch } = await import("../repository/examRepository");
+    return publishMarksBatch(toRepoContext(ctx), examId, rows, assigned);
+  },
 };

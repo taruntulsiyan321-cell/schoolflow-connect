@@ -69,6 +69,9 @@ export {
   MarksService,
   RemarksService,
   AcademicProfileService,
+  TestService,
+  PracticeService,
+  DoubtService,
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
@@ -78,6 +81,8 @@ export {
 } from "./services";
 
 export { AnalyticsService, AiSummaryService, AuditReadService } from "./services/readServices";
+
+export { useAcademicContext } from "./hooks/useAcademicContext";
 
 export {
   SyncEngine,

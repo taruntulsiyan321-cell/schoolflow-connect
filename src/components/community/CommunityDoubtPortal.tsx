@@ -287,6 +287,16 @@ function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
         _image_url: imageUrl,
       });
       if (error) throw error;
+      await db.rpc("emit_academic_event", {
+        _event_type: "doubt.created",
+        _entity_type: "student_doubt",
+        _entity_id: typeof data === "string" ? data : (data as { id?: string })?.id ?? null,
+        _school_id: null,
+        _student_id: null,
+        _class_id: null,
+        _teacher_id: null,
+        _payload: { subject, chapter, concept, title },
+      }).catch(() => undefined);
       toast.success("Doubt posted to the community.");
       setChapter("");
       setConcept("");
@@ -360,6 +370,16 @@ function AnswerComposer({ selected, onAnswered }: { selected: CommunityDoubt | n
         _image_url: imageUrl,
       });
       if (error) throw error;
+      await db.rpc("emit_academic_event", {
+        _event_type: "doubt.replied",
+        _entity_type: "teacher_reply",
+        _entity_id: selected.id,
+        _school_id: null,
+        _student_id: null,
+        _class_id: null,
+        _teacher_id: null,
+        _payload: { doubt_id: selected.id },
+      }).catch(() => undefined);
       toast.success("Answer added.");
       setBody("");
       setFile(null);

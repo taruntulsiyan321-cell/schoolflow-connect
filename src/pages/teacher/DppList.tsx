@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { TestService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +13,7 @@ import "./teacher-premium.css";
 
 export default function DppList() {
   const { user } = useAuth();
+  const { ctx } = useAcademicContext();
   const nav = useNavigate();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,8 +35,7 @@ export default function DppList() {
   useEffect(() => { load(); }, []);
 
   const create = async () => {
-    if (!user) return;
-    // Find a class the teacher teaches
+    if (!user || !ctx) return;
     const { data: t } = await supabase.from("teachers").select("id, class_teacher_of").eq("user_id", user.id).maybeSingle();
     let classId = t?.class_teacher_of as string | null;
     if (!classId) {
@@ -41,25 +43,30 @@ export default function DppList() {
       classId = tc?.class_id ?? null;
     }
     if (!classId) return toast.error("You don't have any classes assigned yet.");
-    const { data, error } = await supabase.from("dpps").insert({
-      title: "Untitled DPP",
-      subject: "Math",
-      class_id: classId,
-      created_by: user.id,
-      difficulty: "medium",
-      duration_sec: 1800,
-    }).select("id").single();
-    if (error) return toast.error(error.message);
-    nav(`/teacher/dpp/${data.id}`);
+    try {
+      const data = await TestService.create(ctx, {
+        classId,
+        title: "Untitled DPP",
+        subject: "Math",
+        difficulty: "medium",
+        duration_sec: 1800,
+      });
+      nav(`/teacher/dpp/${(data as { id: string }).id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create DPP");
+    }
   };
 
   const remove = async (d: any) => {
     if (!window.confirm(`Delete "${d.title}" and all its questions?`)) return;
-    await supabase.from("dpp_questions").delete().eq("dpp_id", d.id);
-    const { error } = await supabase.from("dpps").delete().eq("id", d.id);
-    if (error) return toast.error(error.message);
-    toast.success("DPP deleted");
-    setRows(prev => prev.filter(row => row.id !== d.id));
+    if (!ctx) return toast.error("Sign in required");
+    try {
+      await TestService.remove(ctx, d.id);
+      toast.success("DPP deleted");
+      setRows(prev => prev.filter(row => row.id !== d.id));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete DPP");
+    }
   };
 
   const today = new Date().toISOString().split("T")[0];

@@ -68,6 +68,21 @@ export const HomeworkService = {
     }).catch(() => undefined);
     return submission;
   },
+
+  async remove(ctx: ServiceContext, homeworkId: string): Promise<void> {
+    assertCanOwn(ctx, "homework");
+    const { deleteHomework } = await import("../repository/homeworkRepository");
+    await deleteHomework(toRepoContext(ctx), homeworkId);
+  },
+
+  async grade(
+    ctx: ServiceContext,
+    input: { submissionId: string; grade: string; remarks?: string | null },
+  ): Promise<HomeworkSubmissionRecord> {
+    assertCanOwn(ctx, "homework");
+    const { gradeHomeworkSubmission } = await import("../repository/homeworkRepository");
+    return gradeHomeworkSubmission(toRepoContext(ctx), input);
+  },
 };
 
 /** Product alias — Assignment is Homework. */

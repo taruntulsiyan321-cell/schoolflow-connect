@@ -3136,6 +3136,267 @@ export type Database = {
         }
         Relationships: []
       }
+      academic_years: {
+        Row: {
+          id: string
+          school_id: string
+          name: string
+          starts_on: string
+          ends_on: string
+          status: string
+          is_current: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          school_id?: string
+          name: string
+          starts_on: string
+          ends_on: string
+          status?: string
+          is_current?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          school_id?: string
+          name?: string
+          starts_on?: string
+          ends_on?: string
+          status?: string
+          is_current?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      student_academic_profiles: {
+        Row: {
+          id: string
+          school_id: string
+          student_id: string
+          academic_year_id: string | null
+          attendance_present: number
+          attendance_total: number
+          attendance_pct: number
+          homework_assigned: number
+          homework_submitted: number
+          homework_completion_pct: number
+          tests_attempted: number
+          tests_avg_pct: number
+          exams_recorded: number
+          exams_avg_pct: number
+          practice_sessions: number
+          practice_accuracy_pct: number
+          doubts_asked: number
+          doubts_resolved: number
+          remarks_count: number
+          metrics: Json
+          last_event_type: string | null
+          last_event_at: string | null
+          refreshed_at: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          school_id?: string
+          student_id: string
+          academic_year_id?: string | null
+          attendance_present?: number
+          attendance_total?: number
+          attendance_pct?: number
+          homework_assigned?: number
+          homework_submitted?: number
+          homework_completion_pct?: number
+          tests_attempted?: number
+          tests_avg_pct?: number
+          exams_recorded?: number
+          exams_avg_pct?: number
+          practice_sessions?: number
+          practice_accuracy_pct?: number
+          doubts_asked?: number
+          doubts_resolved?: number
+          remarks_count?: number
+          metrics?: Json
+          last_event_type?: string | null
+          last_event_at?: string | null
+          refreshed_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          school_id?: string
+          student_id?: string
+          academic_year_id?: string | null
+          attendance_present?: number
+          attendance_total?: number
+          attendance_pct?: number
+          homework_assigned?: number
+          homework_submitted?: number
+          homework_completion_pct?: number
+          tests_attempted?: number
+          tests_avg_pct?: number
+          exams_recorded?: number
+          exams_avg_pct?: number
+          practice_sessions?: number
+          practice_accuracy_pct?: number
+          doubts_asked?: number
+          doubts_resolved?: number
+          remarks_count?: number
+          metrics?: Json
+          last_event_type?: string | null
+          last_event_at?: string | null
+          refreshed_at?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      academic_events: {
+        Row: {
+          id: string
+          school_id: string
+          event_type: string
+          entity_type: string
+          entity_id: string | null
+          actor_user_id: string | null
+          student_id: string | null
+          class_id: string | null
+          teacher_id: string | null
+          payload: Json
+          status: string
+          error: string | null
+          created_at: string
+          processed_at: string | null
+        }
+        Insert: {
+          id?: string
+          school_id?: string
+          event_type: string
+          entity_type: string
+          entity_id?: string | null
+          actor_user_id?: string | null
+          student_id?: string | null
+          class_id?: string | null
+          teacher_id?: string | null
+          payload?: Json
+          status?: string
+          error?: string | null
+          created_at?: string
+          processed_at?: string | null
+        }
+        Update: {
+          id?: string
+          school_id?: string
+          event_type?: string
+          entity_type?: string
+          entity_id?: string | null
+          actor_user_id?: string | null
+          student_id?: string | null
+          class_id?: string | null
+          teacher_id?: string | null
+          payload?: Json
+          status?: string
+          error?: string | null
+          created_at?: string
+          processed_at?: string | null
+        }
+        Relationships: []
+      }
+      academic_audit: {
+        Row: {
+          id: string
+          school_id: string
+          entity_type: string
+          entity_id: string
+          action: string
+          actor_user_id: string | null
+          actor_role: string | null
+          previous_value: Json | null
+          new_value: Json | null
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          school_id?: string
+          entity_type: string
+          entity_id: string
+          action: string
+          actor_user_id?: string | null
+          actor_role?: string | null
+          previous_value?: Json | null
+          new_value?: Json | null
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          school_id?: string
+          entity_type?: string
+          entity_id?: string
+          action?: string
+          actor_user_id?: string | null
+          actor_role?: string | null
+          previous_value?: Json | null
+          new_value?: Json | null
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
+      teacher_remarks: {
+        Row: {
+          id: string
+          school_id: string
+          student_id: string
+          teacher_id: string
+          class_id: string | null
+          subject_id: string | null
+          academic_year_id: string | null
+          remark_type: string
+          body: string
+          visibility: string
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          school_id?: string
+          student_id: string
+          teacher_id: string
+          class_id?: string | null
+          subject_id?: string | null
+          academic_year_id?: string | null
+          remark_type?: string
+          body: string
+          visibility?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          school_id?: string
+          student_id?: string
+          teacher_id?: string
+          class_id?: string | null
+          subject_id?: string | null
+          academic_year_id?: string | null
+          remark_type?: string
+          body?: string
+          visibility?: string
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -3368,6 +3629,47 @@ export type Database = {
       ensure_default_role: {
         Args: never
         Returns: Database["public"]["Enums"]["app_role"]
+      }
+      emit_academic_event: {
+        Args: {
+          _event_type: string
+          _entity_type: string
+          _entity_id?: string | null
+          _school_id?: string | null
+          _student_id?: string | null
+          _class_id?: string | null
+          _teacher_id?: string | null
+          _payload?: Json
+        }
+        Returns: string
+      }
+      write_academic_audit: {
+        Args: {
+          _entity_type: string
+          _entity_id: string
+          _action: string
+          _previous?: Json | null
+          _new?: Json | null
+          _school_id?: string | null
+          _metadata?: Json
+        }
+        Returns: string
+      }
+      ensure_student_academic_profile: {
+        Args: { _student_id: string }
+        Returns: string
+      }
+      refresh_student_academic_profile: {
+        Args: { _student_id: string }
+        Returns: string
+      }
+      process_academic_event: {
+        Args: { _event_id: string }
+        Returns: boolean
+      }
+      process_pending_academic_events: {
+        Args: { _limit?: number }
+        Returns: number
       }
       get_auth_context: {
         Args: never
