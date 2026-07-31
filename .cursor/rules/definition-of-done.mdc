@@ -1,0 +1,47 @@
+---
+description: Definition of Done — a feature is not finished until every checklist item passes
+alwaysApply: true
+---
+
+# Definition of Done (DoD)
+
+A feature is **not finished** until it satisfies **all** of the items below.
+Do not declare completion, merge readiness, or "done" while any item is unchecked.
+This checklist exists to prevent "90% complete" features from accumulating.
+
+## Backend & data
+
+- [ ] **Backend service implemented** — logic lives in the Academic Engine (or the owning domain service), not in React components.
+- [ ] **Repository implemented** — persistence goes through repositories; no ad-hoc multi-table queries from UI.
+- [ ] **Database integrated** — real schema/migrations/RLS as required; no stub tables or in-memory fakes for production paths.
+- [ ] **Event generated** — domain events are emitted for mutations that other modules depend on.
+- [ ] **Synchronization working** — derived state (e.g. academic profiles) updates via sync/engine paths, not manual UI writes.
+- [ ] **Notifications working** — users who should be notified receive notifications through the real notification path.
+- [ ] **Audit trail written** — mutating actions are recorded where the audit model requires it.
+- [ ] **Analytics updated** — analytics/services reflect the change; panels read AnalyticsService (or equivalent), not local recalculation.
+- [ ] **AI summaries updated** — AI consumers use structured summaries from the engine; raw dumps are not exposed.
+
+## UI & roles
+
+- [ ] **Student UI live** — student panel consumes live services (or N/A with explicit justification).
+- [ ] **Teacher UI live** — teacher panel consumes live services (or N/A with explicit justification).
+- [ ] **Parent UI live** — parent panel consumes live services (or N/A with explicit justification).
+- [ ] **Principal/Admin UI live** — principal and admin panels consume live services (or N/A with explicit justification).
+- [ ] **No mock data** — no fake attendance, homework, marks, exams, KPIs, or hybrid mock/live academic data on the feature path.
+- [ ] **Responsive UI** — usable on desktop and mobile for the surfaces that ship.
+
+## Safety & quality
+
+- [ ] **Authorization enforced** — centralized ownership/permission checks; no bypass; school tenant isolation respected.
+- [ ] **Error handling implemented** — independent data sources fail soft where appropriate; pages do not blank because one call throws.
+- [ ] **Production-ready** — no known P0/P1 blockers on this feature; empty states are honest; behavior is correct under missing data.
+
+## Agent behavior
+
+When implementing or claiming a feature is done:
+
+1. Walk this checklist explicitly.
+2. Mark each item done only with evidence (file/service/UI path).
+3. If an item is genuinely out of scope, state **N/A** and why — do not silently skip.
+4. Prefer extending existing Academic Engine services over parallel implementations.
+5. After meaningful code changes, commit and push per project auto-push rules.
