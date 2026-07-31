@@ -598,9 +598,15 @@ export async function upsertHomeworkSubmission(
   ctx: RepoContext,
   input: SubmitHomeworkInput,
 ): Promise<HomeworkSubmissionRecord> {
-  if (!input.content?.trim()) {
+  const hasAttachments = (input.attachments?.length ?? 0) > 0;
+  const hasLinks = (input.externalLinks?.length ?? 0) > 0;
+  if (!input.content?.trim() && !hasAttachments && !hasLinks) {
     throw new ValidationFailedError([
-      { field: "content", code: "required", message: "Submission content is required" },
+      {
+        field: "content",
+        code: "required",
+        message: "Add a note or attach at least one file/link",
+      },
     ]);
   }
 

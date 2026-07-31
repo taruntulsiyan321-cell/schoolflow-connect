@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, Loader2, Send } from "lucide-react";
 import { HomeworkService, WORK_KIND_LABELS, normalizeWorkKind } from "@/academic";
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
+import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/gurukul/components/shared";
+import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
+import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 
 /**
- * Student Assignments — HomeworkService only (view + submit / replace).
+ * Student Assignments — view attachments + submit text/files/links.
  */
 export default function Assignments() {
   const { ctx, ready, studentId } = useAcademicContext();
@@ -18,6 +20,7 @@ export default function Assignments() {
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [content, setContent] = useState("");
+  const [attachments, setAttachments] = useState<HomeworkAttachmentMeta[]>([]);
   const [saving, setSaving] = useState(false);
 
   const reload = async () => {
@@ -78,8 +81,8 @@ export default function Assignments() {
 
   const submit = async (homeworkId: string) => {
     if (!ctx || !studentId) return;
-    if (!content.trim()) {
-      setActionError("Enter your submission before sending");
+    if (!content.trim() && attachments.length === 0) {
+      setActionError("Add a note or attach at least one file/link before sending");
       return;
     }
     setSaving(true);
@@ -89,9 +92,11 @@ export default function Assignments() {
         homeworkId,
         studentId,
         content: content.trim(),
+        attachments,
       });
       setActiveId(null);
       setContent("");
+      setAttachments([]);
       await reload();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Submit failed");
@@ -118,88 +123,48 @@ export default function Assignments() {
 
   if (loadError) {
     return (
-      <div className="text-center py-16 space-y-3">
-        <div className="text-sm text-[#cc5069]">{loadError}</div>
-        <button
-          type="button"
-          onClick={() => {
-            setLoading(true);
-            void reload()
-              .then(() => setLoadError(null))
-              .catch((e) => setLoadError(e instanceof Error ? e.message : "Failed to load assignments"))
-              .finally(() => setLoading(false));
-          }}
-          className="text-[11px] font-bold text-[#3b5bdb]"
-        >
-          Retry
-        </button>
-      </div>
+      <div className="text-center text-sm text-[#cc5069] py-16">{loadError}</div>
     );
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
+      <SectionLabel>My Homework</SectionLabel>
       {actionError && (
-        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069] flex justify-between gap-3">
-          <span>{actionError}</span>
-          <button type="button" className="font-bold shrink-0" onClick={() => setActionError(null)}>
-            Dismiss
-          </button>
+        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+          {actionError}
         </div>
       )}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Total", value: rows.length, color: "#e8eaf0" },
-          { label: "Pending", value: pending.length, color: "#c08a3a" },
-          { label: "Completed", value: completed.length, color: "#4aa87a" },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="p-4 rounded-2xl border border-white/7 bg-[#131316]/70 text-center"
-          >
-            <div
-              className="text-2xl font-black tabular-nums"
-              style={{ color: s.color, fontFamily: "var(--font-display)" }}
-            >
-              {s.value}
-            </div>
-            <div className="text-[11px] text-[#78788c] mt-0.5">{s.label}</div>
+      <GlassCard className="p-4 space-y-3">
+        <div className="flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex gap-1">
+            {(["all", "pending", "done"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold capitalize ${
+                  filter === f ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                }`}
+              >
+                {f}
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search…"
+            className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white w-36"
+          />
+        </div>
 
-      <div className="flex flex-wrap gap-2 items-center">
-        {(["all", "pending", "done"] as const).map((f) => (
-          <button
-            key={f}
-            type="button"
-            onClick={() => setFilter(f)}
-            className={cn(
-              "px-3 py-1.5 rounded-xl text-[10px] font-bold capitalize",
-              filter === f ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]",
-            )}
-          >
-            {f}
-          </button>
-        ))}
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search…"
-          className="ml-auto bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white"
-        />
-      </div>
-
-      <GlassCard className="p-5">
-        <SectionLabel>All assignments · HomeworkService</SectionLabel>
         <div className="space-y-3">
           {visible.length === 0 && (
-            <div className="text-xs text-[#46465a] py-8 text-center">
-              {rows.length === 0
-                ? "No homework assigned yet."
-                : filter !== "all" || search.trim()
-                  ? "No assignments match this filter."
-                  : "No homework assigned yet."}
+            <div className="text-center py-10 text-xs text-[#46465a]">
+              {filter !== "all" || search.trim()
+                ? "No assignments match this filter."
+                : "No homework assigned yet."}
             </div>
           )}
           {visible.map(({ homework: a, submission: s, displayStatus }) => {
@@ -221,19 +186,13 @@ export default function Assignments() {
                   >
                     <ClipboardList className="w-4 h-4" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <span className="text-sm font-semibold text-white">{a.title}</span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
                         {WORK_KIND_LABELS[normalizeWorkKind(a.workKind)]}
                       </span>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
-                          isReturned
-                            ? "bg-amber-500/15 text-amber-400"
-                            : "bg-amber-500/15 text-amber-400"
-                        }`}
-                      >
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-400">
                         {displayStatus}
                       </span>
                       {s?.grade && !isReturned && (
@@ -250,12 +209,26 @@ export default function Assignments() {
                       )}
                     </div>
                     {(a.description || a.instructions) && (
-                      <p className="text-[11px] text-[#78788c] mt-2 line-clamp-3">
+                      <p className="text-[11px] text-[#78788c] line-clamp-3">
                         {a.instructions || a.description}
                       </p>
                     )}
+                    {(a.attachments?.length ?? 0) > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-[#78788c]">Teacher attachments</div>
+                        <AttachmentList items={a.attachments ?? []} dense />
+                      </div>
+                    )}
+                    {(s?.attachments?.length ?? 0) > 0 && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold text-[#78788c]">Your submission files</div>
+                        <AttachmentList items={s?.attachments ?? []} dense />
+                      </div>
+                    )}
                     {s?.teacherRemarks && (
-                      <p className={`text-[11px] mt-1 ${isReturned ? "text-amber-400" : "text-[#4aa87a]"}`}>
+                      <p
+                        className={`text-[11px] ${isReturned ? "text-amber-400" : "text-[#4aa87a]"}`}
+                      >
                         Teacher: {s.teacherRemarks}
                       </p>
                     )}
@@ -268,8 +241,17 @@ export default function Assignments() {
                         <textarea
                           value={content}
                           onChange={(e) => setContent(e.target.value)}
-                          placeholder={isReturned ? "Revise and resubmit…" : "Your response / submission notes"}
+                          placeholder={
+                            isReturned
+                              ? "Revise notes (optional if attaching files)…"
+                              : "Notes (optional if attaching files)"
+                          }
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[70px]"
+                        />
+                        <AttachmentComposer
+                          items={attachments}
+                          onChange={setAttachments}
+                          disabled={saving}
                         />
                         <div className="flex gap-2">
                           <button
@@ -278,7 +260,11 @@ export default function Assignments() {
                             onClick={() => void submit(a.id)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-white"
                           >
-                            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                            {saving ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              <Send className="w-3 h-3" />
+                            )}
                             {isReturned ? "Resubmit" : s ? "Replace submission" : "Submit"}
                           </button>
                           <button
@@ -286,6 +272,7 @@ export default function Assignments() {
                             onClick={() => {
                               setActiveId(null);
                               setContent("");
+                              setAttachments([]);
                             }}
                             className="px-3 py-1.5 rounded-xl text-[10px] font-bold text-[#78788c]"
                           >
@@ -299,6 +286,7 @@ export default function Assignments() {
                         onClick={() => {
                           setActiveId(a.id);
                           setContent(s?.content ?? "");
+                          setAttachments(s?.attachments ?? []);
                         }}
                         className="text-[10px] font-bold text-[#3b5bdb]"
                       >

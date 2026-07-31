@@ -168,8 +168,14 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           }
 
           try {
-            const tests = await TestService.listForClass(ctx, c.id);
-            testsN += tests.length;
+            const tests = (await TestService.listForClass(ctx, c.id)) as {
+              status?: string;
+              is_published?: boolean;
+            }[];
+            testsN += tests.filter((t) => {
+              const st = String(t.status ?? (t.is_published ? "published" : "draft"));
+              return st === "draft" || st === "scheduled";
+            }).length;
           } catch {
             /* ignore */
           }
@@ -318,9 +324,10 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           />
           <AttentionCard
             icon={<ClipboardList className="w-5 h-5" />}
-            label="Tests in your classes"
+            label="Tests to publish"
             value={testsCount}
             color="#6366f1"
+            hint="Draft or scheduled tests"
             onClick={() => openTab("tests")}
           />
           <AttentionCard
@@ -328,13 +335,15 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             label="Upcoming exams"
             value={upcomingExams}
             color="#3b5bdb"
+            hint="Not yet published"
             onClick={() => openTab("exams-marks")}
           />
           <AttentionCard
             icon={<PenLine className="w-5 h-5" />}
-            label="Marks not finalized"
+            label="Marks pending entry"
             value={pendingMarksEntry}
             color="#10b981"
+            hint="Subjects not locked yet"
             onClick={() => openTab("exams-marks")}
           />
           <AttentionCard

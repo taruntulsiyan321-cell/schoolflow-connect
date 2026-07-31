@@ -8,7 +8,9 @@ import {
   WORK_KIND_LABELS,
   type WorkKind,
 } from "@/academic";
+import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
 
 type StatsRow = Awaited<ReturnType<typeof HomeworkService.listForClassWithStats>>[number];
 type SubRow = Awaited<ReturnType<typeof HomeworkService.listSubmissions>>[number];
@@ -24,7 +26,7 @@ function Loading({ label }: { label: string }) {
 }
 
 /**
- * Homework workspace — one module for create / schedule / draft / publish / review.
+ * Homework workspace — create / schedule / draft / publish / review with real file uploads.
  */
 export function LiveAcademicWorkTab({
   classId,
@@ -49,9 +51,8 @@ export function LiveAcademicWorkTab({
     priority: "normal",
     maxMarks: "",
     scheduledPublishAt: "",
-    attachName: "",
-    attachUrl: "",
   });
+  const [attachments, setAttachments] = useState<HomeworkAttachmentMeta[]>([]);
   const [saving, setSaving] = useState(false);
   const [reviewHw, setReviewHw] = useState<StatsRow | null>(null);
   const [subs, setSubs] = useState<SubRow[]>([]);
@@ -108,10 +109,6 @@ export function LiveAcademicWorkTab({
     setSaving(true);
     setError(null);
     try {
-      const attachments =
-        form.attachName.trim() && form.attachUrl.trim()
-          ? [{ name: form.attachName.trim(), url: form.attachUrl.trim() }]
-          : [];
       const base = {
         classId,
         subject: subject || "General",
@@ -144,9 +141,8 @@ export function LiveAcademicWorkTab({
         priority: "normal",
         maxMarks: "",
         scheduledPublishAt: "",
-        attachName: "",
-        attachUrl: "",
       });
+      setAttachments([]);
       setCreating(false);
       setPublishMode("now");
       await reload();
@@ -209,7 +205,7 @@ export function LiveAcademicWorkTab({
     }
   };
 
-  if (loading) return <Loading label="Loading academic work…" />;
+  if (loading) return <Loading label="Loading homework…" />;
 
   if (reviewHw) {
     const nameById = new Map(roster.map((r) => [r.id, r.fullName]));
@@ -229,8 +225,14 @@ export function LiveAcademicWorkTab({
             {WORK_KIND_LABELS[reviewHw.workKind ?? "homework"]}
           </span>
         </div>
+        {(reviewHw.attachments?.length ?? 0) > 0 && (
+          <div className="space-y-1">
+            <div className="text-[10px] font-bold text-[#78788c]">Assigned attachments</div>
+            <AttachmentList items={reviewHw.attachments ?? []} dense />
+          </div>
+        )}
         <div className="text-[10px] text-[#78788c]">
-          {subs.length} submissions · HomeworkService.review
+          {subs.length} submissions · {reviewHw.awaitingReview ?? 0} awaiting review
         </div>
         <div className="space-y-2">
           {subs.map((s) => (
@@ -243,7 +245,15 @@ export function LiveAcademicWorkTab({
                   {s.status}{s.isLate ? " · late" : ""} · v{s.version}
                 </div>
               </div>
-              <div className="text-[11px] text-[#a0a0b0] whitespace-pre-wrap">{s.content || "—"}</div>
+              {s.content?.trim() && (
+                <div className="text-[11px] text-[#a0a0b0] whitespace-pre-wrap">{s.content}</div>
+              )}
+              {(s.attachments?.length ?? 0) > 0 && (
+                <AttachmentList items={s.attachments ?? []} dense />
+              )}
+              {!s.content?.trim() && !(s.attachments?.length ?? 0) && (
+                <div className="text-[11px] text-[#46465a]">No text or files submitted</div>
+              )}
               {s.teacherRemarks && (
                 <div className="text-[10px] text-[#4aa87a]">Remarks: {s.teacherRemarks}</div>
               )}
@@ -380,23 +390,12 @@ export function LiveAcademicWorkTab({
             />
           </div>
           <div className="space-y-1">
-            <div className="text-[10px] text-[#78788c] font-semibold">
-              Attachments (images, PDF, documents, links)
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <input
-                value={form.attachName}
-                onChange={(e) => setForm((f) => ({ ...f, attachName: e.target.value }))}
-                placeholder="Name e.g. worksheet.pdf"
-                className="flex-1 min-w-[140px] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              />
-              <input
-                value={form.attachUrl}
-                onChange={(e) => setForm((f) => ({ ...f, attachUrl: e.target.value }))}
-                placeholder="https://… link"
-                className="flex-[2] min-w-[180px] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-              />
-            </div>
+            <div className="text-[10px] text-[#78788c] font-semibold">Attachments</div>
+            <AttachmentComposer
+              items={attachments}
+              onChange={setAttachments}
+              disabled={saving}
+            />
           </div>
           <div className="flex flex-wrap gap-1">
             {(
@@ -481,6 +480,9 @@ export function LiveAcademicWorkTab({
             </div>
             {h.description && (
               <div className="text-[10px] text-[#78788c] line-clamp-2">{h.description}</div>
+            )}
+            {(h.attachments?.length ?? 0) > 0 && (
+              <AttachmentList items={h.attachments ?? []} dense />
             )}
             <div className="flex flex-wrap gap-2">
               <button
