@@ -49,9 +49,12 @@ export function LiveAcademicWorkTab({
     title: "",
     description: "",
     dueDate: "",
+    dueTime: "",
     priority: "normal",
     maxMarks: "",
     scheduledPublishAt: "",
+    attachName: "",
+    attachUrl: "",
   });
   const [saving, setSaving] = useState(false);
   const [reviewHw, setReviewHw] = useState<StatsRow | null>(null);
@@ -110,15 +113,21 @@ export function LiveAcademicWorkTab({
     setSaving(true);
     setError(null);
     try {
+      const attachments =
+        form.attachName.trim() && form.attachUrl.trim()
+          ? [{ name: form.attachName.trim(), url: form.attachUrl.trim() }]
+          : [];
       const base = {
         classId,
         subject: subject || "General",
         title: form.title.trim(),
         description: form.description,
         dueDate: form.dueDate || null,
+        dueTime: form.dueTime || null,
         priority: form.priority,
         maxMarks: form.maxMarks && !Number.isNaN(Number(form.maxMarks)) ? Number(form.maxMarks) : null,
         workKind: selectedKind,
+        attachments,
       };
       if (publishMode === "draft") {
         await HomeworkService.createDraft(ctx, base);
@@ -136,9 +145,12 @@ export function LiveAcademicWorkTab({
         title: "",
         description: "",
         dueDate: "",
+        dueTime: "",
         priority: "normal",
         maxMarks: "",
         scheduledPublishAt: "",
+        attachName: "",
+        attachUrl: "",
       });
       setCreating(false);
       setPublishMode("now");
@@ -350,10 +362,13 @@ export function LiveAcademicWorkTab({
             onClick={() => setCreating((v) => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
           >
-            <Plus className="w-3 h-3" /> New
+            <Plus className="w-3 h-3" /> New Academic Work
           </button>
         </div>
       </div>
+      <p className="text-[10px] text-[#46465a]">
+        Homework, Assignment, Worksheet, Project, and Internal Assessment share one workflow — pick the type above when creating.
+      </p>
 
       {creating && (
         <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
@@ -390,6 +405,12 @@ export function LiveAcademicWorkTab({
               onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
               className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
             />
+            <input
+              type="time"
+              value={form.dueTime}
+              onChange={(e) => setForm((f) => ({ ...f, dueTime: e.target.value }))}
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+            />
             <select
               value={form.priority}
               onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
@@ -406,6 +427,26 @@ export function LiveAcademicWorkTab({
               placeholder="Max marks"
               className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
             />
+          </div>
+          <div className="space-y-1">
+            <div className="text-[10px] text-[#78788c] font-semibold">Attach file (PDF / image URL)</div>
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={form.attachName}
+                onChange={(e) => setForm((f) => ({ ...f, attachName: e.target.value }))}
+                placeholder="File name e.g. worksheet.pdf"
+                className="flex-1 min-w-[140px] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              />
+              <input
+                value={form.attachUrl}
+                onChange={(e) => setForm((f) => ({ ...f, attachUrl: e.target.value }))}
+                placeholder="https://… link to PDF or image"
+                className="flex-[2] min-w-[180px] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              />
+            </div>
+            <div className="text-[9px] text-[#46465a]">
+              Students see this attachment in the app. Cloud upload picker comes later — paste a link for now.
+            </div>
           </div>
           <div className="flex flex-wrap gap-1">
             {(

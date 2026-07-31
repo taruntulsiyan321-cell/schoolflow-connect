@@ -66,6 +66,7 @@ export function TeacherAttendanceWorkspace({
   }, [fixedClassId]);
 
   const selected = classes.find((c) => c.id === classId) ?? null;
+  const canMark = !!selected?.isClassTeacher;
 
   const showFlash = (msg: string) => {
     setFlash(msg);
@@ -168,17 +169,19 @@ export function TeacherAttendanceWorkspace({
   }, [students, marks]);
 
   const setStatus = (studentId: string, status: AttendanceStatus) => {
+    if (!canMark) return;
     setMarks((m) => ({ ...m, [studentId]: status }));
   };
 
   const markAllPresent = () => {
+    if (!canMark) return;
     const next: Record<string, AttendanceStatus> = {};
     for (const s of students) next[s.id] = "present";
     setMarks(next);
   };
 
   const save = async () => {
-    if (!ctx || !classId) return;
+    if (!ctx || !classId || !canMark) return;
     setSaving(true);
     setError(null);
     try {
@@ -222,9 +225,13 @@ export function TeacherAttendanceWorkspace({
               <ChevronLeft className="w-3 h-3" /> My Classes
             </button>
           )}
-          <h2 className="text-base font-black text-white">Mark Attendance</h2>
+          <h2 className="text-base font-black text-white">
+            {canMark ? "Mark Attendance" : "Attendance (view only)"}
+          </h2>
           <p className="text-[10px] text-[#46465a] mt-0.5">
-            Teacher–Class–Subject mapping only · AttendanceService → Academic Engine
+            {canMark
+              ? "You are the class teacher — you can mark and edit attendance."
+              : "Subject teachers can view attendance. Only the class teacher can mark it."}
           </p>
         </div>
         <input
@@ -295,22 +302,30 @@ export function TeacherAttendanceWorkspace({
             ))}
           </div>
           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={markAllPresent}
-              className="px-3 py-2 rounded-xl text-[10px] font-bold bg-white/5 text-[#78788c] hover:text-white hover:bg-white/10"
-            >
-              Mark All Present
-            </button>
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={saving || !dirty || students.length === 0}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save Attendance
-            </button>
+            {canMark ? (
+              <>
+                <button
+                  type="button"
+                  onClick={markAllPresent}
+                  className="px-3 py-2 rounded-xl text-[10px] font-bold bg-white/5 text-[#78788c] hover:text-white hover:bg-white/10"
+                >
+                  Mark All Present
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void save()}
+                  disabled={saving || !dirty || students.length === 0}
+                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Attendance
+                </button>
+              </>
+            ) : (
+              <div className="px-3 py-2 rounded-xl text-[10px] font-bold bg-white/5 text-[#78788c]">
+                View only — class teacher marks attendance
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -367,10 +382,12 @@ export function TeacherAttendanceWorkspace({
                     <button
                       key={opt.value}
                       type="button"
+                      disabled={!canMark}
                       onClick={() => setStatus(s.id, opt.value)}
                       title={opt.label}
                       className={cn(
                         "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
+                        !canMark && "opacity-60 cursor-default",
                         status === opt.value ? "text-white" : "text-[#46465a] bg-white/3 hover:bg-white/8",
                       )}
                       style={

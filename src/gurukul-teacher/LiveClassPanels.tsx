@@ -2,30 +2,45 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   ChevronRight,
+  ChevronLeft,
   Loader2,
   Plus,
   Save,
   Send,
   Archive,
-  CalendarClock,
+  Trash2,
   Lock,
   Unlock,
+  BookOpen,
+  PenLine,
+  Upload,
+  ArrowUp,
+  ArrowDown,
+  X,
 } from "lucide-react";
 import { cn, InitialsAvatar } from "./shared";
 import {
   AttendanceService,
   AcademicProfileService,
   AnalyticsService,
+  HomeworkService,
   MarksService,
+  RemarksService,
   TestService,
   TEST_KIND_LABELS,
   EXAM_TYPE_LABELS,
   type ClassStudentRow,
   type StudentAcademicProfile,
+  type StudentHomeworkRow,
+  type TeacherRemark,
   type TestKind,
 } from "@/academic";
+import type {
+  ManualQuestionInput,
+  ManualQuestionKind,
+} from "@/academic/services/testService";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import type { ExamRecord } from "@/academic/repository/marksRepository";
+import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 
 export {
   LiveHomeworkTab,
@@ -37,7 +52,21 @@ type LiveStudent = ClassStudentRow & {
   attendancePct: number;
   examsAvgPct: number;
   homeworkCompletionPct: number;
+  testsAvgPct: number;
 };
+
+const MANUAL_QUESTION_KINDS: { value: ManualQuestionKind; label: string }[] = [
+  { value: "mcq", label: "MCQ" },
+  { value: "true_false", label: "True / False" },
+  { value: "fill", label: "Fill in the blank" },
+  { value: "short", label: "Short answer" },
+  { value: "long", label: "Long answer" },
+  { value: "numerical", label: "Numerical" },
+];
+
+function errMsg(e: unknown, fallback: string): string {
+  return e instanceof Error ? e.message : fallback;
+}
 
 function Loading({ label }: { label: string }) {
   return (
@@ -61,7 +90,7 @@ const EXAM_TYPES = [
 
 const TEST_KINDS = Object.keys(TEST_KIND_LABELS) as TestKind[];
 
-/** Live roster + AcademicProfileService metrics. */
+/** Live roster + AcademicProfileService metrics + student detail panels. */
 export function LiveStudentsTab({ classId }: { classId: string }) {
   const { ctx, ready } = useAcademicContext();
   const [rows, setRows] = useState<LiveStudent[]>([]);
@@ -69,6 +98,11 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   const [selected, setSelected] = useState<LiveStudent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [homeworkRows, setHomeworkRows] = useState<StudentHomeworkRow[]>([]);
+  const [recentMarks, setRecentMarks] = useState<MarksRecord[]>([]);
+  const [remarks, setRemarks] = useState<TeacherRemark[]>([]);
 
   useEffect(() => {
     if (!ready || !ctx || !classId) return;
@@ -98,11 +132,12 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               attendancePct: Math.round(p?.attendancePct ?? 0),
               examsAvgPct: Math.round(p?.examsAvgPct ?? 0),
               homeworkCompletionPct: Math.round(p?.homeworkCompletionPct ?? 0),
+              testsAvgPct: Math.round(p?.testsAvgPct ?? 0),
             };
           }),
         );
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load students");
+        if (!cancelled) setError(errMsg(e, "Failed to load students"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -111,6 +146,53 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       cancelled = true;
     };
   }, [ready, ctx, classId]);
+
+  useEffect(() => {
+    if (!ready || !ctx || !selected) {
+      setHomeworkRows([]);
+      setRecentMarks([]);
+      setRemarks([]);
+      setDetailError(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setDetailLoading(true);
+      setDetailError(null);
+      try {
+        const settled = await Promise.allSettled([
+          HomeworkService.listForStudent(ctx, selected.id),
+          MarksService.listForStudent(ctx, selected.id, { limit: 10 }),
+          RemarksService.listForStudent(ctx, selected.id, { limit: 10 }),
+        ]);
+        if (cancelled) return;
+        const errors: string[] = [];
+        if (settled[0].status === "fulfilled") setHomeworkRows(settled[0].value);
+        else {
+          setHomeworkRows([]);
+          errors.push(errMsg(settled[0].reason, "Homework failed"));
+        }
+        if (settled[1].status === "fulfilled") setRecentMarks(settled[1].value.slice(0, 8));
+        else {
+          setRecentMarks([]);
+          errors.push(errMsg(settled[1].reason, "Marks failed"));
+        }
+        if (settled[2].status === "fulfilled") setRemarks(settled[2].value);
+        else {
+          setRemarks([]);
+          errors.push(errMsg(settled[2].reason, "Remarks failed"));
+        }
+        if (errors.length) setDetailError(errors.join(" · "));
+      } catch (e) {
+        if (!cancelled) setDetailError(errMsg(e, "Failed to load student detail"));
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, selected]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -122,6 +204,14 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         (s.admissionNumber ?? "").toLowerCase().includes(q),
     );
   }, [rows, search]);
+
+  const pendingHomework = useMemo(
+    () =>
+      homeworkRows.filter(
+        (r) => r.displayStatus === "Assigned" || r.displayStatus === "Late",
+      ),
+    [homeworkRows],
+  );
 
   if (loading) return <Loading label="Loading roster…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-8 text-center">{error}</div>;
@@ -142,14 +232,15 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           ) : (
             <InitialsAvatar name={selected.fullName} size="lg" />
           )}
-          <div className="flex-1">
-            <div className="text-base font-black text-white">{selected.fullName}</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-base font-black text-white truncate">{selected.fullName}</div>
             <div className="text-xs text-[#78788c] mt-0.5">
               Roll: {selected.rollNumber ?? "—"} · Admission: {selected.admissionNumber ?? "—"}
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
             <div
               className="text-lg font-black tabular-nums"
@@ -160,15 +251,103 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             <div className="text-[10px] text-[#78788c] mt-0.5">Attendance</div>
           </div>
           <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-lg font-black text-[#3b5bdb] tabular-nums">{selected.examsAvgPct}%</div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Exams avg</div>
-          </div>
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-lg font-black text-white tabular-nums">{selected.homeworkCompletionPct}%</div>
+            <div className="text-lg font-black text-white tabular-nums">
+              {selected.homeworkCompletionPct}%
+            </div>
             <div className="text-[10px] text-[#78788c] mt-0.5">Homework</div>
           </div>
+          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+            <div className="text-lg font-black text-[#6366f1] tabular-nums">
+              {selected.testsAvgPct}%
+            </div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Test avg</div>
+          </div>
+          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+            <div className="text-lg font-black text-[#3b5bdb] tabular-nums">
+              {selected.examsAvgPct}%
+            </div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Exam avg</div>
+          </div>
         </div>
-        <p className="text-[9px] text-[#46465a]">Metrics from AcademicProfileService.</p>
+
+        {detailError && (
+          <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+            {detailError}
+          </div>
+        )}
+        {detailLoading ? (
+          <Loading label="Loading student detail…" />
+        ) : (
+          <>
+            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+              <div className="text-xs font-bold text-white">Pending homework</div>
+              {pendingHomework.length === 0 ? (
+                <div className="text-[10px] text-[#46465a]">No pending homework.</div>
+              ) : (
+                pendingHomework.slice(0, 8).map((r) => (
+                  <div
+                    key={r.homework.id}
+                    className="flex items-center justify-between gap-2 text-[11px]"
+                  >
+                    <span className="text-white truncate">{r.homework.title}</span>
+                    <span
+                      className={cn(
+                        "shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-lg",
+                        r.displayStatus === "Late"
+                          ? "bg-[#cc5069]/20 text-[#cc5069]"
+                          : "bg-white/10 text-[#a0a0b0]",
+                      )}
+                    >
+                      {r.displayStatus}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+              <div className="text-xs font-bold text-white">Recent marks</div>
+              {recentMarks.length === 0 ? (
+                <div className="text-[10px] text-[#46465a]">
+                  No published marks yet.
+                </div>
+              ) : (
+                recentMarks.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between gap-2 text-[11px] text-[#78788c]"
+                  >
+                    <span className="text-white truncate">
+                      {m.remarks?.trim() || "Published result"}
+                    </span>
+                    <span className="tabular-nums font-bold text-white shrink-0">
+                      {m.marksObtained}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+              <div className="text-xs font-bold text-white">Recent remarks</div>
+              {remarks.length === 0 ? (
+                <div className="text-[10px] text-[#46465a]">No remarks yet.</div>
+              ) : (
+                remarks.map((r) => (
+                  <div key={r.id} className="text-[11px] space-y-0.5">
+                    <div className="text-white">{r.body}</div>
+                    <div className="text-[9px] text-[#46465a]">
+                      {r.remarkType}
+                      {r.createdAt
+                        ? ` · ${new Date(r.createdAt).toLocaleDateString()}`
+                        : ""}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
     );
   }
@@ -229,34 +408,90 @@ type TestRow = {
   title?: string;
   subject?: string;
   status?: string;
+  is_published?: boolean;
   test_kind?: string;
   duration_sec?: number;
   max_marks?: number | null;
+  total_marks?: number | null;
+  question_count?: number | null;
   passing_marks?: number | null;
-  chapters?: string[] | null;
-  topics?: string[] | null;
-  scheduled_publish_at?: string | null;
   created_at?: string | null;
 };
+
+type BuilderStep = "basics" | "source" | "library" | "manual" | "upload" | "review";
+type QuestionSource = "library" | "manual" | "upload";
+type DraftQuestion = ManualQuestionInput & { localId: string };
+type PaperAttachment = { name: string; url: string; mimeType?: string };
+
+function resolveTestStatus(t: TestRow): string {
+  if (t.status) return String(t.status);
+  if (t.is_published) return "published";
+  return "draft";
+}
+
+function newLocalId() {
+  return `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+const emptyBasics = () => ({
+  title: "",
+  testKind: "class_test" as TestKind,
+  durationMin: "30",
+  maxMarks: "",
+  instructions: "",
+  publishMode: "draft" as "draft" | "now",
+});
+
+const emptyQuestionForm = () => ({
+  kind: "mcq" as ManualQuestionKind,
+  question: "",
+  optionA: "",
+  optionB: "",
+  optionC: "",
+  optionD: "",
+  optionsCsv: "",
+  useCsv: false,
+  correct: "",
+  marks: "1",
+});
+
+const LIBRARY_FILTER_KEYS = [
+  "board",
+  "classLevel",
+  "subject",
+  "book",
+  "chapter",
+  "topic",
+  "kind",
+  "difficulty",
+] as const;
 
 export function LiveTestsTab({ classId, subject }: { classId: string; subject: string }) {
   const { ctx, ready } = useAcademicContext();
   const [tests, setTests] = useState<TestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [publishMode, setPublishMode] = useState<"now" | "schedule" | "draft">("now");
-  const [form, setForm] = useState({
-    title: "",
-    testKind: "class_test" as TestKind,
-    durationMin: "30",
-    maxMarks: "",
-    passingMarks: "",
-    chapters: "",
-    topics: "",
-    scheduledPublishAt: "",
-  });
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [step, setStep] = useState<BuilderStep>("basics");
+  const [basics, setBasics] = useState(emptyBasics);
+  const [source, setSource] = useState<QuestionSource | null>(null);
+  const [questions, setQuestions] = useState<DraftQuestion[]>([]);
+  const [qForm, setQForm] = useState(emptyQuestionForm);
+  const [attachments, setAttachments] = useState<PaperAttachment[]>([]);
+  const [attachDraft, setAttachDraft] = useState({ name: "", url: "" });
+  const [libFilters, setLibFilters] = useState<Record<(typeof LIBRARY_FILTER_KEYS)[number], string>>(
+    () =>
+      Object.fromEntries(LIBRARY_FILTER_KEYS.map((k) => [k, ""])) as Record<
+        (typeof LIBRARY_FILTER_KEYS)[number],
+        string
+      >,
+  );
+  const [libItems, setLibItems] = useState<
+    Awaited<ReturnType<typeof TestService.listQuestionLibrary>>
+  >([]);
+  const [libLoading, setLibLoading] = useState(false);
 
   const reload = async () => {
     if (!ctx) return;
@@ -266,7 +501,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
       setTests((t ?? []) as TestRow[]);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load tests");
+      setError(errMsg(err, "Failed to load tests"));
     } finally {
       setLoading(false);
     }
@@ -278,71 +513,242 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, ctx, classId]);
 
-  const createTest = async () => {
-    if (!ctx || !form.title.trim()) return;
-    if (publishMode === "schedule" && !form.scheduledPublishAt) {
-      setError("Schedule datetime is required");
-      return;
-    }
-    setSaving(true);
-    setError(null);
-    try {
-      const durationSec = Math.max(60, Math.round(Number(form.durationMin || 30) * 60));
-      const chapters = form.chapters
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const topics = form.topics
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-      const status =
-        publishMode === "now" ? "published" : publishMode === "schedule" ? "scheduled" : "draft";
-      await TestService.create(ctx, {
-        classId,
-        title: form.title.trim(),
-        subject,
-        testKind: form.testKind,
-        duration_sec: durationSec,
-        maxMarks: form.maxMarks ? Number(form.maxMarks) : null,
-        passingMarks: form.passingMarks ? Number(form.passingMarks) : null,
-        chapters,
-        topics,
-        status,
-        scheduledPublishAt:
-          publishMode === "schedule"
-            ? new Date(form.scheduledPublishAt).toISOString()
-            : null,
-      });
-      setForm({
-        title: "",
-        testKind: "class_test",
-        durationMin: "30",
-        maxMarks: "",
-        passingMarks: "",
-        chapters: "",
-        topics: "",
-        scheduledPublishAt: "",
-      });
-      setCreating(false);
-      setPublishMode("now");
-      await reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create test");
-    } finally {
-      setSaving(false);
-    }
+  useEffect(() => {
+    if (!ready || !ctx || step !== "library") return;
+    let cancelled = false;
+    (async () => {
+      setLibLoading(true);
+      try {
+        const items = await TestService.listQuestionLibrary(ctx, {
+          board: libFilters.board || undefined,
+          classLevel: libFilters.classLevel || undefined,
+          subject: libFilters.subject || undefined,
+          book: libFilters.book || undefined,
+          chapter: libFilters.chapter || undefined,
+          topic: libFilters.topic || undefined,
+          kind: libFilters.kind || undefined,
+          difficulty: libFilters.difficulty || undefined,
+        });
+        if (!cancelled) setLibItems(items);
+      } catch (e) {
+        if (!cancelled) {
+          setLibItems([]);
+          setError(errMsg(e, "Failed to load question library"));
+        }
+      } finally {
+        if (!cancelled) setLibLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, step, libFilters]);
+
+  const resetBuilder = () => {
+    setBuilderOpen(false);
+    setStep("basics");
+    setBasics(emptyBasics());
+    setSource(null);
+    setQuestions([]);
+    setQForm(emptyQuestionForm());
+    setAttachments([]);
+    setAttachDraft({ name: "", url: "" });
+    setLibItems([]);
+    setLibFilters(
+      Object.fromEntries(LIBRARY_FILTER_KEYS.map((k) => [k, ""])) as Record<
+        (typeof LIBRARY_FILTER_KEYS)[number],
+        string
+      >,
+    );
   };
+
+  const openBuilder = () => {
+    setError(null);
+    setSuccess(null);
+    setBuilderOpen(true);
+    setStep("basics");
+  };
+
+  const questionMarksTotal = questions.reduce((s, q) => s + Number(q.marks ?? 1), 0);
+  const durationMin = Math.max(1, Number(basics.durationMin) || 30);
 
   const runAction = async (label: string, fn: () => Promise<unknown>) => {
     if (!ctx) return;
     setSaving(true);
     setError(null);
+    setSuccess(null);
     try {
       await fn();
+      setSuccess(`${label} succeeded`);
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : `${label} failed`);
+      setError(errMsg(e, `${label} failed`));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addManualQuestion = () => {
+    if (!qForm.question.trim()) {
+      setError("Question text is required");
+      return;
+    }
+    let options: string[] | undefined;
+    let correct: ManualQuestionInput["correct"] = qForm.correct.trim() || undefined;
+
+    if (qForm.kind === "mcq") {
+      if (qForm.useCsv) {
+        options = qForm.optionsCsv
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+      } else {
+        options = [qForm.optionA, qForm.optionB, qForm.optionC, qForm.optionD]
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+      if (options.length < 2) {
+        setError("MCQ needs at least 2 options");
+        return;
+      }
+      if (!correct) {
+        setError("Correct answer is required for MCQ");
+        return;
+      }
+    } else if (qForm.kind === "true_false") {
+      options = ["True", "False"];
+      if (!correct) {
+        setError("Select True or False as the correct answer");
+        return;
+      }
+    } else if (qForm.kind === "numerical") {
+      const n = Number(qForm.correct);
+      if (qForm.correct.trim() === "" || Number.isNaN(n)) {
+        setError("Numerical questions need a numeric correct answer");
+        return;
+      }
+      correct = n;
+    }
+
+    setQuestions((prev) => [
+      ...prev,
+      {
+        localId: newLocalId(),
+        kind: qForm.kind,
+        question: qForm.question.trim(),
+        options,
+        correct,
+        marks: Math.max(0.5, Number(qForm.marks) || 1),
+      },
+    ]);
+    setQForm(emptyQuestionForm());
+    setError(null);
+  };
+
+  const moveQuestion = (index: number, dir: -1 | 1) => {
+    setQuestions((prev) => {
+      const next = [...prev];
+      const j = index + dir;
+      if (j < 0 || j >= next.length) return prev;
+      [next[index], next[j]] = [next[j], next[index]];
+      return next;
+    });
+  };
+
+  const addAttachment = () => {
+    if (!attachDraft.name.trim() || !attachDraft.url.trim()) {
+      setError("Attachment name and URL are required");
+      return;
+    }
+    setAttachments((prev) => [
+      ...prev,
+      { name: attachDraft.name.trim(), url: attachDraft.url.trim() },
+    ]);
+    setAttachDraft({ name: "", url: "" });
+    setError(null);
+  };
+
+  const goFromBasics = () => {
+    if (!basics.title.trim()) {
+      setError("Title is required");
+      return;
+    }
+    setError(null);
+    setStep("source");
+  };
+
+  const pickSource = (s: QuestionSource) => {
+    setSource(s);
+    setError(null);
+    setStep(s);
+  };
+
+  const submitBuilder = async (mode: "draft" | "now") => {
+    if (!ctx) return;
+    if (!basics.title.trim()) {
+      setError("Title is required");
+      setStep("basics");
+      return;
+    }
+    if (source === "manual" && questions.length === 0) {
+      setError("Add at least one question, or switch source");
+      setStep("manual");
+      return;
+    }
+    if (source === "upload" && attachments.length === 0) {
+      setError("Add at least one paper attachment, or switch source");
+      setStep("upload");
+      return;
+    }
+    if (source === "library") {
+      setError("Question library is empty — switch to Manual or Upload");
+      setStep("library");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const durationSec = Math.max(60, Math.round(durationMin * 60));
+      const maxMarksFromForm = basics.maxMarks ? Number(basics.maxMarks) : null;
+      const maxMarks =
+        source === "manual"
+          ? questionMarksTotal || maxMarksFromForm
+          : maxMarksFromForm;
+
+      const created = (await TestService.create(ctx, {
+        classId,
+        title: basics.title.trim(),
+        subject,
+        testKind: basics.testKind,
+        duration_sec: durationSec,
+        maxMarks: maxMarks ?? null,
+        instructions: basics.instructions.trim() || null,
+        status: mode === "now" ? "published" : "draft",
+        paperAttachments: source === "upload" ? attachments : undefined,
+      })) as { id: string };
+
+      if (source === "manual" && questions.length > 0) {
+        await TestService.setQuestions(
+          ctx,
+          created.id,
+          questions.map(({ kind, question, options, correct, marks, explanation }) => ({
+            kind,
+            question,
+            options,
+            correct,
+            marks,
+            explanation,
+          })),
+        );
+      }
+
+      setSuccess(mode === "now" ? "Test published successfully" : "Draft saved successfully");
+      resetBuilder();
+      await reload();
+    } catch (e) {
+      setError(errMsg(e, "Failed to save test"));
     } finally {
       setSaving(false);
     }
@@ -350,173 +756,608 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
   if (loading) return <Loading label="Loading tests…" />;
 
+  if (builderOpen) {
+    const stepLabel: Record<BuilderStep, string> = {
+      basics: "A · Basics",
+      source: "B · Source",
+      library: "C · Library",
+      manual: "C · Manual questions",
+      upload: "C · Upload paper",
+      review: "D · Review & Publish",
+    };
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (step === "basics") resetBuilder();
+              else if (step === "source") setStep("basics");
+              else if (step === "review") setStep(source ?? "source");
+              else setStep("source");
+            }}
+            className="flex items-center gap-1 text-[10px] text-[#78788c] hover:text-white"
+          >
+            <ChevronLeft className="w-3 h-3" />
+            {step === "basics" ? "Cancel" : "Back"}
+          </button>
+          <div className="text-[10px] font-bold text-[#3b5bdb]">{stepLabel[step]}</div>
+          <button
+            type="button"
+            onClick={resetBuilder}
+            className="text-[10px] text-[#46465a] hover:text-white"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+            {error}
+          </div>
+        )}
+
+        {step === "basics" && (
+          <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-3">
+            <div className="text-sm font-bold text-white">Test basics</div>
+            <input
+              value={basics.title}
+              onChange={(e) => setBasics((f) => ({ ...f, title: e.target.value }))}
+              placeholder="Title *"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+            />
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={basics.testKind}
+                onChange={(e) =>
+                  setBasics((f) => ({ ...f, testKind: e.target.value as TestKind }))
+                }
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              >
+                {TEST_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {TEST_KIND_LABELS[k]}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={basics.durationMin}
+                onChange={(e) => setBasics((f) => ({ ...f, durationMin: e.target.value }))}
+                placeholder="Duration (min)"
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-28"
+              />
+              <input
+                value={basics.maxMarks}
+                onChange={(e) => setBasics((f) => ({ ...f, maxMarks: e.target.value }))}
+                placeholder="Max marks"
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
+              />
+            </div>
+            <textarea
+              value={basics.instructions}
+              onChange={(e) => setBasics((f) => ({ ...f, instructions: e.target.value }))}
+              placeholder="Instructions"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[60px]"
+            />
+            <div className="flex flex-wrap gap-1">
+              {(
+                [
+                  { key: "draft" as const, label: "Save as draft" },
+                  { key: "now" as const, label: "Publish now" },
+                ] as const
+              ).map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => setBasics((f) => ({ ...f, publishMode: m.key }))}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                    basics.publishMode === m.key
+                      ? "bg-[#3b5bdb] text-white"
+                      : "bg-white/5 text-[#78788c]"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={goFromBasics}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#3b5bdb]"
+            >
+              Next: Choose source <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {step === "source" && (
+          <div className="space-y-3">
+            <div className="text-sm font-bold text-white">How will you add questions?</div>
+            {(
+              [
+                {
+                  key: "library" as const,
+                  icon: BookOpen,
+                  title: "Gurukul Question Library",
+                  desc: "Filter NCERT / board questions (coming soon)",
+                },
+                {
+                  key: "manual" as const,
+                  icon: PenLine,
+                  title: "Write questions manually",
+                  desc: "MCQ, T/F, fill, short, long, numerical",
+                },
+                {
+                  key: "upload" as const,
+                  icon: Upload,
+                  title: "Upload question paper",
+                  desc: "Attach PDF / image URLs (metadata only)",
+                },
+              ] as const
+            ).map((card) => (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => pickSource(card.key)}
+                className="w-full text-left p-4 bg-[#131316] border border-white/10 rounded-2xl hover:border-[#3b5bdb]/50 transition-all flex gap-3"
+              >
+                <card.icon className="w-5 h-5 text-[#3b5bdb] shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-xs font-bold text-white">{card.title}</div>
+                  <div className="text-[10px] text-[#78788c] mt-0.5">{card.desc}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {step === "library" && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              {LIBRARY_FILTER_KEYS.map((key) => (
+                <input
+                  key={key}
+                  value={libFilters[key]}
+                  onChange={(e) =>
+                    setLibFilters((f) => ({ ...f, [key]: e.target.value }))
+                  }
+                  placeholder={key.replace(/([A-Z])/g, " $1")}
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white capitalize"
+                />
+              ))}
+            </div>
+            {libLoading ? (
+              <Loading label="Loading library…" />
+            ) : libItems.length > 0 ? (
+              <div className="space-y-2">
+                {libItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3 bg-[#131316] border border-white/7 rounded-xl text-xs text-white"
+                  >
+                    {item.question}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-[#131316] border border-dashed border-white/15 rounded-2xl p-6 text-center space-y-3">
+                <BookOpen className="w-8 h-8 text-[#46465a] mx-auto" />
+                <div className="text-xs text-[#a0a0b0]">
+                  Library coming soon — NCERT content will be added later. Use Manual or Upload for
+                  now.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => pickSource("manual")}
+                  className="px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb]"
+                >
+                  Switch to manual
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === "manual" && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-3 text-[10px] text-[#78788c]">
+              <span>
+                Total questions:{" "}
+                <strong className="text-white">{questions.length}</strong>
+              </span>
+              <span>
+                Total marks:{" "}
+                <strong className="text-white">{questionMarksTotal}</strong>
+              </span>
+              <span>
+                Duration: <strong className="text-white">{durationMin} min</strong>
+              </span>
+            </div>
+
+            <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
+              <select
+                value={qForm.kind}
+                onChange={(e) =>
+                  setQForm((f) => ({ ...f, kind: e.target.value as ManualQuestionKind }))
+                }
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              >
+                {MANUAL_QUESTION_KINDS.map((k) => (
+                  <option key={k.value} value={k.value}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+              <textarea
+                value={qForm.question}
+                onChange={(e) => setQForm((f) => ({ ...f, question: e.target.value }))}
+                placeholder="Question text *"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[50px]"
+              />
+              {qForm.kind === "mcq" && (
+                <div className="space-y-2">
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setQForm((f) => ({ ...f, useCsv: false }))}
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                        !qForm.useCsv ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                      }`}
+                    >
+                      4 options
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setQForm((f) => ({ ...f, useCsv: true }))}
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                        qForm.useCsv ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                      }`}
+                    >
+                      Comma-separated
+                    </button>
+                  </div>
+                  {qForm.useCsv ? (
+                    <input
+                      value={qForm.optionsCsv}
+                      onChange={(e) => setQForm((f) => ({ ...f, optionsCsv: e.target.value }))}
+                      placeholder="Options, comma-separated"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                    />
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["optionA", "optionB", "optionC", "optionD"] as const).map((key, i) => (
+                        <input
+                          key={key}
+                          value={qForm[key]}
+                          onChange={(e) => setQForm((f) => ({ ...f, [key]: e.target.value }))}
+                          placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {qForm.kind === "true_false" ? (
+                <select
+                  value={qForm.correct}
+                  onChange={(e) => setQForm((f) => ({ ...f, correct: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                >
+                  <option value="">Correct answer *</option>
+                  <option value="True">True</option>
+                  <option value="False">False</option>
+                </select>
+              ) : (
+                <input
+                  value={qForm.correct}
+                  onChange={(e) => setQForm((f) => ({ ...f, correct: e.target.value }))}
+                  placeholder={
+                    qForm.kind === "numerical"
+                      ? "Correct number *"
+                      : qForm.kind === "mcq"
+                        ? "Correct option text *"
+                        : "Correct / model answer"
+                  }
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                />
+              )}
+              <div className="flex gap-2">
+                <input
+                  value={qForm.marks}
+                  onChange={(e) => setQForm((f) => ({ ...f, marks: e.target.value }))}
+                  placeholder="Marks"
+                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
+                />
+                <button
+                  type="button"
+                  onClick={addManualQuestion}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb]"
+                >
+                  <Plus className="w-3 h-3" /> Add question
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {questions.map((q, i) => (
+                <div
+                  key={q.localId}
+                  className="p-3 bg-[#131316] border border-white/7 rounded-xl flex gap-2"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[9px] text-[#3b5bdb] font-bold uppercase">
+                      {q.kind} · {q.marks ?? 1} marks
+                    </div>
+                    <div className="text-xs text-white mt-0.5 line-clamp-2">{q.question}</div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      disabled={i === 0}
+                      onClick={() => moveQuestion(i, -1)}
+                      className="p-1 rounded bg-white/5 text-[#78788c] disabled:opacity-30"
+                    >
+                      <ArrowUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={i === questions.length - 1}
+                      onClick={() => moveQuestion(i, 1)}
+                      className="p-1 rounded bg-white/5 text-[#78788c] disabled:opacity-30"
+                    >
+                      <ArrowDown className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setQuestions((prev) => prev.filter((x) => x.localId !== q.localId))
+                      }
+                      className="p-1 rounded bg-[#cc5069]/15 text-[#cc5069]"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {questions.length === 0 && (
+                <div className="text-[10px] text-[#46465a] text-center py-4">
+                  No questions added yet.
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (questions.length === 0) {
+                  setError("Add at least one question before review");
+                  return;
+                }
+                setError(null);
+                setStep("review");
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#3b5bdb]"
+            >
+              Next: Review <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {step === "upload" && (
+          <div className="space-y-3">
+            <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
+              <div className="text-[10px] text-[#78788c]">
+                Store PDF / image links as metadata (no cloud upload required).
+              </div>
+              <input
+                value={attachDraft.name}
+                onChange={(e) => setAttachDraft((d) => ({ ...d, name: e.target.value }))}
+                placeholder="File name (e.g. Unit Test 1.pdf)"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              />
+              <input
+                value={attachDraft.url}
+                onChange={(e) => setAttachDraft((d) => ({ ...d, url: e.target.value }))}
+                placeholder="URL *"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              />
+              <button
+                type="button"
+                onClick={addAttachment}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb]"
+              >
+                <Plus className="w-3 h-3" /> Add attachment
+              </button>
+            </div>
+            <div className="space-y-2">
+              {attachments.map((a, i) => (
+                <div
+                  key={`${a.url}-${i}`}
+                  className="flex items-center justify-between gap-2 p-3 bg-[#131316] border border-white/7 rounded-xl"
+                >
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold text-white truncate">{a.name}</div>
+                    <div className="text-[10px] text-[#46465a] truncate">{a.url}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                    className="p-1.5 rounded-lg bg-[#cc5069]/15 text-[#cc5069]"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+              {attachments.length === 0 && (
+                <div className="text-[10px] text-[#46465a] text-center py-4">
+                  No attachments yet.
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (attachments.length === 0) {
+                  setError("Add at least one attachment before review");
+                  return;
+                }
+                setError(null);
+                setStep("review");
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#3b5bdb]"
+            >
+              Next: Review <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {step === "review" && (
+          <div className="space-y-4">
+            <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2 text-xs">
+              <div className="text-sm font-bold text-white">{basics.title || "Untitled"}</div>
+              <div className="text-[#78788c]">
+                {TEST_KIND_LABELS[basics.testKind]} · {durationMin} min
+                {basics.maxMarks ? ` · max ${basics.maxMarks}` : ""}
+                {source === "manual" ? ` · ${questions.length} questions · ${questionMarksTotal} marks` : ""}
+                {source === "upload" ? ` · ${attachments.length} attachment(s)` : ""}
+              </div>
+              {basics.instructions && (
+                <div className="text-[10px] text-[#a0a0b0] pt-1 border-t border-white/5">
+                  {basics.instructions}
+                </div>
+              )}
+              <div className="text-[10px] text-[#46465a]">
+                Source:{" "}
+                {source === "manual"
+                  ? "Manual questions"
+                  : source === "upload"
+                    ? "Uploaded paper"
+                    : "Library"}{" "}
+                · Preferred: {basics.publishMode === "now" ? "Publish now" : "Draft"}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void submitBuilder("draft")}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 text-white disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                Save draft
+              </button>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void submitBuilder("now")}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#3b5bdb] text-white disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                Publish
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div className="text-sm font-bold text-white">Tests</div>
         <button
           type="button"
-          onClick={() => setCreating((v) => !v)}
+          onClick={openBuilder}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
         >
-          <Plus className="w-3 h-3" /> New test
+          <Plus className="w-3 h-3" /> Create Test
         </button>
       </div>
-      {error && <div className="text-xs text-[#cc5069]">{error}</div>}
-
-      {creating && (
-        <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
-          <input
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="Title *"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-          />
-          <div className="flex flex-wrap gap-2">
-            <select
-              value={form.testKind}
-              onChange={(e) => setForm((f) => ({ ...f, testKind: e.target.value as TestKind }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-            >
-              {TEST_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {TEST_KIND_LABELS[k]}
-                </option>
-              ))}
-            </select>
-            <input
-              value={form.durationMin}
-              onChange={(e) => setForm((f) => ({ ...f, durationMin: e.target.value }))}
-              placeholder="Duration (min)"
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-28"
-            />
-            <input
-              value={form.maxMarks}
-              onChange={(e) => setForm((f) => ({ ...f, maxMarks: e.target.value }))}
-              placeholder="Max marks"
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
-            />
-            <input
-              value={form.passingMarks}
-              onChange={(e) => setForm((f) => ({ ...f, passingMarks: e.target.value }))}
-              placeholder="Passing"
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
-            />
-          </div>
-          <input
-            value={form.chapters}
-            onChange={(e) => setForm((f) => ({ ...f, chapters: e.target.value }))}
-            placeholder="Chapters (comma-separated)"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-          />
-          <input
-            value={form.topics}
-            onChange={(e) => setForm((f) => ({ ...f, topics: e.target.value }))}
-            placeholder="Topics (comma-separated)"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-          />
-          <div className="flex flex-wrap gap-1">
-            {(
-              [
-                { key: "now" as const, label: "Publish now" },
-                { key: "schedule" as const, label: "Schedule" },
-                { key: "draft" as const, label: "Save draft" },
-              ] as const
-            ).map((m) => (
-              <button
-                key={m.key}
-                type="button"
-                onClick={() => setPublishMode(m.key)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                  publishMode === m.key ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-          {publishMode === "schedule" && (
-            <input
-              type="datetime-local"
-              value={form.scheduledPublishAt}
-              onChange={(e) => setForm((f) => ({ ...f, scheduledPublishAt: e.target.value }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-            />
-          )}
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void createTest()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb]"
-          >
-            {saving ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : publishMode === "schedule" ? (
-              <CalendarClock className="w-3.5 h-3.5" />
-            ) : publishMode === "draft" ? (
-              <Save className="w-3.5 h-3.5" />
-            ) : (
-              <Send className="w-3.5 h-3.5" />
-            )}
-            {publishMode === "now" ? "Publish" : publishMode === "schedule" ? "Schedule" : "Save draft"}
-          </button>
+      {error && (
+        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="rounded-xl border border-[#4aa87a]/30 bg-[#4aa87a]/10 px-3 py-2 text-xs text-[#4aa87a]">
+          {success}
         </div>
       )}
 
-      <div className="text-[10px] text-[#46465a]">{tests.length} tests · TestService</div>
+      <div className="text-[10px] text-[#46465a]">{tests.length} tests</div>
       <div className="space-y-2">
-        {tests.map((t) => (
-          <div key={t.id} className="p-3 bg-[#131316] border border-white/7 rounded-xl space-y-2">
-            <div className="flex justify-between gap-2">
-              <div>
-                <div className="text-xs font-bold text-white">{t.title}</div>
-                <div className="text-[10px] text-[#78788c]">
-                  {t.subject || subject} ·{" "}
-                  {TEST_KIND_LABELS[(t.test_kind as TestKind) ?? "class_test"] ?? t.test_kind} ·{" "}
-                  {t.status ?? "—"}
-                  {t.duration_sec ? ` · ${Math.round(t.duration_sec / 60)} min` : ""}
-                  {t.max_marks != null ? ` · max ${t.max_marks}` : ""}
+        {tests.map((t) => {
+          const status = resolveTestStatus(t);
+          const marks = t.total_marks ?? t.max_marks;
+          const qCount = t.question_count ?? 0;
+          const canPublish = status === "draft" || status === "scheduled" || (!t.is_published && status !== "published" && status !== "archived");
+          return (
+            <div key={t.id} className="p-3 bg-[#131316] border border-white/7 rounded-xl space-y-2">
+              <div className="flex justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white truncate">{t.title}</div>
+                  <div className="text-[10px] text-[#78788c]">
+                    {TEST_KIND_LABELS[(t.test_kind as TestKind) ?? "class_test"] ?? t.test_kind} ·{" "}
+                    {qCount} Q · {marks != null ? `${marks} marks` : "— marks"}
+                    {t.duration_sec ? ` · ${Math.round(t.duration_sec / 60)} min` : ""}
+                  </div>
                 </div>
+                <span
+                  className={cn(
+                    "text-[9px] font-bold px-2 py-1 rounded-lg h-fit capitalize shrink-0",
+                    status === "published"
+                      ? "bg-[#4aa87a]/15 text-[#4aa87a]"
+                      : status === "scheduled"
+                        ? "bg-[#6366f1]/15 text-[#6366f1]"
+                        : status === "archived"
+                          ? "bg-[#46465a]/40 text-[#78788c]"
+                          : "bg-white/10 text-[#a0a0b0]",
+                  )}
+                >
+                  {status}
+                </span>
               </div>
-              <span
-                className={cn(
-                  "text-[9px] font-bold px-2 py-1 rounded-lg h-fit capitalize",
-                  t.status === "published"
-                    ? "bg-[#4aa87a]/15 text-[#4aa87a]"
-                    : t.status === "scheduled"
-                      ? "bg-[#6366f1]/15 text-[#6366f1]"
-                      : t.status === "archived"
-                        ? "bg-[#46465a]/40 text-[#78788c]"
-                        : "bg-white/10 text-[#a0a0b0]",
+              <div className="flex flex-wrap gap-2">
+                {ctx && canPublish && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void runAction("Publish", () => TestService.publish(ctx, t.id))}
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb] flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <Send className="w-3 h-3" /> Publish
+                  </button>
                 )}
-              >
-                {t.status ?? "draft"}
-              </span>
+                {ctx && status !== "archived" && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void runAction("Archive", () => TestService.archive(ctx, t.id))}
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#c08a3a] flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <Archive className="w-3 h-3" /> Archive
+                  </button>
+                )}
+                {ctx && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => {
+                      if (!window.confirm(`Delete “${t.title ?? "this test"}”?`)) return;
+                      void runAction("Delete", () => TestService.remove(ctx, t.id));
+                    }}
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#cc5069]/15 text-[#cc5069] flex items-center gap-1 disabled:opacity-50"
+                  >
+                    <Trash2 className="w-3 h-3" /> Delete
+                  </button>
+                )}
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {ctx && (t.status === "draft" || t.status === "scheduled") && (
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void runAction("Publish", () => TestService.publish(ctx, t.id))}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb] flex items-center gap-1"
-                >
-                  <Send className="w-3 h-3" /> Publish
-                </button>
-              )}
-              {ctx && t.status !== "archived" && (
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void runAction("Archive", () => TestService.archive(ctx, t.id))}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#c08a3a] flex items-center gap-1"
-                >
-                  <Archive className="w-3 h-3" /> Archive
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+          );
+        })}
         {tests.length === 0 && <div className="text-xs text-[#46465a]">No tests yet.</div>}
       </div>
     </div>
@@ -897,6 +1738,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     ReturnType<typeof AnalyticsService.forClass>
   > | null>(null);
   const [profiles, setProfiles] = useState<StudentAcademicProfile[]>([]);
+  const [nameById, setNameById] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -909,17 +1751,29 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         const settled = await Promise.allSettled([
           AnalyticsService.forClass(ctx, classId),
           AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
+          AttendanceService.listClassStudents(ctx, classId),
         ]);
         if (cancelled) return;
         const a = settled[0].status === "fulfilled" ? settled[0].value : null;
         const p = settled[1].status === "fulfilled" ? settled[1].value : [];
-        if (settled[0].status === "rejected" && settled[1].status === "rejected") {
+        const students = settled[2].status === "fulfilled" ? settled[2].value : [];
+        if (
+          settled[0].status === "rejected" &&
+          settled[1].status === "rejected" &&
+          settled[2].status === "rejected"
+        ) {
           throw new Error("Failed to load insights");
         }
         setAnalytics(a);
         setProfiles(p);
+        setNameById(new Map(students.map((s) => [s.id, s.fullName])));
+        const errs: string[] = [];
+        if (settled[0].status === "rejected") errs.push(errMsg(settled[0].reason, "Analytics"));
+        if (settled[1].status === "rejected") errs.push(errMsg(settled[1].reason, "Profiles"));
+        if (settled[2].status === "rejected") errs.push(errMsg(settled[2].reason, "Roster"));
+        setError(errs.length ? errs.join(" · ") : null);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load insights");
+        if (!cancelled) setError(errMsg(e, "Failed to load insights"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -929,55 +1783,145 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     };
   }, [ready, ctx, classId]);
 
-  if (loading) return <Loading label="Loading analytics…" />;
-  if (error) return <div className="text-xs text-[#cc5069] py-8 text-center">{error}</div>;
-  if (!analytics) return null;
+  const displayName = (studentId: string) =>
+    nameById.get(studentId) ?? "Unknown student";
 
-  const top = [...profiles].sort((a, b) => b.examsAvgPct - a.examsAvgPct).slice(0, 3);
-  const low = [...profiles].sort((a, b) => a.attendancePct - b.attendancePct).slice(0, 3);
+  const belowAttendance = useMemo(
+    () =>
+      [...profiles]
+        .filter((p) => p.attendancePct < 75)
+        .sort((a, b) => a.attendancePct - b.attendancePct),
+    [profiles],
+  );
+  const lowHomework = useMemo(
+    () =>
+      [...profiles]
+        .filter((p) => p.homeworkCompletionPct < 50)
+        .sort((a, b) => a.homeworkCompletionPct - b.homeworkCompletionPct),
+    [profiles],
+  );
+  const topExams = useMemo(
+    () => [...profiles].sort((a, b) => b.examsAvgPct - a.examsAvgPct).slice(0, 5),
+    [profiles],
+  );
+  const lowestHomework = useMemo(
+    () =>
+      [...profiles].sort((a, b) => a.homeworkCompletionPct - b.homeworkCompletionPct).slice(0, 5),
+    [profiles],
+  );
+
+  if (loading) return <Loading label="Loading analytics…" />;
+  if (!analytics && profiles.length === 0) {
+    return (
+      <div className="text-xs text-[#cc5069] py-8 text-center">
+        {error ?? "No insights available"}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-          <div className="text-xl font-black text-[#3b5bdb]">{Math.round(analytics.avgExamsPct)}%</div>
-          <div className="text-[10px] text-[#78788c] mt-0.5">Avg Exams</div>
+      {error && (
+        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+          {error}
         </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-          <div
-            className="text-xl font-black"
-            style={{ color: analytics.avgAttendancePct >= 85 ? "#10b981" : "#cc5069" }}
-          >
-            {Math.round(analytics.avgAttendancePct)}%
+      )}
+      {analytics && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+            <div className="text-xl font-black text-[#3b5bdb]">{Math.round(analytics.avgExamsPct)}%</div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Avg Exams</div>
           </div>
-          <div className="text-[10px] text-[#78788c] mt-0.5">Avg Attendance</div>
-        </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-          <div className="text-xl font-black text-[#6366f1]">
-            {Math.round(analytics.avgHomeworkCompletionPct)}%
+          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+            <div
+              className="text-xl font-black"
+              style={{ color: analytics.avgAttendancePct >= 85 ? "#10b981" : "#cc5069" }}
+            >
+              {Math.round(analytics.avgAttendancePct)}%
+            </div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Avg Attendance</div>
           </div>
-          <div className="text-[10px] text-[#78788c] mt-0.5">Homework Completion</div>
-        </div>
-      </div>
-      <p className="text-[9px] text-[#46465a]">
-        AnalyticsService.forClass · {analytics.studentCount} profiles
-      </p>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Top by exams</div>
-          {top.map((p) => (
-            <div key={p.studentId} className="text-[10px] text-[#78788c] py-1">
-              {p.studentId.slice(0, 8)}… · {Math.round(p.examsAvgPct)}%
+          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+            <div className="text-xl font-black text-[#6366f1]">
+              {Math.round(analytics.avgHomeworkCompletionPct)}%
             </div>
-          ))}
+            <div className="text-[10px] text-[#78788c] mt-0.5">Homework Completion</div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+          <div className="text-xs font-bold text-white mb-3">Below 75% attendance</div>
+          {belowAttendance.length === 0 ? (
+            <div className="text-[10px] text-[#46465a]">None</div>
+          ) : (
+            belowAttendance.map((p) => (
+              <div
+                key={p.studentId}
+                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
+              >
+                <span className="text-white truncate">{displayName(p.studentId)}</span>
+                <span className="tabular-nums text-[#cc5069] font-bold shrink-0">
+                  {Math.round(p.attendancePct)}%
+                </span>
+              </div>
+            ))
+          )}
         </div>
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Lowest attendance</div>
-          {low.map((p) => (
-            <div key={p.studentId} className="text-[10px] text-[#78788c] py-1">
-              {p.studentId.slice(0, 8)}… · {Math.round(p.attendancePct)}%
-            </div>
-          ))}
+          <div className="text-xs font-bold text-white mb-3">Homework completion &lt; 50%</div>
+          {lowHomework.length === 0 ? (
+            <div className="text-[10px] text-[#46465a]">None</div>
+          ) : (
+            lowHomework.map((p) => (
+              <div
+                key={p.studentId}
+                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
+              >
+                <span className="text-white truncate">{displayName(p.studentId)}</span>
+                <span className="tabular-nums text-[#c08a3a] font-bold shrink-0">
+                  {Math.round(p.homeworkCompletionPct)}%
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+          <div className="text-xs font-bold text-white mb-3">Top performers by exams</div>
+          {topExams.length === 0 ? (
+            <div className="text-[10px] text-[#46465a]">No data</div>
+          ) : (
+            topExams.map((p) => (
+              <div
+                key={p.studentId}
+                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
+              >
+                <span className="text-white truncate">{displayName(p.studentId)}</span>
+                <span className="tabular-nums text-[#3b5bdb] font-bold shrink-0">
+                  {Math.round(p.examsAvgPct)}%
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+          <div className="text-xs font-bold text-white mb-3">Lowest by homework</div>
+          {lowestHomework.length === 0 ? (
+            <div className="text-[10px] text-[#46465a]">No data</div>
+          ) : (
+            lowestHomework.map((p) => (
+              <div
+                key={p.studentId}
+                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
+              >
+                <span className="text-white truncate">{displayName(p.studentId)}</span>
+                <span className="tabular-nums font-bold shrink-0">
+                  {Math.round(p.homeworkCompletionPct)}%
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

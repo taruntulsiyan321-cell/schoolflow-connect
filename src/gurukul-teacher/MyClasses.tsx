@@ -21,6 +21,26 @@ type SubTab =
   | "exams-marks"
   | "insights";
 
+function readOpenTab(): SubTab {
+  try {
+    const t = sessionStorage.getItem("teacher.openTab");
+    if (
+      t === "students" ||
+      t === "attendance" ||
+      t === "academic-work" ||
+      t === "tests" ||
+      t === "exams-marks" ||
+      t === "insights"
+    ) {
+      sessionStorage.removeItem("teacher.openTab");
+      return t;
+    }
+  } catch {
+    /* ignore */
+  }
+  return "students";
+}
+
 function assignedToClassInfo(c: AssignedClass): ClassInfo {
   return {
     id: c.id,
@@ -122,7 +142,7 @@ export default function MyClasses() {
   const { ctx, ready } = useAcademicContext();
   const [liveClasses, setLiveClasses] = useState<ClassInfo[]>([]);
   const [selectedClass, setSelectedClass] = useState<ClassInfo | null>(null);
-  const [subTab, setSubTab] = useState<SubTab>("students");
+  const [subTab, setSubTab] = useState<SubTab>(() => readOpenTab());
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [classError, setClassError] = useState<string | null>(null);
 
