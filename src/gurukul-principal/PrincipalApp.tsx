@@ -7,7 +7,7 @@ import {
   PRINCIPAL_NAV_LABEL,
   principalPathToPage,
 } from './nav'
-import { PrincipalSchoolOverview, PrincipalClassRollups, PrincipalStudentRankings, PrincipalAttendanceLive, PrincipalTeachersLive } from './PrincipalLiveAcademic'
+import { PrincipalSchoolOverview, PrincipalClassRollups, PrincipalStudentRankings, PrincipalAttendanceLive, PrincipalTeachersLive, PrincipalHomeworkLive } from './PrincipalLiveAcademic'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, ComposedChart,
   PieChart, Pie, Legend,
@@ -145,6 +145,8 @@ function AnalyticsPage() {
       <Card><PrincipalClassRollups /></Card>
       <SectionTitle>Student Rankings</SectionTitle>
       <Card><PrincipalStudentRankings /></Card>
+      <SectionTitle sub="AnalyticsService.homeworkSchool">Homework</SectionTitle>
+      <Card><PrincipalHomeworkLive /></Card>
     </div>
   )
 }

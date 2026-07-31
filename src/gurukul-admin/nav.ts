@@ -7,6 +7,7 @@ export type AdminPageKey =
   | "reports"
   | "announcements"
   | "examinations"
+  | "homework"
   | "leave_requests"
   | "settings";
 
@@ -19,6 +20,7 @@ export const ADMIN_PAGE_PATH: Record<AdminPageKey, string> = {
   reports: "/admin/reports",
   announcements: "/admin/announcements",
   examinations: "/admin/examinations",
+  homework: "/admin/homework",
   leave_requests: "/admin/leave-requests",
   settings: "/admin/settings",
 };
@@ -32,6 +34,7 @@ export const ADMIN_PAGE_TITLES: Record<AdminPageKey, string> = {
   reports: "Reports",
   announcements: "Announcements",
   examinations: "Examination Management",
+  homework: "Homework",
   leave_requests: "Leave Requests",
   settings: "Settings",
 };
@@ -45,6 +48,7 @@ export function adminPathToPage(pathname: string): AdminPageKey {
   if (p.startsWith("/admin/reports") || p.startsWith("/admin/fees")) return "reports";
   if (p.startsWith("/admin/announcements") || p.startsWith("/admin/notices")) return "announcements";
   if (p.startsWith("/admin/examinations") || p.startsWith("/admin/exams")) return "examinations";
+  if (p.startsWith("/admin/homework")) return "homework";
   if (p.startsWith("/admin/leave")) return "leave_requests";
   if (p.startsWith("/admin/settings") || p.startsWith("/admin/roles") || p.startsWith("/admin/profile") || p.startsWith("/admin/users"))
     return "settings";

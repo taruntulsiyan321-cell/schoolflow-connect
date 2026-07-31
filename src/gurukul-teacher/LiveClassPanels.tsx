@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, ChevronRight, Loader2, Plus, Save } from "lucide-react";
+import { Search, ChevronRight, Loader2 } from "lucide-react";
 import { cn, InitialsAvatar } from "./shared";
 import {
   AttendanceService,
   AcademicProfileService,
   AnalyticsService,
-  HomeworkService,
-  AssignmentService,
   MarksService,
   TestService,
   type ClassStudentRow,
   type StudentAcademicProfile,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+
+export { LiveHomeworkTab, LiveAssignmentsTab } from "./LiveHomeworkPanels";
 
 type LiveStudent = ClassStudentRow & {
   attendancePct: number;
@@ -189,150 +189,6 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       </div>
     </div>
   );
-}
-
-function LiveHomeworkList({
-  classId,
-  subjectDefault,
-  title,
-}: {
-  classId: string;
-  subjectDefault: string;
-  title: string;
-}) {
-  const { ctx, ready } = useAcademicContext();
-  const [items, setItems] = useState<
-    Awaited<ReturnType<typeof HomeworkService.listForClassWithStats>>
-  >([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", dueDate: "" });
-  const [saving, setSaving] = useState(false);
-
-  const reload = async () => {
-    if (!ctx) return;
-    setLoading(true);
-    try {
-      const list = await HomeworkService.listForClassWithStats(ctx, classId, { limit: 100 });
-      setItems(list);
-      setError(null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!ready || !ctx) return;
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, classId]);
-
-  const create = async () => {
-    if (!ctx || !form.title.trim()) return;
-    setSaving(true);
-    try {
-      await HomeworkService.assign(ctx, {
-        classId,
-        subject: subjectDefault || "General",
-        title: form.title.trim(),
-        description: form.description,
-        dueDate: form.dueDate || null,
-      });
-      setForm({ title: "", description: "", dueDate: "" });
-      setCreating(false);
-      await reload();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) return <Loading label={`Loading ${title.toLowerCase()}…`} />;
-
-  return (
-    <div className="space-y-4">
-      {error && <div className="text-xs text-[#cc5069]">{error}</div>}
-      <div className="flex justify-between items-center">
-        <div className="text-[10px] text-[#46465a]">{items.length} items · HomeworkService</div>
-        <button
-          type="button"
-          onClick={() => setCreating((v) => !v)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
-        >
-          <Plus className="w-3 h-3" /> New
-        </button>
-      </div>
-      {creating && (
-        <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
-          <input
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder="Title"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-          />
-          <textarea
-            value={form.description}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            placeholder="Description"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[60px]"
-          />
-          <input
-            type="date"
-            value={form.dueDate}
-            onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-          />
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void create()}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb]"
-          >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            Save via HomeworkService
-          </button>
-        </div>
-      )}
-      <div className="space-y-2">
-        {items.map((h) => (
-          <div key={h.id} className="p-4 bg-[#131316] border border-white/7 rounded-2xl">
-            <div className="flex justify-between gap-3">
-              <div>
-                <div className="text-xs font-bold text-white">{h.title}</div>
-                <div className="text-[10px] text-[#78788c] mt-0.5">
-                  {h.subject} · Due {h.dueDate ?? "—"} · {h.status ?? "active"}
-                </div>
-              </div>
-              <div className="text-right text-[10px] text-[#46465a]">
-                {h.submitted}/{h.totalStudents} submitted
-                <div>{h.graded} graded · {h.pending} pending</div>
-              </div>
-            </div>
-            {h.description && (
-              <div className="text-[10px] text-[#78788c] mt-2 line-clamp-2">{h.description}</div>
-            )}
-          </div>
-        ))}
-        {items.length === 0 && (
-          <div className="text-center py-12 text-xs text-[#46465a]">No {title.toLowerCase()} yet.</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export function LiveHomeworkTab({ classId, subject }: { classId: string; subject: string }) {
-  return <LiveHomeworkList classId={classId} subjectDefault={subject} title="Homework" />;
-}
-
-export function LiveAssignmentsTab({ classId, subject }: { classId: string; subject: string }) {
-  // Product alias: Assignment → HomeworkService
-  void AssignmentService;
-  return <LiveHomeworkList classId={classId} subjectDefault={subject} title="Assignments" />;
 }
 
 export function LiveTestsTab({ classId, subject }: { classId: string; subject: string }) {

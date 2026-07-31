@@ -65,6 +65,16 @@ export const AnalyticsService = {
     }
     return AnalyticsFoundation.getTeacherPerformance(toRepoContext(ctx), teacherId);
   },
+
+  /** School homework completion / late / teacher activity — from HomeworkService. */
+  async homeworkSchool(ctx: ServiceContext) {
+    assertCanConsume(ctx, "analytics");
+    if (ctx.role === "student" || ctx.role === "parent" || ctx.role === "teacher") {
+      throw new ForbiddenError("School homework analytics are admin/principal-only");
+    }
+    const { HomeworkService } = await import("./homeworkService");
+    return HomeworkService.summarizeSchool(ctx);
+  },
 };
 
 export const AiSummaryService = {

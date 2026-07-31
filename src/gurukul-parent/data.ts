@@ -155,6 +155,7 @@ export const attendanceByChild: Record<string, AttendanceDayStatus[]> = {};
 
 // ── Homework ──────────────────────────────────────────────────────────────────
 
+/** @deprecated Empty stub — use HomeworkService (Academic Engine). */
 export const homeworkByChild: Record<string, HomeworkItem[]> = {};
 
 // ── Test Results ──────────────────────────────────────────────────────────────

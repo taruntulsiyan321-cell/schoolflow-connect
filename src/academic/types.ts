@@ -99,6 +99,7 @@ export interface SchoolAiSummary {
   studentCount: number;
   teacherCount: number;
   avgAttendancePct: number;
+  avgHomeworkCompletionPct: number;
   avgMarksPct: number;
 }
 

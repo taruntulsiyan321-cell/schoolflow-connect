@@ -52,30 +52,36 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
   return (
     <div className="space-y-3">
       <div className="text-[9px] text-[#46465a]">HomeworkService · {rows.length} items</div>
-      {rows.map(({ homework: h, submission: s }) => (
+      {rows.map(({ homework: h, submission: s, displayStatus }) => (
         <div key={h.id} className="p-4 bg-[#131316] border border-white/7 rounded-2xl">
           <div className="flex justify-between gap-3">
             <div>
               <div className="text-xs font-bold text-white">{h.title}</div>
               <div className="text-[10px] text-[#78788c] mt-0.5">
                 {h.subject} · Due {h.dueDate ?? "—"}
+                {s?.submittedAt ? ` · Submitted ${new Date(s.submittedAt).toLocaleString()}` : ""}
               </div>
             </div>
             <div
               className={cn(
                 "text-[9px] font-bold px-2 py-1 rounded-lg h-fit capitalize",
-                s?.status === "graded"
+                displayStatus === "Completed" || displayStatus === "Reviewed"
                   ? "bg-[#6366f1]/15 text-[#6366f1]"
-                  : s?.status === "submitted"
+                  : displayStatus === "Submitted"
                     ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
-                    : "bg-[#c08a3a]/15 text-[#c08a3a]",
+                    : displayStatus === "Late"
+                      ? "bg-[#cc5069]/15 text-[#cc5069]"
+                      : "bg-[#c08a3a]/15 text-[#c08a3a]",
               )}
             >
-              {s?.status ?? "pending"}
+              {displayStatus}
             </div>
           </div>
           {s?.grade && (
             <div className="text-[10px] text-white mt-2">Grade: {s.grade}</div>
+          )}
+          {s?.teacherRemarks && (
+            <div className="text-[10px] text-[#4aa87a] mt-1">Remarks: {s.teacherRemarks}</div>
           )}
         </div>
       ))}

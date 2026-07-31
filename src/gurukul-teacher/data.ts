@@ -182,6 +182,7 @@ export const teacherProfile: TeacherProfile = {
 export const assignedClasses: ClassInfo[] = [];
 export const studentsByClass: Record<string, Student[]> = {};
 export const todayAttendance: Record<string, { submitted: boolean; approved: boolean; records: AttendanceRecord[] }> = {};
+/** @deprecated Empty stub — use HomeworkService (Academic Engine). */
 export const homeworkByClass: Record<string, HomeworkItem[]> = {};
 export const assignmentsByClass: Record<string, Assignment[]> = {};
 export const testsByClass: Record<string, Test[]> = {};

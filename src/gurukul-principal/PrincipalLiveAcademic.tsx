@@ -570,3 +570,79 @@ export function PrincipalTeachersLive() {
     </div>
   );
 }
+
+/**
+ * School homework overview — AnalyticsService.homeworkSchool / HomeworkService.summarizeSchool.
+ */
+export function PrincipalHomeworkLive() {
+  const { ctx, ready } = useAcademicContext();
+  const [summary, setSummary] = useState<Awaited<ReturnType<typeof AnalyticsService.homeworkSchool>> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const data = await AnalyticsService.homeworkSchool(ctx);
+        if (!cancelled) setSummary(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load homework analytics");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx]);
+
+  if (loading) return <Loading label="Loading homework analytics..." />;
+  if (error) return <ErrorNote message={error} />;
+  if (!summary) return <Empty message="No homework analytics yet." />;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+        {[
+          { label: "Published", value: String(summary.totalPublished) },
+          { label: "Drafts", value: String(summary.totalDrafts) },
+          { label: "Completion", value: `${summary.schoolCompletionPct}%` },
+          { label: "Late %", value: `${summary.latePct}%` },
+          { label: "Submissions", value: String(summary.submissionCount) },
+          { label: "Graded", value: String(summary.gradedCount) },
+        ].map((k) => (
+          <div key={k.label} style={{ padding: 14, borderRadius: 12, border: "1px solid var(--border)", background: "var(--surface)" }}>
+            <div className="font-mono-data" style={{ fontSize: 20, fontWeight: 700 }}>{k.value}</div>
+            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 12 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              {["Class", "Homework", "Completion %", "Late %"].map((h) => (
+                <th key={h} style={{ fontSize: 11, color: "var(--text-muted)", textAlign: "left", padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {summary.classes.map((c) => (
+              <tr key={c.classId}>
+                <td style={{ padding: "10px 14px", fontSize: 13 }}>{c.className} {c.section}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12 }} className="font-mono-data">{c.homeworkCount}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12, fontWeight: 700 }} className="font-mono-data">{c.completionPct}%</td>
+                <td style={{ padding: "10px 14px", fontSize: 12 }} className="font-mono-data">{c.latePct}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {summary.classes.length === 0 && <Empty message="No class homework yet." />}
+      </div>
+      <p style={{ fontSize: 10, color: "var(--text-muted)" }}>AnalyticsService.homeworkSchool</p>
+    </div>
+  );
+}

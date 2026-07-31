@@ -89,7 +89,7 @@ export type {
   ParentChildRow,
 } from "./services/attendanceService";
 
-export type { StudentHomeworkRow } from "./services/homeworkService";
+export type { StudentHomeworkRow, SchoolHomeworkSummary, HomeworkClassStatsRow } from "./services/homeworkService";
 
 export { AnalyticsService, AiSummaryService, AuditReadService } from "./services/readServices";
 

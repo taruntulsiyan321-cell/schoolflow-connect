@@ -81,6 +81,7 @@ export async function buildSchoolAiSummary(ctx: RepoContext): Promise<SchoolAiSu
     studentCount: perf.studentCount,
     teacherCount: perf.teacherCount,
     avgAttendancePct: perf.avgAttendancePct,
+    avgHomeworkCompletionPct: perf.avgHomeworkCompletionPct,
     avgMarksPct: perf.avgExamsPct,
   };
 }
