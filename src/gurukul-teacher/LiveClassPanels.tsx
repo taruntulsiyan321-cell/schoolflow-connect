@@ -2042,6 +2042,57 @@ export function LiveExamsMarksTab({
   );
 }
 
+type InsightHwRow = Awaited<ReturnType<typeof HomeworkService.listForClassWithStats>>[number];
+type InsightTestRow = {
+  id: string;
+  title?: string;
+  subject?: string;
+  status?: string;
+  is_published?: boolean;
+};
+type DecisionRow = { id: string; name: string; metric: string; why: string };
+
+function DecisionSection({
+  title,
+  question,
+  rows,
+  empty,
+  metricClass = "text-[#cc5069]",
+}: {
+  title: string;
+  question: string;
+  rows: DecisionRow[];
+  empty: string;
+  metricClass?: string;
+}) {
+  return (
+    <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+      <div>
+        <div className="text-xs font-bold text-white">{title}</div>
+        <div className="text-[10px] text-[#46465a] mt-0.5">{question}</div>
+      </div>
+      {rows.length === 0 ? (
+        <div className="text-[10px] text-[#46465a] py-1">{empty}</div>
+      ) : (
+        rows.map((r) => (
+          <div
+            key={r.id}
+            className="flex justify-between gap-3 text-[11px] py-1.5 border-t border-white/5 first:border-0"
+          >
+            <div className="min-w-0">
+              <div className="text-white font-medium truncate">{r.name}</div>
+              <div className="text-[10px] text-[#78788c] mt-0.5">{r.why}</div>
+            </div>
+            <div className={cn("tabular-nums font-bold shrink-0 self-start", metricClass)}>
+              {r.metric}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 export function LiveInsightsTab({ classId }: { classId: string }) {
   const { ctx, ready } = useAcademicContext();
   const [analytics, setAnalytics] = useState<Awaited<
@@ -2049,7 +2100,10 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   > | null>(null);
   const [profiles, setProfiles] = useState<StudentAcademicProfile[]>([]);
   const [nameById, setNameById] = useState<Map<string, string>>(new Map());
-  const [pendingHwCount, setPendingHwCount] = useState(0);
+  const [homework, setHomework] = useState<InsightHwRow[]>([]);
+  const [tests, setTests] = useState<InsightTestRow[]>([]);
+  const [exams, setExams] = useState<ExamRecord[]>([]);
+  const [pendingExams, setPendingExams] = useState<ExamRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -2064,13 +2118,21 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
           AttendanceService.listClassStudents(ctx, classId),
           HomeworkService.listForClassWithStats(ctx, classId, { limit: 100 }),
+          TestService.listForClass(ctx, classId),
+          MarksService.listExamsForClass(ctx, classId, { limit: 100 }),
+          MarksService.listMyPendingSubjectExams(ctx, classId),
         ]);
         if (cancelled) return;
         const a = settled[0].status === "fulfilled" ? settled[0].value : null;
         const p = settled[1].status === "fulfilled" ? settled[1].value : [];
         const students = settled[2].status === "fulfilled" ? settled[2].value : [];
-        const hw =
-          settled[3].status === "fulfilled" ? settled[3].value : [];
+        const hw = settled[3].status === "fulfilled" ? settled[3].value : [];
+        const tRows =
+          settled[4].status === "fulfilled"
+            ? (settled[4].value as InsightTestRow[])
+            : [];
+        const examRows = settled[5].status === "fulfilled" ? settled[5].value : [];
+        const pending = settled[6].status === "fulfilled" ? settled[6].value : [];
         if (
           settled[0].status === "rejected" &&
           settled[1].status === "rejected" &&
@@ -2081,12 +2143,18 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         setAnalytics(a);
         setProfiles(p);
         setNameById(new Map(students.map((s) => [s.id, s.fullName])));
-        const pending = hw.reduce((sum, h) => sum + (h.pending ?? 0), 0);
-        setPendingHwCount(pending);
+        setHomework(hw);
+        setTests(tRows);
+        setExams(examRows);
+        setPendingExams(pending);
         const errs: string[] = [];
         if (settled[0].status === "rejected") errs.push(errMsg(settled[0].reason, "Analytics"));
         if (settled[1].status === "rejected") errs.push(errMsg(settled[1].reason, "Profiles"));
         if (settled[2].status === "rejected") errs.push(errMsg(settled[2].reason, "Roster"));
+        if (settled[3].status === "rejected") errs.push(errMsg(settled[3].reason, "Homework"));
+        if (settled[4].status === "rejected") errs.push(errMsg(settled[4].reason, "Tests"));
+        if (settled[5].status === "rejected") errs.push(errMsg(settled[5].reason, "Exams"));
+        if (settled[6].status === "rejected") errs.push(errMsg(settled[6].reason, "Pending marks"));
         setError(errs.length ? errs.join(" · ") : null);
       } catch (e) {
         if (!cancelled) setError(errMsg(e, "Failed to load insights"));
@@ -2102,65 +2170,298 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   const displayName = (studentId: string) =>
     nameById.get(studentId) ?? "Unknown student";
 
-  const lowestAttendance = useMemo(
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
+  const activeHomework = useMemo(
     () =>
-      [...profiles].sort((a, b) => a.attendancePct - b.attendancePct).slice(0, 5),
-    [profiles],
+      homework.filter((h) => {
+        if (h.archivedAt) return false;
+        const st = String(h.status ?? "").toLowerCase();
+        return st === "published" || st === "active";
+      }),
+    [homework],
   );
-  const lowestHomework = useMemo(
+
+  const activeTests = useMemo(
     () =>
-      [...profiles]
-        .sort((a, b) => a.homeworkCompletionPct - b.homeworkCompletionPct)
+      tests.filter((t) => {
+        const st = resolveTestStatus(t);
+        return st === "published" || st === "active" || st === "live";
+      }),
+    [tests],
+  );
+
+  const upcomingExams = useMemo(
+    () =>
+      exams.filter(
+        (e) => !e.resultsPublishedAt && e.examDate && e.examDate >= today,
+      ),
+    [exams, today],
+  );
+
+  const testsNeedingPublish = useMemo(
+    () =>
+      tests.filter((t) => {
+        const st = resolveTestStatus(t);
+        return st === "draft" || st === "scheduled";
+      }),
+    [tests],
+  );
+
+  const examsAwaitingMarks = useMemo(() => {
+    const byId = new Map<string, ExamRecord>();
+    for (const e of exams) {
+      if (!e.marksLocked && !e.resultsPublishedAt) byId.set(e.id, e);
+    }
+    for (const e of pendingExams) byId.set(e.id, e);
+    return [...byId.values()];
+  }, [exams, pendingExams]);
+
+  const lowCompletionHw = useMemo(
+    () =>
+      [...activeHomework]
+        .sort((a, b) => a.completionPct - b.completionPct)
+        .filter((h) => h.totalStudents > 0)
         .slice(0, 5),
-    [profiles],
+    [activeHomework],
   );
-  const highestPerformers = useMemo(
+
+  const lateHomework = useMemo(
     () =>
-      [...profiles]
-        .sort(
-          (a, b) =>
-            b.examsAvgPct + b.testsAvgPct - (a.examsAvgPct + a.testsAvgPct),
-        )
+      [...activeHomework]
+        .filter((h) => (h.late ?? 0) > 0)
+        .sort((a, b) => (b.late ?? 0) - (a.late ?? 0))
         .slice(0, 5),
+    [activeHomework],
+  );
+
+  const lowAttendance = useMemo(
+    () =>
+      profiles
+        .filter((p) => p.attendancePct < 75)
+        .sort((a, b) => a.attendancePct - b.attendancePct)
+        .slice(0, 8),
     [profiles],
   );
-  const needsAttention = useMemo(
+
+  const pendingHwStudents = useMemo(
     () =>
-      [...profiles]
+      profiles
         .filter(
           (p) =>
-            p.attendancePct < 75 ||
-            p.homeworkCompletionPct < 50 ||
-            (p.examsAvgPct > 0 && p.examsAvgPct < 40) ||
-            (p.testsAvgPct > 0 && p.testsAvgPct < 40),
+            p.homeworkCompletionPct < 70 ||
+            (p.homeworkAssigned > 0 && p.homeworkSubmitted < p.homeworkAssigned),
+        )
+        .sort((a, b) => a.homeworkCompletionPct - b.homeworkCompletionPct)
+        .slice(0, 8),
+    [profiles],
+  );
+
+  const lowAverages = useMemo(
+    () =>
+      profiles
+        .filter(
+          (p) =>
+            (p.testsAvgPct > 0 && p.testsAvgPct < 40) ||
+            (p.examsAvgPct > 0 && p.examsAvgPct < 40),
         )
         .sort(
           (a, b) =>
-            a.attendancePct +
-            a.homeworkCompletionPct -
-            (b.attendancePct + b.homeworkCompletionPct),
+            Math.min(
+              a.testsAvgPct > 0 ? a.testsAvgPct : 100,
+              a.examsAvgPct > 0 ? a.examsAvgPct : 100,
+            ) -
+            Math.min(
+              b.testsAvgPct > 0 ? b.testsAvgPct : 100,
+              b.examsAvgPct > 0 ? b.examsAvgPct : 100,
+            ),
         )
         .slice(0, 8),
     [profiles],
   );
 
-  const classTrend = useMemo(() => {
-    if (!analytics) return "—";
-    const scores = [
-      analytics.avgAttendancePct,
-      analytics.avgHomeworkCompletionPct,
-      analytics.avgTestsPct,
-      analytics.avgExamsPct,
-    ].filter((n) => n > 0);
-    if (!scores.length) return "Insufficient data";
-    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-    if (avg >= 80) return "Healthy";
-    if (avg >= 60) return "Stable";
-    if (avg >= 40) return "Needs focus";
-    return "At risk";
-  }, [analytics]);
+  const needsAttentionRows = useMemo((): DecisionRow[] => {
+    const rows: DecisionRow[] = [];
+    const seen = new Set<string>();
+    const push = (p: StudentAcademicProfile, metric: string, why: string) => {
+      if (seen.has(p.studentId)) return;
+      seen.add(p.studentId);
+      rows.push({ id: p.studentId, name: displayName(p.studentId), metric, why });
+    };
+    for (const p of lowAttendance) {
+      push(p, `${Math.round(p.attendancePct)}% att`, "Below 75% attendance");
+    }
+    for (const p of pendingHwStudents) {
+      const missing = Math.max(0, p.homeworkAssigned - p.homeworkSubmitted);
+      push(
+        p,
+        `${Math.round(p.homeworkCompletionPct)}% HW`,
+        missing > 0
+          ? `${missing} homework missing/pending`
+          : "Low homework completion",
+      );
+    }
+    for (const p of lowAverages) {
+      const parts: string[] = [];
+      if (p.testsAvgPct > 0 && p.testsAvgPct < 40)
+        parts.push(`tests ${Math.round(p.testsAvgPct)}%`);
+      if (p.examsAvgPct > 0 && p.examsAvgPct < 40)
+        parts.push(`exams ${Math.round(p.examsAvgPct)}%`);
+      push(p, parts.join(" · ") || "Low avg", "Average under 40%");
+    }
+    return rows.slice(0, 10);
+  }, [lowAttendance, pendingHwStudents, lowAverages, nameById]);
 
-  if (loading) return <Loading label="Loading analytics…" />;
+  const workProblemRows = useMemo((): DecisionRow[] => {
+    const rows: DecisionRow[] = [];
+    for (const h of lowCompletionHw) {
+      rows.push({
+        id: `hw-low-${h.id}`,
+        name: h.title || "Homework",
+        metric: `${Math.round(h.completionPct)}%`,
+        why: `${h.pending} pending · ${h.submitted}/${h.totalStudents} submitted`,
+      });
+    }
+    for (const h of lateHomework) {
+      if (rows.some((r) => r.id === `hw-low-${h.id}`)) continue;
+      rows.push({
+        id: `hw-late-${h.id}`,
+        name: h.title || "Homework",
+        metric: `${h.late} late`,
+        why: "Late submissions need follow-up",
+      });
+    }
+    for (const t of testsNeedingPublish.slice(0, 5)) {
+      rows.push({
+        id: `test-${t.id}`,
+        name: t.title || "Test",
+        metric: resolveTestStatus(t),
+        why: "Draft/scheduled — needs publish",
+      });
+    }
+    for (const e of examsAwaitingMarks.slice(0, 5)) {
+      rows.push({
+        id: `exam-${e.id}`,
+        name: e.name || "Exam",
+        metric: e.subject || "marks",
+        why: "Awaiting marks entry (not locked)",
+      });
+    }
+    return rows.slice(0, 12);
+  }, [lowCompletionHw, lateHomework, testsNeedingPublish, examsAwaitingMarks]);
+
+  const doingWellRows = useMemo((): DecisionRow[] => {
+    const rows: DecisionRow[] = [];
+    const topPerformers = [...profiles]
+      .filter((p) => p.testsAvgPct > 0 || p.examsAvgPct > 0)
+      .sort(
+        (a, b) =>
+          b.examsAvgPct + b.testsAvgPct - (a.examsAvgPct + a.testsAvgPct),
+      )
+      .slice(0, 5);
+    for (const p of topPerformers) {
+      rows.push({
+        id: `perf-${p.studentId}`,
+        name: displayName(p.studentId),
+        metric: `T ${Math.round(p.testsAvgPct)}% · E ${Math.round(p.examsAvgPct)}%`,
+        why: "Top test/exam performer",
+      });
+    }
+    const bestHw = [...profiles]
+      .filter((p) => p.homeworkAssigned > 0)
+      .sort((a, b) => b.homeworkCompletionPct - a.homeworkCompletionPct)
+      .slice(0, 3);
+    for (const p of bestHw) {
+      if (rows.some((r) => r.id.endsWith(p.studentId))) continue;
+      rows.push({
+        id: `hw-${p.studentId}`,
+        name: displayName(p.studentId),
+        metric: `${Math.round(p.homeworkCompletionPct)}% HW`,
+        why: "Strong homework completion",
+      });
+    }
+    const perfectAtt = profiles
+      .filter((p) => p.attendancePct >= 95 && p.attendanceTotal > 0)
+      .sort((a, b) => b.attendancePct - a.attendancePct)
+      .slice(0, 5);
+    for (const p of perfectAtt) {
+      if (rows.some((r) => r.id.endsWith(p.studentId))) continue;
+      rows.push({
+        id: `att-${p.studentId}`,
+        name: displayName(p.studentId),
+        metric: `${Math.round(p.attendancePct)}% att`,
+        why: "Near-perfect attendance (≥95%)",
+      });
+    }
+    return rows.slice(0, 10);
+  }, [profiles, nameById]);
+
+  const interventionRows = useMemo((): DecisionRow[] => {
+    const scored = profiles.map((p) => {
+      const flags: string[] = [];
+      if (p.attendancePct < 75) flags.push("low attendance");
+      if (p.homeworkCompletionPct < 70 || p.homeworkSubmitted < p.homeworkAssigned)
+        flags.push("missing homework");
+      if (
+        (p.testsAvgPct > 0 && p.testsAvgPct < 40) ||
+        (p.examsAvgPct > 0 && p.examsAvgPct < 40)
+      )
+        flags.push("low averages");
+      return { p, flags };
+    });
+    return scored
+      .filter((s) => s.flags.length >= 1)
+      .sort((a, b) => {
+        if (b.flags.length !== a.flags.length) return b.flags.length - a.flags.length;
+        return (
+          a.p.attendancePct +
+          a.p.homeworkCompletionPct -
+          (b.p.attendancePct + b.p.homeworkCompletionPct)
+        );
+      })
+      .slice(0, 8)
+      .map(({ p, flags }) => ({
+        id: p.studentId,
+        name: displayName(p.studentId),
+        metric:
+          flags.length >= 2
+            ? `${flags.length} concerns`
+            : `${Math.round(p.attendancePct)}% att`,
+        why:
+          flags.length >= 2
+            ? `Consecutive concerns: ${flags.join(", ")}`
+            : flags[0] === "low attendance"
+              ? `Lowest attendance · ${Math.round(p.attendancePct)}%`
+              : flags[0] === "missing homework"
+                ? `HW ${Math.round(p.homeworkCompletionPct)}% · missing work`
+                : `Low averages · T ${Math.round(p.testsAvgPct)}% · E ${Math.round(p.examsAvgPct)}%`,
+      }));
+  }, [profiles, nameById]);
+
+  const focusSummary = useMemo(() => {
+    const studentAction = new Set([
+      ...needsAttentionRows.map((r) => r.id),
+      ...interventionRows.filter((r) => r.metric.includes("concerns")).map((r) => r.id),
+    ]);
+    const itemAction =
+      lowCompletionHw.filter((h) => h.completionPct < 70).length +
+      lateHomework.length +
+      testsNeedingPublish.length +
+      examsAwaitingMarks.length;
+    return {
+      students: studentAction.size,
+      items: itemAction,
+    };
+  }, [
+    needsAttentionRows,
+    interventionRows,
+    lowCompletionHw,
+    lateHomework,
+    testsNeedingPublish,
+    examsAwaitingMarks,
+  ]);
+
+  if (loading) return <Loading label="Loading decision dashboard…" />;
   if (!analytics && profiles.length === 0) {
     return (
       <div className="text-xs text-[#cc5069] py-8 text-center">
@@ -2170,7 +2471,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {error && (
         <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
           {error}
@@ -2178,147 +2479,86 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       )}
 
       <div>
-        <div className="text-sm font-bold text-white">Class health</div>
-        <div className="text-[10px] text-[#46465a] mt-0.5">
-          Live academic signals — act on students who need you
+        <div className="text-sm font-bold text-white">Teacher decision dashboard</div>
+        <div className="text-[10px] text-[#78788c] mt-0.5">
+          {focusSummary.students === 0 && focusSummary.items === 0
+            ? "Today's focus: none — class looks healthy"
+            : `Today's focus: ${focusSummary.students} student${focusSummary.students === 1 ? "" : "s"} and ${focusSummary.items} work item${focusSummary.items === 1 ? "" : "s"} need action`}
         </div>
       </div>
 
       {analytics && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-xl font-black text-white">{analytics.studentCount}</div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Total students</div>
-          </div>
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div
-              className="text-xl font-black"
-              style={{ color: analytics.avgAttendancePct >= 85 ? "#10b981" : "#cc5069" }}
-            >
-              {Math.round(analytics.avgAttendancePct)}%
+        <div className="bg-[#131316] border border-white/7 rounded-2xl px-3 py-2.5 overflow-x-auto">
+          <div className="flex items-center gap-4 sm:gap-5 min-w-max text-[10px]">
+            <div>
+              <span className="text-[#46465a]">Attendance </span>
+              <span className="font-bold text-white tabular-nums">
+                {Math.round(analytics.avgAttendancePct)}%
+              </span>
             </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Attendance</div>
-          </div>
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-xl font-black text-[#6366f1]">
-              {Math.round(analytics.avgHomeworkCompletionPct)}%
+            <div>
+              <span className="text-[#46465a]">HW </span>
+              <span className="font-bold text-white tabular-nums">
+                {Math.round(analytics.avgHomeworkCompletionPct)}%
+              </span>
             </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Homework completion</div>
-          </div>
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-xl font-black text-[#f59e0b]">{pendingHwCount}</div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Pending homework</div>
-          </div>
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-xl font-black text-[#6366f1]">
-              {Math.round(analytics.avgTestsPct)}%
+            <div>
+              <span className="text-[#46465a]">Test avg </span>
+              <span className="font-bold text-white tabular-nums">
+                {Math.round(analytics.avgTestsPct)}%
+              </span>
             </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Test average</div>
-          </div>
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-xl font-black text-[#3b5bdb]">
-              {Math.round(analytics.avgExamsPct)}%
+            <div>
+              <span className="text-[#46465a]">Exam avg </span>
+              <span className="font-bold text-white tabular-nums">
+                {Math.round(analytics.avgExamsPct)}%
+              </span>
             </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Exam average</div>
+            <div>
+              <span className="text-[#46465a]">Active HW </span>
+              <span className="font-bold text-white tabular-nums">{activeHomework.length}</span>
+            </div>
+            <div>
+              <span className="text-[#46465a]">Active tests </span>
+              <span className="font-bold text-white tabular-nums">{activeTests.length}</span>
+            </div>
+            <div>
+              <span className="text-[#46465a]">Upcoming exams </span>
+              <span className="font-bold text-white tabular-nums">{upcomingExams.length}</span>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center justify-between gap-3">
-        <div>
-          <div className="text-xs font-bold text-white">Recent academic trend</div>
-          <div className="text-[10px] text-[#78788c] mt-0.5">
-            Combined attendance, homework, tests & exams
-          </div>
-        </div>
-        <div
-          className={cn(
-            "text-[11px] font-bold px-3 py-1.5 rounded-lg",
-            classTrend === "Healthy" && "bg-[#10b981]/20 text-[#10b981]",
-            classTrend === "Stable" && "bg-[#3b5bdb]/20 text-[#3b5bdb]",
-            classTrend === "Needs focus" && "bg-[#f59e0b]/20 text-[#f59e0b]",
-            classTrend === "At risk" && "bg-[#cc5069]/20 text-[#cc5069]",
-            (classTrend === "Insufficient data" || classTrend === "—") &&
-              "bg-white/10 text-[#78788c]",
-          )}
-        >
-          {classTrend}
-        </div>
-      </div>
+      <DecisionSection
+        title="Needs attention today"
+        question="Who should I check on before the day ends?"
+        rows={needsAttentionRows}
+        empty="None — class looks healthy"
+      />
+
+      <DecisionSection
+        title="Academic work creating problems"
+        question="Which homework, tests, or exams need my action?"
+        rows={workProblemRows}
+        empty="None — work pipeline looks clear"
+        metricClass="text-[#f59e0b]"
+      />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Highest performers</div>
-          {highestPerformers.length === 0 ? (
-            <div className="text-[10px] text-[#46465a]">No data</div>
-          ) : (
-            highestPerformers.map((p) => (
-              <div
-                key={p.studentId}
-                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
-              >
-                <span className="text-white truncate">{displayName(p.studentId)}</span>
-                <span className="tabular-nums text-[#3b5bdb] font-bold shrink-0">
-                  Exams {Math.round(p.examsAvgPct)}% · Tests {Math.round(p.testsAvgPct)}%
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Students requiring attention</div>
-          {needsAttention.length === 0 ? (
-            <div className="text-[10px] text-[#46465a]">None flagged right now</div>
-          ) : (
-            needsAttention.map((p) => (
-              <div
-                key={p.studentId}
-                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
-              >
-                <span className="text-white truncate">{displayName(p.studentId)}</span>
-                <span className="tabular-nums text-[#cc5069] font-bold shrink-0">
-                  Att {Math.round(p.attendancePct)}% · HW {Math.round(p.homeworkCompletionPct)}%
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Lowest attendance</div>
-          {lowestAttendance.length === 0 ? (
-            <div className="text-[10px] text-[#46465a]">No data</div>
-          ) : (
-            lowestAttendance.map((p) => (
-              <div
-                key={p.studentId}
-                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
-              >
-                <span className="text-white truncate">{displayName(p.studentId)}</span>
-                <span className="tabular-nums text-[#cc5069] font-bold shrink-0">
-                  {Math.round(p.attendancePct)}%
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Lowest homework completion</div>
-          {lowestHomework.length === 0 ? (
-            <div className="text-[10px] text-[#46465a]">No data</div>
-          ) : (
-            lowestHomework.map((p) => (
-              <div
-                key={p.studentId}
-                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
-              >
-                <span className="text-white truncate">{displayName(p.studentId)}</span>
-                <span className="tabular-nums text-[#c08a3a] font-bold shrink-0">
-                  {Math.round(p.homeworkCompletionPct)}%
-                </span>
-              </div>
-            ))
-          )}
-        </div>
+        <DecisionSection
+          title="Doing well"
+          question="Who can I reinforce or use as peer models?"
+          rows={doingWellRows}
+          empty="None yet — not enough positive signals"
+          metricClass="text-[#10b981]"
+        />
+        <DecisionSection
+          title="Require intervention"
+          question="Who has stacked risks that need a conversation?"
+          rows={interventionRows}
+          empty="None — no stacked concerns"
+        />
       </div>
     </div>
   );
