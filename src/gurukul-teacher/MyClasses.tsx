@@ -5,15 +5,21 @@ import { type ClassInfo } from "./data";
 import { TeacherAttendanceWorkspace } from "./TeacherAttendancePage";
 import {
   LiveStudentsTab,
-  LiveHomeworkTab,
-  LiveAssignmentsTab,
+  LiveAcademicWorkTab,
   LiveTestsTab,
+  LiveExamsMarksTab,
   LiveInsightsTab,
 } from "./LiveClassPanels";
 import { AttendanceService, type AssignedClass } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
-type SubTab = "students" | "attendance" | "homework" | "assignments" | "tests" | "insights";
+type SubTab =
+  | "students"
+  | "attendance"
+  | "academic-work"
+  | "tests"
+  | "exams-marks"
+  | "insights";
 
 function assignedToClassInfo(c: AssignedClass): ClassInfo {
   return {
@@ -172,10 +178,10 @@ export default function MyClasses() {
   const subTabs: { key: SubTab; label: string }[] = [
     { key: "students", label: `Students (${selectedClass.studentCount})` },
     { key: "attendance", label: "Attendance" },
-    { key: "homework", label: "Homework" },
-    { key: "assignments", label: "Assignments" },
+    { key: "academic-work", label: "Academic Work" },
     { key: "tests", label: "Tests" },
-    { key: "insights", label: "Class Insights" },
+    { key: "exams-marks", label: "Exams & Marks" },
+    { key: "insights", label: "Insights" },
   ];
 
   return (
@@ -210,14 +216,14 @@ export default function MyClasses() {
         {subTab === "attendance" && (
           <TeacherAttendanceWorkspace fixedClassId={selectedClass.id} showBackLink={false} />
         )}
-        {subTab === "homework" && (
-          <LiveHomeworkTab classId={selectedClass.id} subject={selectedClass.subject} />
-        )}
-        {subTab === "assignments" && (
-          <LiveAssignmentsTab classId={selectedClass.id} subject={selectedClass.subject} />
+        {subTab === "academic-work" && (
+          <LiveAcademicWorkTab classId={selectedClass.id} subject={selectedClass.subject} />
         )}
         {subTab === "tests" && (
           <LiveTestsTab classId={selectedClass.id} subject={selectedClass.subject} />
+        )}
+        {subTab === "exams-marks" && (
+          <LiveExamsMarksTab classId={selectedClass.id} subject={selectedClass.subject} />
         )}
         {subTab === "insights" && <LiveInsightsTab classId={selectedClass.id} />}
       </div>

@@ -19,6 +19,14 @@ export interface ExamRecord {
   maxMarks: number;
   examDate: string | null;
   status: string | null;
+  examType: string;
+  marksLocked: boolean;
+  resultsPublishedAt: string | null;
+  passingMarks: number | null;
+  durationMinutes: number | null;
+  chapters: string[];
+  topics: string[];
+  instructions: string | null;
 }
 
 export interface MarksRecord {
@@ -40,6 +48,14 @@ type ExamRow = {
   max_marks: number;
   exam_date: string | null;
   status?: string | null;
+  exam_type?: string | null;
+  marks_locked?: boolean | null;
+  results_published_at?: string | null;
+  passing_marks?: number | null;
+  duration_minutes?: number | null;
+  chapters?: unknown;
+  topics?: unknown;
+  instructions?: string | null;
 };
 
 type MarksRow = {
@@ -50,6 +66,11 @@ type MarksRow = {
   marks_obtained: number;
   remarks: string | null;
 };
+
+function asStringArray(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map(String);
+  return [];
+}
 
 function mapExam(row: ExamRow): ExamRecord {
   return {
@@ -62,6 +83,16 @@ function mapExam(row: ExamRow): ExamRecord {
     maxMarks: Number(row.max_marks),
     examDate: row.exam_date,
     status: row.status ?? null,
+    examType: String(row.exam_type ?? "class_test"),
+    marksLocked: Boolean(row.marks_locked),
+    resultsPublishedAt: row.results_published_at
+      ? String(row.results_published_at)
+      : null,
+    passingMarks: row.passing_marks != null ? Number(row.passing_marks) : null,
+    durationMinutes: row.duration_minutes != null ? Number(row.duration_minutes) : null,
+    chapters: asStringArray(row.chapters),
+    topics: asStringArray(row.topics),
+    instructions: row.instructions != null ? String(row.instructions) : null,
   };
 }
 
@@ -107,6 +138,28 @@ export async function listExamsForClass(
     .range(offset, offset + limit - 1);
 
   throwIfError(error, "Failed to list exams");
+  return (data ?? []).map((r) => mapExam(r as ExamRow));
+}
+
+/** Exams with results published — for student/parent result consumers. */
+export async function listPublishedResultsForClass(
+  ctx: RepoContext,
+  classId: string,
+  page?: PageParams,
+): Promise<ExamRecord[]> {
+  const schoolId = schoolIdOf(ctx);
+  const { limit, offset } = normalizePage(page);
+
+  const { data, error } = await getClient(ctx)
+    .from("exams")
+    .select("*")
+    .eq("school_id", schoolId)
+    .eq("class_id", classId)
+    .not("results_published_at", "is", null)
+    .order("exam_date", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  throwIfError(error, "Failed to list published exam results");
   return (data ?? []).map((r) => mapExam(r as ExamRow));
 }
 
@@ -162,6 +215,15 @@ export async function publishMarks(ctx: RepoContext, input: PublishMarksInput): 
   if (!assignCheck.ok) throw new ValidationFailedError(assignCheck.issues);
 
   const exam = await getExam(ctx, input.examId);
+  if (exam.marksLocked) {
+    throw new ValidationFailedError([
+      {
+        field: "examId",
+        code: "locked",
+        message: "Marks are locked for this exam and cannot be edited",
+      },
+    ]);
+  }
   const marksCheck = validateMarks(input.marksObtained, exam.maxMarks);
   if (!marksCheck.ok) throw new ValidationFailedError(marksCheck.issues);
 

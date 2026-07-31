@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, Loader2, Send } from "lucide-react";
-import { HomeworkService } from "@/academic";
+import { HomeworkService, WORK_KIND_LABELS, normalizeWorkKind } from "@/academic";
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/gurukul/components/shared";
@@ -224,6 +224,9 @@ export default function Assignments() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <span className="text-sm font-semibold text-white">{a.title}</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
+                        {WORK_KIND_LABELS[normalizeWorkKind(a.workKind)]}
+                      </span>
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
                           isReturned

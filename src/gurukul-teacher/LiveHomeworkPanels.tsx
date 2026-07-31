@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Loader2, Plus, Save, Send, Archive, Copy, Eye, CheckCircle2, RotateCcw,
+  Loader2, Plus, Save, Send, Archive, Copy, Eye, CheckCircle2, RotateCcw, CalendarClock,
 } from "lucide-react";
-import { HomeworkService, AttendanceService } from "@/academic";
+import {
+  HomeworkService,
+  AttendanceService,
+  WORK_KINDS,
+  WORK_KIND_LABELS,
+  type WorkKind,
+} from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 type StatsRow = Awaited<ReturnType<typeof HomeworkService.listForClassWithStats>>[number];
 type SubRow = Awaited<ReturnType<typeof HomeworkService.listSubmissions>>[number];
 type StatusFilter = "all" | "draft" | "published" | "scheduled" | "archived";
+type KindFilter = "all" | WorkKind;
+type PublishMode = "now" | "schedule" | "draft";
 
 function Loading({ label }: { label: string }) {
   return (
@@ -18,31 +26,32 @@ function Loading({ label }: { label: string }) {
 }
 
 /**
- * Live class homework workspace — HomeworkService only.
- * Create / draft / publish / archive / review submissions.
+ * Academic Work workspace — HomeworkService only (all work_kind values).
  */
-function LiveHomeworkList({
+export function LiveAcademicWorkTab({
   classId,
-  subjectDefault,
-  title,
+  subject,
 }: {
   classId: string;
-  subjectDefault: string;
-  title: string;
+  subject: string;
 }) {
   const { ctx, ready } = useAcademicContext();
   const [items, setItems] = useState<StatsRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [kindFilter, setKindFilter] = useState<KindFilter>("all");
+  const [selectedKind, setSelectedKind] = useState<WorkKind>("homework");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
+  const [publishMode, setPublishMode] = useState<PublishMode>("now");
   const [form, setForm] = useState({
     title: "",
     description: "",
     dueDate: "",
     priority: "normal",
     maxMarks: "",
+    scheduledPublishAt: "",
   });
   const [saving, setSaving] = useState(false);
   const [reviewHw, setReviewHw] = useState<StatsRow | null>(null);
@@ -73,38 +82,66 @@ function LiveHomeworkList({
 
   const filtered = useMemo(() => {
     return items.filter((h) => {
+      if (kindFilter !== "all" && (h.workKind ?? "homework") !== kindFilter) return false;
       if (statusFilter !== "all" && (h.status ?? "") !== statusFilter) {
         if (!(statusFilter === "published" && h.status === "active")) return false;
       }
-      if (search && !h.title.toLowerCase().includes(search.toLowerCase())
-        && !h.subject.toLowerCase().includes(search.toLowerCase())) {
+      if (
+        search &&
+        !h.title.toLowerCase().includes(search.toLowerCase()) &&
+        !h.subject.toLowerCase().includes(search.toLowerCase())
+      ) {
         return false;
       }
       return true;
     });
-  }, [items, statusFilter, search]);
+  }, [items, statusFilter, kindFilter, search]);
 
-  const create = async (asDraft: boolean) => {
+  const create = async () => {
     if (!ctx || !form.title.trim()) return;
-    if (!asDraft && !form.dueDate) {
-      setError("Due date is required to publish");
+    if (publishMode !== "draft" && !form.dueDate) {
+      setError("Due date is required to publish or schedule");
+      return;
+    }
+    if (publishMode === "schedule" && !form.scheduledPublishAt) {
+      setError("Schedule datetime is required");
       return;
     }
     setSaving(true);
+    setError(null);
     try {
-      const payload = {
+      const base = {
         classId,
-        subject: subjectDefault || "General",
+        subject: subject || "General",
         title: form.title.trim(),
         description: form.description,
         dueDate: form.dueDate || null,
         priority: form.priority,
         maxMarks: form.maxMarks && !Number.isNaN(Number(form.maxMarks)) ? Number(form.maxMarks) : null,
+        workKind: selectedKind,
       };
-      if (asDraft) await HomeworkService.createDraft(ctx, payload);
-      else await HomeworkService.assign(ctx, payload);
-      setForm({ title: "", description: "", dueDate: "", priority: "normal", maxMarks: "" });
+      if (publishMode === "draft") {
+        await HomeworkService.createDraft(ctx, base);
+      } else if (publishMode === "schedule") {
+        const scheduledAt = new Date(form.scheduledPublishAt).toISOString();
+        await HomeworkService.assign(ctx, {
+          ...base,
+          status: "scheduled",
+          scheduledPublishAt: scheduledAt,
+        });
+      } else {
+        await HomeworkService.assign(ctx, base);
+      }
+      setForm({
+        title: "",
+        description: "",
+        dueDate: "",
+        priority: "normal",
+        maxMarks: "",
+        scheduledPublishAt: "",
+      });
       setCreating(false);
+      setPublishMode("now");
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create");
@@ -165,7 +202,7 @@ function LiveHomeworkList({
     }
   };
 
-  if (loading) return <Loading label={`Loading ${title.toLowerCase()}…`} />;
+  if (loading) return <Loading label="Loading academic work…" />;
 
   if (reviewHw) {
     const nameById = new Map(roster.map((r) => [r.id, r.fullName]));
@@ -179,7 +216,12 @@ function LiveHomeworkList({
           ← Back to list
         </button>
         {error && <div className="text-xs text-[#cc5069]">{error}</div>}
-        <div className="text-sm font-bold text-white">{reviewHw.title}</div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="text-sm font-bold text-white">{reviewHw.title}</div>
+          <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
+            {WORK_KIND_LABELS[reviewHw.workKind ?? "homework"]}
+          </span>
+        </div>
         <div className="text-[10px] text-[#78788c]">
           {subs.length} submissions · HomeworkService.review
         </div>
@@ -251,7 +293,36 @@ function LiveHomeworkList({
 
   return (
     <div className="space-y-4">
+      <div className="text-sm font-bold text-white">Academic Work</div>
       {error && <div className="text-xs text-[#cc5069]">{error}</div>}
+
+      <div className="flex flex-wrap gap-1">
+        <button
+          type="button"
+          onClick={() => setKindFilter("all")}
+          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+            kindFilter === "all" ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+          }`}
+        >
+          All kinds
+        </button>
+        {WORK_KINDS.map((k) => (
+          <button
+            key={k}
+            type="button"
+            onClick={() => {
+              setKindFilter(k);
+              setSelectedKind(k);
+            }}
+            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+              kindFilter === k ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+            }`}
+          >
+            {WORK_KIND_LABELS[k]}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex flex-wrap gap-1">
           {(["all", "draft", "published", "scheduled", "archived"] as const).map((s) => (
@@ -260,7 +331,7 @@ function LiveHomeworkList({
               type="button"
               onClick={() => setStatusFilter(s)}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold capitalize ${
-                statusFilter === s ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                statusFilter === s ? "bg-white/15 text-white" : "bg-white/5 text-[#78788c]"
               }`}
             >
               {s}
@@ -286,6 +357,20 @@ function LiveHomeworkList({
 
       {creating && (
         <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
+          <div className="flex flex-wrap gap-1 mb-1">
+            {WORK_KINDS.map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setSelectedKind(k)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                  selectedKind === k ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                }`}
+              >
+                {WORK_KIND_LABELS[k]}
+              </button>
+            ))}
+          </div>
           <input
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -322,23 +407,55 @@ function LiveHomeworkList({
               className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
             />
           </div>
+          <div className="flex flex-wrap gap-1">
+            {(
+              [
+                { key: "now" as const, label: "Publish Immediately" },
+                { key: "schedule" as const, label: "Schedule" },
+                { key: "draft" as const, label: "Save draft" },
+              ] as const
+            ).map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => setPublishMode(m.key)}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
+                  publishMode === m.key ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          {publishMode === "schedule" && (
+            <input
+              type="datetime-local"
+              value={form.scheduledPublishAt}
+              onChange={(e) => setForm((f) => ({ ...f, scheduledPublishAt: e.target.value }))}
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+            />
+          )}
           <div className="flex gap-2">
             <button
               type="button"
               disabled={saving}
-              onClick={() => void create(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-white/10"
-            >
-              <Save className="w-3.5 h-3.5" /> Save draft
-            </button>
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void create(false)}
+              onClick={() => void create()}
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb]"
             >
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              Publish
+              {saving ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : publishMode === "schedule" ? (
+                <CalendarClock className="w-3.5 h-3.5" />
+              ) : publishMode === "draft" ? (
+                <Save className="w-3.5 h-3.5" />
+              ) : (
+                <Send className="w-3.5 h-3.5" />
+              )}
+              {publishMode === "now"
+                ? "Publish"
+                : publishMode === "schedule"
+                  ? "Schedule"
+                  : "Save draft"}
             </button>
           </div>
         </div>
@@ -350,14 +467,25 @@ function LiveHomeworkList({
           <div key={h.id} className="p-4 bg-[#131316] border border-white/7 rounded-2xl space-y-2">
             <div className="flex justify-between gap-3">
               <div>
-                <div className="text-xs font-bold text-white">{h.title}</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="text-xs font-bold text-white">{h.title}</div>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
+                    {WORK_KIND_LABELS[h.workKind ?? "homework"]}
+                  </span>
+                </div>
                 <div className="text-[10px] text-[#78788c] mt-0.5">
                   {h.subject} · Due {h.dueDate ?? "—"} · {h.status ?? "draft"} · {h.priority}
+                  {h.scheduledPublishAt
+                    ? ` · sched ${new Date(h.scheduledPublishAt).toLocaleString()}`
+                    : ""}
                 </div>
               </div>
               <div className="text-right text-[10px] text-[#46465a]">
                 {h.submitted}/{h.totalStudents} · {h.completionPct}%
-                <div>{h.graded} graded · {h.awaitingReview} to review · {h.returned} returned · {h.pending} missing</div>
+                <div>
+                  {h.graded} graded · {h.awaitingReview} to review · {h.returned} returned ·{" "}
+                  {h.pending} missing
+                </div>
               </div>
             </div>
             {h.description && (
@@ -371,7 +499,7 @@ function LiveHomeworkList({
               >
                 <Eye className="w-3 h-3" /> Submissions
               </button>
-              {h.status === "draft" && ctx && (
+              {(h.status === "draft" || h.status === "scheduled") && ctx && (
                 <button
                   type="button"
                   disabled={saving}
@@ -385,7 +513,9 @@ function LiveHomeworkList({
                 <button
                   type="button"
                   disabled={saving}
-                  onClick={() => void runHwAction("Unpublish", () => HomeworkService.unpublish(ctx, h.id))}
+                  onClick={() =>
+                    void runHwAction("Unpublish", () => HomeworkService.unpublish(ctx, h.id))
+                  }
                   className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#78788c]"
                 >
                   Unpublish
@@ -405,7 +535,9 @@ function LiveHomeworkList({
                 <button
                   type="button"
                   disabled={saving}
-                  onClick={() => void runHwAction("Duplicate", () => HomeworkService.duplicate(ctx, h.id))}
+                  onClick={() =>
+                    void runHwAction("Duplicate", () => HomeworkService.duplicate(ctx, h.id))
+                  }
                   className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#78788c] flex items-center gap-1"
                 >
                   <Copy className="w-3 h-3" /> Duplicate
@@ -416,9 +548,7 @@ function LiveHomeworkList({
         ))}
         {filtered.length === 0 && (
           <div className="text-center py-12 text-xs text-[#46465a]">
-            {items.length === 0
-              ? `No ${title.toLowerCase()} yet.`
-              : "No items match this filter."}
+            {items.length === 0 ? "No academic work yet." : "No items match this filter."}
           </div>
         )}
       </div>
@@ -426,10 +556,12 @@ function LiveHomeworkList({
   );
 }
 
+/** @deprecated Use LiveAcademicWorkTab */
 export function LiveHomeworkTab({ classId, subject }: { classId: string; subject: string }) {
-  return <LiveHomeworkList classId={classId} subjectDefault={subject} title="Homework" />;
+  return <LiveAcademicWorkTab classId={classId} subject={subject} />;
 }
 
+/** @deprecated Use LiveAcademicWorkTab */
 export function LiveAssignmentsTab({ classId, subject }: { classId: string; subject: string }) {
-  return <LiveHomeworkList classId={classId} subjectDefault={subject} title="Assignments" />;
+  return <LiveAcademicWorkTab classId={classId} subject={subject} />;
 }

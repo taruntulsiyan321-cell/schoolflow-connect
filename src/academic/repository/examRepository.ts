@@ -16,10 +16,22 @@ type ExamRow = {
   subject_id?: string | null;
   max_marks: number;
   exam_date: string | null;
-  exam_type?: string;
+  exam_type?: string | null;
   status?: string | null;
   created_by?: string | null;
+  marks_locked?: boolean | null;
+  results_published_at?: string | null;
+  passing_marks?: number | null;
+  duration_minutes?: number | null;
+  chapters?: unknown;
+  topics?: unknown;
+  instructions?: string | null;
 };
+
+function asStringArray(v: unknown): string[] {
+  if (Array.isArray(v)) return v.map(String);
+  return [];
+}
 
 function mapExam(row: ExamRow): ExamRecord {
   return {
@@ -32,6 +44,16 @@ function mapExam(row: ExamRow): ExamRecord {
     maxMarks: Number(row.max_marks),
     examDate: row.exam_date,
     status: row.status ?? null,
+    examType: String(row.exam_type ?? "class_test"),
+    marksLocked: Boolean(row.marks_locked),
+    resultsPublishedAt: row.results_published_at
+      ? String(row.results_published_at)
+      : null,
+    passingMarks: row.passing_marks != null ? Number(row.passing_marks) : null,
+    durationMinutes: row.duration_minutes != null ? Number(row.duration_minutes) : null,
+    chapters: asStringArray(row.chapters),
+    topics: asStringArray(row.topics),
+    instructions: row.instructions != null ? String(row.instructions) : null,
   };
 }
 
@@ -45,6 +67,13 @@ export interface UpsertExamInput {
   examDate?: string | null;
   examType?: string;
   status?: string;
+  passingMarks?: number | null;
+  durationMinutes?: number | null;
+  chapters?: string[];
+  topics?: string[];
+  instructions?: string | null;
+  marksLocked?: boolean;
+  resultsPublishedAt?: string | null;
 }
 
 export async function upsertExam(ctx: RepoContext, input: UpsertExamInput): Promise<ExamRecord> {
@@ -60,7 +89,10 @@ export async function upsertExam(ctx: RepoContext, input: UpsertExamInput): Prom
     ]);
   }
 
-  const payload = {
+  // Allow new exam_type strings; cast as any when DB enum is strict.
+  const examType = (input.examType ?? "class_test") as any;
+
+  const payload: Record<string, unknown> = {
     school_id: schoolId,
     class_id: input.classId,
     name: input.name.trim(),
@@ -68,10 +100,19 @@ export async function upsertExam(ctx: RepoContext, input: UpsertExamInput): Prom
     subject_id: input.subjectId ?? null,
     max_marks: input.maxMarks,
     exam_date: input.examDate ?? null,
-    exam_type: (input.examType as "class_test" | "unit_test" | "half_yearly" | "final" | "other") ?? "class_test",
+    exam_type: examType,
     status: input.status ?? "scheduled",
     created_by: ctx.userId ?? null,
   };
+  if (input.passingMarks !== undefined) payload.passing_marks = input.passingMarks;
+  if (input.durationMinutes !== undefined) payload.duration_minutes = input.durationMinutes;
+  if (input.chapters !== undefined) payload.chapters = input.chapters;
+  if (input.topics !== undefined) payload.topics = input.topics;
+  if (input.instructions !== undefined) payload.instructions = input.instructions;
+  if (input.marksLocked !== undefined) payload.marks_locked = input.marksLocked;
+  if (input.resultsPublishedAt !== undefined) {
+    payload.results_published_at = input.resultsPublishedAt;
+  }
 
   if (input.id) {
     const { data, error } = await getClient(ctx)
@@ -120,7 +161,17 @@ export async function publishMarksBatch(
   rows: { studentId: string; marksObtained: number; remarks?: string | null }[],
   teacherAssignedToSubject: boolean,
 ): Promise<number> {
-  const { publishMarks } = await import("./marksRepository");
+  const { getExam, publishMarks } = await import("./marksRepository");
+  const exam = await getExam(ctx, examId);
+  if (exam.marksLocked) {
+    throw new ValidationFailedError([
+      {
+        field: "examId",
+        code: "locked",
+        message: "Marks are locked for this exam and cannot be edited",
+      },
+    ]);
+  }
   let n = 0;
   for (const row of rows) {
     await publishMarks(ctx, {

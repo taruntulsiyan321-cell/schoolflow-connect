@@ -7,6 +7,8 @@ import {
   HomeworkService,
   MarksService,
   TestService,
+  WORK_KIND_LABELS,
+  normalizeWorkKind,
   type StudentAcademicProfile,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -59,7 +61,12 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
         <div key={h.id} className="p-4 bg-[#131316] border border-white/7 rounded-2xl">
           <div className="flex justify-between gap-3">
             <div>
-              <div className="text-xs font-bold text-white">{h.title}</div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="text-xs font-bold text-white">{h.title}</div>
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
+                  {WORK_KIND_LABELS[normalizeWorkKind(h.workKind)]}
+                </span>
+              </div>
               <div className="text-[10px] text-[#78788c] mt-0.5">
                 {h.subject} · Due {h.dueDate ?? "—"}
                 {s?.submittedAt ? ` · Submitted ${new Date(s.submittedAt).toLocaleString()}` : ""}

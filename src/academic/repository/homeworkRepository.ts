@@ -10,6 +10,12 @@ import {
 
 export type HomeworkStatus = "draft" | "scheduled" | "published" | "archived";
 export type HomeworkPriority = "low" | "normal" | "high" | "urgent";
+export type WorkKind =
+  | "homework"
+  | "assignment"
+  | "worksheet"
+  | "project"
+  | "internal_assessment";
 export type HomeworkSubmissionStatus =
   | "pending"
   | "submitted"
@@ -18,6 +24,19 @@ export type HomeworkSubmissionStatus =
   | "returned"
   | "graded"
   | "completed";
+
+const WORK_KINDS: WorkKind[] = [
+  "homework",
+  "assignment",
+  "worksheet",
+  "project",
+  "internal_assessment",
+];
+
+function normalizeWorkKind(v: string | null | undefined): WorkKind {
+  if (v && (WORK_KINDS as string[]).includes(v)) return v as WorkKind;
+  return "homework";
+}
 
 export interface HomeworkAttachmentMeta {
   name: string;
@@ -44,6 +63,7 @@ export interface HomeworkRecord {
   tags: string[];
   externalLinks: string[];
   attachments: HomeworkAttachmentMeta[];
+  workKind: WorkKind;
   status: HomeworkStatus | string | null;
   scheduledPublishAt: string | null;
   publishedAt: string | null;
@@ -123,6 +143,7 @@ function mapHomework(row: HomeworkRow): HomeworkRecord {
         ? (row.external_links as unknown[]).map(String)
         : [],
     attachments: asAttachments(row.attachments),
+    workKind: normalizeWorkKind(row.work_kind != null ? String(row.work_kind) : null),
     status: (row.status as string) ?? "draft",
     scheduledPublishAt: row.scheduled_publish_at
       ? String(row.scheduled_publish_at)
@@ -159,13 +180,14 @@ function mapSubmission(row: SubmissionRow): HomeworkSubmissionRecord {
 }
 
 const HW_SELECT =
-  "id, school_id, class_id, subject, subject_id, title, description, instructions, due_date, due_time, estimated_minutes, priority, difficulty, max_marks, tags, external_links, attachments, status, scheduled_publish_at, published_at, archived_at, created_by, created_at, updated_at";
+  "id, school_id, class_id, subject, subject_id, title, description, instructions, due_date, due_time, estimated_minutes, priority, difficulty, max_marks, tags, external_links, attachments, work_kind, status, scheduled_publish_at, published_at, archived_at, created_by, created_at, updated_at";
 
 export interface HomeworkListFilters {
   status?: HomeworkStatus | HomeworkStatus[] | "active";
   subject?: string;
   createdBy?: string;
   priority?: string;
+  workKind?: WorkKind | WorkKind[];
   dueFrom?: string;
   dueTo?: string;
   search?: string;
@@ -187,6 +209,7 @@ export interface CreateHomeworkInput {
   tags?: string[];
   externalLinks?: string[];
   attachments?: HomeworkAttachmentMeta[];
+  workKind?: WorkKind;
   status?: HomeworkStatus;
   scheduledPublishAt?: string | null;
 }
@@ -276,6 +299,11 @@ export async function listHomeworkForClass(
   if (filters?.subject) q = q.eq("subject", filters.subject);
   if (filters?.createdBy) q = q.eq("created_by", filters.createdBy);
   if (filters?.priority) q = q.eq("priority", filters.priority);
+  if (Array.isArray(filters?.workKind)) {
+    q = q.in("work_kind", filters!.workKind);
+  } else if (filters?.workKind) {
+    q = q.eq("work_kind", filters.workKind);
+  }
   if (filters?.dueFrom) q = q.gte("due_date", filters.dueFrom);
   if (filters?.dueTo) q = q.lte("due_date", filters.dueTo);
   if (filters?.search) q = q.ilike("title", `%${filters.search}%`);
@@ -309,6 +337,11 @@ export async function listHomeworkForSchool(
   if (filters?.subject) q = q.eq("subject", filters.subject);
   if (filters?.createdBy) q = q.eq("created_by", filters.createdBy);
   if (filters?.priority) q = q.eq("priority", filters.priority);
+  if (Array.isArray(filters?.workKind)) {
+    q = q.in("work_kind", filters!.workKind);
+  } else if (filters?.workKind) {
+    q = q.eq("work_kind", filters.workKind);
+  }
   if (filters?.search) q = q.ilike("title", `%${filters.search}%`);
 
   const { data, error } = await q;
@@ -364,6 +397,7 @@ export async function createHomework(
       tags: input.tags ?? [],
       external_links: input.externalLinks ?? [],
       attachments: input.attachments ?? [],
+      work_kind: normalizeWorkKind(input.workKind),
       status,
       scheduled_publish_at: input.scheduledPublishAt ?? null,
       published_at: status === "published" ? new Date().toISOString() : null,
@@ -419,6 +453,7 @@ export async function updateHomework(
   if (input.tags !== undefined) patch.tags = input.tags;
   if (input.externalLinks !== undefined) patch.external_links = input.externalLinks;
   if (input.attachments !== undefined) patch.attachments = input.attachments;
+  if (input.workKind !== undefined) patch.work_kind = normalizeWorkKind(input.workKind);
   if (input.status !== undefined) patch.status = input.status;
   if (input.scheduledPublishAt !== undefined) patch.scheduled_publish_at = input.scheduledPublishAt;
   if (input.publishedAt !== undefined) patch.published_at = input.publishedAt;
@@ -495,6 +530,7 @@ export async function duplicateHomework(
     tags: src.tags,
     externalLinks: src.externalLinks,
     attachments: src.attachments,
+    workKind: src.workKind,
     status: "draft",
   });
 }

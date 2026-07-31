@@ -35,6 +35,7 @@ import { teacherAssignedToClassSubject } from "../repository/teacherAssignmentRe
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
 import { assertMayAccessStudent } from "./parentAccess";
+import { emitEvent } from "../repository/eventsRepository";
 
 export interface StudentHomeworkRow {
   homework: HomeworkRecord;
@@ -64,6 +65,8 @@ export interface SchoolHomeworkSummary {
   gradedCount: number;
   schoolCompletionPct: number;
   latePct: number;
+  /** Published homework counts keyed by work_kind. */
+  byKind: Record<string, number>;
   classes: {
     classId: string;
     className: string;
@@ -366,6 +369,79 @@ export const HomeworkService = {
     return publishHomework(toRepoContext(ctx), homeworkId);
   },
 
+  /**
+   * Schedule publish: status=scheduled + scheduledPublishAt.
+   * Immediate publish uses publish() (published today).
+   */
+  async schedule(
+    ctx: ServiceContext,
+    homeworkId: string,
+    at: string,
+  ): Promise<HomeworkRecord> {
+    assertCanOwn(ctx, "homework");
+    const existing = await getHomework(toRepoContext(ctx), homeworkId);
+    await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
+    const updated = await updateHomework(toRepoContext(ctx), homeworkId, {
+      status: "scheduled",
+      scheduledPublishAt: at,
+    });
+    await emitEvent(toRepoContext(ctx), {
+      eventType: "homework.scheduled",
+      entityType: "homework",
+      entityId: homeworkId,
+      classId: existing.classId,
+      payload: {
+        title: existing.title,
+        workKind: existing.workKind,
+        scheduledPublishAt: at,
+      },
+    }).catch(() => undefined);
+    return updated;
+  },
+
+  /**
+   * Publish homework whose scheduled_publish_at is due.
+   * Prefers RPC `publish_due_scheduled_homework`; falls back to direct update.
+   */
+  async publishDueScheduled(ctx: ServiceContext): Promise<number> {
+    assertCanOwn(ctx, "homework");
+    const repo = toRepoContext(ctx);
+    const schoolId = schoolIdOf(repo);
+    const client = getClient(repo);
+
+    const { data: rpcData, error: rpcError } = await client.rpc(
+      "publish_due_scheduled_homework",
+      { _school_id: schoolId } as never,
+    );
+    if (!rpcError) {
+      return typeof rpcData === "number" ? rpcData : Number(rpcData ?? 0);
+    }
+
+    const now = new Date().toISOString();
+    const { data: due, error: listErr } = await client
+      .from("homework")
+      .select("id")
+      .eq("school_id", schoolId)
+      .eq("status", "scheduled")
+      .lte("scheduled_publish_at", now);
+    throwIfError(listErr, "Failed to list due scheduled homework");
+
+    const ids = (due ?? []).map((r) => String(r.id));
+    if (ids.length === 0) return 0;
+
+    const { error: updErr } = await client
+      .from("homework")
+      .update({
+        status: "published",
+        published_at: now,
+        updated_at: now,
+      } as never)
+      .eq("school_id", schoolId)
+      .in("id", ids);
+    throwIfError(updErr, "Failed to publish due scheduled homework");
+    return ids.length;
+  },
+
   async unpublish(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
     assertCanOwn(ctx, "homework");
     const existing = await getHomework(toRepoContext(ctx), homeworkId);
@@ -466,7 +542,7 @@ export const HomeworkService = {
         client.from("classes").select("id, name, section").eq("school_id", schoolId),
         client
           .from("homework")
-          .select("id, class_id, status, created_by")
+          .select("id, class_id, status, created_by, work_kind")
           .eq("school_id", schoolId),
         client
           .from("homework_submissions")
@@ -557,6 +633,12 @@ export const HomeworkService = {
       teacherMap.set(h.created_by, (teacherMap.get(h.created_by) ?? 0) + 1);
     }
 
+    const byKind: Record<string, number> = {};
+    for (const h of published) {
+      const kind = String((h as { work_kind?: string }).work_kind ?? "homework");
+      byKind[kind] = (byKind[kind] ?? 0) + 1;
+    }
+
     return {
       totalAssigned: published.length,
       totalPublished: published.length,
@@ -567,6 +649,7 @@ export const HomeworkService = {
       gradedCount,
       schoolCompletionPct,
       latePct,
+      byKind,
       classes: classRows.sort((a, b) => b.completionPct - a.completionPct),
       teacherActivity: [...teacherMap.entries()].map(([teacherUserId, homeworkCount]) => ({
         teacherUserId,

@@ -77,7 +77,17 @@ export {
   toRepoContext,
   ForbiddenError,
   isSchoolOperator,
+  WORK_KINDS,
+  WORK_KIND_LABELS,
+  TEST_KIND_LABELS,
+  EXAM_TYPE_LABELS,
+  assertTeacherMayManageAcademicWork,
+  isPastDue,
+  normalizeWorkKind,
   type ServiceContext,
+  type WorkKind,
+  type TestKind,
+  type ExamType,
 } from "./services";
 
 export type {

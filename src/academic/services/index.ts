@@ -47,3 +47,15 @@ export {
 
 export { ForbiddenError, isSchoolOperator } from "./context";
 export { AnalyticsService, AiSummaryService, AuditReadService } from "./readServices";
+export {
+  WORK_KINDS,
+  WORK_KIND_LABELS,
+  TEST_KIND_LABELS,
+  EXAM_TYPE_LABELS,
+  assertTeacherMayManageAcademicWork,
+  isPastDue,
+  normalizeWorkKind,
+  type WorkKind,
+  type TestKind,
+  type ExamType,
+} from "./workLifecycle";
