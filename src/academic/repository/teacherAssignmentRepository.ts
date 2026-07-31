@@ -25,8 +25,7 @@ export async function teacherAssignedToClassSubject(
   throwIfError(tErr, "Failed to load teacher");
   if (!teacher) return false;
 
-  if (teacher.class_teacher_of === input.classId) return true;
-
+  // Subject teachers only — class teacher role alone does NOT unlock every subject for marks.
   let q = getClient(ctx)
     .from("teacher_classes")
     .select("id")
@@ -44,6 +43,23 @@ export async function teacherAssignedToClassSubject(
   const { data, error } = await q;
   throwIfError(error, "Failed to check teaching assignment");
   return (data?.length ?? 0) > 0;
+}
+
+/** True if this user is the class teacher of the class. */
+export async function isClassTeacherOfClass(
+  ctx: RepoContext,
+  teacherUserId: string,
+  classId: string,
+): Promise<boolean> {
+  const schoolId = schoolIdOf(ctx);
+  const { data: teacher, error } = await getClient(ctx)
+    .from("teachers")
+    .select("id, class_teacher_of")
+    .eq("school_id", schoolId)
+    .eq("user_id", teacherUserId)
+    .maybeSingle();
+  throwIfError(error, "Failed to load teacher");
+  return !!teacher && teacher.class_teacher_of === classId;
 }
 
 export async function getTeacherIdForUser(

@@ -25,7 +25,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 export type TeacherClassTab =
   | "students"
   | "attendance"
-  | "academic-work"
+  | "homework"
   | "tests"
   | "exams-marks"
   | "insights";
@@ -252,9 +252,9 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           />
           <QuickAction
             icon={<BookOpen className="w-5 h-5" />}
-            label="Create Academic Work"
+            label="Create Homework"
             color="#10b981"
-            onClick={() => openTab("academic-work")}
+            onClick={() => openTab("homework")}
           />
           <QuickAction
             icon={<ClipboardList className="w-5 h-5" />}
@@ -270,9 +270,9 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           />
           <QuickAction
             icon={<CheckSquare className="w-5 h-5" />}
-            label="Review Work"
+            label="Review Homework"
             color="#c08a3a"
-            onClick={() => openTab("academic-work")}
+            onClick={() => openTab("homework")}
           />
           <QuickAction
             icon={<HelpCircle className="w-5 h-5" />}
@@ -314,7 +314,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             value={academicWorkAwaitingReview}
             color="#c08a3a"
             hint="Submitted / late queue"
-            onClick={() => openTab("academic-work")}
+            onClick={() => openTab("homework")}
           />
           <AttentionCard
             icon={<ClipboardList className="w-5 h-5" />}
@@ -358,7 +358,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           <Calendar className="w-4 h-4 text-[#3b5bdb]" /> Open My Classes
         </div>
         <div className="text-[10px] text-[#78788c] mt-1">
-          Students · Attendance · Academic Work · Tests · Exams & Marks · Insights
+          Students · Attendance · Homework · Tests · Exams & Marks · Insights
         </div>
       </button>
     </div>

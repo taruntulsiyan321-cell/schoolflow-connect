@@ -19,6 +19,8 @@ export interface ClassStudentRow {
   admissionNumber: string | null;
   photoUrl: string | null;
   classId: string;
+  parentName: string | null;
+  parentMobile: string | null;
 }
 
 /** Resolve teachers.id for the authenticated user within the school. */
@@ -128,6 +130,47 @@ export async function listAssignedClassesForTeacher(
   );
 }
 
+/** Distinct subjects mapped to a class via teacher_classes. */
+export async function listSubjectsForClass(
+  ctx: RepoContext,
+  classId: string,
+): Promise<{ subject: string; subjectId: string | null }[]> {
+  const schoolId = schoolIdOf(ctx);
+  const { data, error } = await getClient(ctx)
+    .from("teacher_classes")
+    .select("subject, subject_id")
+    .eq("school_id", schoolId)
+    .eq("class_id", classId);
+  throwIfError(error, "Failed to list class subjects");
+  const seen = new Set<string>();
+  const out: { subject: string; subjectId: string | null }[] = [];
+  for (const row of data ?? []) {
+    const subject = String(row.subject ?? "").trim();
+    if (!subject) continue;
+    const key = subject.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ subject, subjectId: row.subject_id ? String(row.subject_id) : null });
+  }
+  return out.sort((a, b) => a.subject.localeCompare(b.subject));
+}
+
+export async function isClassTeacherOfClass(
+  ctx: RepoContext,
+  teacherUserId: string,
+  classId: string,
+): Promise<boolean> {
+  const schoolId = schoolIdOf(ctx);
+  const { data: teacher, error } = await getClient(ctx)
+    .from("teachers")
+    .select("class_teacher_of")
+    .eq("school_id", schoolId)
+    .eq("user_id", teacherUserId)
+    .maybeSingle();
+  throwIfError(error, "Failed to load teacher");
+  return !!teacher && teacher.class_teacher_of === classId;
+}
+
 export async function assertTeacherOwnsClass(
   ctx: RepoContext,
   teacherUserId: string,
@@ -146,18 +189,34 @@ export async function listStudentsForClass(
   const schoolId = schoolIdOf(ctx);
   const { data, error } = await getClient(ctx)
     .from("students")
-    .select("id, full_name, roll_number, admission_number, photo_url, class_id")
+    .select(
+      "id, full_name, roll_number, admission_number, photo_url, class_id, parent_name, parent_mobile",
+    )
     .eq("school_id", schoolId)
     .eq("class_id", classId)
     .order("roll_number", { ascending: true });
   throwIfError(error, "Failed to list class students");
 
-  return (data ?? []).map((s) => ({
-    id: s.id,
-    fullName: s.full_name,
-    rollNumber: s.roll_number,
-    admissionNumber: s.admission_number,
-    photoUrl: (s as { photo_url?: string | null }).photo_url ?? null,
-    classId: s.class_id!,
-  }));
+  return (data ?? []).map((s) => {
+    const row = s as {
+      id: string;
+      full_name: string;
+      roll_number: string | null;
+      admission_number: string | null;
+      photo_url?: string | null;
+      class_id: string;
+      parent_name?: string | null;
+      parent_mobile?: string | null;
+    };
+    return {
+      id: row.id,
+      fullName: row.full_name,
+      rollNumber: row.roll_number,
+      admissionNumber: row.admission_number,
+      photoUrl: row.photo_url ?? null,
+      classId: row.class_id,
+      parentName: row.parent_name ?? null,
+      parentMobile: row.parent_mobile ?? null,
+    };
+  });
 }

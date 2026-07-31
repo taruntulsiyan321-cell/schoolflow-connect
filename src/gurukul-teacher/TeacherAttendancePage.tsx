@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   Users,
   AlertCircle,
+  Eye,
 } from "lucide-react";
 import { cn, InitialsAvatar } from "./shared";
 import {
@@ -18,7 +19,12 @@ import {
 } from "@/academic/services/attendanceService";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
-const STATUS_OPTIONS: { value: AttendanceStatus; label: string; short: string; color: string }[] = [
+const STATUS_OPTIONS: {
+  value: AttendanceStatus;
+  label: string;
+  short: string;
+  color: string;
+}[] = [
   { value: "present", label: "Present", short: "P", color: "#10b981" },
   { value: "absent", label: "Absent", short: "A", color: "#cc5069" },
   { value: "late", label: "Late", short: "L", color: "#f59e0b" },
@@ -32,14 +38,12 @@ function todayIso() {
 }
 
 export interface TeacherAttendanceWorkspaceProps {
-  /** Lock to one class (My Classes tab). Omit for full page with class picker. */
   fixedClassId?: string;
   showBackLink?: boolean;
 }
 
 /**
- * Production Teacher Attendance workspace.
- * All writes go through AttendanceService → Repository → DB → Academic Engine sync.
+ * Teacher Attendance — present by default, one-click absence, clear save states.
  */
 export function TeacherAttendanceWorkspace({
   fixedClassId,
@@ -54,6 +58,7 @@ export function TeacherAttendanceWorkspace({
   const [students, setStudents] = useState<ClassStudentRow[]>([]);
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({});
   const [savedMarks, setSavedMarks] = useState<Record<string, AttendanceStatus>>({});
+  const [hadSubmittedRows, setHadSubmittedRows] = useState(false);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("roll");
   const [loading, setLoading] = useState(true);
@@ -111,6 +116,7 @@ export function TeacherAttendanceWorkspace({
         AttendanceService.listForClassDate(ctx, classId, date),
       ]);
       setStudents(roster);
+      setHadSubmittedRows(existing.length > 0);
       const next: Record<string, AttendanceStatus> = {};
       for (const s of roster) {
         const rec = existing.find((r) => r.studentId === s.id);
@@ -140,6 +146,14 @@ export function TeacherAttendanceWorkspace({
     () => students.some((s) => marks[s.id] !== savedMarks[s.id]),
     [students, marks, savedMarks],
   );
+
+  const saveState: "unsaved" | "saved" | "submitted" | "readonly" = !canMark
+    ? "readonly"
+    : dirty
+      ? "unsaved"
+      : hadSubmittedRows
+        ? "submitted"
+        : "saved";
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -173,6 +187,14 @@ export function TeacherAttendanceWorkspace({
     setMarks((m) => ({ ...m, [studentId]: status }));
   };
 
+  const toggleAbsent = (studentId: string) => {
+    if (!canMark) return;
+    setMarks((m) => {
+      const cur = m[studentId] ?? "present";
+      return { ...m, [studentId]: cur === "absent" ? "present" : "absent" };
+    });
+  };
+
   const markAllPresent = () => {
     if (!canMark) return;
     const next: Record<string, AttendanceStatus> = {};
@@ -195,7 +217,8 @@ export function TeacherAttendanceWorkspace({
         })),
       );
       setSavedMarks({ ...marks });
-      showFlash("Attendance saved — Academic Engine will refresh profiles & notifications");
+      setHadSubmittedRows(true);
+      showFlash("Attendance saved");
       await loadRoster();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save attendance");
@@ -225,13 +248,18 @@ export function TeacherAttendanceWorkspace({
               <ChevronLeft className="w-3 h-3" /> My Classes
             </button>
           )}
-          <h2 className="text-base font-black text-white">
-            {canMark ? "Mark Attendance" : "Attendance (view only)"}
-          </h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-base font-black text-white">Attendance</h2>
+            {!canMark && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg bg-white/10 text-[#a0a0b0]">
+                <Eye className="w-3 h-3" /> Read Only
+              </span>
+            )}
+          </div>
           <p className="text-[10px] text-[#46465a] mt-0.5">
             {canMark
-              ? "You are the class teacher — you can mark and edit attendance."
-              : "Subject teachers can view attendance. Only the class teacher can mark it."}
+              ? "Everyone starts Present. Tap Absent for absentees — then Save."
+              : "View only. Only the class teacher can mark attendance."}
           </p>
         </div>
         <input
@@ -289,43 +317,65 @@ export function TeacherAttendanceWorkspace({
       )}
 
       {(selected || fixedClassId) && (
-        <div className="flex flex-wrap gap-3 items-center justify-between">
-          <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-wrap gap-3 items-center justify-between sticky top-0 z-10 py-2 bg-[#0c0c0e]/95 backdrop-blur-sm">
+          <div className="flex gap-2 flex-wrap items-center">
             {STATUS_OPTIONS.map((s) => (
               <div
                 key={s.value}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold"
                 style={{ background: `${s.color}15`, color: s.color }}
               >
                 {counts[s.value] ?? 0} {s.label}
               </div>
             ))}
+            <span
+              className={cn(
+                "text-[10px] font-bold px-2.5 py-1 rounded-lg",
+                saveState === "unsaved" && "bg-[#f59e0b]/20 text-[#f59e0b]",
+                saveState === "saved" && "bg-[#10b981]/15 text-[#10b981]",
+                saveState === "submitted" && "bg-[#3b5bdb]/15 text-[#3b5bdb]",
+                saveState === "readonly" && "bg-white/10 text-[#a0a0b0]",
+              )}
+            >
+              {saveState === "unsaved" && "Unsaved Changes"}
+              {saveState === "saved" && "Saved"}
+              {saveState === "submitted" && "Attendance Already Submitted"}
+              {saveState === "readonly" && "Read Only"}
+            </span>
           </div>
           <div className="flex gap-2">
-            {canMark ? (
-              <>
-                <button
-                  type="button"
-                  onClick={markAllPresent}
-                  className="px-3 py-2 rounded-xl text-[10px] font-bold bg-white/5 text-[#78788c] hover:text-white hover:bg-white/10"
-                >
-                  Mark All Present
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void save()}
-                  disabled={saving || !dirty || students.length === 0}
-                  className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save Attendance
-                </button>
-              </>
-            ) : (
-              <div className="px-3 py-2 rounded-xl text-[10px] font-bold bg-white/5 text-[#78788c]">
-                View only — class teacher marks attendance
-              </div>
+            {canMark && (
+              <button
+                type="button"
+                onClick={markAllPresent}
+                className="px-3 py-2 rounded-xl text-[10px] font-bold bg-white/5 text-[#78788c] hover:text-white hover:bg-white/10"
+              >
+                All Present
+              </button>
             )}
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={!canMark || saving || students.length === 0}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold disabled:cursor-not-allowed",
+                canMark
+                  ? dirty
+                    ? "text-black bg-[#3b5bdb] hover:bg-[#6882e8]"
+                    : "text-white bg-[#3b5bdb]/40"
+                  : "text-[#78788c] bg-white/5 opacity-60",
+              )}
+              title={
+                !canMark
+                  ? "Read only — class teacher marks attendance"
+                  : dirty
+                    ? "Save unsaved changes"
+                    : "Already saved — click to re-save"
+              }
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              Save Attendance
+            </button>
           </div>
         </div>
       )}
@@ -360,10 +410,19 @@ export function TeacherAttendanceWorkspace({
         <div className="space-y-2">
           {filtered.map((s) => {
             const status = marks[s.id] ?? "present";
+            const isAbsent = status === "absent";
+            const isPresent = status === "present";
             return (
               <div
                 key={s.id}
-                className="flex items-center gap-3 p-3 bg-[#131316] border border-white/7 rounded-xl"
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-xl border transition-colors",
+                  isAbsent
+                    ? "bg-[#cc5069]/10 border-[#cc5069]/30"
+                    : isPresent
+                      ? "bg-[#10b981]/8 border-[#10b981]/20"
+                      : "bg-[#131316] border-white/7",
+                )}
               >
                 {s.photoUrl ? (
                   <img src={s.photoUrl} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0" />
@@ -377,29 +436,54 @@ export function TeacherAttendanceWorkspace({
                     {s.admissionNumber ? ` · ${s.admissionNumber}` : ""}
                   </div>
                 </div>
-                <div className="flex gap-1 flex-wrap justify-end">
-                  {STATUS_OPTIONS.map((opt) => (
+
+                {canMark ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
-                      key={opt.value}
                       type="button"
-                      disabled={!canMark}
-                      onClick={() => setStatus(s.id, opt.value)}
-                      title={opt.label}
+                      onClick={() => toggleAbsent(s.id)}
                       className={cn(
-                        "px-2 py-1 rounded-lg text-[9px] font-bold transition-all",
-                        !canMark && "opacity-60 cursor-default",
-                        status === opt.value ? "text-white" : "text-[#46465a] bg-white/3 hover:bg-white/8",
+                        "px-3 py-1.5 rounded-lg text-[10px] font-bold min-w-[72px]",
+                        isAbsent
+                          ? "bg-[#cc5069] text-white"
+                          : "bg-white/5 text-[#78788c] hover:bg-[#cc5069]/20 hover:text-[#cc5069]",
                       )}
-                      style={
-                        status === opt.value
-                          ? { background: `${opt.color}25`, color: opt.color }
-                          : undefined
-                      }
                     >
-                      {opt.short}
+                      {isAbsent ? "Absent" : "Mark Absent"}
                     </button>
-                  ))}
-                </div>
+                    <div className="flex gap-0.5">
+                      {STATUS_OPTIONS.filter((o) => o.value !== "absent").map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setStatus(s.id, opt.value)}
+                          title={opt.label}
+                          className={cn(
+                            "w-7 h-7 rounded-lg text-[9px] font-bold transition-all",
+                            status === opt.value ? "text-white" : "text-[#46465a] bg-white/3 hover:bg-white/8",
+                          )}
+                          style={
+                            status === opt.value
+                              ? { background: `${opt.color}35`, color: opt.color }
+                              : undefined
+                          }
+                        >
+                          {opt.short}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <span
+                    className="text-[10px] font-bold px-2.5 py-1 rounded-lg"
+                    style={{
+                      color: STATUS_OPTIONS.find((o) => o.value === status)?.color,
+                      background: `${STATUS_OPTIONS.find((o) => o.value === status)?.color ?? "#78788c"}18`,
+                    }}
+                  >
+                    {STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}
+                  </span>
+                )}
               </div>
             );
           })}

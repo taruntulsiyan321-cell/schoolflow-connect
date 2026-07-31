@@ -28,7 +28,6 @@ import {
   RemarksService,
   TestService,
   TEST_KIND_LABELS,
-  EXAM_TYPE_LABELS,
   type ClassStudentRow,
   type StudentAcademicProfile,
   type StudentHomeworkRow,
@@ -76,19 +75,28 @@ function Loading({ label }: { label: string }) {
   );
 }
 
-const EXAM_TYPES = [
-  "unit_test",
-  "monthly_test",
-  "mid_term",
-  "half_yearly",
-  "annual",
-  "practical",
-  "viva",
-  "internal",
-  "class_test",
-] as const;
-
 const TEST_KINDS = Object.keys(TEST_KIND_LABELS) as TestKind[];
+
+type TestRow = {
+  id: string;
+  title?: string;
+  subject?: string;
+  status?: string;
+  is_published?: boolean;
+  test_kind?: string;
+  duration_sec?: number;
+  max_marks?: number | null;
+  total_marks?: number | null;
+  question_count?: number | null;
+  passing_marks?: number | null;
+  created_at?: string | null;
+};
+
+function resolveTestStatus(t: TestRow): string {
+  if (t.status) return String(t.status);
+  if (t.is_published) return "published";
+  return "draft";
+}
 
 /** Live roster + AcademicProfileService metrics + student detail panels. */
 export function LiveStudentsTab({ classId }: { classId: string }) {
@@ -103,6 +111,13 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   const [homeworkRows, setHomeworkRows] = useState<StudentHomeworkRow[]>([]);
   const [recentMarks, setRecentMarks] = useState<MarksRecord[]>([]);
   const [remarks, setRemarks] = useState<TeacherRemark[]>([]);
+  const [attendanceHistory, setAttendanceHistory] = useState<
+    Awaited<ReturnType<typeof AttendanceService.listForStudent>>
+  >([]);
+  const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
+  const [tests, setTests] = useState<{ title: string; status: string; createdAt?: string | null }[]>(
+    [],
+  );
 
   useEffect(() => {
     if (!ready || !ctx || !classId) return;
@@ -152,6 +167,9 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       setHomeworkRows([]);
       setRecentMarks([]);
       setRemarks([]);
+      setAttendanceHistory([]);
+      setProfile(null);
+      setTests([]);
       setDetailError(null);
       return;
     }
@@ -164,6 +182,9 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           HomeworkService.listForStudent(ctx, selected.id),
           MarksService.listForStudent(ctx, selected.id, { limit: 10 }),
           RemarksService.listForStudent(ctx, selected.id, { limit: 10 }),
+          AttendanceService.listForStudent(ctx, selected.id, { limit: 14 }),
+          AcademicProfileService.get(ctx, selected.id),
+          TestService.listForClass(ctx, classId, { limit: 8 }),
         ]);
         if (cancelled) return;
         const errors: string[] = [];
@@ -182,6 +203,22 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           setRemarks([]);
           errors.push(errMsg(settled[2].reason, "Remarks failed"));
         }
+        if (settled[3].status === "fulfilled") setAttendanceHistory(settled[3].value);
+        else {
+          setAttendanceHistory([]);
+          errors.push(errMsg(settled[3].reason, "Attendance history failed"));
+        }
+        if (settled[4].status === "fulfilled") setProfile(settled[4].value);
+        else setProfile(null);
+        if (settled[5].status === "fulfilled") {
+          setTests(
+            settled[5].value.slice(0, 5).map((t: TestRow) => ({
+              title: String(t.title ?? "Test"),
+              status: resolveTestStatus(t),
+              createdAt: t.created_at,
+            })),
+          );
+        } else setTests([]);
         if (errors.length) setDetailError(errors.join(" · "));
       } catch (e) {
         if (!cancelled) setDetailError(errMsg(e, "Failed to load student detail"));
@@ -192,7 +229,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, selected]);
+  }, [ready, ctx, selected, classId]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -213,10 +250,42 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     [homeworkRows],
   );
 
+  const recentHomework = useMemo(() => homeworkRows.slice(0, 6), [homeworkRows]);
+
+  const weakSubjects = useMemo(() => {
+    const m = profile?.metrics ?? {};
+    const raw = m.weakTopics ?? m.weakSubjects;
+    return Array.isArray(raw) ? raw.map(String).filter(Boolean) : [];
+  }, [profile]);
+
+  const strongSubjects = useMemo(() => {
+    const m = profile?.metrics ?? {};
+    const raw = m.strongTopics ?? m.strongSubjects;
+    return Array.isArray(raw) ? raw.map(String).filter(Boolean) : [];
+  }, [profile]);
+
+  const performanceTrend = useMemo(() => {
+    const scores = [
+      selected?.attendancePct ?? 0,
+      selected?.homeworkCompletionPct ?? 0,
+      selected?.testsAvgPct ?? 0,
+      selected?.examsAvgPct ?? 0,
+    ].filter((n) => n > 0);
+    if (scores.length < 2) return "Insufficient data";
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    if (avg >= 80) return "Strong";
+    if (avg >= 60) return "Steady";
+    if (avg >= 40) return "Needs support";
+    return "At risk";
+  }, [selected]);
+
   if (loading) return <Loading label="Loading roster…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-8 text-center">{error}</div>;
 
   if (selected) {
+    const parentContact =
+      [selected.parentName, selected.parentMobile].filter(Boolean).join(" · ") || null;
+
     return (
       <div className="space-y-5">
         <button
@@ -237,36 +306,66 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             <div className="text-xs text-[#78788c] mt-0.5">
               Roll: {selected.rollNumber ?? "—"} · Admission: {selected.admissionNumber ?? "—"}
             </div>
+            {parentContact && (
+              <div className="text-[10px] text-[#a0a0b0] mt-1">Parent: {parentContact}</div>
+            )}
+          </div>
+          <div
+            className={cn(
+              "text-[10px] font-bold px-2.5 py-1 rounded-lg shrink-0",
+              performanceTrend === "Strong" && "bg-[#10b981]/20 text-[#10b981]",
+              performanceTrend === "Steady" && "bg-[#3b5bdb]/20 text-[#3b5bdb]",
+              performanceTrend === "Needs support" && "bg-[#f59e0b]/20 text-[#f59e0b]",
+              performanceTrend === "At risk" && "bg-[#cc5069]/20 text-[#cc5069]",
+              performanceTrend === "Insufficient data" && "bg-white/10 text-[#78788c]",
+            )}
+          >
+            {performanceTrend}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div
-              className="text-lg font-black tabular-nums"
-              style={{ color: selected.attendancePct >= 85 ? "#10b981" : "#cc5069" }}
-            >
-              {selected.attendancePct}%
-            </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Attendance</div>
+        <div>
+          <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-2">
+            Academic summary
           </div>
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-lg font-black text-white tabular-nums">
-              {selected.homeworkCompletionPct}%
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+              <div
+                className="text-lg font-black tabular-nums"
+                style={{ color: selected.attendancePct >= 85 ? "#10b981" : "#cc5069" }}
+              >
+                {selected.attendancePct}%
+              </div>
+              <div className="text-[10px] text-[#78788c] mt-0.5">Attendance</div>
             </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Homework</div>
-          </div>
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-lg font-black text-[#6366f1] tabular-nums">
-              {selected.testsAvgPct}%
+            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+              <div className="text-lg font-black text-white tabular-nums">
+                {selected.homeworkCompletionPct}%
+              </div>
+              <div className="text-[10px] text-[#78788c] mt-0.5">Homework completion</div>
             </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Test avg</div>
-          </div>
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-lg font-black text-[#3b5bdb] tabular-nums">
-              {selected.examsAvgPct}%
+            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+              <div className="text-lg font-black text-[#f59e0b] tabular-nums">
+                {pendingHomework.length}
+              </div>
+              <div className="text-[10px] text-[#78788c] mt-0.5">Pending homework</div>
             </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Exam avg</div>
+            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+              <div className="text-lg font-black text-[#6366f1] tabular-nums">
+                {selected.testsAvgPct}%
+              </div>
+              <div className="text-[10px] text-[#78788c] mt-0.5">Test average</div>
+            </div>
+            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+              <div className="text-lg font-black text-[#3b5bdb] tabular-nums">
+                {selected.examsAvgPct}%
+              </div>
+              <div className="text-[10px] text-[#78788c] mt-0.5">Exam average</div>
+            </div>
+            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+              <div className="text-lg font-black text-white tabular-nums">{performanceTrend}</div>
+              <div className="text-[10px] text-[#78788c] mt-0.5">Performance trend</div>
+            </div>
           </div>
         </div>
 
@@ -279,72 +378,149 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           <Loading label="Loading student detail…" />
         ) : (
           <>
-            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
-              <div className="text-xs font-bold text-white">Pending homework</div>
-              {pendingHomework.length === 0 ? (
-                <div className="text-[10px] text-[#46465a]">No pending homework.</div>
-              ) : (
-                pendingHomework.slice(0, 8).map((r) => (
-                  <div
-                    key={r.homework.id}
-                    className="flex items-center justify-between gap-2 text-[11px]"
-                  >
-                    <span className="text-white truncate">{r.homework.title}</span>
-                    <span
-                      className={cn(
-                        "shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-lg",
-                        r.displayStatus === "Late"
-                          ? "bg-[#cc5069]/20 text-[#cc5069]"
-                          : "bg-white/10 text-[#a0a0b0]",
-                      )}
-                    >
-                      {r.displayStatus}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
-              <div className="text-xs font-bold text-white">Recent marks</div>
-              {recentMarks.length === 0 ? (
-                <div className="text-[10px] text-[#46465a]">
-                  No published marks yet.
+            <div>
+              <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-2">
+                Recent activity
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+                  <div className="text-xs font-bold text-white">Recent homework</div>
+                  {recentHomework.length === 0 ? (
+                    <div className="text-[10px] text-[#46465a]">No homework yet.</div>
+                  ) : (
+                    recentHomework.map((r) => (
+                      <div
+                        key={r.homework.id}
+                        className="flex items-center justify-between gap-2 text-[11px]"
+                      >
+                        <span className="text-white truncate">{r.homework.title}</span>
+                        <span className="shrink-0 text-[9px] font-bold text-[#a0a0b0]">
+                          {r.displayStatus}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ) : (
-                recentMarks.map((m) => (
-                  <div
-                    key={m.id}
-                    className="flex items-center justify-between gap-2 text-[11px] text-[#78788c]"
-                  >
-                    <span className="text-white truncate">
-                      {m.remarks?.trim() || "Published result"}
-                    </span>
-                    <span className="tabular-nums font-bold text-white shrink-0">
-                      {m.marksObtained}
-                    </span>
-                  </div>
-                ))
-              )}
+                <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+                  <div className="text-xs font-bold text-white">Recent tests</div>
+                  {tests.length === 0 ? (
+                    <div className="text-[10px] text-[#46465a]">No tests for this class yet.</div>
+                  ) : (
+                    tests.map((t, i) => (
+                      <div key={`${t.title}-${i}`} className="flex justify-between gap-2 text-[11px]">
+                        <span className="text-white truncate">{t.title}</span>
+                        <span className="text-[9px] text-[#78788c] shrink-0 capitalize">
+                          {t.status}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+                  <div className="text-xs font-bold text-white">Recent exam marks</div>
+                  {recentMarks.length === 0 ? (
+                    <div className="text-[10px] text-[#46465a]">No published marks yet.</div>
+                  ) : (
+                    recentMarks.map((m) => (
+                      <div
+                        key={m.id}
+                        className="flex items-center justify-between gap-2 text-[11px] text-[#78788c]"
+                      >
+                        <span className="text-white truncate">
+                          {m.remarks?.trim() || "Published result"}
+                        </span>
+                        <span className="tabular-nums font-bold text-white shrink-0">
+                          {m.marksObtained}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+                  <div className="text-xs font-bold text-white">Attendance history</div>
+                  {attendanceHistory.length === 0 ? (
+                    <div className="text-[10px] text-[#46465a]">No attendance records yet.</div>
+                  ) : (
+                    attendanceHistory.slice(0, 10).map((a) => (
+                      <div
+                        key={a.id}
+                        className="flex justify-between gap-2 text-[11px] text-[#78788c]"
+                      >
+                        <span>{a.date}</span>
+                        <span className="capitalize text-white font-semibold">{a.status}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
 
-            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
-              <div className="text-xs font-bold text-white">Recent remarks</div>
-              {remarks.length === 0 ? (
-                <div className="text-[10px] text-[#46465a]">No remarks yet.</div>
-              ) : (
-                remarks.map((r) => (
-                  <div key={r.id} className="text-[11px] space-y-0.5">
-                    <div className="text-white">{r.body}</div>
-                    <div className="text-[9px] text-[#46465a]">
-                      {r.remarkType}
-                      {r.createdAt
-                        ? ` · ${new Date(r.createdAt).toLocaleDateString()}`
-                        : ""}
-                    </div>
+            <div>
+              <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-2">
+                Teacher notes
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+                  <div className="text-xs font-bold text-white">Remarks</div>
+                  {remarks.length === 0 ? (
+                    <div className="text-[10px] text-[#46465a]">No remarks yet.</div>
+                  ) : (
+                    remarks.map((r) => (
+                      <div key={r.id} className="text-[11px] space-y-0.5">
+                        <div className="text-white">{r.body}</div>
+                        <div className="text-[9px] text-[#46465a]">
+                          {r.remarkType}
+                          {r.createdAt
+                            ? ` · ${new Date(r.createdAt).toLocaleDateString()}`
+                            : ""}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-3">
+                  <div>
+                    <div className="text-xs font-bold text-white mb-1">Weak subjects</div>
+                    {weakSubjects.length === 0 ? (
+                      <div className="text-[10px] text-[#46465a]">Not enough data yet.</div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {weakSubjects.map((s) => (
+                          <span
+                            key={s}
+                            className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#cc5069]/15 text-[#cc5069]"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))
-              )}
+                  <div>
+                    <div className="text-xs font-bold text-white mb-1">Strong subjects</div>
+                    {strongSubjects.length === 0 ? (
+                      <div className="text-[10px] text-[#46465a]">Not enough data yet.</div>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {strongSubjects.map((s) => (
+                          <span
+                            key={s}
+                            className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#10b981]/15 text-[#10b981]"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {parentContact && (
+                    <div>
+                      <div className="text-xs font-bold text-white mb-1">Parent contact</div>
+                      <div className="text-[11px] text-[#a0a0b0]">{parentContact}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </>
         )}
@@ -380,7 +556,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold text-white">{s.fullName}</div>
               <div className="text-[10px] text-[#78788c] mt-0.5">
-                Roll: {s.rollNumber ?? "—"} · Admission: {s.admissionNumber ?? "—"}
+                Roll: {s.rollNumber ?? "—"} · HW {s.homeworkCompletionPct}% · Tests {s.testsAvgPct}%
               </div>
             </div>
             <div className="text-right">
@@ -403,31 +579,10 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   );
 }
 
-type TestRow = {
-  id: string;
-  title?: string;
-  subject?: string;
-  status?: string;
-  is_published?: boolean;
-  test_kind?: string;
-  duration_sec?: number;
-  max_marks?: number | null;
-  total_marks?: number | null;
-  question_count?: number | null;
-  passing_marks?: number | null;
-  created_at?: string | null;
-};
-
 type BuilderStep = "basics" | "source" | "library" | "manual" | "upload" | "review";
 type QuestionSource = "library" | "manual" | "upload";
 type DraftQuestion = ManualQuestionInput & { localId: string };
 type PaperAttachment = { name: string; url: string; mimeType?: string };
-
-function resolveTestStatus(t: TestRow): string {
-  if (t.status) return String(t.status);
-  if (t.is_published) return "published";
-  return "draft";
-}
 
 function newLocalId() {
   return `q_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -1364,32 +1519,50 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   );
 }
 
-export function LiveExamsMarksTab({ classId, subject }: { classId: string; subject: string }) {
+export function LiveExamsMarksTab({
+  classId,
+  subject,
+  isClassTeacher = false,
+}: {
+  classId: string;
+  subject: string;
+  isClassTeacher?: boolean;
+}) {
   const { ctx, ready } = useAcademicContext();
-  const [exams, setExams] = useState<ExamRecord[]>([]);
+  type ExamGroup = Awaited<ReturnType<typeof MarksService.listExamGroupsForClass>>[number];
+
+  const [groups, setGroups] = useState<ExamGroup[]>([]);
+  const [pending, setPending] = useState<ExamRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    examType: "unit_test",
-    maxMarks: "100",
-    passingMarks: "",
-    examDate: "",
+    startDate: "",
+    endDate: "",
     instructions: "",
+    examType: "unit_test",
+    defaultMaxMarks: "100",
   });
   const [activeExam, setActiveExam] = useState<ExamRecord | null>(null);
+  const [activeGroup, setActiveGroup] = useState<ExamGroup | null>(null);
   const [roster, setRoster] = useState<ClassStudentRow[]>([]);
   const [marksDraft, setMarksDraft] = useState<Record<string, string>>({});
   const [marksLoading, setMarksLoading] = useState(false);
+  const [canEditActive, setCanEditActive] = useState(false);
 
   const reload = async () => {
     if (!ctx) return;
     setLoading(true);
     try {
-      const list = await MarksService.listExamsForClass(ctx, classId, { limit: 100 });
-      setExams(list);
+      const [g, p] = await Promise.all([
+        MarksService.listExamGroupsForClass(ctx, classId),
+        MarksService.listMyPendingSubjectExams(ctx, classId),
+      ]);
+      setGroups(g);
+      setPending(p);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load exams");
@@ -1404,34 +1577,38 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, ctx, classId]);
 
-  const createExam = async () => {
-    if (!ctx || !form.name.trim()) return;
-    if (!form.maxMarks || Number(form.maxMarks) <= 0) {
-      setError("Max marks must be greater than 0");
+  const showFlash = (msg: string) => {
+    setFlash(msg);
+    window.setTimeout(() => setFlash(null), 2800);
+  };
+
+  const createClassExam = async () => {
+    if (!ctx || !form.name.trim() || !form.startDate) {
+      setError("Exam name and start date are required");
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await MarksService.upsertExam(ctx, {
+      await MarksService.createClassExam(ctx, {
         classId,
         name: form.name.trim(),
-        subject: subject || "General",
-        maxMarks: Number(form.maxMarks),
-        passingMarks: form.passingMarks ? Number(form.passingMarks) : null,
-        examDate: form.examDate || null,
-        examType: form.examType,
+        startDate: form.startDate,
+        endDate: form.endDate || form.startDate,
         instructions: form.instructions || null,
+        examType: form.examType,
+        defaultMaxMarks: Number(form.defaultMaxMarks) || 100,
       });
       setForm({
         name: "",
-        examType: "unit_test",
-        maxMarks: "100",
-        passingMarks: "",
-        examDate: "",
+        startDate: "",
+        endDate: "",
         instructions: "",
+        examType: "unit_test",
+        defaultMaxMarks: "100",
       });
       setCreating(false);
+      showFlash("Exam created for all class subjects");
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create exam");
@@ -1440,9 +1617,11 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
     }
   };
 
-  const openMarks = async (exam: ExamRecord) => {
+  const openMarks = async (exam: ExamRecord, editable: boolean) => {
     if (!ctx) return;
     setActiveExam(exam);
+    setActiveGroup(null);
+    setCanEditActive(editable && !exam.marksLocked && !exam.resultsPublishedAt);
     setMarksLoading(true);
     setError(null);
     try {
@@ -1463,12 +1642,13 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
     }
   };
 
+  const openGroupReview = (g: ExamGroup) => {
+    setActiveGroup(g);
+    setActiveExam(null);
+  };
+
   const saveMarks = async () => {
-    if (!ctx || !activeExam) return;
-    if (activeExam.marksLocked) {
-      setError("Marks are locked and cannot be edited");
-      return;
-    }
+    if (!ctx || !activeExam || !canEditActive) return;
     const rows = Object.entries(marksDraft)
       .filter(([, v]) => v !== "" && !Number.isNaN(Number(v)))
       .map(([studentId, v]) => ({ studentId, marksObtained: Number(v) }));
@@ -1480,6 +1660,7 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
     setError(null);
     try {
       await MarksService.publishBatch(ctx, activeExam.id, rows);
+      showFlash("Marks saved");
       await reload();
       const refreshed = await MarksService.getExam(ctx, activeExam.id);
       setActiveExam(refreshed);
@@ -1490,13 +1671,14 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
     }
   };
 
-  const finalize = async () => {
-    if (!ctx || !activeExam) return;
+  const finalizeGroup = async (examId: string) => {
+    if (!ctx) return;
     setSaving(true);
     setError(null);
     try {
-      const updated = await MarksService.finalizeMarks(ctx, activeExam.id);
-      setActiveExam(updated);
+      await MarksService.finalizeMarks(ctx, examId);
+      showFlash("Exam finalized — marks locked");
+      setActiveGroup(null);
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Finalize failed");
@@ -1505,13 +1687,14 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
     }
   };
 
-  const publishResults = async () => {
-    if (!ctx || !activeExam) return;
+  const publishGroup = async (examId: string) => {
+    if (!ctx) return;
     setSaving(true);
     setError(null);
     try {
-      const updated = await MarksService.publishResults(ctx, activeExam.id);
-      setActiveExam(updated);
+      await MarksService.publishResults(ctx, examId);
+      showFlash("Results published to students & parents");
+      setActiveGroup(null);
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Publish results failed");
@@ -1537,8 +1720,20 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
             {error}
           </div>
         )}
+        {flash && (
+          <div className="rounded-xl bg-[#10b981]/15 text-[#10b981] px-3 py-2 text-xs font-semibold">
+            {flash}
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="text-sm font-bold text-white">{activeExam.name}</div>
+          <div className="text-sm font-bold text-white">
+            {activeExam.name} · {activeExam.subject}
+          </div>
+          {!canEditActive && (
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-white/10 text-[#a0a0b0]">
+              Read Only
+            </span>
+          )}
           {activeExam.marksLocked && (
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#c08a3a]/20 text-[#c08a3a] flex items-center gap-1">
               <Lock className="w-3 h-3" /> Locked
@@ -1552,8 +1747,7 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
         </div>
         <div className="text-[10px] text-[#78788c]">
           Max {activeExam.maxMarks}
-          {activeExam.passingMarks != null ? ` · pass ${activeExam.passingMarks}` : ""} ·{" "}
-          {activeExam.examDate ?? "no date"}
+          {activeExam.passingMarks != null ? ` · pass ${activeExam.passingMarks}` : ""}
         </div>
 
         {marksLoading ? (
@@ -1571,7 +1765,7 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
                 </div>
                 <input
                   type="number"
-                  disabled={activeExam.marksLocked || saving}
+                  disabled={!canEditActive || saving}
                   value={marksDraft[s.id] ?? ""}
                   onChange={(e) =>
                     setMarksDraft((d) => ({ ...d, [s.id]: e.target.value }))
@@ -1586,33 +1780,84 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2">
+        {canEditActive && (
           <button
             type="button"
-            disabled={saving || activeExam.marksLocked}
+            disabled={saving}
             onClick={() => void saveMarks()}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-white disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
             Save marks
           </button>
-          <button
-            type="button"
-            disabled={saving || activeExam.marksLocked}
-            onClick={() => void finalize()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#c08a3a]/20 text-[#c08a3a] disabled:opacity-50"
-          >
-            <Lock className="w-3 h-3" /> Finalize
-          </button>
-          <button
-            type="button"
-            disabled={saving || !activeExam.marksLocked || !!activeExam.resultsPublishedAt}
-            onClick={() => void publishResults()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#4aa87a]/20 text-[#4aa87a] disabled:opacity-50"
-          >
-            <Unlock className="w-3 h-3" /> Publish Results
-          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (activeGroup) {
+    const anchor = activeGroup.subjects[0];
+    return (
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={() => setActiveGroup(null)}
+          className="text-[10px] font-bold text-[#3b5bdb]"
+        >
+          ← Back to exams
+        </button>
+        {error && (
+          <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+            {error}
+          </div>
+        )}
+        {flash && (
+          <div className="rounded-xl bg-[#10b981]/15 text-[#10b981] px-3 py-2 text-xs font-semibold">
+            {flash}
+          </div>
+        )}
+        <div className="text-sm font-bold text-white">{activeGroup.name}</div>
+        <div className="text-[10px] text-[#78788c]">
+          {activeGroup.startDate ?? "—"}
+          {activeGroup.endDate && activeGroup.endDate !== activeGroup.startDate
+            ? ` → ${activeGroup.endDate}`
+            : ""}{" "}
+          · {activeGroup.subjects.length} subjects
         </div>
+        <div className="space-y-2">
+          {activeGroup.subjects.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-center justify-between gap-2 p-3 bg-[#131316] border border-white/7 rounded-xl"
+            >
+              <div className="text-xs text-white font-semibold">{s.subject}</div>
+              <div className="text-[10px] text-[#78788c]">max {s.maxMarks}</div>
+            </div>
+          ))}
+        </div>
+        {isClassTeacher && anchor && !activeGroup.resultsPublishedAt && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={saving || activeGroup.marksLocked}
+              onClick={() => void finalizeGroup(anchor.id)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#c08a3a]/20 text-[#c08a3a] disabled:opacity-50"
+            >
+              <Lock className="w-3 h-3" /> Finalize all subjects
+            </button>
+            <button
+              type="button"
+              disabled={saving || !activeGroup.marksLocked}
+              onClick={() => void publishGroup(anchor.id)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#4aa87a]/20 text-[#4aa87a] disabled:opacity-50"
+            >
+              <Unlock className="w-3 h-3" /> Publish Results
+            </button>
+          </div>
+        )}
+        {activeGroup.resultsPublishedAt && (
+          <div className="text-[10px] text-[#4aa87a] font-bold">Results published</div>
+        )}
       </div>
     );
   }
@@ -1620,70 +1865,82 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-bold text-white">Exams & Marks</div>
-        <button
-          type="button"
-          onClick={() => setCreating((v) => !v)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
-        >
-          <Plus className="w-3 h-3" /> New exam
-        </button>
+        <div>
+          <div className="text-sm font-bold text-white">Exams & Marks</div>
+          <div className="text-[10px] text-[#46465a] mt-0.5">
+            One exam per class · subject teachers enter their own marks
+          </div>
+        </div>
+        {isClassTeacher && (
+          <button
+            type="button"
+            onClick={() => setCreating((v) => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
+          >
+            <Plus className="w-3 h-3" /> New class exam
+          </button>
+        )}
       </div>
       {error && (
         <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
           {error}
         </div>
       )}
+      {flash && (
+        <div className="rounded-xl bg-[#10b981]/15 text-[#10b981] px-3 py-2 text-xs font-semibold">
+          {flash}
+        </div>
+      )}
 
-      {creating && (
+      {creating && isClassTeacher && (
         <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
           <input
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="Exam name *"
+            placeholder="Exam name * e.g. Unit Test 1"
             className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
           />
           <div className="flex flex-wrap gap-2">
-            <select
-              value={form.examType}
-              onChange={(e) => setForm((f) => ({ ...f, examType: e.target.value }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-            >
-              {EXAM_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {EXAM_TYPE_LABELS[t] ?? t}
-                </option>
-              ))}
-            </select>
-            <input
-              value={form.maxMarks}
-              onChange={(e) => setForm((f) => ({ ...f, maxMarks: e.target.value }))}
-              placeholder="Max marks"
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
-            />
-            <input
-              value={form.passingMarks}
-              onChange={(e) => setForm((f) => ({ ...f, passingMarks: e.target.value }))}
-              placeholder="Passing"
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
-            />
-            <input
-              type="date"
-              value={form.examDate}
-              onChange={(e) => setForm((f) => ({ ...f, examDate: e.target.value }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
-            />
+            <label className="text-[10px] text-[#78788c] flex flex-col gap-1">
+              Start date *
+              <input
+                type="date"
+                value={form.startDate}
+                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              />
+            </label>
+            <label className="text-[10px] text-[#78788c] flex flex-col gap-1">
+              End date
+              <input
+                type="date"
+                value={form.endDate}
+                onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              />
+            </label>
+            <label className="text-[10px] text-[#78788c] flex flex-col gap-1">
+              Default max marks
+              <input
+                value={form.defaultMaxMarks}
+                onChange={(e) => setForm((f) => ({ ...f, defaultMaxMarks: e.target.value }))}
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
+              />
+            </label>
           </div>
           <textarea
             value={form.instructions}
             onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))}
-            placeholder="Instructions"
+            placeholder="Optional instructions"
             className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[50px]"
           />
+          <p className="text-[9px] text-[#46465a]">
+            Subjects are loaded automatically from Teacher–Class–Subject mapping.
+          </p>
           <button
             type="button"
             disabled={saving}
-            onClick={() => void createExam()}
+            onClick={() => void createClassExam()}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb]"
           >
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
@@ -1692,41 +1949,94 @@ export function LiveExamsMarksTab({ classId, subject }: { classId: string; subje
         </div>
       )}
 
-      <div className="text-[10px] text-[#46465a]">{exams.length} exams · MarksService</div>
-      <div className="space-y-2">
-        {exams.map((e) => (
-          <div key={e.id} className="p-3 bg-[#131316] border border-white/7 rounded-xl space-y-2">
-            <div className="flex justify-between gap-2">
+      {pending.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-bold text-white">Pending marks</div>
+          {pending.map((e) => (
+            <div
+              key={e.id}
+              className="flex items-center justify-between gap-2 p-3 bg-[#3b5bdb]/10 border border-[#3b5bdb]/25 rounded-xl"
+            >
               <div>
                 <div className="text-xs font-bold text-white">{e.name}</div>
-                <div className="text-[10px] text-[#78788c]">
-                  {e.subject} · {EXAM_TYPE_LABELS[e.examType ?? ""] ?? e.examType ?? "—"} · max{" "}
-                  {e.maxMarks} · {e.examDate ?? "—"}
+                <div className="text-[10px] text-[#78788c]">{e.subject} · max {e.maxMarks}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void openMarks(e, true)}
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-[#3b5bdb] text-white"
+              >
+                Enter marks
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="text-[10px] text-[#46465a]">{groups.length} class exams</div>
+      <div className="space-y-2">
+        {groups.map((g) => {
+          const mySubjects = g.subjects.filter((s) =>
+            pending.some((p) => p.id === s.id) ||
+            (subject && s.subject.toLowerCase() === subject.toLowerCase()),
+          );
+          return (
+            <div key={g.examGroupId} className="p-3 bg-[#131316] border border-white/7 rounded-xl space-y-2">
+              <div className="flex justify-between gap-2">
+                <div>
+                  <div className="text-xs font-bold text-white">{g.name}</div>
+                  <div className="text-[10px] text-[#78788c]">
+                    {g.startDate ?? "—"}
+                    {g.endDate && g.endDate !== g.startDate ? ` → ${g.endDate}` : ""} ·{" "}
+                    {g.subjects.map((s) => s.subject).join(", ")}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1 items-end">
+                  {g.marksLocked && (
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#c08a3a]/20 text-[#c08a3a]">
+                      Locked
+                    </span>
+                  )}
+                  {g.resultsPublishedAt && (
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#4aa87a]/20 text-[#4aa87a]">
+                      Published
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="flex flex-col gap-1 items-end">
-                {e.marksLocked && (
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#c08a3a]/20 text-[#c08a3a]">
-                    Locked
-                  </span>
-                )}
-                {e.resultsPublishedAt && (
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#4aa87a]/20 text-[#4aa87a]">
-                    Results published
-                  </span>
+              <div className="flex flex-wrap gap-2">
+                {mySubjects.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() =>
+                      void openMarks(s, !s.marksLocked && !s.resultsPublishedAt)
+                    }
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
+                  >
+                    {s.subject} marks
+                  </button>
+                ))}
+                {isClassTeacher && (
+                  <button
+                    type="button"
+                    onClick={() => openGroupReview(g)}
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/10 text-[#a0a0b0]"
+                  >
+                    Review / publish
+                  </button>
                 )}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => void openMarks(e)}
-              className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
-            >
-              Enter / review marks
-            </button>
+          );
+        })}
+        {groups.length === 0 && (
+          <div className="text-xs text-[#46465a]">
+            {isClassTeacher
+              ? "No exams yet. Create a class exam — subjects are added automatically."
+              : "No exams yet. The class teacher creates exams for this class."}
           </div>
-        ))}
-        {exams.length === 0 && <div className="text-xs text-[#46465a]">No exams yet.</div>}
+        )}
       </div>
     </div>
   );
@@ -1739,6 +2049,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   > | null>(null);
   const [profiles, setProfiles] = useState<StudentAcademicProfile[]>([]);
   const [nameById, setNameById] = useState<Map<string, string>>(new Map());
+  const [pendingHwCount, setPendingHwCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -1752,11 +2063,14 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           AnalyticsService.forClass(ctx, classId),
           AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
           AttendanceService.listClassStudents(ctx, classId),
+          HomeworkService.listForClassWithStats(ctx, classId, { limit: 100 }),
         ]);
         if (cancelled) return;
         const a = settled[0].status === "fulfilled" ? settled[0].value : null;
         const p = settled[1].status === "fulfilled" ? settled[1].value : [];
         const students = settled[2].status === "fulfilled" ? settled[2].value : [];
+        const hw =
+          settled[3].status === "fulfilled" ? settled[3].value : [];
         if (
           settled[0].status === "rejected" &&
           settled[1].status === "rejected" &&
@@ -1767,6 +2081,8 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         setAnalytics(a);
         setProfiles(p);
         setNameById(new Map(students.map((s) => [s.id, s.fullName])));
+        const pending = hw.reduce((sum, h) => sum + (h.pending ?? 0), 0);
+        setPendingHwCount(pending);
         const errs: string[] = [];
         if (settled[0].status === "rejected") errs.push(errMsg(settled[0].reason, "Analytics"));
         if (settled[1].status === "rejected") errs.push(errMsg(settled[1].reason, "Profiles"));
@@ -1786,29 +2102,63 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   const displayName = (studentId: string) =>
     nameById.get(studentId) ?? "Unknown student";
 
-  const belowAttendance = useMemo(
+  const lowestAttendance = useMemo(
     () =>
-      [...profiles]
-        .filter((p) => p.attendancePct < 75)
-        .sort((a, b) => a.attendancePct - b.attendancePct),
-    [profiles],
-  );
-  const lowHomework = useMemo(
-    () =>
-      [...profiles]
-        .filter((p) => p.homeworkCompletionPct < 50)
-        .sort((a, b) => a.homeworkCompletionPct - b.homeworkCompletionPct),
-    [profiles],
-  );
-  const topExams = useMemo(
-    () => [...profiles].sort((a, b) => b.examsAvgPct - a.examsAvgPct).slice(0, 5),
+      [...profiles].sort((a, b) => a.attendancePct - b.attendancePct).slice(0, 5),
     [profiles],
   );
   const lowestHomework = useMemo(
     () =>
-      [...profiles].sort((a, b) => a.homeworkCompletionPct - b.homeworkCompletionPct).slice(0, 5),
+      [...profiles]
+        .sort((a, b) => a.homeworkCompletionPct - b.homeworkCompletionPct)
+        .slice(0, 5),
     [profiles],
   );
+  const highestPerformers = useMemo(
+    () =>
+      [...profiles]
+        .sort(
+          (a, b) =>
+            b.examsAvgPct + b.testsAvgPct - (a.examsAvgPct + a.testsAvgPct),
+        )
+        .slice(0, 5),
+    [profiles],
+  );
+  const needsAttention = useMemo(
+    () =>
+      [...profiles]
+        .filter(
+          (p) =>
+            p.attendancePct < 75 ||
+            p.homeworkCompletionPct < 50 ||
+            (p.examsAvgPct > 0 && p.examsAvgPct < 40) ||
+            (p.testsAvgPct > 0 && p.testsAvgPct < 40),
+        )
+        .sort(
+          (a, b) =>
+            a.attendancePct +
+            a.homeworkCompletionPct -
+            (b.attendancePct + b.homeworkCompletionPct),
+        )
+        .slice(0, 8),
+    [profiles],
+  );
+
+  const classTrend = useMemo(() => {
+    if (!analytics) return "—";
+    const scores = [
+      analytics.avgAttendancePct,
+      analytics.avgHomeworkCompletionPct,
+      analytics.avgTestsPct,
+      analytics.avgExamsPct,
+    ].filter((n) => n > 0);
+    if (!scores.length) return "Insufficient data";
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    if (avg >= 80) return "Healthy";
+    if (avg >= 60) return "Stable";
+    if (avg >= 40) return "Needs focus";
+    return "At risk";
+  }, [analytics]);
 
   if (loading) return <Loading label="Loading analytics…" />;
   if (!analytics && profiles.length === 0) {
@@ -1826,11 +2176,19 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           {error}
         </div>
       )}
+
+      <div>
+        <div className="text-sm font-bold text-white">Class health</div>
+        <div className="text-[10px] text-[#46465a] mt-0.5">
+          Live academic signals — act on students who need you
+        </div>
+      </div>
+
       {analytics && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-            <div className="text-xl font-black text-[#3b5bdb]">{Math.round(analytics.avgExamsPct)}%</div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Avg Exams</div>
+            <div className="text-xl font-black text-white">{analytics.studentCount}</div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Total students</div>
           </div>
           <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
             <div
@@ -1839,24 +2197,98 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
             >
               {Math.round(analytics.avgAttendancePct)}%
             </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Avg Attendance</div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Attendance</div>
           </div>
           <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
             <div className="text-xl font-black text-[#6366f1]">
               {Math.round(analytics.avgHomeworkCompletionPct)}%
             </div>
-            <div className="text-[10px] text-[#78788c] mt-0.5">Homework Completion</div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Homework completion</div>
+          </div>
+          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+            <div className="text-xl font-black text-[#f59e0b]">{pendingHwCount}</div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Pending homework</div>
+          </div>
+          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+            <div className="text-xl font-black text-[#6366f1]">
+              {Math.round(analytics.avgTestsPct)}%
+            </div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Test average</div>
+          </div>
+          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+            <div className="text-xl font-black text-[#3b5bdb]">
+              {Math.round(analytics.avgExamsPct)}%
+            </div>
+            <div className="text-[10px] text-[#78788c] mt-0.5">Exam average</div>
           </div>
         </div>
       )}
 
+      <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-bold text-white">Recent academic trend</div>
+          <div className="text-[10px] text-[#78788c] mt-0.5">
+            Combined attendance, homework, tests & exams
+          </div>
+        </div>
+        <div
+          className={cn(
+            "text-[11px] font-bold px-3 py-1.5 rounded-lg",
+            classTrend === "Healthy" && "bg-[#10b981]/20 text-[#10b981]",
+            classTrend === "Stable" && "bg-[#3b5bdb]/20 text-[#3b5bdb]",
+            classTrend === "Needs focus" && "bg-[#f59e0b]/20 text-[#f59e0b]",
+            classTrend === "At risk" && "bg-[#cc5069]/20 text-[#cc5069]",
+            (classTrend === "Insufficient data" || classTrend === "—") &&
+              "bg-white/10 text-[#78788c]",
+          )}
+        >
+          {classTrend}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Below 75% attendance</div>
-          {belowAttendance.length === 0 ? (
-            <div className="text-[10px] text-[#46465a]">None</div>
+          <div className="text-xs font-bold text-white mb-3">Highest performers</div>
+          {highestPerformers.length === 0 ? (
+            <div className="text-[10px] text-[#46465a]">No data</div>
           ) : (
-            belowAttendance.map((p) => (
+            highestPerformers.map((p) => (
+              <div
+                key={p.studentId}
+                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
+              >
+                <span className="text-white truncate">{displayName(p.studentId)}</span>
+                <span className="tabular-nums text-[#3b5bdb] font-bold shrink-0">
+                  Exams {Math.round(p.examsAvgPct)}% · Tests {Math.round(p.testsAvgPct)}%
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+          <div className="text-xs font-bold text-white mb-3">Students requiring attention</div>
+          {needsAttention.length === 0 ? (
+            <div className="text-[10px] text-[#46465a]">None flagged right now</div>
+          ) : (
+            needsAttention.map((p) => (
+              <div
+                key={p.studentId}
+                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
+              >
+                <span className="text-white truncate">{displayName(p.studentId)}</span>
+                <span className="tabular-nums text-[#cc5069] font-bold shrink-0">
+                  Att {Math.round(p.attendancePct)}% · HW {Math.round(p.homeworkCompletionPct)}%
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+          <div className="text-xs font-bold text-white mb-3">Lowest attendance</div>
+          {lowestAttendance.length === 0 ? (
+            <div className="text-[10px] text-[#46465a]">No data</div>
+          ) : (
+            lowestAttendance.map((p) => (
               <div
                 key={p.studentId}
                 className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
@@ -1870,43 +2302,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           )}
         </div>
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Homework completion &lt; 50%</div>
-          {lowHomework.length === 0 ? (
-            <div className="text-[10px] text-[#46465a]">None</div>
-          ) : (
-            lowHomework.map((p) => (
-              <div
-                key={p.studentId}
-                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
-              >
-                <span className="text-white truncate">{displayName(p.studentId)}</span>
-                <span className="tabular-nums text-[#c08a3a] font-bold shrink-0">
-                  {Math.round(p.homeworkCompletionPct)}%
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Top performers by exams</div>
-          {topExams.length === 0 ? (
-            <div className="text-[10px] text-[#46465a]">No data</div>
-          ) : (
-            topExams.map((p) => (
-              <div
-                key={p.studentId}
-                className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
-              >
-                <span className="text-white truncate">{displayName(p.studentId)}</span>
-                <span className="tabular-nums text-[#3b5bdb] font-bold shrink-0">
-                  {Math.round(p.examsAvgPct)}%
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-xs font-bold text-white mb-3">Lowest by homework</div>
+          <div className="text-xs font-bold text-white mb-3">Lowest homework completion</div>
           {lowestHomework.length === 0 ? (
             <div className="text-[10px] text-[#46465a]">No data</div>
           ) : (
@@ -1916,7 +2312,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
                 className="flex justify-between gap-2 text-[11px] text-[#78788c] py-1"
               >
                 <span className="text-white truncate">{displayName(p.studentId)}</span>
-                <span className="tabular-nums font-bold shrink-0">
+                <span className="tabular-nums text-[#c08a3a] font-bold shrink-0">
                   {Math.round(p.homeworkCompletionPct)}%
                 </span>
               </div>

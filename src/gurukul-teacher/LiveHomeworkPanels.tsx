@@ -5,7 +5,6 @@ import {
 import {
   HomeworkService,
   AttendanceService,
-  WORK_KINDS,
   WORK_KIND_LABELS,
   type WorkKind,
 } from "@/academic";
@@ -14,7 +13,6 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 type StatsRow = Awaited<ReturnType<typeof HomeworkService.listForClassWithStats>>[number];
 type SubRow = Awaited<ReturnType<typeof HomeworkService.listSubmissions>>[number];
 type StatusFilter = "all" | "draft" | "published" | "scheduled" | "archived";
-type KindFilter = "all" | WorkKind;
 type PublishMode = "now" | "schedule" | "draft";
 
 function Loading({ label }: { label: string }) {
@@ -26,7 +24,7 @@ function Loading({ label }: { label: string }) {
 }
 
 /**
- * Academic Work workspace — HomeworkService only (all work_kind values).
+ * Homework workspace — one module for create / schedule / draft / publish / review.
  */
 export function LiveAcademicWorkTab({
   classId,
@@ -40,8 +38,6 @@ export function LiveAcademicWorkTab({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [kindFilter, setKindFilter] = useState<KindFilter>("all");
-  const [selectedKind, setSelectedKind] = useState<WorkKind>("homework");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [publishMode, setPublishMode] = useState<PublishMode>("now");
@@ -85,7 +81,6 @@ export function LiveAcademicWorkTab({
 
   const filtered = useMemo(() => {
     return items.filter((h) => {
-      if (kindFilter !== "all" && (h.workKind ?? "homework") !== kindFilter) return false;
       if (statusFilter !== "all" && (h.status ?? "") !== statusFilter) {
         if (!(statusFilter === "published" && h.status === "active")) return false;
       }
@@ -98,7 +93,7 @@ export function LiveAcademicWorkTab({
       }
       return true;
     });
-  }, [items, statusFilter, kindFilter, search]);
+  }, [items, statusFilter, search]);
 
   const create = async () => {
     if (!ctx || !form.title.trim()) return;
@@ -126,7 +121,7 @@ export function LiveAcademicWorkTab({
         dueTime: form.dueTime || null,
         priority: form.priority,
         maxMarks: form.maxMarks && !Number.isNaN(Number(form.maxMarks)) ? Number(form.maxMarks) : null,
-        workKind: selectedKind,
+        workKind: "homework" as WorkKind,
         attachments,
       };
       if (publishMode === "draft") {
@@ -305,35 +300,8 @@ export function LiveAcademicWorkTab({
 
   return (
     <div className="space-y-4">
-      <div className="text-sm font-bold text-white">Academic Work</div>
+      <div className="text-sm font-bold text-white">Homework</div>
       {error && <div className="text-xs text-[#cc5069]">{error}</div>}
-
-      <div className="flex flex-wrap gap-1">
-        <button
-          type="button"
-          onClick={() => setKindFilter("all")}
-          className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-            kindFilter === "all" ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
-          }`}
-        >
-          All kinds
-        </button>
-        {WORK_KINDS.map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => {
-              setKindFilter(k);
-              setSelectedKind(k);
-            }}
-            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-              kindFilter === k ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
-            }`}
-          >
-            {WORK_KIND_LABELS[k]}
-          </button>
-        ))}
-      </div>
 
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex flex-wrap gap-1">
@@ -362,30 +330,13 @@ export function LiveAcademicWorkTab({
             onClick={() => setCreating((v) => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb]/15 text-[#3b5bdb]"
           >
-            <Plus className="w-3 h-3" /> New Academic Work
+            <Plus className="w-3 h-3" /> New Homework
           </button>
         </div>
       </div>
-      <p className="text-[10px] text-[#46465a]">
-        Homework, Assignment, Worksheet, Project, and Internal Assessment share one workflow — pick the type above when creating.
-      </p>
 
       {creating && (
         <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
-          <div className="flex flex-wrap gap-1 mb-1">
-            {WORK_KINDS.map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setSelectedKind(k)}
-                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                  selectedKind === k ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
-                }`}
-              >
-                {WORK_KIND_LABELS[k]}
-              </button>
-            ))}
-          </div>
           <input
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -429,23 +380,22 @@ export function LiveAcademicWorkTab({
             />
           </div>
           <div className="space-y-1">
-            <div className="text-[10px] text-[#78788c] font-semibold">Attach file (PDF / image URL)</div>
+            <div className="text-[10px] text-[#78788c] font-semibold">
+              Attachments (images, PDF, documents, links)
+            </div>
             <div className="flex flex-wrap gap-2">
               <input
                 value={form.attachName}
                 onChange={(e) => setForm((f) => ({ ...f, attachName: e.target.value }))}
-                placeholder="File name e.g. worksheet.pdf"
+                placeholder="Name e.g. worksheet.pdf"
                 className="flex-1 min-w-[140px] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
               />
               <input
                 value={form.attachUrl}
                 onChange={(e) => setForm((f) => ({ ...f, attachUrl: e.target.value }))}
-                placeholder="https://… link to PDF or image"
+                placeholder="https://… link"
                 className="flex-[2] min-w-[180px] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
               />
-            </div>
-            <div className="text-[9px] text-[#46465a]">
-              Students see this attachment in the app. Cloud upload picker comes later — paste a link for now.
             </div>
           </div>
           <div className="flex flex-wrap gap-1">
@@ -502,7 +452,7 @@ export function LiveAcademicWorkTab({
         </div>
       )}
 
-      <div className="text-[10px] text-[#46465a]">{filtered.length} items · HomeworkService</div>
+      <div className="text-[10px] text-[#46465a]">{filtered.length} homework items</div>
       <div className="space-y-2">
         {filtered.map((h) => (
           <div key={h.id} className="p-4 bg-[#131316] border border-white/7 rounded-2xl space-y-2">

@@ -26,6 +26,9 @@ type ExamRow = {
   chapters?: unknown;
   topics?: unknown;
   instructions?: string | null;
+  exam_group_id?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
 };
 
 function asStringArray(v: unknown): string[] {
@@ -54,6 +57,9 @@ function mapExam(row: ExamRow): ExamRecord {
     chapters: asStringArray(row.chapters),
     topics: asStringArray(row.topics),
     instructions: row.instructions != null ? String(row.instructions) : null,
+    examGroupId: row.exam_group_id ? String(row.exam_group_id) : null,
+    startDate: row.start_date ? String(row.start_date) : null,
+    endDate: row.end_date ? String(row.end_date) : null,
   };
 }
 
@@ -184,4 +190,118 @@ export async function publishMarksBatch(
     n += 1;
   }
   return n;
+}
+
+export interface CreateClassExamInput {
+  classId: string;
+  name: string;
+  startDate: string;
+  endDate?: string | null;
+  instructions?: string | null;
+  examType?: string;
+  defaultMaxMarks?: number;
+  subjects: { subject: string; subjectId: string | null; maxMarks?: number }[];
+}
+
+/** Fan-out: one exams row per subject under a shared exam_group_id. */
+export async function createClassExamGroup(
+  ctx: RepoContext,
+  input: CreateClassExamInput,
+): Promise<ExamRecord[]> {
+  const schoolId = schoolIdOf(ctx);
+  if (!input.name.trim()) {
+    throw new ValidationFailedError([
+      { field: "name", code: "required", message: "Exam name is required" },
+    ]);
+  }
+  if (!input.startDate) {
+    throw new ValidationFailedError([
+      { field: "startDate", code: "required", message: "Start date is required" },
+    ]);
+  }
+  if (!input.subjects.length) {
+    throw new ValidationFailedError([
+      {
+        field: "subjects",
+        code: "required",
+        message: "No subjects mapped to this class. Ask admin to set Teacher–Class–Subject.",
+      },
+    ]);
+  }
+
+  const groupId = crypto.randomUUID();
+  const examType = (input.examType ?? "unit_test") as any;
+  const rows = input.subjects.map((s) => ({
+    school_id: schoolId,
+    class_id: input.classId,
+    name: input.name.trim(),
+    subject: s.subject,
+    subject_id: s.subjectId,
+    max_marks: s.maxMarks ?? input.defaultMaxMarks ?? 100,
+    exam_date: input.startDate,
+    start_date: input.startDate,
+    end_date: input.endDate ?? input.startDate,
+    exam_type: examType,
+    status: "scheduled",
+    instructions: input.instructions ?? null,
+    exam_group_id: groupId,
+    created_by: ctx.userId ?? null,
+    marks_locked: false,
+  }));
+
+  const { data, error } = await getClient(ctx)
+    .from("exams")
+    .insert(rows as never)
+    .select("*");
+  throwIfError(error, "Failed to create class exam");
+  return (data ?? []).map((r) => mapExam(r as ExamRow));
+}
+
+export async function listExamsByGroup(
+  ctx: RepoContext,
+  examGroupId: string,
+): Promise<ExamRecord[]> {
+  const schoolId = schoolIdOf(ctx);
+  const { data, error } = await getClient(ctx)
+    .from("exams")
+    .select("*")
+    .eq("school_id", schoolId)
+    .eq("exam_group_id", examGroupId)
+    .order("subject", { ascending: true });
+  throwIfError(error, "Failed to list exam group");
+  return (data ?? []).map((r) => mapExam(r as ExamRow));
+}
+
+export async function setExamGroupLocked(
+  ctx: RepoContext,
+  examGroupId: string,
+  locked: boolean,
+): Promise<void> {
+  const schoolId = schoolIdOf(ctx);
+  const { error } = await getClient(ctx)
+    .from("exams")
+    .update({
+      marks_locked: locked,
+      updated_at: new Date().toISOString(),
+    } as never)
+    .eq("school_id", schoolId)
+    .eq("exam_group_id", examGroupId);
+  throwIfError(error, "Failed to update exam group lock");
+}
+
+export async function setExamGroupResultsPublished(
+  ctx: RepoContext,
+  examGroupId: string,
+  at: string,
+): Promise<void> {
+  const schoolId = schoolIdOf(ctx);
+  const { error } = await getClient(ctx)
+    .from("exams")
+    .update({
+      results_published_at: at,
+      updated_at: at,
+    } as never)
+    .eq("school_id", schoolId)
+    .eq("exam_group_id", examGroupId);
+  throwIfError(error, "Failed to publish exam group results");
 }

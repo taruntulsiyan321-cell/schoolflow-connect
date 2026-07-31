@@ -106,9 +106,7 @@ export const MarksService = {
     assertCanOwn(ctx, "marks");
 
     const exam = await getExam(toRepoContext(ctx), input.examId);
-    await assertTeacherMayManageAcademicWork(ctx, exam.classId, exam.subject);
     let assigned = isSchoolOperator(ctx.role);
-
     if (!assigned) {
       assigned = await teacherAssignedToClassSubject(toRepoContext(ctx), {
         teacherUserId: ctx.userId,
@@ -117,10 +115,13 @@ export const MarksService = {
         subjectId: exam.subjectId,
       });
     }
+    if (!assigned) {
+      throw new ForbiddenError("You can only enter marks for your assigned subject");
+    }
 
     return publishMarks(toRepoContext(ctx), {
       ...input,
-      teacherAssignedToSubject: assigned,
+      teacherAssignedToSubject: true,
     });
   },
 
@@ -173,7 +174,6 @@ export const MarksService = {
   ): Promise<number> {
     assertCanOwn(ctx, "marks");
     const exam = await getExam(toRepoContext(ctx), examId);
-    await assertTeacherMayManageAcademicWork(ctx, exam.classId, exam.subject);
     let assigned = isSchoolOperator(ctx.role);
     if (!assigned) {
       assigned = await teacherAssignedToClassSubject(toRepoContext(ctx), {
@@ -183,49 +183,185 @@ export const MarksService = {
         subjectId: exam.subjectId,
       });
     }
+    if (!assigned) {
+      throw new ForbiddenError("You can only enter marks for your assigned subject");
+    }
     const { publishMarksBatch } = await import("../repository/examRepository");
-    return publishMarksBatch(toRepoContext(ctx), examId, rows, assigned);
+    return publishMarksBatch(toRepoContext(ctx), examId, rows, true);
   },
 
-  /** Lock marks — no further edits. Does not notify students. */
+  /**
+   * Class teacher creates one exam for the class — auto subjects from teacher_classes.
+   */
+  async createClassExam(
+    ctx: ServiceContext,
+    input: {
+      classId: string;
+      name: string;
+      startDate: string;
+      endDate?: string | null;
+      instructions?: string | null;
+      examType?: string;
+      defaultMaxMarks?: number;
+    },
+  ): Promise<ExamRecord[]> {
+    assertCanOwn(ctx, "examination");
+    const repo = toRepoContext(ctx);
+    const { isClassTeacherOfClass, listSubjectsForClass } = await import(
+      "../repository/teacherClassesRepository"
+    );
+    if (!isSchoolOperator(ctx.role)) {
+      const ok = await isClassTeacherOfClass(repo, ctx.userId, input.classId);
+      if (!ok) {
+        throw new ForbiddenError("Only the class teacher can create exams for this class");
+      }
+    }
+    const subjects = await listSubjectsForClass(repo, input.classId);
+    const { createClassExamGroup } = await import("../repository/examRepository");
+    const rows = await createClassExamGroup(repo, {
+      ...input,
+      subjects,
+    });
+    const groupId = rows[0]?.examGroupId ?? rows[0]?.id;
+    await emitEvent(repo, {
+      eventType: "examination.scheduled",
+      entityType: "examination",
+      entityId: groupId ?? rows[0]?.id ?? "",
+      classId: input.classId,
+      payload: {
+        name: input.name,
+        title: input.name,
+        examGroupId: groupId,
+        subjectCount: rows.length,
+      },
+    }).catch(() => undefined);
+    return rows;
+  },
+
+  /** Group subject exams for a class (one card per exam name/group). */
+  async listExamGroupsForClass(ctx: ServiceContext, classId: string) {
+    assertCanConsume(ctx, "examination");
+    const exams = await listExamsForClass(toRepoContext(ctx), classId, { limit: 200 });
+    const groups = new Map<
+      string,
+      {
+        examGroupId: string;
+        name: string;
+        startDate: string | null;
+        endDate: string | null;
+        instructions: string | null;
+        marksLocked: boolean;
+        resultsPublishedAt: string | null;
+        subjects: ExamRecord[];
+      }
+    >();
+    for (const e of exams) {
+      const gid = e.examGroupId ?? e.id;
+      const g = groups.get(gid) ?? {
+        examGroupId: gid,
+        name: e.name,
+        startDate: e.startDate ?? e.examDate,
+        endDate: e.endDate ?? e.examDate,
+        instructions: e.instructions,
+        marksLocked: e.marksLocked,
+        resultsPublishedAt: e.resultsPublishedAt,
+        subjects: [] as ExamRecord[],
+      };
+      g.subjects.push(e);
+      g.marksLocked = g.marksLocked && e.marksLocked;
+      if (!e.resultsPublishedAt) g.resultsPublishedAt = null;
+      groups.set(gid, g);
+    }
+    return [...groups.values()].sort((a, b) =>
+      String(b.startDate ?? "").localeCompare(String(a.startDate ?? "")),
+    );
+  },
+
+  /** Subject exams this teacher should enter marks for (pending unlock). */
+  async listMyPendingSubjectExams(ctx: ServiceContext, classId: string): Promise<ExamRecord[]> {
+    assertCanConsume(ctx, "examination");
+    const repo = toRepoContext(ctx);
+    const exams = await listExamsForClass(repo, classId, { limit: 200 });
+    if (isSchoolOperator(ctx.role)) {
+      return exams.filter((e) => !e.marksLocked && !e.resultsPublishedAt);
+    }
+    const out: ExamRecord[] = [];
+    for (const e of exams) {
+      if (e.marksLocked || e.resultsPublishedAt) continue;
+      const ok = await teacherAssignedToClassSubject(repo, {
+        teacherUserId: ctx.userId,
+        classId: e.classId,
+        subject: e.subject,
+        subjectId: e.subjectId,
+      });
+      if (ok) out.push(e);
+    }
+    return out;
+  },
+
+  /** Lock marks — class teacher; locks whole exam group when grouped. */
   async finalizeMarks(ctx: ServiceContext, examId: string): Promise<ExamRecord> {
     assertCanOwn(ctx, "examination");
     const repo = toRepoContext(ctx);
     const exam = await getExam(repo, examId);
-    await assertTeacherMayManageAcademicWork(ctx, exam.classId, exam.subject);
+    const { isClassTeacherOfClass } = await import("../repository/teacherClassesRepository");
+    if (!isSchoolOperator(ctx.role)) {
+      const ok = await isClassTeacherOfClass(repo, ctx.userId, exam.classId);
+      if (!ok) throw new ForbiddenError("Only the class teacher can finalize this exam");
+    }
 
-    const { error } = await getClient(repo)
-      .from("exams")
-      .update({
-        marks_locked: true,
-        updated_at: new Date().toISOString(),
-      } as never)
-      .eq("id", examId)
-      .eq("school_id", schoolIdOf(repo));
-    throwIfError(error, "Failed to finalize marks");
+    if (exam.examGroupId) {
+      const { setExamGroupLocked } = await import("../repository/examRepository");
+      await setExamGroupLocked(repo, exam.examGroupId, true);
+    } else {
+      const { error } = await getClient(repo)
+        .from("exams")
+        .update({
+          marks_locked: true,
+          updated_at: new Date().toISOString(),
+        } as never)
+        .eq("id", examId)
+        .eq("school_id", schoolIdOf(repo));
+      throwIfError(error, "Failed to finalize marks");
+    }
 
     await emitEvent(repo, {
       eventType: "examination.finalized",
       entityType: "examination",
-      entityId: examId,
+      entityId: exam.examGroupId ?? examId,
       classId: exam.classId,
-      payload: { name: exam.name, subject: exam.subject, examType: exam.examType },
+      payload: {
+        name: exam.name,
+        examGroupId: exam.examGroupId,
+        examType: exam.examType,
+      },
     }).catch(() => undefined);
 
     return getExam(repo, examId);
   },
 
   /**
-   * Publish results to students/parents. Requires marks_locked.
-   * Emits marks.results_published (student notify path).
+   * Publish results — class teacher; publishes whole group.
+   * Students/parents notified only here.
    */
   async publishResults(ctx: ServiceContext, examId: string): Promise<ExamRecord> {
     assertCanOwn(ctx, "examination");
     const repo = toRepoContext(ctx);
     const exam = await getExam(repo, examId);
-    await assertTeacherMayManageAcademicWork(ctx, exam.classId, exam.subject);
+    const { isClassTeacherOfClass } = await import("../repository/teacherClassesRepository");
+    if (!isSchoolOperator(ctx.role)) {
+      const ok = await isClassTeacherOfClass(repo, ctx.userId, exam.classId);
+      if (!ok) throw new ForbiddenError("Only the class teacher can publish results");
+    }
 
-    if (!exam.marksLocked) {
+    // Reload group lock status
+    let locked = exam.marksLocked;
+    if (exam.examGroupId) {
+      const { listExamsByGroup } = await import("../repository/examRepository");
+      const siblings = await listExamsByGroup(repo, exam.examGroupId);
+      locked = siblings.every((s) => s.marksLocked);
+    }
+    if (!locked) {
       throw new ValidationFailedError([
         {
           field: "examId",
@@ -236,22 +372,27 @@ export const MarksService = {
     }
 
     const now = new Date().toISOString();
-    const { error } = await getClient(repo)
-      .from("exams")
-      .update({
-        results_published_at: now,
-        updated_at: now,
-      } as never)
-      .eq("id", examId)
-      .eq("school_id", schoolIdOf(repo));
-    throwIfError(error, "Failed to publish exam results");
+    if (exam.examGroupId) {
+      const { setExamGroupResultsPublished } = await import("../repository/examRepository");
+      await setExamGroupResultsPublished(repo, exam.examGroupId, now);
+    } else {
+      const { error } = await getClient(repo)
+        .from("exams")
+        .update({
+          results_published_at: now,
+          updated_at: now,
+        } as never)
+        .eq("id", examId)
+        .eq("school_id", schoolIdOf(repo));
+      throwIfError(error, "Failed to publish exam results");
+    }
 
     await emitEvent(repo, {
       eventType: "marks.results_published",
       entityType: "examination",
-      entityId: examId,
+      entityId: exam.examGroupId ?? examId,
       classId: exam.classId,
-      payload: { classId: exam.classId, name: exam.name },
+      payload: { classId: exam.classId, name: exam.name, examGroupId: exam.examGroupId },
     }).catch(() => undefined);
 
     return getExam(repo, examId);

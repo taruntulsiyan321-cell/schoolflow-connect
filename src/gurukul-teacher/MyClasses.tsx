@@ -16,7 +16,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 type SubTab =
   | "students"
   | "attendance"
-  | "academic-work"
+  | "homework"
   | "tests"
   | "exams-marks"
   | "insights";
@@ -27,13 +27,14 @@ function readOpenTab(): SubTab {
     if (
       t === "students" ||
       t === "attendance" ||
+      t === "homework" ||
       t === "academic-work" ||
       t === "tests" ||
       t === "exams-marks" ||
       t === "insights"
     ) {
       sessionStorage.removeItem("teacher.openTab");
-      return t;
+      return t === "academic-work" ? "homework" : (t as SubTab);
     }
   } catch {
     /* ignore */
@@ -198,7 +199,7 @@ export default function MyClasses() {
   const subTabs: { key: SubTab; label: string }[] = [
     { key: "students", label: `Students (${selectedClass.studentCount})` },
     { key: "attendance", label: "Attendance" },
-    { key: "academic-work", label: "Academic Work" },
+    { key: "homework", label: "Homework" },
     { key: "tests", label: "Tests" },
     { key: "exams-marks", label: "Exams & Marks" },
     { key: "insights", label: "Insights" },
@@ -236,14 +237,18 @@ export default function MyClasses() {
         {subTab === "attendance" && (
           <TeacherAttendanceWorkspace fixedClassId={selectedClass.id} showBackLink={false} />
         )}
-        {subTab === "academic-work" && (
+        {subTab === "homework" && (
           <LiveAcademicWorkTab classId={selectedClass.id} subject={selectedClass.subject} />
         )}
         {subTab === "tests" && (
           <LiveTestsTab classId={selectedClass.id} subject={selectedClass.subject} />
         )}
         {subTab === "exams-marks" && (
-          <LiveExamsMarksTab classId={selectedClass.id} subject={selectedClass.subject} />
+          <LiveExamsMarksTab
+            classId={selectedClass.id}
+            subject={selectedClass.subject}
+            isClassTeacher={selectedClass.isClassTeacher}
+          />
         )}
         {subTab === "insights" && <LiveInsightsTab classId={selectedClass.id} />}
       </div>

@@ -27,6 +27,9 @@ export interface ExamRecord {
   chapters: string[];
   topics: string[];
   instructions: string | null;
+  examGroupId: string | null;
+  startDate: string | null;
+  endDate: string | null;
 }
 
 export interface MarksRecord {
@@ -56,6 +59,9 @@ type ExamRow = {
   chapters?: unknown;
   topics?: unknown;
   instructions?: string | null;
+  exam_group_id?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
 };
 
 type MarksRow = {
@@ -93,6 +99,9 @@ function mapExam(row: ExamRow): ExamRecord {
     chapters: asStringArray(row.chapters),
     topics: asStringArray(row.topics),
     instructions: row.instructions != null ? String(row.instructions) : null,
+    examGroupId: row.exam_group_id ? String(row.exam_group_id) : null,
+    startDate: row.start_date ? String(row.start_date) : null,
+    endDate: row.end_date ? String(row.end_date) : null,
   };
 }
 
