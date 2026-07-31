@@ -64,7 +64,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         for (const c of classes) {
           students += c.studentCount;
           const hw = await HomeworkService.listForClassWithStats(ctx, c.id, { limit: 50 });
-          pending += hw.reduce((s, h) => s + h.pending, 0);
+          pending += hw.reduce((s, h) => s + h.awaitingReview, 0);
           const t = await TestService.listForClass(ctx, c.id);
           tests += t.length;
         }
@@ -124,7 +124,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
       <div>
         <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-3">Pending Items</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard icon={<BookOpen className="w-5 h-5" />} label="HW pending reviews" value={hwPending} color="#f59e0b" sublabel="From HomeworkService" />
+          <StatCard icon={<BookOpen className="w-5 h-5" />} label="HW awaiting review" value={hwPending} color="#f59e0b" sublabel="Submitted / late queue" />
           <StatCard icon={<CheckSquare className="w-5 h-5" />} label="Class tests" value={testsCount} color="#10b981" sublabel="From TestService" />
           <StatCard icon={<HelpCircle className="w-5 h-5" />} label="Open doubts" value={doubtsOpen} color="#6366f1" sublabel="From DoubtService" />
           <StatCard icon={<Users className="w-5 h-5" />} label="Students" value={studentCount} color="#3b5bdb" sublabel={`${classCount} classes`} />

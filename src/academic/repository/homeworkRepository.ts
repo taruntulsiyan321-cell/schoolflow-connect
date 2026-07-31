@@ -316,12 +316,28 @@ export async function listHomeworkForSchool(
   return (data ?? []).map((r) => mapHomework(r as HomeworkRow));
 }
 
+async function assertClassInSchool(ctx: RepoContext, classId: string, schoolId: string) {
+  const { data, error } = await getClient(ctx)
+    .from("classes")
+    .select("id")
+    .eq("id", classId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  throwIfError(error, "Failed to verify class");
+  if (!data) {
+    throw new ValidationFailedError([
+      { field: "classId", code: "invalid", message: "Class does not belong to this school" },
+    ]);
+  }
+}
+
 export async function createHomework(
   ctx: RepoContext,
   input: CreateHomeworkInput,
 ): Promise<HomeworkRecord> {
   const schoolId = schoolIdOf(ctx);
   validateHomeworkInput(input);
+  await assertClassInSchool(ctx, input.classId, schoolId);
   const status = input.status ?? "draft";
   if (status === "published" && !input.dueDate) {
     throw new ValidationFailedError([
@@ -372,6 +388,20 @@ export async function updateHomework(
     throw new TenantViolationError("Homework belongs to another school");
   }
   validateHomeworkInput(input, true);
+  if (input.classId !== undefined) {
+    await assertClassInSchool(ctx, input.classId, schoolId);
+  }
+
+  const nextStatus = input.status ?? existing.status;
+  const nextDue = input.dueDate !== undefined ? input.dueDate : existing.dueDate;
+  if (
+    (nextStatus === "published" || nextStatus === "scheduled") &&
+    (!nextDue || String(nextDue).trim() === "")
+  ) {
+    throw new ValidationFailedError([
+      { field: "dueDate", code: "required", message: "Due date is required to publish" },
+    ]);
+  }
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.title !== undefined) patch.title = input.title.trim();
@@ -571,26 +601,39 @@ export async function upsertHomeworkSubmission(
   }
 
   const status = isLate ? "late" : "submitted";
-  const version = existing ? Number(existing.version ?? 1) + 1 : 1;
+  const priorStatus = existing ? String(existing.status) : null;
+  // First real turn-in from pending keeps version 1; replace/resubmit bumps.
+  const version =
+    !existing || priorStatus === "pending"
+      ? Number(existing?.version ?? 1)
+      : Number(existing.version ?? 1) + 1;
+
+  const row: Record<string, unknown> = {
+    homework_id: input.homeworkId,
+    student_id: input.studentId,
+    content: input.content,
+    status,
+    is_late: isLate,
+    version,
+    attachments: input.attachments ?? [],
+    external_links: input.externalLinks ?? [],
+    submitted_at: now.toISOString(),
+    school_id: schoolId,
+    updated_at: now.toISOString(),
+  };
+  // Clear prior review fields on replace / return→resubmit
+  if (existing && priorStatus !== "pending") {
+    row.grade = null;
+    row.marks_obtained = null;
+    row.teacher_remarks = null;
+    row.graded_at = null;
+    row.reviewed_at = null;
+    row.returned_at = null;
+  }
 
   const { data, error } = await getClient(ctx)
     .from("homework_submissions")
-    .upsert(
-      {
-        homework_id: input.homeworkId,
-        student_id: input.studentId,
-        content: input.content,
-        status,
-        is_late: isLate,
-        version,
-        attachments: input.attachments ?? [],
-        external_links: input.externalLinks ?? [],
-        submitted_at: now.toISOString(),
-        school_id: schoolId,
-        updated_at: now.toISOString(),
-      } as never,
-      { onConflict: "homework_id,student_id" },
-    )
+    .upsert(row as never, { onConflict: "homework_id,student_id" })
     .select("*")
     .single();
 
@@ -618,6 +661,44 @@ export async function reviewHomeworkSubmission(
   else if (input.action === "grade") status = "graded";
   else if (input.action === "approve") status = "reviewed";
 
+  const { data: existing, error: loadErr } = await getClient(ctx)
+    .from("homework_submissions")
+    .select("id, status, homework_id")
+    .eq("id", input.submissionId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  throwIfError(loadErr, "Failed to load submission for review");
+  if (!existing) throw new NotFoundError("homework_submission", input.submissionId);
+
+  const cur = String(existing.status);
+  if (!["submitted", "late", "returned", "reviewed"].includes(cur)) {
+    throw new ValidationFailedError([
+      {
+        field: "status",
+        code: "invalid",
+        message: "Only submitted, late, returned, or reviewed work can be reviewed",
+      },
+    ]);
+  }
+
+  if (input.marksObtained != null) {
+    const hw = await getHomework(ctx, String(existing.homework_id));
+    if (hw.maxMarks != null && input.marksObtained > hw.maxMarks) {
+      throw new ValidationFailedError([
+        {
+          field: "marksObtained",
+          code: "invalid",
+          message: `Marks cannot exceed max marks (${hw.maxMarks})`,
+        },
+      ]);
+    }
+    if (input.marksObtained < 0) {
+      throw new ValidationFailedError([
+        { field: "marksObtained", code: "invalid", message: "Marks cannot be negative" },
+      ]);
+    }
+  }
+
   const patch: Record<string, unknown> = {
     status,
     teacher_remarks: input.remarks ?? null,
@@ -631,7 +712,7 @@ export async function reviewHomeworkSubmission(
     patch.reviewed_at = now;
     patch.graded_at = now;
   }
-  if (input.attachments) patch.attachments = input.attachments;
+  // Do not overwrite student attachments from teacher review payload
 
   const { data, error } = await getClient(ctx)
     .from("homework_submissions")

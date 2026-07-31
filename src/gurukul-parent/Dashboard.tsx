@@ -63,7 +63,7 @@ export default function ParentDashboard({
       try {
         const rows = await HomeworkService.listForStudent(ctx, attendanceId);
         if (!cancelled) {
-          setPendingHw(rows.filter((r) => !r.submission || r.submission.status === "pending").length);
+          setPendingHw(rows.filter((r) => !r.submission || ["pending", "returned"].includes(r.submission.status)).length);
         }
       } catch {
         if (!cancelled) setPendingHw(0);

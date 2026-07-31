@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AnalyticsService, HomeworkService } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -25,7 +25,7 @@ export default function HomeworkAdmin() {
       try {
         const [s, list] = await Promise.all([
           AnalyticsService.homeworkSchool(ctx),
-          HomeworkService.listForSchool(ctx, { limit: 100 }, search ? { search } : undefined),
+          HomeworkService.listForSchool(ctx, { limit: 100 }),
         ]);
         if (cancelled) return;
         setSummary(s);
@@ -40,7 +40,18 @@ export default function HomeworkAdmin() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, search]);
+  }, [ready, ctx]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return items;
+    return items.filter(
+      (h) =>
+        h.title.toLowerCase().includes(q) ||
+        h.subject.toLowerCase().includes(q) ||
+        String(h.status ?? "").toLowerCase().includes(q),
+    );
+  }, [items, search]);
 
   if (loading) {
     return (
@@ -97,7 +108,7 @@ export default function HomeworkAdmin() {
             </tr>
           </thead>
           <tbody>
-            {items.map((h) => (
+            {visible.map((h) => (
               <tr key={h.id} className="border-b border-[#f0f1f3]">
                 <td className="p-3 font-medium">{h.title}</td>
                 <td className="p-3 text-[#46465a]">{h.subject}</td>
@@ -108,8 +119,10 @@ export default function HomeworkAdmin() {
             ))}
           </tbody>
         </table>
-        {items.length === 0 && (
-          <div className="text-center text-xs text-[#78788c] py-12">No homework found.</div>
+        {visible.length === 0 && (
+          <div className="text-center text-xs text-[#78788c] py-12">
+            {items.length === 0 ? "No homework found." : "No homework matches this search."}
+          </div>
         )}
       </div>
     </div>

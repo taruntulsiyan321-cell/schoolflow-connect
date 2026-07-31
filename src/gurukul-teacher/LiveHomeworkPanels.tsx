@@ -49,6 +49,7 @@ function LiveHomeworkList({
   const [subs, setSubs] = useState<SubRow[]>([]);
   const [roster, setRoster] = useState<{ id: string; fullName: string }[]>([]);
   const [gradeDraft, setGradeDraft] = useState<Record<string, { grade: string; remarks: string }>>({});
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const reload = async () => {
     if (!ctx) return;
@@ -98,7 +99,7 @@ function LiveHomeworkList({
         description: form.description,
         dueDate: form.dueDate || null,
         priority: form.priority,
-        maxMarks: form.maxMarks ? Number(form.maxMarks) : null,
+        maxMarks: form.maxMarks && !Number.isNaN(Number(form.maxMarks)) ? Number(form.maxMarks) : null,
       };
       if (asDraft) await HomeworkService.createDraft(ctx, payload);
       else await HomeworkService.assign(ctx, payload);
@@ -115,6 +116,8 @@ function LiveHomeworkList({
   const openReview = async (hw: StatsRow) => {
     if (!ctx) return;
     setReviewHw(hw);
+    setGradeDraft({});
+    setError(null);
     try {
       const [list, students] = await Promise.all([
         HomeworkService.listSubmissions(ctx, hw.id),
@@ -128,8 +131,10 @@ function LiveHomeworkList({
   };
 
   const review = async (submissionId: string, action: "grade" | "return") => {
-    if (!ctx) return;
+    if (!ctx || reviewingId) return;
     const d = gradeDraft[submissionId] ?? { grade: "", remarks: "" };
+    setReviewingId(submissionId);
+    setError(null);
     try {
       await HomeworkService.review(ctx, {
         submissionId,
@@ -141,6 +146,8 @@ function LiveHomeworkList({
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Review failed");
+    } finally {
+      setReviewingId(null);
     }
   };
 
@@ -216,15 +223,18 @@ function LiveHomeworkList({
                 />
                 <button
                   type="button"
+                  disabled={!!reviewingId}
                   onClick={() => void review(s.id, "grade")}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#4aa87a]/20 text-[#4aa87a] flex items-center gap-1"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#4aa87a]/20 text-[#4aa87a] flex items-center gap-1 disabled:opacity-50"
                 >
-                  <CheckCircle2 className="w-3 h-3" /> Grade
+                  <CheckCircle2 className="w-3 h-3" />
+                  {reviewingId === s.id ? "…" : "Grade"}
                 </button>
                 <button
                   type="button"
+                  disabled={!!reviewingId}
                   onClick={() => void review(s.id, "return")}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#c08a3a]/20 text-[#c08a3a] flex items-center gap-1"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#c08a3a]/20 text-[#c08a3a] flex items-center gap-1 disabled:opacity-50"
                 >
                   <RotateCcw className="w-3 h-3" /> Return
                 </button>
@@ -347,7 +357,7 @@ function LiveHomeworkList({
               </div>
               <div className="text-right text-[10px] text-[#46465a]">
                 {h.submitted}/{h.totalStudents} · {h.completionPct}%
-                <div>{h.graded} graded · {h.late} late · {h.pending} pending</div>
+                <div>{h.graded} graded · {h.awaitingReview} to review · {h.returned} returned · {h.pending} missing</div>
               </div>
             </div>
             {h.description && (
@@ -405,7 +415,11 @@ function LiveHomeworkList({
           </div>
         ))}
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-xs text-[#46465a]">No {title.toLowerCase()} yet.</div>
+          <div className="text-center py-12 text-xs text-[#46465a]">
+            {items.length === 0
+              ? `No ${title.toLowerCase()} yet.`
+              : "No items match this filter."}
+          </div>
         )}
       </div>
     </div>

@@ -587,7 +587,10 @@ export function PrincipalHomeworkLive() {
       setLoading(true);
       try {
         const data = await AnalyticsService.homeworkSchool(ctx);
-        if (!cancelled) setSummary(data);
+        if (!cancelled) {
+          setSummary(data);
+          setError(null);
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load homework analytics");
       } finally {

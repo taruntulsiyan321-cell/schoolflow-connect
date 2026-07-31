@@ -34,7 +34,10 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
       setLoading(true);
       try {
         const list = await HomeworkService.listForStudent(ctx, studentId);
-        if (!cancelled) setRows(list);
+        if (!cancelled) {
+          setRows(list);
+          setError(null);
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load homework");
       } finally {

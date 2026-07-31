@@ -123,9 +123,11 @@ export default function Assignments() {
         <button
           type="button"
           onClick={() => {
-            setLoadError(null);
             setLoading(true);
-            void reload().finally(() => setLoading(false));
+            void reload()
+              .then(() => setLoadError(null))
+              .catch((e) => setLoadError(e instanceof Error ? e.message : "Failed to load assignments"))
+              .finally(() => setLoading(false));
           }}
           className="text-[11px] font-bold text-[#3b5bdb]"
         >
@@ -192,16 +194,25 @@ export default function Assignments() {
         <SectionLabel>All assignments · HomeworkService</SectionLabel>
         <div className="space-y-3">
           {visible.length === 0 && (
-            <div className="text-xs text-[#46465a] py-8 text-center">No homework assigned yet.</div>
+            <div className="text-xs text-[#46465a] py-8 text-center">
+              {rows.length === 0
+                ? "No homework assigned yet."
+                : filter !== "all" || search.trim()
+                  ? "No assignments match this filter."
+                  : "No homework assigned yet."}
+            </div>
           )}
           {visible.map(({ homework: a, submission: s, displayStatus }) => {
             const col = subjectColor[a.subject] ?? "#78788c";
             const canSubmit =
               !s || ["pending", "submitted", "late", "returned"].includes(s.status);
+            const isReturned = s?.status === "returned";
             return (
               <div
                 key={a.id}
-                className="p-4 rounded-xl border border-white/7 bg-white/2 hover:border-white/15 transition-colors space-y-2"
+                className={`p-4 rounded-xl border bg-white/2 hover:border-white/15 transition-colors space-y-2 ${
+                  isReturned ? "border-amber-500/40" : "border-white/7"
+                }`}
               >
                 <div className="flex items-start gap-3">
                   <div
@@ -213,10 +224,16 @@ export default function Assignments() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <span className="text-sm font-semibold text-white">{a.title}</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-amber-500/15 text-amber-400">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
+                          isReturned
+                            ? "bg-amber-500/15 text-amber-400"
+                            : "bg-amber-500/15 text-amber-400"
+                        }`}
+                      >
                         {displayStatus}
                       </span>
-                      {s?.grade && (
+                      {s?.grade && !isReturned && (
                         <span className="text-xs font-bold text-purple-400">{s.grade}</span>
                       )}
                     </div>
@@ -235,7 +252,9 @@ export default function Assignments() {
                       </p>
                     )}
                     {s?.teacherRemarks && (
-                      <p className="text-[11px] text-[#4aa87a] mt-1">Teacher: {s.teacherRemarks}</p>
+                      <p className={`text-[11px] mt-1 ${isReturned ? "text-amber-400" : "text-[#4aa87a]"}`}>
+                        Teacher: {s.teacherRemarks}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -246,7 +265,7 @@ export default function Assignments() {
                         <textarea
                           value={content}
                           onChange={(e) => setContent(e.target.value)}
-                          placeholder="Your response / submission notes"
+                          placeholder={isReturned ? "Revise and resubmit…" : "Your response / submission notes"}
                           className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[70px]"
                         />
                         <div className="flex gap-2">
@@ -257,7 +276,7 @@ export default function Assignments() {
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-white"
                           >
                             {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-                            Submit
+                            {isReturned ? "Resubmit" : s ? "Replace submission" : "Submit"}
                           </button>
                           <button
                             type="button"
@@ -280,7 +299,11 @@ export default function Assignments() {
                         }}
                         className="text-[10px] font-bold text-[#3b5bdb]"
                       >
-                        {s ? "Replace submission" : "Submit homework"}
+                        {isReturned
+                          ? "Resubmit correction"
+                          : s
+                            ? "Replace submission"
+                            : "Submit homework"}
                       </button>
                     )}
                   </div>

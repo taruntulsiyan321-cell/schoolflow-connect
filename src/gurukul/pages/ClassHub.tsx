@@ -81,7 +81,7 @@ export default function ClassHub({ setPage }: Props) {
         setHwPct(Math.round(analytics?.homework.pct ?? 0));
         setHwTotal(hw.length);
         setHwPending(
-          hw.filter((r) => !r.submission || r.submission.status === "pending").length,
+          hw.filter((r) => !r.submission || ["pending", "returned"].includes(r.submission.status)).length,
         );
       } catch {
         /* empty engine state is fine */

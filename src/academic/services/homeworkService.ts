@@ -47,6 +47,8 @@ export interface HomeworkClassStatsRow extends HomeworkRecord {
   submitted: number;
   graded: number;
   pending: number;
+  awaitingReview: number;
+  returned: number;
   late: number;
   totalStudents: number;
   completionPct: number;
@@ -150,12 +152,26 @@ async function assertStudentInHomeworkClass(
   return hw;
 }
 
+function isPastDue(hw: HomeworkRecord, now = new Date()): boolean {
+  if (!hw.dueDate) return false;
+  return now.getTime() > new Date(`${hw.dueDate}T${hw.dueTime ?? "23:59:59"}`).getTime();
+}
+
+/** Statuses that count toward completion (returned still needs resubmit). */
+const COMPLETE_SUBMISSION_STATUSES = [
+  "submitted",
+  "late",
+  "reviewed",
+  "graded",
+  "completed",
+] as const;
+
 function studentDisplayStatus(
   hw: HomeworkRecord,
   sub: HomeworkSubmissionRecord | null,
 ): string {
   if (!sub) {
-    if (hw.dueDate && new Date(`${hw.dueDate}T23:59:59`) < new Date()) return "Late";
+    if (isPastDue(hw)) return "Late";
     return "Assigned";
   }
   switch (sub.status) {
@@ -251,12 +267,19 @@ export const HomeworkService = {
     return items.map((hw) => {
       const list = byHw.get(hw.id) ?? [];
       const submitted = list.filter((s) =>
-        ["submitted", "late", "reviewed", "returned", "graded", "completed"].includes(s.status),
+        (COMPLETE_SUBMISSION_STATUSES as readonly string[]).includes(s.status),
       ).length;
       const graded = list.filter((s) =>
         ["graded", "reviewed", "completed"].includes(s.status),
       ).length;
       const late = list.filter((s) => s.isLate || s.status === "late").length;
+      const awaitingReview = list.filter((s) =>
+        ["submitted", "late"].includes(s.status),
+      ).length;
+      const returned = list.filter((s) => s.status === "returned").length;
+      const turnedIn = list.filter(
+        (s) => s.status && s.status !== "pending",
+      ).length;
       const completionPct = totalStudents
         ? Math.round((Math.min(submitted, totalStudents) / totalStudents) * 1000) / 10
         : 0;
@@ -265,7 +288,9 @@ export const HomeworkService = {
         submitted,
         graded,
         late,
-        pending: Math.max(0, totalStudents - submitted),
+        awaitingReview,
+        returned,
+        pending: Math.max(0, totalStudents - turnedIn),
         totalStudents,
         completionPct,
       };
@@ -459,30 +484,9 @@ export const HomeworkService = {
     );
     const drafts = homework.filter((h) => h.status === "draft");
     const archived = homework.filter((h) => h.status === "archived");
-    const lateSubmissionCount = submissions.filter(
-      (s) => s.is_late || s.status === "late",
-    ).length;
     const gradedCount = submissions.filter((s) =>
       ["graded", "reviewed", "completed"].includes(String(s.status)),
     ).length;
-    const submittedCount = submissions.filter((s) =>
-      ["submitted", "late", "reviewed", "returned", "graded", "completed"].includes(
-        String(s.status),
-      ),
-    ).length;
-
-    const { count: studentCount } = await client
-      .from("students")
-      .select("id", { count: "exact", head: true })
-      .eq("school_id", schoolId);
-
-    const expected = (studentCount ?? 0) * Math.max(published.length, 0);
-    const schoolCompletionPct = expected
-      ? Math.round((Math.min(submittedCount, expected) / expected) * 1000) / 10
-      : 0;
-    const latePct = submittedCount
-      ? Math.round((lateSubmissionCount / submittedCount) * 1000) / 10
-      : 0;
 
     const hwByClass = new Map<string, typeof homework>();
     for (const h of homework) {
@@ -507,6 +511,10 @@ export const HomeworkService = {
       countByClass.set(s.class_id, (countByClass.get(s.class_id) ?? 0) + 1);
     }
 
+    let expectedTotal = 0;
+    let submittedTotal = 0;
+    let lateTotal = 0;
+
     const classRows = (classes ?? []).map((c) => {
       const list = hwByClass.get(c.id) ?? [];
       const pub = list.filter((h) => ["published", "active"].includes(String(h.status)));
@@ -515,14 +523,15 @@ export const HomeworkService = {
       for (const h of pub) {
         const ss = subByHw.get(h.id) ?? [];
         submitted += ss.filter((x) =>
-          ["submitted", "late", "reviewed", "returned", "graded", "completed"].includes(
-            String(x.status),
-          ),
+          (COMPLETE_SUBMISSION_STATUSES as readonly string[]).includes(String(x.status)),
         ).length;
         late += ss.filter((x) => x.is_late || x.status === "late").length;
       }
       const students = countByClass.get(c.id) ?? 0;
       const expectedClass = students * pub.length;
+      expectedTotal += expectedClass;
+      submittedTotal += submitted;
+      lateTotal += late;
       return {
         classId: c.id,
         className: c.name,
@@ -535,6 +544,13 @@ export const HomeworkService = {
       };
     });
 
+    const schoolCompletionPct = expectedTotal
+      ? Math.round((Math.min(submittedTotal, expectedTotal) / expectedTotal) * 1000) / 10
+      : 0;
+    const latePct = submittedTotal
+      ? Math.round((lateTotal / submittedTotal) * 1000) / 10
+      : 0;
+
     const teacherMap = new Map<string, number>();
     for (const h of homework) {
       if (!h.created_by) continue;
@@ -546,8 +562,8 @@ export const HomeworkService = {
       totalPublished: published.length,
       totalDrafts: drafts.length,
       totalArchived: archived.length,
-      submissionCount: submittedCount,
-      lateSubmissionCount,
+      submissionCount: submittedTotal,
+      lateSubmissionCount: lateTotal,
       gradedCount,
       schoolCompletionPct,
       latePct,
