@@ -44,11 +44,18 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       setLoading(true);
       setError(null);
       try {
-        const [students, profiles] = await Promise.all([
+        const settled = await Promise.allSettled([
           AttendanceService.listClassStudents(ctx, classId),
           AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
         ]);
         if (cancelled) return;
+        const students = settled[0].status === "fulfilled" ? settled[0].value : [];
+        const profiles = settled[1].status === "fulfilled" ? settled[1].value : [];
+        if (settled[0].status === "rejected") {
+          throw settled[0].reason instanceof Error
+            ? settled[0].reason
+            : new Error("Failed to load students");
+        }
         const byId = new Map(profiles.map((p) => [p.studentId, p]));
         setRows(
           students.map((s) => {
@@ -447,11 +454,16 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     (async () => {
       setLoading(true);
       try {
-        const [a, p] = await Promise.all([
+        const settled = await Promise.allSettled([
           AnalyticsService.forClass(ctx, classId),
           AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
         ]);
         if (cancelled) return;
+        const a = settled[0].status === "fulfilled" ? settled[0].value : null;
+        const p = settled[1].status === "fulfilled" ? settled[1].value : [];
+        if (settled[0].status === "rejected" && settled[1].status === "rejected") {
+          throw new Error("Failed to load insights");
+        }
         setAnalytics(a);
         setProfiles(p);
       } catch (e) {

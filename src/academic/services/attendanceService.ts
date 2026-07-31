@@ -24,7 +24,7 @@ import {
 } from "../repository/teacherClassesRepository";
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
-import { assertParentOwnsStudent } from "./parentAccess";
+import { assertMayAccessStudent } from "./parentAccess";
 
 export interface ClassDateAttendanceSummary {
   classId: string;
@@ -100,12 +100,7 @@ export const AttendanceService = {
     page?: PageParams,
   ): Promise<AttendanceRecord[]> {
     assertCanConsume(ctx, "attendance");
-    if (ctx.role === "student" && ctx.studentId && ctx.studentId !== studentId) {
-      throw new ForbiddenError("Students may only view their own attendance");
-    }
-    if (ctx.role === "parent") {
-      await assertParentOwnsStudent(ctx, studentId);
-    }
+    await assertMayAccessStudent(ctx, studentId);
     return listStudentAttendance(toRepoContext(ctx), studentId, page);
   },
 

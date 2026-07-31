@@ -17,6 +17,7 @@ import {
 import { teacherAssignedToClassSubject } from "../repository/teacherAssignmentRepository";
 import type { PageParams } from "../repository/base";
 import { ForbiddenError, isSchoolOperator } from "./context";
+import { assertMayAccessStudent } from "./parentAccess";
 
 /**
  * MarksService — Teacher publishes marks for assigned subjects only.
@@ -48,13 +49,7 @@ export const MarksService = {
     page?: PageParams,
   ): Promise<MarksRecord[]> {
     assertCanConsume(ctx, "marks");
-    if (ctx.role === "student" && ctx.studentId && ctx.studentId !== studentId) {
-      throw new ForbiddenError("Students may only view their own marks");
-    }
-    if (ctx.role === "parent") {
-      const { assertParentOwnsStudent } = await import("./parentAccess");
-      await assertParentOwnsStudent(ctx, studentId);
-    }
+    await assertMayAccessStudent(ctx, studentId);
     return listMarksForStudent(toRepoContext(ctx), studentId, page);
   },
 

@@ -14,10 +14,12 @@ import {
 import type { StudentAcademicProfile } from "../types";
 import type { PageParams } from "../repository/base";
 import { isSchoolOperator } from "./context";
+import { assertMayAccessStudent } from "./parentAccess";
 
 /**
  * AcademicProfileService — read-only for panels.
  * Writes are owned by the sync engine (Phase 4), not UI.
+ * All student-scoped reads use assertMayAccessStudent.
  */
 export const AcademicProfileService = {
   async get(
@@ -25,17 +27,13 @@ export const AcademicProfileService = {
     studentId: string,
   ): Promise<StudentAcademicProfile | null> {
     assertCanConsume(ctx, "student_academic_profile");
-    if (ctx.role === "student" && ctx.studentId && ctx.studentId !== studentId) {
-      throw new ForbiddenError("Students may only view their own academic profile");
-    }
+    await assertMayAccessStudent(ctx, studentId);
     return getStudentAcademicProfile(toRepoContext(ctx), studentId);
   },
 
   async require(ctx: ServiceContext, studentId: string): Promise<StudentAcademicProfile> {
     assertCanConsume(ctx, "student_academic_profile");
-    if (ctx.role === "student" && ctx.studentId && ctx.studentId !== studentId) {
-      throw new ForbiddenError("Students may only view their own academic profile");
-    }
+    await assertMayAccessStudent(ctx, studentId);
     return requireStudentAcademicProfile(toRepoContext(ctx), studentId);
   },
 
@@ -49,7 +47,6 @@ export const AcademicProfileService = {
       throw new ForbiddenError("Class academic profiles are staff-only");
     }
     if (ctx.role === "student") {
-      // Students may only read their own class roster profiles (for rankings).
       const { getClient, schoolIdOf } = await import("../repository/base");
       const repo = toRepoContext(ctx);
       const { data: me, error } = await getClient(repo)
@@ -61,6 +58,10 @@ export const AcademicProfileService = {
       if (error || !me?.class_id || me.class_id !== classId) {
         throw new ForbiddenError("Students may only view rankings for their own class");
       }
+    }
+    if (ctx.role === "teacher") {
+      const { assertTeacherOwnsClass } = await import("../repository/teacherClassesRepository");
+      await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, classId);
     }
     return listClassAcademicProfiles(toRepoContext(ctx), classId, page);
   },
@@ -79,7 +80,7 @@ export const AcademicProfileService = {
 
   /** Bootstrap shell only — does not recompute metrics (Phase 4 sync does). */
   async ensure(ctx: ServiceContext, studentId: string): Promise<string> {
-    if (ctx.role !== "admin" && ctx.role !== "principal" && ctx.role !== "super_admin") {
+    if (!isSchoolOperator(ctx.role)) {
       throw new ForbiddenError("Only school operators may ensure academic profiles");
     }
     return ensureAcademicProfile(toRepoContext(ctx), studentId);

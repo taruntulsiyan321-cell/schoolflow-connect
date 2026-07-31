@@ -423,3 +423,150 @@ export function PrincipalAttendanceLive() {
     </div>
   );
 }
+
+/**
+ * Live teacher directory + academic KPIs from AnalyticsService.forTeacher.
+ * No fake avg/attendance/homework columns.
+ */
+export function PrincipalTeachersLive() {
+  const { ctx, ready } = useAcademicContext();
+  const [rows, setRows] = useState<
+    {
+      id: string;
+      name: string;
+      subject: string;
+      status: string;
+      classCount: number;
+      subjects: string[];
+      avgAttendancePct: number;
+      avgHomeworkCompletionPct: number;
+      avgExamsPct: number;
+      avgTestsPct: number;
+      studentCount: number;
+    }[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data: teachers, error: tErr } = await supabase
+          .from("teachers")
+          .select("id, full_name, subject, status")
+          .eq("school_id", ctx.schoolId)
+          .order("full_name");
+        if (tErr) throw new Error(tErr.message);
+        const list = teachers ?? [];
+        const enriched = [];
+        for (const t of list) {
+          const perf = await AnalyticsService.forTeacher(ctx, t.id).catch(() => null);
+          enriched.push({
+            id: t.id,
+            name: t.full_name ?? "Teacher",
+            subject: t.subject ?? perf?.assignedSubjects[0] ?? "-",
+            status: t.status ?? "active",
+            classCount: perf?.classCount ?? 0,
+            subjects: perf?.assignedSubjects ?? [],
+            avgAttendancePct: perf?.avgAttendancePct ?? 0,
+            avgHomeworkCompletionPct: perf?.avgHomeworkCompletionPct ?? 0,
+            avgExamsPct: perf?.avgExamsPct ?? 0,
+            avgTestsPct: perf?.avgTestsPct ?? 0,
+            studentCount: perf?.studentCount ?? 0,
+          });
+        }
+        if (!cancelled) setRows(enriched);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load teachers");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx]);
+
+  const filtered = rows.filter(
+    (t) =>
+      !search ||
+      t.name.toLowerCase().includes(search.toLowerCase()) ||
+      t.subject.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  if (loading) return <Loading label="Loading teacher analytics..." />;
+  if (error) return <div style={{ color: "var(--rose)", fontSize: 13 }}>{error}</div>;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search teachers..."
+          style={{
+            flex: 1, maxWidth: 280, border: "1px solid var(--border)", borderRadius: 9,
+            padding: "8px 14px", fontSize: 13, background: "var(--surface)", color: "var(--text-primary)",
+          }}
+        />
+        <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{filtered.length} teachers</div>
+      </div>
+
+      {filtered.length === 0 ? (
+        <Empty message="No teachers found. Academic KPIs appear once teacher_classes and profiles sync." />
+      ) : (
+        <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: 12 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                {["Teacher", "Subject", "Classes", "Students", "Att %", "HW %", "Exams %", "Tests %", "Status"].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      fontSize: 11, color: "var(--text-muted)", textAlign: "left", padding: "10px 16px",
+                      fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em",
+                      borderBottom: "1px solid var(--border)",
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((t, i) => (
+                <tr key={t.id} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg)" }}>
+                  <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 600, color: "var(--text-primary)" }}>{t.name}</td>
+                  <td style={{ padding: "12px 16px", fontSize: 12, color: "var(--text-secondary)" }}>{t.subject}</td>
+                  <td style={{ padding: "12px 16px", fontSize: 12 }} className="font-mono-data">{t.classCount || "-"}</td>
+                  <td style={{ padding: "12px 16px", fontSize: 12 }} className="font-mono-data">{t.studentCount || "-"}</td>
+                  <td style={{ padding: "12px 16px", fontSize: 12, fontWeight: 700 }} className="font-mono-data">
+                    {t.classCount ? `${Math.round(t.avgAttendancePct)}%` : "-"}
+                  </td>
+                  <td style={{ padding: "12px 16px", fontSize: 12 }} className="font-mono-data">
+                    {t.classCount ? `${Math.round(t.avgHomeworkCompletionPct)}%` : "-"}
+                  </td>
+                  <td style={{ padding: "12px 16px", fontSize: 12 }} className="font-mono-data">
+                    {t.classCount ? `${Math.round(t.avgExamsPct)}%` : "-"}
+                  </td>
+                  <td style={{ padding: "12px 16px", fontSize: 12 }} className="font-mono-data">
+                    {t.classCount ? `${Math.round(t.avgTestsPct)}%` : "-"}
+                  </td>
+                  <td style={{ padding: "12px 16px", fontSize: 11, textTransform: "capitalize", color: "var(--text-muted)" }}>{t.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p style={{ fontSize: 10, color: "var(--text-muted)" }}>
+        AnalyticsService.forTeacher - assigned class profile averages (empty when no assignments)
+      </p>
+    </div>
+  );
+}

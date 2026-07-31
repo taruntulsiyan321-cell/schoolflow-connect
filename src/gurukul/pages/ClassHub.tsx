@@ -67,15 +67,18 @@ export default function ClassHub({ setPage }: Props) {
     (async () => {
       setLoading(true);
       try {
-        const [profile, analytics, hw] = await Promise.all([
+        const settled = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AnalyticsService.forStudent(ctx, studentId),
           HomeworkService.listForStudent(ctx, studentId),
         ]);
         if (cancelled) return;
-        setAttPct(Math.round(profile?.attendancePct ?? analytics.attendance.pct));
-        setExamAvg(Math.round(analytics.exams.averagePct));
-        setHwPct(Math.round(analytics.homework.pct));
+        const profile = settled[0].status === "fulfilled" ? settled[0].value : null;
+        const analytics = settled[1].status === "fulfilled" ? settled[1].value : null;
+        const hw = settled[2].status === "fulfilled" ? settled[2].value : [];
+        setAttPct(Math.round(profile?.attendancePct ?? analytics?.attendance.pct ?? 0));
+        setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
+        setHwPct(Math.round(analytics?.homework.pct ?? 0));
         setHwTotal(hw.length);
         setHwPending(
           hw.filter((r) => !r.submission || r.submission.status === "pending").length,

@@ -7,7 +7,7 @@ import {
   PRINCIPAL_NAV_LABEL,
   principalPathToPage,
 } from './nav'
-import { PrincipalSchoolOverview, PrincipalClassRollups, PrincipalStudentRankings, PrincipalAttendanceLive } from './PrincipalLiveAcademic'
+import { PrincipalSchoolOverview, PrincipalClassRollups, PrincipalStudentRankings, PrincipalAttendanceLive, PrincipalTeachersLive } from './PrincipalLiveAcademic'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, ComposedChart,
   PieChart, Pie, Legend,
@@ -81,16 +81,7 @@ function StatTile({ label, value, color, icon: Icon }: { label: string; value: s
 // ── Data ──────────────────────────────────────────────────────────────────────
 // Academic mocks (attendance trends, class/subject scores, rankings, exam schedules)
 // have been removed — those pages now render live Academic Engine data instead.
-// Remaining mocks below are non-academic (teacher directory, announcements, messages).
-
-const teachers = [
-  { name: 'Ms. Priya Singh', subject: 'Science', classes: ['8A', '8B', '9A'], avg: 88, attendance: '98%', tests: 12, homework: 34, status: 'active', avatar: 'PS' },
-  { name: 'Mr. Ramesh Kumar', subject: 'Mathematics', classes: ['9A', '9B', '10A'], avg: 74, attendance: '95%', tests: 18, homework: 28, status: 'active', avatar: 'RK' },
-  { name: 'Ms. Anita Sharma', subject: 'English', classes: ['7A', '7B', '8A'], avg: 85, attendance: '97%', tests: 10, homework: 42, status: 'active', avatar: 'AS' },
-  { name: 'Mr. Suresh Nair', subject: 'History', classes: ['11A', '12A'], avg: 82, attendance: '91%', tests: 8, homework: 22, status: 'on-leave', avatar: 'SN' },
-  { name: 'Ms. Kavitha Reddy', subject: 'Chemistry', classes: ['10A', '11A', '12A'], avg: 77, attendance: '96%', tests: 14, homework: 38, status: 'active', avatar: 'KR' },
-  { name: 'Mr. Arun Pillai', subject: 'Physics', classes: ['10B', '11B'], avg: 69, attendance: '93%', tests: 11, homework: 19, status: 'leave-pending', avatar: 'AP' },
-]
+// Remaining mocks below are non-academic (announcements, messages).
 
 const announcements = [
   { title: 'Annual Sports Day — 15 August', audience: 'All', date: '27 Jul', status: 'published', author: 'Principal Office' },
@@ -116,42 +107,6 @@ const convMessages = [
   { from: 'them', text: 'No impact on exam prep. We\'ve ensured all revision practicals are completed by Friday. Please review the updated timetable.', time: '9:41 AM' },
   { from: 'them', text: 'Also, the Science Fair registrations are coming in well — 34 teams so far across Classes 9–12.', time: '9:42 AM' },
 ]
-
-// ── KPI Card ──────────────────────────────────────────────────────────────────
-function KPICard({ icon: Icon, label, value, delta, deltaDir, color, sub }: {
-  icon: React.ElementType; label: string; value: string; delta?: string; deltaDir?: 'up' | 'down'; color: string; sub?: string
-}) {
-  return (
-    <div style={{
-      background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '20px 22px',
-      boxShadow: 'var(--shadow-sm)', border: '1px solid var(--border-subtle)', display: 'flex',
-      flexDirection: 'column', gap: 12, transition: 'box-shadow 0.2s', cursor: 'default',
-    }}
-      onMouseEnter={e => (e.currentTarget.style.boxShadow = 'var(--shadow)')}
-      onMouseLeave={e => (e.currentTarget.style.boxShadow = 'var(--shadow-sm)')}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ width: 38, height: 38, borderRadius: 10, background: color + '18', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon size={18} color={color} />
-        </div>
-        {delta && (
-          <span style={{
-            display: 'flex', alignItems: 'center', gap: 2, fontSize: 11, fontWeight: 600,
-            color: deltaDir === 'up' ? '#10b981' : '#f43f5e',
-            background: deltaDir === 'up' ? '#d1fae5' : '#ffe4e6', borderRadius: 6, padding: '2px 7px',
-          }}>
-            {deltaDir === 'up' ? <TrendingUp size={11} /> : <TrendingDown size={11} />} {delta}
-          </span>
-        )}
-      </div>
-      <div>
-        <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>{value}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{label}</div>
-        {sub && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
-      </div>
-    </div>
-  )
-}
 
 // ── Nav items ─────────────────────────────────────────────────────────────────
 
@@ -196,76 +151,10 @@ function AnalyticsPage() {
 
 
 function TeachersPage() {
-  const [search, setSearch] = useState('')
-  const filtered = teachers.filter(t => t.name.toLowerCase().includes(search.toLowerCase()) || t.subject.toLowerCase().includes(search.toLowerCase()))
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <SectionTitle sub="All teaching staff — academic performance overview">Teachers</SectionTitle>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 9, padding: '8px 14px' }}>
-            <Search size={13} color="var(--text-muted)" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search teachers..." style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, width: 160 }} />
-          </div>
-          <button style={{ fontSize: 12, color: '#fff', background: 'var(--indigo)', border: 'none', borderRadius: 9, padding: '8px 16px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Plus size={13} /> Add Teacher
-          </button>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 }}>
-        <KPICard icon={Users} label="Total Teachers" value="98" color="#3b5bdb" />
-        <KPICard icon={CheckCircle} label="Active Today" value="93" delta="+0" deltaDir="up" color="#10b981" />
-        <KPICard icon={Clock} label="Leave Pending" value="4" color="#f59e0b" />
-        <KPICard icon={AlertTriangle} label="Need Support" value="4" color="#f43f5e" />
-      </div>
-
-      <Card style={{ padding: 0 }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>Teacher Directory</span>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>{['Teacher', 'Subject', 'Classes', 'Avg Student Score', 'Attendance', 'Tests', 'Homework', 'Status'].map(h => (
-                <th key={h} style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'left', padding: '10px 20px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody>
-              {filtered.map((t, i) => {
-                const statusColor = t.status === 'active' ? '#10b981' : t.status === 'on-leave' ? '#f43f5e' : '#f59e0b'
-                const statusLabel = t.status === 'active' ? 'Active' : t.status === 'on-leave' ? 'On Leave' : 'Leave Pending'
-                return (
-                  <tr key={t.name} style={{ background: i % 2 === 0 ? 'transparent' : '#fafafa', transition: 'background 0.15s', cursor: 'pointer' }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f0f4ff'}
-                    onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : '#fafafa'}
-                  >
-                    <td style={{ padding: '14px 20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--indigo-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'var(--indigo)', flexShrink: 0 }}>{t.avatar}</div>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t.name}</div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '14px 20px', fontSize: 13, color: 'var(--text-secondary)' }}>{t.subject}</td>
-                    <td style={{ padding: '14px 20px' }}>
-                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                        {t.classes.map(c => <span key={c} style={{ fontSize: 10, background: 'var(--indigo-light)', color: 'var(--indigo)', borderRadius: 4, padding: '2px 6px', fontWeight: 600 }}>{c}</span>)}
-                      </div>
-                    </td>
-                    <td style={{ padding: '14px 20px' }} className="font-mono-data">
-                      <span style={{ color: t.avg >= 85 ? '#10b981' : t.avg >= 75 ? '#3b5bdb' : '#f43f5e', fontWeight: 700 }}>{t.avg}%</span>
-                    </td>
-                    <td style={{ padding: '14px 20px', fontSize: 13, color: 'var(--text-secondary)' }} className="font-mono-data">{t.attendance}</td>
-                    <td style={{ padding: '14px 20px', fontSize: 13, color: 'var(--text-secondary)' }} className="font-mono-data">{t.tests}</td>
-                    <td style={{ padding: '14px 20px', fontSize: 13, color: 'var(--text-secondary)' }} className="font-mono-data">{t.homework}</td>
-                    <td style={{ padding: '14px 20px' }}><Chip color={statusColor}>{statusLabel}</Chip></td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <SectionTitle sub="AnalyticsService.forTeacher · live directory — empty when no assignments">Teachers</SectionTitle>
+      <Card><PrincipalTeachersLive /></Card>
     </div>
   )
 }

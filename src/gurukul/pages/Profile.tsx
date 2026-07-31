@@ -31,7 +31,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     (async () => {
       setLoading(true);
       try {
-        const [{ data: s }, profile, analytics] = await Promise.all([
+        const settled = await Promise.allSettled([
           supabase
             .from("students")
             .select("full_name, roll_number, classes(name, section)")
@@ -41,15 +41,19 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           AnalyticsService.forStudent(ctx, studentId),
         ]);
         if (cancelled) return;
+        const sRes = settled[0].status === "fulfilled" ? settled[0].value : null;
+        const s = sRes?.data;
+        const profile = settled[1].status === "fulfilled" ? settled[1].value : null;
+        const analytics = settled[2].status === "fulfilled" ? settled[2].value : null;
         setName(s?.full_name ?? "Student");
         const cls = s?.classes as { name?: string; section?: string } | null;
         setClassLabel(
           cls ? `${cls.name ?? ""} ${cls.section ?? ""} · Roll ${s?.roll_number ?? "—"}` : "",
         );
-        setAttPct(Math.round(profile?.attendancePct ?? analytics.attendance.pct));
-        setExamAvg(Math.round(analytics.exams.averagePct));
-        setHwPct(Math.round(analytics.homework.pct));
-        setTestsAvg(Math.round(analytics.tests.averagePct));
+        setAttPct(Math.round(profile?.attendancePct ?? analytics?.attendance.pct ?? 0));
+        setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
+        setHwPct(Math.round(analytics?.homework.pct ?? 0));
+        setTestsAvg(Math.round(analytics?.tests.averagePct ?? 0));
       } catch {
         /* empty */
       } finally {

@@ -4,7 +4,6 @@ import {
   listClassAcademicProfiles,
 } from "../repository/academicProfileRepository";
 import { getClient, schoolIdOf, throwIfError, type RepoContext } from "../repository/base";
-import { NotFoundError } from "../repository/errors";
 
 /**
  * AnalyticsFoundation — compute metrics from academic facts / profiles.
@@ -28,6 +27,46 @@ export interface MarksAnalytics {
   averagePct: number;
   highestPct: number | null;
   lowestPct: number | null;
+}
+
+export type StudentAnalyticsBundle = {
+  attendance: AttendanceAnalytics;
+  homework: CompletionAnalytics;
+  tests: MarksAnalytics;
+  exams: MarksAnalytics;
+  practice: CompletionAnalytics;
+  profile: StudentAcademicProfile;
+  /** True when no profile row exists yet — zeros, not an error. */
+  isEmpty: boolean;
+};
+
+/** Zeroed profile shell so panels can render before sync creates a row. */
+export function emptyStudentProfile(studentId: string, schoolId: string): StudentAcademicProfile {
+  return {
+    id: "",
+    schoolId,
+    studentId,
+    academicYearId: null,
+    attendancePresent: 0,
+    attendanceTotal: 0,
+    attendancePct: 0,
+    homeworkAssigned: 0,
+    homeworkSubmitted: 0,
+    homeworkCompletionPct: 0,
+    testsAttempted: 0,
+    testsAvgPct: 0,
+    examsRecorded: 0,
+    examsAvgPct: 0,
+    practiceSessions: 0,
+    practiceAccuracyPct: 0,
+    doubtsAsked: 0,
+    doubtsResolved: 0,
+    remarksCount: 0,
+    metrics: {},
+    lastEventType: null,
+    lastEventAt: null,
+    refreshedAt: new Date().toISOString(),
+  };
 }
 
 export function attendanceFromProfile(profile: StudentAcademicProfile): AttendanceAnalytics {
@@ -55,22 +94,10 @@ export function averageMarksFromProfile(profile: StudentAcademicProfile): MarksA
   };
 }
 
-export async function getStudentAnalytics(
-  ctx: RepoContext,
-  studentId: string,
-): Promise<{
-  attendance: AttendanceAnalytics;
-  homework: CompletionAnalytics;
-  tests: MarksAnalytics;
-  exams: MarksAnalytics;
-  practice: CompletionAnalytics;
-  profile: StudentAcademicProfile;
-}> {
-  const profile = await getStudentAcademicProfile(ctx, studentId);
-  if (!profile) throw new NotFoundError("student_academic_profile", studentId);
-
+function bundleFromProfile(profile: StudentAcademicProfile, isEmpty: boolean): StudentAnalyticsBundle {
   return {
     profile,
+    isEmpty,
     attendance: attendanceFromProfile(profile),
     homework: homeworkCompletionFromProfile(profile),
     tests: {
@@ -86,6 +113,21 @@ export async function getStudentAnalytics(
       pct: profile.practiceAccuracyPct,
     },
   };
+}
+
+/**
+ * Student analytics. Missing profile → empty zeros (isEmpty: true), never NotFound.
+ * Callers must authorize before invoking.
+ */
+export async function getStudentAnalytics(
+  ctx: RepoContext,
+  studentId: string,
+): Promise<StudentAnalyticsBundle> {
+  const profile = await getStudentAcademicProfile(ctx, studentId);
+  if (!profile) {
+    return bundleFromProfile(emptyStudentProfile(studentId, schoolIdOf(ctx)), true);
+  }
+  return bundleFromProfile(profile, false);
 }
 
 export async function getClassPerformance(
@@ -190,6 +232,78 @@ export async function getSchoolClassRollups(ctx: RepoContext): Promise<
   return out;
 }
 
+/**
+ * Teacher academic rollup — averages of assigned classes' profile metrics.
+ * No fake KPIs; empty when teacher has no assignments.
+ */
+export async function getTeacherPerformance(
+  ctx: RepoContext,
+  teacherId: string,
+): Promise<{
+  teacherId: string;
+  classCount: number;
+  classIds: string[];
+  assignedSubjects: string[];
+  avgAttendancePct: number;
+  avgHomeworkCompletionPct: number;
+  avgExamsPct: number;
+  avgTestsPct: number;
+  studentCount: number;
+}> {
+  const schoolId = schoolIdOf(ctx);
+  const { data, error } = await getClient(ctx)
+    .from("teacher_classes")
+    .select("class_id, subject")
+    .eq("school_id", schoolId)
+    .eq("teacher_id", teacherId);
+  throwIfError(error, "Failed to load teacher assignments");
+
+  const rows = data ?? [];
+  const classIds = [...new Set(rows.map((r) => r.class_id).filter(Boolean))] as string[];
+  const subjects = [...new Set(rows.map((r) => r.subject).filter(Boolean))] as string[];
+
+  if (classIds.length === 0) {
+    return {
+      teacherId,
+      classCount: 0,
+      classIds: [],
+      assignedSubjects: subjects,
+      avgAttendancePct: 0,
+      avgHomeworkCompletionPct: 0,
+      avgExamsPct: 0,
+      avgTestsPct: 0,
+      studentCount: 0,
+    };
+  }
+
+  let studentCount = 0;
+  let att = 0;
+  let hw = 0;
+  let exams = 0;
+  let tests = 0;
+  for (const classId of classIds) {
+    const perf = await getClassPerformance(ctx, classId);
+    studentCount += perf.studentCount;
+    att += perf.avgAttendancePct;
+    hw += perf.avgHomeworkCompletionPct;
+    exams += perf.avgExamsPct;
+    tests += perf.avgTestsPct;
+  }
+  const n = classIds.length;
+
+  return {
+    teacherId,
+    classCount: classIds.length,
+    classIds,
+    assignedSubjects: subjects,
+    avgAttendancePct: round(att / n),
+    avgHomeworkCompletionPct: round(hw / n),
+    avgExamsPct: round(exams / n),
+    avgTestsPct: round(tests / n),
+    studentCount,
+  };
+}
+
 function round(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -199,6 +313,8 @@ export const AnalyticsFoundation = {
   getClassPerformance,
   getSchoolPerformance,
   getSchoolClassRollups,
+  getTeacherPerformance,
+  emptyStudentProfile,
   attendanceFromProfile,
   homeworkCompletionFromProfile,
   averageMarksFromProfile,

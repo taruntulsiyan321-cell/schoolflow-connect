@@ -1,7 +1,6 @@
 import type { ClassAiSummary, SchoolAiSummary, StudentAiSummary } from "../types";
 import { getStudentAcademicProfile, listClassAcademicProfiles } from "../repository/academicProfileRepository";
 import type { RepoContext } from "../repository/base";
-import { NotFoundError } from "../repository/errors";
 import { getClassPerformance, getSchoolPerformance } from "../analytics/foundation";
 
 /**
@@ -20,7 +19,23 @@ export async function buildStudentAiSummary(
   studentId: string,
 ): Promise<StudentAiSummary> {
   const profile = await getStudentAcademicProfile(ctx, studentId);
-  if (!profile) throw new NotFoundError("student_academic_profile", studentId);
+  if (!profile) {
+    const { schoolIdOf } = await import("../repository/base");
+    return {
+      studentId,
+      schoolId: schoolIdOf(ctx),
+      attendancePct: 0,
+      homeworkCompletionPct: 0,
+      testsAvgPct: 0,
+      examsAvgPct: 0,
+      practiceAccuracyPct: 0,
+      doubtsAsked: 0,
+      doubtsResolved: 0,
+      weakTopics: [],
+      strongTopics: [],
+      trends: { isEmpty: true },
+    };
+  }
 
   return {
     studentId: profile.studentId,

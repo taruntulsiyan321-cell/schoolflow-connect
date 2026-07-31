@@ -1,0 +1,14 @@
+---
+description: Always commit and push meaningful code changes to the remote repository
+alwaysApply: true
+---
+
+# Auto commit and push
+
+Whenever you make meaningful code changes in this repository:
+
+1. Create a git commit for those changes (follow the project's commit message style).
+2. Immediately push the commit to the tracked remote branch (`git push` / `git push -u origin HEAD` if needed).
+3. Do this without waiting for the user to ask again — the user has explicitly requested automatic push after changes.
+4. Never force-push to `main`/`master` unless the user explicitly requests it.
+5. Do not commit secrets, `.env`, credentials, or unrelated local Cursor config unless the user asks.

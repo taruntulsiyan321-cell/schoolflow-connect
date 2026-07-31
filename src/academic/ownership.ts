@@ -223,8 +223,8 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
   analytics: {
     entity: "analytics",
     owners: ["admin", "principal"],
-    consumers: ["admin", "principal", "teacher"],
-    description: "Computed analytics from academic records",
+    consumers: ["student", "parent", "teacher", "principal", "admin"],
+    description: "Computed analytics from academic records — scoped by ownership at service layer",
   },
 };
 

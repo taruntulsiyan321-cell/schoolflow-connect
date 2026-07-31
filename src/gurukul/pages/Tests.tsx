@@ -33,17 +33,21 @@ export default function Tests() {
     (async () => {
       setLoading(true);
       try {
-        const [markRows, analytics, examRows, tests] = await Promise.all([
+        const settled = await Promise.allSettled([
           MarksService.listForStudent(ctx, studentId, { limit: 100 }),
           AnalyticsService.forStudent(ctx, studentId),
           classId ? MarksService.listExamsForClass(ctx, classId, { limit: 50 }) : Promise.resolve([]),
           classId ? TestService.listForClass(ctx, classId) : Promise.resolve([]),
         ]);
         if (cancelled) return;
+        const markRows = settled[0].status === "fulfilled" ? settled[0].value : [];
+        const analytics = settled[1].status === "fulfilled" ? settled[1].value : null;
+        const examRows = settled[2].status === "fulfilled" ? settled[2].value : [];
+        const tests = settled[3].status === "fulfilled" ? settled[3].value : [];
         setMarks(markRows);
         setExams(examRows);
-        setAvgPct(Math.round(analytics.exams.averagePct));
-        setTestsAvg(Math.round(analytics.tests.averagePct));
+        setAvgPct(Math.round(analytics?.exams.averagePct ?? 0));
+        setTestsAvg(Math.round(analytics?.tests.averagePct ?? 0));
         setUpcoming(
           (tests as { id: string; title: string; subject?: string }[]).map((t) => ({
             id: t.id,

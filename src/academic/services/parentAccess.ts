@@ -1,5 +1,6 @@
-import { ForbiddenError, toRepoContext, type ServiceContext } from "./context";
+import { ForbiddenError, isSchoolOperator, toRepoContext, type ServiceContext } from "./context";
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
+import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
 
 /** Verify parent may access a student via parent_user_id or parents→parent_students. */
 export async function assertParentOwnsStudent(
@@ -44,14 +45,66 @@ export async function assertParentOwnsStudent(
   }
 }
 
+/** Teacher may access a student only if assigned to that student's class. */
+export async function assertTeacherMayAccessStudent(
+  ctx: ServiceContext,
+  studentId: string,
+): Promise<void> {
+  const repo = toRepoContext(ctx);
+  const schoolId = schoolIdOf(repo);
+  const { data: student, error } = await getClient(repo)
+    .from("students")
+    .select("id, class_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  throwIfError(error, "Failed to load student for teacher access");
+  if (!student?.class_id) {
+    throw new ForbiddenError("Teachers may only view students in their assigned classes");
+  }
+  await assertTeacherOwnsClass(repo, ctx.userId, student.class_id);
+}
+
+/**
+ * Centralized student-scoped read authorization for academic panels.
+ * Student → self; Parent → linked children; Teacher → assigned classes;
+ * Principal/Admin → school (tenant scoped by repo).
+ */
 export async function assertMayAccessStudent(
   ctx: ServiceContext,
   studentId: string,
 ): Promise<void> {
-  if (ctx.role === "student" && ctx.studentId && ctx.studentId !== studentId) {
-    throw new ForbiddenError("Students may only view their own academic data");
+  if (isSchoolOperator(ctx.role)) return;
+
+  if (ctx.role === "student") {
+    if (ctx.studentId && ctx.studentId !== studentId) {
+      throw new ForbiddenError("Students may only view their own academic data");
+    }
+    if (!ctx.studentId) {
+      const repo = toRepoContext(ctx);
+      const { data: me, error } = await getClient(repo)
+        .from("students")
+        .select("id")
+        .eq("user_id", ctx.userId)
+        .eq("school_id", schoolIdOf(repo))
+        .maybeSingle();
+      throwIfError(error, "Failed to resolve student identity");
+      if (!me?.id || me.id !== studentId) {
+        throw new ForbiddenError("Students may only view their own academic data");
+      }
+    }
+    return;
   }
+
   if (ctx.role === "parent") {
     await assertParentOwnsStudent(ctx, studentId);
+    return;
   }
+
+  if (ctx.role === "teacher") {
+    await assertTeacherMayAccessStudent(ctx, studentId);
+    return;
+  }
+
+  throw new ForbiddenError("Not authorized to access this student");
 }

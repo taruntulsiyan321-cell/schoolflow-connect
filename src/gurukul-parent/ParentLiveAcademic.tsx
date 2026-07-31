@@ -105,10 +105,12 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
         let examRows: Awaited<ReturnType<typeof MarksService.listExamsForClass>> = [];
         let testRows: any[] = [];
         if (classId) {
-          [examRows, testRows] = await Promise.all([
+          const settled = await Promise.allSettled([
             MarksService.listExamsForClass(ctx, classId, { limit: 50 }),
             TestService.listForClass(ctx, classId),
           ]);
+          examRows = settled[0].status === "fulfilled" ? settled[0].value : [];
+          testRows = settled[1].status === "fulfilled" ? settled[1].value : [];
         }
         if (cancelled) return;
         setMarks(markRows);
@@ -198,12 +200,20 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
     (async () => {
       setLoading(true);
       try {
-        const [p, a, summary] = await Promise.all([
+        const settled = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AnalyticsService.forStudent(ctx, studentId),
-          AiSummaryService.student(ctx, studentId).catch(() => null),
+          AiSummaryService.student(ctx, studentId),
         ]);
         if (cancelled) return;
+        if (settled.every((s) => s.status === "rejected")) {
+          const first = settled[0] as PromiseRejectedResult;
+          setError(first.reason instanceof Error ? first.reason.message : "Failed to load performance");
+          return;
+        }
+        const p = settled[0].status === "fulfilled" ? settled[0].value : null;
+        const a = settled[1].status === "fulfilled" ? settled[1].value : null;
+        const summary = settled[2].status === "fulfilled" ? settled[2].value : null;
         setProfile(p);
         setAnalytics(a);
         setAi(

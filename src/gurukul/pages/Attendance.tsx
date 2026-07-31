@@ -30,11 +30,13 @@ export default function Attendance() {
     (async () => {
       setLoading(true);
       try {
-        const [profile, list] = await Promise.all([
+        const settled = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AttendanceService.listForStudent(ctx, studentId, { limit: 120 }),
         ]);
         if (cancelled) return;
+        const profile = settled[0].status === "fulfilled" ? settled[0].value : null;
+        const list = settled[1].status === "fulfilled" ? settled[1].value : [];
         setRecords(list);
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);

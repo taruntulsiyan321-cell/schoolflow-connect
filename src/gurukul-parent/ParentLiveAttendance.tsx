@@ -28,11 +28,13 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
       setLoading(true);
       setError(null);
       try {
-        const [profile, list] = await Promise.all([
+        const settled = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AttendanceService.listForStudent(ctx, studentId, { limit: 120 }),
         ]);
         if (cancelled) return;
+        const profile = settled[0].status === "fulfilled" ? settled[0].value : null;
+        const list = settled[1].status === "fulfilled" ? settled[1].value : [];
         setRecords(list);
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);
@@ -170,11 +172,13 @@ export function useChildAttendancePct(studentId: string | null) {
     (async () => {
       try {
         const today = new Date().toISOString().slice(0, 10);
-        const [profile, list] = await Promise.all([
+        const settled = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AttendanceService.listForStudent(ctx, studentId, { limit: 40 }),
         ]);
         if (cancelled) return;
+        const profile = settled[0].status === "fulfilled" ? settled[0].value : null;
+        const list = settled[1].status === "fulfilled" ? settled[1].value : [];
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);
         setTotal(profile?.attendanceTotal ?? 0);
