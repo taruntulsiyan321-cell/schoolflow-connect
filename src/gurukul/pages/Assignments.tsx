@@ -12,7 +12,8 @@ export default function Assignments() {
   const { ctx, ready, studentId } = useAcademicContext();
   const [rows, setRows] = useState<StudentHomeworkRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "pending" | "done">("all");
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -35,9 +36,9 @@ export default function Assignments() {
       setLoading(true);
       try {
         await reload();
-        if (!cancelled) setError(null);
+        if (!cancelled) setLoadError(null);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load assignments");
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Failed to load assignments");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -76,8 +77,13 @@ export default function Assignments() {
   }, [rows, filter, pending, completed, search]);
 
   const submit = async (homeworkId: string) => {
-    if (!ctx || !studentId || !content.trim()) return;
+    if (!ctx || !studentId) return;
+    if (!content.trim()) {
+      setActionError("Enter your submission before sending");
+      return;
+    }
     setSaving(true);
+    setActionError(null);
     try {
       await HomeworkService.submit(ctx, {
         homeworkId,
@@ -88,7 +94,7 @@ export default function Assignments() {
       setContent("");
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Submit failed");
+      setActionError(e instanceof Error ? e.message : "Submit failed");
     } finally {
       setSaving(false);
     }
@@ -110,12 +116,35 @@ export default function Assignments() {
     );
   }
 
-  if (error) {
-    return <div className="text-center text-sm text-[#cc5069] py-16">{error}</div>;
+  if (loadError) {
+    return (
+      <div className="text-center py-16 space-y-3">
+        <div className="text-sm text-[#cc5069]">{loadError}</div>
+        <button
+          type="button"
+          onClick={() => {
+            setLoadError(null);
+            setLoading(true);
+            void reload().finally(() => setLoading(false));
+          }}
+          className="text-[11px] font-bold text-[#3b5bdb]"
+        >
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-5">
+      {actionError && (
+        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069] flex justify-between gap-3">
+          <span>{actionError}</span>
+          <button type="button" className="font-bold shrink-0" onClick={() => setActionError(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: "Total", value: rows.length, color: "#e8eaf0" },

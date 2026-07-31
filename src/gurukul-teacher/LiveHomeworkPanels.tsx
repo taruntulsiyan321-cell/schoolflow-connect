@@ -171,6 +171,7 @@ function LiveHomeworkList({
         >
           ← Back to list
         </button>
+        {error && <div className="text-xs text-[#cc5069]">{error}</div>}
         <div className="text-sm font-bold text-white">{reviewHw.title}</div>
         <div className="text-[10px] text-[#78788c]">
           {subs.length} submissions · HomeworkService.review

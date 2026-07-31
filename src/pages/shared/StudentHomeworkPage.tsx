@@ -88,6 +88,7 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
     if (!studentId) return;
     if (!ctx) return toast.error("Sign in required");
     const content = submitText[hwId]?.trim() || "";
+    if (!content) return toast.error("Enter your submission before sending");
     setSubmitting(hwId);
 
     try {
@@ -95,7 +96,9 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
         { ...ctx, studentId },
         { homeworkId: hwId, studentId, content },
       );
-      toast.success("Homework submitted!");
+      toast.success(
+        submission.version > 1 ? "Homework resubmitted!" : "Homework submitted!",
+      );
       setHomework((prev) =>
         prev.map((h) =>
           h.id === hwId
@@ -113,6 +116,7 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
             : h,
         ),
       );
+      setSubmitText((p) => ({ ...p, [hwId]: "" }));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to submit");
     }
@@ -141,14 +145,28 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const pending = homework.filter(
-    (h) => (!h.submission || h.submission.status === "pending") && (!h.due_date || h.due_date >= today)
+  const isLocked = (st?: string | null) =>
+    !!st && ["graded", "reviewed", "completed"].includes(st);
+  const pending = homework.filter((h) => {
+    const st = h.submission?.status;
+    if (isLocked(st) || st === "returned" || st === "submitted" || st === "late") return false;
+    return !st || st === "pending"
+      ? !h.due_date || h.due_date >= today
+      : false;
+  });
+  const overdue = homework.filter((h) => {
+    const st = h.submission?.status;
+    if (isLocked(st) || st === "submitted" || st === "late") return false;
+    const open = !st || st === "pending" || st === "returned";
+    return open && !!h.due_date && h.due_date < today;
+  });
+  const returned = homework.filter(
+    (h) => h.submission?.status === "returned" && (!h.due_date || h.due_date >= today),
   );
   const submitted = homework.filter(
-    (h) => h.submission && h.submission.status !== "pending"
-  );
-  const overdue = homework.filter(
-    (h) => (!h.submission || h.submission.status === "pending") && h.due_date && h.due_date < today
+    (h) =>
+      h.submission &&
+      ["submitted", "late", "reviewed", "graded", "completed"].includes(h.submission.status),
   );
 
   return (
@@ -175,6 +193,45 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
           tone={overdue.length > 0 ? "warning" : undefined}
         />
       </div>
+
+      {/* Returned for correction — student must resubmit */}
+      {returned.length > 0 && (
+        <>
+          <h3 className="font-semibold mb-3 text-amber-700">Returned for correction</h3>
+          <div className="space-y-3 mb-6">
+            {returned.map((h) => (
+              <Card key={h.id} className="p-4 shadow-card border-l-4 border-l-amber-500">
+                <div className="mb-2">
+                  <div className="font-semibold">{h.title}</div>
+                  <div className="text-xs text-muted-foreground mt-1">{h.subject}</div>
+                  {h.submission?.teacher_remarks && (
+                    <div className="text-xs mt-2 p-2 rounded bg-amber-50 border border-amber-200">
+                      <span className="font-medium">Teacher:</span> {h.submission.teacher_remarks}
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Revise and resubmit…"
+                    value={submitText[h.id] || h.submission?.content || ""}
+                    onChange={(e) => setSubmitText((p) => ({ ...p, [h.id]: e.target.value }))}
+                    rows={2}
+                  />
+                  <Button
+                    onClick={() => submitHomework(h.id)}
+                    disabled={submitting === h.id}
+                    className="bg-gradient-primary text-primary-foreground"
+                    size="sm"
+                  >
+                    <Send className="w-3.5 h-3.5 mr-1" />
+                    {submitting === h.id ? "Resubmitting…" : "Resubmit"}
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Pending homework */}
       {pending.length > 0 && (
@@ -277,9 +334,13 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
                     )}
                   </div>
                   <div className="shrink-0">
-                    {h.submission?.status === "graded" ? (
+                    {h.submission?.status === "graded" || h.submission?.status === "reviewed" ? (
                       <Badge className="bg-accent/10 text-accent border-accent/30" variant="outline">
                         {h.submission.grade || "Graded"}
+                      </Badge>
+                    ) : h.submission?.status === "late" ? (
+                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30">
+                        Late
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
@@ -288,6 +349,25 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
                     )}
                   </div>
                 </div>
+                {(h.submission?.status === "submitted" || h.submission?.status === "late") && (
+                  <div className="mt-3 space-y-2 border-t pt-3">
+                    <Textarea
+                      placeholder="Replace submission before grading…"
+                      value={submitText[h.id] ?? h.submission.content ?? ""}
+                      onChange={(e) => setSubmitText((p) => ({ ...p, [h.id]: e.target.value }))}
+                      rows={2}
+                    />
+                    <Button
+                      onClick={() => submitHomework(h.id)}
+                      disabled={submitting === h.id}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Send className="w-3.5 h-3.5 mr-1" />
+                      {submitting === h.id ? "Updating…" : "Replace submission"}
+                    </Button>
+                  </div>
+                )}
               </Card>
             ))}
           </div>

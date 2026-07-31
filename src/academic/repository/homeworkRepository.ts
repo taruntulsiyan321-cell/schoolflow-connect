@@ -532,6 +532,12 @@ export async function upsertHomeworkSubmission(
   ctx: RepoContext,
   input: SubmitHomeworkInput,
 ): Promise<HomeworkSubmissionRecord> {
+  if (!input.content?.trim()) {
+    throw new ValidationFailedError([
+      { field: "content", code: "required", message: "Submission content is required" },
+    ]);
+  }
+
   const schoolId = schoolIdOf(ctx);
   const hw = await getHomework(ctx, input.homeworkId);
   if (hw.status !== "published" && hw.status !== "active") {
