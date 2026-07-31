@@ -109,6 +109,11 @@ export default function Auth() {
   const signupEmailId = useId();
 
   const from = (location.state as { from?: string } | null)?.from ?? null;
+  /** `?next=` is used by the OAuth consent flow to return the user after sign-in. */
+  const nextParam = (() => {
+    const raw = new URLSearchParams(location.search).get("next");
+    return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : null;
+  })();
 
   const [siEmail, setSiEmail] = useState("");
   const [siPw, setSiPw] = useState("");
@@ -127,13 +132,17 @@ export default function Auth() {
       return;
     }
     if (user && role && status === "authenticated") {
+      if (nextParam) {
+        navigate(nextParam, { replace: true });
+        return;
+      }
       const dest =
         from && from !== "/auth" && canAccessPath(role, from)
           ? from
           : homePath || dashboardForRole(role);
       navigate(dest, { replace: true });
     }
-  }, [user, role, loading, status, navigate, from, homePath]);
+  }, [user, role, loading, status, navigate, from, homePath, nextParam]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,7 +181,7 @@ export default function Auth() {
       email: ev.email,
       password: pv.data,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth`,
+        emailRedirectTo: `${window.location.origin}/auth${nextParam ? `?next=${encodeURIComponent(nextParam)}` : ""}`,
         data: { full_name: nv.data, intended_role: suRole },
       },
     });
