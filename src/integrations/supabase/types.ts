@@ -169,13 +169,6 @@ export type Database = {
             foreignKeyName: "academic_events_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
-            referencedRelation: "teacher_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "academic_events_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
             referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
@@ -3434,13 +3427,6 @@ export type Database = {
             foreignKeyName: "teacher_classes_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
-            referencedRelation: "teacher_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "teacher_classes_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
             referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
@@ -3526,13 +3512,6 @@ export type Database = {
             columns: ["subject_id"]
             isOneToOne: false
             referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "teacher_remarks_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
-            referencedRelation: "teacher_directory"
             referencedColumns: ["id"]
           },
           {
@@ -3694,13 +3673,6 @@ export type Database = {
             foreignKeyName: "timetable_slots_teacher_id_fkey"
             columns: ["teacher_id"]
             isOneToOne: false
-            referencedRelation: "teacher_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "timetable_slots_teacher_id_fkey"
-            columns: ["teacher_id"]
-            isOneToOne: false
             referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
@@ -3726,60 +3698,7 @@ export type Database = {
       }
     }
     Views: {
-      teacher_directory: {
-        Row: {
-          class_teacher_of: string | null
-          department: string | null
-          full_name: string | null
-          id: string | null
-          is_class_teacher: boolean | null
-          photo_url: string | null
-          qualification: string | null
-          school_id: string | null
-          status: string | null
-          subject: string | null
-        }
-        Insert: {
-          class_teacher_of?: string | null
-          department?: string | null
-          full_name?: string | null
-          id?: string | null
-          is_class_teacher?: boolean | null
-          photo_url?: string | null
-          qualification?: string | null
-          school_id?: string | null
-          status?: string | null
-          subject?: string | null
-        }
-        Update: {
-          class_teacher_of?: string | null
-          department?: string | null
-          full_name?: string | null
-          id?: string | null
-          is_class_teacher?: boolean | null
-          photo_url?: string | null
-          qualification?: string | null
-          school_id?: string | null
-          status?: string | null
-          subject?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "teachers_class_teacher_of_fkey"
-            columns: ["class_teacher_of"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "teachers_school_id_fkey"
-            columns: ["school_id"]
-            isOneToOne: false
-            referencedRelation: "schools"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       _award_badge: {
@@ -4055,6 +3974,21 @@ export type Database = {
         }[]
       }
       get_my_school_id: { Args: never; Returns: string }
+      get_teacher_directory: {
+        Args: never
+        Returns: {
+          class_teacher_of: string
+          department: string
+          full_name: string
+          id: string
+          is_class_teacher: boolean
+          photo_url: string
+          qualification: string
+          school_id: string
+          status: string
+          subject: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
