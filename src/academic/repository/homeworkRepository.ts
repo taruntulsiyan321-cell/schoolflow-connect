@@ -608,9 +608,9 @@ export async function reviewHomeworkSubmission(
   const schoolId = schoolIdOf(ctx);
   const now = new Date().toISOString();
   let status: HomeworkSubmissionStatus = "reviewed";
-  if (input.action === "return") status = "returned";
-  else if (input.action === "reject") status = "returned";
-  else if (input.action === "grade" || input.action === "approve") status = "graded";
+  if (input.action === "return" || input.action === "reject") status = "returned";
+  else if (input.action === "grade") status = "graded";
+  else if (input.action === "approve") status = "reviewed";
 
   const patch: Record<string, unknown> = {
     status,

@@ -76,6 +76,8 @@ export default function TeacherReportsPage() {
       const profiles = await AcademicProfileService.listForClass(ctx, classId, { limit: 200 });
       const profileByStudent = new Map(profiles.map((p) => [p.studentId, p]));
 
+      // Homework completion % comes from AcademicProfileService (engine), not UI math
+
       // Exams + marks
       const { data: exams } = await supabase
         .from("exams")
@@ -103,15 +105,6 @@ export default function TeacherReportsPage() {
         .from("recovery_assignments")
         .select("student_id,subject,chapter,concept,severity,status,question_count,questions_completed,questions_correct")
         .in("student_id", studentIds);
-
-      const { data: hwRows } = await supabase
-        .from("homework")
-        .select("id")
-        .eq("class_id", classId);
-      const hwIds = (hwRows ?? []).map((h) => h.id);
-      const { data: homeworkSubs } = hwIds.length
-        ? await supabase.from("homework_submissions").select("homework_id,student_id,status,grade").in("homework_id", hwIds)
-        : { data: [] };
 
       const { data: battles } = await supabase
         .from("battles")
@@ -150,8 +143,7 @@ export default function TeacherReportsPage() {
         const recovery = (recoveryRows ?? []).filter((r) => r.student_id === s.id);
         const pendingRecovery = recovery.filter((r) => r.status !== "completed").length;
         const completedRecovery = recovery.filter((r) => r.status === "completed").length;
-        const subs = (homeworkSubs ?? []).filter((h) => h.student_id === s.id);
-        const homeworkCompletion = hwIds.length ? Math.round((subs.filter((h) => h.status !== "pending").length / hwIds.length) * 100) : 0;
+        const homeworkCompletion = Math.round(academic?.homeworkCompletionPct ?? 0);
         const bp = (battleParts ?? []).filter((p) => p.student_id === s.id);
         const battleAccuracy = bp.length
           ? Math.round((bp.reduce((sum, p) => sum + Number(p.correct_count ?? 0), 0) / Math.max(1, bp.reduce((sum, p) => sum + Number(p.answered_count ?? 0), 0))) * 100)
@@ -203,8 +195,10 @@ export default function TeacherReportsPage() {
       const recoveryTotal = recoveryRows?.length ?? 0;
       const recoveryCompleted = (recoveryRows ?? []).filter((r) => r.status === "completed").length;
       const recoveryRate = recoveryTotal ? Math.round((recoveryCompleted / recoveryTotal) * 100) : 0;
-      const homeworkCompletion = hwIds.length && studentIds.length
-        ? Math.round(((homeworkSubs ?? []).filter((h) => h.status !== "pending").length / (hwIds.length * studentIds.length)) * 100)
+      const homeworkCompletion = studentReport.length
+        ? Math.round(
+            studentReport.reduce((s, r) => s + (r.homeworkCompletion ?? 0), 0) / studentReport.length,
+          )
         : 0;
       const avgBattleAccuracy = studentReport.filter((s) => s.battleAccuracy > 0).length
         ? Math.round(studentReport.filter((s) => s.battleAccuracy > 0).reduce((s, r) => s + r.battleAccuracy, 0) / studentReport.filter((s) => s.battleAccuracy > 0).length)

@@ -86,18 +86,68 @@ async function assertTeacherMayManageClass(
     throw new ForbiddenError("Only teachers may manage homework for a class");
   }
   await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, classId);
-  if (subject) {
+  const subj = subject?.trim();
+  if (subj && subj.toLowerCase() !== "general") {
     const ok = await teacherAssignedToClassSubject(toRepoContext(ctx), {
       teacherUserId: ctx.userId,
       classId,
-      subject,
+      subject: subj,
     });
-    // Class teacher may still assign without exact subject row — owns class is enough
     if (!ok) {
-      // Soft: class ownership already verified; subject mapping preferred but not hard-fail
-      // when teacher teaches the class under a different subject label.
+      throw new ForbiddenError(
+        "Teachers may only manage homework for subjects assigned to their class",
+      );
     }
   }
+}
+
+/** Resolve submission → homework → assert teacher owns that class/subject. */
+async function assertTeacherMayManageSubmission(
+  ctx: ServiceContext,
+  submissionId: string,
+): Promise<{ homeworkId: string; studentId: string }> {
+  const repo = toRepoContext(ctx);
+  const { data, error } = await getClient(repo)
+    .from("homework_submissions")
+    .select("id, homework_id, student_id, school_id")
+    .eq("id", submissionId)
+    .eq("school_id", schoolIdOf(repo))
+    .maybeSingle();
+  throwIfError(error, "Failed to load submission for authorization");
+  if (!data) throw new ForbiddenError("Submission not found");
+  const hw = await getHomework(repo, data.homework_id);
+  await assertTeacherMayManageClass(ctx, hw.classId, hw.subject);
+  const { data: student, error: sErr } = await getClient(repo)
+    .from("students")
+    .select("id, class_id")
+    .eq("id", data.student_id)
+    .eq("school_id", schoolIdOf(repo))
+    .maybeSingle();
+  throwIfError(sErr, "Failed to verify student for submission");
+  if (!student || student.class_id !== hw.classId) {
+    throw new ForbiddenError("Submission student is not in the homework class");
+  }
+  return { homeworkId: data.homework_id, studentId: data.student_id };
+}
+
+async function assertStudentInHomeworkClass(
+  ctx: ServiceContext,
+  homeworkId: string,
+  studentId: string,
+): Promise<HomeworkRecord> {
+  const repo = toRepoContext(ctx);
+  const hw = await getHomework(repo, homeworkId);
+  const { data: student, error } = await getClient(repo)
+    .from("students")
+    .select("id, class_id, school_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolIdOf(repo))
+    .maybeSingle();
+  throwIfError(error, "Failed to verify student class");
+  if (!student || student.class_id !== hw.classId) {
+    throw new ForbiddenError("Student does not belong to this homework class");
+  }
+  return hw;
 }
 
 function studentDisplayStatus(
@@ -320,6 +370,8 @@ export const HomeworkService = {
     const hw = await getHomework(toRepoContext(ctx), homeworkId);
     if (ctx.role === "teacher") {
       await assertTeacherMayManageClass(ctx, hw.classId, hw.subject);
+    } else if (ctx.role === "student" || ctx.role === "parent") {
+      throw new ForbiddenError("Students and parents may not list all class submissions");
     }
     return listSubmissionsForHomework(toRepoContext(ctx), homeworkId);
   },
@@ -336,10 +388,13 @@ export const HomeworkService = {
       if (!ctx.studentId) {
         await assertMayAccessStudent(ctx, input.studentId);
       }
-    } else if (ctx.role !== "teacher" && !isSchoolOperator(ctx.role)) {
+    } else if (ctx.role === "teacher") {
+      // Teachers may not forge submissions for arbitrary students
+      throw new ForbiddenError("Teachers cannot submit homework on behalf of students");
+    } else if (!isSchoolOperator(ctx.role)) {
       throw new ForbiddenError("Not authorized to submit homework");
     }
-    // Events + audit emitted by DB trigger — do not duplicate emitEvent here
+    await assertStudentInHomeworkClass(ctx, input.homeworkId, input.studentId);
     return upsertHomeworkSubmission(toRepoContext(ctx), input);
   },
 
@@ -355,6 +410,7 @@ export const HomeworkService = {
     input: { submissionId: string; grade: string; remarks?: string | null },
   ): Promise<HomeworkSubmissionRecord> {
     assertCanOwn(ctx, "homework");
+    await assertTeacherMayManageSubmission(ctx, input.submissionId);
     return gradeHomeworkSubmission(toRepoContext(ctx), input);
   },
 
@@ -363,6 +419,7 @@ export const HomeworkService = {
     input: ReviewHomeworkInput,
   ): Promise<HomeworkSubmissionRecord> {
     assertCanOwn(ctx, "homework");
+    await assertTeacherMayManageSubmission(ctx, input.submissionId);
     return reviewHomeworkSubmission(toRepoContext(ctx), input);
   },
 

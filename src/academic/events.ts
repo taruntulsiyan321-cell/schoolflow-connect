@@ -1,6 +1,6 @@
 /**
  * Academic event catalog — every academic action emits one of these.
- * Sync engine (Phase 4) fans out to profile / notifications / analytics / AI.
+ * Sync engine fans out to profile / notifications / analytics / AI / audit.
  */
 
 export const ACADEMIC_EVENT_TYPES = [
@@ -10,7 +10,13 @@ export const ACADEMIC_EVENT_TYPES = [
   "homework.assigned",
   "homework.published",
   "homework.updated",
+  "homework.archived",
+  "homework.deleted",
+  "homework.submitted",
+  "homework.resubmitted",
   "homework.reviewed",
+  "homework.returned",
+  "homework.graded",
   "homework.submission.created",
   "homework.submission.graded",
   "test.scheduled",
@@ -57,7 +63,6 @@ export interface AcademicEventRecord {
   processedAt: string | null;
 }
 
-/** Which side-effects the sync engine should run for an event type. */
 export type SyncTarget =
   | "student_academic_profile"
   | "notifications"
@@ -65,6 +70,15 @@ export type SyncTarget =
   | "ai_insights"
   | "activity_feed"
   | "audit";
+
+const HW_FULL: readonly SyncTarget[] = [
+  "student_academic_profile",
+  "notifications",
+  "analytics",
+  "ai_insights",
+  "activity_feed",
+  "audit",
+];
 
 export const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]> = {
   "attendance.marked": [
@@ -77,24 +91,24 @@ export const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]
   ],
   "attendance.updated": ["student_academic_profile", "analytics", "ai_insights", "audit"],
   "homework.created": ["audit", "activity_feed"],
-  "homework.assigned": ["student_academic_profile", "notifications", "analytics", "activity_feed", "audit"],
-  "homework.published": ["student_academic_profile", "notifications", "analytics", "activity_feed", "audit"],
+  "homework.assigned": HW_FULL,
+  "homework.published": HW_FULL,
   "homework.updated": ["student_academic_profile", "analytics", "audit"],
-  "homework.reviewed": [
+  "homework.archived": ["student_academic_profile", "analytics", "activity_feed", "audit"],
+  "homework.deleted": ["student_academic_profile", "analytics", "activity_feed", "audit"],
+  "homework.submitted": ["student_academic_profile", "notifications", "analytics", "audit"],
+  "homework.resubmitted": ["student_academic_profile", "notifications", "analytics", "audit"],
+  "homework.reviewed": HW_FULL,
+  "homework.returned": [
     "student_academic_profile",
     "notifications",
     "analytics",
-    "ai_insights",
+    "activity_feed",
     "audit",
   ],
+  "homework.graded": HW_FULL,
   "homework.submission.created": ["student_academic_profile", "notifications", "analytics", "audit"],
-  "homework.submission.graded": [
-    "student_academic_profile",
-    "notifications",
-    "analytics",
-    "ai_insights",
-    "audit",
-  ],
+  "homework.submission.graded": HW_FULL,
   "test.scheduled": ["notifications", "activity_feed"],
   "test.published": ["notifications", "activity_feed"],
   "test.attempt.completed": [
@@ -114,11 +128,7 @@ export const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]
   "marks.updated": ["student_academic_profile", "analytics", "ai_insights", "audit"],
   "examination.scheduled": ["notifications", "activity_feed"],
   "examination.updated": ["analytics"],
-  "practice.session.completed": [
-    "student_academic_profile",
-    "analytics",
-    "ai_insights",
-  ],
+  "practice.session.completed": ["student_academic_profile", "analytics", "ai_insights"],
   "doubt.created": ["notifications", "analytics", "ai_insights"],
   "doubt.replied": ["notifications", "student_academic_profile", "ai_insights"],
   "announcement.published": ["notifications", "activity_feed", "audit"],

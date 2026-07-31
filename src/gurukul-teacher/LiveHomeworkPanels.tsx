@@ -144,6 +144,20 @@ function LiveHomeworkList({
     }
   };
 
+  const runHwAction = async (label: string, fn: () => Promise<unknown>) => {
+    if (!ctx) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await fn();
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `${label} failed`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) return <Loading label={`Loading ${title.toLowerCase()}…`} />;
 
   if (reviewHw) {
@@ -349,7 +363,8 @@ function LiveHomeworkList({
               {h.status === "draft" && ctx && (
                 <button
                   type="button"
-                  onClick={() => void HomeworkService.publish(ctx, h.id).then(reload)}
+                  disabled={saving}
+                  onClick={() => void runHwAction("Publish", () => HomeworkService.publish(ctx, h.id))}
                   className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb]/20 text-[#3b5bdb] flex items-center gap-1"
                 >
                   <Send className="w-3 h-3" /> Publish
@@ -358,7 +373,8 @@ function LiveHomeworkList({
               {h.status === "published" && ctx && (
                 <button
                   type="button"
-                  onClick={() => void HomeworkService.unpublish(ctx, h.id).then(reload)}
+                  disabled={saving}
+                  onClick={() => void runHwAction("Unpublish", () => HomeworkService.unpublish(ctx, h.id))}
                   className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#78788c]"
                 >
                   Unpublish
@@ -367,7 +383,8 @@ function LiveHomeworkList({
               {ctx && h.status !== "archived" && (
                 <button
                   type="button"
-                  onClick={() => void HomeworkService.archive(ctx, h.id).then(reload)}
+                  disabled={saving}
+                  onClick={() => void runHwAction("Archive", () => HomeworkService.archive(ctx, h.id))}
                   className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#c08a3a] flex items-center gap-1"
                 >
                   <Archive className="w-3 h-3" /> Archive
@@ -376,7 +393,8 @@ function LiveHomeworkList({
               {ctx && (
                 <button
                   type="button"
-                  onClick={() => void HomeworkService.duplicate(ctx, h.id).then(reload)}
+                  disabled={saving}
+                  onClick={() => void runHwAction("Duplicate", () => HomeworkService.duplicate(ctx, h.id))}
                   className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#78788c] flex items-center gap-1"
                 >
                   <Copy className="w-3 h-3" /> Duplicate

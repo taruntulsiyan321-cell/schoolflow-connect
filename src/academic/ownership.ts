@@ -91,7 +91,7 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
   homework_submission: {
     entity: "homework_submission",
     owners: ["student", "teacher"],
-    consumers: ["student", "teacher", "parent", "principal"],
+    consumers: ["student", "teacher", "parent", "principal", "admin"],
     description: "Student submits; teacher grades",
   },
   assignment: {
@@ -103,7 +103,7 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
   assignment_submission: {
     entity: "assignment_submission",
     owners: ["student", "teacher"],
-    consumers: ["student", "teacher", "parent", "principal"],
+    consumers: ["student", "teacher", "parent", "principal", "admin"],
     description: "Alias of homework_submission",
   },
   test: {

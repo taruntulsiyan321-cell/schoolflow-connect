@@ -54,6 +54,14 @@ export async function buildStudentAiSummary(
       lastEventAt: profile.lastEventAt,
       refreshedAt: profile.refreshedAt,
       remarksCount: profile.remarksCount,
+      homeworkAssigned: profile.homeworkAssigned,
+      homeworkSubmitted: profile.homeworkSubmitted,
+      homeworkPending: Number(profile.metrics.homeworkPending ?? 0),
+      homeworkLate: Number(profile.metrics.homeworkLate ?? 0),
+      homeworkReturned: Number(profile.metrics.homeworkReturned ?? 0),
+      homeworkReviewed: Number(profile.metrics.homeworkReviewed ?? 0),
+      homeworkGraded: Number(profile.metrics.homeworkGraded ?? 0),
+      homeworkConsistencyPct: Number(profile.metrics.homeworkConsistencyPct ?? 0),
     },
   };
 }
