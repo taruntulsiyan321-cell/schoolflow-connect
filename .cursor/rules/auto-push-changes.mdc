@@ -12,3 +12,4 @@ Whenever you make meaningful code changes in this repository:
 3. Do this without waiting for the user to ask again — the user has explicitly requested automatic push after changes.
 4. Never force-push to `main`/`master` unless the user explicitly requests it.
 5. Do not commit secrets, `.env`, credentials, or unrelated local Cursor config unless the user asks.
+6. Do not commit agent-only guidance, personal checklists, or instructions the user said were "for you only" — keep those outside the repo (e.g. user-level Cursor rules).
