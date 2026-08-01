@@ -10,6 +10,7 @@ import {
   createBattleFromDesign,
   joinBattleByCode,
   ensureFeatured,
+  acceptBattleInvite,
   loadLeaderboardEntries,
   type DesignBattleCard,
   type DesignHistoryEntry,
@@ -53,6 +54,8 @@ interface BattleCard {
   timeLeft?: string; startsIn?: string; date?: string;
   xpReward: number; featured?: boolean; hot?: boolean;
   participantId?: string;
+  battleCode?: string | null;
+  inviteId?: string;
 }
 
 interface BattleQuestion {
@@ -82,7 +85,6 @@ const BATTLE_BADGES = [
   { icon:"⚡", label:"Speed Demon",     desc:"<30s avg per question",color:"#4b9fd4" },
 ];
 
-function genCode() { return Math.random().toString(36).slice(2,8).toUpperCase(); }
 function avatarBg(color: string) { return `radial-gradient(circle at 35% 35%, ${color}cc, ${color}66)`; }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
@@ -154,8 +156,21 @@ function BCard({ b, onJoin, onView }: { b: BattleCard; onJoin:(id:string)=>void;
 
       {/* Title + subject */}
       <div className="text-sm font-black text-white mb-1">{b.title}</div>
-      <div className="flex items-center gap-2 mb-3">
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
         {subj && <SubjectBadge subject={subj.name} color={subj.color}/>}
+        {b.battleCode && (
+          <button
+            type="button"
+            title="Copy battle code"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(b.battleCode!).catch(() => {});
+            }}
+            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md border border-white/10 text-[#a0a0b0] hover:text-white hover:border-white/20"
+          >
+            {b.battleCode}
+          </button>
+        )}
         {b.timeLeft && <span className="flex items-center gap-1 text-[10px] text-rose-400"><Clock className="w-3 h-3"/>{b.timeLeft}</span>}
         {b.startsIn && <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlarmClock className="w-3 h-3"/>{b.startsIn}</span>}
         {b.date && b.result && (
@@ -422,9 +437,9 @@ function Home({
         </div>
         <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
           {[
-            { label:"Daily Challenge", subject:"Mathematics", xp:120, type:"1v1" as BattleType, kind:"daily" as const },
+            { label:"Daily Challenge", subject:"Mathematics", xp:120, type:"class" as BattleType, kind:"daily" as const },
             { label:"Weekly Championship", subject:"Mathematics", xp:200, type:"class" as BattleType, kind:"weekly" as const },
-            { label:"NCERT Sprint", subject:"Physics", xp:100, type:"1v1" as BattleType, kind:"ncert" as const },
+            { label:"NCERT Sprint", subject:"Mathematics", xp:100, type:"class" as BattleType, kind:"ncert" as const },
           ].map(r => {
             const subj = subjects.find(s=>s.name===r.subject);
             return (
@@ -448,12 +463,14 @@ function Home({
 // ── Create wizard ─────────────────────────────────────────────────────────────
 function CreateBattle({
   onBack,
-  onStart,
+  onCreate,
+  onEnter,
   classmates,
   creating,
 }: {
   onBack: () => void;
-  onStart: (cfg: BattleConfig & { opponentUserId?: string }) => void;
+  onCreate: (cfg: BattleConfig & { opponentUserId?: string }) => Promise<{ id: string; battleCode: string | null }>;
+  onEnter: (battleId: string) => void;
   classmates: ClassmateOption[];
   creating?: boolean;
 }) {
@@ -468,7 +485,8 @@ function CreateBattle({
   const [opponent,   setOpponent]   = useState("");
   const [opponentUserId, setOpponentUserId] = useState<string | undefined>();
   const [copied,     setCopied]     = useState(false);
-  const code = useRef(genCode()).current;
+  const [realCode,   setRealCode]   = useState<string | null>(null);
+  const [createdId,  setCreatedId]  = useState<string | null>(null);
 
   const TYPE_OPTIONS = [
     { key:"1v1"  as BattleType, icon:<Swords className="w-6 h-6"/>,  label:"1 vs 1 Challenge", desc:"Go head-to-head against one opponent",       color:"#cc5069" },
@@ -476,23 +494,51 @@ function CreateBattle({
     { key:"class"as BattleType, icon:<Globe className="w-6 h-6"/>,   label:"Class Battle",      desc:"Open challenge for the entire class to join",  color:"#c08a3a" },
   ];
 
-  function copyCode() {
+  function copyCode(code: string) {
+    if (!code) return;
     navigator.clipboard.writeText(code).catch(()=>{});
     setCopied(true); setTimeout(()=>setCopied(false),1500);
   }
 
-  function handleStart() {
-    onStart({
-      type,
-      subject: subject || "Mathematics",
-      chapter: chapter || "All",
-      difficulty,
-      questions,
-      timeLimitMin: timeLimit,
-      visibility,
-      inviteCode: code,
-      opponentUserId,
-    });
+  function shareCode(code: string) {
+    if (!code) return;
+    const text = `Join my Gurukul battle with code ${code}`;
+    if (typeof navigator !== "undefined" && "share" in navigator && typeof navigator.share === "function") {
+      navigator.share({ title: "Battle invite", text }).catch(() => copyCode(code));
+    } else {
+      copyCode(code);
+    }
+  }
+
+  async function handleStart() {
+    if (createdId) {
+      onEnter(createdId);
+      return;
+    }
+    try {
+      const result = await onCreate({
+        type,
+        subject: subject || "Mathematics",
+        chapter: chapter || "All",
+        difficulty,
+        questions,
+        timeLimitMin: timeLimit,
+        visibility,
+        inviteCode: "",
+        opponentUserId,
+      });
+      setCreatedId(result.id);
+      if (result.battleCode) {
+        setRealCode(result.battleCode);
+        copyCode(result.battleCode);
+      }
+      // Challenging a classmate: go straight in; open battles stay to show code
+      if (opponentUserId || !result.battleCode) {
+        onEnter(result.id);
+      }
+    } catch {
+      // Parent toasts errors
+    }
   }
 
   const filteredMates = classmates.filter(m =>
@@ -618,6 +664,11 @@ function CreateBattle({
                   <Lock className="w-3.5 h-3.5"/> Private
                 </button>
               </div>
+              <div className="text-[10px] text-[#78788c] mt-2">
+                {visibility==="private"
+                  ? "Private battles are code-gated — only people with your invite code can join."
+                  : "Public battles appear in open class lists when allowed."}
+              </div>
             </div>
           </div>
         )}
@@ -626,27 +677,44 @@ function CreateBattle({
         {step===3 && (
           <div className="space-y-5">
             <h2 className="text-lg font-black text-white mb-4" style={{fontFamily:"var(--font-display)"}}>Invite Opponents</h2>
-            {/* Invite code */}
+            {/* Invite code — real DB code after Start Battle */}
             <div className="text-center p-5 rounded-2xl border border-dashed border-white/12 bg-white/2">
               <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-2">Your Invite Code</div>
-              <div className="text-3xl font-black tracking-[0.3em] text-white mb-3" style={{fontFamily:"var(--font-mono)"}}>{code}</div>
-              <div className="text-[10px] text-[#78788c] mb-3">A real battle code is assigned when you start</div>
+              {realCode ? (
+                <div className="text-3xl font-black tracking-[0.3em] text-white mb-3" style={{fontFamily:"var(--font-mono)"}}>{realCode}</div>
+              ) : (
+                <div className="text-sm font-bold text-[#78788c] mb-3">Press Start Battle to get your real join code</div>
+              )}
+              <div className="text-[10px] text-[#78788c] mb-3">
+                {realCode ? "Share this code — friends join with it" : "The code is assigned by the server (not a preview)"}
+              </div>
               <div className="flex justify-center gap-2">
-                <button onClick={copyCode}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+                <button
+                  type="button"
+                  disabled={!realCode}
+                  onClick={() => realCode && copyCode(realCode)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all disabled:opacity-40">
                   {copied?<Check className="w-3.5 h-3.5 text-emerald-400"/>:<Copy className="w-3.5 h-3.5"/>}
                   {copied?"Copied!":"Copy"}
                 </button>
-                <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+                <button
+                  type="button"
+                  disabled={!realCode}
+                  onClick={() => realCode && shareCode(realCode)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all disabled:opacity-40">
                   <Share2 className="w-3.5 h-3.5"/> Share
                 </button>
-                <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+                <button
+                  type="button"
+                  disabled
+                  title="QR sharing is not available yet — use Copy"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] opacity-40 cursor-not-allowed">
                   <QrCode className="w-3.5 h-3.5"/> QR
                 </button>
               </div>
             </div>
             {/* Search opponent */}
-            {type==="1v1" && (
+            {type==="1v1" && !createdId && (
               <div>
                 <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-2">Challenge a Classmate</div>
                 <div className="relative mb-2">
@@ -681,7 +749,7 @@ function CreateBattle({
 
         {/* Footer buttons */}
         <div className="flex gap-3 mt-6">
-          {step>1 && (
+          {step>1 && !createdId && (
             <button onClick={()=>setStep(s=>(s-1) as CreateStep)}
               className="px-5 py-3 rounded-2xl border border-white/10 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
               Back
@@ -694,10 +762,10 @@ function CreateBattle({
               Continue <ChevronRight className="inline w-4 h-4"/>
             </button>
           ) : (
-            <button onClick={handleStart} disabled={creating}
+            <button onClick={() => void handleStart()} disabled={creating}
               className="flex-1 py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
               style={{background:"linear-gradient(135deg,#cc5069,#e11d48)",boxShadow:"0 6px 20px rgba(244,63,94,0.25)"}}>
-              <Play className="w-4 h-4"/> {creating ? "Starting…" : "Start Battle!"}
+              <Play className="w-4 h-4"/> {creating ? "Starting…" : createdId ? "Enter Arena" : "Start Battle!"}
             </button>
           )}
         </div>
@@ -1005,7 +1073,7 @@ function Results({ result, onHome, onReplay }: { result:BattleResult; onHome:()=
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 function Leaderboard({ onBack }: { onBack:()=>void }) {
   const { user } = useAuth();
-  const [period, setPeriod] = useState<LBPeriod>("weekly");
+  const [period, setPeriod] = useState<LBPeriod>("overall");
   const [scope,  setScope]  = useState<LBScope>("class");
   const [selSubj,setSelSubj]= useState("Mathematics");
   const [entries, setEntries] = useState<DesignLbEntry[]>([]);
@@ -1016,7 +1084,7 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
     (async () => {
       setLoading(true);
       try {
-        const rows = await loadLeaderboardEntries(scope, selSubj, user?.id);
+        const rows = await loadLeaderboardEntries(scope, selSubj, user?.id, period);
         if (!cancelled) setEntries(rows);
       } catch {
         if (!cancelled) setEntries([]);
@@ -1029,6 +1097,8 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
 
   const medalColor = (r:number) => r===1?"#c08a3a":r===2?"#94a3b8":r===3?"#cd7c2f":"#78788c";
   const medalIcon  = (r:number) => r===1?<Crown className="w-4 h-4"/>:r===2?<Medal className="w-4 h-4"/>:r===3?<Medal className="w-3.5 h-3.5"/>:<span className="text-xs font-black">#{r}</span>;
+  const scoreLabel = period === "overall" ? "XP" : period === "monthly" ? "Month pts" : "Week pts";
+  // daily maps to weekly category in RPC (no true daily board)
 
   return (
     <div className="space-y-5">
@@ -1048,6 +1118,9 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
             )}>{p}</button>
         ))}
       </div>
+      {period === "daily" && (
+        <div className="text-[10px] text-[#78788c] -mt-3">No daily board yet — showing this week&apos;s battle scores</div>
+      )}
 
       {/* Scope tabs */}
       <div className="flex gap-1 bg-white/4 rounded-xl p-1 w-fit">
@@ -1121,7 +1194,7 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
               </div>
               <div className="text-right shrink-0">
                 <div className="text-sm font-black tabular-nums" style={{color:medalColor(e.rank)}}>{e.xp.toLocaleString()}</div>
-                <div className="text-[9px] text-[#78788c]">XP</div>
+                <div className="text-[9px] text-[#78788c]">{scoreLabel}</div>
               </div>
             </div>
           ))}
@@ -1188,14 +1261,16 @@ function BattleHistory({
         )}
         {entries.map(h=>{
           const won   = h.result==="won";
-          const rc    = won?"#4aa87a":"#cc5069";
+          const draw  = h.result==="draw";
+          const rc    = won?"#4aa87a":draw?"#78788c":"#cc5069";
+          const mark  = won?"W":draw?"D":"L";
           const subj  = subjects.find(s=>s.name===h.subject);
           return (
             <div key={h.id} className="flex items-start gap-4 p-4 rounded-2xl border border-white/7 bg-[#131316] hover:border-white/12 transition-all">
               {/* Result indicator */}
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-black text-sm"
                 style={{background:`${rc}15`,color:rc,border:`1px solid ${rc}25`}}>
-                {won?"W":"L"}
+                {mark}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -1259,7 +1334,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   async function handleCreate(cfg: BattleConfig & { opponentUserId?: string }) {
     setBusy(true);
     try {
-      const id = await createBattleFromDesign({
+      const { id, battleCode } = await createBattleFromDesign({
         type: cfg.type,
         subject: cfg.subject,
         chapter: cfg.chapter,
@@ -1268,21 +1343,53 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         timeLimitMin: cfg.timeLimitMin,
         opponentUserId: cfg.opponentUserId,
         classId: data.classId,
+        isPublic: cfg.visibility !== "private",
       });
-      toast({ title: cfg.opponentUserId ? "Challenge sent" : "Battle created" });
-      goBattle(id);
+      if (battleCode) {
+        navigator.clipboard.writeText(battleCode).catch(() => {});
+        toast({
+          title: cfg.opponentUserId ? "Challenge sent" : "Battle created",
+          description: `Invite code ${battleCode} copied — share it to let friends join.`,
+        });
+      } else {
+        toast({ title: cfg.opponentUserId ? "Challenge sent" : "Battle created" });
+      }
+      void data.reload();
+      return { id, battleCode };
     } catch (e: unknown) {
       const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not create battle";
       toast({ title: msg, variant: "destructive" });
+      throw e;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleOpenBattle(id: string) {
+    const card = data.battles.find((b) => b.id === id);
+    if (card?.status === "pending" && card.inviteId) {
+      setBusy(true);
+      try {
+        await acceptBattleInvite(card.inviteId, id);
+        toast({ title: "Challenge accepted", description: "Entering the arena…" });
+        void data.reload();
+        goBattle(id);
+      } catch (e: unknown) {
+        const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not accept";
+        toast({ title: msg, variant: "destructive" });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+    goBattle(id);
   }
 
   async function handleFeatured(kind: "daily" | "weekly" | "ncert") {
     setBusy(true);
     try {
       const id = await ensureFeatured(kind);
+      void data.reload();
       goBattle(id);
     } catch (e: unknown) {
       const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Featured battle unavailable";
@@ -1304,7 +1411,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
           heroStats={data.heroStats}
           motivationTitle={data.motivation.title}
           motivationMessage={data.motivation.message}
-          onOpenBattle={goBattle}
+          onOpenBattle={handleOpenBattle}
           onViewReport={goReport}
           onJoinCode={handleJoinCode}
           onFeatured={handleFeatured}
@@ -1314,7 +1421,8 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       {phase==="create" && (
         <CreateBattle
           onBack={handleHome}
-          onStart={handleCreate}
+          onCreate={handleCreate}
+          onEnter={goBattle}
           classmates={data.classmates}
           creating={busy}
         />

@@ -120,7 +120,7 @@ export function motivationCard(input: MotivationCardInput): MotivationCard {
   };
 }
 
-export type BattleStatusKind = "waiting" | "active" | "completed" | "won" | "lost" | "expired";
+export type BattleStatusKind = "waiting" | "active" | "completed" | "won" | "lost" | "draw" | "expired";
 
 export type BattleStatusInput = {
   battleStatus: string; // 'scheduled' | 'live' | 'finished' | 'cancelled'
@@ -128,6 +128,9 @@ export type BattleStatusInput = {
   finishedAt?: string | null;
   rank?: number | null;
   totalParticipants?: number;
+  /** When set with opponentScore, equal scores map to draw. */
+  myScore?: number | null;
+  opponentScore?: number | null;
 };
 
 export type BattleStatusInfo = {
@@ -142,19 +145,41 @@ const STATUS_META: Record<BattleStatusKind, { label: string; toneClass: string }
   completed: { label: "Completed", toneClass: "bg-muted text-muted-foreground" },
   won: { label: "Won", toneClass: "bg-accent/15 text-accent" },
   lost: { label: "Lost", toneClass: "bg-destructive/10 text-destructive" },
+  draw: { label: "Draw", toneClass: "bg-muted text-muted-foreground" },
   expired: { label: "Expired", toneClass: "bg-muted text-muted-foreground" },
 };
 
 /** Derive a single human status for a battle_participant + battle pair. */
 export function formatBattleStatus(input: BattleStatusInput): BattleStatusInfo {
-  const { battleStatus, startsAt, finishedAt, rank, totalParticipants = 0 } = input;
+  const {
+    battleStatus,
+    startsAt,
+    finishedAt,
+    rank,
+    totalParticipants = 0,
+    myScore,
+    opponentScore,
+  } = input;
   let kind: BattleStatusKind;
 
   if (battleStatus === "cancelled") {
     kind = "expired";
   } else if (finishedAt) {
     if (totalParticipants > 1) {
-      kind = rank === 1 ? "won" : "lost";
+      const scoresKnown =
+        typeof myScore === "number" && typeof opponentScore === "number";
+      // Head-to-head draw when scores match
+      if (totalParticipants === 2 && scoresKnown && myScore === opponentScore) {
+        kind = "draw";
+      } else if (rank === 1) {
+        kind = "won";
+      } else if (rank != null && rank > 1) {
+        kind = "lost";
+      } else if (scoresKnown) {
+        kind = (myScore as number) > (opponentScore as number) ? "won" : "lost";
+      } else {
+        kind = "completed";
+      }
     } else {
       kind = "completed";
     }

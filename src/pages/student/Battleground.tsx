@@ -424,7 +424,7 @@ export function BattleRoom() {
             </Button>
           )}
           <Button onClick={() => nav(BG_BASE)} variant="outline" className="flex-1">Back to Arena</Button>
-          <Button onClick={() => nav(`${BG_BASE}/create`)} variant="outline" className="flex-1">New Battle</Button>
+          <Button onClick={() => nav(BG_BASE)} variant="outline" className="flex-1">New Battle</Button>
         </div>
       </div>
     );

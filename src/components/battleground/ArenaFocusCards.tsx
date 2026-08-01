@@ -106,11 +106,11 @@ export function ArenaFocusCards({
           iconClass="bg-[var(--ba-surface-low)] text-[var(--ba-primary-container)]"
           endsLabel="Arena goal"
           title="Win more battles"
-          description={`${wins} wins so far. Reach 5 wins to unlock Quiz Champion.`}
-          reward="Quiz Champion"
+          description={`${wins} wins so far. Reach 5 wins to unlock Battle Champion.`}
+          reward="Battle Champion"
           progress={Math.min(wins, 5)}
           total={5}
-          href="/student/battleground/create"
+          href="/student/battleground"
         />
       ),
     },

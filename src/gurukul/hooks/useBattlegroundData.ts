@@ -32,6 +32,8 @@ export type DesignBattleCard = {
   hot?: boolean;
   participantId?: string;
   battleCode?: string | null;
+  /** Pending battle_invites.id — Accept Challenge updates this row. */
+  inviteId?: string;
 };
 
 export type DesignHistoryEntry = {
@@ -84,8 +86,9 @@ function colorFor(seed: string): string {
 
 function modeToType(mode: string): DesignBattleType {
   if (mode === "duel" || mode === "solo") return "1v1";
-  if (mode === "lobby") return "class";
-  return "team";
+  if (mode === "lobby" || mode === "open") return "class";
+  if (mode === "team") return "team";
+  return "class";
 }
 
 function formatRelativeDate(iso: string | null | undefined): string {
@@ -222,15 +225,39 @@ export function useBattlegroundData() {
       );
 
       // My participations (open + finished) for My Battles / History / pending
-      const { data: myParts } = await supabase
-        .from("battle_participants")
-        .select("*, battles(*)")
-        .eq("user_id", user.id)
-        .order("joined_at", { ascending: false })
-        .limit(40);
+      const [{ data: myParts }, { data: pendingInvites }] = await Promise.all([
+        supabase
+          .from("battle_participants")
+          .select("*, battles(*)")
+          .eq("user_id", user.id)
+          .order("joined_at", { ascending: false })
+          .limit(40),
+        supabase
+          .from("battle_invites")
+          .select(
+            "id, status, battle_id, inviter_user_id, battles(id,title,subject,status,mode,starts_at,duration_sec,question_count,source,battle_code,creator_user_id)",
+          )
+          .eq("invited_user_id", user.id)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
 
       const parts = (myParts || []) as PartRow[];
       const myBattleIds = new Set(parts.map((p) => p.battle_id));
+
+      // Participant counts per battle (for win/loss/draw)
+      const partCountIds = [...myBattleIds];
+      const partCountMap: Record<string, number> = {};
+      if (partCountIds.length) {
+        const { data: allParts } = await supabase
+          .from("battle_participants")
+          .select("battle_id")
+          .in("battle_id", partCountIds);
+        for (const row of allParts || []) {
+          partCountMap[row.battle_id] = (partCountMap[row.battle_id] || 0) + 1;
+        }
+      }
 
       // Open class/school battles I may not have joined yet
       let openQ = supabase
@@ -271,26 +298,29 @@ export function useBattlegroundData() {
         const b = unwrapBattle(p.battles);
         if (!b) continue;
 
+        const totalParticipants = partCountMap[b.id] || 1;
+        // Placeholder status; refined after co-participant scores load
         const statusInfo = formatBattleStatus({
           battleStatus: b.status,
           startsAt: b.starts_at,
           finishedAt: p.finished_at,
           rank: p.rank,
-          totalParticipants: 2,
+          totalParticipants,
+          myScore: p.score,
         });
 
         let status: DesignBattleCard["status"] = "live";
         if (statusInfo.kind === "waiting") status = "upcoming";
         else if (statusInfo.kind === "active") status = "live";
-        else if (statusInfo.kind === "won" || statusInfo.kind === "lost" || statusInfo.kind === "completed") {
+        else if (
+          statusInfo.kind === "won" ||
+          statusInfo.kind === "lost" ||
+          statusInfo.kind === "draw" ||
+          statusInfo.kind === "completed"
+        ) {
           status = "completed";
         } else if (b.status === "scheduled") status = "upcoming";
-        else if (b.mode === "duel" && !p.finished_at && b.status !== "finished") {
-          // Invited duel waiting for me / opponent
-          status = b.creator_user_id === user.id ? "pending" : "pending";
-        }
 
-        // Opponent from co-participants (lazy: show "Opponent" if unknown)
         const type = modeToType(b.mode);
         const isFeatured = (b.source || "").startsWith("featured_");
         const xpReward = Math.max(50, (b.question_count || 10) * 10);
@@ -299,6 +329,7 @@ export function useBattlegroundData() {
         if (status === "completed") {
           if (statusInfo.kind === "won") result = "won";
           else if (statusInfo.kind === "lost") result = "lost";
+          else if (statusInfo.kind === "draw") result = "draw";
           else result = "draw";
         }
 
@@ -308,7 +339,7 @@ export function useBattlegroundData() {
           title: b.title || `${b.subject} Battle`,
           subject: b.subject || "Mathematics",
           status,
-          players: 1,
+          players: totalParticipants,
           maxPlayers: b.mode === "duel" ? 2 : b.mode === "lobby" ? 40 : 20,
           opponent: type === "1v1" ? "Opponent" : undefined,
           myScore: p.score ?? undefined,
@@ -349,45 +380,111 @@ export function useBattlegroundData() {
         }
       }
 
-      // Enrich opponent names for duel cards
+      // Incoming challenges (pending invites) — must stay "pending", not overwritten to live
+      type InviteRow = {
+        id: string;
+        battle_id: string;
+        inviter_user_id: string;
+        battles?: BattleRow | BattleRow[] | null;
+      };
+      const inviterIds = (pendingInvites || [])
+        .map((inv: InviteRow) => inv.inviter_user_id)
+        .filter(Boolean);
+      const inviterNames: Record<string, string> = {};
+      if (inviterIds.length) {
+        const { data: inviters } = await supabase
+          .from("students")
+          .select("user_id, full_name")
+          .in("user_id", inviterIds);
+        for (const row of inviters || []) {
+          inviterNames[row.user_id] = row.full_name || "Challenger";
+        }
+      }
+      for (const inv of (pendingInvites || []) as InviteRow[]) {
+        const b = unwrapBattle(inv.battles);
+        if (!b) continue;
+        if (seen.has(b.id)) {
+          // Upgrade existing card to pending so Accept Challenge shows
+          const existing = cards.find((c) => c.id === b.id);
+          if (existing && existing.status !== "completed") {
+            existing.status = "pending";
+            existing.inviteId = inv.id;
+          }
+          continue;
+        }
+        const oppName = inviterNames[inv.inviter_user_id] || "Challenger";
+        pushCard({
+          id: b.id,
+          type: modeToType(b.mode),
+          title: b.title || `${b.subject} Challenge`,
+          subject: b.subject || "Mathematics",
+          status: "pending",
+          players: 1,
+          maxPlayers: b.mode === "duel" ? 2 : 20,
+          opponent: oppName,
+          opponentAvatar: initials(oppName),
+          opponentColor: colorFor(inv.inviter_user_id),
+          xpReward: Math.max(50, (b.question_count || 10) * 10),
+          featured: (b.source || "").startsWith("featured_"),
+          battleCode: b.battle_code ?? null,
+          inviteId: inv.id,
+        });
+      }
+
+      // Enrich opponent names for duel cards + fix draw mapping with real scores
       const duelIds = cards.filter((c) => c.type === "1v1").map((c) => c.id);
       if (duelIds.length) {
         const { data: coParts } = await supabase
           .from("battle_participants")
-          .select("battle_id, user_id, display_name, score")
+          .select("battle_id, user_id, display_name, score, finished_at, rank")
           .in("battle_id", duelIds);
-        const byBattle: Record<string, { display_name: string; user_id: string; score: number }[]> = {};
+        const byBattle: Record<string, { display_name: string; user_id: string; score: number; finished_at: string | null; rank: number | null }[]> = {};
         for (const cp of coParts || []) {
           (byBattle[cp.battle_id] ||= []).push({
             display_name: cp.display_name || "Challenger",
             user_id: cp.user_id,
             score: cp.score ?? 0,
+            finished_at: cp.finished_at,
+            rank: cp.rank,
           });
         }
         for (const c of cards) {
           if (c.type !== "1v1") continue;
-          const others = (byBattle[c.id] || []).filter((x) => x.user_id !== user.id);
+          const all = byBattle[c.id] || [];
+          const others = all.filter((x) => x.user_id !== user.id);
           const opp = others[0];
           if (opp) {
             c.opponent = opp.display_name;
             c.opponentAvatar = initials(opp.display_name);
             c.opponentColor = colorFor(opp.user_id);
             c.theirScore = opp.score;
-            c.players = (byBattle[c.id] || []).length;
           }
-          // Pending invite: duel I'm in, not finished, only 1 participant or I'm not creator waiting
-          const all = byBattle[c.id] || [];
-          const me = all.find((x) => x.user_id === user.id);
-          if (c.status !== "completed" && all.length < 2 && me) {
-            // keep pending/live as mapped
+          c.players = all.length || c.players;
+
+          // Recompute win/loss/draw with real participant count + scores
+          if (c.status === "completed") {
+            const me = all.find((x) => x.user_id === user.id);
+            const statusInfo = formatBattleStatus({
+              battleStatus: "finished",
+              startsAt: new Date().toISOString(),
+              finishedAt: me?.finished_at || new Date().toISOString(),
+              rank: me?.rank ?? (c.result === "won" ? 1 : 2),
+              totalParticipants: all.length,
+              myScore: me?.score ?? c.myScore,
+              opponentScore: opp?.score ?? c.theirScore,
+            });
+            if (statusInfo.kind === "won") c.result = "won";
+            else if (statusInfo.kind === "lost") c.result = "lost";
+            else if (statusInfo.kind === "draw") c.result = "draw";
           }
         }
 
-        // History opponent names
+        // History opponent names + draw results
         for (const h of hist) {
           const card = cards.find((c) => c.participantId === h.participantId);
           if (card?.opponent) h.opponent = card.opponent;
           if (card?.theirScore != null) h.theirScore = card.theirScore;
+          if (card?.result) h.result = card.result;
         }
       }
 
@@ -486,7 +583,7 @@ export function useBattlegroundData() {
   };
 }
 
-/** Create a battle from design wizard config; returns battle id. */
+/** Create a battle from design wizard config; returns id + real DB battle_code. */
 export async function createBattleFromDesign(opts: {
   type: DesignBattleType;
   subject: string;
@@ -496,7 +593,9 @@ export async function createBattleFromDesign(opts: {
   timeLimitMin: number;
   opponentUserId?: string;
   classId?: string | null;
-}): Promise<string> {
+  /** When false, mark battle private after create (code-gated). */
+  isPublic?: boolean;
+}): Promise<{ id: string; battleCode: string | null }> {
   const perQ = Math.max(10, Math.floor((opts.timeLimitMin * 60) / Math.max(1, opts.questions)));
   const chap = opts.chapter && opts.chapter !== "All" ? opts.chapter : undefined;
   const base = {
@@ -508,6 +607,7 @@ export async function createBattleFromDesign(opts: {
     _class_id: opts.classId ?? undefined,
   };
 
+  let id: string;
   if (opts.type === "1v1" && opts.opponentUserId) {
     const res = await supabase.rpc("rpc_challenge_student", {
       _opponent_user_id: opts.opponentUserId,
@@ -519,21 +619,32 @@ export async function createBattleFromDesign(opts: {
     });
     if (res.error) throw res.error;
     if (!res.data) throw new Error("Challenge could not be created");
-    return res.data as string;
-  }
-
-  if (opts.type === "class") {
+    id = res.data as string;
+  } else if (opts.type === "class") {
     const res = await supabase.rpc("rpc_create_class_battle" as never, base as never);
     if (res.error) throw (res as { error: Error }).error;
     if (!res.data) throw new Error("Class battle could not be created");
-    return res.data as string;
+    id = res.data as string;
+  } else {
+    // team / open / 1v1 without opponent → open battle with join code
+    const res = await supabase.rpc("rpc_create_open_battle" as never, base as never);
+    if (res.error) throw (res as { error: Error }).error;
+    if (!res.data) throw new Error("Battle could not be created");
+    id = res.data as string;
   }
 
-  // team / open / 1v1 without opponent → open battle with join code
-  const res = await supabase.rpc("rpc_create_open_battle" as never, base as never);
-  if (res.error) throw (res as { error: Error }).error;
-  if (!res.data) throw new Error("Battle could not be created");
-  return res.data as string;
+  // Private toggle: RPCs default is_public=true; flip when user chose private
+  if (opts.isPublic === false) {
+    await supabase.from("battles").update({ is_public: false }).eq("id", id);
+  }
+
+  const { data: row } = await supabase
+    .from("battles")
+    .select("battle_code")
+    .eq("id", id)
+    .maybeSingle();
+
+  return { id, battleCode: row?.battle_code ?? null };
 }
 
 export async function joinBattleByCode(code: string): Promise<string> {
@@ -553,27 +664,97 @@ export async function joinBattleByCode(code: string): Promise<string> {
   return res.data as string;
 }
 
+export async function acceptBattleInvite(inviteId: string, battleId: string): Promise<string> {
+  const { error } = await supabase
+    .from("battle_invites")
+    .update({ status: "accepted" })
+    .eq("id", inviteId);
+  if (error) throw error;
+  return battleId;
+}
+
 export async function ensureFeatured(kind: "daily" | "weekly" | "ncert" | "beat_topper" | "teacher"): Promise<string> {
   const res = await supabase.rpc("rpc_ensure_featured_battle" as never, { _kind: kind } as never);
   if (res.error) throw res.error;
   if (!res.data) throw new Error("Featured battle unavailable");
-  return res.data as string;
+  const battleId = res.data as string;
+
+  // Client fallback: ensure we are a participant (pre-migration / race)
+  const { data: auth } = await supabase.auth.getUser();
+  const uid = auth.user?.id;
+  if (uid) {
+    const { data: existing } = await supabase
+      .from("battle_participants")
+      .select("id")
+      .eq("battle_id", battleId)
+      .eq("user_id", uid)
+      .maybeSingle();
+    if (!existing) {
+      const [{ data: stu }, { data: codeRow }] = await Promise.all([
+        supabase.from("students").select("id, full_name").eq("user_id", uid).maybeSingle(),
+        supabase.from("battles").select("battle_code").eq("id", battleId).maybeSingle(),
+      ]);
+      if (codeRow?.battle_code) {
+        try {
+          await joinBattleByCode(codeRow.battle_code);
+        } catch {
+          await supabase.from("battle_participants").insert({
+            battle_id: battleId,
+            user_id: uid,
+            student_id: stu?.id ?? null,
+            display_name: stu?.full_name || "Challenger",
+          });
+        }
+      } else {
+        await supabase.from("battle_participants").insert({
+          battle_id: battleId,
+          user_id: uid,
+          student_id: stu?.id ?? null,
+          display_name: stu?.full_name || "Challenger",
+        });
+      }
+    }
+  }
+  return battleId;
 }
 
 export async function loadLeaderboardEntries(
   scope: "class" | "section" | "school" | "subject",
   subject: string | undefined,
   myUserId: string | undefined,
+  period: "daily" | "weekly" | "monthly" | "overall" = "overall",
 ): Promise<DesignLbEntry[]> {
+  // rpc_leaderboard categories: xp | wins | streak | weekly | monthly | subject
+  // No true "daily" — map daily → weekly battle score (closest supported period).
   const rpcScope = scope === "subject" ? "school" : scope === "section" ? "class" : scope;
+  let category = "xp";
+  if (scope === "subject") category = "subject";
+  else if (period === "weekly" || period === "daily") category = "weekly";
+  else if (period === "monthly") category = "monthly";
+  else category = "xp";
+
   const { data, error } = await supabase.rpc("rpc_leaderboard", {
     _scope: rpcScope,
-    _category: "xp",
+    _category: category,
     _subject: scope === "subject" ? subject : undefined,
     _limit: 50,
   });
   if (error) throw error;
-  return (Array.isArray(data) ? data : []).map((r: {
+
+  const rows = Array.isArray(data) ? data : [];
+  const uids = rows.map((r: { user_id?: string }) => r.user_id).filter(Boolean) as string[];
+  const accMap: Record<string, number> = {};
+  if (uids.length) {
+    const { data: xpRows } = await supabase
+      .from("student_xp")
+      .select("user_id, total_correct, total_answered")
+      .in("user_id", uids);
+    for (const x of xpRows || []) {
+      accMap[x.user_id] = accuracyFromXp(x);
+    }
+  }
+
+  return rows.map((r: {
     user_id?: string;
     full_name?: string;
     score?: number;
@@ -582,8 +763,9 @@ export async function loadLeaderboardEntries(
   }, i: number) => {
     const name = r.full_name || "Student";
     const uid = r.user_id || String(i);
-    // detail often holds streak / accuracy hints; score is XP for category=xp
-    const streakMatch = typeof r.detail === "string" ? r.detail.match(/(\d+)/) : null;
+    const streakMatch = typeof r.detail === "string" ? r.detail.match(/(\d+)\s*-?\s*day/i) || r.detail.match(/(\d+)/) : null;
+    const accFromDetail =
+      typeof r.detail === "string" ? r.detail.match(/(\d+)\s*%?\s*acc/i) : null;
     return {
       rank: i + 1,
       name,
@@ -591,7 +773,7 @@ export async function loadLeaderboardEntries(
       color: colorFor(uid),
       xp: r.score ?? 0,
       streak: streakMatch ? Number(streakMatch[1]) : 0,
-      accuracy: 0,
+      accuracy: accFromDetail ? Number(accFromDetail[1]) : (accMap[uid] ?? 0),
       you: !!myUserId && r.user_id === myUserId,
     };
   });
