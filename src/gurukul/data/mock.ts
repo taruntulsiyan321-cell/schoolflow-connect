@@ -1,3 +1,13 @@
+/**
+ * DESIGN-ONLY fixture data. Do NOT import value exports into mounted
+ * student product routes (`StudentDashboard` / gurukul student shell).
+ * Unmounted design prototypes (ConceptMastery, AnalyticsPage) may still
+ * reference these for layout review — never as product fallbacks.
+ *
+ * PageKey: import from `@/gurukul/nav`.
+ */
+export type { PageKey } from "@/gurukul/nav";
+
 export const student = {
   name: "Arjun Sharma", firstName: "Arjun", class: "XII — Science",
   rollNo: "23", section: "A", avatar: "AS", xp: 8420, level: 14,
@@ -242,11 +252,3 @@ export const todayMission = {
   revisionTarget:5,  revisionDone:3,
   nextAction: { label:"Complete Recovery", page:"recovery", reason:"3 mistakes from Chemistry need your attention today." },
 };
-
-export type PageKey =
-  | "dashboard" | "practice" | "aicoach" | "analysis"
-  | "recovery"  | "revision" | "mistakebook"
-  | "battleground" | "leaderboard" | "achievements"
-  | "resources" | "doubtportal" | "assignments" | "attendance" | "profile"
-  | "timetable" | "calendar" | "tests"
-  | "learninghub" | "classhub";

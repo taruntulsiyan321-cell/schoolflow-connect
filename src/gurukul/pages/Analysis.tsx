@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
@@ -12,221 +12,35 @@ import {
   ArrowUp, ArrowDown, Minus, Printer, Star,
 } from "lucide-react";
 import { cn } from "@/gurukul/components/shared";
+import { useGurukulStudent } from "@/gurukul/StudentContext";
+import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
+import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
+import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { useConceptMastery } from "@/hooks/useConceptMastery";
+import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
 
-// ── All data ──────────────────────────────────────────────────────────────────
-
-const overview = {
-  accuracy: 81,
-  totalQuestions: 1240,
-  correct: 1005,
-  incorrect: 235,
-  practiceCompleted: 38,
-  testsCompleted: 6,
-  avgScore: 76,
-  studyHours: 124,
-  streak: 12,
-  rank: 3,
-  totalStudents: 48,
-  examReadiness: 74,
+const SUBJECT_COLORS: Record<string, string> = {
+  Mathematics: "#3b5bdb",
+  Math: "#3b5bdb",
+  Physics: "#4b9fd4",
+  Chemistry: "#6882e8",
+  Biology: "#4aa87a",
+  English: "#c08a3a",
+  Hindi: "#cc5069",
+  Science: "#4b9fd4",
+  "Social Science": "#c08a3a",
 };
+const FALLBACK_COLORS = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
 
-const scoreTrend = [
-  { week: "Week 1", score: 62, practice: 80 },
-  { week: "Week 2", score: 67, practice: 95 },
-  { week: "Week 3", score: 71, practice: 110 },
-  { week: "Week 4", score: 69, practice: 88 },
-  { week: "Week 5", score: 75, practice: 120 },
-  { week: "Week 6", score: 78, practice: 135 },
-  { week: "Week 7", score: 81, practice: 142 },
-];
+function subjectColor(name: string, index: number) {
+  return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+}
 
-const weekComparison = [
-  { day: "Mon", thisWeek: 23, lastWeek: 15 },
-  { day: "Tue", thisWeek: 37, lastWeek: 28 },
-  { day: "Wed", thisWeek: 26, lastWeek: 32 },
-  { day: "Thu", thisWeek: 40, lastWeek: 20 },
-  { day: "Fri", thisWeek: 37, lastWeek: 35 },
-  { day: "Sat", thisWeek: 60, lastWeek: 42 },
-  { day: "Sun", thisWeek: 16, lastWeek: 18 },
-];
+const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-const subjectData = [
-  {
-    name: "Mathematics", color: "#3b5bdb", score: 91, accuracy: 91,
-    questions: 210, timeHrs: 38, trend: +7,
-    status: "best", rankInClass: 2,
-  },
-  {
-    name: "Physics", color: "#4b9fd4", score: 88, accuracy: 88,
-    questions: 142, timeHrs: 28, trend: +4,
-    status: "good", rankInClass: 4,
-  },
-  {
-    name: "Chemistry", color: "#6882e8", score: 73, accuracy: 73,
-    questions: 98, timeHrs: 24, trend: -2,
-    status: "needs-attention", rankInClass: 22,
-  },
-  {
-    name: "Biology", color: "#4aa87a", score: 65, accuracy: 65,
-    questions: 76, timeHrs: 18, trend: -5,
-    status: "needs-attention", rankInClass: 31,
-  },
-  {
-    name: "English", color: "#c08a3a", score: 84, accuracy: 84,
-    questions: 54, timeHrs: 16, trend: +2,
-    status: "good", rankInClass: 8,
-  },
-];
-
-const radarData = subjectData.map((s) => ({ subject: s.name.slice(0, 4), score: s.score }));
-
-const chapterData = [
-  { chapter: "Integration", subject: "Mathematics", color: "#3b5bdb", completion: 85, questions: 48, accuracy: 94, trend: +8, status: "ready" },
-  { chapter: "Matrices", subject: "Mathematics", color: "#3b5bdb", completion: 92, questions: 35, accuracy: 89, trend: +3, status: "ready" },
-  { chapter: "Differential Equations", subject: "Mathematics", color: "#3b5bdb", completion: 55, questions: 25, accuracy: 62, trend: -2, status: "practice-more" },
-  { chapter: "Optics", subject: "Physics", color: "#4b9fd4", completion: 90, questions: 35, accuracy: 91, trend: +5, status: "ready" },
-  { chapter: "Electrostatics", subject: "Physics", color: "#4b9fd4", completion: 65, questions: 28, accuracy: 69, trend: +1, status: "practice-more" },
-  { chapter: "Organic Chemistry", subject: "Chemistry", color: "#6882e8", completion: 40, questions: 30, accuracy: 51, trend: -4, status: "needs-work" },
-  { chapter: "Electrochemistry", subject: "Chemistry", color: "#6882e8", completion: 30, questions: 18, accuracy: 55, trend: 0, status: "needs-work" },
-  { chapter: "Genetics", subject: "Biology", color: "#4aa87a", completion: 35, questions: 20, accuracy: 48, trend: -3, status: "needs-work" },
-  { chapter: "Cell Biology", subject: "Biology", color: "#4aa87a", completion: 78, questions: 32, accuracy: 82, trend: +6, status: "ready" },
-];
-
-const topicGroups = {
-  doing_well: [
-    { topic: "Integration", subject: "Mathematics", score: 94 },
-    { topic: "Optics", subject: "Physics", score: 91 },
-    { topic: "Thermodynamics", subject: "Chemistry", score: 88 },
-    { topic: "Cell Biology", subject: "Biology", score: 82 },
-    { topic: "Grammar", subject: "English", score: 85 },
-  ],
-  needs_attention: [
-    { topic: "Organic Chemistry", subject: "Chemistry", score: 51, practiceCount: 30 },
-    { topic: "Genetics", subject: "Biology", score: 48, practiceCount: 20 },
-    { topic: "Differential Equations", subject: "Mathematics", score: 62, practiceCount: 25 },
-    { topic: "Electrostatics", subject: "Physics", score: 69, practiceCount: 28 },
-  ],
-  improving: [
-    { topic: "Matrices", subject: "Mathematics", improvement: +9 },
-    { topic: "Wave Motion", subject: "Physics", improvement: +7 },
-    { topic: "Comprehension", subject: "English", improvement: +5 },
-  ],
-  not_started: [
-    { topic: "Probability", subject: "Mathematics" },
-    { topic: "Nuclear Physics", subject: "Physics" },
-    { topic: "Ecology", subject: "Biology" },
-  ],
-};
-
-const practiceStats = {
-  todayDone: 22,
-  todayTarget: 30,
-  weekDone: 239,
-  weekTarget: 210,
-  monthDone: 842,
-  monthTarget: 900,
-  streakDays: 12,
-  consistency: 86,
-  pendingAssignments: 2,
-  completedSessions: 38,
-};
-
-const practiceMonthly = [
-  { month: "Jan", done: 420 },
-  { month: "Feb", done: 560 },
-  { month: "Mar", done: 390 },
-  { month: "Apr", done: 680 },
-  { month: "May", done: 740 },
-  { month: "Jun", done: 842 },
-];
-
-const testResults = [
-  { name: "Unit Test 1", date: "May 20", subject: "All Subjects", score: 68, maxScore: 100, rank: 12, total: 48 },
-  { name: "Physics Chapter Test", date: "May 28", subject: "Physics", score: 82, maxScore: 100, rank: 5, total: 48 },
-  { name: "Chemistry Quiz", date: "Jun 5", subject: "Chemistry", score: 61, maxScore: 100, rank: 18, total: 48 },
-  { name: "Mathematics Test 2", date: "Jun 10", subject: "Mathematics", score: 91, maxScore: 100, rank: 2, total: 48 },
-  { name: "Biology Mid-Term", date: "Jun 12", subject: "Biology", score: 64, maxScore: 100, rank: 24, total: 48 },
-];
-
-const testTrend = testResults.map((t) => ({ name: t.date, score: t.score }));
-
-const speedStats = {
-  avgSec: 38,
-  fastestSubject: "Mathematics",
-  fastestSec: 28,
-  slowestSubject: "Chemistry",
-  slowestSec: 54,
-  improvementSec: -4,
-};
-
-const speedBySubject = subjectData.map((s, i) => ({
-  name: s.name,
-  color: s.color,
-  avgSec: [28, 33, 54, 48, 31][i],
-}));
-
-const studyActivity = {
-  totalHrs: 124,
-  avgDailyMin: 52,
-  bestDay: "Saturday",
-  bestHour: "7–9 PM",
-  weeklyHrs: [2.5, 3.1, 1.8, 3.5, 2.9, 4.2, 1.2],
-};
-
-const activityHeatmap = (() => {
-  const weeks = ["W1", "W2", "W3", "W4"];
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  return weeks.map((w) => ({
-    week: w,
-    days: days.map((d) => ({ day: d, value: Math.floor(Math.random() * 50) })),
-  }));
-})();
-
-const recoveryProgress = {
-  totalToRevisit: 8,
-  completed: 3,
-  stillPending: 5,
-  improvementAfter: 72,
-};
-
-const recoveryTopics = [
-  { topic: "SN1 vs SN2", subject: "Chemistry", status: "pending", attempts: 2 },
-  { topic: "Dihybrid Cross", subject: "Biology", status: "pending", attempts: 1 },
-  { topic: "Integrating Factor", subject: "Mathematics", status: "completed", improvement: +18 },
-  { topic: "Carbocation Stability", subject: "Chemistry", status: "completed", improvement: +24 },
-  { topic: "Electrostatic Potential", subject: "Physics", status: "pending", attempts: 1 },
-];
-
-const revisionData = {
-  totalRevised: 12,
-  completed: 9,
-  pending: 3,
-  dueToday: ["Integration by Parts", "Snell's Law", "Matrices Operations"],
-};
-
-const learningProgress = {
-  completed: 14,
-  inProgress: 8,
-  notStarted: 6,
-  total: 28,
-};
-
-const milestones = [
-  { title: "12 days of consistent practice", desc: "You practiced every single day for 12 days in a row.", date: "Jun 12", icon: "🔥", category: "Consistency" },
-  { title: "1000 questions solved", desc: "You've solved over 1,000 practice questions this year.", date: "Jun 10", icon: "📚", category: "Practice" },
-  { title: "Top 10% in Mathematics", desc: "You ranked in the top 10% of your class in Math this week.", date: "Jun 9", icon: "⭐", category: "Performance" },
-  { title: "Improved 19% in 7 weeks", desc: "Your overall accuracy improved from 62% to 81%.", date: "Jun 7", icon: "📈", category: "Improvement" },
-  { title: "Completed Cell Biology chapter", desc: "You finished all topics and practice in Cell Biology.", date: "Jun 5", icon: "✅", category: "Completion" },
-];
-
-const personalInsights = [
-  { label: "Your strongest subject right now", value: "Mathematics", sub: "91% accuracy · Rank #2 in class", color: "#3b5bdb", icon: <Star className="w-4 h-4" /> },
-  { label: "Subject needing more practice", value: "Biology", sub: "65% accuracy · 5 topics pending", color: "#c08a3a", icon: <Target className="w-4 h-4" /> },
-  { label: "Chapter you improved the most", value: "Matrices", sub: "+9% improvement this week", color: "#4aa87a", icon: <TrendingUp className="w-4 h-4" /> },
-  { label: "Chapter taking the most time", value: "Organic Chemistry", sub: "54 sec avg per question", color: "#cc5069", icon: <Clock className="w-4 h-4" /> },
-  { label: "Best study day this week", value: "Saturday", sub: "4.2 hours · 60 questions", color: "#6882e8", icon: <Calendar className="w-4 h-4" /> },
-  { label: "Suggested priority today", value: "Organic Chemistry Recovery", sub: "5 pending topics · do 15 min now", color: "#4b9fd4", icon: <ChevronRight className="w-4 h-4" /> },
-];
+function weekdayLabel(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString(undefined, { weekday: "short" });
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -269,34 +83,455 @@ const TABS: { key: Tab; label: string }[] = [
 
 export default function Analysis() {
   const [tab, setTab] = useState<Tab>("overview");
+  const student = useGurukulStudent();
+  const { data: analysis, loading: analysisLoading } = useAnalysisPageData();
+  const { data: charts, loading: chartsLoading } = useStudentPerformanceCharts();
+  const { data: snapshot, loading: snapshotLoading } = useStudentAcademicSnapshot();
+  const { items: mastery, loading: masteryLoading } = useConceptMastery();
+
+  const loading = analysisLoading || chartsLoading || snapshotLoading || masteryLoading;
+
+  const overview = useMemo(() => {
+    const correct = analysis?.totals.correct ?? 0;
+    const incorrect = analysis?.totals.wrong ?? 0;
+    const totalQuestions = correct + incorrect;
+    const heatmap = snapshot?.activity_heatmap ?? [];
+    const studyMinutes = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
+    return {
+      accuracy: analysis?.totals.accuracy_pct ?? student.accuracy ?? 0,
+      totalQuestions,
+      correct,
+      incorrect,
+      practiceCompleted: snapshot?.self_practice?.sessions_completed ?? analysis?.recent_sessions.length ?? 0,
+      testsCompleted: 0,
+      avgScore: analysis?.totals.accuracy_pct ?? 0,
+      studyHours: Math.round(studyMinutes / 60),
+      streak: snapshot?.xp?.current_streak ?? student.streak ?? 0,
+      rank: analysis?.class_rank ?? student.rank ?? 0,
+      totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
+      examReadiness: snapshot?.exam_readiness?.score ?? 0,
+    };
+  }, [analysis, snapshot, student]);
+
+  const scoreTrend = useMemo(() => {
+    const trend = charts?.practice_trend ?? [];
+    if (trend.length > 0) {
+      return trend.map((p, i) => ({
+        week: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        score: Math.round(p.score_pct),
+        practice: 0,
+      }));
+    }
+    const sessions = [...(analysis?.recent_sessions ?? [])].reverse();
+    if (sessions.length > 0) {
+      return sessions.map((s) => ({
+        week: new Date(s.finished_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        score: s.accuracy_pct,
+        practice: s.question_count,
+      }));
+    }
+    return [];
+  }, [charts?.practice_trend, analysis?.recent_sessions]);
+
+  const weekComparison = useMemo(() => {
+    const weekly = charts?.weekly_activity ?? [];
+    const recent = weekly.slice(-7);
+    const byDay = new Map<string, number>();
+    for (const row of recent) {
+      byDay.set(weekdayLabel(row.date), row.total);
+    }
+    return DAY_LABELS.map((day) => ({
+      day,
+      thisWeek: byDay.get(day) ?? 0,
+      lastWeek: 0,
+    }));
+  }, [charts?.weekly_activity]);
+
+  const subjectData = useMemo(
+    () =>
+      (charts?.subjects ?? []).map((s, i) => {
+        const accuracy = Math.round(s.accuracy);
+        return {
+          name: s.name,
+          color: subjectColor(s.name, i),
+          score: accuracy,
+          accuracy,
+          questions: s.attempts,
+          timeHrs: 0,
+          trend: 0,
+          status: accuracy >= 85 ? "best" : accuracy < 65 ? "needs-attention" : "good",
+          rankInClass: 0,
+        };
+      }),
+    [charts?.subjects],
+  );
+
+  const radarData = useMemo(
+    () => subjectData.map((s) => ({ subject: s.name.slice(0, 4), score: s.score })),
+    [subjectData],
+  );
+
+  const chapterData = useMemo(() => {
+    const fromMastery = mastery.slice(0, 12).map((m) => {
+      const acc = Math.round(m.mastery_score);
+      return {
+        chapter: m.chapter || m.concept,
+        subject: m.subject,
+        color: subjectColor(m.subject, 0),
+        completion: Math.min(100, m.total_attempts > 0 ? acc : 0),
+        questions: m.total_attempts,
+        accuracy: acc,
+        trend: 0,
+        status: acc >= 75 ? "ready" : acc >= 55 ? "practice-more" : "needs-work",
+      };
+    });
+    if (fromMastery.length > 0) return fromMastery;
+    const weak = snapshot?.weak_topics ?? [];
+    const strong = snapshot?.strong_topics ?? [];
+    return [...strong, ...weak].slice(0, 12).map((t) => {
+      const acc = Math.round(t.accuracy);
+      return {
+        chapter: t.topic || t.chapter || "Topic",
+        subject: t.subject,
+        color: subjectColor(t.subject, 0),
+        completion: acc,
+        questions: 0,
+        accuracy: acc,
+        trend: 0,
+        status: acc >= 75 ? "ready" : acc >= 55 ? "practice-more" : "needs-work",
+      };
+    });
+  }, [mastery, snapshot?.weak_topics, snapshot?.strong_topics]);
+
+  const topicGroups = useMemo(() => ({
+    doing_well: (snapshot?.strong_topics ?? []).map((t) => ({
+      topic: t.topic || t.chapter || "Topic",
+      subject: t.subject,
+      score: Math.round(t.accuracy),
+    })),
+    needs_attention: (snapshot?.weak_topics ?? []).map((t) => ({
+      topic: t.topic || t.chapter || "Topic",
+      subject: t.subject,
+      score: Math.round(t.accuracy),
+      practiceCount: 0,
+    })),
+    improving: [] as { topic: string; subject: string; improvement: number }[],
+    not_started: mastery
+      .filter((m) => m.total_attempts === 0)
+      .slice(0, 8)
+      .map((m) => ({ topic: m.concept, subject: m.subject })),
+  }), [snapshot?.strong_topics, snapshot?.weak_topics, mastery]);
+
+  const practiceStats = useMemo(() => {
+    const weekly = charts?.weekly_activity ?? [];
+    const weekDone = weekly.reduce((s, d) => s + d.total, 0);
+    const todayKey = new Date().toDateString();
+    const todayDone = weekly.find((d) => new Date(d.date).toDateString() === todayKey)?.total ?? 0;
+    const streakDays = snapshot?.xp?.current_streak ?? student.streak ?? 0;
+    const activeDays = (snapshot?.activity_heatmap ?? []).filter(
+      (d) => (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0,
+    ).length;
+    const consistency = weekly.length > 0 ? Math.round((activeDays / Math.max(weekly.length, 1)) * 100) : 0;
+    return {
+      todayDone,
+      todayTarget: 0,
+      weekDone,
+      weekTarget: 0,
+      monthDone: overview.totalQuestions,
+      monthTarget: 0,
+      streakDays,
+      consistency,
+      pendingAssignments: snapshot?.homework?.pending ?? 0,
+      completedSessions: overview.practiceCompleted,
+    };
+  }, [charts?.weekly_activity, snapshot, student.streak, overview]);
+
+  const practiceMonthly = useMemo(() => {
+    const weekly = charts?.weekly_activity ?? [];
+    const byMonth = new Map<string, number>();
+    for (const row of weekly) {
+      const key = new Date(row.date).toLocaleDateString(undefined, { month: "short" });
+      byMonth.set(key, (byMonth.get(key) ?? 0) + row.total);
+    }
+    return [...byMonth.entries()].map(([month, done]) => ({ month, done }));
+  }, [charts?.weekly_activity]);
+
+  const testResults: { name: string; date: string; subject: string; score: number; maxScore: number; rank: number; total: number }[] = [];
+  const testTrend = testResults.map((t) => ({ name: t.date, score: t.score }));
+
+  const speedStats = useMemo(() => {
+    const avgSec = analysis?.totals.avg_sec_per_question ?? 0;
+    return {
+      avgSec,
+      fastestSubject: subjectData[0]?.name ?? "—",
+      fastestSec: avgSec,
+      slowestSubject: subjectData[subjectData.length - 1]?.name ?? "—",
+      slowestSec: avgSec,
+      improvementSec: 0,
+    };
+  }, [analysis, subjectData]);
+
+  const speedBySubject = useMemo(
+    () => subjectData.map((s) => ({ name: s.name, color: s.color, avgSec: speedStats.avgSec })),
+    [subjectData, speedStats.avgSec],
+  );
+
+  const studyActivity = useMemo(() => {
+    const heatmap = snapshot?.activity_heatmap ?? [];
+    const weeklyHrs = DAY_LABELS.map((day) => {
+      const mins = heatmap
+        .filter((d) => weekdayLabel(d.date) === day)
+        .reduce((s, d) => s + (d.minutes ?? 0), 0);
+      return Math.round((mins / 60) * 10) / 10;
+    });
+    const totalMins = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
+    const activeDays = heatmap.filter((d) => (d.minutes ?? 0) > 0);
+    const bestDayRow = activeDays.sort((a, b) => (b.minutes ?? 0) - (a.minutes ?? 0))[0];
+    return {
+      totalHrs: Math.round(totalMins / 60),
+      avgDailyMin: activeDays.length > 0 ? Math.round(totalMins / activeDays.length) : 0,
+      bestDay: bestDayRow ? weekdayLabel(bestDayRow.date) : "—",
+      bestHour: "—",
+      weeklyHrs,
+    };
+  }, [snapshot?.activity_heatmap]);
+
+  const activityHeatmap = useMemo(() => {
+    const cells = consistencyGrid(snapshot?.activity_heatmap);
+    const weeks: { week: string; days: { day: string; value: number }[] }[] = [];
+    for (let w = 0; w < Math.ceil(cells.length / 7); w++) {
+      const slice = cells.slice(w * 7, w * 7 + 7);
+      weeks.push({
+        week: `W${w + 1}`,
+        days: DAY_LABELS.map((day, i) => ({
+          day,
+          value: slice[i]?.total ?? 0,
+        })),
+      });
+    }
+    return weeks.slice(-4);
+  }, [snapshot?.activity_heatmap]);
+
+  const recoveryProgress = useMemo(() => {
+    const pending = snapshot?.recovery_pending ?? 0;
+    const total = pending + (mastery.filter((m) => m.recovery_attempts > 0).length);
+    const completed = mastery.filter((m) => m.recovery_attempts > 0 && m.mastery_score >= 65).length;
+    return {
+      totalToRevisit: total,
+      completed,
+      stillPending: pending,
+      improvementAfter: 0,
+    };
+  }, [snapshot?.recovery_pending, mastery]);
+
+  const recoveryTopics = useMemo(
+    () =>
+      (snapshot?.weak_topics ?? []).slice(0, 6).map((t) => ({
+        topic: t.topic || t.chapter || "Topic",
+        subject: t.subject,
+        status: "pending" as const,
+        attempts: 0,
+      })),
+    [snapshot?.weak_topics],
+  );
+
+  const revisionData = useMemo(() => {
+    const queue = snapshot?.revision_queue ?? [];
+    const dueToday = queue
+      .filter((r) => new Date(r.due_date).toDateString() === new Date().toDateString())
+      .map((r) => r.topic || r.chapter || r.subject);
+    return {
+      totalRevised: queue.length,
+      completed: 0,
+      pending: queue.length,
+      dueToday,
+    };
+  }, [snapshot?.revision_queue]);
+
+  const learningProgress = useMemo(() => {
+    const completed = mastery.filter((m) => m.mastery_score >= 75).length;
+    const inProgress = mastery.filter((m) => m.total_attempts > 0 && m.mastery_score < 75).length;
+    const notStarted = mastery.filter((m) => m.total_attempts === 0).length;
+    return { completed, inProgress, notStarted, total: mastery.length };
+  }, [mastery]);
+
+  const milestones = useMemo(() => {
+    const built = buildMilestones(snapshot ?? {}, [], analysis?.trend.improvement_pct ?? null);
+    const streak = overview.streak;
+    const items: { title: string; desc: string; date: string; icon: string; category: string }[] = built.map((m) => ({
+      title: m.title,
+      desc: m.detail ?? "",
+      date: m.when,
+      icon: m.badge ? "⭐" : "📈",
+      category: m.badge ?? "Progress",
+    }));
+    if (streak >= 3) {
+      items.unshift({
+        title: `${streak}-day practice streak`,
+        desc: "Keep practicing daily to maintain your streak.",
+        date: "Recent",
+        icon: "🔥",
+        category: "Consistency",
+      });
+    }
+    if (overview.totalQuestions >= 100) {
+      items.push({
+        title: `${overview.totalQuestions} questions solved`,
+        desc: "Total practice questions attempted so far.",
+        date: "Recent",
+        icon: "📚",
+        category: "Practice",
+      });
+    }
+    return items;
+  }, [snapshot, analysis?.trend.improvement_pct, overview]);
+
+  const personalInsights = useMemo(() => {
+    const sorted = [...subjectData].sort((a, b) => b.accuracy - a.accuracy);
+    const strongest = sorted[0];
+    const weakest = sorted[sorted.length - 1];
+    const weakTopic = snapshot?.weak_topics?.[0];
+    const bestDay = studyActivity.bestDay;
+    const items = [];
+    if (strongest) {
+      items.push({
+        label: "Your strongest subject right now",
+        value: strongest.name,
+        sub: `${strongest.accuracy}% accuracy`,
+        color: strongest.color,
+        icon: <Star className="w-4 h-4" />,
+      });
+    }
+    if (weakest && weakest.name !== strongest?.name) {
+      items.push({
+        label: "Subject needing more practice",
+        value: weakest.name,
+        sub: `${weakest.accuracy}% accuracy`,
+        color: "#c08a3a",
+        icon: <Target className="w-4 h-4" />,
+      });
+    }
+    if (weakTopic) {
+      items.push({
+        label: "Suggested priority today",
+        value: weakTopic.topic || weakTopic.chapter || weakTopic.subject,
+        sub: `${Math.round(weakTopic.accuracy)}% accuracy · needs review`,
+        color: "#4b9fd4",
+        icon: <ChevronRight className="w-4 h-4" />,
+      });
+    }
+    if (bestDay !== "—") {
+      items.push({
+        label: "Most active day recently",
+        value: bestDay,
+        sub: `${studyActivity.totalHrs}h total study time logged`,
+        color: "#6882e8",
+        icon: <Calendar className="w-4 h-4" />,
+      });
+    }
+    if (analysis?.totals.avg_sec_per_question) {
+      items.push({
+        label: "Average time per question",
+        value: `${analysis.totals.avg_sec_per_question}s`,
+        sub: "Based on your latest practice session",
+        color: "#cc5069",
+        icon: <Clock className="w-4 h-4" />,
+      });
+    }
+    return items;
+  }, [subjectData, snapshot?.weak_topics, studyActivity, analysis]);
+
+  const questionCards = useMemo(() => {
+    const rankText = overview.rank > 0 && overview.totalStudents > 0
+      ? `Rank #${overview.rank} of ${overview.totalStudents}`
+      : overview.rank > 0 ? `Rank #${overview.rank}` : "No rank yet";
+    const streakText = overview.streak > 0 ? `${overview.streak}-day streak` : "No streak yet";
+    const weakSubjects = subjectData
+      .filter((s) => s.status === "needs-attention")
+      .map((s) => s.name);
+    const improveText = weakSubjects.length > 0
+      ? weakSubjects.join(" & ")
+      : subjectData.length > 0 ? "Keep building consistency" : "Start practicing to see insights";
+    const weakCount = snapshot?.weak_topics?.length ?? 0;
+    const nextTopic = snapshot?.weak_topics?.[0];
+    return [
+      {
+        q: "How am I doing?",
+        a: `${overview.accuracy}% accuracy overall`,
+        sub: `${rankText} · ${streakText}`,
+        color: "#4b9fd4",
+        icon: <TrendingUp className="w-4 h-4" />,
+      },
+      {
+        q: "What should I improve?",
+        a: improveText,
+        sub: weakCount > 0 ? `${weakCount} topic${weakCount === 1 ? "" : "s"} need attention` : "No weak topics flagged yet",
+        color: "#c08a3a",
+        icon: <Target className="w-4 h-4" />,
+      },
+      {
+        q: "What should I study next?",
+        a: nextTopic ? (nextTopic.topic || nextTopic.chapter || nextTopic.subject) : "Start a practice session",
+        sub: revisionData.dueToday.length > 0
+          ? `${revisionData.dueToday.length} revision item${revisionData.dueToday.length === 1 ? "" : "s"} due today`
+          : "Check your revision queue",
+        color: "#3b5bdb",
+        icon: <BookOpen className="w-4 h-4" />,
+      },
+    ];
+  }, [overview, subjectData, snapshot?.weak_topics, revisionData.dueToday.length]);
+
+  const scoreTrendDelta = scoreTrend.length >= 2
+    ? scoreTrend[scoreTrend.length - 1].score - scoreTrend[0].score
+    : null;
+
+  const monthComparison = useMemo(() => {
+    const weekly = charts?.weekly_activity ?? [];
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+    let thisM = 0;
+    let lastM = 0;
+    for (const row of weekly) {
+      const d = new Date(row.date);
+      if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) thisM += row.total;
+      if (d.getFullYear() === thisYear && d.getMonth() === thisMonth - 1) lastM += row.total;
+    }
+    return [
+      { label: "Questions", thisM, lastM, unit: "" },
+      { label: "Avg score", thisM: overview.avgScore, lastM: 0, unit: "%" },
+      { label: "Study time", thisM: overview.studyHours, lastM: 0, unit: "h" },
+    ];
+  }, [charts?.weekly_activity, overview]);
+
+  const upcomingMilestones = useMemo(() => {
+    const items = [];
+    if (overview.streak < 15 && overview.streak > 0) {
+      items.push({ title: "Reach 15-day practice streak", progress: overview.streak, target: 15, unit: "days" });
+    }
+    if (overview.totalQuestions < 100) {
+      items.push({ title: "Solve 100 practice questions", progress: overview.totalQuestions, target: 100, unit: "questions" });
+    }
+    const weak = subjectData.find((s) => s.accuracy < 75 && s.accuracy > 0);
+    if (weak) {
+      items.push({ title: `Improve ${weak.name} above 75%`, progress: weak.accuracy, target: 75, unit: "%" });
+    }
+    return items;
+  }, [overview, subjectData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <p className="text-sm text-[#78788c]">Loading analysis…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* ── 3 Questions bar ─────────────── */}
       <div className="grid sm:grid-cols-3 gap-3">
-        {[
-          {
-            q: "How am I doing?",
-            a: `${overview.accuracy}% accuracy overall`,
-            sub: `Rank #${overview.rank} of ${overview.totalStudents} · ${overview.streak}-day streak`,
-            color: "#4b9fd4",
-            icon: <TrendingUp className="w-4 h-4" />,
-          },
-          {
-            q: "What should I improve?",
-            a: "Biology & Chemistry",
-            sub: "65% and 73% accuracy — 9 topics pending",
-            color: "#c08a3a",
-            icon: <Target className="w-4 h-4" />,
-          },
-          {
-            q: "What should I study next?",
-            a: "Organic Chemistry recovery",
-            sub: "5 unresolved topics · suggested: 15 min now",
-            color: "#3b5bdb",
-            icon: <BookOpen className="w-4 h-4" />,
-          },
-        ].map((item) => (
+        {questionCards.map((item) => (
           <div
             key={item.q}
             className="rounded-2xl border p-4"
@@ -351,6 +586,8 @@ export default function Analysis() {
 
           {/* Score over time */}
           <Card label="How your score changed over 7 weeks">
+            {scoreTrend.length > 0 ? (
+            <>
             <div className="h-48 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={scoreTrend}>
@@ -369,14 +606,27 @@ export default function Analysis() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
+            {scoreTrendDelta != null && scoreTrendDelta !== 0 && (
             <div className="flex items-center gap-2 mt-2">
-              <ArrowUp className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-xs text-emerald-400 font-medium">+19% improvement over 7 weeks (62% → 81%)</span>
+              {scoreTrendDelta > 0 ? (
+                <ArrowUp className="w-3.5 h-3.5 text-emerald-400" />
+              ) : (
+                <ArrowDown className="w-3.5 h-3.5 text-rose-400" />
+              )}
+              <span className={cn("text-xs font-medium", scoreTrendDelta > 0 ? "text-emerald-400" : "text-rose-400")}>
+                {scoreTrendDelta > 0 ? "+" : ""}{scoreTrendDelta}% over recent sessions
+              </span>
             </div>
+            )}
+            </>
+            ) : (
+              <p className="text-sm text-[#78788c] mt-4 py-8 text-center">No score trend data yet</p>
+            )}
           </Card>
 
           {/* This week vs last week */}
           <Card label="This week vs last week — questions done">
+            {weekComparison.some((d) => d.thisWeek > 0) ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weekComparison} barSize={14} barGap={2}>
@@ -389,11 +639,15 @@ export default function Analysis() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            ) : (
+              <p className="text-sm text-[#78788c] mt-4 py-8 text-center">No weekly activity yet</p>
+            )}
           </Card>
 
           {/* Personal Insights */}
           <div>
             <SLabel>Personal insights</SLabel>
+            {personalInsights.length > 0 ? (
             <div className="grid sm:grid-cols-2 gap-3">
               {personalInsights.map((ins) => (
                 <div key={ins.label} className="flex items-start gap-3 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/15 transition-colors">
@@ -408,6 +662,9 @@ export default function Analysis() {
                 </div>
               ))}
             </div>
+            ) : (
+              <p className="text-sm text-[#78788c] py-6 text-center">Practice more to unlock personal insights</p>
+            )}
           </div>
         </div>
       )}
@@ -418,6 +675,7 @@ export default function Analysis() {
           {/* Subject radar */}
           <div className="grid sm:grid-cols-2 gap-6">
             <Card label="How you perform in each subject">
+              {radarData.length > 0 ? (
               <div className="h-56 mt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radarData}>
@@ -428,11 +686,16 @@ export default function Analysis() {
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
+              ) : (
+                <p className="text-sm text-[#78788c] py-12 text-center">No subject data yet</p>
+              )}
             </Card>
 
             <div className="space-y-3">
               <SLabel>Subjects at a glance</SLabel>
-              {subjectData.map((s) => (
+              {subjectData.length === 0 ? (
+                <p className="text-sm text-[#78788c] py-6 text-center">No subjects tracked yet</p>
+              ) : subjectData.map((s) => (
                 <div key={s.name} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
                   <div className="w-2 h-10 rounded-full shrink-0" style={{ background: s.color }} />
                   <div className="flex-1 min-w-0">
@@ -441,7 +704,7 @@ export default function Analysis() {
                       {s.status === "best" && <span className="text-[9px] uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">Best subject</span>}
                       {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
-                    <div className="text-[11px] text-[#78788c] mt-0.5">{s.questions} questions · {s.timeHrs}h study time · Rank #{s.rankInClass}</div>
+                    <div className="text-[11px] text-[#78788c] mt-0.5">{s.questions} questions{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` · Rank #${s.rankInClass}` : ""}</div>
                     <div className="h-1 rounded-full bg-white/5 mt-2 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
                     </div>
@@ -461,6 +724,9 @@ export default function Analysis() {
           {/* Chapter breakdown */}
           <div>
             <SLabel>Chapter by chapter</SLabel>
+            {chapterData.length === 0 ? (
+              <p className="text-sm text-[#78788c] py-6 text-center">No chapter data yet</p>
+            ) : (
             <div className="grid sm:grid-cols-2 gap-3">
               {chapterData.map((c) => {
                 const statusLabel: Record<string, { text: string; color: string }> = {
@@ -504,6 +770,7 @@ export default function Analysis() {
                 );
               })}
             </div>
+            )}
           </div>
         </div>
       )}
@@ -531,7 +798,9 @@ export default function Analysis() {
             <div>
               <SLabel>Topics you're doing well in</SLabel>
               <div className="space-y-2">
-                {topicGroups.doing_well.map((t) => (
+                {topicGroups.doing_well.length === 0 ? (
+                  <p className="text-sm text-[#78788c] py-4 text-center">No strong topics yet</p>
+                ) : topicGroups.doing_well.map((t) => (
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-emerald-400/12 bg-emerald-400/5 hover:border-emerald-400/25 transition-colors">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -548,12 +817,14 @@ export default function Analysis() {
             <div>
               <SLabel>Topics that need your attention</SLabel>
               <div className="space-y-2">
-                {topicGroups.needs_attention.map((t) => (
+                {topicGroups.needs_attention.length === 0 ? (
+                  <p className="text-sm text-[#78788c] py-4 text-center">No weak topics flagged</p>
+                ) : topicGroups.needs_attention.map((t) => (
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-amber-400/12 bg-amber-400/5 hover:border-amber-400/25 transition-colors cursor-pointer">
                     <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">{t.topic}</div>
-                      <div className="text-[11px] text-[#78788c]">{t.subject} · {t.practiceCount} questions done</div>
+                      <div className="text-[11px] text-[#78788c]">{t.subject}{t.practiceCount > 0 ? ` · ${t.practiceCount} questions done` : ""}</div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black text-amber-400">{t.score}%</div>
@@ -570,7 +841,9 @@ export default function Analysis() {
             <div>
               <SLabel>Topics getting better</SLabel>
               <div className="space-y-2">
-                {topicGroups.improving.map((t) => (
+                {topicGroups.improving.length === 0 ? (
+                  <p className="text-sm text-[#78788c] py-4 text-center">No improvement trends yet</p>
+                ) : topicGroups.improving.map((t) => (
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
                     <TrendingUp className="w-4 h-4 text-[#3b5bdb] shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -587,7 +860,9 @@ export default function Analysis() {
             <div>
               <SLabel>Topics yet to begin</SLabel>
               <div className="space-y-2">
-                {topicGroups.not_started.map((t) => (
+                {topicGroups.not_started.length === 0 ? (
+                  <p className="text-sm text-[#78788c] py-4 text-center">All tracked topics attempted</p>
+                ) : topicGroups.not_started.map((t) => (
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/2">
                     <Minus className="w-4 h-4 text-[#78788c] shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -616,7 +891,9 @@ export default function Analysis() {
                 </div>
               </div>
               <div className="space-y-2">
-                {recoveryTopics.map((r) => (
+                {recoveryTopics.length === 0 ? (
+                  <p className="text-sm text-[#78788c] py-4 text-center">No recovery topics yet</p>
+                ) : recoveryTopics.map((r) => (
                   <div key={r.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60">
                     {r.status === "completed"
                       ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -653,7 +930,9 @@ export default function Analysis() {
               </div>
               <SLabel>Due for revision today</SLabel>
               <div className="space-y-2">
-                {revisionData.dueToday.map((topic) => (
+                {revisionData.dueToday.length === 0 ? (
+                  <p className="text-sm text-[#78788c] py-4 text-center">Nothing due for revision today</p>
+                ) : revisionData.dueToday.map((topic) => (
                   <div key={topic} className="flex items-center gap-3 p-3 rounded-xl border border-[#3b5bdb]/20 bg-[#3b5bdb]/5">
                     <Clock className="w-4 h-4 text-[#3b5bdb] shrink-0" />
                     <span className="text-sm text-white">{topic}</span>
@@ -674,8 +953,8 @@ export default function Analysis() {
             <SLabel>Your practice this week</SLabel>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Done today",        value: `${practiceStats.todayDone}/${practiceStats.todayTarget}`,  color: "#3b5bdb" },
-                { label: "Done this week",    value: `${practiceStats.weekDone}/${practiceStats.weekTarget}`,   color: "#4b9fd4" },
+                { label: "Done today",        value: practiceStats.todayTarget > 0 ? `${practiceStats.todayDone}/${practiceStats.todayTarget}` : `${practiceStats.todayDone}`,  color: "#3b5bdb" },
+                { label: "Done this week",    value: practiceStats.weekTarget > 0 ? `${practiceStats.weekDone}/${practiceStats.weekTarget}` : `${practiceStats.weekDone}`,   color: "#4b9fd4" },
                 { label: "Practice streak",   value: `${practiceStats.streakDays} days`,                        color: "#c08a3a" },
                 { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "#4aa87a" },
               ].map((s) => <Metric key={s.label} label={s.label} value={s.value} color={s.color} />)}
@@ -684,6 +963,7 @@ export default function Analysis() {
 
           {/* Practice monthly */}
           <Card label="Questions practiced each month">
+            {practiceMonthly.length > 0 ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={practiceMonthly} barSize={32}>
@@ -699,11 +979,17 @@ export default function Analysis() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            ) : (
+              <p className="text-sm text-[#78788c] mt-4 py-8 text-center">No monthly practice data yet</p>
+            )}
           </Card>
 
           {/* Test results */}
           <div>
             <SLabel>Recent tests</SLabel>
+            {testResults.length === 0 ? (
+              <p className="text-sm text-[#78788c] py-6 text-center">No test results yet</p>
+            ) : (
             <div className="space-y-2">
               {testResults.map((t) => {
                 const col = scoreColor(t.score);
@@ -724,9 +1010,11 @@ export default function Analysis() {
                 );
               })}
             </div>
+            )}
           </div>
 
           {/* Score trend */}
+          {testTrend.length > 0 && (
           <Card label="How your test scores changed">
             <div className="h-40 mt-4">
               <ResponsiveContainer width="100%" height="100%">
@@ -741,16 +1029,18 @@ export default function Analysis() {
               </ResponsiveContainer>
             </div>
           </Card>
+          )}
 
           {/* Speed */}
           <div>
             <SLabel>How fast you solve questions</SLabel>
             <div className="grid sm:grid-cols-3 gap-3 mb-4">
-              <Metric label="Average per question"  value={`${speedStats.avgSec}s`}    color="#e8eaf0" />
-              <Metric label="Fastest subject"        value={speedStats.fastestSubject}  color="#4aa87a" sub={`${speedStats.fastestSec}s avg`} />
-              <Metric label="Takes most time"        value={speedStats.slowestSubject}  color="#c08a3a" sub={`${speedStats.slowestSec}s avg`} />
+              <Metric label="Average per question"  value={speedStats.avgSec > 0 ? `${speedStats.avgSec}s` : "—"}    color="#e8eaf0" />
+              <Metric label="Fastest subject"        value={speedStats.fastestSubject}  color="#4aa87a" sub={speedStats.avgSec > 0 ? `${speedStats.fastestSec}s avg` : undefined} />
+              <Metric label="Takes most time"        value={speedStats.slowestSubject}  color="#c08a3a" sub={speedStats.avgSec > 0 ? `${speedStats.slowestSec}s avg` : undefined} />
             </div>
             <Card label="Time per question by subject (seconds)">
+              {speedBySubject.length > 0 && speedStats.avgSec > 0 ? (
               <div className="h-40 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={speedBySubject} layout="vertical" barSize={14}>
@@ -761,9 +1051,12 @@ export default function Analysis() {
                     <Bar dataKey="avgSec" name="Seconds" radius={[0, 6, 6, 0]} isAnimationActive={false}>
                       {speedBySubject.map((s, i) => <Cell key={i} fill={s.color} />)}
                     </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+              ) : (
+                <p className="text-sm text-[#78788c] mt-4 py-8 text-center">No speed data yet</p>
+              )}
             </Card>
           </div>
         </div>
@@ -838,23 +1131,21 @@ export default function Analysis() {
           {/* This month vs last month */}
           <Card label="This month vs last month">
             <div className="grid grid-cols-3 gap-4 mt-3">
-              {[
-                { label: "Questions",  thisM: 842,  lastM: 740,  unit: "" },
-                { label: "Avg score",  thisM: 78,   lastM: 71,   unit: "%" },
-                { label: "Study time", thisM: 124,  lastM: 98,   unit: "h" },
-              ].map((row) => {
-                const diff = row.thisM - row.lastM;
-                const pct = Math.round((diff / row.lastM) * 100);
+              {monthComparison.map((row) => {
+                const diff = row.lastM > 0 ? row.thisM - row.lastM : 0;
+                const pct = row.lastM > 0 ? Math.round((diff / row.lastM) * 100) : 0;
                 const up = diff > 0;
                 return (
                   <div key={row.label} className="text-center p-3 rounded-xl border border-white/7 bg-[#131316]/60">
                     <div className="text-[10px] text-[#78788c] uppercase tracking-wider mb-1">{row.label}</div>
                     <div className="text-xl font-black text-white">{row.thisM}{row.unit}</div>
-                    <div className="text-[10px] text-[#78788c] mt-0.5">vs {row.lastM}{row.unit} last month</div>
-                    <div className={cn("flex items-center gap-1 justify-center mt-1 text-xs font-semibold", up ? "text-emerald-400" : "text-rose-400")}>
-                      {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                      {up ? "+" : ""}{pct}%
+                    <div className="text-[10px] text-[#78788c] mt-0.5">{row.lastM > 0 ? `vs ${row.lastM}${row.unit} last month` : "No prior month data"}</div>
+                    {row.lastM > 0 && (
+                    <div className={cn("flex items-center gap-1 justify-center mt-1 text-xs font-semibold", up ? "text-emerald-400" : diff < 0 ? "text-rose-400" : "text-[#78788c]")}>
+                      {diff !== 0 && (up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
+                      {diff !== 0 ? `${up ? "+" : ""}${pct}%` : "—"}
                     </div>
+                    )}
                   </div>
                 );
               })}
@@ -868,6 +1159,9 @@ export default function Analysis() {
         <div className="space-y-6">
           <div>
             <SLabel>Your progress milestones</SLabel>
+            {milestones.length === 0 ? (
+              <p className="text-sm text-[#78788c] py-6 text-center">No milestones yet — keep practicing!</p>
+            ) : (
             <div className="space-y-3">
               {milestones.map((m) => (
                 <div key={m.title} className="flex items-start gap-4 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
@@ -883,17 +1177,17 @@ export default function Analysis() {
                 </div>
               ))}
             </div>
+            )}
           </div>
 
           {/* Upcoming milestones */}
           <div>
             <SLabel>Next milestones to reach</SLabel>
+            {upcomingMilestones.length === 0 ? (
+              <p className="text-sm text-[#78788c] py-6 text-center">No upcoming milestones tracked yet</p>
+            ) : (
             <div className="space-y-3">
-              {[
-                { title: "Solve 50 Chemistry questions", progress: 30, target: 50, unit: "questions" },
-                { title: "Reach 15-day practice streak", progress: 12, target: 15, unit: "days" },
-                { title: "Improve Biology above 75%",    progress: 65, target: 75, unit: "%" },
-              ].map((m) => {
+              {upcomingMilestones.map((m) => {
                 const pct = Math.round((m.progress / m.target) * 100);
                 return (
                   <div key={m.title} className="p-4 rounded-xl border border-white/7 bg-[#131316]/60">
@@ -909,6 +1203,7 @@ export default function Analysis() {
                 );
               })}
             </div>
+            )}
           </div>
 
           {/* Reports */}

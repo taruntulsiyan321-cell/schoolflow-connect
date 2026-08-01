@@ -1,6 +1,7 @@
-import { useState } from "react";
-import type { PageKey } from "@/gurukul/data/mock";
-import { practiceQuestions } from "@/gurukul/data/mock";
+import { useEffect, useMemo, useState } from "react";
+import type { PageKey } from "@/gurukul/nav";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { GlassCard, SubjectBadge, DifficultyBadge, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Filter, Bookmark, BookmarkCheck,
@@ -16,88 +17,87 @@ interface Mistake {
   subject: string; chapter: string; topic: string; difficulty: "easy"|"medium"|"hard";
   source: string; sourceLabel: string; date: string; frequency: number;
   aiExplanation: string; correctReason: string; studentReason: string;
-  bookmarked: boolean; resolved: boolean; qType: string;
+  bookmarked: boolean; resolved: boolean; qType: string; sortDate: string;
 }
 
-const MISTAKES: Mistake[] = [
-  {
-    id:"m1", subject:"Chemistry", chapter:"Organic Chemistry", topic:"Reaction Mechanisms", difficulty:"hard",
-    source:"practice", sourceLabel:"Practice", date:"Jun 10", frequency:3, qType:"MCQ",
-    question:"Which mechanism does methyl bromide (CH₃Br) follow with NaOH in aqueous solution?",
-    options:["SN1 only","SN2 only","Both SN1 and SN2","Free radical substitution"],
-    correct:1, chosen:0,
-    aiExplanation:"Methyl bromide (CH₃Br) follows SN2 exclusively because methyl carbon forms an extremely unstable primary (actually no carbon) carbocation — SN1 cannot proceed. SN2 is favored by the unhindered methyl group.",
-    correctReason:"CH₃Br is a primary alkyl halide with no steric hindrance, perfect for SN2 backside attack by the strong nucleophile OH⁻.",
-    studentReason:"You selected SN1, likely confusing primary carbocations with stable tertiary ones. Remember: SN1 requires stable carbocations (3° > 2° >> 1°).",
-    bookmarked:true, resolved:false,
-  },
-  {
-    id:"m2", subject:"Biology", chapter:"Genetics", topic:"Mendelian Genetics", difficulty:"medium",
-    source:"tests", sourceLabel:"Test", date:"Jun 9", frequency:2, qType:"MCQ",
-    question:"In a dihybrid cross AaBb × AaBb, what is the phenotypic ratio?",
-    options:["3:1","1:2:1","9:3:3:1","1:1:1:1"],
-    correct:2, chosen:0,
-    aiExplanation:"In a dihybrid cross with two independent traits, Mendel's law of independent assortment gives 16 combinations: 9 A_B_ : 3 A_bb : 3 aaB_ : 1 aabb, hence 9:3:3:1.",
-    correctReason:"Each trait segregates independently (3:1), and combined they give 9:3:3:1. Think of a 4×4 Punnett square.",
-    studentReason:"You chose 3:1 which is correct for a monohybrid cross. You're applying the wrong rule — always check how many traits are involved first.",
-    bookmarked:false, resolved:false,
-  },
-  {
-    id:"m3", subject:"Mathematics", chapter:"Differential Equations", topic:"Integrating Factor", difficulty:"hard",
-    source:"practice", sourceLabel:"Practice", date:"Jun 8", frequency:4, qType:"Numerical",
-    question:"The integrating factor for dy/dx + (2/x)y = x² is:",
-    options:["x","x²","1/x","e^(2x)"],
-    correct:1, chosen:0,
-    aiExplanation:"For dy/dx + P(x)y = Q(x), integrating factor = e^(∫P dx). Here P(x) = 2/x, so IF = e^(∫2/x dx) = e^(2 ln x) = x².",
-    correctReason:"IF = e^(∫P dx) = e^(∫2/x dx) = e^(2 ln|x|) = |x|² = x² (for x > 0).",
-    studentReason:"You chose x instead of x². You correctly computed ∫2/x dx = 2 ln x but didn't apply the exponential step properly.",
-    bookmarked:true, resolved:false,
-  },
-  {
-    id:"m4", subject:"Physics", chapter:"Electrostatics", topic:"Gauss's Law", difficulty:"medium",
-    source:"battleground", sourceLabel:"Battleground", date:"Jun 7", frequency:1, qType:"MCQ",
-    question:"Electric field inside a hollow conducting sphere with surface charge is:",
-    options:["Maximum at center","Uniform throughout","Zero everywhere inside","Depends on sphere radius"],
-    correct:2, chosen:3,
-    aiExplanation:"By Gauss's law, for any closed surface inside the hollow conductor, the enclosed charge is zero (charges reside only on surface). Therefore E·A = 0 and E = 0 everywhere inside.",
-    correctReason:"All free charges on a conductor reside on the outer surface. Inside, there is no enclosed charge for any Gaussian surface, so E = 0.",
-    studentReason:"You chose 'depends on sphere radius' — this would be true for a solid charged sphere. For a hollow conductor, the interior is shielded.",
-    bookmarked:false, resolved:true,
-  },
-  {
-    id:"m5", subject:"Chemistry", chapter:"Electrochemistry", topic:"Nernst Equation", difficulty:"hard",
-    source:"tests", sourceLabel:"Test", date:"Jun 6", frequency:2, qType:"Numerical",
-    question:"Using Nernst equation at 25°C, cell EMF when Q=10 for a 2-electron reaction with E°=1.1V:",
-    options:["1.07 V","1.13 V","1.07 V","0.80 V"],
-    correct:0, chosen:1,
-    aiExplanation:"E = E° − (0.0592/n)·log Q = 1.1 − (0.0592/2)·log 10 = 1.1 − 0.0296·1 = 1.0704 ≈ 1.07 V.",
-    correctReason:"Nernst at 25°C: E = E° − (0.0592/n) log Q. Plug in n=2, Q=10: E = 1.1 − 0.0296 = 1.07 V.",
-    studentReason:"You chose 1.13V — you likely added instead of subtracted the Nernst correction. Always subtract when Q > 1.",
-    bookmarked:false, resolved:false,
-  },
-  {
-    id:"m6", subject:"Mathematics", chapter:"Integration", topic:"Definite Integrals", difficulty:"medium",
-    source:"pyq", sourceLabel:"PYQ", date:"Jun 5", frequency:1, qType:"MCQ",
-    question:"The value of ∫₀^(π/2) sin²x dx is:",
-    options:["π/2","π/4","1","π/3"],
-    correct:1, chosen:0,
-    aiExplanation:"Using the reduction formula: ∫₀^(π/2) sin²x dx = (1/2)·[x − sin(2x)/2]₀^(π/2) = (1/2)·(π/2) = π/4.",
-    correctReason:"sin²x = (1 − cos 2x)/2. Integrating gives x/2 − sin(2x)/4. Evaluating from 0 to π/2 gives π/4.",
-    studentReason:"You confused this with ∫₀^(π/2) sin x dx = 1. Always apply the half-angle identity first for sin²x integrals.",
-    bookmarked:true, resolved:false,
-  },
-  {
-    id:"m7", subject:"Biology", chapter:"Plant Physiology", topic:"Transpiration", difficulty:"easy",
-    source:"homework", sourceLabel:"Homework", date:"Jun 4", frequency:1, qType:"MCQ",
-    question:"The largest proportion of water loss in plants occurs through:",
-    options:["Lenticels","Cuticle","Stomata","Roots"],
-    correct:2, chosen:1,
-    aiExplanation:"About 90% of transpiration occurs through stomata (stomatal transpiration). Cuticular transpiration is only 5-10% and lenticular is negligible.",
-    correctReason:"Stomata are the primary pathway for gas exchange and water vapor loss. They can open/close to regulate transpiration.",
-    studentReason:"You chose cuticle — that accounts for only ~5% of total water loss. Cuticle is a waxy, hydrophobic layer that resists water loss.",
-    bookmarked:false, resolved:false,
-  },
-];
+type MistakeRow = {
+  id: string;
+  question_text: string;
+  options: unknown;
+  correct_answer: { correct_index?: number; indexes?: number[] } | null;
+  student_answer: { selected_index?: number; indexes?: number[] } | null;
+  subject: string;
+  chapter: string | null;
+  concept: string | null;
+  topic: string | null;
+  source: string;
+  assessment_type: string | null;
+  last_wrong_at: string;
+  times_wrong: number;
+  explanation: string | null;
+  mastered: boolean;
+};
+
+function parseOptions(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map(String);
+  return [];
+}
+
+function answerIndex(raw: { correct_index?: number; indexes?: number[] } | null, fallback = 0): number {
+  if (!raw) return fallback;
+  if (typeof raw.correct_index === "number") return raw.correct_index;
+  if (Array.isArray(raw.indexes) && raw.indexes.length > 0) return raw.indexes[0];
+  return fallback;
+}
+
+function studentIndex(raw: { selected_index?: number; indexes?: number[] } | null, fallback = 0): number {
+  if (!raw) return fallback;
+  if (typeof raw.selected_index === "number") return raw.selected_index;
+  if (Array.isArray(raw.indexes) && raw.indexes.length > 0) return raw.indexes[0];
+  return fallback;
+}
+
+function formatMistakeDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch {
+    return "—";
+  }
+}
+
+function sourceLabel(source: string): string {
+  const labels: Record<string, string> = {
+    practice: "Practice", tests: "Test", battleground: "Battleground",
+    homework: "Homework", pyq: "PYQ", qbank: "Question Bank",
+  };
+  return labels[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
+}
+
+function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
+  const options = parseOptions(row.options);
+  return {
+    id: row.id,
+    question: row.question_text,
+    options,
+    correct: answerIndex(row.correct_answer, 0),
+    chosen: studentIndex(row.student_answer, 0),
+    subject: row.subject,
+    chapter: row.chapter ?? "—",
+    topic: row.concept ?? row.topic ?? "—",
+    difficulty: "medium",
+    source: row.source,
+    sourceLabel: sourceLabel(row.source),
+    date: formatMistakeDate(row.last_wrong_at),
+    frequency: row.times_wrong ?? 1,
+    aiExplanation: row.explanation ?? "",
+    correctReason: "",
+    studentReason: "",
+    bookmarked,
+    resolved: row.mastered,
+    qType: row.assessment_type ?? "MCQ",
+    sortDate: row.last_wrong_at,
+  };
+}
 
 const SOURCE_COLORS: Record<string, { color: string; bg: string }> = {
   practice:    { color:"#3b5bdb", bg:"rgba(59,130,246,0.12)" },
@@ -243,7 +243,19 @@ function MistakePractice({ ids, mistakes, onDone }: { ids: string[]; mistakes: M
     } else { setAnswers(newAnswers); setQi(qi + 1); setSelected(null); setShowExp(false); }
   }
 
-  if (!q) return null;
+  if (!q || questions.length === 0) {
+    return (
+      <GlassCard className="p-8 text-center">
+        <AlertCircle className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
+        <p className="text-sm font-semibold text-white mb-1">No practice questions available</p>
+        <p className="text-xs text-[#78788c]">This mistake has no answer options to practice with.</p>
+        <button onClick={() => onDone(0)}
+          className="mt-4 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+          Back
+        </button>
+      </GlassCard>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -318,10 +330,14 @@ function MistakePractice({ ids, mistakes, onDone }: { ids: string[]; mistakes: M
 }
 
 export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => void }) {
+  const { user } = useAuth();
   const [view, setView] = useState<MBView>("list");
   const [practiceIds, setPracticeIds] = useState<string[]>([]);
   const [practiceScore, setPracticeScore] = useState(0);
-  const [mistakes, setMistakes] = useState<Mistake[]>(MISTAKES);
+  const [rows, setRows] = useState<MistakeRow[]>([]);
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"date"|"frequency"|"subject">("date");
   const [filterResolved, setFilterResolved] = useState<"all"|"unresolved"|"resolved"|"bookmarked">("all");
@@ -329,19 +345,74 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [toast, setToast] = useState<string|null>(null);
 
+  useEffect(() => {
+    if (!user) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError(null);
+      const { data, error } = await supabase
+        .from("student_mistakes")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("last_wrong_at", { ascending: false });
+      if (cancelled) return;
+      if (error) {
+        setLoadError(error.message);
+        setRows([]);
+      } else {
+        setRows((data ?? []) as MistakeRow[]);
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const mistakes = useMemo(
+    () => rows.map((r) => mapRowToMistake(r, bookmarks.has(r.id))),
+    [rows, bookmarks],
+  );
+
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   }
 
   function toggleBookmark(id: string) {
-    setMistakes(ms => ms.map(m => m.id === id ? {...m, bookmarked: !m.bookmarked} : m));
+    setBookmarks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   function addToRecovery(id: string) {
     const m = mistakes.find(x => x.id === id);
     showToast(`"${m?.topic}" added to Recovery`);
     setTimeout(() => setPage?.("recovery"), 1200);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <AlertCircle className="w-6 h-6 text-rose-400 animate-spin"/>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <GlassCard className="p-8 text-center">
+        <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2"/>
+        <p className="text-sm text-[#78788c]">Could not load mistakes</p>
+        <p className="text-xs text-[#78788c] mt-1">{loadError}</p>
+      </GlassCard>
+    );
   }
 
   if (view === "practice") {
@@ -388,8 +459,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     );
   }
 
-  const subjects = ["all", "Mathematics", "Physics", "Chemistry", "Biology"];
-  const sources = ["all", "practice", "tests", "battleground", "homework", "pyq"];
+  const subjects = ["all", ...Array.from(new Set(mistakes.map((m) => m.subject)))];
+  const sources = ["all", ...Array.from(new Set(mistakes.map((m) => m.source)))];
 
   const filtered = mistakes
     .filter(m => {
@@ -403,7 +474,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     .sort((a, b) =>
       sort === "frequency" ? b.frequency - a.frequency :
       sort === "subject" ? a.subject.localeCompare(b.subject) :
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+      new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime()
     );
 
   const unresolved = mistakes.filter(m => !m.resolved).length;
@@ -538,7 +609,11 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         {filtered.length === 0 ? (
           <GlassCard className="p-8 text-center">
             <AlertCircle className="w-8 h-8 text-[#78788c] mx-auto mb-2"/>
-            <p className="text-[#78788c] text-sm">No mistakes match your filters</p>
+            <p className="text-[#78788c] text-sm">
+              {mistakes.length === 0
+                ? "No mistakes saved yet. Wrong answers from practice and tests appear here automatically."
+                : "No mistakes match your filters"}
+            </p>
           </GlassCard>
         ) : (
           filtered.map(m => (

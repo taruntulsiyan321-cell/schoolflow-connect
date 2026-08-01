@@ -1,4 +1,11 @@
-import type { PageKey } from "@/gurukul/data/mock";
+/** Design page keys for the Gurukul student shell (routing only — not mock data). */
+export type PageKey =
+  | "dashboard" | "practice" | "aicoach" | "analysis"
+  | "recovery"  | "revision" | "mistakebook"
+  | "battleground" | "leaderboard" | "achievements"
+  | "resources" | "doubtportal" | "assignments" | "attendance" | "profile"
+  | "timetable" | "calendar" | "tests"
+  | "learninghub" | "classhub";
 
 /** Design page keys → React Router paths under /student */
 export const PAGE_PATH: Record<PageKey, string> = {

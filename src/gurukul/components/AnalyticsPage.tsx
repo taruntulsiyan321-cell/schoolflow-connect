@@ -1,3 +1,8 @@
+/**
+ * DESIGN-ONLY — not mounted under StudentDashboard `/student/*`.
+ * Contains fixture Arjun/XP demo stats for layout review only.
+ * Live analysis route: `src/gurukul/pages/Analysis.tsx`.
+ */
 import { useState } from "react";
 import {
   RadarChart,
@@ -34,7 +39,7 @@ import {
   Activity,
 } from "lucide-react";
 
-// ── Mock data ────────────────────────────────────────────────────────────────
+// ── Design fixture data (unmounted — do not use as product fallbacks) ────────
 
 const student = {
   name: "Arjun Sharma",

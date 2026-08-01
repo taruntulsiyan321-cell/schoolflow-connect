@@ -7,22 +7,26 @@ alwaysApply: true
 
 Throughout the app we are building the **real product**. Never invent demo numbers, fake classmates, or hardcoded student stats.
 
-## Especially Battleground
+## Scope — student-facing Gurukul
 
-These must be live from Supabase / existing RPCs / `student_xp` / `battle_participants` (or honest empty):
+Applies to **all mounted student product routes** under `StudentDashboard` / the Gurukul student shell (`src/gurukul/pages/*` that are routed), not only Battleground.
 
-- Battles played, won, lost, draws
-- Current streak / highest streak
-- Battle XP, battle rating, league, level
-- Average accuracy
-- Class rank / school rank
+These must be live from Supabase / Academic Engine / existing RPCs / `student_xp` / `battle_participants` / badges (or honest empty):
+
+- Battles played, won, lost, draws; streaks; battle XP/rating/league/level; accuracy; class/school rank
+- Dashboard hero stats, missions, weekly activity, subject tiles, achievements strips
+- Achievements / badges, profile milestones, learning hub counts
+- Homework, attendance, tests, leaderboard, timetable, calendar events, doubts
+- Recovery / revision / mistake book lists; analysis charts
 - Hero section, statistics cards, achievements, leaderboard, history
 
 ## Rules
 
 1. **If data is missing**, show `0` / `—` / empty state — NEVER invented demo numbers (e.g. 1382 XP, Level 14, Arjun Sharma, Priya Nair).
-2. **Do not** merge `@/gurukul/data/mock` student/battles/leaderboard/achievements into live UI as fallbacks.
+2. **Do not** merge `@/gurukul/data/mock` student/battles/leaderboard/achievements (or other value exports) into live UI as fallbacks.
 3. Query failures → toast + zeros / empty lists — not fake profiles.
-4. Achievements unlock only from real XP/wins/streak/accuracy — never pretends unlocked.
+4. Achievements unlock only from real XP/wins/streak/accuracy/`student_badges` — never pretends unlocked.
 5. Prefer existing `student_xp` columns over new schema unless required.
 6. Battleground: keep `src/gurukul/pages/Battleground.tsx` design; wire data only — no redesign.
+7. Unmounted design-only files (`ConceptMastery.tsx`, `gurukul/components/AnalyticsPage.tsx`) may keep fixtures with an explicit DESIGN-ONLY comment — never mount them with demo data as product truth.
+8. Teacher/parent/principal **design prototype** data modules (`gurukul-teacher/data.ts`, etc.) are out of scope unless those routes are product-mounted with the same mandate.

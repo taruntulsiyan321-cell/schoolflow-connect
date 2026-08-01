@@ -1,6 +1,7 @@
-import { useState } from "react";
-import type { PageKey } from "@/gurukul/data/mock";
-import { practiceQuestions } from "@/gurukul/data/mock";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import type { PageKey } from "@/gurukul/nav";
+import { useRecoveryZone, type RecoveryZoneData, type WeakConcept } from "@/hooks/useRecoveryZone";
 import { GlassCard, SubjectBadge, ProgressBar, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2, XCircle,
@@ -12,63 +13,84 @@ type RecoveryView = "overview" | "session" | "results";
 type Priority = "high" | "medium" | "low";
 
 interface RecoveryTopic {
-  id: string; concept: string; subject: string; chapter: string;
+  id: string; assignmentId?: string; concept: string; subject: string; chapter: string;
   priority: Priority; accuracy: number; attempts: number;
   source: string; pendingQs: number; lastAttempt: string;
   aiReason: string; teacherAssigned: boolean;
 }
 
-const TOPICS: RecoveryTopic[] = [
-  { id:"rt1", concept:"SN1 vs SN2 Mechanisms", subject:"Chemistry", chapter:"Organic Chemistry",
-    priority:"high", accuracy:34, attempts:5, source:"practice", pendingQs:8, lastAttempt:"2 days ago",
-    aiReason:"You've confused SN1 and SN2 mechanisms 5 times. The key gap is carbocation stability — you're applying SN2 rules to tertiary substrates.",
-    teacherAssigned:true },
-  { id:"rt2", concept:"Dihybrid Cross Ratios", subject:"Biology", chapter:"Genetics",
-    priority:"high", accuracy:41, attempts:4, source:"tests", pendingQs:6, lastAttempt:"3 days ago",
-    aiReason:"Phenotypic vs genotypic ratio confusion is the core issue. You correctly identified dominant/recessive alleles but mixed up the ratio calculation step.",
-    teacherAssigned:false },
-  { id:"rt3", concept:"Differential Equations — IF Method", subject:"Mathematics", chapter:"Differential Equations",
-    priority:"high", accuracy:28, attempts:7, source:"practice", pendingQs:10, lastAttempt:"1 day ago",
-    aiReason:"Integrating factor formula is applied inconsistently. You get e^(∫P dx) right but often mis-identify P(x) in the standard form.",
-    teacherAssigned:true },
-  { id:"rt4", concept:"Electrostatics — Gauss's Law", subject:"Physics", chapter:"Electrostatics",
-    priority:"medium", accuracy:55, attempts:3, source:"battleground", pendingQs:5, lastAttempt:"4 days ago",
-    aiReason:"Surface selection for Gaussian surfaces trips you up. You understand the concept but struggle when the charge distribution is non-uniform.",
-    teacherAssigned:false },
-  { id:"rt5", concept:"Plant Physiology — Transpiration", subject:"Biology", chapter:"Plant Physiology",
-    priority:"medium", accuracy:48, attempts:3, source:"homework", pendingQs:4, lastAttempt:"5 days ago",
-    aiReason:"You mix up stomatal and lenticular transpiration. The cuticular path is consistently forgotten in your answers.",
-    teacherAssigned:false },
-  { id:"rt6", concept:"Matrix Determinants — 3×3", subject:"Mathematics", chapter:"Matrices",
-    priority:"medium", accuracy:61, attempts:2, source:"pyq", pendingQs:4, lastAttempt:"6 days ago",
-    aiReason:"Sign convention errors in cofactor expansion. Row expansion is fine but column expansion consistently has sign mistakes.",
-    teacherAssigned:false },
-  { id:"rt7", concept:"Electromagnetic Induction — Lenz's Law", subject:"Physics", chapter:"Electromagnetic Induction",
-    priority:"low", accuracy:67, attempts:2, source:"qbank", pendingQs:3, lastAttempt:"1 week ago",
-    aiReason:"You apply Lenz's law correctly in simple cases but struggle with rotating coil scenarios.",
-    teacherAssigned:false },
-  { id:"rt8", concept:"Electrochemistry — Cell EMF", subject:"Chemistry", chapter:"Electrochemistry",
-    priority:"low", accuracy:59, attempts:2, source:"tests", pendingQs:3, lastAttempt:"1 week ago",
-    aiReason:"Nernst equation application is mostly correct but standard electrode potential signs get confused.",
-    teacherAssigned:true },
-];
+function severityToPriority(severity: string): Priority {
+  if (severity === "severe") return "high";
+  if (severity === "moderate") return "medium";
+  return "low";
+}
 
-const TEACHER_TASKS = [
-  { id:"tt1", title:"Organic Chemistry Recovery Set", teacher:"Dr. Priya Mehta", due:"Tomorrow", qs:12, subject:"Chemistry" },
-  { id:"tt2", title:"Genetics Fundamentals Review", teacher:"Ms. Anjali Singh", due:"Fri, Jun 14", qs:8, subject:"Biology" },
-];
+function formatRelativeDate(iso: string): string {
+  try {
+    const d = new Date(iso);
+    const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
+    if (diffDays <= 0) return "Today";
+    if (diffDays === 1) return "1 day ago";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch {
+    return "—";
+  }
+}
 
-const AI_PLAN = [
-  { task:"Complete SN1 vs SN2 recovery (8 questions)", subject:"Chemistry", time:"15 min", priority:"high" as Priority },
-  { task:"Differential Equations IF method drill (10 Qs)", subject:"Mathematics", time:"20 min", priority:"high" as Priority },
-  { task:"Dihybrid Cross ratio practice (6 Qs)", subject:"Biology", time:"12 min", priority:"high" as Priority },
-];
+function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
+  const weakMap = new Map<string, WeakConcept>();
+  for (const w of data.weak_concepts ?? []) {
+    weakMap.set(`${w.subject}:${w.concept}`, w);
+  }
 
-const HISTORY = [
-  { id:"h1", concept:"Integration by Parts", subject:"Mathematics", date:"Jun 10", score:72, improved:true },
-  { id:"h2", concept:"Newton's Laws — Friction", subject:"Physics", date:"Jun 9", score:85, improved:true },
-  { id:"h3", concept:"Cell Division — Meiosis", subject:"Biology", date:"Jun 8", score:60, improved:false },
-];
+  const topics: RecoveryTopic[] = [];
+  const seen = new Set<string>();
+
+  for (const a of data.open_assignments ?? []) {
+    const key = `${a.subject}:${a.concept}`;
+    seen.add(key);
+    const weak = weakMap.get(key);
+    topics.push({
+      id: a.id,
+      assignmentId: a.id,
+      concept: a.concept,
+      subject: a.subject,
+      chapter: a.chapter ?? "—",
+      priority: severityToPriority(a.severity),
+      accuracy: Math.round(weak?.mastery_score ?? 0),
+      attempts: weak?.mistake_count ?? 0,
+      source: "practice",
+      pendingQs: Math.max(0, (a.question_count ?? 0) - (a.questions_completed ?? 0)),
+      lastAttempt: formatRelativeDate(a.created_at),
+      aiReason: "Based on your recent mistakes",
+      teacherAssigned: false,
+    });
+  }
+
+  for (const w of data.weak_concepts ?? []) {
+    const key = `${w.subject}:${w.concept}`;
+    if (seen.has(key)) continue;
+    topics.push({
+      id: key,
+      concept: w.concept,
+      subject: w.subject,
+      chapter: w.chapter ?? "—",
+      priority: w.mastery_score < 40 ? "high" : w.mastery_score < 55 ? "medium" : "low",
+      accuracy: Math.round(w.mastery_score),
+      attempts: w.mistake_count ?? 0,
+      source: "practice",
+      pendingQs: 0,
+      lastAttempt: "—",
+      aiReason: "Based on your recent mistakes",
+      teacherAssigned: false,
+    });
+  }
+
+  const order: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
+  topics.sort((a, b) => order[a.priority] - order[b.priority]);
+  return topics;
+}
 
 const PRIORITY_META: Record<Priority,{color:string;label:string;bg:string}> = {
   high:   { color:"#cc5069", label:"High",   bg:"rgba(244,63,94,0.1)" },
@@ -155,12 +177,28 @@ function TopicCard({ topic, onStart }: { topic: RecoveryTopic; onStart: () => vo
   );
 }
 
-function RecoverySession({ topic, onDone }: { topic: RecoveryTopic; onDone: (score: number) => void }) {
-  const questions = practiceQuestions.slice(0, 5);
+function RecoverySession({ topic, onDone, onBack }: { topic: RecoveryTopic; onDone: (score: number) => void; onBack: () => void }) {
+  const questions: { subject: string; difficulty: string; question: string; options: string[]; correct: number; explanation: string }[] = [];
   const [qi, setQi] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<(number|null)[]>([]);
   const [showExp, setShowExp] = useState(false);
+
+  if (questions.length === 0) {
+    return (
+      <div className="space-y-5">
+        <GlassCard className="p-8 text-center">
+          <RefreshCw className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
+          <p className="text-sm font-semibold text-white mb-1">No questions available here</p>
+          <p className="text-xs text-[#78788c]">Open the live recovery session to practice this topic.</p>
+          <button onClick={onBack}
+            className="mt-4 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+            Back to Recovery Hub
+          </button>
+        </GlassCard>
+      </div>
+    );
+  }
 
   const q = questions[qi];
   const isLast = qi === questions.length - 1;
@@ -315,6 +353,8 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
 }
 
 export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }) {
+  const navigate = useNavigate();
+  const { data, loading, error } = useRecoveryZone();
   const [view, setView] = useState<RecoveryView>("overview");
   const [activeTopic, setActiveTopic] = useState<RecoveryTopic | null>(null);
   const [sessionScore, setSessionScore] = useState(0);
@@ -323,7 +363,27 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
   const [sourceFilter, setSourceFilter] = useState("all");
   const [showHistory, setShowHistory] = useState(false);
 
+  const TOPICS = useMemo(() => (data ? mapRecoveryZoneToTopics(data) : []), [data]);
+  const TEACHER_TASKS: { id: string; title: string; teacher: string; due: string; qs: number; subject: string }[] = [];
+  const AI_PLAN = useMemo(
+    () =>
+      TOPICS.filter((t) => t.priority === "high")
+        .slice(0, 3)
+        .map((t) => ({
+          task: `Complete ${t.concept} recovery (${t.pendingQs || 0} questions)`,
+          subject: t.subject,
+          time: t.pendingQs > 0 ? `${Math.max(10, t.pendingQs * 2)} min` : "—",
+          priority: t.priority as Priority,
+        })),
+    [TOPICS],
+  );
+  const HISTORY: { id: string; concept: string; subject: string; date: string; score: number; improved: boolean }[] = [];
+
   function startSession(topic: RecoveryTopic) {
+    if (topic.assignmentId) {
+      navigate(`/student/recovery/${topic.assignmentId}`);
+      return;
+    }
     setActiveTopic(topic);
     setView("session");
   }
@@ -333,8 +393,27 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     setView("results");
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <RefreshCw className="w-6 h-6 text-rose-400 animate-spin"/>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <GlassCard className="p-8 text-center">
+        <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2"/>
+        <p className="text-sm text-[#78788c]">Could not load recovery data</p>
+        <p className="text-xs text-[#78788c] mt-1">{error}</p>
+      </GlassCard>
+    );
+  }
+
   if (view === "session" && activeTopic) {
-    return <RecoverySession topic={activeTopic} onDone={onSessionDone}/>;
+    return <RecoverySession topic={activeTopic} onDone={onSessionDone}
+      onBack={() => { setView("overview"); setActiveTopic(null); }}/>;
   }
   if (view === "results" && activeTopic) {
     return <SessionResults topic={activeTopic} score={sessionScore} setPage={setPage}
@@ -395,7 +474,10 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
           </div>
         </div>
         <div className="grid sm:grid-cols-3 gap-3">
-          {AI_PLAN.map((item, i) => {
+          {AI_PLAN.length === 0 ? (
+            <p className="text-xs text-[#78788c] col-span-full">No recovery plan yet — weak areas will appear here as you practice.</p>
+          ) : (
+            AI_PLAN.map((item, i) => {
             const m = PRIORITY_META[item.priority];
             return (
               <div key={i} className="p-3 rounded-xl border bg-white/2 hover:bg-white/5 transition-all cursor-pointer group"
@@ -411,7 +493,8 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                 </div>
               </div>
             );
-          })}
+          })
+          )}
         </div>
       </GlassCard>
 
@@ -494,7 +577,12 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         </button>
         {showHistory && (
           <div className="space-y-2">
-            {HISTORY.map(h => (
+            {HISTORY.length === 0 ? (
+              <GlassCard className="p-6 text-center">
+                <p className="text-xs text-[#78788c]">No completed recovery sessions yet.</p>
+              </GlassCard>
+            ) : (
+              HISTORY.map(h => (
               <GlassCard key={h.id} className="p-4 flex items-center gap-4">
                 <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
                   h.improved ? "bg-emerald-400/10" : "bg-amber-400/10")}>
@@ -511,7 +599,8 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                   </button>
                 </div>
               </GlassCard>
-            ))}
+              ))
+            )}
           </div>
         )}
       </div>

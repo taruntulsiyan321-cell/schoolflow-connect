@@ -1,62 +1,154 @@
-import type { PageKey } from "@/gurukul/data/mock";
-import { student, subjects, recoveryItems, revisionItems, mistakes, accuracyTrend } from "@/gurukul/data/mock";
+import type { PageKey } from "@/gurukul/nav";
+import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { GlassCard, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   BarChart2, RefreshCw, RotateCcw, AlertCircle,
   ArrowRight, TrendingUp, CheckCircle2,
 } from "lucide-react";
 import { LineChart, Line, XAxis, ResponsiveContainer, Tooltip } from "recharts";
+import { useMemo } from "react";
+import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 
 type Props = { setPage: (p: PageKey) => void };
 
-const FEATURES = [
-  {
-    key:      "analysis"       as PageKey,
-    label:    "Analysis",
-    sub:      "See how you're doing across all subjects",
-    icon:     <BarChart2 className="w-6 h-6"/>,
-    color:    "#4b9fd4",
-    glow:     "shadow-[0_0_32px_rgba(34,211,238,0.07)]",
-    stat:     `${student.accuracy}% accuracy`,
-    statSub:  "overall",
-  },
-  {
-    key:      "recovery"       as PageKey,
-    label:    "Recovery",
-    sub:      "Fix mistakes from past practice sessions",
-    icon:     <RefreshCw className="w-6 h-6"/>,
-    color:    "#cc5069",
-    glow:     "shadow-[0_0_32px_rgba(244,63,94,0.07)]",
-    stat:     `${recoveryItems.length} pending`,
-    statSub:  "to recover",
-  },
-  {
-    key:      "revision"       as PageKey,
-    label:    "Revision",
-    sub:      "Spaced-repetition review for long-term memory",
-    icon:     <RotateCcw className="w-6 h-6"/>,
-    color:    "#6882e8",
-    glow:     "shadow-[0_0_32px_rgba(167,139,250,0.07)]",
-    stat:     `${revisionItems.filter(r => r.dueIn === "Now" || r.dueIn === "Today").length} due today`,
-    statSub:  "items",
-  },
-  {
-    key:      "mistakebook"    as PageKey,
-    label:    "Mistake Book",
-    sub:      "A log of every error — your growth blueprint",
-    icon:     <AlertCircle className="w-6 h-6"/>,
-    color:    "#c08a3a",
-    glow:     "shadow-[0_0_32px_rgba(245,158,11,0.07)]",
-    stat:     `${mistakes.length} logged`,
-    statSub:  "mistakes",
-  },
-];
+const SUBJECT_COLORS: Record<string, string> = {
+  Mathematics: "#3b5bdb",
+  Math: "#3b5bdb",
+  Physics: "#4b9fd4",
+  Chemistry: "#6882e8",
+  Biology: "#4aa87a",
+  English: "#c08a3a",
+  Hindi: "#cc5069",
+  Science: "#4b9fd4",
+  "Social Science": "#c08a3a",
+};
+const FALLBACK_COLORS = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
+
+function subjectColor(name: string, index: number) {
+  return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+}
 
 export default function LearningHub({ setPage }: Props) {
-  const pendingRecovery  = recoveryItems.length;
-  const dueRevision      = revisionItems.filter(r => r.dueIn === "Now" || r.dueIn === "Today").length;
-  const unresolvedErrors = mistakes.filter(m => m.status !== "mastered").length;
-  const overallAccuracy  = Math.round(subjects.reduce((a,s)=>a+s.accuracy,0)/subjects.length);
+  const student = useGurukulStudent();
+  const { data: snapshot } = useStudentAcademicSnapshot();
+  const { data: charts } = useStudentPerformanceCharts();
+
+  const pendingRecovery = snapshot?.recovery_pending ?? 0;
+  const dueRevision = snapshot?.revision_queue?.length ?? 0;
+  const unresolvedErrors = snapshot?.mistake_count ?? 0;
+
+  const chartSubjects = charts?.subjects ?? [];
+  const overallAccuracy = useMemo(() => {
+    if (student.accuracy > 0) return Math.round(student.accuracy);
+    const fromSnap = snapshot?.exam_readiness?.accuracy_pct;
+    if (fromSnap != null && fromSnap > 0) return Math.round(fromSnap);
+    if (chartSubjects.length > 0) {
+      return Math.round(chartSubjects.reduce((a, s) => a + s.accuracy, 0) / chartSubjects.length);
+    }
+    return 0;
+  }, [student.accuracy, snapshot?.exam_readiness?.accuracy_pct, chartSubjects]);
+
+  const accuracyTrend = useMemo(() => {
+    const trend = charts?.practice_trend ?? [];
+    if (trend.length > 0) {
+      return trend.map((p, i) => ({
+        week: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+        score: Math.round(p.score_pct),
+      }));
+    }
+    const weekly = charts?.weekly_activity ?? [];
+    return weekly.map((p) => ({
+      week: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      score: p.total > 0 ? overallAccuracy : 0,
+    }));
+  }, [charts?.practice_trend, charts?.weekly_activity, overallAccuracy]);
+
+  const trendDelta = accuracyTrend.length >= 2
+    ? accuracyTrend[accuracyTrend.length - 1].score - accuracyTrend[0].score
+    : 0;
+  const latestScore = accuracyTrend.length > 0
+    ? accuracyTrend[accuracyTrend.length - 1].score
+    : overallAccuracy;
+
+  const subjects = useMemo(
+    () =>
+      chartSubjects.map((s, i) => ({
+        id: s.name,
+        name: s.name,
+        color: subjectColor(s.name, i),
+        icon: s.name.charAt(0).toUpperCase(),
+        trend: 0,
+        accuracy: Math.round(s.accuracy),
+      })),
+    [chartSubjects],
+  );
+
+  const features = useMemo(
+    () => [
+      {
+        key: "analysis" as PageKey,
+        label: "Analysis",
+        sub: "See how you're doing across all subjects",
+        icon: <BarChart2 className="w-6 h-6"/>,
+        color: "#4b9fd4",
+        glow: "shadow-[0_0_32px_rgba(34,211,238,0.07)]",
+        stat: `${overallAccuracy}% accuracy`,
+        statSub: "overall",
+      },
+      {
+        key: "recovery" as PageKey,
+        label: "Recovery",
+        sub: "Fix mistakes from past practice sessions",
+        icon: <RefreshCw className="w-6 h-6"/>,
+        color: "#cc5069",
+        glow: "shadow-[0_0_32px_rgba(244,63,94,0.07)]",
+        stat: `${pendingRecovery} pending`,
+        statSub: "to recover",
+      },
+      {
+        key: "revision" as PageKey,
+        label: "Revision",
+        sub: "Spaced-repetition review for long-term memory",
+        icon: <RotateCcw className="w-6 h-6"/>,
+        color: "#6882e8",
+        glow: "shadow-[0_0_32px_rgba(167,139,250,0.07)]",
+        stat: `${dueRevision} in queue`,
+        statSub: "items",
+      },
+      {
+        key: "mistakebook" as PageKey,
+        label: "Mistake Book",
+        sub: "A log of every error — your growth blueprint",
+        icon: <AlertCircle className="w-6 h-6"/>,
+        color: "#c08a3a",
+        glow: "shadow-[0_0_32px_rgba(245,158,11,0.07)]",
+        stat: `${unresolvedErrors} logged`,
+        statSub: "mistakes",
+      },
+    ],
+    [overallAccuracy, pendingRecovery, dueRevision, unresolvedErrors],
+  );
+
+  const loopSteps = useMemo(() => {
+    const recoveryPending = pendingRecovery;
+    const revisionPending = dueRevision;
+    const mistakesLogged = unresolvedErrors > 0;
+    const practiceDone = (snapshot?.self_practice?.sessions_completed ?? 0) > 0;
+    const analysisDone = practiceDone;
+    const mistakebookDone = mistakesLogged;
+    const recoveryDone = recoveryPending === 0 && mistakebookDone;
+    const revisionActive = recoveryDone && revisionPending > 0;
+    const recoveryActive = recoveryPending > 0;
+
+    return [
+      { label: "Practice", color: "#3b5bdb", done: practiceDone, active: false },
+      { label: "Analyse", color: "#4b9fd4", done: analysisDone, active: false },
+      { label: "Mistake Book", color: "#c08a3a", done: mistakebookDone, active: false },
+      { label: "Recover", color: "#cc5069", done: recoveryDone, active: recoveryActive },
+      { label: "Revise", color: "#6882e8", done: revisionPending === 0 && recoveryDone, active: revisionActive },
+    ];
+  }, [pendingRecovery, dueRevision, unresolvedErrors, snapshot?.self_practice?.sessions_completed]);
 
   return (
     <div className="space-y-8">
@@ -88,7 +180,7 @@ export default function LearningHub({ setPage }: Props) {
 
       {/* Feature cards */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {FEATURES.map(f => (
+        {features.map(f => (
           <button key={f.key} onClick={() => setPage(f.key)}
             className={cn(
               "group text-left p-5 rounded-2xl border border-white/7 bg-[#131316]/90 transition-all duration-200",
@@ -121,22 +213,31 @@ export default function LearningHub({ setPage }: Props) {
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Accuracy Trend</span>
           </div>
           <div className="flex items-baseline gap-2 mb-4">
-            <span className="text-2xl font-black text-white">{accuracyTrend[accuracyTrend.length-1].score}%</span>
-            <span className="flex items-center gap-1 text-emerald-400 text-xs font-semibold">
-              <TrendingUp className="w-3.5 h-3.5"/>
-              +{accuracyTrend[accuracyTrend.length-1].score - accuracyTrend[0].score}% since week 1
-            </span>
+            <span className="text-2xl font-black text-white">{latestScore}%</span>
+            {accuracyTrend.length >= 2 && (
+              <span className={cn(
+                "flex items-center gap-1 text-xs font-semibold",
+                trendDelta >= 0 ? "text-emerald-400" : "text-[#cc5069]",
+              )}>
+                <TrendingUp className={cn("w-3.5 h-3.5", trendDelta < 0 && "rotate-180")}/>
+                {trendDelta >= 0 ? "+" : ""}{trendDelta}% since start
+              </span>
+            )}
           </div>
-          <div className="h-32">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={accuracyTrend}>
-                <XAxis dataKey="week" tick={{fill:"#78788c",fontSize:10}} axisLine={false} tickLine={false}/>
-                <Tooltip contentStyle={{background:"#131316",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,fontSize:12}}/>
-                <Line type="monotone" dataKey="score" name="Accuracy" stroke="#4b9fd4" strokeWidth={2.5}
-                  isAnimationActive={false} dot={{r:3,fill:"#4b9fd4",strokeWidth:0}} activeDot={{r:5}}/>
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          {accuracyTrend.length > 0 ? (
+            <div className="h-32">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={accuracyTrend}>
+                  <XAxis dataKey="week" tick={{fill:"#78788c",fontSize:10}} axisLine={false} tickLine={false}/>
+                  <Tooltip contentStyle={{background:"#131316",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,fontSize:12}}/>
+                  <Line type="monotone" dataKey="score" name="Accuracy" stroke="#4b9fd4" strokeWidth={2.5}
+                    isAnimationActive={false} dot={{r:3,fill:"#4b9fd4",strokeWidth:0}} activeDot={{r:5}}/>
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="text-sm text-[#78788c] py-8 text-center">No trend data yet — practice to build your chart.</p>
+          )}
         </GlassCard>
 
         {/* Subject mastery rings */}
@@ -145,39 +246,39 @@ export default function LearningHub({ setPage }: Props) {
             <div className="w-1 h-4 rounded-full bg-[#3b5bdb]"/>
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Subject Accuracy</span>
           </div>
-          <div className="space-y-3">
-            {subjects.map(s => (
-              <div key={s.id} className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-md flex items-center justify-center text-sm shrink-0"
-                  style={{background:`${s.color}15`}}>{s.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between mb-1">
-                    <span className="text-xs font-semibold text-white">{s.name}</span>
-                    <span className="text-xs font-black tabular-nums" style={{color:s.color}}>{s.accuracy}%</span>
+          {subjects.length > 0 ? (
+            <div className="space-y-3">
+              {subjects.map(s => (
+                <div key={s.id} className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
+                    style={{background:`${s.color}15`,color:s.color}}>{s.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between mb-1">
+                      <span className="text-xs font-semibold text-white">{s.name}</span>
+                      <span className="text-xs font-black tabular-nums" style={{color:s.color}}>{s.accuracy}%</span>
+                    </div>
+                    <ProgressBar value={s.accuracy} color={s.color} height="h-1.5"/>
                   </div>
-                  <ProgressBar value={s.accuracy} color={s.color} height="h-1.5"/>
+                  {s.trend !== 0 && (
+                    <div className="flex items-center gap-1 text-[10px] shrink-0"
+                      style={{color:s.trend>=0?"#4aa87a":"#cc5069"}}>
+                      <TrendingUp className={cn("w-3 h-3", s.trend<0&&"rotate-180")}/>
+                      {s.trend>0?"+":""}{s.trend}%
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-1 text-[10px] shrink-0"
-                  style={{color:s.trend>=0?"#4aa87a":"#cc5069"}}>
-                  <TrendingUp className={cn("w-3 h-3", s.trend<0&&"rotate-180")}/>
-                  {s.trend>0?"+":""}{s.trend}%
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-[#78788c] py-8 text-center">No subject data yet.</p>
+          )}
         </GlassCard>
       </div>
 
       {/* Learning loop reminder */}
       <GlassCard className="p-5 border-dashed border-white/10">
         <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#78788c]">
-          {[
-            {label:"Practice",    color:"#3b5bdb", done:true},
-            {label:"Analyse",     color:"#4b9fd4", done:true},
-            {label:"Mistake Book",color:"#c08a3a", done:true},
-            {label:"Recover",     color:"#cc5069", done:false, active:true},
-            {label:"Revise",      color:"#6882e8", done:false},
-          ].map((step, i, arr) => (
+          {loopSteps.map((step, i, arr) => (
             <span key={step.label} className="flex items-center gap-2">
               <span className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-full border font-semibold transition-all",

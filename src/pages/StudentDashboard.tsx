@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
-import type { PageKey } from "@/gurukul/data/mock";
+import type { PageKey } from "@/gurukul/nav";
 import { PAGE_PATH, pathToPage } from "@/gurukul/nav";
 import Layout from "@/gurukul/components/Layout";
 import { GurukulStudentProvider } from "@/gurukul/StudentContext";
@@ -61,6 +61,10 @@ export default function StudentDashboard() {
     level?: number;
     streak?: number;
     rank?: number;
+    accuracy?: number;
+    attendance?: number;
+    sessionsThisWeek?: number;
+    totalStudents?: number;
   }>({});
 
   useEffect(() => {
@@ -79,6 +83,7 @@ export default function StudentDashboard() {
         .maybeSingle();
 
       let rank: number | undefined;
+      let totalStudents = 0;
       const { data: lb } = await supabase.rpc("rpc_leaderboard", {
         _scope: "class",
         _category: "xp",
@@ -86,9 +91,51 @@ export default function StudentDashboard() {
         _limit: 200,
       });
       if (Array.isArray(lb)) {
+        totalStudents = lb.length;
         const i = lb.findIndex((r: { user_id?: string }) => r.user_id === user.id);
         if (i >= 0) rank = i + 1;
       }
+
+      const [{ data: snap }, { data: charts }] = await Promise.all([
+        supabase.rpc("rpc_student_academic_snapshot"),
+        supabase.rpc("rpc_student_performance_charts"),
+      ]);
+
+      type Snap = {
+        exam_readiness?: { accuracy_pct?: number; attendance_pct?: number };
+        activity_heatmap?: { date: string; dpp: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
+      };
+      type ChartRow = { subjects?: { accuracy: number }[]; weekly_activity?: { date: string; total: number }[] };
+
+      const snapshot = snap as Snap | null;
+      const chartData = charts as ChartRow | null;
+
+      const chartSubjects = chartData?.subjects ?? [];
+      const accuracyFromCharts = chartSubjects.length
+        ? Math.round(chartSubjects.reduce((a, sub) => a + sub.accuracy, 0) / chartSubjects.length)
+        : 0;
+      const accuracy =
+        snapshot?.exam_readiness?.accuracy_pct != null && snapshot.exam_readiness.accuracy_pct > 0
+          ? Math.round(snapshot.exam_readiness.accuracy_pct)
+          : accuracyFromCharts;
+
+      const attendance =
+        snapshot?.exam_readiness?.attendance_pct != null
+          ? Math.round(snapshot.exam_readiness.attendance_pct)
+          : 0;
+
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      weekAgo.setHours(0, 0, 0, 0);
+
+      const heatmapSessions = (snapshot?.activity_heatmap ?? []).filter((row) => {
+        const d = new Date(row.date);
+        if (d < weekAgo) return false;
+        return row.minutes > 0 || row.dpp > 0 || row.battles > 0 || (row.self_practice ?? 0) > 0;
+      }).length;
+
+      const weeklySessions = (chartData?.weekly_activity ?? []).slice(-7).filter((row) => row.total > 0).length;
+      const sessionsThisWeek = heatmapSessions > 0 ? heatmapSessions : weeklySessions;
 
       const fullName = s?.full_name?.trim() || user.email?.split("@")[0] || "Student";
       const parts = fullName.split(/\s+/);
@@ -106,6 +153,10 @@ export default function StudentDashboard() {
         level: x?.level ?? 1,
         streak: x?.current_streak ?? 0,
         rank: rank ?? 0,
+        accuracy,
+        attendance,
+        sessionsThisWeek,
+        totalStudents,
       });
     })();
   }, [user]);

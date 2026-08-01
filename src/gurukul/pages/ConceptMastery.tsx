@@ -1,3 +1,8 @@
+/**
+ * DESIGN-ONLY — not mounted under StudentDashboard `/student/*`.
+ * Uses fixture data from `@/gurukul/data/mock` for layout review only.
+ * Live mastery: `src/components/student/ConceptMastery.tsx` + `useConceptMastery`.
+ */
 import { useState } from "react";
 import { concepts, subjects } from "@/gurukul/data/mock";
 import { GlassCard, SectionLabel, subjectColor, ProgressBar, cn } from "@/gurukul/components/shared";

@@ -5,7 +5,7 @@
  */
 import { useState, useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import type { PageKey } from "@/gurukul/data/mock";
+import type { PageKey } from "@/gurukul/nav";
 import { useAuth } from "@/hooks/useAuth";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { toast } from "@/hooks/use-toast";

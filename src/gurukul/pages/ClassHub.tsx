@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { PageKey } from "@/gurukul/data/mock";
+import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   Clock, Calendar, CalendarDays, ClipboardList, FlaskConical,

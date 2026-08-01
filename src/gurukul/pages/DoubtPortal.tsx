@@ -1,6 +1,11 @@
-import { useState, useRef } from "react";
-import { leaderboard, student } from "@/gurukul/data/mock";
-import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { useState, useEffect, useMemo } from "react";
+import { DoubtService, type ServiceContext } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { useGurukulStudent } from "@/gurukul/StudentContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { GlassCard, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { toast } from "sonner";
 import {
   MessageCircle, Plus, Search, Filter, ThumbsUp, Bookmark, BookmarkCheck,
   CheckCircle2, Clock, ChevronDown, ChevronRight, Brain, Send, Mic,
@@ -29,75 +34,32 @@ interface Doubt {
   attachments: string[]; mine: boolean; tags: string[];
 }
 
-// ── Mock Data ──────────────────────────────────────────────────────────────────
-const MOCK_DOUBTS: Doubt[] = [
-  {
-    id:"d1", title:"Why doesn't SN2 work for tertiary alkyl halides?",
-    body:"I understand that SN2 is a bimolecular mechanism, but I'm confused about why tertiary substrates don't undergo SN2. Is it purely steric? What role does the leaving group play?",
-    subject:"Chemistry", chapter:"Organic Chemistry", topic:"Reaction Mechanisms",
-    authorName:"Arjun Sharma", authorAvatar:"AS", authorColor:"#3b5bdb",
-    authorRank:3, date:"Jun 11", time:"10:24 AM", status:"answered",
-    views:42, upvotes:8, upvotedByMe:true, bookmarked:true, mine:true,
-    tags:["SN2","substitution","organic"],
-    attachments:[],
-    replies:[
-      { id:"r1", author:"Mr. Khan", avatar:"MK", authorColor:"#c08a3a", text:"Great question Arjun! SN2 requires a backside attack — the nucleophile approaches from 180° opposite the leaving group. In tertiary halides, the three bulky alkyl groups create steric hindrance that physically blocks this approach. The activation energy becomes prohibitively high. The leaving group quality doesn't directly affect this; it's purely the steric environment of the central carbon.", time:"10:41 AM", likes:12, likedByMe:false, isTeacher:true, isAccepted:true, isHelpful:true, isAI:false },
-      { id:"r2", author:"Priya Nair", avatar:"PN", authorColor:"#c08a3a", text:"To add to Sir's answer — a good way to remember this: tertiary carbons have THREE groups blocking the back. SN2 is essentially impossible. Tertiary substrates instead go via SN1 since they form stable 3° carbocations. Primary → SN2 preferred, Tertiary → SN1 preferred.", time:"11:02 AM", likes:7, likedByMe:true, isTeacher:false, isAccepted:false, isHelpful:true, isAI:false },
-      { id:"r3", author:"Nova AI", avatar:"AI", authorColor:"#6882e8", text:"Supplementary: Steric hindrance isn't just about number of groups — it's about their bulk too. A neopentyl system (primary but with tert-butyl group adjacent) is also resistant to SN2 for the same reason. The key rule: SN2 rate = f(nucleophile strength, substrate steric environment). Tertiary > Secondary > Primary in SN1; Primary > Secondary > Tertiary in SN2.", time:"11:05 AM", likes:5, likedByMe:false, isTeacher:false, isAccepted:false, isHelpful:false, isAI:true },
-    ],
-  },
-  {
-    id:"d2", title:"How do you integrate ∫sec³x dx step by step?",
-    body:"I've tried IBP but keep going in circles. The textbook just gives the final formula but I want to understand the actual derivation. Can anyone show the full working?",
-    subject:"Mathematics", chapter:"Integration", topic:"Trigonometric Integrals",
-    authorName:"Rahul Mehta", authorAvatar:"RM", authorColor:"#4b9fd4",
-    authorRank:2, date:"Jun 10", time:"2:15 PM", status:"pending",
-    views:28, upvotes:5, upvotedByMe:false, bookmarked:false, mine:false,
-    tags:["integration","IBP","trigonometry"],
-    attachments:[],
-    replies:[
-      { id:"r4", author:"Sneha Patel", avatar:"SP", authorColor:"#4aa87a", text:"Use IBP with u=sec x, dv=sec²x dx. Then du=sec x tan x dx, v=tan x. So ∫sec³x = sec x·tan x − ∫sec x·tan²x dx. Replace tan²x = sec²x−1, then you get 2∫sec³x = sec x tan x + ∫sec x dx. Solve for ∫sec³x. This is the classic 'circular' IBP that resolves itself!", time:"2:47 PM", likes:9, likedByMe:false, isTeacher:false, isAccepted:false, isHelpful:true, isAI:false },
-    ],
-  },
-  {
-    id:"d3", title:"Dominant vs Codominance — what's the actual difference?",
-    body:"Ms. Iyer taught both in the same class and I got confused. In dominant inheritance one allele masks another. In codominance both are expressed. But how is that different from incomplete dominance? All three seem the same to me.",
-    subject:"Biology", chapter:"Genetics", topic:"Inheritance Patterns",
-    authorName:"Ananya Singh", authorAvatar:"AN", authorColor:"#cc5069",
-    authorRank:6, date:"Jun 9", time:"8:30 AM", status:"answered",
-    views:67, upvotes:14, upvotedByMe:false, bookmarked:true, mine:false,
-    tags:["genetics","inheritance","dominance"],
-    attachments:[],
-    replies:[
-      { id:"r5", author:"Ms. Iyer", avatar:"MI", authorColor:"#4aa87a", text:"These three are genuinely distinct. **Complete dominance**: A masks a entirely (Aa looks like AA). **Incomplete dominance**: blend — RR=red, rr=white, Rr=PINK (intermediate). **Codominance**: both expressed simultaneously — AB blood type shows both A and B antigens on the same cell surface. No blending, no masking. Use blood groups as your anchor for codominance.", time:"9:00 AM", likes:21, likedByMe:false, isTeacher:true, isAccepted:true, isHelpful:true, isAI:false },
-      { id:"r6", author:"Karan Joshi", avatar:"KJ", authorColor:"#6882e8", text:"Memory trick that helped me: Incomplete = intermediate (pink flower), Codominance = clear co-existence (AB blood). Complete dominance = 100% one phenotype.", time:"9:22 AM", likes:6, likedByMe:false, isTeacher:false, isAccepted:false, isHelpful:false, isAI:false },
-    ],
-  },
-  {
-    id:"d4", title:"Why is the electric field inside a hollow conductor always zero?",
-    body:"I know this from Gauss's law but I'm struggling to build an intuition for WHY it's zero. Can someone give a non-formula explanation?",
-    subject:"Physics", chapter:"Electrostatics", topic:"Gauss's Law",
-    authorName:"Dev Kumar", authorAvatar:"DK", authorColor:"#fb923c",
-    authorRank:7, date:"Jun 8", time:"4:10 PM", status:"closed",
-    views:51, upvotes:11, upvotedByMe:false, bookmarked:false, mine:false,
-    tags:["electrostatics","Gauss","conductors"],
-    attachments:[],
-    replies:[
-      { id:"r7", author:"Ms. Sharma", avatar:"MS", authorColor:"#4b9fd4", text:"Think of it this way: free charges in a conductor rearrange until there's no net force on any charge — that's equilibrium. If there were a field inside, it would push charges around until they cancel it out. The surface charges arrange themselves to perfectly cancel any external field in the interior. This is the basis of Faraday cages!", time:"4:35 PM", likes:18, likedByMe:false, isTeacher:true, isAccepted:true, isHelpful:true, isAI:false },
-    ],
-  },
-  {
-    id:"d5", title:"Difference between Lenticular and Stomatal transpiration?",
-    body:"Our biology text lists three types but doesn't explain when each dominates. Also, what controls stomatal opening at the molecular level?",
-    subject:"Biology", chapter:"Plant Physiology", topic:"Transpiration",
-    authorName:"Meera Rao", authorAvatar:"MR", authorColor:"#818cf8",
-    authorRank:8, date:"Jun 7", time:"11:45 AM", status:"pending",
-    views:19, upvotes:3, upvotedByMe:false, bookmarked:false, mine:false,
-    tags:["transpiration","plants","stomata"],
-    attachments:[],
-    replies:[],
-  },
-];
+type DbDoubtRow = {
+  id: string;
+  user_id: string;
+  student_name: string;
+  subject: string | null;
+  chapter: string | null;
+  concept: string | null;
+  title: string;
+  body: string;
+  status: string;
+  view_count: number;
+  upvote_count: number;
+  image_url: string | null;
+  created_at: string;
+};
+
+type DbAnswerRow = {
+  id: string;
+  author_name: string;
+  author_role: string;
+  body: string;
+  is_teacher_verified: boolean;
+  is_accepted: boolean;
+  upvote_count: number;
+  created_at: string;
+};
 
 const AI_SUGGESTIONS = [
   "How does integration by parts work?",
@@ -107,10 +69,82 @@ const AI_SUGGESTIONS = [
   "What is Gauss's law?",
 ];
 
-const SIMILAR_DOUBTS = [
-  { id:"d1", title:"Why doesn't SN2 work for tertiary alkyl halides?", replies:3 },
-  { id:"d2", title:"SN1 vs SN2 — choosing the right mechanism", replies:2 },
-];
+function initialsFromName(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "??";
+}
+
+function mapDbStatus(status: string): DoubtStatus {
+  if (status === "unsolved") return "pending";
+  if (status === "solved") return "closed";
+  return "answered";
+}
+
+function mapRowToDoubt(row: DbDoubtRow, userId: string | undefined): Doubt {
+  const created = new Date(row.created_at);
+  const subj = row.subject ?? "General";
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    subject: subj,
+    chapter: row.chapter ?? "",
+    topic: row.concept ?? "",
+    authorName: row.student_name,
+    authorAvatar: initialsFromName(row.student_name),
+    authorColor: subjectColor[subj] ?? "#3b5bdb",
+    authorRank: 0,
+    date: created.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+    time: created.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
+    status: mapDbStatus(row.status),
+    views: row.view_count ?? 0,
+    replies: [],
+    upvotes: row.upvote_count ?? 0,
+    upvotedByMe: false,
+    bookmarked: false,
+    attachments: row.image_url ? [row.image_url] : [],
+    mine: row.user_id === userId,
+    tags: [row.subject, row.chapter, row.concept].filter(Boolean).map((t) => String(t).toLowerCase()),
+  };
+}
+
+function mapAnswerRow(row: DbAnswerRow): Reply {
+  const created = new Date(row.created_at);
+  const isTeacher = row.author_role === "teacher";
+  return {
+    id: row.id,
+    author: row.author_name,
+    avatar: initialsFromName(row.author_name),
+    authorColor: isTeacher ? "#c08a3a" : "#6882e8",
+    text: row.body,
+    time: created.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
+    likes: row.upvote_count ?? 0,
+    likedByMe: false,
+    isTeacher,
+    isAccepted: row.is_accepted ?? false,
+    isHelpful: row.is_teacher_verified ?? false,
+    isAI: false,
+  };
+}
+
+async function loadAnswersForDoubt(doubtId: string): Promise<Reply[]> {
+  await supabase.rpc("rpc_record_community_doubt_view", { _doubt_id: doubtId }).catch(() => undefined);
+  const { data, error } = await supabase
+    .from("community_doubt_answers")
+    .select("*")
+    .eq("doubt_id", doubtId)
+    .order("is_accepted", { ascending: false })
+    .order("is_teacher_verified", { ascending: false })
+    .order("upvote_count", { ascending: false })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as DbAnswerRow[]).map(mapAnswerRow);
+}
 
 const SUBJECTS = ["All", "Mathematics", "Physics", "Chemistry", "Biology", "English"];
 const STATUS_OPTS: { label: string; val: DoubtStatus | "all" }[] = [
@@ -213,11 +247,32 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
   doubt: Doubt; onBack: () => void;
   onUpdateDoubt: (d: Doubt) => void;
 }) {
+  const student = useGurukulStudent();
   const [replyText, setReplyText] = useState("");
   const [showAI, setShowAI] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiReply, setAiReply] = useState<string|null>(null);
   const [localDoubt, setLocalDoubt] = useState(doubt);
+  const [loadingReplies, setLoadingReplies] = useState(true);
+
+  useEffect(() => {
+    setLocalDoubt(doubt);
+    let cancelled = false;
+    (async () => {
+      setLoadingReplies(true);
+      try {
+        const replies = await loadAnswersForDoubt(doubt.id);
+        if (!cancelled) setLocalDoubt((d) => ({ ...d, replies }));
+      } catch (e) {
+        if (!cancelled) toast.error(e instanceof Error ? e.message : "Failed to load replies");
+      } finally {
+        if (!cancelled) setLoadingReplies(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [doubt.id]);
 
   function toggleUpvote() {
     setLocalDoubt(d => ({ ...d, upvotes: d.upvotedByMe ? d.upvotes-1 : d.upvotes+1, upvotedByMe: !d.upvotedByMe }));
@@ -234,7 +289,7 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
   function sendReply() {
     if (!replyText.trim()) return;
     const newReply: Reply = {
-      id: `r${Date.now()}`, author:"You", avatar:"AS", authorColor:"#3b5bdb",
+      id: `r${Date.now()}`, author: student.name, avatar: student.avatar, authorColor:"#3b5bdb",
       text: replyText, time:"Just now", likes:0, likedByMe:false,
       isTeacher:false, isAccepted:false, isHelpful:false,
     };
@@ -344,7 +399,9 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
           <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">{localDoubt.replies.length} Replies</span>
         </div>
         <div className="space-y-2.5">
-          {localDoubt.replies.length === 0 ? (
+          {loadingReplies ? (
+            <div className="p-6 text-center text-[#78788c] text-sm">Loading replies…</div>
+          ) : localDoubt.replies.length === 0 ? (
             <div className="p-6 text-center text-[#78788c] text-sm">
               No replies yet. Be the first to help!
             </div>
@@ -358,7 +415,7 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
       {localDoubt.status !== "closed" && (
         <GlassCard className="p-4">
           <div className="flex items-center gap-2 mb-3">
-            <AvatarBubble initials="AS" color="#3b5bdb" size={7}/>
+            <AvatarBubble initials={student.avatar} color="#3b5bdb" size={7}/>
             <span className="text-xs font-semibold text-white">Add your reply</span>
           </div>
           <textarea value={replyText} onChange={e => setReplyText(e.target.value)}
@@ -382,7 +439,13 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
 }
 
 // ── Ask View ───────────────────────────────────────────────────────────────────
-function AskDoubt({ onBack, onPost }: { onBack: () => void; onPost: (d: Doubt) => void }) {
+function AskDoubt({ onBack, onPost, existingDoubts, ctx }: {
+  onBack: () => void;
+  onPost: (d: Doubt) => void;
+  existingDoubts: Doubt[];
+  ctx: ServiceContext | null;
+}) {
+  const student = useGurukulStudent();
   const [step, setStep] = useState<"ai"|"form">("form");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -409,26 +472,53 @@ function AskDoubt({ onBack, onPost }: { onBack: () => void; onPost: (d: Doubt) =
     }, 1400);
   }
 
-  function postDoubt() {
-    const newDoubt: Doubt = {
-      id: `d${Date.now()}`,
-      title: title || "Untitled Doubt",
-      body: body || "",
-      subject, chapter, topic,
-      authorName: student.name, authorAvatar: student.avatar, authorColor:"#3b5bdb",
-      authorRank: student.rank,
-      date: "Jun 12", time: "Now",
-      status: "pending",
-      views: 0, upvotes: 0, upvotedByMe: false,
-      bookmarked: false, mine: true,
-      tags: [subject.toLowerCase(), chapter.toLowerCase()].filter(Boolean),
-      attachments: [],
-      replies: [],
-    };
-    onPost(newDoubt);
+  async function postDoubt() {
+    if (!ctx) {
+      toast.error("Academic context not ready");
+      return;
+    }
+    try {
+      await DoubtService.create(ctx, {
+        _subject: subject,
+        _chapter: chapter,
+        _concept: topic,
+        _title: title || "Untitled Doubt",
+        _body: body || "",
+        _image_url: null,
+      });
+      const now = new Date();
+      const newDoubt: Doubt = {
+        id: `d${Date.now()}`,
+        title: title || "Untitled Doubt",
+        body: body || "",
+        subject, chapter, topic,
+        authorName: student.name, authorAvatar: student.avatar, authorColor:"#3b5bdb",
+        authorRank: student.rank,
+        date: now.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
+        time: "Now",
+        status: "pending",
+        views: 0, upvotes: 0, upvotedByMe: false,
+        bookmarked: false, mine: true,
+        tags: [subject.toLowerCase(), chapter.toLowerCase()].filter(Boolean),
+        attachments: [],
+        replies: [],
+      };
+      toast.success("Doubt posted to the class");
+      onPost(newDoubt);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not post doubt");
+    }
   }
 
   const hasTitle = title.trim().length >= 5;
+
+  const similarDoubts = useMemo(() => {
+    if (!hasTitle) return [];
+    const q = title.toLowerCase();
+    return existingDoubts
+      .filter((d) => d.title.toLowerCase().includes(q) || q.split(/\s+/).some((w) => w.length > 3 && d.title.toLowerCase().includes(w)))
+      .slice(0, 3);
+  }, [hasTitle, title, existingDoubts]);
 
   return (
     <div className="space-y-5">
@@ -442,18 +532,18 @@ function AskDoubt({ onBack, onPost }: { onBack: () => void; onPost: (d: Doubt) =
       </div>
 
       {/* Similar doubts warning */}
-      {hasTitle && (
+      {hasTitle && similarDoubts.length > 0 && (
         <GlassCard className="p-4 border-amber-500/20">
           <div className="flex items-center gap-2 mb-2">
             <AlertCircle className="w-4 h-4 text-amber-400"/>
             <span className="text-xs font-bold text-amber-400">Similar doubts already exist</span>
           </div>
           <div className="space-y-1.5">
-            {SIMILAR_DOUBTS.map(s => (
+            {similarDoubts.map(s => (
               <div key={s.id} className="flex items-center gap-2 text-xs text-[#a0a0b0] hover:text-white cursor-pointer group">
                 <MessageCircle className="w-3 h-3 text-[#78788c] group-hover:text-white"/>
                 <span className="flex-1">{s.title}</span>
-                <span className="text-[10px] text-[#78788c]">{s.replies} replies</span>
+                <span className="text-[10px] text-[#78788c]">{s.replies.length} replies</span>
                 <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity"/>
               </div>
             ))}
@@ -604,14 +694,46 @@ function MyDoubts({ doubts, onOpen }: { doubts: Doubt[]; onOpen: (d: Doubt) => v
 
 // ── Root ───────────────────────────────────────────────────────────────────────
 export default function DoubtPortal() {
-  const [doubts, setDoubts] = useState<Doubt[]>(MOCK_DOUBTS);
+  const { ctx, ready, classId } = useAcademicContext();
+  const { user } = useAuth();
+  const student = useGurukulStudent();
+  const [doubts, setDoubts] = useState<Doubt[]>([]);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState<DView>("feed");
   const [activeDoubt, setActiveDoubt] = useState<Doubt | null>(null);
   const [search, setSearch] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<DoubtStatus|"all">("all");
   const [sort, setSort] = useState<"latest"|"popular"|"unanswered">("latest");
-  const [showNotif, setShowNotif] = useState(true);
+
+  const classLabel = student.class
+    ? student.section
+      ? `Class ${student.class} — Section ${student.section}`
+      : `Class ${student.class}`
+    : "";
+
+  useEffect(() => {
+    if (!ready || !ctx) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const rows = await DoubtService.list(ctx, classId ? { classId } : undefined);
+        if (cancelled) return;
+        setDoubts((rows as DbDoubtRow[]).map((r) => mapRowToDoubt(r, user?.id)));
+      } catch (e) {
+        if (!cancelled) toast.error(e instanceof Error ? e.message : "Failed to load doubts");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, classId, user?.id]);
 
   function openDoubt(d: Doubt) { setActiveDoubt(d); setView("detail"); }
   function addDoubt(d: Doubt) { setDoubts(prev => [d, ...prev]); setView("feed"); }
@@ -619,7 +741,9 @@ export default function DoubtPortal() {
   if (view === "detail" && activeDoubt) return (
     <DoubtDetail doubt={activeDoubt} onBack={() => setView("feed")} onUpdateDoubt={d => setActiveDoubt(d)}/>
   );
-  if (view === "ask") return <AskDoubt onBack={() => setView("feed")} onPost={addDoubt}/>;
+  if (view === "ask") return (
+    <AskDoubt onBack={() => setView("feed")} onPost={addDoubt} existingDoubts={doubts} ctx={ctx}/>
+  );
 
   const filtered = doubts.filter(d => {
     const q = search.toLowerCase();
@@ -642,7 +766,9 @@ export default function DoubtPortal() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Class XII — Section A</div>
+          {classLabel && (
+            <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">{classLabel}</div>
+          )}
           <h1 className="text-3xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>Doubt Forum</h1>
           <p className="text-[#78788c] text-sm mt-1">Learn together. Ask, answer, and grow as a class.</p>
         </div>
@@ -651,18 +777,6 @@ export default function DoubtPortal() {
           <Plus className="w-4 h-4"/> Ask a Doubt
         </button>
       </div>
-
-      {/* Notification banner */}
-      {showNotif && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/10 border border-[#3b5bdb]/20">
-          <Bell className="w-4 h-4 text-[#818cf8] shrink-0"/>
-          <p className="text-xs text-[#a5b4fc] flex-1">
-            <span className="font-bold">Mr. Khan</span> replied to your doubt on SN2 mechanisms · 2 minutes ago
-          </p>
-          <button onClick={() => openDoubt(doubts[0])} className="text-[10px] font-bold text-[#818cf8] hover:text-blue-200 transition-colors shrink-0">View</button>
-          <button onClick={() => setShowNotif(false)} className="text-[#78788c] hover:text-white transition-colors shrink-0"><X className="w-3.5 h-3.5"/></button>
-        </div>
-      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -742,9 +856,15 @@ export default function DoubtPortal() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs text-[#78788c]">{filtered.length} doubt{filtered.length !== 1 ? "s" : ""}</span>
-              <span className="text-xs text-[#78788c]">Class XII · Section A · {doubts.length} total</span>
+              {classLabel && (
+                <span className="text-xs text-[#78788c]">{classLabel} · {doubts.length} total</span>
+              )}
             </div>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <GlassCard className="p-8 text-center">
+                <p className="text-sm text-[#78788c]">Loading doubts…</p>
+              </GlassCard>
+            ) : filtered.length === 0 ? (
               <GlassCard className="p-8 text-center">
                 <MessageCircle className="w-8 h-8 text-[#78788c] mx-auto mb-2"/>
                 <p className="text-sm text-[#78788c] mb-3">No doubts match your filters</p>

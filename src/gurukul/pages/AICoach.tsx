@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
-import type { PageKey } from "@/gurukul/data/mock";
-import { student, subjects } from "@/gurukul/data/mock";
+import { useState, useRef, useEffect } from "react";
+import type { PageKey } from "@/gurukul/nav";
+import { useGurukulStudent } from "@/gurukul/StudentContext";
+import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { cn } from "@/gurukul/components/shared";
 import {
   Mic, MicOff, Send, Plus, Search, Pin, Star, Trash2, Edit3,
@@ -30,55 +31,7 @@ interface Conversation {
 }
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
-const MOCK_CONVOS: Conversation[] = [
-  {
-    id: "c1", title: "Integration by Parts", pinned: true,
-    preview: "Let me explain it like you're solving a puzzle...",
-    date: "Today",
-    messages: [
-      { id:"m1", role:"student", time:"9:02 AM", text:"I keep getting confused with integration by parts. Can you explain it in a simple way?" },
-      { id:"m2", role:"nova",    time:"9:02 AM", text:"Of course! Think of integration by parts like this — it's really just the reverse of the product rule for differentiation.\n\nThe formula is: **∫u·dv = u·v − ∫v·du**\n\nHere's the trick: use the acronym **LIATE** to pick your *u*:\n- **L**ogarithms\n- **I**nverse trig\n- **A**lgebra\n- **T**rig\n- **E**xponentials\n\nLet's try one together. Solve ∫x·eˣ dx. What would you pick as *u*?"},
-      { id:"m3", role:"student", time:"9:04 AM", text:"I'd pick u = x since x is algebraic?" },
-      { id:"m4", role:"nova",    time:"9:04 AM", text:"Exactly right! 🎯 x is algebraic (A in LIATE), so u = x and dv = eˣ dx.\n\nNow: du = dx, v = eˣ\n\nPlug into formula: **x·eˣ − ∫eˣ dx = x·eˣ − eˣ + C = eˣ(x−1) + C**\n\nThat's it! You nailed the setup. Want to try a harder one, or should I explain why LIATE works?"},
-    ],
-  },
-  {
-    id: "c2", title: "SN1 vs SN2 Reactions", starred: true,
-    preview: "The key difference is carbocation stability...",
-    date: "Today",
-    messages: [
-      { id:"m1", role:"student", time:"4:30 PM", text:"Why do I keep confusing SN1 and SN2? I know the definitions but fail in questions." },
-      { id:"m2", role:"nova",    time:"4:30 PM", text:"This is a super common problem — you know *what* they are but struggle to identify *when* each applies. Let me give you a decision tree.\n\nAsk yourself: **How many carbons are attached to the carbon bearing the leaving group?**\n\n- **Primary (1 carbon)** → almost always SN2\n- **Tertiary (3 carbons)** → almost always SN1\n- **Secondary** → depends on the nucleophile strength and solvent\n\nThe reason? SN1 needs a **stable carbocation intermediate**. Primary carbocations are too unstable to form. Tertiary ones are perfectly stable.\n\nDoes that click? Tell me back in your own words which mechanism methyl bromide (CH₃Br) would follow."},
-    ],
-  },
-  {
-    id: "c3", title: "Newton's Laws — Real Life Applications",
-    preview: "A rocket uses Newton's 3rd law because...",
-    date: "Yesterday",
-    messages: [
-      { id:"m1", role:"student", time:"6:15 PM", text:"Can you explain Newton's third law with real examples?" },
-      { id:"m2", role:"nova",    time:"6:15 PM", text:"Great question! Newton's Third Law says: *For every action, there is an equal and opposite reaction.*\n\nThree vivid real-life examples:\n\n**1. Rocket propulsion** — The rocket expels gas downward (action). The gas pushes the rocket upward (reaction). No ground needed!\n\n**2. Swimming** — You push water backward with your hands (action). Water pushes you forward (reaction).\n\n**3. Walking** — Your foot pushes the ground backward (action). Ground pushes your foot forward (reaction).\n\nHere's the exam trap: the action and reaction forces act on *different objects*, so they never cancel. That confuses students most.\n\nWant me to create a few exam-style questions to test this?"},
-    ],
-  },
-  {
-    id: "c4", title: "Tomorrow's Physics Test Prep",
-    preview: "Focus on Optics, Thermodynamics, and...",
-    date: "Yesterday",
-    messages: [
-      { id:"m1", role:"student", time:"9:00 PM", text:"I have a physics test tomorrow on Optics and Thermodynamics. Help me revise quickly!" },
-      { id:"m2", role:"nova",    time:"9:00 PM", text:"Okay, let's make the most of tonight. Here's a rapid-fire revision plan:\n\n**Optics (40 min)**\n• Snell's Law — sin i / sin r = constant\n• Lens formula: 1/v − 1/u = 1/f\n• Power of a lens: P = 1/f (in meters)\n• Total internal reflection condition\n\n**Thermodynamics (30 min)**\n• First Law: ΔU = Q − W\n• Isothermal vs Adiabatic processes\n• Carnot efficiency: η = 1 − T₂/T₁\n\nI'll quiz you as we go. Ready? **First question: A ray passes from glass (n=1.5) to air (n=1). What's the critical angle?**"},
-    ],
-  },
-  {
-    id: "c5", title: "Mitosis vs Meiosis",
-    preview: "The simplest way to remember this...",
-    date: "Jun 10",
-    messages: [
-      { id:"m1", role:"student", time:"11:20 AM", text:"How do I remember the difference between mitosis and meiosis?" },
-      { id:"m2", role:"nova",    time:"11:20 AM", text:"Memory trick first: **'Mitosis' ends in -tosis, sounds like 'toss a coin'** — you just copy it. **'Meiosis' has an 'ei'** — think 'ei, I need to mix my genes!'\n\nSimple comparison:\n| | Mitosis | Meiosis |\n|--|--|--|\n| Purpose | Growth & repair | Sexual reproduction |\n| Divisions | 1 | 2 |\n| Daughter cells | 2 | 4 |\n| Chromosomes | Diploid (2n) | Haploid (n) |\n| Crossing over | No | Yes |\n\nSay it back to me: what happens in meiosis that doesn't happen in mitosis?"},
-    ],
-  },
-];
+const EMPTY_CONVOS: Conversation[] = [];
 
 const SUGGESTIONS = [
   { icon:<HelpCircle className="w-4 h-4"/>,    text:"Explain integration by parts",        color:"#3b5bdb" },
@@ -304,15 +257,18 @@ function MessageBubble({ msg, onBookmark, onRegen, isLast }: {
 }
 
 // ── Context pill ──────────────────────────────────────────────────────────────
-function ContextPill() {
+function ContextPill({ studentClass, subjectNames }: { studentClass: string; subjectNames: string[] }) {
   const [expanded, setExpanded] = useState(false);
+  const subjectPreview = subjectNames.length > 0
+    ? subjectNames.slice(0, 3).join(", ") + (subjectNames.length > 3 ? "…" : "")
+    : "No subjects yet";
   return (
     <div className="flex justify-center py-3">
       <button onClick={() => setExpanded(e => !e)}
         className="group flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/7 bg-white/3 hover:border-white/12 hover:bg-white/5 transition-all">
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
         <span className="text-[11px] text-[#78788c] group-hover:text-[#a0a0b0] transition-colors">
-          Nova knows your context · Class 12 · CBSE · {subjects.slice(0,3).map(s=>s.name).join(", ")}…
+          Nova knows your context{studentClass ? ` · ${studentClass}` : ""} · {subjectPreview}
         </span>
         <Brain className="w-3 h-3 text-[#78788c]"/>
       </button>
@@ -321,7 +277,13 @@ function ContextPill() {
 }
 
 // ── Suggestions (empty state) ─────────────────────────────────────────────────
-function SuggestionGrid({ onSelect }: { onSelect: (text: string) => void }) {
+function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects }: {
+  onSelect: (text: string) => void;
+  firstName: string;
+  studentClass: string;
+  goal: string;
+  chartSubjects: { name: string; color: string }[];
+}) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
       {/* Nova orb */}
@@ -330,7 +292,7 @@ function SuggestionGrid({ onSelect }: { onSelect: (text: string) => void }) {
         <Brain className="w-9 h-9 text-white"/>
       </div>
       <h2 className="text-2xl font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
-        Hi {student.firstName} 👋
+        Hi {firstName} 👋
       </h2>
       <p className="text-[#78788c] text-sm mb-8 text-center max-w-xs">
         I'm Nova — your personal academic tutor. Ask me anything, show me a problem, or just start talking.
@@ -339,10 +301,9 @@ function SuggestionGrid({ onSelect }: { onSelect: (text: string) => void }) {
       {/* Academic context mini-card */}
       <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
         {[
-          { label: "Class 12", color:"#3b5bdb" },
-          { label: "CBSE",     color:"#4b9fd4" },
-          { label: student.goal, color:"#6882e8" },
-          ...subjects.slice(0,3).map(s => ({ label: s.name, color: s.color })),
+          ...(studentClass ? [{ label: studentClass, color:"#3b5bdb" }] : []),
+          ...(goal ? [{ label: goal, color:"#6882e8" }] : []),
+          ...chartSubjects.slice(0, 3).map(s => ({ label: s.name, color: s.color })),
         ].map(item => (
           <span key={item.label} className="text-[11px] px-2.5 py-1 rounded-full border font-medium"
             style={{ color:item.color, borderColor:`${item.color}25`, background:`${item.color}10` }}>
@@ -614,8 +575,15 @@ function InputBar({
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
-  const [convos,     setConvos]     = useState<Conversation[]>(MOCK_CONVOS);
-  const [activeId,   setActiveId]   = useState<string|null>("c1");
+  const student = useGurukulStudent();
+  const { data: charts } = useStudentPerformanceCharts();
+  const chartSubjects = (charts?.subjects ?? []).map((s, i) => ({
+    name: s.name,
+    color: ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"][i % 5],
+  }));
+
+  const [convos,     setConvos]     = useState<Conversation[]>(EMPTY_CONVOS);
+  const [activeId,   setActiveId]   = useState<string|null>(null);
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [sidebarOpen,setSidebarOpen]= useState(false);
   const [renaming,   setRenaming]   = useState<string|null>(null);
@@ -853,10 +821,19 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         {/* Messages area */}
         <div className="flex-1 overflow-y-auto scrollbar-none">
           {msgs.length === 0 ? (
-            <SuggestionGrid onSelect={handleSuggestion}/>
+            <SuggestionGrid
+              onSelect={handleSuggestion}
+              firstName={student.firstName}
+              studentClass={student.class ? `Class ${student.class}` : ""}
+              goal={student.goal}
+              chartSubjects={chartSubjects}
+            />
           ) : (
             <div className="px-4 py-4 space-y-5 max-w-3xl mx-auto w-full">
-              <ContextPill/>
+              <ContextPill
+                studentClass={student.class ? `Class ${student.class}` : ""}
+                subjectNames={chartSubjects.map(s => s.name)}
+              />
               {msgs.map((m, i) => (
                 <MessageBubble key={m.id} msg={m}
                   onBookmark={bookmarkMsg}

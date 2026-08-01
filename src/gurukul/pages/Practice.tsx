@@ -1,6 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import type { PageKey } from "@/gurukul/data/mock";
-import { subjects, practiceQuestions } from "@/gurukul/data/mock";
+import { useState, useEffect, useRef, useMemo } from "react";
+import type { PageKey } from "@/gurukul/nav";
+import { useGurukulStudent } from "@/gurukul/StudentContext";
+import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
   BookOpen, Clock, Zap, Target, RefreshCw, AlertCircle, Bookmark,
@@ -26,24 +29,79 @@ interface Mode {
   badge: string; instant?: boolean; hot?: boolean;
 }
 
+const SUBJECT_COLORS: Record<string, string> = {
+  Mathematics: "#3b5bdb",
+  Math: "#3b5bdb",
+  Physics: "#4b9fd4",
+  Chemistry: "#6882e8",
+  Biology: "#4aa87a",
+  English: "#c08a3a",
+  Hindi: "#cc5069",
+  Science: "#4b9fd4",
+  "Social Science": "#c08a3a",
+};
+const FALLBACK_COLORS = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
+
+function subjectColor(name: string, index: number) {
+  return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+}
+
+const practiceQuestions: {
+  subject: string; chapter: string; difficulty: string;
+  question: string; options: string[]; correct: number; explanation?: string;
+}[] = [];
+
+type PracticeSubject = {
+  id: string; name: string; color: string;
+  accuracy: number; attempts: number; trend: number; icon: string;
+};
+
+type HistoryRow = {
+  id: string; date: string; mode: string; subject: string;
+  qs: number; attempted: number; score: number; pct: number; time: string; status: string;
+};
+
+function formatSessionDate(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = d.toDateString() === yesterday.toDateString();
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (isToday) return `Today, ${time}`;
+  if (isYesterday) return `Yesterday, ${time}`;
+  return `${d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}, ${time}`;
+}
+
+function formatDuration(startIso: string, endIso: string) {
+  const mins = Math.max(1, Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / 60000));
+  if (mins >= 60) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  }
+  return `${mins}m`;
+}
+
 // ── Static data ──────────────────────────────────────────────────────────────
 const MODES: Mode[] = [
   { key:"daily",      label:"Daily Practice",         desc:"Today's personalised question set — auto-generated every morning",
-    icon:<Flame className="w-5 h-5"/>,      color:"#c08a3a", cat:"source",   badge:"30 Qs ready", instant:true, hot:true },
+    icon:<Flame className="w-5 h-5"/>,      color:"#c08a3a", cat:"source",   badge:"Daily", instant:true, hot:true },
   { key:"subject",    label:"Subject Practice",       desc:"Practice questions from a subject of your choice",
-    icon:<BookOpen className="w-5 h-5"/>,   color:"#3b5bdb", cat:"content",  badge:"5 subjects" },
+    icon:<BookOpen className="w-5 h-5"/>,   color:"#3b5bdb", cat:"content",  badge:"Subject" },
   { key:"chapter",    label:"Chapter Practice",       desc:"Focus on a specific chapter to reinforce concepts",
-    icon:<Layers className="w-5 h-5"/>,     color:"#4b9fd4", cat:"content",  badge:"42 chapters" },
+    icon:<Layers className="w-5 h-5"/>,     color:"#4b9fd4", cat:"content",  badge:"Chapter" },
   { key:"topic",      label:"Topic Practice",         desc:"Drill down to a precise concept or sub-topic",
-    icon:<Target className="w-5 h-5"/>,     color:"#6882e8", cat:"content",  badge:"180+ topics" },
+    icon:<Target className="w-5 h-5"/>,     color:"#6882e8", cat:"content",  badge:"Topic" },
   { key:"custom",     label:"Custom Practice",        desc:"Pick subjects, chapters, topics, difficulty, and question count",
     icon:<SlidersHorizontal className="w-5 h-5"/>, color:"#4aa87a", cat:"content", badge:"Full control" },
   { key:"teacher",    label:"Teacher Assigned",       desc:"Practice sets assigned by your teachers with due dates",
-    icon:<ClipboardList className="w-5 h-5"/>, color:"#c08a3a", cat:"source", badge:"3 pending" },
+    icon:<ClipboardList className="w-5 h-5"/>, color:"#c08a3a", cat:"source", badge:"Assigned" },
   { key:"pyq",        label:"Previous Year Questions",desc:"Board and competitive exam questions from past years",
-    icon:<FileText className="w-5 h-5"/>,   color:"#cc5069", cat:"source",  badge:"2018–2024" },
+    icon:<FileText className="w-5 h-5"/>,   color:"#cc5069", cat:"source",  badge:"Past papers" },
   { key:"qbank",      label:"Question Bank",          desc:"Browse the full repository and filter by any parameter",
-    icon:<Globe className="w-5 h-5"/>,      color:"#3b5bdb", cat:"source",  badge:"12,400+ Qs" },
+    icon:<Globe className="w-5 h-5"/>,      color:"#3b5bdb", cat:"source",  badge:"Browse all" },
   { key:"timed",      label:"Timed Practice",         desc:"Solve questions against the clock — choose your time limit",
     icon:<Timer className="w-5 h-5"/>,      color:"#cc5069", cat:"type",    badge:"Speed mode" },
   { key:"untimed",    label:"Untimed Practice",       desc:"No time pressure — focus on understanding, not speed",
@@ -51,17 +109,17 @@ const MODES: Mode[] = [
   { key:"mixed",      label:"Mixed Practice",         desc:"Questions from multiple subjects and chapters in one go",
     icon:<Shuffle className="w-5 h-5"/>,    color:"#4b9fd4", cat:"type",    badge:"All subjects", instant:true },
   { key:"mock",       label:"Mock Tests",             desc:"Full-length exam simulation under real test conditions",
-    icon:<Trophy className="w-5 h-5"/>,     color:"#c08a3a", cat:"type",    badge:"4 available" },
+    icon:<Trophy className="w-5 h-5"/>,     color:"#c08a3a", cat:"type",    badge:"Mock test" },
   { key:"difficulty", label:"Difficulty-Based",       desc:"Choose Easy, Medium, Hard or Mixed to match your prep level",
     icon:<BarChart2 className="w-5 h-5"/>,  color:"#6882e8", cat:"type",    badge:"Pick level" },
   { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from topics where your accuracy is below 70%",
-    icon:<TrendingDown className="w-5 h-5"/>, color:"#cc5069", cat:"targeted", badge:"8 topics", instant:true, hot:true },
+    icon:<TrendingDown className="w-5 h-5"/>, color:"#cc5069", cat:"targeted", badge:"Weak areas", instant:true, hot:true },
   { key:"incorrect",  label:"Incorrect Questions",    desc:"Reattempt questions you got wrong in previous sessions",
-    icon:<XCircle className="w-5 h-5"/>,    color:"#cc5069", cat:"targeted", badge:"24 pending", instant:true },
+    icon:<XCircle className="w-5 h-5"/>,    color:"#cc5069", cat:"targeted", badge:"Retry wrong", instant:true },
   { key:"skipped",    label:"Skipped Questions",      desc:"Solve questions you chose to skip earlier",
-    icon:<SkipForward className="w-5 h-5"/>, color:"#c08a3a", cat:"targeted", badge:"11 skipped", instant:true },
+    icon:<SkipForward className="w-5 h-5"/>, color:"#c08a3a", cat:"targeted", badge:"Skipped", instant:true },
   { key:"bookmarked", label:"Bookmarked Questions",   desc:"Practice questions you saved for later review",
-    icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"17 saved", instant:true },
+    icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"Saved", instant:true },
   { key:"random",     label:"Random Practice",        desc:"Surprise yourself — questions picked randomly from your syllabus",
     icon:<Shuffle className="w-5 h-5"/>,    color:"#3b5bdb", cat:"type",    badge:"Surprise me", instant:true },
 ];
@@ -74,32 +132,9 @@ const CATS: { key: Cat; label: string }[] = [
   { key:"targeted", label:"Targeted" },
 ];
 
-const HISTORY = [
-  { id:1, date:"Today, 9:14 AM",     mode:"Daily Practice",     subject:"Mixed",       qs:30, attempted:30, score:24, pct:80, time:"18m 32s", status:"completed" },
-  { id:2, date:"Yesterday, 4:30 PM", mode:"Weak Areas Practice",subject:"Chemistry",   qs:15, attempted:15, score:9,  pct:60, time:"22m 10s", status:"completed" },
-  { id:3, date:"Yesterday, 8:00 AM", mode:"Subject Practice",   subject:"Mathematics", qs:25, attempted:20, score:17, pct:85, time:"14m 05s", status:"incomplete" },
-  { id:4, date:"Jun 11, 3:20 PM",    mode:"Mock Test",          subject:"Full Syllabus",qs:90,attempted:90, score:67, pct:74, time:"1h 42m",  status:"completed" },
-  { id:5, date:"Jun 10, 10:00 AM",   mode:"Timed Practice",     subject:"Physics",     qs:20, attempted:18, score:14, pct:78, time:"10m 00s", status:"completed" },
-];
-
-const SAVED = [
-  { id:1, label:"My Maths Blitz",      config:"Mathematics · Integration · Hard · 20 Qs",  lastUsed:"2 days ago" },
-  { id:2, label:"Chemistry Revision",  config:"Chemistry · All chapters · Mixed · 30 Qs",  lastUsed:"4 days ago" },
-  { id:3, label:"Physics Speed Run",   config:"Physics · Optics & Waves · 10 min · 15 Qs", lastUsed:"1 week ago" },
-];
-
-const TEACHER_SETS = [
-  { id:1, title:"Integration Practice Set",     subject:"Mathematics", teacher:"Mr. Verma",  due:"Jun 15", qs:15, done:10, status:"in-progress" },
-  { id:2, title:"Organic Chemistry Problems",   subject:"Chemistry",   teacher:"Mr. Khan",   due:"Jun 14", qs:20, done:20, status:"completed"   },
-  { id:3, title:"Wave Optics Problem Sheet",    subject:"Physics",     teacher:"Ms. Sharma", due:"Jun 16", qs:12, done:0,  status:"not-started" },
-];
-
-const MOCK_TESTS = [
-  { id:1, title:"JEE Main Full Mock #1",  qs:90, dur:"3h", subject:"Physics + Chemistry + Maths" },
-  { id:2, title:"JEE Main Full Mock #2",  qs:90, dur:"3h", subject:"Physics + Chemistry + Maths" },
-  { id:3, title:"Board Exam Mock — PCM",  qs:60, dur:"2h", subject:"Physics + Chemistry + Maths" },
-  { id:4, title:"Chapter-wise Mock Test", qs:30, dur:"1h", subject:"Select subjects" },
-];
+const SAVED: { id: number; label: string; config: string; lastUsed: string }[] = [];
+const TEACHER_SETS: { id: number; title: string; subject: string; teacher: string; due: string; qs: number; done: number; status: string }[] = [];
+const MOCK_TESTS: { id: number; title: string; qs: number; dur: string; subject: string }[] = [];
 
 const DIFFICULTIES = [
   { key:"easy",   label:"Easy",   color:"#4aa87a", desc:"Foundation level — build confidence" },
@@ -130,7 +165,7 @@ function StatusTag({ status }: { status: string }) {
 }
 
 // ── Hub view ─────────────────────────────────────────────────────────────────
-function Hub({ onMode }: { onMode: (key: ModeKey) => void }) {
+function Hub({ onMode, history, streak }: { onMode: (key: ModeKey) => void; history: HistoryRow[]; streak: number }) {
   const [cat,    setCat]    = useState<Cat>("all");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -152,15 +187,16 @@ function Hub({ onMode }: { onMode: (key: ModeKey) => void }) {
             Practice
           </h1>
           <p className="text-[#78788c] text-sm mt-1">
-            18 practice modes · 12,400+ questions · Pick how you want to learn today
+            {MODES.length} practice modes · Pick how you want to learn today
           </p>
         </div>
-        {/* Daily streak pill */}
+        {streak > 0 && (
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-amber-400/20 bg-amber-400/8">
           <Flame className="w-4 h-4 text-amber-400"/>
-          <span className="text-sm font-black text-amber-400">12-day streak</span>
+          <span className="text-sm font-black text-amber-400">{streak}-day streak</span>
           <span className="text-[11px] text-amber-400/60">· Keep it up!</span>
         </div>
+        )}
       </div>
 
       {/* ── Quick Start ── */}
@@ -293,7 +329,9 @@ function Hub({ onMode }: { onMode: (key: ModeKey) => void }) {
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Practice History</span>
           </div>
           <div className="space-y-2">
-            {HISTORY.map(h => (
+            {history.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#78788c]">No practice history yet</div>
+            ) : history.map(h => (
               <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-white/10 transition-all">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background:`${h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069"}15`, color:h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069" }}>
@@ -329,8 +367,8 @@ function Hub({ onMode }: { onMode: (key: ModeKey) => void }) {
 
 // ── Config views ─────────────────────────────────────────────────────────────
 function ConfigView({
-  modeKey, onStart, onBack,
-}: { modeKey: ModeKey; onStart: (cfg: SessionConfig) => void; onBack: () => void }) {
+  modeKey, onStart, onBack, subjects,
+}: { modeKey: ModeKey; onStart: (cfg: SessionConfig) => void; onBack: () => void; subjects: PracticeSubject[] }) {
   const mode = MODES.find(m => m.key === modeKey)!;
 
   // Subject config
@@ -456,7 +494,7 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject}/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects}/>
           <div>
             <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Time Limit</div>
             <div className="flex gap-2 flex-wrap">
@@ -484,7 +522,7 @@ function ConfigView({
   return (
     <ConfigShell mode={mode} onBack={onBack}>
       <div className="space-y-6">
-        {needsSubject && <SubjectPicker selected={selSubject} onSelect={setSelSubject}/>}
+        {needsSubject && <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects}/>}
         {["custom","difficulty","chapter","topic","qbank"].includes(modeKey) && (
           <div>
             <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Difficulty</div>
@@ -537,7 +575,7 @@ function ConfigShell({ mode, onBack, children }: {
 }
 
 // Subject picker
-function SubjectPicker({ selected, onSelect }: { selected:string|null; onSelect:(s:string|null)=>void }) {
+function SubjectPicker({ selected, onSelect, subjects }: { selected:string|null; onSelect:(s:string|null)=>void; subjects: PracticeSubject[] }) {
   return (
     <div>
       <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Subject</div>
@@ -602,8 +640,8 @@ interface SessionConfig {
 
 // ── Session (question-solving) ───────────────────────────────────────────────
 function Session({
-  config, onFinish,
-}: { config: SessionConfig; onFinish: (results: SessionResults) => void }) {
+  config, onFinish, onBack, subjects,
+}: { config: SessionConfig; onFinish: (results: SessionResults) => void; onBack: () => void; subjects: PracticeSubject[] }) {
   const qs = practiceQuestions.slice(0, Math.min(config.qCount, practiceQuestions.length));
   const [idx,       setIdx]       = useState(0);
   const [chosen,    setChosen]    = useState<number | null>(null);
@@ -659,6 +697,20 @@ function Session({
   const timed   = config.timeLimitSec !== null;
   const mm      = Math.floor(timeLeft / 60).toString().padStart(2,"0");
   const ss      = (timeLeft % 60).toString().padStart(2,"0");
+
+  if (qs.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
+        <HelpCircle className="w-10 h-10 text-[#78788c] mx-auto"/>
+        <div className="text-lg font-bold text-white">No questions available</div>
+        <p className="text-sm text-[#78788c]">Practice questions are not loaded yet. Check back later or try another mode.</p>
+        <button onClick={onBack}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+          <ArrowLeft className="w-4 h-4"/> Back to Practice
+        </button>
+      </div>
+    );
+  }
 
   if (!q) return null;
 
@@ -824,6 +876,67 @@ function Summary({ results, onRetry, onHub }: {
 
 // ── Root component ────────────────────────────────────────────────────────────
 export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }) {
+  const student = useGurukulStudent();
+  const { user } = useAuth();
+  const { data: charts } = useStudentPerformanceCharts();
+  const [history, setHistory] = useState<HistoryRow[]>([]);
+
+  const subjects = useMemo<PracticeSubject[]>(
+    () =>
+      (charts?.subjects ?? []).map((s, i) => ({
+        id: s.name,
+        name: s.name,
+        color: subjectColor(s.name, i),
+        accuracy: Math.round(s.accuracy),
+        attempts: s.attempts,
+        trend: 0,
+        icon: s.name.charAt(0).toUpperCase(),
+      })),
+    [charts?.subjects],
+  );
+
+  useEffect(() => {
+    if (!user) {
+      setHistory([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("practice_sessions")
+        .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at")
+        .eq("user_id", user.id)
+        .not("finished_at", "is", null)
+        .order("finished_at", { ascending: false })
+        .limit(10);
+      if (cancelled || error) {
+        if (!cancelled) setHistory([]);
+        return;
+      }
+      setHistory(
+        (data ?? []).map((row) => {
+          const pct = row.question_count > 0
+            ? Math.round((100 * row.correct_count) / row.question_count)
+            : 0;
+          return {
+            id: row.id,
+            date: formatSessionDate(row.finished_at!),
+            mode: row.chapter ? "Chapter Practice" : "Practice",
+            subject: row.subject || "Mixed",
+            qs: row.question_count,
+            attempted: row.question_count,
+            score: row.correct_count,
+            pct,
+            time: formatDuration(row.created_at, row.finished_at!),
+            status: "completed",
+          };
+        }),
+      );
+    })();
+    return () => { cancelled = true; };
+  }, [user]);
+
+  const streak = student.streak;
   const [phase,   setPhase]   = useState<Phase>("hub");
   const [modeKey, setModeKey] = useState<ModeKey>("daily");
   const [config,  setConfig]  = useState<SessionConfig | null>(null);
@@ -858,9 +971,9 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   return (
     <>
-      {phase === "hub"     && <Hub onMode={handleMode}/>}
-      {phase === "config"  && <ConfigView modeKey={modeKey} onStart={handleConfigStart} onBack={() => setPhase("hub")}/>}
-      {phase === "session" && config && <Session config={config} onFinish={handleFinish}/>}
+      {phase === "hub"     && <Hub onMode={handleMode} history={history} streak={streak}/>}
+      {phase === "config"  && <ConfigView modeKey={modeKey} onStart={handleConfigStart} onBack={() => setPhase("hub")} subjects={subjects}/>}
+      {phase === "session" && config && <Session config={config} onFinish={handleFinish} onBack={() => setPhase("hub")} subjects={subjects}/>}
       {phase === "summary" && results && (
         <Summary results={results} onRetry={handleRetry} onHub={() => setPhase("hub")}/>
       )}

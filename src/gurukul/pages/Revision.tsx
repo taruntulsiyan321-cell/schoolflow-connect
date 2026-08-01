@@ -1,9 +1,9 @@
-import { useState } from "react";
-import type { PageKey } from "@/gurukul/data/mock";
-import { practiceQuestions } from "@/gurukul/data/mock";
+import { useMemo, useState } from "react";
+import type { PageKey } from "@/gurukul/nav";
+import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { GlassCard, SubjectBadge, ProgressBar, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
-  RotateCcw, BookOpen, Brain, Clock, CheckCircle2, XCircle,
+  RotateCcw, BookOpen, Brain, Clock, CheckCircle2, XCircle, AlertCircle,
   ChevronRight, ChevronDown, Flame, Star, ArrowRight, History,
   Play, Target, Bookmark, Calendar, Layers, RefreshCw,
   TrendingUp, SkipForward, Zap, FileText,
@@ -20,53 +20,45 @@ interface RevItem {
 
 interface Flashcard { front: string; back: string; subject: string; }
 
-const REVISION_ITEMS: RevItem[] = [
-  { id:"rv1", concept:"Integration by Parts", subject:"Mathematics", chapter:"Calculus",
-    dueIn:"Now", priority:1, bookmarked:true, teacherAssigned:false, lastSeen:"2 days ago", reviews:4, source:"practice" },
-  { id:"rv2", concept:"Snell's Law & Total Internal Reflection", subject:"Physics", chapter:"Optics",
-    dueIn:"Now", priority:2, bookmarked:false, teacherAssigned:true, lastSeen:"4 days ago", reviews:6, source:"tests" },
-  { id:"rv3", concept:"Electrochemistry — Nernst Equation", subject:"Chemistry", chapter:"Electrochemistry",
-    dueIn:"Today", priority:3, bookmarked:true, teacherAssigned:false, lastSeen:"3 days ago", reviews:2, source:"practice" },
-  { id:"rv4", concept:"Mitosis vs Meiosis", subject:"Biology", chapter:"Cell Division",
-    dueIn:"Today", priority:4, bookmarked:false, teacherAssigned:true, lastSeen:"5 days ago", reviews:3, source:"revision" },
-  { id:"rv5", concept:"Matrix Operations & Determinants", subject:"Mathematics", chapter:"Matrices",
-    dueIn:"Tomorrow", priority:5, bookmarked:false, teacherAssigned:false, lastSeen:"1 day ago", reviews:9, source:"practice" },
-  { id:"rv6", concept:"Newton's Laws of Motion", subject:"Physics", chapter:"Mechanics",
-    dueIn:"Tomorrow", priority:6, bookmarked:true, teacherAssigned:false, lastSeen:"6 days ago", reviews:7, source:"battleground" },
-  { id:"rv7", concept:"Organic Chemistry — Functional Groups", subject:"Chemistry", chapter:"Organic Chemistry",
-    dueIn:"2 days", priority:7, bookmarked:false, teacherAssigned:true, lastSeen:"2 days ago", reviews:4, source:"tests" },
-  { id:"rv8", concept:"Genetics — Mendel's Laws", subject:"Biology", chapter:"Genetics",
-    dueIn:"3 days", priority:8, bookmarked:false, teacherAssigned:false, lastSeen:"3 days ago", reviews:5, source:"practice" },
-  { id:"rv9", concept:"Quadratic Equations & Discriminant", subject:"Mathematics", chapter:"Algebra",
-    dueIn:"Done", priority:9, bookmarked:false, teacherAssigned:false, lastSeen:"Today", reviews:11, source:"practice" },
-  { id:"rv10", concept:"Photosynthesis — Light & Dark Reactions", subject:"Biology", chapter:"Plant Physiology",
-    dueIn:"Done", priority:10, bookmarked:true, teacherAssigned:false, lastSeen:"Yesterday", reviews:8, source:"revision" },
-];
+function dueLabelFromDate(dueDate: string): string {
+  try {
+    const due = new Date(dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
+    if (diff <= 0) return "Now";
+    if (diff === 1) return "Today";
+    if (diff === 2) return "Tomorrow";
+    if (diff <= 7) return `${diff - 1} days`;
+    return due.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  } catch {
+    return "—";
+  }
+}
 
-const FLASHCARDS: Flashcard[] = [
-  { front:"What is the formula for Integration by Parts?", back:"∫u·dv = u·v − ∫v·du\n\nChoose u using ILATE rule:\nInverse trig → Log → Algebraic → Trig → Exponential", subject:"Mathematics" },
-  { front:"State Snell's Law of Refraction", back:"n₁ sin θ₁ = n₂ sin θ₂\n\nWhere n is the refractive index and θ is the angle with normal.\nTotal internal reflection occurs when θ₁ > critical angle.", subject:"Physics" },
-  { front:"What is the Nernst Equation?", back:"E = E° − (RT/nF) ln Q\n\nAt 25°C: E = E° − (0.0592/n) log Q\n\nWhere Q = reaction quotient, n = moles of electrons", subject:"Chemistry" },
-  { front:"Difference between Mitosis and Meiosis?", back:"Mitosis: 1 division, 2 daughter cells, same chromosome number (diploid → diploid). Used for growth/repair.\n\nMeiosis: 2 divisions, 4 daughter cells, halved chromosome number (diploid → haploid). Used for reproduction.", subject:"Biology" },
-];
+function mapRevisionQueue(
+  queue: NonNullable<ReturnType<typeof useStudentAcademicSnapshot>["data"]>["revision_queue"],
+): RevItem[] {
+  if (!queue?.length) return [];
+  return queue.map((r) => ({
+    id: r.id,
+    concept: r.topic ?? r.chapter ?? r.subject,
+    subject: r.subject,
+    chapter: r.chapter ?? "—",
+    dueIn: dueLabelFromDate(r.due_date),
+    priority: r.priority,
+    bookmarked: false,
+    teacherAssigned: false,
+    lastSeen: "—",
+    reviews: 0,
+    source: "revision",
+  }));
+}
 
-const NOTES = [
-  { subject:"Mathematics", title:"Calculus Summary", content:"Key formulas: IBP, substitution, definite vs indefinite. Remember limits of integration for definite. Check signs.", updated:"Today" },
-  { subject:"Physics", title:"Optics Cheat Sheet", content:"Snell's law, lens formula (1/v − 1/u = 1/f), mirror formula, magnification. Sign convention: real is positive.", updated:"Yesterday" },
-  { subject:"Chemistry", title:"Electrochemistry Notes", content:"Nernst at RT: subtract 0.0592/n × log Q from E°. Galvanic vs electrolytic cell. SHE = 0V reference.", updated:"Jun 9" },
-];
-
-const HISTORY = [
-  { id:"h1", concept:"Integral Calculus — Substitution", subject:"Mathematics", date:"Jun 11", score:88, duration:"18 min" },
-  { id:"h2", concept:"Wave Optics — Diffraction", subject:"Physics", date:"Jun 10", score:76, duration:"14 min" },
-  { id:"h3", concept:"Thermodynamics Laws", subject:"Chemistry", date:"Jun 9", score:91, duration:"22 min" },
-];
-
-const AI_SCHEDULE = [
-  { time:"Now", items:REVISION_ITEMS.filter(r => r.dueIn === "Now") },
-  { time:"Later today", items:REVISION_ITEMS.filter(r => r.dueIn === "Today") },
-  { time:"Tomorrow", items:REVISION_ITEMS.filter(r => r.dueIn === "Tomorrow") },
-];
+const FLASHCARDS: Flashcard[] = [];
+const NOTES: { subject: string; title: string; content: string; updated: string }[] = [];
+const HISTORY: { id: string; concept: string; subject: string; date: string; score: number; duration: string }[] = [];
 
 function DueTag({ dueIn }: { dueIn: string }) {
   const cfg =
@@ -117,6 +109,20 @@ function FlashcardView({ cards, onDone }: { cards: Flashcard[]; onDone: () => vo
   const [idx, setIdx] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [known, setKnown] = useState(0);
+
+  if (cards.length === 0) {
+    return (
+      <GlassCard className="p-8 text-center">
+        <Layers className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
+        <p className="text-sm font-semibold text-white mb-1">No flashcards yet</p>
+        <p className="text-xs text-[#78788c] mb-4">Flashcards will appear here when available.</p>
+        <button onClick={onDone}
+          className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+          Back to Revision Hub
+        </button>
+      </GlassCard>
+    );
+  }
 
   const card = cards[idx];
   const isLast = idx === cards.length - 1;
@@ -188,12 +194,28 @@ function FlashcardView({ cards, onDone }: { cards: Flashcard[]; onDone: () => vo
   );
 }
 
-function RevisionSession({ item, onDone }: { item: RevItem; onDone: (score: number) => void }) {
-  const questions = practiceQuestions.slice(0, 5);
+function RevisionSession({ item, onDone, onBack }: { item: RevItem; onDone: (score: number) => void; onBack: () => void }) {
+  const questions: { subject: string; difficulty: string; question: string; options: string[]; correct: number; explanation: string }[] = [];
   const [qi, setQi] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<(number|null)[]>([]);
   const [showExp, setShowExp] = useState(false);
+
+  if (questions.length === 0) {
+    return (
+      <div className="space-y-5">
+        <GlassCard className="p-8 text-center">
+          <RotateCcw className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
+          <p className="text-sm font-semibold text-white mb-1">No revision questions available</p>
+          <p className="text-xs text-[#78788c]">Questions will appear when this topic is queued with content.</p>
+          <button onClick={onBack}
+            className="mt-4 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+            Back to Revision Hub
+          </button>
+        </GlassCard>
+      </div>
+    );
+  }
 
   const q = questions[qi];
   const isLast = qi === questions.length - 1;
@@ -302,6 +324,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
 }
 
 export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }) {
+  const { data: snapshot, loading, error } = useStudentAcademicSnapshot();
   const [view, setView] = useState<RevView>("overview");
   const [activeItem, setActiveItem] = useState<RevItem | null>(null);
   const [score, setScore] = useState(0);
@@ -310,11 +333,44 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   const [showHistory, setShowHistory] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
 
+  const REVISION_ITEMS = useMemo(
+    () => mapRevisionQueue(snapshot?.revision_queue),
+    [snapshot?.revision_queue],
+  );
+  const AI_SCHEDULE = useMemo(
+    () => [
+      { time: "Now", items: REVISION_ITEMS.filter((r) => r.dueIn === "Now") },
+      { time: "Later today", items: REVISION_ITEMS.filter((r) => r.dueIn === "Today") },
+      { time: "Tomorrow", items: REVISION_ITEMS.filter((r) => r.dueIn === "Tomorrow") },
+    ],
+    [REVISION_ITEMS],
+  );
+  const streak = snapshot?.xp?.current_streak ?? 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <RotateCcw className="w-6 h-6 text-violet-400 animate-spin"/>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <GlassCard className="p-8 text-center">
+        <AlertCircle className="w-8 h-8 text-violet-400 mx-auto mb-2"/>
+        <p className="text-sm text-[#78788c]">Could not load revision queue</p>
+        <p className="text-xs text-[#78788c] mt-1">{error}</p>
+      </GlassCard>
+    );
+  }
+
   if (view === "flashcards") return <FlashcardView cards={FLASHCARDS} onDone={() => setView("overview")}/>;
-  if (view === "session" && activeItem) return <RevisionSession item={activeItem} onDone={s => { setScore(s); setView("results"); }}/>;
+  if (view === "session" && activeItem) return <RevisionSession item={activeItem} onDone={s => { setScore(s); setView("results"); }}
+    onBack={() => { setView("overview"); setActiveItem(null); }}/>;
   if (view === "results" && activeItem) return <RevResults item={activeItem} score={score} setPage={setPage} onBack={() => { setView("overview"); setActiveItem(null); }}/>;
 
-  const subjects = ["all", "Mathematics", "Physics", "Chemistry", "Biology"];
+  const subjects = ["all", ...Array.from(new Set(REVISION_ITEMS.map((r) => r.subject)))];
   const filtered = REVISION_ITEMS.filter(r => {
     const matchFilter =
       filter === "all" ? true :
@@ -341,7 +397,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
           <Flame className="w-3.5 h-3.5 text-amber-400"/>
-          <span className="text-xs font-bold text-amber-400">7-day streak</span>
+          <span className="text-xs font-bold text-amber-400">{streak > 0 ? `${streak}-day streak` : "No streak yet"}</span>
         </div>
       </div>
 
@@ -392,7 +448,10 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
             <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Revision Notes</span>
           </div>
           <div className="space-y-3">
-            {NOTES.map((n, i) => (
+            {NOTES.length === 0 ? (
+              <p className="text-xs text-[#78788c]">No revision notes yet.</p>
+            ) : (
+              NOTES.map((n, i) => (
               <div key={i} className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/15">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-bold text-white">{n.title}</span>
@@ -400,7 +459,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
                 </div>
                 <p className="text-xs text-[#78788c] leading-relaxed">{n.content}</p>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </GlassCard>
       )}
@@ -417,7 +477,10 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           </div>
         </div>
         <div className="space-y-4">
-          {AI_SCHEDULE.filter(s => s.items.length > 0).map(slot => (
+          {AI_SCHEDULE.filter(s => s.items.length > 0).length === 0 ? (
+            <p className="text-xs text-[#78788c]">No items due — your revision queue is empty.</p>
+          ) : (
+            AI_SCHEDULE.filter(s => s.items.length > 0).map(slot => (
             <div key={slot.time}>
               <div className="text-[10px] uppercase tracking-wider text-[#78788c] mb-2">{slot.time}</div>
               <div className="flex flex-wrap gap-2">
@@ -429,7 +492,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
                 ))}
               </div>
             </div>
-          ))}
+          ))
+          )}
         </div>
       </GlassCard>
 
@@ -477,14 +541,20 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
             <Flame className="w-6 h-6 text-amber-400"/>
           </div>
           <div className="flex-1">
-            <div className="text-sm font-bold text-white mb-0.5">7-day Revision Streak 🔥</div>
-            <div className="text-xs text-[#78788c] mb-2">Keep it up! Revise at least 3 items daily to maintain your streak.</div>
+            <div className="text-sm font-bold text-white mb-0.5">
+              {streak > 0 ? `${streak}-day Revision Streak 🔥` : "Start your revision streak"}
+            </div>
+            <div className="text-xs text-[#78788c] mb-2">
+              {streak > 0
+                ? "Keep it up! Revise at least 3 items daily to maintain your streak."
+                : "Revise items from your queue to build a streak."}
+            </div>
             <div className="flex gap-1.5">
               {["M","T","W","T","F","S","S"].map((d, i) => (
                 <div key={i} className="flex flex-col items-center gap-1">
                   <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold",
-                    i < 7 ? "bg-amber-400/20 text-amber-300" : "bg-white/5 text-[#78788c]")}>
-                    {i < 7 ? "✓" : d}
+                    i < streak ? "bg-amber-400/20 text-amber-300" : "bg-white/5 text-[#78788c]")}>
+                    {i < streak ? "✓" : d}
                   </div>
                   <span className="text-[9px] text-[#78788c]">{d}</span>
                 </div>
@@ -503,7 +573,12 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
         </button>
         {showHistory && (
           <div className="space-y-2">
-            {HISTORY.map(h => (
+            {HISTORY.length === 0 ? (
+              <GlassCard className="p-6 text-center">
+                <p className="text-xs text-[#78788c]">No revision history yet.</p>
+              </GlassCard>
+            ) : (
+              HISTORY.map(h => (
               <GlassCard key={h.id} className="p-4 flex items-center gap-4">
                 <div className="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
                   <TrendingUp className="w-4 h-4 text-violet-400"/>
@@ -519,7 +594,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
                   </button>
                 </div>
               </GlassCard>
-            ))}
+              ))
+            )}
           </div>
         )}
       </div>

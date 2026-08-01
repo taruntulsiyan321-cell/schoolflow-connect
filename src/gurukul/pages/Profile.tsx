@@ -1,18 +1,30 @@
-import { useEffect, useState } from "react";
-import { achievements } from "@/gurukul/data/mock";
-import type { PageKey } from "@/gurukul/data/mock";
+import { useEffect, useMemo, useState } from "react";
+import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, SectionLabel, cn } from "@/gurukul/components/shared";
 import { Trophy, Target, Medal, Loader2, ArrowRight } from "lucide-react";
 import { AcademicProfileService, AnalyticsService } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useStudentBadges } from "@/hooks/useStudentBadges";
+import { getBadge, TIER_CLASS } from "@/lib/badges";
+
+function formatEarnedDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
 
 /**
  * Student Profile — academic metrics from Academic Engine.
- * Achievements remain presentation/gamification (non-engine).
+ * Milestones from live student_badges.
  */
 export default function Profile({ setPage }: { setPage?: (p: PageKey) => void }) {
+  const { user } = useAuth();
   const { ctx, ready, studentId } = useAcademicContext();
+  const { earned, loading: badgesLoading } = useStudentBadges(user?.id);
   const [name, setName] = useState("Student");
   const [classLabel, setClassLabel] = useState("");
   const [attPct, setAttPct] = useState(0);
@@ -20,7 +32,19 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
   const [hwPct, setHwPct] = useState(0);
   const [testsAvg, setTestsAvg] = useState(0);
   const [loading, setLoading] = useState(true);
-  const unlocked = achievements.filter((a) => a.unlocked);
+
+  const recentMilestones = useMemo(
+    () =>
+      earned
+        .map((e) => {
+          const meta = getBadge(e.badge_code);
+          if (!meta) return null;
+          return { ...meta, earned_at: e.earned_at };
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null)
+        .slice(0, 6),
+    [earned],
+  );
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
@@ -141,23 +165,35 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
 
       <GlassCard className="p-5">
         <SectionLabel>Recent milestones</SectionLabel>
-        <div className="flex flex-wrap gap-3">
-          {unlocked.map((a) => (
-            <div
-              key={a.id}
-              title={a.title}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-400/15 bg-amber-400/5"
-            >
-              <span className="text-lg">{a.icon}</span>
-              <div>
-                <div className="text-xs font-semibold text-white">{a.title}</div>
-                <div className="text-[10px] text-[#78788c]">
-                  +{a.xp} XP · {a.date}
+        {badgesLoading ? (
+          <div className="flex items-center gap-2 text-[#78788c] text-xs py-2">
+            <Loader2 className="w-3 h-3 animate-spin" /> Loading badges…
+          </div>
+        ) : recentMilestones.length === 0 ? (
+          <div className="text-xs text-[#78788c]">No badges earned yet.</div>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {recentMilestones.map((a) => {
+              const Icon = a.icon;
+              const tier = TIER_CLASS[a.tier];
+              return (
+                <div
+                  key={a.code}
+                  title={a.label}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-400/15 bg-amber-400/5"
+                >
+                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0", tier.bg)}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold text-white">{a.label}</div>
+                    <div className="text-[10px] text-[#78788c]">{formatEarnedDate(a.earned_at)}</div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </GlassCard>
     </div>
   );
