@@ -93,7 +93,7 @@ export function ArenaFocusCards({
           reward="Badge milestone"
           progress={Math.min(streak, 7)}
           total={7}
-          href="/student/battleground/progress"
+          href="/student/battleground"
         />
       ),
     },

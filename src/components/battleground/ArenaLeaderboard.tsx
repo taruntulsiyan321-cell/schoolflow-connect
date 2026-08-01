@@ -61,8 +61,8 @@ export function ArenaLeaderboard() {
       <div className="ba-leaderboard-panel p-5 text-center space-y-2">
         <Trophy className="w-8 h-8 mx-auto text-[var(--ba-secondary-fixed)] opacity-80" />
         <p className="text-sm text-white/75">No class rankings yet. Win a battle to appear here.</p>
-        <Link to="/student/battleground/progress" className="ba-label text-[var(--ba-secondary-fixed)] hover:underline">
-          View progress
+        <Link to="/student/battleground" className="ba-label text-[var(--ba-secondary-fixed)] hover:underline">
+          View arena
         </Link>
       </div>
     );
@@ -146,7 +146,7 @@ export function ArenaLeaderboard() {
       </div>
 
       <Link
-        to="/student/battleground/progress"
+        to="/student/battleground"
         className="block text-center ba-label text-[var(--ba-secondary-fixed)] hover:underline pt-1"
       >
         Full rankings

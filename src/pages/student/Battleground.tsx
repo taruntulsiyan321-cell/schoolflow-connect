@@ -139,6 +139,16 @@ export function BattleRoom() {
         const { data: existing } = await supabase.from("battle_participants").select("*").eq("battle_id", id).eq("user_id", user.id).maybeSingle();
         let pid = existing?.id;
         if (!pid) {
+          if (b?.mode === "duel") {
+            const { count } = await supabase
+              .from("battle_participants")
+              .select("id", { count: "exact", head: true })
+              .eq("battle_id", id);
+            if ((count ?? 0) >= 2) {
+              toast({ title: "This duel is already full.", variant: "destructive" });
+              return;
+            }
+          }
           const { data: p, error } = await supabase.from("battle_participants").insert({
             battle_id: id, user_id: user.id, student_id: stu?.id ?? null, display_name: name,
           }).select().single();
@@ -354,12 +364,22 @@ export function BattleRoom() {
   if (finished) {
     const sorted = [...participants].sort((a, b) => b.score - a.score);
     const myRank = sorted.findIndex((p) => p.user_id === user?.id) + 1;
+    const topScore = sorted[0]?.score ?? 0;
+    const tiedAtTop = sorted.filter((p) => p.score === topScore).length > 1;
+    const headline =
+      sorted.length <= 1
+        ? "Battle complete"
+        : tiedAtTop && myRank === 1
+          ? "Draw"
+          : myRank === 1
+            ? "You won"
+            : "Battle complete";
     return (
       <div className="space-y-4 animate-rise max-w-2xl mx-auto">
         <Card className="p-8 hero-panel text-center animate-fade-in">
           <div className="relative">
-            <Trophy className={cn("w-16 h-16 mx-auto", myRank === 1 ? "text-tier-gold" : "text-white/80")} />
-            <h1 className="text-2xl font-semibold mt-4 text-white">{myRank === 1 ? "You won" : "Battle complete"}</h1>
+            <Trophy className={cn("w-16 h-16 mx-auto", myRank === 1 && !tiedAtTop ? "text-tier-gold" : "text-white/80")} />
+            <h1 className="text-2xl font-semibold mt-4 text-white">{headline}</h1>
             <p className="opacity-80 mt-1">You ranked #{myRank} of {sorted.length}</p>
             <div className="grid grid-cols-3 gap-3 mt-6">
               <div><div className="text-3xl font-semibold">{me.score}</div><div className="text-xs uppercase opacity-70">Score</div></div>

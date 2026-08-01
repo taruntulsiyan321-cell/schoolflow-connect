@@ -178,6 +178,9 @@ function BCard({ b, onJoin, onView }: { b: BattleCard; onJoin:(id:string)=>void;
             {b.result==="won"?"🏆 Won":b.result==="lost"?"💀 Lost":"🤝 Draw"}
           </span>
         )}
+        {b.date && b.status==="completed" && !b.result && (
+          <span className="text-[10px] font-bold text-[#78788c]">Finished</span>
+        )}
       </div>
 
       {/* 1v1 score comparison */}
@@ -265,6 +268,7 @@ function Home({
   onJoinCode,
   onFeatured,
   joining,
+  loading,
 }: {
   onPhase: (p: Phase) => void;
   onStartBattle: () => void;
@@ -277,6 +281,7 @@ function Home({
   onJoinCode: (code: string) => void;
   onFeatured: (kind: "daily" | "weekly" | "ncert") => void;
   joining?: boolean;
+  loading?: boolean;
 }) {
   const [tab, setTab] = useState<HomeTab>("featured");
   const [joinCode, setJoinCode] = useState("");
@@ -408,7 +413,12 @@ function Home({
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {visible.map(b => (
+          {loading && (
+            <div className="col-span-full py-12 text-center">
+              <div className="text-sm text-[#78788c]">Loading battles…</div>
+            </div>
+          )}
+          {!loading && visible.map(b => (
             <BCard
               key={b.id}
               b={b}
@@ -420,10 +430,14 @@ function Home({
               }}
             />
           ))}
-          {visible.length === 0 && (
+          {!loading && visible.length === 0 && (
             <div className="col-span-full py-12 text-center">
               <Swords className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
-              <div className="text-sm text-[#78788c]">No battles here yet</div>
+              <div className="text-sm text-[#78788c]">
+                {tab === "upcoming"
+                  ? "Nothing scheduled yet — create a battle or check Featured"
+                  : "No battles here yet"}
+              </div>
             </div>
           )}
         </div>
@@ -1121,6 +1135,15 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
       {period === "daily" && (
         <div className="text-[10px] text-[#78788c] -mt-3">No daily board yet — showing this week&apos;s battle scores</div>
       )}
+      {period !== "daily" && (
+        <div className="text-[10px] text-[#78788c] -mt-3">
+          {period === "overall"
+            ? "Lifetime XP from finished battles"
+            : period === "monthly"
+              ? "Points earned this month"
+              : "Points earned this week"}
+        </div>
+      )}
 
       {/* Scope tabs */}
       <div className="flex gap-1 bg-white/4 rounded-xl p-1 w-fit">
@@ -1154,7 +1177,7 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
               <div key={e.rank} className={cn("flex flex-col items-center gap-2",i===1&&"-mt-4")}>
                 <AvatarBubble initials={e.avatar} color={e.color} size={10}/>
                 <div className="text-[10px] font-bold text-white truncate max-w-full px-1">{e.name.split(" ")[0]}</div>
-                <div className="text-[11px] font-black tabular-nums" style={{color:col}}>{e.xp.toLocaleString()} XP</div>
+                <div className="text-[11px] font-black tabular-nums" style={{color:col}}>{e.xp.toLocaleString()} {scoreLabel}</div>
                 <div className={cn("w-full rounded-t-xl flex items-center justify-center",heights[i])} style={{background:`${col}18`,border:`1px solid ${col}25`}}>
                   <div style={{color:col}}>{medalIcon(podPos)}</div>
                 </div>
@@ -1261,9 +1284,9 @@ function BattleHistory({
         )}
         {entries.map(h=>{
           const won   = h.result==="won";
-          const draw  = h.result==="draw";
+          const draw  = h.result==="draw" || h.result==="finished";
           const rc    = won?"#4aa87a":draw?"#78788c":"#cc5069";
-          const mark  = won?"W":draw?"D":"L";
+          const mark  = won?"W":h.result==="finished"?"✓":draw?"D":"L";
           const subj  = subjects.find(s=>s.name===h.subject);
           return (
             <div key={h.id} className="flex items-start gap-4 p-4 rounded-2xl border border-white/7 bg-[#131316] hover:border-white/12 transition-all">
@@ -1345,6 +1368,12 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         classId: data.classId,
         isPublic: cfg.visibility !== "private",
       });
+      if (cfg.type === "team") {
+        toast({
+          title: "Open battle with join code",
+          description: "Team mode creates a shareable open battle for now — full team matchmaking is coming later.",
+        });
+      }
       if (battleCode) {
         navigator.clipboard.writeText(battleCode).catch(() => {});
         toast({
@@ -1416,6 +1445,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
           onJoinCode={handleJoinCode}
           onFeatured={handleFeatured}
           joining={busy}
+          loading={data.loading}
         />
       )}
       {phase==="create" && (

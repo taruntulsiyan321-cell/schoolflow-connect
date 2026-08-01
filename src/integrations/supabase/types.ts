@@ -760,6 +760,7 @@ export type Database = {
       }
       battles: {
         Row: {
+          battle_code: string
           chapter: string | null
           class_id: string | null
           class_level: number | null
@@ -781,6 +782,7 @@ export type Database = {
           type: Database["public"]["Enums"]["battle_type"]
         }
         Insert: {
+          battle_code?: string
           chapter?: string | null
           class_id?: string | null
           class_level?: number | null
@@ -802,6 +804,7 @@ export type Database = {
           type?: Database["public"]["Enums"]["battle_type"]
         }
         Update: {
+          battle_code?: string
           chapter?: string | null
           class_id?: string | null
           class_level?: number | null
@@ -4058,6 +4061,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      rpc_accept_battle_invite: { Args: { _invite_id: string }; Returns: string }
       rpc_battle_monitor: { Args: { _battle_id: string }; Returns: Json }
       rpc_challenge_student: {
         Args: {
@@ -4155,6 +4159,7 @@ export type Database = {
         Args: { _participant_id: string }
         Returns: Json
       }
+      rpc_ensure_featured_battle: { Args: { _kind: string }; Returns: string }
       rpc_finish_battle: {
         Args: { _participant_id: string }
         Returns: undefined
@@ -4167,6 +4172,7 @@ export type Database = {
         Args: { _battle_id: string; _count?: number }
         Returns: number
       }
+      rpc_join_battle_by_code: { Args: { _code: string }; Returns: string }
       rpc_get_battle_report: {
         Args: { _participant_id: string }
         Returns: Json

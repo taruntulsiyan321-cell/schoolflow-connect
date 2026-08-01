@@ -168,8 +168,8 @@ export function formatBattleStatus(input: BattleStatusInput): BattleStatusInfo {
     if (totalParticipants > 1) {
       const scoresKnown =
         typeof myScore === "number" && typeof opponentScore === "number";
-      // Head-to-head draw when scores match
-      if (totalParticipants === 2 && scoresKnown && myScore === opponentScore) {
+      // Head-to-head draw when scores match (incl. RANK() ties both at 1)
+      if (scoresKnown && myScore === opponentScore) {
         kind = "draw";
       } else if (rank === 1) {
         kind = "won";
