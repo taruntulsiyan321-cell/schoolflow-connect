@@ -133,8 +133,8 @@ export default function StudentDashboard() {
           <Route path="revision" element={<Revision setPage={setPage} />} />
           <Route path="plans" element={<Navigate to="/student/revision" replace />} />
           <Route path="mistakes" element={<MistakeBook setPage={setPage} />} />
-          <Route path="battleground" element={<BattlegroundDesign setPage={setPage} />} />
-          <Route path="battleground/live/*" element={<BattlegroundLive />} />
+          <Route path="battleground/*" element={<BattlegroundLive />} />
+          <Route path="battleground-design" element={<BattlegroundDesign setPage={setPage} />} />
           <Route path="leaderboard" element={<Leaderboard />} />
           <Route path="achievements" element={<Achievements />} />
           <Route path="resources" element={<Resources />} />
