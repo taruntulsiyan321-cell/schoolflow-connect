@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { Sword, Trophy, Sparkles, Users, Clock, ArrowLeft, TrendingUp, ChevronRight, Loader2 } from "lucide-react";
 import { XPRing, BadgeCard, PodiumRow, Countdown } from "@/components/battleground/bg-bits";
-import { ArenaHub } from "@/components/battleground/ArenaHub";
+// ArenaHub intentionally not mounted as product home — design Battleground is canonical.
 import "@/components/battleground/battle-arena.css";
 import { FrictionlessChallenge } from "@/components/battleground/FrictionlessChallenge";
 import { BADGES, badgesByGroup, GROUP_LABEL, GROUP_ORDER } from "@/lib/badges";
@@ -64,9 +64,10 @@ function BattlegroundLayout() {
   );
 }
 
-// =================== ARENA (HOME) ===================
+// =================== ARENA (LEGACY — not product home) ===================
+/** Design Battleground at /student/battleground is canonical. ArenaHub is isolated. */
 function Arena() {
-  return <ArenaHub />;
+  return <Navigate to="/student/battleground" replace />;
 }
 
 // =================== CREATE / CHALLENGE (frictionless) ===================

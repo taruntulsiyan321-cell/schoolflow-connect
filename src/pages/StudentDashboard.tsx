@@ -4,7 +4,7 @@ import type { PageKey } from "@/gurukul/data/mock";
 import { PAGE_PATH, pathToPage } from "@/gurukul/nav";
 import Layout from "@/gurukul/components/Layout";
 import { GurukulStudentProvider } from "@/gurukul/StudentContext";
-import { student as mockStudent } from "@/gurukul/data/mock";
+import { EMPTY_STUDENT } from "@/gurukul/emptyStudent";
 import "@/gurukul/theme.css";
 
 import Dashboard from "@/gurukul/pages/Dashboard";
@@ -102,17 +102,17 @@ export default function StudentDashboard() {
         firstName: parts[0] || fullName,
         class: cls,
         avatar: initials.toUpperCase(),
-        xp: x?.xp,
-        level: x?.level,
-        streak: x?.current_streak,
-        rank,
+        xp: x?.xp ?? 0,
+        level: x?.level ?? 1,
+        streak: x?.current_streak ?? 0,
+        rank: rank ?? 0,
       });
     })();
   }, [user]);
 
   const mergedStudent = useMemo(
     () => ({
-      ...mockStudent,
+      ...EMPTY_STUDENT,
       ...Object.fromEntries(Object.entries(profile).filter(([, v]) => v !== undefined && v !== null && v !== "")),
     }),
     [profile],

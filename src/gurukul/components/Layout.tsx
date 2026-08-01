@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/data/mock";
-import { student as mockStudent } from "@/gurukul/data/mock";
+import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 import { useAuth } from "@/hooks/useAuth";
 import { cn, XPBar } from "./shared";
 import {
@@ -84,7 +84,7 @@ const profileMenuItems = [
   { label:"Analysis",      icon:<BarChart className="w-3.5 h-3.5"/>, key:"analysis"     as PageKey },
 ];
 
-export type GurukulStudentProfile = Partial<typeof mockStudent>;
+export type { GurukulStudentProfile };
 
 export default function Layout({
   page,
@@ -97,11 +97,11 @@ export default function Layout({
   setPage: (p: PageKey) => void;
   children: ReactNode;
   onOpenAdmin?: () => void;
-  profile?: GurukulStudentProfile;
+  profile?: Partial<GurukulStudentProfile>;
 }) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
-  const student = { ...mockStudent, ...profile };
+  const student = { ...EMPTY_STUDENT, ...profile };
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -378,7 +378,9 @@ export default function Layout({
                         </div>
                         <div className="min-w-0">
                           <div className="text-sm font-bold text-white truncate">{student.name}</div>
-                          <div className="text-[11px] text-[#78788c]">{student.class} · Rank #{student.rank}</div>
+                          <div className="text-[11px] text-[#78788c]">
+                            {[student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class"}
+                          </div>
                         </div>
                       </div>
                       <div className="mt-3">

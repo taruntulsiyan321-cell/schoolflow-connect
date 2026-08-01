@@ -7,7 +7,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { accuracyFromXp, formatBattleStatus, motivationCard } from "@/lib/battlegroundHelpers";
+import {
+  accuracyFromXp,
+  battleRatingFromXp,
+  formatBattleStatus,
+  motivationCard,
+} from "@/lib/battlegroundHelpers";
 import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
 
 export type DesignBattleType = "1v1" | "team" | "class";
@@ -171,6 +176,7 @@ export function useBattlegroundData() {
     total_answered: number;
   } | null>(null);
   const [classRank, setClassRank] = useState<number | null>(null);
+  const [schoolRank, setSchoolRank] = useState<number | null>(null);
   const [battles, setBattles] = useState<DesignBattleCard[]>([]);
   const [history, setHistory] = useState<DesignHistoryEntry[]>([]);
   const [classmates, setClassmates] = useState<ClassmateOption[]>([]);
@@ -182,52 +188,57 @@ export function useBattlegroundData() {
     setLoading(true);
     setError(null);
     try {
-      const [stuRes, xpRes, matesRes, lbRes] = await Promise.all([
+      const [stuRes, xpRes, matesRes, lbRes, schoolLbRes] = await Promise.all([
         supabase.from("students").select("id, class_id, full_name").eq("user_id", user.id).maybeSingle(),
         supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.rpc("rpc_classmates"),
         supabase.rpc("rpc_leaderboard", { _scope: "class", _category: "xp", _subject: undefined, _limit: 200 }),
+        supabase.rpc("rpc_leaderboard", { _scope: "school", _category: "xp", _subject: undefined, _limit: 500 }),
       ]);
 
       if (stuRes.error) throw stuRes.error;
       if (xpRes.error) throw xpRes.error;
-      // Soft-fail classmates / leaderboard — don't blank the arena
+      // Soft-fail classmates / leaderboard — don't blank the arena; never invent ranks
       if (matesRes.error) {
         toast({ title: "Could not load classmates", description: matesRes.error.message, variant: "destructive" });
+        setClassmates([]);
       }
       if (lbRes.error) {
         toast({ title: "Could not load class rank", description: lbRes.error.message, variant: "destructive" });
+        setClassRank(null);
+      }
+      if (schoolLbRes.error) {
+        toast({ title: "Could not load school rank", description: schoolLbRes.error.message, variant: "destructive" });
+        setSchoolRank(null);
       }
 
       const s = stuRes.data;
       const x = xpRes.data;
       const mates = matesRes.data;
       const lb = lbRes.data;
+      const schoolLb = schoolLbRes.data;
 
       setClassId(s?.class_id ?? null);
-      if (x) {
-        setXp({
-          xp: x.xp ?? 0,
-          level: x.level ?? 1,
-          wins: x.wins ?? 0,
-          total_battles: x.total_battles ?? 0,
-          current_streak: x.current_streak ?? 0,
-          win_streak: x.win_streak ?? 0,
-          best_win_streak: x.best_win_streak ?? 0,
-          total_correct: x.total_correct ?? 0,
-          total_answered: x.total_answered ?? 0,
-        });
-      } else {
-        setXp({
-          xp: 0, level: 1, wins: 0, total_battles: 0,
-          current_streak: 0, win_streak: 0, best_win_streak: 0,
-          total_correct: 0, total_answered: 0,
-        });
-      }
+      // Always zeros when no row — never leave prior session demo values
+      setXp({
+        xp: x?.xp ?? 0,
+        level: x?.level ?? 1,
+        wins: x?.wins ?? 0,
+        total_battles: x?.total_battles ?? 0,
+        current_streak: x?.current_streak ?? 0,
+        win_streak: x?.win_streak ?? 0,
+        best_win_streak: x?.best_win_streak ?? 0,
+        total_correct: x?.total_correct ?? 0,
+        total_answered: x?.total_answered ?? 0,
+      });
 
-      if (Array.isArray(lb)) {
+      if (!lbRes.error && Array.isArray(lb)) {
         const i = lb.findIndex((r: { user_id?: string }) => r.user_id === user.id);
         setClassRank(i >= 0 ? i + 1 : null);
+      }
+      if (!schoolLbRes.error && Array.isArray(schoolLb)) {
+        const i = schoolLb.findIndex((r: { user_id?: string }) => r.user_id === user.id);
+        setSchoolRank(i >= 0 ? i + 1 : null);
       }
 
       if (!matesRes.error) {
@@ -664,22 +675,61 @@ export function useBattlegroundData() {
         streak: xp?.current_streak ?? 0,
         wins: xp?.wins ?? 0,
         classRank,
+        schoolRank,
       }),
-    [xp, classRank],
+    [xp, classRank, schoolRank],
   );
+
+  const accuracy = useMemo(() => accuracyFromXp(xp || {}), [xp]);
+
+  /** Wins/losses/draws — wins from student_xp; L/D from finished history (honest empty when none). */
+  const record = useMemo(() => {
+    const wins = xp?.wins ?? 0;
+    const totalBattles = xp?.total_battles ?? 0;
+    const draws = history.filter((h) => h.result === "draw").length;
+    const histLosses = history.filter((h) => h.result === "lost").length;
+    // Prefer history losses when we have finished rows; else total − wins − draws
+    const losses =
+      history.length > 0
+        ? histLosses
+        : Math.max(0, totalBattles - wins - draws);
+    return {
+      totalBattles,
+      wins,
+      losses,
+      draws,
+      accuracy,
+      rating: battleRatingFromXp(xp?.xp ?? 0, wins, totalBattles),
+      xp: xp?.xp ?? 0,
+      level: xp?.level ?? 1,
+      streak: xp?.win_streak ?? xp?.current_streak ?? 0,
+      bestStreak: xp?.best_win_streak ?? 0,
+      classRank,
+      schoolRank,
+    };
+  }, [xp, history, accuracy, classRank, schoolRank]);
 
   return {
     loading,
     error,
     xp,
     classRank,
+    schoolRank,
     classId,
     battles,
     history,
     classmates,
     heroStats,
     motivation,
-    accuracy: accuracyFromXp(xp || {}),
+    accuracy,
+    /** Flat stats for hero / statistics panels */
+    stats: record,
+    totalBattles: record.totalBattles,
+    wins: record.wins,
+    losses: record.losses,
+    draws: record.draws,
+    rating: record.rating,
+    streak: record.streak,
     reload,
   };
 }

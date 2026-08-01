@@ -6,7 +6,6 @@
 import { useState, useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/data/mock";
-import { subjects } from "@/gurukul/data/mock";
 import { useAuth } from "@/hooks/useAuth";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { toast } from "@/hooks/use-toast";
@@ -25,10 +24,22 @@ import {
 import {
   leagueFromXp,
   xpToNextLeague,
-  battleRatingFromXp,
   type League as HelperLeague,
 } from "@/lib/battlegroundHelpers";
+import { getNcertChapters, getNcertSubjects, parseClassGrade } from "@/lib/ncertSyllabus";
 import "./battleground-design.css";
+
+/** Subject labels for create wizard — not mock accuracy/chapter stats. */
+const SUBJECT_OPTIONS = [
+  "Mathematics",
+  "Science",
+  "Physics",
+  "Chemistry",
+  "Biology",
+  "English",
+  "Social Studies",
+  "Computer Science",
+];
 
 // ── Design tokens (DesignAuthenticationPage) ─────────────────────────────────
 const C = {
@@ -91,7 +102,6 @@ const FEATURED_META: {
   subject: string;
   chapter: string;
   difficulty: "Easy" | "Medium" | "Hard";
-  xp: number;
   gradient: string;
   border: string;
 }[] = [
@@ -102,7 +112,6 @@ const FEATURED_META: {
     subject: "Mathematics",
     chapter: "Today's mixed set",
     difficulty: "Medium",
-    xp: 150,
     gradient: "linear-gradient(135deg, #f97316 0%, #ef4444 100%)",
     border: "rgba(249,115,22,0.25)",
   },
@@ -113,7 +122,6 @@ const FEATURED_META: {
     subject: "Science",
     chapter: "NCERT sprint",
     difficulty: "Hard",
-    xp: 220,
     gradient: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
     border: "rgba(59,130,246,0.25)",
   },
@@ -124,7 +132,6 @@ const FEATURED_META: {
     subject: "Class focus",
     chapter: "Assigned challenge",
     difficulty: "Easy",
-    xp: 90,
     gradient: "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
     border: "rgba(139,92,246,0.25)",
   },
@@ -135,7 +142,6 @@ const FEATURED_META: {
     subject: "Physics",
     chapter: "Climb the ranks",
     difficulty: "Hard",
-    xp: 300,
     gradient: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
     border: "rgba(245,158,11,0.25)",
   },
@@ -146,7 +152,6 @@ const FEATURED_META: {
     subject: "All Subjects",
     chapter: "Mixed — weekly",
     difficulty: "Hard",
-    xp: 500,
     gradient: "linear-gradient(135deg, #10b981 0%, #3b82f6 100%)",
     border: "rgba(16,185,129,0.25)",
   },
@@ -328,11 +333,14 @@ type MeInfo = {
   bestStreak: number;
   totalBattles: number;
   wins: number;
+  losses: number;
+  draws: number;
   accuracy: number;
   motivationTitle: string;
   motivationMessage: string;
   xpRemaining: number;
   nextLeague: string;
+  dailyXpLabel: string;
 };
 
 function HeroSection({
@@ -589,7 +597,7 @@ function HeroSection({
               <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 700, fontSize: "0.82rem", color: C.text }}>
                 Daily Challenge
               </div>
-              <div style={{ color: C.text3, fontSize: "0.67rem", fontFamily: "Inter, sans-serif" }}>+150 XP</div>
+              <div style={{ color: C.text3, fontSize: "0.67rem", fontFamily: "Inter, sans-serif" }}>{me.dailyXpLabel}</div>
             </div>
           </div>
           <button
@@ -626,12 +634,14 @@ function QuickActions({
   onDaily,
   onWeekly,
   busy,
+  dailyXpLabel,
 }: {
   onCreate: () => void;
   onJoin: () => void;
   onDaily: () => void;
   onWeekly: () => void;
   busy: boolean;
+  dailyXpLabel: string;
 }) {
   const actions = [
     {
@@ -655,7 +665,7 @@ function QuickActions({
     {
       icon: "🔥",
       label: "Daily Challenge",
-      desc: "Today's challenge — 150 XP",
+      desc: `Today's challenge — ${dailyXpLabel}`,
       color: C.orange,
       grad: `linear-gradient(135deg, ${C.orange}22, ${C.orange}08)`,
       border: "rgba(249,115,22,0.3)",
@@ -903,7 +913,7 @@ function FeaturedBattles({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem", marginBottom: "0.85rem" }}>
                 <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "0.4rem 0.5rem" }}>
                   <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", color: C.gold }}>
-                    {live?.xpReward || meta.xp} XP
+                    {live?.xpReward != null ? `${live.xpReward} XP` : "—"}
                   </div>
                   <div style={{ color: C.text3, fontSize: "0.6rem" }}>Reward</div>
                 </div>
@@ -1446,7 +1456,7 @@ function AchievementsPanel({ me }: { me: MeInfo }) {
     {
       id: 2,
       icon: "🔥",
-      title: `${Math.max(me.streak, 4)} Win Streak`,
+      title: "4 Win Streak",
       desc: "4 consecutive wins",
       unlocked: me.streak >= 4 || me.bestStreak >= 4,
       rarity: "rare" as const,
@@ -1526,14 +1536,19 @@ function AchievementsPanel({ me }: { me: MeInfo }) {
 
 function StatisticsPanel({ me }: { me: MeInfo }) {
   const winRate = me.totalBattles > 0 ? Math.round((me.wins / me.totalBattles) * 100) : 0;
-  const losses = Math.max(0, me.totalBattles - me.wins);
   const stats = [
     { label: "Battles Played", value: String(me.totalBattles), icon: "⚔️", color: C.blue, sub: "Lifetime" },
     { label: "Battles Won", value: String(me.wins), icon: "🏆", color: C.green, sub: `${winRate}% win rate` },
     { label: "Current Streak", value: String(me.streak), icon: "🔥", color: C.orange, sub: `Personal best: ${me.bestStreak}` },
     { label: "Battle XP", value: me.xp.toLocaleString(), icon: "⚡", color: C.purple, sub: me.league },
     { label: "Avg. Accuracy", value: `${me.accuracy}%`, icon: "🎯", color: C.gold, sub: "From finished battles" },
-    { label: "Battles Lost", value: String(losses), icon: "📉", color: C.pink, sub: "Keep climbing" },
+    {
+      label: "Battles Lost",
+      value: String(me.losses),
+      icon: "📉",
+      color: C.pink,
+      sub: me.draws > 0 ? `${me.draws} draw${me.draws === 1 ? "" : "s"}` : "Keep climbing",
+    },
     { label: "Battle Rating", value: me.rating.toLocaleString(), icon: "📊", color: "#22d3ee", sub: "Derived from XP + wins" },
     {
       label: "Class Rank",
@@ -1595,16 +1610,24 @@ function CreateBattleWizard({
   onEnter,
   classmates,
   creating,
+  classLabel,
 }: {
   onBack: () => void;
   onCreate: (cfg: BattleConfig & { opponentUserId?: string }) => Promise<{ id: string; battleCode: string | null }>;
   onEnter: (battleId: string) => void;
   classmates: ClassmateOption[];
   creating?: boolean;
+  classLabel?: string;
 }) {
+  const grade = useMemo(() => parseClassGrade(classLabel), [classLabel]);
+  const subjectOptions = useMemo(() => {
+    const ncert = getNcertSubjects(grade);
+    return ncert.length ? ncert : SUBJECT_OPTIONS;
+  }, [grade]);
+
   const [step, setStep] = useState<CreateStep>(1);
   const [type, setType] = useState<BattleType>("1v1");
-  const [subject, setSubject] = useState("Mathematics");
+  const [subject, setSubject] = useState(subjectOptions[0] ?? "Mathematics");
   const [chapter, setChapter] = useState("All");
   const [difficulty, setDifficulty] = useState("medium");
   const [questions, setQuestions] = useState(10);
@@ -1616,11 +1639,17 @@ function CreateBattleWizard({
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    if (subjectOptions.length && !subjectOptions.includes(subject)) {
+      setSubject(subjectOptions[0]);
+      setChapter("All");
+    }
+  }, [subjectOptions, subject]);
+
   const chapters = useMemo(() => {
-    const s = subjects.find((x) => x.name === subject);
-    const list = [...(s?.strongChapters || []), ...(s?.weakChapters || [])];
-    return ["All", ...Array.from(new Set(list))];
-  }, [subject]);
+    const list = getNcertChapters(grade, subject);
+    return ["All", ...list];
+  }, [grade, subject]);
 
   const filteredMates = classmates
     .filter((m) => !opponentQ || m.full_name.toLowerCase().includes(opponentQ.toLowerCase()))
@@ -1797,9 +1826,9 @@ function CreateBattleWizard({
             <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
               <span style={{ fontSize: "0.7rem", color: C.text3, fontWeight: 700 }}>SUBJECT</span>
               <select value={subject} onChange={(e) => { setSubject(e.target.value); setChapter("All"); }} style={inputStyle}>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.name}>
-                    {s.name}
+                {subjectOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
                   </option>
                 ))}
               </select>
@@ -2074,15 +2103,27 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   const [busy, setBusy] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
   const [lbEntries, setLbEntries] = useState<DesignLbEntry[]>([]);
-  const [schoolRank, setSchoolRank] = useState<number | null>(null);
 
-  const displayName = profile?.name || profile?.firstName || "Student";
+  const displayName =
+    profile?.name && profile.name !== "Student"
+      ? profile.name
+      : profile?.firstName && profile.firstName !== "Student"
+        ? profile.firstName
+        : "Student";
   const ini = initials(displayName);
 
+  const featuredLive = useMemo(() => data.battles.filter((b) => b.featured), [data.battles]);
+  const dailyLive = useMemo(
+    () =>
+      featuredLive.find((b) => guessFeaturedKind(b) === "daily") ||
+      data.battles.find((b) => (b.title || "").toLowerCase().includes("daily")),
+    [featuredLive, data.battles],
+  );
+
   const me: MeInfo = useMemo(() => {
-    const xp = data.xp?.xp ?? 0;
-    const wins = data.xp?.wins ?? 0;
-    const total = data.xp?.total_battles ?? 0;
+    const xp = data.stats.xp;
+    const wins = data.stats.wins;
+    const total = data.stats.totalBattles;
     const league = toLeagueName(leagueFromXp(xp));
     const next = xpToNextLeague(xp);
     const xpNext = next ? next.next.minXp : xp;
@@ -2092,33 +2133,31 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       league,
       xp,
       xpNext: Math.max(xpNext, xp || 1),
-      rating: battleRatingFromXp(xp, wins, total),
-      schoolRank,
+      rating: data.stats.rating,
+      schoolRank: data.schoolRank,
       classRank: data.classRank,
-      streak: data.xp?.win_streak ?? data.xp?.current_streak ?? 0,
-      bestStreak: data.xp?.best_win_streak ?? 0,
+      streak: data.stats.streak,
+      bestStreak: data.stats.bestStreak,
       totalBattles: total,
       wins,
-      accuracy: data.accuracy,
+      losses: data.stats.losses,
+      draws: data.stats.draws,
+      accuracy: data.stats.accuracy,
       motivationTitle: data.motivation.title,
       motivationMessage: data.motivation.message,
       xpRemaining: next?.remaining ?? 0,
       nextLeague: next?.next.name || "Champion",
+      dailyXpLabel: dailyLive?.xpReward != null ? `+${dailyLive.xpReward} XP` : "Earn XP",
     };
-  }, [data, displayName, ini, schoolRank]);
+  }, [data, displayName, ini, dailyLive]);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [classRows, schoolRows] = await Promise.all([
-          loadLeaderboardEntries("class", undefined, user?.id, "overall"),
-          loadLeaderboardEntries("school", undefined, user?.id, "overall"),
-        ]);
+        const classRows = await loadLeaderboardEntries("class", undefined, user?.id, "overall");
         if (cancelled) return;
         setLbEntries(classRows);
-        const mine = schoolRows.find((r) => r.you);
-        setSchoolRank(mine?.rank ?? null);
       } catch (err) {
         if (!cancelled) {
           setLbEntries([]);
@@ -2149,8 +2188,6 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       ),
     [data.battles],
   );
-
-  const featuredLive = useMemo(() => data.battles.filter((b) => b.featured), [data.battles]);
 
   function goBattle(id: string) {
     navigate(`/student/battleground/battle/${id}`);
@@ -2370,6 +2407,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
               onEnter={goBattle}
               classmates={data.classmates}
               creating={busy}
+              classLabel={classLabel}
             />
           ) : (
             <>
@@ -2380,6 +2418,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
                 onDaily={() => void handleFeatured("daily")}
                 onWeekly={() => void handleFeatured("weekly")}
                 busy={busy}
+                dailyXpLabel={me.dailyXpLabel}
               />
               <FeaturedBattles liveFeatured={featuredLive} onLaunch={(k, id) => void handleFeatured(k, id)} busy={busy} />
 

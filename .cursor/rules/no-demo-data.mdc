@@ -1,0 +1,28 @@
+---
+description: No demo/fake/mock student stats — real product data only
+alwaysApply: true
+---
+
+# No demo / fake data (product mandate)
+
+Throughout the app we are building the **real product**. Never invent demo numbers, fake classmates, or hardcoded student stats.
+
+## Especially Battleground
+
+These must be live from Supabase / existing RPCs / `student_xp` / `battle_participants` (or honest empty):
+
+- Battles played, won, lost, draws
+- Current streak / highest streak
+- Battle XP, battle rating, league, level
+- Average accuracy
+- Class rank / school rank
+- Hero section, statistics cards, achievements, leaderboard, history
+
+## Rules
+
+1. **If data is missing**, show `0` / `—` / empty state — NEVER invented demo numbers (e.g. 1382 XP, Level 14, Arjun Sharma, Priya Nair).
+2. **Do not** merge `@/gurukul/data/mock` student/battles/leaderboard/achievements into live UI as fallbacks.
+3. Query failures → toast + zeros / empty lists — not fake profiles.
+4. Achievements unlock only from real XP/wins/streak/accuracy — never pretends unlocked.
+5. Prefer existing `student_xp` columns over new schema unless required.
+6. Battleground: keep `src/gurukul/pages/Battleground.tsx` design; wire data only — no redesign.

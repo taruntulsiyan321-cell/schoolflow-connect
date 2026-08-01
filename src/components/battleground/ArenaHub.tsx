@@ -25,6 +25,8 @@ import "./battle-arena.css";
 
 const BG_BASE = "/student/battleground";
 
+/** Legacy shell — not product home. Canonical: gurukul/pages/Battleground.tsx */
+
 function levelTitle(level: number): string {
   const tiers = ["Scholar", "Elite Scholar", "Master Scholar", "Grandmaster"];
   const tierIdx = Math.min(Math.floor(Math.max(level - 1, 0) / 3), tiers.length - 1);

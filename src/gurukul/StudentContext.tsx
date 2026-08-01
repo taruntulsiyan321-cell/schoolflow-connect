@@ -1,9 +1,9 @@
 import { createContext, useContext } from "react";
-import { student as mockStudent } from "@/gurukul/data/mock";
+import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 
-export type GurukulStudent = typeof mockStudent;
+export type GurukulStudent = GurukulStudentProfile;
 
-const Ctx = createContext<GurukulStudent>(mockStudent);
+const Ctx = createContext<GurukulStudent>(EMPTY_STUDENT);
 
 export function GurukulStudentProvider({
   value,
