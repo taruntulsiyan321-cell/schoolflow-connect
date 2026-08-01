@@ -51,17 +51,29 @@ export default function Class12MathSession() {
     (async () => {
       setLoading(true);
       setLoadError(null);
-      const { data: sid, error: sErr } = await supabase.rpc("rpc_start_practice_session", {
-        _subject: "Mathematics",
-        _chapter: chapter,
-        _count: count,
-      });
-      if (sErr) {
-        setLoadError(sErr.message);
-        setLoading(false);
-        return;
+      const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+      let sid: string;
+      try {
+        const ctx = await resolveStudentServiceContext();
+        sid = (await PracticeService.start(ctx, {
+          _subject: "Mathematics",
+          _chapter: chapter,
+          _count: count,
+        })) as string;
+      } catch (startErr) {
+        const { data: sidRpc, error: sErr } = await supabase.rpc("rpc_start_practice_session", {
+          _subject: "Mathematics",
+          _chapter: chapter,
+          _count: count,
+        });
+        if (sErr) {
+          setLoadError(sErr.message || (startErr instanceof Error ? startErr.message : "Could not start session"));
+          setLoading(false);
+          return;
+        }
+        sid = sidRpc as string;
       }
-      setSessionId(sid as string);
+      setSessionId(sid);
 
       const { items: built, sessionSeed: resolvedSeed, error: tErr } = await loadMath12TemplatePractice({
         chapter,

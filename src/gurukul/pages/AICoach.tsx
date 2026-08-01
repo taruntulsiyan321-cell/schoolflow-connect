@@ -3,6 +3,7 @@ import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { cn } from "@/gurukul/components/shared";
+import { toast } from "sonner";
 import {
   Mic, MicOff, Send, Plus, Search, Pin, Star, Trash2, Edit3,
   MoreHorizontal, ChevronLeft, Paperclip, Copy, Bookmark,
@@ -59,18 +60,12 @@ function now() {
   return new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
 }
 
-function novaReply(text: string): string {
-  if (/integrat/i.test(text))
-    return "Let's break integration down. The most important thing to remember is which technique to use — **substitution** when you see a composite function, **by parts** when you see a product. Which one are you stuck on?";
-  if (/SN1|SN2|substitut/i.test(text))
-    return "SN1 vs SN2 — the classic confusion! The single most important factor is the **substrate structure**. Primary → SN2, Tertiary → SN1. What substrate are you looking at right now?";
-  if (/test|exam|prepare/i.test(text))
-    return "Let's make a game plan. Tell me the date of your test and the chapters it covers, and I'll give you a focused revision schedule with the highest-yield topics prioritised.";
-  if (/explain|understand|help/i.test(text))
-    return "Happy to explain! Here's how I'd teach this: start from the **core concept**, find an **analogy**, then test it with an **example**. What topic do you want me to break down this way?";
-  if (/practice|question/i.test(text))
-    return "Great — let's drill it! Here's a question:\n\n**Q. A particle moves with velocity v = 3t² − 2t. Find its acceleration at t = 2s.**\n\nTry it, and I'll walk you through the solution step by step.";
-  return "That's a great direction to explore. Based on your current syllabus and past performance, I'd suggest we focus on the conceptual foundation first before moving to problem-solving. What specific part is giving you trouble?";
+function novaReply(_text: string): string {
+  return (
+    "**Preview mode** — a live AI coach is not connected yet. " +
+    "I can’t invent explanations or practice problems as product answers. " +
+    "Use Practice, Doubts, or Recovery for real learning paths, or ask your teacher."
+  );
 }
 
 // ── Voice Orb ─────────────────────────────────────────────────────────────────
@@ -644,13 +639,13 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       setVoiceState("processing");
       setTimeout(() => {
         setVoiceState("speaking");
-        if (activeId) addMessage(activeId, { role:"student", text:"Can you explain Newton's second law with an example?", time:now() });
+        if (activeId) addMessage(activeId, { role:"student", text:"(Voice input captured — transcript unavailable offline)", time:now() });
         setTimeout(() => {
-          if (activeId) addMessage(activeId, { role:"nova", text:"Newton's Second Law says: **F = ma** — Force equals mass times acceleration.\n\nExample: If you push a 10 kg box with 20 N of force, the acceleration is:\na = F/m = 20/10 = **2 m/s²**\n\nThe heavier the object, the less it accelerates for the same force. That's why a truck is harder to move than a bicycle!\n\nWant me to create a few practice problems around this?", time:now() });
+          if (activeId) addMessage(activeId, { role:"nova", text:novaReply(""), time:now() });
           setVoiceState("idle");
-        }, 3000);
-      }, 1200);
-    }, 4000);
+        }, 1200);
+      }, 800);
+    }, 2000);
   }
 
   function stopVoice() {
@@ -865,7 +860,10 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           <InputBar
             onSend={sendMessage}
             onVoiceStart={startVoice}
-            onAttach={type => {}}
+            onAttach={() => {
+              // Attachment upload not wired yet — keep control visible but honest.
+              toast.info("Attachments are not available yet.");
+            }}
             disabled={isTyping}
           />
         </div>

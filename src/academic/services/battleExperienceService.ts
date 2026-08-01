@@ -176,6 +176,74 @@ export const BattleExperienceService = {
     return data as string;
   },
 
+  /**
+   * Join an already-known battle (by id) as a participant — used by the BattleRoom
+   * when a student opens a battle link/route directly (not via code or invite).
+   * Idempotent: returns the existing participant id if already joined.
+   */
+  async joinById(ctx: ServiceContext, battleId: string): Promise<string> {
+    assertCanOwn(ctx, "battle");
+    const client = getClient(toRepoContext(ctx));
+
+    const { data: existing, error: existErr } = await client
+      .from("battle_participants")
+      .select("id")
+      .eq("battle_id", battleId)
+      .eq("user_id", ctx.userId)
+      .maybeSingle();
+    throwIfError(existErr, "Failed to check battle participation");
+    if (existing) return existing.id as string;
+
+    const { data: stu } = await client
+      .from("students")
+      .select("id, full_name")
+      .eq("user_id", ctx.userId)
+      .maybeSingle();
+    let displayName = stu?.full_name || "";
+    if (!displayName) {
+      const { data: prof } = await client
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", ctx.userId)
+        .maybeSingle();
+      displayName = prof?.full_name || prof?.email?.split("@")[0] || "Student";
+    }
+
+    const { data: inserted, error: insertErr } = await client
+      .from("battle_participants")
+      .insert({
+        battle_id: battleId,
+        user_id: ctx.userId,
+        student_id: stu?.id ?? null,
+        display_name: displayName,
+      })
+      .select("id")
+      .single();
+
+    if (insertErr) {
+      // Race: another request (e.g. a duplicate submit) may have joined concurrently.
+      const { data: recheck } = await client
+        .from("battle_participants")
+        .select("id")
+        .eq("battle_id", battleId)
+        .eq("user_id", ctx.userId)
+        .maybeSingle();
+      if (recheck) return recheck.id as string;
+      throw new Error(insertErr.message || "Failed to join battle");
+    }
+
+    await emitEvent(toRepoContext(ctx), {
+      eventType: "battle.joined",
+      entityType: "battle",
+      entityId: battleId,
+      studentId: ctx.studentId ?? null,
+      payload: { via: "direct" },
+    }).catch(() => undefined);
+
+    afterExperienceWrite(ctx, ["battle"]);
+    return inserted!.id as string;
+  },
+
   async acceptInvite(ctx: ServiceContext, inviteId: string, battleId: string): Promise<string> {
     assertCanOwn(ctx, "battle");
     const client = getClient(toRepoContext(ctx));
@@ -254,34 +322,33 @@ export const BattleExperienceService = {
     throwIfError(existErr, "Failed to check featured participation");
 
     if (!existing) {
+      // Always ensure a participant row exists before returning the battle id —
+      // never let the caller open the room without a real join.
       const { data: codeRow } = await client
         .from("battles")
         .select("battle_code")
         .eq("id", battleId)
         .maybeSingle();
+
+      let joined = false;
       if (codeRow?.battle_code) {
         try {
           await this.joinByCode(ctx, codeRow.battle_code);
+          joined = true;
         } catch {
-          const { data: stu } = await client
-            .from("students")
-            .select("id, full_name")
-            .eq("user_id", ctx.userId)
-            .maybeSingle();
-          const { error: insertErr } = await client.from("battle_participants").insert({
-            battle_id: battleId,
-            user_id: ctx.userId,
-            student_id: stu?.id ?? null,
-            display_name: stu?.full_name || "Challenger",
-          });
-          throwIfError(insertErr, "Could not join featured battle");
-          await emitEvent(toRepoContext(ctx), {
-            eventType: "battle.joined",
-            entityType: "battle",
-            entityId: battleId,
-            studentId: ctx.studentId ?? null,
-            payload: { featured_kind: kind },
-          }).catch(() => undefined);
+          joined = false;
+        }
+      }
+
+      if (!joined) {
+        // No usable battle_code (or the code-join failed) — join directly by id.
+        // joinById emits its own "battle.joined" event and throws loudly on failure.
+        try {
+          await this.joinById(ctx, battleId);
+        } catch (joinErr) {
+          throw joinErr instanceof Error
+            ? joinErr
+            : new Error("Could not join featured battle");
         }
       }
     }

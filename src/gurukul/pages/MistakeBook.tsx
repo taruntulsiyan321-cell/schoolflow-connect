@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
+import { toast } from "sonner";
 import { GlassCard, SubjectBadge, DifficultyBadge, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Filter, Bookmark, BookmarkCheck,
@@ -391,10 +393,22 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     });
   }
 
-  function addToRecovery(id: string) {
+  async function addToRecovery(id: string) {
     const m = mistakes.find(x => x.id === id);
-    showToast(`"${m?.topic}" added to Recovery`);
-    setTimeout(() => setPage?.("recovery"), 1200);
+    if (!m) return;
+    try {
+      await assignRecoveryOnMistake({
+        subject: m.subject,
+        chapter: m.chapter,
+        concept: m.topic || m.chapter,
+        sourceType: "student_mistake",
+        sourceId: m.id,
+      });
+      toast.success(`"${m.topic || m.chapter}" queued for Recovery`);
+      setTimeout(() => setPage?.("recovery"), 800);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not add to Recovery");
+    }
   }
 
   if (loading) {

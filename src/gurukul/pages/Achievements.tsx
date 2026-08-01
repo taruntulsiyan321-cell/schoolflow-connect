@@ -15,7 +15,7 @@ function formatEarnedDate(iso: string) {
 
 export default function Achievements() {
   const { user } = useAuth();
-  const { earned, loading } = useStudentBadges(user?.id);
+  const { earned, equipped, loading, saving, equip } = useStudentBadges(user?.id);
 
   const { unlocked, locked, visibleCatalogCount } = useMemo(() => {
     const earnedCodes = new Set(earned.map((e) => e.badge_code));
@@ -61,24 +61,50 @@ export default function Achievements() {
         {unlocked.length === 0 ? (
           <div className="text-center py-8 text-[#78788c] text-sm">No milestones reached yet. Keep learning and battling to earn badges.</div>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-3">
-            {unlocked.map((a) => {
-              const Icon = a.icon;
-              const tier = TIER_CLASS[a.tier];
-              return (
-                <div key={a.code} className="flex items-start gap-3 p-4 rounded-xl border border-amber-400/15 bg-amber-400/5">
-                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white", tier.bg)}>
-                    <Icon className="w-5 h-5" />
+          <>
+            <p className="text-[11px] text-[#78788c] mb-3">
+              Tap Equip to show one badge publicly on your profile and in class.
+              {equipped ? ` Currently equipped: ${getBadge(equipped)?.label ?? equipped}.` : ""}
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {unlocked.map((a) => {
+                const Icon = a.icon;
+                const tier = TIER_CLASS[a.tier];
+                const isEquipped = equipped === a.code;
+                return (
+                  <div
+                    key={a.code}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-xl border",
+                      isEquipped ? "border-amber-400/40 bg-amber-400/10" : "border-amber-400/15 bg-amber-400/5",
+                    )}
+                  >
+                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white", tier.bg)}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-white">{a.label}</div>
+                      <div className="text-[11px] text-[#78788c] mt-0.5">{a.desc}</div>
+                      <div className="text-[11px] text-amber-400/80 mt-1.5">{formatEarnedDate(a.earned_at)}</div>
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => void equip(isEquipped ? null : a.code)}
+                        className={cn(
+                          "mt-2 text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors",
+                          isEquipped
+                            ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
+                            : "border-white/10 text-[#a0a0b0] hover:text-white hover:border-white/25",
+                        )}
+                      >
+                        {isEquipped ? "Unequip" : "Equip"}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-white">{a.label}</div>
-                    <div className="text-[11px] text-[#78788c] mt-0.5">{a.desc}</div>
-                    <div className="text-[11px] text-amber-400/80 mt-1.5">{formatEarnedDate(a.earned_at)}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </GlassCard>
 

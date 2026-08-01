@@ -19,7 +19,7 @@ import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import SharedLeaderboard from "@/pages/shared/LeaderboardPage";
 import BattleReportPage from "./BattleReportPage";
 import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
-import { useAcademicContext, BattleExperienceService } from "@/academic";
+import { useAcademicContext, BattleExperienceService, resolveStudentServiceContext, type ServiceContext } from "@/academic";
 import { StudentAnalyticsSkeleton, StudentDashboardSkeleton, StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 
@@ -158,14 +158,31 @@ export function BattleRoom() {
               return;
             }
           }
-          const { data: p, error } = await supabase.from("battle_participants").insert({
-            battle_id: id, user_id: user.id, student_id: stu?.id ?? null, display_name: name,
-          }).select().single();
-          if (error) {
-            toast({ title: error.message, variant: "destructive" });
+          try {
+            let joinCtx: ServiceContext | null = ctx && academicReady ? ctx : null;
+            if (!joinCtx) {
+              try {
+                joinCtx = await resolveStudentServiceContext();
+              } catch {
+                joinCtx = null;
+              }
+            }
+            if (joinCtx) {
+              pid = await BattleExperienceService.joinById(joinCtx, id);
+            } else {
+              const { data: p, error } = await supabase.from("battle_participants").insert({
+                battle_id: id, user_id: user.id, student_id: stu?.id ?? null, display_name: name,
+              }).select().single();
+              if (error) throw error;
+              pid = p.id;
+            }
+          } catch (joinErr) {
+            toast({
+              title: joinErr instanceof Error ? joinErr.message : "Could not join battle",
+              variant: "destructive",
+            });
             return;
           }
-          pid = p.id;
         } else {
           setMe(existing);
           if (existing.finished_at) setFinished(true);
@@ -184,17 +201,34 @@ export function BattleRoom() {
             setQIdx(firstUnanswered);
           } else if (firstUnanswered === -1 && (qs ?? []).length > 0 && !existing?.finished_at) {
             try {
-              if (ctx && academicReady) {
-                await BattleExperienceService.finish(ctx, pid);
+              let finishCtx: ServiceContext | null = ctx && academicReady ? ctx : null;
+              if (!finishCtx) {
+                try {
+                  finishCtx = await resolveStudentServiceContext();
+                } catch {
+                  finishCtx = null;
+                }
+              }
+              if (finishCtx) {
+                await BattleExperienceService.finish(finishCtx, pid);
               } else {
+                // Last resort — raw RPC only when no academic context could be resolved at all.
                 const { error: finishErr } = await supabase.rpc("rpc_finish_battle", { _participant_id: pid });
                 if (finishErr) throw finishErr;
                 notifyStudentXpUpdated();
               }
               setFinished(true);
               didAutoFinish = true;
-            } catch {
-              /* keep room open if finish fails */
+            } catch (autoFinishErr) {
+              toast({
+                title: "Could not finish battle automatically",
+                description:
+                  autoFinishErr instanceof Error
+                    ? autoFinishErr.message
+                    : "Please finish from the last question to save your result.",
+                variant: "destructive",
+              });
+              /* keep room open so the student can retry finishing manually */
             }
           }
         }
@@ -332,9 +366,18 @@ export function BattleRoom() {
       setFinishingBattle(true);
       try {
         try {
-          if (ctx && academicReady) {
-            await BattleExperienceService.finish(ctx, participantId);
+          let finishCtx: ServiceContext | null = ctx && academicReady ? ctx : null;
+          if (!finishCtx) {
+            try {
+              finishCtx = await resolveStudentServiceContext();
+            } catch {
+              finishCtx = null;
+            }
+          }
+          if (finishCtx) {
+            await BattleExperienceService.finish(finishCtx, participantId);
           } else {
+            // Last resort — raw RPC only when no academic context could be resolved at all.
             const { error: finishErr } = await supabase.rpc("rpc_finish_battle", {
               _participant_id: participantId,
             });

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAcademicContext, TestService, resolveStudentServiceContext } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, Send, Timer } from "lucide-react";
@@ -13,7 +14,8 @@ export default function DppAttempt() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const nav = useNavigate();
-  const [dpp, setDpp] = useState<any>(null);
+  const { ctx, ready: academicReady } = useAcademicContext();
+  const [dpp, setDpp] = useState<Record<string, unknown> | null>(null);
   const [questions, setQuestions] = useState<DppQuestion[]>([]);
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [responses, setResponses] = useState<Record<string, Response>>({});
@@ -25,51 +27,47 @@ export default function DppAttempt() {
 
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const resolveCtx = async () => {
+    if (ctx && academicReady) return ctx;
+    return resolveStudentServiceContext();
+  };
+
   const load = async () => {
     if (!id || !user) return;
     setLoading(true);
     setLoadError(null);
-    const { data: d, error: dErr } = await supabase.from("dpps").select("*").eq("id", id).maybeSingle();
-    if (dErr) {
-      setLoadError(dErr.message);
-      setLoading(false);
-      return;
-    }
-    if (!d) {
-      setLoadError("DPP not found");
-      setLoading(false);
-      return;
-    }
-    setDpp(d);
-    const { data: qs, error: qErr } = await supabase.from("dpp_questions").select("id, order_index, kind, question, options, marks").eq("dpp_id", id).order("order_index");
-    if (qErr) {
-      setLoadError(qErr.message);
-      setLoading(false);
-      return;
-    }
-    setQuestions((qs ?? []) as DppQuestion[]);
+    try {
+      const serviceCtx = await resolveCtx();
+      const d = await TestService.get(serviceCtx, id);
+      if (!d) {
+        setLoadError("Test not found");
+        setLoading(false);
+        return;
+      }
+      setDpp(d as Record<string, unknown>);
+      const qs = await TestService.listQuestions(serviceCtx, id);
+      setQuestions((qs ?? []) as DppQuestion[]);
 
-    const { data: aid, error } = await supabase.rpc("rpc_dpp_start", { _dpp_id: id });
-    if (error) {
-      setLoadError(error.message);
-      setLoading(false);
-      return;
-    }
-    setAttemptId(aid as string);
-    startRef.current = Date.now();
+      const aid = await TestService.startAttempt(serviceCtx, id);
+      setAttemptId(aid as string);
+      startRef.current = Date.now();
 
-    const { data: existing } = await supabase.from("dpp_answers").select("*").eq("attempt_id", aid as string);
-    const m: Record<string, Response> = {};
-    (existing ?? []).forEach((a) => { m[a.question_id] = (a.response as Response) ?? {}; });
-    setResponses(m);
-    setLoading(false);
+      const { data: existing } = await supabase.from("dpp_answers").select("*").eq("attempt_id", aid as string);
+      const m: Record<string, Response> = {};
+      (existing ?? []).forEach((a) => { m[a.question_id] = (a.response as Response) ?? {}; });
+      setResponses(m);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "Could not start test");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { load(); }, [id, user]);
+  useEffect(() => { void load(); }, [id, user, ctx, academicReady]);
 
-  const timedDpp = (dpp?.duration_sec ?? 0) > 0;
+  const timedDpp = ((dpp?.duration_sec as number | undefined) ?? 0) > 0;
   const remaining = useMemo(
-    () => (timedDpp ? Math.max(0, dpp.duration_sec - seconds) : null),
+    () => (timedDpp ? Math.max(0, (dpp!.duration_sec as number) - seconds) : null),
     [dpp, seconds, timedDpp],
   );
 
@@ -81,7 +79,7 @@ export default function DppAttempt() {
 
   useEffect(() => {
     if (!timedDpp || remaining === null || !dpp || !attemptId || submitting) return;
-    if (remaining === 0) submit();
+    if (remaining === 0) void submit();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remaining, dpp, attemptId, timedDpp]);
 
@@ -89,20 +87,22 @@ export default function DppAttempt() {
     if (!attemptId) return;
     setResponses((prev) => ({ ...prev, [qid]: r }));
     await supabase.from("dpp_answers").upsert({
-      attempt_id: attemptId, question_id: qid, response: r as any,
+      attempt_id: attemptId, question_id: qid, response: r as never,
     }, { onConflict: "attempt_id,question_id" });
   };
 
   const submit = async () => {
     if (!attemptId || submitting) return;
     setSubmitting(true);
-    const { error } = await supabase.rpc("rpc_dpp_submit", { _attempt_id: attemptId });
-    setSubmitting(false);
-    if (error) {
-      toast.error(error.message);
-      return;
+    try {
+      const serviceCtx = await resolveCtx();
+      await TestService.submitAttempt(serviceCtx, attemptId);
+      nav(`/student/dpp/${id}/result`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not submit test");
+    } finally {
+      setSubmitting(false);
     }
-    nav(`/student/dpp/${id}/result`);
   };
 
   if (loading) return <StudentSessionSkeleton label="Loading DPP…" />;
@@ -112,7 +112,7 @@ export default function DppAttempt() {
       <div className="max-w-md mx-auto space-y-4">
         <StudentErrorState title="Could not start DPP" message={loadError} onRetry={load} />
         <div className="text-center">
-          <Button variant="outline" size="sm" asChild><Link to="/student">Back to Dashboard</Link></Button>
+          <Button variant="outline" size="sm" asChild><Link to="/student/tests">Back to Tests</Link></Button>
         </div>
       </div>
     );
@@ -121,8 +121,8 @@ export default function DppAttempt() {
   if (questions.length === 0) {
     return (
       <Card className="p-8 text-center max-w-md mx-auto">
-        <p className="text-muted-foreground">No questions in this DPP yet.</p>
-        <Button variant="outline" className="mt-4" asChild><Link to="/student">Back to Dashboard</Link></Button>
+        <p className="text-muted-foreground">No questions in this test yet.</p>
+        <Button variant="outline" className="mt-4" asChild><Link to="/student/tests">Back to Tests</Link></Button>
       </Card>
     );
   }
@@ -135,7 +135,7 @@ export default function DppAttempt() {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-3">
-        <Button variant="ghost" size="sm" asChild><Link to="/student"><ArrowLeft className="w-4 h-4" /> Dashboard</Link></Button>
+        <Button variant="ghost" size="sm" asChild><Link to="/student/tests"><ArrowLeft className="w-4 h-4" /> Tests</Link></Button>
         {timedDpp && mins !== null && secs !== null && (
           <div className="flex items-center gap-2 text-sm font-mono px-3 py-1 rounded-lg bg-muted">
             <Timer className="w-4 h-4" /> {mins}:{secs}
@@ -144,7 +144,7 @@ export default function DppAttempt() {
       </div>
 
       <div className="mb-3">
-        <div className="text-xs text-muted-foreground mb-1">{dpp.title}</div>
+        <div className="text-xs text-muted-foreground mb-1">{String(dpp?.title ?? "Test")}</div>
         <div className="flex gap-1 flex-wrap">
           {questions.map((qq, i) => {
             const ans = responses[qq.id] && Object.keys(responses[qq.id]).length > 0;
@@ -176,7 +176,7 @@ export default function DppAttempt() {
         {idx < questions.length - 1 ? (
           <Button onClick={() => setIdx((i) => i + 1)}>Next <ArrowRight className="w-4 h-4" /></Button>
         ) : (
-          <Button onClick={submit} disabled={submitting}><Send className="w-4 h-4" /> {submitting ? "Submitting…" : "Submit"}</Button>
+          <Button onClick={() => void submit()} disabled={submitting}><Send className="w-4 h-4" /> {submitting ? "Submitting…" : "Submit"}</Button>
         )}
       </div>
     </div>

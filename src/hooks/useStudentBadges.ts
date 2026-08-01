@@ -27,9 +27,10 @@ export function useStudentBadges(userId: string | undefined) {
       const { earned: list, equipped: eq } = await BadgeService.listWithEquipped(ctx, userId);
       setEarned(list);
       setEquipped(eq);
-    } catch {
+    } catch (err) {
       setEarned([]);
       setEquipped(null);
+      toast.error(err instanceof Error ? err.message : "Could not load badges");
     } finally {
       setLoading(false);
     }

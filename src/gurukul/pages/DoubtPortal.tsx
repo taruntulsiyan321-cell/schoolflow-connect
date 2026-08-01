@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { DoubtService, type ServiceContext } from "@/academic";
+import { DoubtService, type ServiceContext, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -297,12 +297,11 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
     setReplyText("");
   }
   function askAI() {
-    setAiLoading(true);
     setShowAI(true);
-    setTimeout(() => {
-      setAiLoading(false);
-      setAiReply(`Here's Nova's take on "${localDoubt.title}": ${localDoubt.replies.find(r => r.isAI)?.text ?? "This topic requires understanding the core mechanism. Focus on the underlying principle — " + localDoubt.topic + " — and work from first principles. If this AI answer doesn't resolve your doubt, you can post it to the class for teacher and peer help."}`);
-    }, 1400);
+    setAiLoading(false);
+    setAiReply(
+      "AI Coach answers are not available in this build yet. Post your doubt to the class so a teacher or classmate can help — or try the AI Coach page when it is connected.",
+    );
   }
 
   const accepted = localDoubt.replies.find(r => r.isAccepted);
@@ -439,9 +438,9 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
 }
 
 // ── Ask View ───────────────────────────────────────────────────────────────────
-function AskDoubt({ onBack, onPost, existingDoubts, ctx }: {
+function AskDoubt({ onBack, onPosted, existingDoubts, ctx }: {
   onBack: () => void;
-  onPost: (d: Doubt) => void;
+  onPosted: () => void;
   existingDoubts: Doubt[];
   ctx: ServiceContext | null;
 }) {
@@ -465,11 +464,10 @@ function AskDoubt({ onBack, onPost, existingDoubts, ctx }: {
   };
 
   function getAIAnswer() {
-    setAiLoading(true);
-    setTimeout(() => {
-      setAiLoading(false);
-      setAiReply(`Based on your question about "${title}", here's what Nova knows: This concept is foundational to ${subject}. Focus on the underlying principle in ${chapter || "this topic"} — make sure you understand the core definitions before applying formulas. If this doesn't fully resolve your doubt, post it to the class for teacher guidance.`);
-    }, 1400);
+    setAiLoading(false);
+    setAiReply(
+      "AI Coach answers are not available in this build yet. You can still post this doubt to your class for teacher and peer help.",
+    );
   }
 
   async function postDoubt() {
@@ -486,25 +484,8 @@ function AskDoubt({ onBack, onPost, existingDoubts, ctx }: {
         _body: body || "",
         _image_url: null,
       });
-      const now = new Date();
-      const newDoubt: Doubt = {
-        id: `d${Date.now()}`,
-        title: title || "Untitled Doubt",
-        body: body || "",
-        subject, chapter, topic,
-        authorName: student.name, authorAvatar: student.avatar, authorColor:"#3b5bdb",
-        authorRank: student.rank,
-        date: now.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
-        time: "Now",
-        status: "pending",
-        views: 0, upvotes: 0, upvotedByMe: false,
-        bookmarked: false, mine: true,
-        tags: [subject.toLowerCase(), chapter.toLowerCase()].filter(Boolean),
-        attachments: [],
-        replies: [],
-      };
       toast.success("Doubt posted to the class");
-      onPost(newDoubt);
+      onPosted();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not post doubt");
     }
@@ -695,6 +676,7 @@ function MyDoubts({ doubts, onOpen }: { doubts: Doubt[]; onOpen: (d: Doubt) => v
 // ── Root ───────────────────────────────────────────────────────────────────────
 export default function DoubtPortal() {
   const { ctx, ready, classId } = useAcademicContext();
+  const liveVersion = useAcademicLive(["doubt"]);
   const { user } = useAuth();
   const student = useGurukulStudent();
   const [doubts, setDoubts] = useState<Doubt[]>([]);
@@ -705,6 +687,7 @@ export default function DoubtPortal() {
   const [subjectFilter, setSubjectFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState<DoubtStatus|"all">("all");
   const [sort, setSort] = useState<"latest"|"popular"|"unanswered">("latest");
+  const [listTick, setListTick] = useState(0);
 
   const classLabel = student.class
     ? student.section
@@ -733,16 +716,19 @@ export default function DoubtPortal() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, classId, user?.id]);
+  }, [ready, ctx, classId, user?.id, liveVersion, listTick]);
 
   function openDoubt(d: Doubt) { setActiveDoubt(d); setView("detail"); }
-  function addDoubt(d: Doubt) { setDoubts(prev => [d, ...prev]); setView("feed"); }
+  function handlePosted() {
+    setListTick((t) => t + 1);
+    setView("feed");
+  }
 
   if (view === "detail" && activeDoubt) return (
     <DoubtDetail doubt={activeDoubt} onBack={() => setView("feed")} onUpdateDoubt={d => setActiveDoubt(d)}/>
   );
   if (view === "ask") return (
-    <AskDoubt onBack={() => setView("feed")} onPost={addDoubt} existingDoubts={doubts} ctx={ctx}/>
+    <AskDoubt onBack={() => setView("feed")} onPosted={handlePosted} existingDoubts={doubts} ctx={ctx}/>
   );
 
   const filtered = doubts.filter(d => {

@@ -81,7 +81,7 @@ export default function Timetable() {
     (async () => {
       setLoading(true);
       try {
-        const { data: s } = await supabase
+        const { data: s, error: studentErr } = await supabase
           .from("students")
           .select("class_id, classes(name, section)")
           .eq("user_id", user.id)
@@ -89,10 +89,19 @@ export default function Timetable() {
 
         if (cancelled) return;
 
+        if (studentErr) {
+          setClassLabel("");
+          setTimetable([]);
+          setHasTimetable(false);
+          setLoading(false);
+          return;
+        }
+
         if (s?.classes) {
-          const cls = s.classes as { name?: string; section?: string };
-          const name = cls.name ?? "";
-          const section = cls.section ?? "";
+          const raw = s.classes as { name?: string; section?: string } | { name?: string; section?: string }[];
+          const cls = Array.isArray(raw) ? raw[0] : raw;
+          const name = cls?.name ?? "";
+          const section = cls?.section ?? "";
           setClassLabel(section ? `${name} — Section ${section}` : name);
         } else {
           setClassLabel("");
@@ -104,11 +113,19 @@ export default function Timetable() {
           return;
         }
 
-        const { data: tt } = await supabase
+        const { data: tt, error: ttErr } = await supabase
           .from("class_timetables")
           .select("grid")
           .eq("class_id", s.class_id)
           .maybeSingle();
+
+        if (cancelled) return;
+
+        if (ttErr) {
+          setTimetable([]);
+          setHasTimetable(false);
+          return;
+        }
 
         if (cancelled) return;
 

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { useAcademicLive } from "@/academic";
 import {
   accuracyFromXp,
   battleRatingFromXp,
@@ -455,7 +456,10 @@ export function useBattlegroundData() {
 
         const type = modeToType(b.mode);
         const isFeatured = (b.source || "").startsWith("featured_");
-        const xpReward = Math.max(50, (b.question_count || 10) * 10);
+        const isFinishedForXp = !!(p.finished_at || b.status === "finished");
+        // Real XP earned equals the battle score once finished (see rpc_finish_battle) —
+        // never estimate/invent a reward before the battle is actually played.
+        const xpReward = isFinishedForXp && typeof p.score === "number" ? Math.max(0, p.score) : 0;
 
         let result: DesignBattleCard["result"];
         if (status === "completed") {
@@ -487,14 +491,12 @@ export function useBattlegroundData() {
           battleCode: b.battle_code ?? null,
         });
 
-        if (p.finished_at || b.status === "finished") {
+        if (isFinishedForXp) {
           const answered = p.answered_count ?? 0;
           const correct = p.correct_count ?? 0;
           const acc = answered > 0 ? Math.round((correct / answered) * 100) : 0;
           const mins = p.total_time_ms ? Math.round(p.total_time_ms / 60000) : Math.round((b.duration_sec || 0) / 60);
           const secs = p.total_time_ms ? Math.round((p.total_time_ms % 60000) / 1000) : 0;
-          const realXp = typeof p.score === "number" ? p.score : 0;
-          const histXp = realXp > 0 ? realXp : answered > 0 ? Math.min(xpReward, correct * 10) : 0;
           hist.push({
             id: p.id,
             participantId: p.id,
@@ -504,8 +506,9 @@ export function useBattlegroundData() {
             result: result === "won" ? "won" : result === "lost" ? "lost" : result === "draw" ? "draw" : "finished",
             myScore: p.score ?? 0,
             theirScore: 0,
-            xp: histXp,
-            coins: histXp > 0 ? Math.round(histXp / 5) : 0,
+            // xpReward already equals the real earned XP (participant score) — no coins concept exists yet.
+            xp: xpReward,
+            coins: 0,
             date: formatRelativeDate(p.finished_at || b.starts_at),
             duration: `${mins}m ${secs.toString().padStart(2, "0")}s`,
             accuracy: acc,
@@ -553,7 +556,7 @@ export function useBattlegroundData() {
           opponent: oppName,
           opponentAvatar: initials(oppName),
           opponentColor: colorFor(inv.inviter_user_id),
-          xpReward: Math.max(50, (b.question_count || 10) * 10),
+          xpReward: 0, // not played yet — no real XP earned
           featured: (b.source || "").startsWith("featured_"),
           battleCode: b.battle_code ?? null,
           inviteId: inv.id,
@@ -637,7 +640,7 @@ export function useBattlegroundData() {
           maxPlayers: b.mode === "lobby" ? 40 : 20,
           startsIn: status === "upcoming" ? startsInLabel(b.starts_at) : undefined,
           timeLeft: status === "live" ? timeLeftLabel(b.starts_at, b.duration_sec) : undefined,
-          xpReward: Math.max(50, (b.question_count || 10) * 10),
+          xpReward: 0, // not played yet — no real XP earned
           featured: isFeatured,
           hot: status === "live" && isFeatured,
           battleCode: b.battle_code ?? null,
@@ -671,6 +674,19 @@ export function useBattlegroundData() {
 
   useEffect(() => {
     void reload();
+  }, [reload]);
+
+  // Reload after any battle/xp write — covers BattleExperienceService writes (bus + realtime)
+  // and the raw-RPC last-resort finish path (student-xp-updated + battle_participants realtime).
+  const liveVersion = useAcademicLive(["battle", "xp"]);
+  useEffect(() => {
+    if (liveVersion > 0) void reload();
+  }, [liveVersion, reload]);
+
+  useEffect(() => {
+    const handler = () => void reload();
+    window.addEventListener("student-xp-updated", handler);
+    return () => window.removeEventListener("student-xp-updated", handler);
   }, [reload]);
 
   const heroStats = useMemo(() => {

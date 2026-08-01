@@ -75,4 +75,43 @@ export const PracticeService = {
     throwIfError(error, "Failed to load practice history");
     return data ?? [];
   },
+
+  /** Approved bank questions for student practice sessions (honest empty if none). */
+  async listBankQuestions(
+    ctx: ServiceContext,
+    opts: {
+      subject?: string | null;
+      chapter?: string | null;
+      difficulty?: string | null;
+      limit?: number;
+    } = {},
+  ) {
+    assertCanConsume(ctx, "practice");
+    const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
+    let query = getClient(toRepoContext(ctx))
+      .from("question_bank")
+      .select("id, subject, chapter, difficulty, question, options, correct_index, explanation")
+      .eq("is_approved", true)
+      .limit(Math.min(200, limit * 4));
+
+    if (opts.subject && opts.subject !== "Mixed") {
+      query = query.ilike("subject", opts.subject);
+    }
+    if (opts.chapter) {
+      query = query.ilike("chapter", `%${opts.chapter}%`);
+    }
+    if (opts.difficulty && opts.difficulty !== "mixed") {
+      query = query.eq("difficulty", opts.difficulty);
+    }
+
+    const { data, error } = await query;
+    throwIfError(error, "Failed to load practice questions");
+    const rows = data ?? [];
+    // Shuffle client-side so repeated sessions vary when bank is large enough.
+    for (let i = rows.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [rows[i], rows[j]] = [rows[j], rows[i]];
+    }
+    return rows.slice(0, limit);
+  },
 };

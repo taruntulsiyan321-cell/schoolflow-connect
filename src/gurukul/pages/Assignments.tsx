@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardList, Loader2, Send } from "lucide-react";
-import { HomeworkService, WORK_KIND_LABELS, normalizeWorkKind } from "@/academic";
+import { HomeworkService, WORK_KIND_LABELS, normalizeWorkKind, useAcademicLive } from "@/academic";
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -12,6 +12,7 @@ import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/Attachment
  */
 export default function Assignments() {
   const { ctx, ready, studentId } = useAcademicContext();
+  const liveVersion = useAcademicLive("homework");
   const [rows, setRows] = useState<StudentHomeworkRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -50,7 +51,7 @@ export default function Assignments() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, studentId]);
+  }, [ready, ctx, studentId, liveVersion]);
 
   const pending = useMemo(
     () => rows.filter((r) => !r.submission || ["pending", "returned"].includes(r.submission.status)),

@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
@@ -1211,13 +1212,21 @@ export default function Analysis() {
             <SLabel>Download & share your report</SLabel>
             <div className="grid sm:grid-cols-2 gap-3">
               {[
-                { label: "Download PDF report",   icon: <Download className="w-4 h-4" />,  color: "#3b5bdb",  desc: "Full performance report as PDF" },
-                { label: "Share with teacher",    icon: <Share2 className="w-4 h-4" />,    color: "#4aa87a",  desc: "Send a link to your teacher" },
-                { label: "Share with parents",    icon: <Share2 className="w-4 h-4" />,    color: "#6882e8",  desc: "Send a summary to your parents" },
-                { label: "Print report",          icon: <Printer className="w-4 h-4" />,   color: "#c08a3a",  desc: "Print a physical copy" },
+                { label: "Download PDF report",   icon: <Download className="w-4 h-4" />,  color: "#3b5bdb",  desc: "Full performance report as PDF", action: "pdf" as const },
+                { label: "Share with teacher",    icon: <Share2 className="w-4 h-4" />,    color: "#4aa87a",  desc: "Send a link to your teacher", action: "share" as const },
+                { label: "Share with parents",    icon: <Share2 className="w-4 h-4" />,    color: "#6882e8",  desc: "Send a summary to your parents", action: "share" as const },
+                { label: "Print report",          icon: <Printer className="w-4 h-4" />,   color: "#c08a3a",  desc: "Print a physical copy", action: "print" as const },
               ].map((r) => (
                 <button
                   key={r.label}
+                  type="button"
+                  onClick={() => {
+                    if (r.action === "print") {
+                      window.print();
+                      return;
+                    }
+                    toast.info(r.action === "pdf" ? "PDF export is not available yet." : "Sharing is not available yet.");
+                  }}
                   className="flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/20 hover:bg-[#131316] transition-all text-left group"
                 >
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform" style={{ background: `${r.color}15`, color: r.color }}>

@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import {
   AcademicProfileService,
   AttendanceService,
+  useAcademicLive,
   type AttendanceRecord,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -14,6 +15,7 @@ import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/s
  */
 export default function Attendance() {
   const { ctx, ready, studentId } = useAcademicContext();
+  const liveVersion = useAcademicLive("attendance");
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [pct, setPct] = useState(0);
   const [present, setPresent] = useState(0);
@@ -41,6 +43,11 @@ export default function Attendance() {
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);
         setTotal(profile?.attendanceTotal ?? 0);
+        if (settled[0].status === "rejected" && settled[1].status === "rejected") {
+          setError("Failed to load attendance");
+        } else {
+          setError(null);
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load attendance");
       } finally {
@@ -50,7 +57,7 @@ export default function Attendance() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId]);
+  }, [ready, ctx, studentId, liveVersion]);
 
   const byStatus = useMemo(() => {
     const map: Record<string, number> = {};

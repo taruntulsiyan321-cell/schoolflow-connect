@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Trophy, BarChart2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Loader2, Trophy, BarChart2, Play } from "lucide-react";
 import {
   AnalyticsService,
   MarksService,
   TestService,
+  useAcademicLive,
   type MarksRecord,
 } from "@/academic";
 import type { ExamRecord } from "@/academic/repository/marksRepository";
@@ -15,9 +17,10 @@ import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/guruk
  */
 export default function Tests() {
   const { ctx, ready, studentId, classId } = useAcademicContext();
+  const liveVersion = useAcademicLive(["test", "marks"]);
   const [marks, setMarks] = useState<MarksRecord[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
-  const [upcoming, setUpcoming] = useState<{ id: string; title: string; subject: string }[]>([]);
+  const [upcoming, setUpcoming] = useState<{ id: string; title: string; subject: string; published: boolean }[]>([]);
   const [avgPct, setAvgPct] = useState(0);
   const [testsAvg, setTestsAvg] = useState(0);
   const [filter, setFilter] = useState<"all" | "graded" | "upcoming">("all");
@@ -49,12 +52,14 @@ export default function Tests() {
         setAvgPct(Math.round(analytics?.exams.averagePct ?? 0));
         setTestsAvg(Math.round(analytics?.tests.averagePct ?? 0));
         setUpcoming(
-          (tests as { id: string; title: string; subject?: string }[]).map((t) => ({
+          (tests as { id: string; title: string; subject?: string; is_published?: boolean; status?: string }[]).map((t) => ({
             id: t.id,
             title: t.title,
             subject: t.subject ?? "—",
+            published: t.is_published === true || t.status === "published",
           })),
         );
+        setError(null);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load tests");
       } finally {
@@ -64,7 +69,7 @@ export default function Tests() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId, classId]);
+  }, [ready, ctx, studentId, classId, liveVersion]);
 
   const examById = useMemo(() => new Map(exams.map((e) => [e.id, e])), [exams]);
 
@@ -186,11 +191,21 @@ export default function Tests() {
             )}
             {upcoming.map((t) => (
               <div key={t.id} className="p-4 rounded-xl border border-white/7 bg-white/2 flex items-center gap-3">
-                <Trophy className="w-4 h-4 text-[#c08a3a]" />
-                <div>
-                  <div className="text-sm font-semibold text-white">{t.title}</div>
+                <Trophy className="w-4 h-4 text-[#c08a3a] shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-white truncate">{t.title}</div>
                   <div className="text-[11px] text-[#78788c]">{t.subject}</div>
                 </div>
+                {t.published ? (
+                  <Link
+                    to={`/student/dpp/${t.id}/attempt`}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#3b5bdb]/15 text-[#818cf8] border border-[#3b5bdb]/25 hover:bg-[#3b5bdb]/25 transition-colors shrink-0"
+                  >
+                    <Play className="w-3 h-3" /> Attempt
+                  </Link>
+                ) : (
+                  <span className="text-[10px] text-[#46465a] shrink-0">Not published</span>
+                )}
               </div>
             ))}
           </div>

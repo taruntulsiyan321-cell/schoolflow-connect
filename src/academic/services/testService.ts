@@ -502,6 +502,13 @@ export const TestService = {
       studentId: ctx.studentId ?? null,
       payload: {},
     }).catch(() => undefined);
+    const { broadcastAcademicWrite } = await import("../live");
+    const { notifyStudentXpUpdated } = await import("@/lib/studentXpNotify");
+    broadcastAcademicWrite(ctx.schoolId, ["test", "xp", "profile"], {
+      studentId: ctx.studentId,
+      source: "TestService.submitAttempt",
+    });
+    notifyStudentXpUpdated();
     return data;
   },
 };

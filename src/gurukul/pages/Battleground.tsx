@@ -913,7 +913,7 @@ function FeaturedBattles({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem", marginBottom: "0.85rem" }}>
                 <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "0.4rem 0.5rem" }}>
                   <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", color: C.gold }}>
-                    {live?.xpReward != null ? `${live.xpReward} XP` : "—"}
+                    {live?.xpReward ? `${live.xpReward} XP` : "—"}
                   </div>
                   <div style={{ color: C.text3, fontSize: "0.6rem" }}>Reward</div>
                 </div>
@@ -2147,7 +2147,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       motivationMessage: data.motivation.message,
       xpRemaining: next?.remaining ?? 0,
       nextLeague: next?.next.name || "Champion",
-      dailyXpLabel: dailyLive?.xpReward != null ? `+${dailyLive.xpReward} XP` : "Earn XP",
+      dailyXpLabel: dailyLive?.xpReward ? `+${dailyLive.xpReward} XP` : "Earn XP",
     };
   }, [data, displayName, ini, dailyLive]);
 

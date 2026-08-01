@@ -4,6 +4,9 @@ import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService } from "@/academic";
+import { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
+import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
+import { toast } from "sonner";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
   BookOpen, Clock, Zap, Target, RefreshCw, AlertCircle, Bookmark,
@@ -46,10 +49,21 @@ function subjectColor(name: string, index: number) {
   return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
-const practiceQuestions: {
+type BankQuestion = {
   subject: string; chapter: string; difficulty: string;
   question: string; options: string[]; correct: number; explanation?: string;
-}[] = [];
+};
+
+function parseBankOptions(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map(String);
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(String);
+    } catch { /* ignore */ }
+  }
+  return [];
+}
 
 type PracticeSubject = {
   id: string; name: string; color: string;
@@ -642,7 +656,10 @@ interface SessionConfig {
 function Session({
   config, onFinish, onBack, subjects,
 }: { config: SessionConfig; onFinish: (results: SessionResults) => void; onBack: () => void; subjects: PracticeSubject[] }) {
-  const qs = practiceQuestions.slice(0, Math.min(config.qCount, practiceQuestions.length));
+  const { ctx, ready: academicReady } = useAcademicContext();
+  const [qs, setQs] = useState<BankQuestion[]>([]);
+  const [loadingQs, setLoadingQs] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [idx,       setIdx]       = useState(0);
   const [chosen,    setChosen]    = useState<number | null>(null);
   const [phase,     setPhase]     = useState<"q" | "fb">("q");
@@ -651,59 +668,183 @@ function Session({
   const [bookmarked,setBookmarked]= useState<number[]>([]);
   const [skipped,   setSkipped]   = useState<number[]>([]);
   const [timeLeft,  setTimeLeft]  = useState(config.timeLimitSec ?? 0);
+  const [finishing, setFinishing] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const correctRef = useRef(0);
+  const attemptedRef = useRef(0);
+  const skippedRef = useRef<number[]>([]);
+  const bookmarkedRef = useRef<number[]>([]);
+  const attemptLog = useRef<PracticeAttemptSnapshot[]>([]);
+  const finishedRef = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoadingQs(true);
+      setLoadError(null);
+      try {
+        if (!ctx || !academicReady) {
+          setLoadError("Academic context not ready. Try again in a moment.");
+          return;
+        }
+        const sid = await PracticeService.start(ctx, {
+          _subject: config.subject === "Mixed" ? "General" : config.subject,
+          _chapter: config.label,
+          _count: config.qCount,
+        });
+        if (cancelled) return;
+        sessionIdRef.current = sid as string;
+
+        const rows = await PracticeService.listBankQuestions(ctx, {
+          subject: config.subject,
+          difficulty: config.difficulty,
+          limit: config.qCount,
+        });
+        if (cancelled) return;
+        const mapped: BankQuestion[] = rows
+          .map((r) => {
+            const options = parseBankOptions(r.options);
+            if (!r.question || options.length < 2) return null;
+            return {
+              subject: r.subject || "General",
+              chapter: r.chapter || "",
+              difficulty: r.difficulty || "medium",
+              question: r.question,
+              options,
+              correct: typeof r.correct_index === "number" ? r.correct_index : 0,
+              explanation: r.explanation ?? undefined,
+            };
+          })
+          .filter((x): x is BankQuestion => x !== null);
+        setQs(mapped);
+      } catch (e) {
+        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Could not start practice");
+      } finally {
+        if (!cancelled) setLoadingQs(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, academicReady, config.subject, config.difficulty, config.qCount, config.label]);
 
   // Timer
   useEffect(() => {
-    if (!config.timeLimitSec) return;
+    if (!config.timeLimitSec || loadingQs || qs.length === 0) return;
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current!); finish(); return 0; }
+        if (t <= 1) { clearInterval(timerRef.current!); void finish(); return 0; }
         return t - 1;
       });
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.timeLimitSec, loadingQs, qs.length]);
 
-  function finish() {
-    onFinish({ correct, total: attempted, skipped: skipped.length, bookmarked: bookmarked.length, config });
+  async function finish() {
+    if (finishedRef.current || finishing) return;
+    finishedRef.current = true;
+    setFinishing(true);
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const results: SessionResults = {
+      correct: correctRef.current,
+      total: attemptedRef.current,
+      skipped: skippedRef.current.length,
+      bookmarked: bookmarkedRef.current.length,
+      config,
+    };
+
+    const sid = sessionIdRef.current;
+    if (sid && ctx) {
+      try {
+        await PracticeService.finish(ctx, {
+          _session_id: sid,
+          _attempts: attemptsToFinishPayload(attemptLog.current),
+        });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not save practice session");
+      }
+    }
+    onFinish(results);
   }
 
   function answer(i: number) {
+    const q = qs[idx];
+    if (!q) return;
     setChosen(i);
-    setAttempted(a => a + 1);
-    if (i === q.correct) setCorrect(c => c + 1);
+    attemptedRef.current += 1;
+    setAttempted(attemptedRef.current);
+    const ok = i === q.correct;
+    if (ok) {
+      correctRef.current += 1;
+      setCorrect(correctRef.current);
+    }
+    attemptLog.current.push({
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correct,
+      selectedIndex: i,
+      isCorrect: ok,
+      explanation: q.explanation,
+    });
     setPhase("fb");
   }
 
   function next() {
-    if (idx + 1 >= qs.length) { finish(); return; }
+    if (idx + 1 >= qs.length) { void finish(); return; }
     setIdx(i => i + 1); setChosen(null); setPhase("q");
   }
 
   function skip() {
-    setSkipped(s => [...s, idx]);
+    skippedRef.current = [...skippedRef.current, idx];
+    setSkipped(skippedRef.current);
     next();
   }
 
   function toggleBookmark() {
-    setBookmarked(b => b.includes(idx) ? b.filter(x => x !== idx) : [...b, idx]);
+    bookmarkedRef.current = bookmarkedRef.current.includes(idx)
+      ? bookmarkedRef.current.filter(x => x !== idx)
+      : [...bookmarkedRef.current, idx];
+    setBookmarked([...bookmarkedRef.current]);
   }
 
   const q       = qs[idx];
-  const pct     = ((idx) / qs.length) * 100;
   const isRight = chosen === q?.correct;
   const subj    = subjects.find(s => s.name === q?.subject);
   const timed   = config.timeLimitSec !== null;
   const mm      = Math.floor(timeLeft / 60).toString().padStart(2,"0");
   const ss      = (timeLeft % 60).toString().padStart(2,"0");
 
+  if (loadingQs) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-16 space-y-3">
+        <div className="text-sm text-[#78788c]">Loading practice questions…</div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
+        <AlertCircle className="w-10 h-10 text-rose-400 mx-auto"/>
+        <div className="text-lg font-bold text-white">Could not start practice</div>
+        <p className="text-sm text-[#78788c]">{loadError}</p>
+        <button onClick={onBack}
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+          <ArrowLeft className="w-4 h-4"/> Back to Practice
+        </button>
+      </div>
+    );
+  }
+
   if (qs.length === 0) {
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
         <HelpCircle className="w-10 h-10 text-[#78788c] mx-auto"/>
         <div className="text-lg font-bold text-white">No questions available</div>
-        <p className="text-sm text-[#78788c]">Practice questions are not loaded yet. Check back later or try another mode.</p>
+        <p className="text-sm text-[#78788c]">
+          The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions.
+        </p>
         <button onClick={onBack}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
           <ArrowLeft className="w-4 h-4"/> Back to Practice
@@ -769,7 +910,7 @@ function Session({
             else                        bg = "border-white/4 text-[#78788c] opacity-60";
           }
           return (
-            <button key={i} onClick={() => phase === "q" && answer(i)} disabled={phase === "fb"}
+            <button key={i} onClick={() => phase === "q" && answer(i)} disabled={phase === "fb" || finishing}
               className={cn("w-full p-4 rounded-2xl border text-left text-sm font-medium transition-all duration-150 flex items-center gap-3", bg)}>
               <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 bg-white/8">
                 {String.fromCharCode(65+i)}
@@ -797,20 +938,20 @@ function Session({
       {/* Action buttons */}
       <div className="flex items-center gap-3">
         {phase === "q" && (
-          <button onClick={skip}
+          <button onClick={skip} disabled={finishing}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
             <SkipForward className="w-3.5 h-3.5"/> Skip
           </button>
         )}
         {phase === "fb" && (
-          <button onClick={next}
+          <button onClick={next} disabled={finishing}
             className="flex-1 py-3 rounded-2xl bg-[#3b5bdb] hover:bg-blue-500 text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
             {idx+1 >= qs.length ? "See Results" : "Next Question"} <ChevronRight className="w-4 h-4"/>
           </button>
         )}
-        <button onClick={finish}
+        <button onClick={() => void finish()} disabled={finishing}
           className="px-4 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-rose-400 hover:border-rose-400/20 transition-all">
-          End Session
+          {finishing ? "Saving…" : "End Session"}
         </button>
       </div>
     </div>
@@ -881,6 +1022,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const { ctx, ready: academicReady } = useAcademicContext();
   const { data: charts } = useStudentPerformanceCharts();
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [historyTick, setHistoryTick] = useState(0);
 
   const subjects = useMemo<PracticeSubject[]>(
     () =>
@@ -925,12 +1067,15 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
             };
           }),
         );
-      } catch {
-        if (!cancelled) setHistory([]);
+      } catch (e) {
+        if (!cancelled) {
+          setHistory([]);
+          toast.error(e instanceof Error ? e.message : "Could not load practice history");
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, [user, ctx, academicReady]);
+  }, [user, ctx, academicReady, historyTick]);
 
   const streak = student.streak;
   const [phase,   setPhase]   = useState<Phase>("hub");
@@ -958,6 +1103,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   function handleFinish(res: SessionResults) {
     setResults(res); setPhase("summary");
+    setHistoryTick((t) => t + 1);
   }
 
   function handleRetry() {

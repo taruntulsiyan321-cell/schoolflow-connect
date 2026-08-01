@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { PAGE_PATH, pathToPage } from "@/gurukul/nav";
@@ -32,6 +32,7 @@ import ClassHub from "@/gurukul/pages/ClassHub";
 import RecoverySession from "./student/RecoverySession";
 import RecoverySessionResult from "./student/RecoverySessionResult";
 import RecoveryCompletionReportPage from "./student/RecoveryCompletionReportPage";
+import Class12MathPractice from "./student/Class12MathPractice";
 import Class12MathSession from "./student/Class12MathSession";
 import Class12AiSession from "./student/Class12AiSession";
 import PracticeSessionResult from "./student/PracticeSessionResult";
@@ -44,11 +45,13 @@ import NoticesPage from "./shared/NoticesPage";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAcademicLive } from "@/academic";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const liveVersion = useAcademicLive(["xp", "battle", "profile", "achievements"]);
   const page = useMemo(() => pathToPage(location.pathname), [location.pathname]);
   const setPage = (p: PageKey) => navigate(PAGE_PATH[p]);
 
@@ -67,107 +70,124 @@ export default function StudentDashboard() {
     totalStudents?: number;
   }>({});
 
-  useEffect(() => {
-    (async () => {
-      if (!user) return;
-      const { data: s } = await supabase
-        .from("students")
-        .select("full_name, roll_number, classes(name, section)")
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    const { data: s, error: studentErr } = await supabase
+      .from("students")
+      .select("full_name, roll_number, classes(name, section)")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (studentErr) {
+      console.warn("student profile:", studentErr.message);
+    }
+
+    let x: { xp?: number; level?: number; current_streak?: number } | null = null;
+    try {
+      const { XpService, resolveStudentServiceContext } = await import("@/academic");
+      const ctx = await resolveStudentServiceContext();
+      x = await XpService.getForUser(ctx, user.id);
+    } catch {
+      const { data: xpRow } = await supabase
+        .from("student_xp")
+        .select("xp, level, current_streak")
         .eq("user_id", user.id)
         .maybeSingle();
+      x = xpRow;
+    }
 
-      let x: { xp?: number; level?: number; current_streak?: number } | null = null;
-      try {
-        const { XpService, resolveStudentServiceContext } = await import("@/academic");
-        const ctx = await resolveStudentServiceContext();
-        x = await XpService.getForUser(ctx, user.id);
-      } catch {
-        const { data: xpRow } = await supabase
-          .from("student_xp")
-          .select("xp, level, current_streak")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        x = xpRow;
-      }
+    let rank: number | undefined;
+    let totalStudents = 0;
+    const { data: lb } = await supabase.rpc("rpc_leaderboard", {
+      _scope: "class",
+      _category: "xp",
+      _subject: undefined,
+      _limit: 200,
+    });
+    if (Array.isArray(lb)) {
+      totalStudents = lb.length;
+      const i = lb.findIndex((r: { user_id?: string }) => r.user_id === user.id);
+      if (i >= 0) rank = i + 1;
+    }
 
-      let rank: number | undefined;
-      let totalStudents = 0;
-      const { data: lb } = await supabase.rpc("rpc_leaderboard", {
-        _scope: "class",
-        _category: "xp",
-        _subject: undefined,
-        _limit: 200,
-      });
-      if (Array.isArray(lb)) {
-        totalStudents = lb.length;
-        const i = lb.findIndex((r: { user_id?: string }) => r.user_id === user.id);
-        if (i >= 0) rank = i + 1;
-      }
+    const [{ data: snap }, { data: charts }] = await Promise.all([
+      supabase.rpc("rpc_student_academic_snapshot"),
+      supabase.rpc("rpc_student_performance_charts"),
+    ]);
 
-      const [{ data: snap }, { data: charts }] = await Promise.all([
-        supabase.rpc("rpc_student_academic_snapshot"),
-        supabase.rpc("rpc_student_performance_charts"),
-      ]);
+    type Snap = {
+      exam_readiness?: { accuracy_pct?: number; attendance_pct?: number };
+      activity_heatmap?: { date: string; dpp: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
+    };
+    type ChartRow = { subjects?: { accuracy: number }[]; weekly_activity?: { date: string; total: number }[] };
 
-      type Snap = {
-        exam_readiness?: { accuracy_pct?: number; attendance_pct?: number };
-        activity_heatmap?: { date: string; dpp: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
-      };
-      type ChartRow = { subjects?: { accuracy: number }[]; weekly_activity?: { date: string; total: number }[] };
+    const snapshot = snap as Snap | null;
+    const chartData = charts as ChartRow | null;
 
-      const snapshot = snap as Snap | null;
-      const chartData = charts as ChartRow | null;
+    const chartSubjects = chartData?.subjects ?? [];
+    const accuracyFromCharts = chartSubjects.length
+      ? Math.round(chartSubjects.reduce((a, sub) => a + sub.accuracy, 0) / chartSubjects.length)
+      : 0;
+    const accuracy =
+      snapshot?.exam_readiness?.accuracy_pct != null && snapshot.exam_readiness.accuracy_pct > 0
+        ? Math.round(snapshot.exam_readiness.accuracy_pct)
+        : accuracyFromCharts;
 
-      const chartSubjects = chartData?.subjects ?? [];
-      const accuracyFromCharts = chartSubjects.length
-        ? Math.round(chartSubjects.reduce((a, sub) => a + sub.accuracy, 0) / chartSubjects.length)
+    const attendance =
+      snapshot?.exam_readiness?.attendance_pct != null
+        ? Math.round(snapshot.exam_readiness.attendance_pct)
         : 0;
-      const accuracy =
-        snapshot?.exam_readiness?.accuracy_pct != null && snapshot.exam_readiness.accuracy_pct > 0
-          ? Math.round(snapshot.exam_readiness.accuracy_pct)
-          : accuracyFromCharts;
 
-      const attendance =
-        snapshot?.exam_readiness?.attendance_pct != null
-          ? Math.round(snapshot.exam_readiness.attendance_pct)
-          : 0;
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    weekAgo.setHours(0, 0, 0, 0);
 
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      weekAgo.setHours(0, 0, 0, 0);
+    const heatmapSessions = (snapshot?.activity_heatmap ?? []).filter((row) => {
+      const d = new Date(row.date);
+      if (d < weekAgo) return false;
+      return row.minutes > 0 || row.dpp > 0 || row.battles > 0 || (row.self_practice ?? 0) > 0;
+    }).length;
 
-      const heatmapSessions = (snapshot?.activity_heatmap ?? []).filter((row) => {
-        const d = new Date(row.date);
-        if (d < weekAgo) return false;
-        return row.minutes > 0 || row.dpp > 0 || row.battles > 0 || (row.self_practice ?? 0) > 0;
-      }).length;
+    const weeklySessions = (chartData?.weekly_activity ?? []).slice(-7).filter((row) => row.total > 0).length;
+    const sessionsThisWeek = heatmapSessions > 0 ? heatmapSessions : weeklySessions;
 
-      const weeklySessions = (chartData?.weekly_activity ?? []).slice(-7).filter((row) => row.total > 0).length;
-      const sessionsThisWeek = heatmapSessions > 0 ? heatmapSessions : weeklySessions;
+    const fullName = s?.full_name?.trim() || user.email?.split("@")[0] || "Student";
+    const parts = fullName.split(/\s+/);
+    const initials = (parts[0]?.[0] || "S") + (parts[1]?.[0] || parts[0]?.[1] || "");
+    const rawClasses = s?.classes as
+      | { name?: string; section?: string }
+      | { name?: string; section?: string }[]
+      | null
+      | undefined;
+    const clsObj = Array.isArray(rawClasses) ? rawClasses[0] : rawClasses;
+    const cls = clsObj
+      ? `${clsObj.name ?? ""}-${clsObj.section ?? ""}`.replace(/^-|-$/g, "") || undefined
+      : undefined;
 
-      const fullName = s?.full_name?.trim() || user.email?.split("@")[0] || "Student";
-      const parts = fullName.split(/\s+/);
-      const initials = (parts[0]?.[0] || "S") + (parts[1]?.[0] || parts[0]?.[1] || "");
-      const cls = s?.classes
-        ? `${(s.classes as { name?: string; section?: string }).name}-${(s.classes as { name?: string; section?: string }).section}`
-        : undefined;
-
-      setProfile({
-        name: fullName,
-        firstName: parts[0] || fullName,
-        class: cls,
-        avatar: initials.toUpperCase(),
-        xp: x?.xp ?? 0,
-        level: x?.level ?? 1,
-        streak: x?.current_streak ?? 0,
-        rank: rank ?? 0,
-        accuracy,
-        attendance,
-        sessionsThisWeek,
-        totalStudents,
-      });
-    })();
+    setProfile({
+      name: fullName,
+      firstName: parts[0] || fullName,
+      class: cls,
+      avatar: initials.toUpperCase(),
+      xp: x?.xp ?? 0,
+      level: x?.level ?? 1,
+      streak: x?.current_streak ?? 0,
+      rank: rank ?? 0,
+      accuracy,
+      attendance,
+      sessionsThisWeek,
+      totalStudents,
+    });
   }, [user]);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile, liveVersion]);
+
+  useEffect(() => {
+    const onXp = () => { void loadProfile(); };
+    window.addEventListener("student-xp-updated", onXp);
+    return () => window.removeEventListener("student-xp-updated", onXp);
+  }, [loadProfile]);
 
   const mergedStudent = useMemo(
     () => ({
@@ -214,7 +234,7 @@ export default function StudentDashboard() {
           <Route path="recovery/:id/complete" element={<RecoveryCompletionReportPage />} />
           <Route path="recovery/:id/result" element={<RecoverySessionResult />} />
           <Route path="recovery/:id" element={<RecoverySession />} />
-          <Route path="practice/math12" element={<Navigate to="/student/practice" replace />} />
+          <Route path="practice/math12" element={<Class12MathPractice />} />
           <Route path="practice/math12/session" element={<Class12MathSession />} />
           <Route path="practice/ai/session" element={<Class12AiSession />} />
           <Route path="practice/session/:id/result" element={<PracticeSessionResult />} />

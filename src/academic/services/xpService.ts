@@ -5,6 +5,8 @@ import {
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
+import { broadcastAcademicWrite } from "../live";
+import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 
 export type StudentXpRow = {
   user_id: string;
@@ -100,5 +102,10 @@ export const XpService = {
           ...payload,
         });
     throwIfError(error, "Failed to equip badge");
+    broadcastAcademicWrite(ctx.schoolId, ["achievements", "xp"], {
+      studentId: ctx.studentId,
+      source: "XpService.setEquippedBadge",
+    });
+    notifyStudentXpUpdated();
   },
 };
