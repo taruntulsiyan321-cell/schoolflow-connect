@@ -1,9 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+/**
+ * Student Battleground hub — visual design from DesignAuthenticationPage,
+ * wired to live Supabase RPCs via useBattlegroundData.
+ * Play rooms stay at /student/battleground/battle/:id (LiveBattleRoom).
+ */
+import { useState, useEffect, useMemo, type CSSProperties, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/data/mock";
 import { subjects } from "@/gurukul/data/mock";
-import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
 import { useAuth } from "@/hooks/useAuth";
+import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { toast } from "@/hooks/use-toast";
 import {
   useBattlegroundData,
@@ -18,464 +23,1573 @@ import {
   type ClassmateOption,
 } from "@/gurukul/hooks/useBattlegroundData";
 import {
-  Swords, Trophy, Zap, Clock, Shield, Users, Globe, Lock,
-  Plus, Search, QrCode, Share2, Copy, Check, X, ChevronRight,
-  Flame, Star, Crown, Medal, Target, ArrowLeft, Play,
-  CheckCircle2, XCircle, SkipForward, Eye, Award, Coins,
-  Bell, ChevronDown, TrendingUp, Sparkles, Hash, Repeat,
-  UserPlus, Wifi, WifiOff, Timer, AlarmClock, BookOpen,
-} from "lucide-react";
+  leagueFromXp,
+  xpToNextLeague,
+  battleRatingFromXp,
+  type League as HelperLeague,
+} from "@/lib/battlegroundHelpers";
+import "./battleground-design.css";
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-type Phase = "home" | "create" | "lobby" | "battle" | "results" | "leaderboard" | "history";
-type BattleType = "1v1" | "team" | "class";
-type HomeTab = "featured" | "ongoing" | "upcoming" | "my";
-type LBPeriod = "daily" | "weekly" | "monthly" | "overall";
-type LBScope = "class" | "section" | "school" | "subject";
+// ── Design tokens (DesignAuthenticationPage) ─────────────────────────────────
+const C = {
+  bg: "#0b0f1a",
+  surface: "#131828",
+  surface2: "#1a2038",
+  border: "rgba(255,255,255,0.07)",
+  text: "#eef0f6",
+  text2: "rgba(238,240,246,0.6)",
+  text3: "rgba(238,240,246,0.32)",
+  blue: "#3b82f6",
+  purple: "#8b5cf6",
+  gold: "#f59e0b",
+  green: "#10b981",
+  red: "#ef4444",
+  orange: "#f97316",
+  pink: "#ec4899",
+};
+
+type LeagueName = "Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond";
+type BattleStatus = "waiting" | "active" | "won" | "lost" | "completed";
 type CreateStep = 1 | 2 | 3;
+type BattleType = "1v1" | "team" | "class";
+type Phase = "home" | "create";
+type FeaturedKind = "daily" | "weekly" | "ncert" | "beat_topper" | "teacher";
 
-interface BattlePlayer {
-  name: string; avatar: string; color: string; score: number;
-  correct: number; answered: number; you?: boolean;
+const LEAGUE_COLOR: Record<LeagueName, string> = {
+  Bronze: "#cd7f32",
+  Silver: "#94a3b8",
+  Gold: "#f59e0b",
+  Platinum: "#22d3ee",
+  Diamond: "#818cf8",
+};
+
+function toLeagueName(l: HelperLeague): LeagueName {
+  if (l.name === "Champion") return "Diamond";
+  if (["Bronze", "Silver", "Gold", "Platinum", "Diamond"].includes(l.name)) {
+    return l.name as LeagueName;
+  }
+  return "Bronze";
 }
 
-interface BattleConfig {
-  type: BattleType; subject: string; chapter: string;
-  difficulty: string; questions: number; timeLimitMin: number;
-  visibility: "public" | "private"; inviteCode: string;
+function initials(name: string): string {
+  const parts = (name || "S").trim().split(/\s+/);
+  return ((parts[0]?.[0] || "S") + (parts[1]?.[0] || parts[0]?.[1] || "")).toUpperCase();
 }
 
-interface BattleCard {
-  id: string; type: BattleType; title: string; subject: string;
-  status: "live" | "upcoming" | "completed" | "pending";
-  players: number; maxPlayers: number;
-  opponent?: string; opponentAvatar?: string; opponentColor?: string;
-  myScore?: number; theirScore?: number; result?: "won" | "lost" | "draw";
-  timeLeft?: string; startsIn?: string; date?: string;
-  xpReward: number; featured?: boolean; hot?: boolean;
-  participantId?: string;
-  battleCode?: string | null;
-  inviteId?: string;
+function cardStatus(c: DesignBattleCard): BattleStatus {
+  if (c.status === "pending" || c.status === "upcoming") return "waiting";
+  if (c.status === "live") return "active";
+  if (c.result === "won") return "won";
+  if (c.result === "lost") return "lost";
+  return "completed";
 }
 
-interface BattleQuestion {
-  id: string; text: string; options: string[]; correct: number; subject: string;
-}
-
-// ── Mock data ─────────────────────────────────────────────────────────────────
-// ── Mock questions kept only for unused in-page arena (play goes to live BattleRoom)
-const BATTLE_QUESTIONS: BattleQuestion[] = [
-  { id:"bq1", text:"If A = [[2,1],[5,3]], what is A⁻¹?", options:["[[3,−1],[−5,2]]","[[3,1],[5,2]]","[[2,1],[3,5]]","[[1,0],[0,1]]"], correct:0, subject:"Mathematics" },
-  { id:"bq2", text:"A ray of light goes from medium 1 (n=1.5) to medium 2 (n=1.0). At what angle of incidence does total internal reflection occur?", options:["41.8°","30°","60°","45°"], correct:0, subject:"Physics" },
-  { id:"bq3", text:"Which hybridisation does carbon exhibit in CO₂?", options:["sp","sp²","sp³","sp³d"], correct:0, subject:"Chemistry" },
-  { id:"bq4", text:"The derivative of sin(x)·cos(x) with respect to x is:", options:["cos(2x)","sin(2x)","−sin(2x)","2cos(x)"], correct:0, subject:"Mathematics" },
-  { id:"bq5", text:"Work done by a force perpendicular to displacement is:", options:["Zero","Maximum","Negative","Positive"], correct:0, subject:"Physics" },
-  { id:"bq6", text:"Which of these is NOT an intensive property of matter?", options:["Volume","Density","Temperature","Pressure"], correct:0, subject:"Chemistry" },
-  { id:"bq7", text:"∫₀^π sin(x)dx equals:", options:["2","0","1","π"], correct:0, subject:"Mathematics" },
-  { id:"bq8", text:"In SHM, when displacement is maximum, velocity is:", options:["Zero","Maximum","Equal to displacement","Negative"], correct:0, subject:"Physics" },
-  { id:"bq9", text:"Molarity is defined as moles of solute per:", options:["Litre of solution","Kg of solvent","100g of solution","Litre of solvent"], correct:0, subject:"Chemistry" },
-  { id:"bq10",text:"The number of prime numbers between 1 and 50 is:", options:["15","12","16","14"], correct:0, subject:"Mathematics" },
+const FEATURED_META: {
+  kind: FeaturedKind;
+  title: string;
+  icon: string;
+  subject: string;
+  chapter: string;
+  difficulty: "Easy" | "Medium" | "Hard";
+  xp: number;
+  gradient: string;
+  border: string;
+}[] = [
+  {
+    kind: "daily",
+    title: "Daily Challenge",
+    icon: "🔥",
+    subject: "Mathematics",
+    chapter: "Today's mixed set",
+    difficulty: "Medium",
+    xp: 150,
+    gradient: "linear-gradient(135deg, #f97316 0%, #ef4444 100%)",
+    border: "rgba(249,115,22,0.25)",
+  },
+  {
+    kind: "ncert",
+    title: "NCERT Challenge",
+    icon: "📚",
+    subject: "Science",
+    chapter: "NCERT sprint",
+    difficulty: "Hard",
+    xp: 220,
+    gradient: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
+    border: "rgba(59,130,246,0.25)",
+  },
+  {
+    kind: "teacher",
+    title: "Teacher Challenge",
+    icon: "🏆",
+    subject: "Class focus",
+    chapter: "Assigned challenge",
+    difficulty: "Easy",
+    xp: 90,
+    gradient: "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
+    border: "rgba(139,92,246,0.25)",
+  },
+  {
+    kind: "beat_topper",
+    title: "Beat the Topper",
+    icon: "⚡",
+    subject: "Physics",
+    chapter: "Climb the ranks",
+    difficulty: "Hard",
+    xp: 300,
+    gradient: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
+    border: "rgba(245,158,11,0.25)",
+  },
+  {
+    kind: "weekly",
+    title: "Weekly Championship",
+    icon: "👑",
+    subject: "All Subjects",
+    chapter: "Mixed — weekly",
+    difficulty: "Hard",
+    xp: 500,
+    gradient: "linear-gradient(135deg, #10b981 0%, #3b82f6 100%)",
+    border: "rgba(16,185,129,0.25)",
+  },
 ];
 
-const LB_SUBJECT = ["Mathematics","Physics","Chemistry","Biology","English"];
-
-const BATTLE_BADGES = [
-  { icon:"⚔️", label:"Battle Champion", desc:"Win 10 battles",      color:"#c08a3a" },
-  { icon:"🔥", label:"On Fire",         desc:"3-win streak",         color:"#cc5069" },
-  { icon:"⚡", label:"Speed Demon",     desc:"<30s avg per question",color:"#4b9fd4" },
-];
-
-function avatarBg(color: string) { return `radial-gradient(circle at 35% 35%, ${color}cc, ${color}66)`; }
-
-// ── Avatar ────────────────────────────────────────────────────────────────────
-function AvatarBubble({ initials, color, size=8 }: { initials:string; color:string; size?:number }) {
-  return (
-    <div className={cn(`w-${size} h-${size} rounded-xl flex items-center justify-center text-white font-black shrink-0`)}
-      style={{ background:avatarBg(color), fontSize:size<=8?12:14, boxShadow:`0 0 12px ${color}50` }}>
-      {initials}
-    </div>
-  );
+function guessFeaturedKind(c: DesignBattleCard): FeaturedKind | null {
+  const s = (c.title || "") + " " + (c.id || "");
+  const src = s.toLowerCase();
+  if (src.includes("daily")) return "daily";
+  if (src.includes("ncert")) return "ncert";
+  if (src.includes("teacher")) return "teacher";
+  if (src.includes("topper") || src.includes("beat")) return "beat_topper";
+  if (src.includes("week") || src.includes("champ")) return "weekly";
+  if (c.featured) return "daily";
+  return null;
 }
 
-// ── Type badge ────────────────────────────────────────────────────────────────
-function TypeBadge({ type }: { type: BattleType }) {
-  const map = { "1v1":{ color:"#cc5069", label:"1v1", icon:<Swords className="w-3 h-3"/> },
-                "team":{ color:"#3b5bdb", label:"TEAM", icon:<Users className="w-3 h-3"/> },
-                "class":{ color:"#c08a3a", label:"CLASS", icon:<Globe className="w-3 h-3"/> } };
-  const m = map[type];
-  return (
-    <span className="inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full"
-      style={{ color:m.color, background:`${m.color}15`, border:`1px solid ${m.color}25` }}>
-      {m.icon}{m.label}
-    </span>
-  );
-}
+// ── Small UI atoms ────────────────────────────────────────────────────────────
 
-// ── Status badge ──────────────────────────────────────────────────────────────
-function StatusDot({ status }: { status: BattleCard["status"] }) {
-  const map: Record<string,{color:string;label:string}> = {
-    live:      { color:"#cc5069", label:"LIVE" },
-    upcoming:  { color:"#c08a3a", label:"SOON" },
-    completed: { color:"#78788c", label:"DONE" },
-    pending:   { color:"#4b9fd4", label:"PENDING" },
-  };
-  const m = map[status];
-  return (
-    <span className="inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-full"
-      style={{ color:m.color, background:`${m.color}12`, border:`1px solid ${m.color}25` }}>
-      {status === "live" && <span className="w-1 h-1 rounded-full animate-pulse" style={{background:m.color}}/>}
-      {m.label}
-    </span>
-  );
-}
-
-// ── Battle card (home grid) ───────────────────────────────────────────────────
-function BCard({ b, onJoin, onView }: { b: BattleCard; onJoin:(id:string)=>void; onView:(id:string)=>void }) {
-  const subj = subjects.find(s => s.name === b.subject);
-  const resultColor = b.result==="won"?"#4aa87a":b.result==="lost"?"#cc5069":"#78788c";
-  const borderColor = b.status==="live"?"#cc506930":b.status==="upcoming"?"#c08a3a20":b.featured?"#3b5bdb20":"rgba(255,255,255,0.07)";
-
-  return (
-    <div className="relative flex flex-col p-4 rounded-2xl border bg-[#131316] transition-all duration-200 hover:border-white/15 overflow-hidden"
-      style={{ borderColor }}>
-      {/* Glow for live */}
-      {b.status==="live" && <div className="absolute inset-0 pointer-events-none rounded-2xl" style={{background:"radial-gradient(ellipse at top right, rgba(244,63,94,0.06), transparent 70%)"}}/>}
-
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <TypeBadge type={b.type}/>
-          <StatusDot status={b.status}/>
-          {b.hot && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-400/12 text-amber-400 border border-amber-400/20">🔥 HOT</span>}
-          {b.featured && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-blue-400/12 text-[#818cf8] border border-blue-400/20">★ FEATURED</span>}
-        </div>
-        <div className="flex items-center gap-1 text-[11px] text-[#78788c] shrink-0">
-          <Zap className="w-3 h-3 text-amber-400"/><span className="font-bold text-amber-400">+{b.xpReward}</span>
-        </div>
-      </div>
-
-      {/* Title + subject */}
-      <div className="text-sm font-black text-white mb-1">{b.title}</div>
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        {subj && <SubjectBadge subject={subj.name} color={subj.color}/>}
-        {b.battleCode && (
-          <button
-            type="button"
-            title="Copy battle code"
-            onClick={(e) => {
-              e.stopPropagation();
-              navigator.clipboard.writeText(b.battleCode!).catch(() => {});
-            }}
-            className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md border border-white/10 text-[#a0a0b0] hover:text-white hover:border-white/20"
-          >
-            {b.battleCode}
-          </button>
-        )}
-        {b.timeLeft && <span className="flex items-center gap-1 text-[10px] text-rose-400"><Clock className="w-3 h-3"/>{b.timeLeft}</span>}
-        {b.startsIn && <span className="flex items-center gap-1 text-[10px] text-amber-400"><AlarmClock className="w-3 h-3"/>{b.startsIn}</span>}
-        {b.date && b.result && (
-          <span className="text-[10px] font-bold" style={{color:resultColor}}>
-            {b.result==="won"?"🏆 Won":b.result==="lost"?"💀 Lost":"🤝 Draw"}
-          </span>
-        )}
-        {b.date && b.status==="completed" && !b.result && (
-          <span className="text-[10px] font-bold text-[#78788c]">Finished</span>
-        )}
-      </div>
-
-      {/* 1v1 score comparison */}
-      {b.type==="1v1" && b.opponent && b.status==="live" && b.myScore!==undefined && (
-        <div className="flex items-center gap-2 mb-3 bg-white/3 rounded-xl p-2.5">
-          <AvatarBubble initials="AS" color="#3b5bdb" size={7}/>
-          <div className="flex-1">
-            <div className="flex justify-between text-xs font-bold mb-1">
-              <span className="text-white">{b.myScore}</span>
-              <span className="text-[#78788c]">vs</span>
-              <span style={{color:b.opponentColor}}>{b.theirScore}</span>
-            </div>
-            <div className="relative h-1.5 rounded-full bg-white/8 overflow-hidden">
-              <div className="absolute left-0 h-full rounded-full bg-[#3b5bdb] transition-all" style={{width:`${(b.myScore!/10)*100}%`}}/>
-              <div className="absolute right-0 h-full rounded-full transition-all" style={{width:`${(b.theirScore!/10)*100}%`,background:b.opponentColor}}/>
-            </div>
-          </div>
-          <AvatarBubble initials={b.opponentAvatar!} color={b.opponentColor!} size={7}/>
-        </div>
-      )}
-
-      {/* Completed score */}
-      {b.status==="completed" && b.myScore!==undefined && (
-        <div className="flex items-center justify-between mb-3 p-2 rounded-xl bg-white/3">
-          <span className="text-xs text-[#78788c]">{b.opponent}</span>
-          <span className="text-sm font-black tabular-nums" style={{color:resultColor}}>{b.myScore} – {b.theirScore}</span>
-        </div>
-      )}
-
-      {/* Player count (class/team) */}
-      {(b.type==="class"||b.type==="team") && (
-        <div className="flex items-center gap-1.5 text-[11px] text-[#78788c] mb-3">
-          <Users className="w-3 h-3"/>
-          <span>{b.players}/{b.maxPlayers} players</span>
-          <div className="flex-1 h-1 rounded-full bg-white/8 overflow-hidden ml-1">
-            <div className="h-full rounded-full bg-[#3b5bdb]/60" style={{width:`${(b.players/b.maxPlayers)*100}%`}}/>
-          </div>
-        </div>
-      )}
-
-      {/* Action */}
-      <div className="mt-auto pt-1 flex gap-2">
-        {b.status==="pending" && (
-          <button onClick={()=>onJoin(b.id)}
-            className="flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90"
-            style={{background:"linear-gradient(135deg,#4b9fd4,#3b5bdb)",boxShadow:"0 4px 12px rgba(34,211,238,0.25)"}}>
-            Accept Challenge
-          </button>
-        )}
-        {b.status==="live" && (
-          <button onClick={()=>onJoin(b.id)}
-            className="flex-1 py-2 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-1.5 transition-all hover:opacity-90 animate-pulse"
-            style={{background:"linear-gradient(135deg,#cc5069,#e11d48)",boxShadow:"0 4px 12px rgba(244,63,94,0.3)"}}>
-            <Play className="w-3 h-3"/> Rejoin Battle
-          </button>
-        )}
-        {b.status==="upcoming" && (
-          <button onClick={()=>onJoin(b.id)}
-            className="flex-1 py-2 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90"
-            style={{background:"linear-gradient(135deg,#c08a3a,#d97706)",boxShadow:"0 4px 12px rgba(245,158,11,0.25)"}}>
-            Join Battle
-          </button>
-        )}
-        {b.status==="completed" && (
-          <button onClick={()=>onView(b.id)}
-            className="flex-1 py-2 rounded-xl text-xs font-semibold border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-1.5">
-            <Eye className="w-3 h-3"/> Review
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Home ──────────────────────────────────────────────────────────────────────
-function Home({
-  onPhase,
-  onStartBattle,
-  battles,
-  heroStats,
-  motivationTitle,
-  motivationMessage,
-  onOpenBattle,
-  onViewReport,
-  onJoinCode,
-  onFeatured,
-  joining,
-  loading,
+function Avatar({
+  initials: ini,
+  size = 40,
+  color = C.blue,
+  className = "",
 }: {
-  onPhase: (p: Phase) => void;
-  onStartBattle: () => void;
-  battles: DesignBattleCard[];
-  heroStats: { label: string; value: string; color: string }[];
-  motivationTitle?: string;
-  motivationMessage?: string;
-  onOpenBattle: (id: string) => void;
-  onViewReport: (participantId: string) => void;
-  onJoinCode: (code: string) => void;
-  onFeatured: (kind: "daily" | "weekly" | "ncert") => void;
-  joining?: boolean;
-  loading?: boolean;
+  initials: string;
+  size?: number;
+  color?: string;
+  className?: string;
 }) {
-  const [tab, setTab] = useState<HomeTab>("featured");
-  const [joinCode, setJoinCode] = useState("");
-  const [showJoin, setShowJoin] = useState(false);
+  return (
+    <div
+      className={className}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: `linear-gradient(135deg, ${color}cc, ${color}66)`,
+        border: `2px solid ${color}44`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "Outfit, sans-serif",
+        fontWeight: 700,
+        fontSize: size * 0.35,
+        color: "#fff",
+        flexShrink: 0,
+        letterSpacing: "-0.01em",
+      }}
+    >
+      {ini}
+    </div>
+  );
+}
 
-  const stats = [
-    { label: heroStats[0]?.label ?? "Battles Won", value: heroStats[0]?.value ?? "0", color: "#4aa87a", icon: <Trophy className="w-4 h-4"/> },
-    { label: heroStats[1]?.label ?? "Win Rate", value: heroStats[1]?.value ?? "0%", color: "#3b5bdb", icon: <Target className="w-4 h-4"/> },
-    { label: heroStats[2]?.label ?? "Class Rank", value: heroStats[2]?.value ?? "—", color: "#c08a3a", icon: <Crown className="w-4 h-4"/> },
-    { label: heroStats[3]?.label ?? "Battle XP", value: heroStats[3]?.value ?? "0", color: "#6882e8", icon: <Zap className="w-4 h-4"/> },
-  ];
+function LeaguePill({ league }: { league: LeagueName }) {
+  const col = LEAGUE_COLOR[league];
+  return (
+    <span
+      style={{
+        background: `${col}22`,
+        border: `1px solid ${col}55`,
+        color: col,
+        borderRadius: "100px",
+        padding: "2px 10px",
+        fontSize: "0.72rem",
+        fontWeight: 700,
+        fontFamily: "Outfit, sans-serif",
+        letterSpacing: "0.04em",
+        textTransform: "uppercase",
+      }}
+    >
+      {league}
+    </span>
+  );
+}
 
-  const tabBattles: Record<HomeTab, DesignBattleCard[]> = {
-    featured: battles.filter(b => b.featured || b.hot),
-    ongoing:  battles.filter(b => b.status==="live" || b.status==="pending"),
-    upcoming: battles.filter(b => b.status==="upcoming"),
-    my:       battles.filter(b => b.opponent || b.result || b.participantId),
+function DiffBadge({ level }: { level: "Easy" | "Medium" | "Hard" }) {
+  const map = {
+    Easy: { color: C.green, bg: `${C.green}18` },
+    Medium: { color: C.gold, bg: `${C.gold}18` },
+    Hard: { color: C.red, bg: `${C.red}18` },
   };
+  const { color, bg } = map[level];
+  return (
+    <span
+      style={{
+        background: bg,
+        color,
+        border: `1px solid ${color}33`,
+        borderRadius: "4px",
+        padding: "1px 7px",
+        fontSize: "0.7rem",
+        fontWeight: 700,
+      }}
+    >
+      {level}
+    </span>
+  );
+}
 
-  const visible = tab === "featured"
-    ? (tabBattles.featured.length ? tabBattles.featured : battles.filter(b => b.status !== "completed").slice(0, 6))
-    : tabBattles[tab];
+function SectionHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-end",
+        justifyContent: "space-between",
+        marginBottom: "1.25rem",
+      }}
+    >
+      <div>
+        <h2
+          style={{
+            fontFamily: "Outfit, sans-serif",
+            fontWeight: 800,
+            fontSize: "1.2rem",
+            color: C.text,
+            margin: 0,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          {title}
+        </h2>
+        {subtitle && (
+          <p
+            style={{
+              color: C.text3,
+              fontSize: "0.78rem",
+              margin: "2px 0 0",
+              fontFamily: "Inter, sans-serif",
+            }}
+          >
+            {subtitle}
+          </p>
+        )}
+      </div>
+      {action}
+    </div>
+  );
+}
 
-  const pending = battles.filter(b => b.status==="pending");
+function Card({
+  children,
+  style,
+  className = "",
+}: {
+  children: ReactNode;
+  style?: CSSProperties;
+  className?: string;
+}) {
+  return (
+    <div className={`glass ${className}`} style={{ borderRadius: "14px", padding: "1.25rem", ...style }}>
+      {children}
+    </div>
+  );
+}
+
+// ── Hero ──────────────────────────────────────────────────────────────────────
+
+type MeInfo = {
+  name: string;
+  initials: string;
+  league: LeagueName;
+  xp: number;
+  xpNext: number;
+  rating: number;
+  schoolRank: number | null;
+  classRank: number | null;
+  streak: number;
+  bestStreak: number;
+  totalBattles: number;
+  wins: number;
+  accuracy: number;
+  motivationTitle: string;
+  motivationMessage: string;
+  xpRemaining: number;
+  nextLeague: string;
+};
+
+function HeroSection({
+  me,
+  onPlayDaily,
+  busy,
+}: {
+  me: MeInfo;
+  onPlayDaily: () => void;
+  busy: boolean;
+}) {
+  const xpPct = me.xpNext > 0 ? Math.min(100, Math.round((me.xp / me.xpNext) * 100)) : 100;
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(true), 300);
+    return () => clearTimeout(t);
+  }, []);
+
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? "Good morning," : hour < 17 ? "Good afternoon," : "Good evening,";
+  const winRate = me.totalBattles > 0 ? Math.round((me.wins / me.totalBattles) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      {/* Arena header */}
-      <div className="relative overflow-hidden rounded-3xl border border-rose-500/15 p-6 sm:p-8"
-        style={{background:"radial-gradient(ellipse at 60% 0%, rgba(244,63,94,0.1) 0%, rgba(8,11,20,0) 60%), #131316"}}>
-        <div className="absolute right-0 top-0 w-64 h-full opacity-5 flex items-center justify-end pr-4">
-          <Swords className="w-48 h-48 text-rose-400"/>
-        </div>
-        <div className="relative">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-rose-400/70 mb-1">Wisdom Campus</div>
-          <h1 className="text-3xl font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
-            Battleground ⚔️
-          </h1>
-          <p className="text-[#78788c] text-sm mb-5">
-            {motivationMessage || "Compete. Conquer. Level up."}
-          </p>
-          {motivationTitle && (
-            <div className="text-xs font-bold text-rose-300/90 mb-3">{motivationTitle}</div>
-          )}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {stats.map(s => (
-              <div key={s.label} className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 bg-white/3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{background:`${s.color}15`,color:s.color}}>
-                  {s.icon}
-                </div>
-                <div>
-                  <div className="text-sm font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-                  <div className="text-[10px] text-[#78788c]">{s.label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Quick actions */}
-      <div className="flex flex-wrap gap-3">
-        <button onClick={onStartBattle}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm text-white transition-all hover:opacity-90 hover:scale-[1.02]"
-          style={{background:"linear-gradient(135deg,#cc5069,#e11d48)",boxShadow:"0 6px 20px rgba(244,63,94,0.3)"}}>
-          <Plus className="w-4 h-4"/> Create Battle
-        </button>
-        <button onClick={() => setShowJoin(v => !v)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm border border-white/10 text-white hover:border-white/20 hover:bg-white/3 transition-all">
-          <Hash className="w-4 h-4"/> Join with Code
-        </button>
-        <button onClick={() => onPhase("leaderboard")}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm border border-amber-400/20 text-amber-400 hover:bg-amber-400/8 transition-all">
-          <Trophy className="w-4 h-4"/> Leaderboard
-        </button>
-        <button onClick={() => onPhase("history")}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all">
-          <Clock className="w-4 h-4"/> History
-        </button>
-      </div>
-
-      {/* Join code input */}
-      {showJoin && (
-        <div className="flex gap-2">
-          <input value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())}
-            placeholder="Enter invite code e.g. A3X9TK"
-            className="flex-1 bg-[#131316] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/30 font-mono tracking-widest"/>
-          <button
-            disabled={joining || !joinCode.trim()}
-            onClick={() => onJoinCode(joinCode)}
-            className="px-5 py-2.5 rounded-xl bg-[#3b5bdb] text-white text-sm font-bold hover:bg-blue-500 transition-all disabled:opacity-50">
-            {joining ? "…" : "Join"}
-          </button>
-        </div>
-      )}
-
-      {/* Pending challenges notification */}
-      {pending.length > 0 && (
-        <div className="flex items-start gap-3 p-4 rounded-2xl border border-[#4b9fd4]/20 bg-[#4b9fd4]/8">
-          <Bell className="w-4 h-4 text-[#4b9fd4] shrink-0 mt-0.5 animate-bounce"/>
-          <div className="flex-1 min-w-0">
-            <div className="text-xs font-bold text-[#4b9fd4] mb-1">
-              {pending.length} challenge{pending.length>1?"s":""} waiting for you
+    <div
+      style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "1.25rem", marginBottom: "1.5rem" }}
+      className="lg-two-col"
+    >
+      <div
+        style={{
+          borderRadius: "18px",
+          padding: "2rem",
+          position: "relative",
+          overflow: "hidden",
+          background: "linear-gradient(135deg, #131828 0%, #1a2038 60%, #0f1a30 100%)",
+          border: "1px solid rgba(59,130,246,0.2)",
+        }}
+      >
+        <div
+          aria-hidden
+          style={{
+            position: "absolute",
+            top: "-60px",
+            right: "-40px",
+            width: "280px",
+            height: "280px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+        <div style={{ display: "flex", alignItems: "flex-start", gap: "1.25rem", position: "relative" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+            <div style={{ position: "relative" }}>
+              <Avatar initials={me.initials} size={72} color={C.blue} />
+              <span
+                style={{
+                  position: "absolute",
+                  bottom: "2px",
+                  right: "2px",
+                  width: "14px",
+                  height: "14px",
+                  borderRadius: "50%",
+                  background: C.green,
+                  border: "2.5px solid #131828",
+                }}
+              />
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {pending.map(b => (
-                <button key={b.id} type="button" onClick={() => onOpenBattle(b.id)}
-                  className="text-[11px] text-[#a0a0b0] px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10">
-                  {b.opponent || b.title} → {b.subject}
-                </button>
+            <LeaguePill league={me.league} />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ color: C.text3, fontSize: "0.75rem", fontFamily: "Inter, sans-serif", margin: "0 0 2px" }}>
+              {greet}
+            </p>
+            <h1
+              style={{
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 800,
+                fontSize: "1.55rem",
+                color: C.text,
+                margin: "0 0 0.75rem",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {me.name} <span style={{ fontSize: "1.1rem" }}>👋</span>
+            </h1>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem" }} className="sm-one-col">
+              {[
+                { label: "Battle Rating", value: me.rating.toLocaleString(), color: C.blue },
+                {
+                  label: "School Rank",
+                  value: me.schoolRank ? `#${me.schoolRank}` : "—",
+                  color: C.gold,
+                },
+                {
+                  label: "Class Rank",
+                  value: me.classRank ? `#${me.classRank}` : "—",
+                  color: C.purple,
+                },
+                { label: "Win Rate", value: `${winRate}%`, color: C.green },
+              ].map(({ label, value, color }) => (
+                <div
+                  key={label}
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: "10px",
+                    padding: "0.6rem 0.75rem",
+                  }}
+                >
+                  <div style={{ fontFamily: "DM Mono, monospace", fontSize: "1.2rem", fontWeight: 500, color, lineHeight: 1 }}>
+                    {value}
+                  </div>
+                  <div style={{ color: C.text3, fontSize: "0.65rem", marginTop: "3px", fontFamily: "Inter, sans-serif" }}>
+                    {label}
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Tabs */}
-      <div>
-        <div className="flex gap-1 mb-4 overflow-x-auto scrollbar-none">
-          {(["featured","ongoing","upcoming","my"] as HomeTab[]).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={cn(
-                "shrink-0 px-4 py-2 rounded-xl text-xs font-semibold capitalize transition-all",
-                tab===t ? "bg-[#cc5069] text-white shadow-lg shadow-rose-500/20" : "border border-white/7 text-[#78788c] hover:text-white hover:border-white/15"
-              )}>
-              {t==="my"?"My Battles":t.charAt(0).toUpperCase()+t.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {loading && (
-            <div className="col-span-full py-12 text-center">
-              <div className="text-sm text-[#78788c]">Loading battles…</div>
-            </div>
-          )}
-          {!loading && visible.map(b => (
-            <BCard
-              key={b.id}
-              b={b}
-              onJoin={onOpenBattle}
-              onView={(id) => {
-                const card = battles.find(x => x.id === id);
-                if (card?.participantId) onViewReport(card.participantId);
-                else onOpenBattle(id);
-              }}
-            />
-          ))}
-          {!loading && visible.length === 0 && (
-            <div className="col-span-full py-12 text-center">
-              <Swords className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
-              <div className="text-sm text-[#78788c]">
-                {tab === "upcoming"
-                  ? "Nothing scheduled yet — create a battle or check Featured"
-                  : "No battles here yet"}
+            <div style={{ marginTop: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+                <span style={{ color: C.text2, fontSize: "0.72rem", fontFamily: "Inter, sans-serif" }}>
+                  XP Progress — <span style={{ color: C.purple }}>{me.xp.toLocaleString()}</span> /{" "}
+                  {me.xpNext.toLocaleString()}
+                </span>
+                <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.72rem", color: C.purple }}>{xpPct}%</span>
               </div>
+              <div style={{ height: "8px", background: "rgba(255,255,255,0.06)", borderRadius: "100px", overflow: "hidden" }}>
+                <div
+                  className="xp-bar-fill"
+                  style={
+                    {
+                      height: "100%",
+                      borderRadius: "100px",
+                      background: `linear-gradient(90deg, ${C.purple}, ${C.blue})`,
+                      "--xp-w": `${xpPct}%`,
+                      width: animated ? `${xpPct}%` : "0%",
+                      boxShadow: `0 0 10px ${C.purple}66`,
+                    } as CSSProperties
+                  }
+                />
+              </div>
+              <p style={{ color: C.text3, fontSize: "0.68rem", marginTop: "4px", fontFamily: "Inter, sans-serif" }}>
+                {me.xpRemaining > 0 ? (
+                  <>
+                    {me.xpRemaining} XP to{" "}
+                    <strong style={{ color: LEAGUE_COLOR[me.nextLeague as LeagueName] || C.gold }}>{me.nextLeague}</strong>
+                  </>
+                ) : (
+                  "Top league reached — keep battling!"
+                )}
+              </p>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Recommended */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <Sparkles className="w-4 h-4 text-[#6882e8]"/>
-          <span className="text-xs font-bold text-[#78788c] uppercase tracking-wider">Recommended for you</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+        <div
+          style={{
+            flex: 1,
+            borderRadius: "18px",
+            padding: "1.5rem",
+            background: "linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(249,115,22,0.08) 100%)",
+            border: "1px solid rgba(245,158,11,0.25)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div aria-hidden style={{ position: "absolute", top: "-20px", right: "-20px", fontSize: "5rem", opacity: 0.08 }}>
+            🏆
+          </div>
+          <div className="float-anim" style={{ fontSize: "1.6rem", marginBottom: "0.6rem" }}>
+            ⚔️
+          </div>
+          <p
+            style={{
+              fontFamily: "Outfit, sans-serif",
+              fontWeight: 600,
+              fontSize: "0.95rem",
+              color: C.text,
+              lineHeight: 1.45,
+              margin: 0,
+            }}
+          >
+            {me.motivationTitle}
+          </p>
+          <p style={{ color: C.text3, fontSize: "0.72rem", marginTop: "0.5rem", fontFamily: "Inter, sans-serif" }}>
+            {me.motivationMessage}
+          </p>
         </div>
-        <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
-          {[
-            { label:"Daily Challenge", subject:"Mathematics", xp:120, type:"class" as BattleType, kind:"daily" as const },
-            { label:"Weekly Championship", subject:"Mathematics", xp:200, type:"class" as BattleType, kind:"weekly" as const },
-            { label:"NCERT Sprint", subject:"Mathematics", xp:100, type:"class" as BattleType, kind:"ncert" as const },
-          ].map(r => {
-            const subj = subjects.find(s=>s.name===r.subject);
-            return (
-              <button key={r.label} onClick={() => onFeatured(r.kind)}
-                className="shrink-0 flex flex-col gap-2 p-3.5 rounded-2xl border border-white/7 bg-[#131316] hover:border-white/18 transition-all min-w-[160px]">
-                <TypeBadge type={r.type}/>
-                <div className="text-xs font-bold text-white text-left">{r.label}</div>
-                {subj && <SubjectBadge subject={subj.name} color={subj.color}/>}
-                <div className="flex items-center gap-1 text-[10px] text-amber-400 font-bold">
-                  <Zap className="w-3 h-3"/>+{r.xp} XP
+
+        <div
+          style={{
+            borderRadius: "14px",
+            padding: "1rem 1.25rem",
+            background: "linear-gradient(135deg, rgba(249,115,22,0.12) 0%, rgba(239,68,68,0.08) 100%)",
+            border: "1px solid rgba(249,115,22,0.22)",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+          }}
+        >
+          <span className="streak-icon" style={{ fontSize: "1.6rem" }}>
+            🔥
+          </span>
+          <div>
+            <div style={{ fontFamily: "DM Mono, monospace", fontSize: "1.4rem", fontWeight: 500, color: C.orange, lineHeight: 1 }}>
+              {me.streak}
+            </div>
+            <div style={{ color: C.text3, fontSize: "0.68rem", marginTop: "2px", fontFamily: "Inter, sans-serif" }}>
+              Win streak · Don&apos;t break it!
+            </div>
+          </div>
+          <div style={{ marginLeft: "auto", textAlign: "right" }}>
+            <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.75rem", color: C.text2 }}>Best: {me.bestStreak}</div>
+            <div style={{ display: "flex", gap: "3px", marginTop: "4px", justifyContent: "flex-end" }}>
+              {Array.from({ length: Math.max(7, me.bestStreak || 7) }, (_, i) => i + 1)
+                .slice(0, 7)
+                .map((i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "2px",
+                      background: i <= me.streak ? C.orange : "rgba(255,255,255,0.08)",
+                    }}
+                  />
+                ))}
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            borderRadius: "14px",
+            padding: "0.85rem 1.25rem",
+            background: "linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(59,130,246,0.08) 100%)",
+            border: "1px solid rgba(16,185,129,0.22)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "1.1rem" }}>🎯</span>
+            <div>
+              <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 700, fontSize: "0.82rem", color: C.text }}>
+                Daily Challenge
+              </div>
+              <div style={{ color: C.text3, fontSize: "0.67rem", fontFamily: "Inter, sans-serif" }}>+150 XP</div>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={busy}
+            onClick={onPlayDaily}
+            style={{
+              background: C.green,
+              border: "none",
+              borderRadius: "8px",
+              padding: "5px 14px",
+              color: "#fff",
+              fontFamily: "Outfit, sans-serif",
+              fontWeight: 700,
+              fontSize: "0.75rem",
+              cursor: busy ? "wait" : "pointer",
+              opacity: busy ? 0.7 : 1,
+            }}
+          >
+            Play
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Quick actions + join modal ────────────────────────────────────────────────
+
+function QuickActions({
+  onCreate,
+  onJoin,
+  onDaily,
+  onWeekly,
+  busy,
+}: {
+  onCreate: () => void;
+  onJoin: () => void;
+  onDaily: () => void;
+  onWeekly: () => void;
+  busy: boolean;
+}) {
+  const actions = [
+    {
+      icon: "⚔️",
+      label: "Create Challenge",
+      desc: "Invite a classmate to battle",
+      color: C.blue,
+      grad: `linear-gradient(135deg, ${C.blue}22, ${C.blue}08)`,
+      border: "rgba(59,130,246,0.3)",
+      onClick: onCreate,
+    },
+    {
+      icon: "🎯",
+      label: "Join Challenge",
+      desc: "Enter a battle with a code",
+      color: C.purple,
+      grad: `linear-gradient(135deg, ${C.purple}22, ${C.purple}08)`,
+      border: "rgba(139,92,246,0.3)",
+      onClick: onJoin,
+    },
+    {
+      icon: "🔥",
+      label: "Daily Challenge",
+      desc: "Today's challenge — 150 XP",
+      color: C.orange,
+      grad: `linear-gradient(135deg, ${C.orange}22, ${C.orange}08)`,
+      border: "rgba(249,115,22,0.3)",
+      onClick: onDaily,
+    },
+    {
+      icon: "👑",
+      label: "Championship",
+      desc: "Weekly top tournament",
+      color: C.gold,
+      grad: `linear-gradient(135deg, ${C.gold}22, ${C.gold}08)`,
+      border: "rgba(245,158,11,0.3)",
+      onClick: onWeekly,
+    },
+  ];
+
+  return (
+    <div style={{ marginBottom: "1.75rem" }}>
+      <SectionHeader title="Quick Actions" subtitle="Start your next challenge" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.85rem" }} className="sm-one-col">
+        {actions.map(({ icon, label, desc, color, grad, border, onClick }) => (
+          <button
+            key={label}
+            type="button"
+            className="action-card"
+            disabled={busy}
+            onClick={onClick}
+            style={{
+              background: grad,
+              border: `1px solid ${border}`,
+              borderRadius: "14px",
+              padding: "1.25rem",
+              cursor: busy ? "wait" : "pointer",
+              textAlign: "left",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.4rem",
+              opacity: busy ? 0.75 : 1,
+            }}
+          >
+            <span style={{ fontSize: "1.5rem", lineHeight: 1 }}>{icon}</span>
+            <span
+              style={{
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 800,
+                fontSize: "0.95rem",
+                color: C.text,
+                letterSpacing: "-0.01em",
+                display: "block",
+              }}
+            >
+              {label}
+            </span>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: "0.72rem", color: C.text3, display: "block" }}>
+              {desc}
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "0.25rem" }}>
+              <span style={{ color, fontSize: "0.72rem", fontFamily: "Outfit, sans-serif", fontWeight: 700 }}>Start →</span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function JoinCodeModal({
+  open,
+  onClose,
+  onJoin,
+  joining,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onJoin: (code: string) => Promise<void>;
+  joining: boolean;
+}) {
+  const [code, setCode] = useState("");
+  if (!open) return null;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 200,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "1rem",
+        background: "rgba(0,0,0,0.7)",
+        backdropFilter: "blur(6px)",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          background: C.surface,
+          border: `1px solid ${C.border}`,
+          borderRadius: "20px",
+          padding: "1.75rem",
+          maxWidth: "420px",
+          width: "100%",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.15rem", color: C.text, margin: "0 0 0.35rem" }}>
+          Join Challenge
+        </h2>
+        <p style={{ color: C.text3, fontSize: "0.78rem", margin: "0 0 1rem", fontFamily: "Inter, sans-serif" }}>
+          Enter the battle code shared by your classmate.
+        </p>
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="e.g. A3X9TK"
+          autoFocus
+          style={{
+            width: "100%",
+            background: "rgba(255,255,255,0.04)",
+            border: `1px solid ${C.border}`,
+            borderRadius: "10px",
+            padding: "0.75rem 1rem",
+            color: C.text,
+            fontFamily: "DM Mono, monospace",
+            fontSize: "1.1rem",
+            letterSpacing: "0.2em",
+            outline: "none",
+            marginBottom: "1rem",
+          }}
+        />
+        <div style={{ display: "flex", gap: "0.6rem" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              flex: 1,
+              background: "none",
+              border: `1px solid ${C.border}`,
+              borderRadius: "10px",
+              padding: "0.65rem",
+              color: C.text2,
+              fontFamily: "Outfit, sans-serif",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={joining || !code.trim()}
+            onClick={() => void onJoin(code)}
+            style={{
+              flex: 1,
+              background: C.purple,
+              border: "none",
+              borderRadius: "10px",
+              padding: "0.65rem",
+              color: "#fff",
+              fontFamily: "Outfit, sans-serif",
+              fontWeight: 700,
+              cursor: joining ? "wait" : "pointer",
+              opacity: joining || !code.trim() ? 0.6 : 1,
+            }}
+          >
+            {joining ? "Joining…" : "Join Battle"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Featured ──────────────────────────────────────────────────────────────────
+
+function FeaturedBattles({
+  liveFeatured,
+  onLaunch,
+  busy,
+}: {
+  liveFeatured: DesignBattleCard[];
+  onLaunch: (kind: FeaturedKind, battleId?: string) => void;
+  busy: boolean;
+}) {
+  const cards = FEATURED_META.map((meta) => {
+    const live =
+      liveFeatured.find((b) => guessFeaturedKind(b) === meta.kind) ||
+      liveFeatured.find((b) => b.featured && b.title.toLowerCase().includes(meta.title.split(" ")[0].toLowerCase()));
+    return { meta, live };
+  });
+
+  return (
+    <div style={{ marginBottom: "1.75rem" }}>
+      <SectionHeader title="Featured Battles" subtitle="Open challenges for everyone" />
+      <div style={{ display: "flex", gap: "0.85rem", overflowX: "auto", paddingBottom: "0.5rem", scrollSnapType: "x mandatory" }}>
+        {cards.map(({ meta, live }) => (
+          <div
+            key={meta.kind}
+            className="battle-card"
+            style={{
+              minWidth: "240px",
+              maxWidth: "240px",
+              borderRadius: "16px",
+              overflow: "hidden",
+              border: `1px solid ${meta.border}`,
+              scrollSnapAlign: "start",
+              background: C.surface,
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ background: meta.gradient, padding: "1rem 1.1rem 0.85rem", position: "relative" }}>
+              <div style={{ fontSize: "1.4rem", marginBottom: "0.35rem" }}>{meta.icon}</div>
+              <div
+                style={{
+                  fontFamily: "Outfit, sans-serif",
+                  fontWeight: 800,
+                  fontSize: "0.95rem",
+                  color: "#fff",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {live?.title || meta.title}
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.72rem", marginTop: "1px", fontFamily: "Inter, sans-serif" }}>
+                {meta.chapter}
+              </div>
+            </div>
+            <div style={{ padding: "0.85rem 1.1rem" }}>
+              <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginBottom: "0.7rem", alignItems: "center" }}>
+                <span
+                  style={{
+                    background: "rgba(255,255,255,0.07)",
+                    color: C.text2,
+                    borderRadius: "4px",
+                    padding: "2px 7px",
+                    fontSize: "0.68rem",
+                    fontFamily: "Inter, sans-serif",
+                  }}
+                >
+                  {live?.subject || meta.subject}
+                </span>
+                <DiffBadge level={meta.difficulty} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem", marginBottom: "0.85rem" }}>
+                <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "0.4rem 0.5rem" }}>
+                  <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", color: C.gold }}>
+                    {live?.xpReward || meta.xp} XP
+                  </div>
+                  <div style={{ color: C.text3, fontSize: "0.6rem" }}>Reward</div>
                 </div>
-              </button>
+                <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "0.4rem 0.5rem" }}>
+                  <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", color: C.blue }}>
+                    {live?.players ?? "—"}
+                  </div>
+                  <div style={{ color: C.text3, fontSize: "0.6rem" }}>Players</div>
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ color: C.text3, fontSize: "0.68rem", fontFamily: "DM Mono, monospace" }}>
+                  {live?.timeLeft || live?.startsIn || "Open"}
+                </span>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={busy}
+                  onClick={() => onLaunch(meta.kind, live?.id)}
+                  style={{
+                    background: meta.gradient,
+                    border: "none",
+                    borderRadius: "8px",
+                    padding: "5px 14px",
+                    color: "#fff",
+                    fontFamily: "Outfit, sans-serif",
+                    fontWeight: 700,
+                    fontSize: "0.75rem",
+                    cursor: busy ? "wait" : "pointer",
+                  }}
+                >
+                  Join
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── My Battles ────────────────────────────────────────────────────────────────
+
+const TABS: { key: BattleStatus | "all"; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "active", label: "Active" },
+  { key: "waiting", label: "Waiting" },
+  { key: "won", label: "Won" },
+  { key: "lost", label: "Lost" },
+  { key: "completed", label: "Completed" },
+];
+
+const STATUS_META: Record<BattleStatus, { label: string; color: string; dot: string }> = {
+  active: { label: "In Progress", color: C.blue, dot: C.blue },
+  waiting: { label: "Waiting", color: C.gold, dot: C.gold },
+  won: { label: "Victory", color: C.green, dot: C.green },
+  lost: { label: "Defeat", color: C.red, dot: C.red },
+  completed: { label: "Completed", color: C.text3, dot: C.text3 },
+};
+
+function MyBattlesPanel({
+  battles,
+  onNew,
+  onOpen,
+  onAnalysis,
+  loading,
+}: {
+  battles: DesignBattleCard[];
+  onNew: () => void;
+  onOpen: (id: string) => void;
+  onAnalysis: (participantId: string) => void;
+  loading: boolean;
+}) {
+  const [tab, setTab] = useState<BattleStatus | "all">("all");
+  const mapped = battles.map((b) => ({ card: b, status: cardStatus(b) }));
+  const filtered = tab === "all" ? mapped : mapped.filter((b) => b.status === tab);
+
+  return (
+    <Card style={{ padding: "1.25rem" }}>
+      <SectionHeader
+        title="My Battles"
+        subtitle={`${battles.length} total battles`}
+        action={
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={onNew}
+            style={{
+              background: C.blue,
+              border: "none",
+              borderRadius: "8px",
+              padding: "5px 14px",
+              color: "#fff",
+              fontFamily: "Outfit, sans-serif",
+              fontWeight: 700,
+              fontSize: "0.75rem",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+            }}
+          >
+            <span>⚔️</span> New Battle
+          </button>
+        }
+      />
+
+      <div style={{ display: "flex", gap: 0, borderBottom: `1px solid ${C.border}`, marginBottom: "1rem", overflowX: "auto" }}>
+        {TABS.map(({ key, label }) => {
+          const count = key === "all" ? mapped.length : mapped.filter((b) => b.status === key).length;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`tab-btn${tab === key ? " active" : ""}`}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "0.5rem 0.9rem",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                fontSize: "0.8rem",
+                color: tab === key ? C.blue : C.text3,
+                whiteSpace: "nowrap",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              {label}
+              {count > 0 && (
+                <span
+                  style={{
+                    background: tab === key ? `${C.blue}22` : "rgba(255,255,255,0.06)",
+                    color: tab === key ? C.blue : C.text3,
+                    borderRadius: "100px",
+                    padding: "0px 6px",
+                    fontSize: "0.65rem",
+                  }}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: "2rem", color: C.text3 }}>Loading battles…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "2.5rem 1rem", color: C.text3 }}>
+          <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>⚔️</div>
+          <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 700, fontSize: "0.9rem", color: C.text2, marginBottom: "0.3rem" }}>
+            No battles here
+          </div>
+          <div style={{ fontSize: "0.75rem", fontFamily: "Inter, sans-serif" }}>
+            Create a challenge and invite your classmates.
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem" }}>
+          {filtered.map(({ card: b, status }) => {
+            const meta = STATUS_META[status];
+            const isActive = status === "active";
+            const isWon = status === "won";
+            const oppName = b.opponent || b.title || "Challenger";
+            const oppIni = b.opponentAvatar || initials(oppName);
+            return (
+              <div
+                key={b.id + (b.inviteId || "")}
+                className="battle-card"
+                style={{
+                  background: isActive ? "rgba(59,130,246,0.06)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${isActive ? "rgba(59,130,246,0.2)" : C.border}`,
+                  borderRadius: "12px",
+                  padding: "0.9rem 1rem",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.85rem",
+                }}
+              >
+                <Avatar initials={oppIni} size={42} color={isWon ? C.green : isActive ? C.blue : b.opponentColor || C.text3} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+                    <span style={{ fontFamily: "Outfit, sans-serif", fontWeight: 700, fontSize: "0.88rem", color: C.text }}>
+                      {oppName}
+                    </span>
+                    {b.battleCode && (
+                      <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.65rem", color: C.text3 }}>{b.battleCode}</span>
+                    )}
+                  </div>
+                  <div style={{ color: C.text3, fontSize: "0.7rem", fontFamily: "Inter, sans-serif" }}>
+                    {b.subject} · {b.type === "1v1" ? "1v1" : b.type} · {b.players}/{b.maxPlayers}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                    <DiffBadge level="Medium" />
+                    <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.68rem", color: C.gold }}>+{b.xpReward} XP</span>
+                  </div>
+                </div>
+                <div style={{ textAlign: "right", flexShrink: 0 }}>
+                  {b.myScore != null && (
+                    <div
+                      style={{
+                        fontFamily: "DM Mono, monospace",
+                        fontSize: "1rem",
+                        fontWeight: 500,
+                        color: isWon ? C.green : status === "lost" ? C.red : C.text,
+                        marginBottom: "2px",
+                      }}
+                    >
+                      {b.myScore} <span style={{ color: C.text3, fontSize: "0.75rem" }}>vs</span> {b.theirScore ?? "—"}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", justifyContent: "flex-end", marginBottom: "6px" }}>
+                    <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: meta.dot, display: "inline-block" }} />
+                    <span style={{ color: meta.color, fontSize: "0.68rem", fontFamily: "Outfit, sans-serif", fontWeight: 700 }}>
+                      {meta.label}
+                    </span>
+                  </div>
+                  {(status === "active" || status === "waiting" || b.status === "pending") && (
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => onOpen(b.id)}
+                      style={{
+                        background: status === "active" || b.status === "pending" ? C.blue : "rgba(255,255,255,0.08)",
+                        border: "none",
+                        borderRadius: "7px",
+                        padding: "4px 12px",
+                        color: "#fff",
+                        fontFamily: "Outfit, sans-serif",
+                        fontWeight: 700,
+                        fontSize: "0.72rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {b.status === "pending" ? "Accept ▶" : status === "active" ? "Resume ▶" : "Open…"}
+                    </button>
+                  )}
+                  {(status === "won" || status === "lost" || status === "completed") && b.participantId && (
+                    <button
+                      type="button"
+                      onClick={() => onAnalysis(b.participantId!)}
+                      style={{
+                        background: "none",
+                        border: `1px solid ${C.border}`,
+                        borderRadius: "7px",
+                        padding: "4px 10px",
+                        color: C.text3,
+                        fontFamily: "Outfit, sans-serif",
+                        fontWeight: 700,
+                        fontSize: "0.7rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Analysis
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ── Leaderboard sidebar ───────────────────────────────────────────────────────
+
+function LeaderboardPanel({ entries, classLabel }: { entries: DesignLbEntry[]; classLabel: string }) {
+  const me = entries.find((e) => e.you);
+  const above = me && me.rank > 1 ? entries.find((e) => e.rank === me.rank - 1) : null;
+  const xpGap = above && me ? Math.max(0, above.xp - me.xp) : null;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+      <Card>
+        <SectionHeader title="Class Leaderboard" subtitle={classLabel} />
+        {xpGap != null && xpGap > 0 && (
+          <div
+            style={{
+              background: "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(249,115,22,0.08))",
+              border: "1px solid rgba(245,158,11,0.25)",
+              borderRadius: "10px",
+              padding: "0.75rem 1rem",
+              marginBottom: "0.85rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <span style={{ fontSize: "1rem" }}>🎯</span>
+            <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: "0.78rem", color: C.text, lineHeight: 1.4 }}>
+              Only <strong style={{ color: C.gold }}>{xpGap} XP</strong> away from{" "}
+              <strong style={{ color: C.gold }}>Rank #{(me?.rank ?? 1) - 1}</strong>. One win away!
+            </p>
+          </div>
+        )}
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "32px 1fr 80px 60px",
+            gap: 0,
+            padding: "0 0.25rem 0.5rem",
+            borderBottom: `1px solid ${C.border}`,
+            marginBottom: "0.4rem",
+          }}
+        >
+          {["#", "Student", "XP", "W%"].map((h) => (
+            <span
+              key={h}
+              style={{
+                color: C.text3,
+                fontSize: "0.65rem",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              {h}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          {entries.length === 0 && (
+            <div style={{ padding: "1.5rem", textAlign: "center", color: C.text3, fontSize: "0.8rem" }}>
+              No rankings yet — finish a battle to appear here
+            </div>
+          )}
+          {entries.slice(0, 10).map((s) => {
+            const rankColors: Record<number, string> = { 1: C.gold, 2: "#94a3b8", 3: "#cd7f32" };
+            const rankColor = rankColors[s.rank] || C.text3;
+            return (
+              <div
+                key={`${s.rank}-${s.name}`}
+                className="leaderboard-row"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "32px 1fr 80px 60px",
+                  alignItems: "center",
+                  padding: "0.5rem 0.25rem",
+                  borderRadius: "8px",
+                  background: s.you ? "rgba(59,130,246,0.1)" : "transparent",
+                  border: s.you ? "1px solid rgba(59,130,246,0.22)" : "1px solid transparent",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "DM Mono, monospace",
+                    fontSize: "0.82rem",
+                    color: rankColor,
+                    fontWeight: s.rank <= 3 ? 600 : 400,
+                  }}
+                >
+                  {s.rank <= 3 ? ["🥇", "🥈", "🥉"][s.rank - 1] : s.rank}
+                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: "7px", minWidth: 0 }}>
+                  <Avatar initials={s.avatar} size={26} color={s.you ? C.blue : s.color || C.text3} />
+                  <span
+                    style={{
+                      fontFamily: "Outfit, sans-serif",
+                      fontWeight: s.you ? 700 : 500,
+                      fontSize: "0.8rem",
+                      color: s.you ? C.blue : C.text,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {s.name}
+                    {s.you ? " (you)" : ""}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.78rem", color: C.text2 }}>
+                    {s.xp.toLocaleString()}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.72rem", color: C.text2 }}>{s.accuracy}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+// ── History ───────────────────────────────────────────────────────────────────
+
+function BattleHistoryPanel({
+  entries,
+  onAnalysis,
+}: {
+  entries: DesignHistoryEntry[];
+  onAnalysis: (participantId: string) => void;
+}) {
+  return (
+    <Card style={{ marginBottom: "1.5rem" }}>
+      <SectionHeader title="Battle History" subtitle="Your recent battles" />
+      <div style={{ position: "relative", paddingLeft: "1.25rem" }}>
+        <div
+          style={{
+            position: "absolute",
+            left: "6px",
+            top: "8px",
+            bottom: "8px",
+            width: "1px",
+            background: `linear-gradient(to bottom, ${C.blue}66, transparent)`,
+          }}
+        />
+        {entries.length === 0 && (
+          <div style={{ padding: "1.5rem", color: C.text3, fontSize: "0.8rem" }}>No battles finished yet</div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem" }}>
+          {entries.slice(0, 8).map((h) => {
+            const won = h.result === "won";
+            const draw = h.result === "draw" || h.result === "finished";
+            return (
+              <div
+                key={h.id}
+                className="battle-card"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.85rem",
+                  padding: "0.75rem 1rem",
+                  background: "rgba(255,255,255,0.03)",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: "10px",
+                  cursor: "pointer",
+                  position: "relative",
+                }}
+                onClick={() => onAnalysis(h.participantId)}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "-1.1rem",
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "50%",
+                    background: won ? C.green : draw ? C.text3 : C.red,
+                    border: "2px solid #0b0f1a",
+                    zIndex: 1,
+                  }}
+                />
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "8px",
+                    background: won ? `${C.green}18` : draw ? "rgba(255,255,255,0.06)" : `${C.red}18`,
+                    border: `1px solid ${won ? C.green : draw ? C.border : C.red}33`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.1rem",
+                    flexShrink: 0,
+                  }}
+                >
+                  {won ? "🏆" : draw ? "🤝" : "💔"}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 700, fontSize: "0.85rem", color: C.text }}>
+                    vs {h.opponent}
+                  </div>
+                  <div style={{ color: C.text3, fontSize: "0.7rem", fontFamily: "Inter, sans-serif", marginTop: "1px" }}>
+                    {h.subject} · {h.date}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div
+                      style={{
+                        fontFamily: "DM Mono, monospace",
+                        fontSize: "0.88rem",
+                        color: won ? C.green : draw ? C.text2 : C.red,
+                      }}
+                    >
+                      {h.myScore}–{h.theirScore}
+                    </div>
+                    <div style={{ color: C.text3, fontSize: "0.6rem" }}>Score</div>
+                  </div>
+                  <div style={{ textAlign: "center" }} className="sm-hide">
+                    <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.88rem", color: C.blue }}>{h.accuracy}%</div>
+                    <div style={{ color: C.text3, fontSize: "0.6rem" }}>Accuracy</div>
+                  </div>
+                  {h.xp > 0 && (
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.88rem", color: C.gold }}>+{h.xp}</div>
+                      <div style={{ color: C.text3, fontSize: "0.6rem" }}>XP</div>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAnalysis(h.participantId);
+                    }}
+                    style={{
+                      background: "none",
+                      border: `1px solid ${C.border}`,
+                      borderRadius: "6px",
+                      padding: "3px 9px",
+                      color: C.text3,
+                      fontFamily: "Outfit, sans-serif",
+                      fontWeight: 700,
+                      fontSize: "0.68rem",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Analysis
+                  </button>
+                </div>
+              </div>
             );
           })}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
-// ── Create wizard ─────────────────────────────────────────────────────────────
-function CreateBattle({
+// ── Achievements + stats (derived from live XP) ────────────────────────────────
+
+function AchievementsPanel({ me }: { me: MeInfo }) {
+  const items = [
+    { id: 1, icon: "🏅", title: "First Victory", desc: "Win your first battle", unlocked: me.wins >= 1, rarity: "common" as const },
+    {
+      id: 2,
+      icon: "🔥",
+      title: `${Math.max(me.streak, 4)} Win Streak`,
+      desc: "4 consecutive wins",
+      unlocked: me.streak >= 4 || me.bestStreak >= 4,
+      rarity: "rare" as const,
+    },
+    { id: 3, icon: "⚔️", title: "Battle Tested", desc: "Play 50 battles", unlocked: me.totalBattles >= 50, rarity: "common" as const },
+    { id: 4, icon: "🎯", title: "Sharp Shooter", desc: "90%+ accuracy", unlocked: me.accuracy >= 90, rarity: "epic" as const },
+    { id: 5, icon: "👑", title: "Gold League", desc: "Reach Gold League", unlocked: ["Gold", "Platinum", "Diamond"].includes(me.league), rarity: "epic" as const },
+    { id: 6, icon: "💎", title: "Diamond Mind", desc: "Reach Diamond League", unlocked: me.league === "Diamond", rarity: "legendary" as const },
+    { id: 7, icon: "🌟", title: "Century Club", desc: "Win 100 battles", unlocked: me.wins >= 100, rarity: "legendary" as const },
+    { id: 8, icon: "📚", title: "Rising Star", desc: "Earn 1000 XP", unlocked: me.xp >= 1000, rarity: "rare" as const },
+  ];
+  const rarityColor = { common: "#94a3b8", rare: C.blue, epic: C.purple, legendary: C.gold };
+  const rarityLabel = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
+
+  return (
+    <Card>
+      <SectionHeader
+        title="Achievements"
+        subtitle={`${items.filter((a) => a.unlocked).length} / ${items.length} unlocked`}
+      />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.7rem" }} className="sm-one-col">
+        {items.map((a) => {
+          const rc = rarityColor[a.rarity];
+          return (
+            <div
+              key={a.id}
+              className="badge-card"
+              style={{
+                background: a.unlocked ? `${rc}12` : "rgba(255,255,255,0.03)",
+                border: `1px solid ${a.unlocked ? `${rc}33` : C.border}`,
+                borderRadius: "12px",
+                padding: "0.9rem",
+                textAlign: "center",
+                position: "relative",
+                filter: a.unlocked ? "none" : "grayscale(1)",
+                opacity: a.unlocked ? 1 : 0.45,
+                animation: a.unlocked ? `bg-badge-pop 0.4s ease-out ${a.id * 0.05}s both` : "none",
+              }}
+            >
+              {a.unlocked && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "6px",
+                    right: "8px",
+                    fontFamily: "Outfit, sans-serif",
+                    fontSize: "0.58rem",
+                    fontWeight: 700,
+                    color: rc,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {rarityLabel[a.rarity]}
+                </div>
+              )}
+              <div style={{ fontSize: "1.8rem", marginBottom: "0.35rem", display: "block", lineHeight: 1 }}>{a.icon}</div>
+              <div
+                style={{
+                  fontFamily: "Outfit, sans-serif",
+                  fontWeight: 700,
+                  fontSize: "0.78rem",
+                  color: a.unlocked ? C.text : C.text3,
+                  marginBottom: "2px",
+                }}
+              >
+                {a.title}
+              </div>
+              <div style={{ color: C.text3, fontSize: "0.64rem", fontFamily: "Inter, sans-serif", lineHeight: 1.3 }}>{a.desc}</div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function StatisticsPanel({ me }: { me: MeInfo }) {
+  const winRate = me.totalBattles > 0 ? Math.round((me.wins / me.totalBattles) * 100) : 0;
+  const losses = Math.max(0, me.totalBattles - me.wins);
+  const stats = [
+    { label: "Battles Played", value: String(me.totalBattles), icon: "⚔️", color: C.blue, sub: "Lifetime" },
+    { label: "Battles Won", value: String(me.wins), icon: "🏆", color: C.green, sub: `${winRate}% win rate` },
+    { label: "Current Streak", value: String(me.streak), icon: "🔥", color: C.orange, sub: `Personal best: ${me.bestStreak}` },
+    { label: "Battle XP", value: me.xp.toLocaleString(), icon: "⚡", color: C.purple, sub: me.league },
+    { label: "Avg. Accuracy", value: `${me.accuracy}%`, icon: "🎯", color: C.gold, sub: "From finished battles" },
+    { label: "Battles Lost", value: String(losses), icon: "📉", color: C.pink, sub: "Keep climbing" },
+    { label: "Battle Rating", value: me.rating.toLocaleString(), icon: "📊", color: "#22d3ee", sub: "Derived from XP + wins" },
+    {
+      label: "Class Rank",
+      value: me.classRank ? `#${me.classRank}` : "—",
+      icon: "🏫",
+      color: C.gold,
+      sub: me.schoolRank ? `School #${me.schoolRank}` : "Class board",
+    },
+  ];
+
+  return (
+    <Card>
+      <SectionHeader title="My Statistics" subtitle="Performance overview" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.7rem" }} className="sm-one-col">
+        {stats.map(({ label, value, icon, color, sub }) => (
+          <div
+            key={label}
+            className="battle-card"
+            style={{
+              background: `${color}0d`,
+              border: `1px solid ${color}22`,
+              borderRadius: "12px",
+              padding: "0.9rem 1rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+              <span style={{ fontSize: "1.1rem" }}>{icon}</span>
+            </div>
+            <div style={{ fontFamily: "DM Mono, monospace", fontSize: "1.4rem", fontWeight: 500, color, letterSpacing: "-0.01em", lineHeight: 1 }}>
+              {value}
+            </div>
+            <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 700, fontSize: "0.75rem", color: C.text, marginTop: "4px" }}>
+              {label}
+            </div>
+            <div style={{ color: C.text3, fontSize: "0.65rem", marginTop: "2px", fontFamily: "Inter, sans-serif" }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+// ── Create wizard (design-styled, live RPCs) ──────────────────────────────────
+
+interface BattleConfig {
+  type: BattleType;
+  subject: string;
+  chapter: string;
+  difficulty: string;
+  questions: number;
+  timeLimitMin: number;
+  visibility: "public" | "private";
+  inviteCode: string;
+}
+
+function CreateBattleWizard({
   onBack,
   onCreate,
   onEnter,
@@ -488,40 +1602,35 @@ function CreateBattle({
   classmates: ClassmateOption[];
   creating?: boolean;
 }) {
-  const [step,       setStep]       = useState<CreateStep>(1);
-  const [type,       setType]       = useState<BattleType>("1v1");
-  const [subject,    setSubject]    = useState("");
-  const [chapter,    setChapter]    = useState("");
+  const [step, setStep] = useState<CreateStep>(1);
+  const [type, setType] = useState<BattleType>("1v1");
+  const [subject, setSubject] = useState("Mathematics");
+  const [chapter, setChapter] = useState("All");
   const [difficulty, setDifficulty] = useState("medium");
-  const [questions,  setQuestions]  = useState(10);
-  const [timeLimit,  setTimeLimit]  = useState(15);
-  const [visibility, setVisibility] = useState<"public"|"private">("public");
-  const [opponent,   setOpponent]   = useState("");
+  const [questions, setQuestions] = useState(10);
+  const [timeLimit, setTimeLimit] = useState(15);
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
+  const [opponentQ, setOpponentQ] = useState("");
   const [opponentUserId, setOpponentUserId] = useState<string | undefined>();
-  const [copied,     setCopied]     = useState(false);
-  const [realCode,   setRealCode]   = useState<string | null>(null);
-  const [createdId,  setCreatedId]  = useState<string | null>(null);
+  const [realCode, setRealCode] = useState<string | null>(null);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const TYPE_OPTIONS = [
-    { key:"1v1"  as BattleType, icon:<Swords className="w-6 h-6"/>,  label:"1 vs 1 Challenge", desc:"Go head-to-head against one opponent",       color:"#cc5069" },
-    { key:"team" as BattleType, icon:<Users className="w-6 h-6"/>,   label:"Team vs Team",      desc:"Compete as a team of 2–5 students",           color:"#3b5bdb" },
-    { key:"class"as BattleType, icon:<Globe className="w-6 h-6"/>,   label:"Class Battle",      desc:"Open challenge for the entire class to join",  color:"#c08a3a" },
-  ];
+  const chapters = useMemo(() => {
+    const s = subjects.find((x) => x.name === subject);
+    const list = [...(s?.strongChapters || []), ...(s?.weakChapters || [])];
+    return ["All", ...Array.from(new Set(list))];
+  }, [subject]);
+
+  const filteredMates = classmates
+    .filter((m) => !opponentQ || m.full_name.toLowerCase().includes(opponentQ.toLowerCase()))
+    .slice(0, 8);
 
   function copyCode(code: string) {
     if (!code) return;
-    navigator.clipboard.writeText(code).catch(()=>{});
-    setCopied(true); setTimeout(()=>setCopied(false),1500);
-  }
-
-  function shareCode(code: string) {
-    if (!code) return;
-    const text = `Join my Gurukul battle with code ${code}`;
-    if (typeof navigator !== "undefined" && "share" in navigator && typeof navigator.share === "function") {
-      navigator.share({ title: "Battle invite", text }).catch(() => copyCode(code));
-    } else {
-      copyCode(code);
-    }
+    navigator.clipboard.writeText(code).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   async function handleStart() {
@@ -546,791 +1655,488 @@ function CreateBattle({
         setRealCode(result.battleCode);
         copyCode(result.battleCode);
       }
-      // Challenging a classmate: go straight in; open battles stay to show code
       if (opponentUserId || !result.battleCode) {
         onEnter(result.id);
       }
     } catch {
-      // Parent toasts errors
+      /* parent toasts */
     }
   }
 
-  const filteredMates = classmates.filter(m =>
-    !opponent || m.full_name.toLowerCase().includes(opponent.toLowerCase())
-  ).slice(0, 6);
+  const inputStyle: CSSProperties = {
+    width: "100%",
+    background: "rgba(255,255,255,0.04)",
+    border: `1px solid ${C.border}`,
+    borderRadius: "10px",
+    padding: "0.65rem 0.85rem",
+    color: C.text,
+    fontFamily: "Inter, sans-serif",
+    fontSize: "0.85rem",
+    outline: "none",
+  };
 
   return (
-    <div className="max-w-lg mx-auto space-y-5">
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-[#78788c] hover:text-white transition-colors">
-        <ArrowLeft className="w-4 h-4"/> Back
+    <div style={{ maxWidth: "520px", margin: "0 auto" }}>
+      <button
+        type="button"
+        onClick={onBack}
+        style={{
+          background: "none",
+          border: "none",
+          color: C.text2,
+          fontFamily: "Outfit, sans-serif",
+          fontWeight: 700,
+          fontSize: "0.85rem",
+          cursor: "pointer",
+          marginBottom: "1rem",
+          padding: 0,
+        }}
+      >
+        ← Back to Arena
       </button>
 
-      {/* Progress */}
-      <div className="flex items-center gap-2">
-        {[1,2,3].map(s => (
-          <div key={s} className="flex items-center gap-2 flex-1">
-            <div className={cn(
-              "w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-all",
-              step===s?"bg-[#cc5069] text-white shadow-lg shadow-rose-500/30":step>s?"bg-[#4aa87a] text-white":"bg-white/8 text-[#78788c]"
-            )}>{step>s?<Check className="w-3.5 h-3.5"/>:s}</div>
-            {s<3&&<div className={cn("flex-1 h-0.5 rounded-full transition-all",step>s?"bg-[#4aa87a]":"bg-white/10")}/>}
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        {[1, 2, 3].map((s) => (
+          <div key={s} style={{ display: "flex", alignItems: "center", gap: "0.5rem", flex: 1 }}>
+            <div
+              style={{
+                width: "28px",
+                height: "28px",
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.75rem",
+                fontWeight: 800,
+                fontFamily: "Outfit, sans-serif",
+                background: step === s ? C.blue : step > s ? C.green : "rgba(255,255,255,0.08)",
+                color: "#fff",
+              }}
+            >
+              {step > s ? "✓" : s}
+            </div>
+            {s < 3 && (
+              <div
+                style={{
+                  flex: 1,
+                  height: "2px",
+                  borderRadius: "2px",
+                  background: step > s ? C.green : "rgba(255,255,255,0.1)",
+                }}
+              />
+            )}
           </div>
         ))}
       </div>
-      <div className="text-xs text-[#78788c] -mt-2">
-        {step===1?"Choose battle format":step===2?"Configure your battle":"Invite opponents"}
-      </div>
+      <p style={{ color: C.text3, fontSize: "0.75rem", marginBottom: "1rem" }}>
+        {step === 1 ? "Choose battle format" : step === 2 ? "Configure your battle" : "Invite challengers"}
+      </p>
 
-      <GlassCard className="p-6">
-        {/* Step 1: Type */}
-        {step===1 && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-black text-white mb-4" style={{fontFamily:"var(--font-display)"}}>Battle Format</h2>
-            {TYPE_OPTIONS.map(t => (
-              <button key={t.key} onClick={()=>setType(t.key)}
-                className={cn(
-                  "w-full flex items-center gap-4 p-4 rounded-2xl border text-left transition-all",
-                  type===t.key?"scale-[1.01]":"border-white/7 hover:border-white/15"
-                )}
-                style={type===t.key?{borderColor:`${t.color}40`,background:`${t.color}08`}:{}}>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 transition-transform"
-                  style={{background:`${t.color}15`,color:t.color}}>
-                  {t.icon}
-                </div>
+      <Card>
+        {step === 1 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+            <h2 style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.1rem", color: C.text, margin: "0 0 0.5rem" }}>
+              Battle Format
+            </h2>
+            {(
+              [
+                { key: "1v1" as BattleType, icon: "⚔️", label: "1 vs 1 Challenge", desc: "Go head-to-head against one opponent", color: C.blue },
+                { key: "team" as BattleType, icon: "👥", label: "Open Battle", desc: "Share a code — friends join your arena", color: C.purple },
+                { key: "class" as BattleType, icon: "🏫", label: "Class Battle", desc: "Open challenge for the entire class", color: C.gold },
+              ] as const
+            ).map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setType(t.key)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.85rem",
+                  padding: "0.9rem 1rem",
+                  borderRadius: "12px",
+                  border: `1px solid ${type === t.key ? `${t.color}55` : C.border}`,
+                  background: type === t.key ? `${t.color}14` : "rgba(255,255,255,0.03)",
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                <span style={{ fontSize: "1.4rem" }}>{t.icon}</span>
                 <div>
-                  <div className="text-sm font-black text-white">{t.label}</div>
-                  <div className="text-[11px] text-[#78788c] mt-0.5">{t.desc}</div>
+                  <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 700, color: C.text, fontSize: "0.9rem" }}>{t.label}</div>
+                  <div style={{ color: C.text3, fontSize: "0.72rem" }}>{t.desc}</div>
                 </div>
-                {type===t.key && <Check className="w-4 h-4 ml-auto shrink-0" style={{color:t.color}}/>}
               </button>
             ))}
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => setStep(2)}
+              style={{
+                marginTop: "0.5rem",
+                background: C.blue,
+                border: "none",
+                borderRadius: "10px",
+                padding: "0.75rem",
+                color: "#fff",
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Continue →
+            </button>
           </div>
         )}
 
-        {/* Step 2: Config */}
-        {step===2 && (
-          <div className="space-y-5">
-            <h2 className="text-lg font-black text-white mb-4" style={{fontFamily:"var(--font-display)"}}>Configure Battle</h2>
-            <div>
-              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-2">Subject</div>
-              <div className="flex flex-wrap gap-2">
-                {subjects.map(s=>(
-                  <button key={s.id} onClick={()=>setSubject(s.name)}
-                    className={cn("px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      subject===s.name?"text-white shadow-lg":"border border-white/7 text-[#78788c] hover:text-white hover:border-white/20"
-                    )}
-                    style={subject===s.name?{background:s.color,boxShadow:`0 4px 12px ${s.color}40`}:{}}>
-                    {s.icon} {s.name}
-                  </button>
+        {step === 2 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+            <h2 style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.1rem", color: C.text, margin: 0 }}>
+              Configure Battle
+            </h2>
+            <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <span style={{ fontSize: "0.7rem", color: C.text3, fontWeight: 700 }}>SUBJECT</span>
+              <select value={subject} onChange={(e) => { setSubject(e.target.value); setChapter("All"); }} style={inputStyle}>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    {s.name}
+                  </option>
                 ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-2">Difficulty</div>
-              <div className="flex gap-2">
-                {[["easy","#4aa87a"],["medium","#c08a3a"],["hard","#cc5069"],["mixed","#6882e8"]].map(([d,c])=>(
-                  <button key={d} onClick={()=>setDifficulty(d)}
-                    className={cn("flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all",
-                      difficulty===d?"text-white":"border border-white/7 text-[#78788c] hover:text-white"
-                    )}
-                    style={difficulty===d?{background:c as string}:{}}>
+              </select>
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <span style={{ fontSize: "0.7rem", color: C.text3, fontWeight: 700 }}>CHAPTER</span>
+              <select value={chapter} onChange={(e) => setChapter(e.target.value)} style={inputStyle}>
+                {chapters.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <span style={{ fontSize: "0.7rem", color: C.text3, fontWeight: 700 }}>DIFFICULTY</span>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                {(["easy", "medium", "hard"] as const).map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => setDifficulty(d)}
+                    style={{
+                      flex: 1,
+                      padding: "0.5rem",
+                      borderRadius: "8px",
+                      border: `1px solid ${difficulty === d ? C.blue : C.border}`,
+                      background: difficulty === d ? `${C.blue}22` : "transparent",
+                      color: difficulty === d ? C.blue : C.text2,
+                      fontFamily: "Outfit, sans-serif",
+                      fontWeight: 700,
+                      fontSize: "0.78rem",
+                      cursor: "pointer",
+                      textTransform: "capitalize",
+                    }}
+                  >
                     {d}
                   </button>
                 ))}
               </div>
+            </label>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ fontSize: "0.7rem", color: C.text3, fontWeight: 700 }}>QUESTIONS</span>
+                <input
+                  type="number"
+                  min={5}
+                  max={30}
+                  value={questions}
+                  onChange={(e) => setQuestions(Math.max(5, Math.min(30, Number(e.target.value) || 10)))}
+                  style={inputStyle}
+                />
+              </label>
+              <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <span style={{ fontSize: "0.7rem", color: C.text3, fontWeight: 700 }}>TIME (MIN)</span>
+                <input
+                  type="number"
+                  min={5}
+                  max={60}
+                  value={timeLimit}
+                  onChange={(e) => setTimeLimit(Math.max(5, Math.min(60, Number(e.target.value) || 15)))}
+                  style={inputStyle}
+                />
+              </label>
             </div>
-            <div>
-              <div className="flex justify-between mb-1">
-                <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider">Questions</div>
-                <span className="text-xs font-black text-[#cc5069]">{questions}</span>
-              </div>
-              <input type="range" min={5} max={30} step={5} value={questions} onChange={e=>setQuestions(+e.target.value)}
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer" style={{accentColor:"#cc5069"}}/>
-              <div className="flex justify-between text-[10px] text-[#78788c] mt-1"><span>5</span><span>30</span></div>
-            </div>
-            <div>
-              <div className="flex justify-between mb-1">
-                <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider">Time Limit</div>
-                <span className="text-xs font-black text-[#cc5069]">{timeLimit} min</span>
-              </div>
-              <div className="flex gap-2 flex-wrap">
-                {[5,10,15,20,30].map(t=>(
-                  <button key={t} onClick={()=>setTimeLimit(t)}
-                    className={cn("px-3 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      timeLimit===t?"bg-[#cc5069] text-white":"border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
-                    )}>{t}m</button>
+            <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <span style={{ fontSize: "0.7rem", color: C.text3, fontWeight: 700 }}>VISIBILITY</span>
+              <div style={{ display: "flex", gap: "0.4rem" }}>
+                {(["public", "private"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setVisibility(v)}
+                    style={{
+                      flex: 1,
+                      padding: "0.5rem",
+                      borderRadius: "8px",
+                      border: `1px solid ${visibility === v ? C.purple : C.border}`,
+                      background: visibility === v ? `${C.purple}22` : "transparent",
+                      color: visibility === v ? C.purple : C.text2,
+                      fontFamily: "Outfit, sans-serif",
+                      fontWeight: 700,
+                      fontSize: "0.78rem",
+                      cursor: "pointer",
+                      textTransform: "capitalize",
+                    }}
+                  >
+                    {v}
+                  </button>
                 ))}
               </div>
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-2">Visibility</div>
-              <div className="flex gap-2">
-                <button onClick={()=>setVisibility("public")}
-                  className={cn("flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all",
-                    visibility==="public"?"bg-[#3b5bdb] text-white shadow-lg":"border border-white/7 text-[#78788c] hover:text-white"
-                  )}>
-                  <Globe className="w-3.5 h-3.5"/> Public
-                </button>
-                <button onClick={()=>setVisibility("private")}
-                  className={cn("flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold transition-all",
-                    visibility==="private"?"bg-[#6882e8] text-white shadow-lg":"border border-white/7 text-[#78788c] hover:text-white"
-                  )}>
-                  <Lock className="w-3.5 h-3.5"/> Private
-                </button>
-              </div>
-              <div className="text-[10px] text-[#78788c] mt-2">
-                {visibility==="private"
-                  ? "Private battles are code-gated — only people with your invite code can join."
-                  : "Public battles appear in open class lists when allowed."}
-              </div>
+            </label>
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem" }}>
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                style={{
+                  flex: 1,
+                  background: "none",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: "10px",
+                  padding: "0.7rem",
+                  color: C.text2,
+                  fontFamily: "Outfit, sans-serif",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setStep(3)}
+                style={{
+                  flex: 2,
+                  background: C.blue,
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "0.7rem",
+                  color: "#fff",
+                  fontFamily: "Outfit, sans-serif",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Continue →
+              </button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Invite */}
-        {step===3 && (
-          <div className="space-y-5">
-            <h2 className="text-lg font-black text-white mb-4" style={{fontFamily:"var(--font-display)"}}>Invite Opponents</h2>
-            {/* Invite code — real DB code after Start Battle */}
-            <div className="text-center p-5 rounded-2xl border border-dashed border-white/12 bg-white/2">
-              <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-2">Your Invite Code</div>
-              {realCode ? (
-                <div className="text-3xl font-black tracking-[0.3em] text-white mb-3" style={{fontFamily:"var(--font-mono)"}}>{realCode}</div>
-              ) : (
-                <div className="text-sm font-bold text-[#78788c] mb-3">Press Start Battle to get your real join code</div>
-              )}
-              <div className="text-[10px] text-[#78788c] mb-3">
-                {realCode ? "Share this code — friends join with it" : "The code is assigned by the server (not a preview)"}
-              </div>
-              <div className="flex justify-center gap-2">
-                <button
-                  type="button"
-                  disabled={!realCode}
-                  onClick={() => realCode && copyCode(realCode)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all disabled:opacity-40">
-                  {copied?<Check className="w-3.5 h-3.5 text-emerald-400"/>:<Copy className="w-3.5 h-3.5"/>}
-                  {copied?"Copied!":"Copy"}
-                </button>
-                <button
-                  type="button"
-                  disabled={!realCode}
-                  onClick={() => realCode && shareCode(realCode)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all disabled:opacity-40">
-                  <Share2 className="w-3.5 h-3.5"/> Share
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  title="QR sharing is not available yet — use Copy"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] opacity-40 cursor-not-allowed">
-                  <QrCode className="w-3.5 h-3.5"/> QR
-                </button>
-              </div>
-            </div>
-            {/* Search opponent */}
-            {type==="1v1" && !createdId && (
-              <div>
-                <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-2">Challenge a Classmate</div>
-                <div className="relative mb-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#78788c]"/>
-                  <input value={opponent} onChange={e=>{ setOpponent(e.target.value); setOpponentUserId(undefined); }}
-                    placeholder="Search by name…"
-                    className="w-full bg-white/4 border border-white/8 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/30"/>
-                </div>
-                <div className="space-y-1.5">
-                  {filteredMates.map(l=>(
-                    <button key={l.user_id} onClick={()=>{ setOpponent(l.full_name); setOpponentUserId(l.user_id); }}
-                      className={cn(
-                        "w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left",
-                        opponentUserId===l.user_id?"border-[#3b5bdb]/30 bg-[#3b5bdb]/8":"border-white/5 hover:border-white/12 hover:bg-white/3"
-                      )}>
-                      <AvatarBubble initials={l.avatar} color={l.color} size={8}/>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-white">{l.full_name}</div>
-                        <div className="text-[10px] text-[#78788c]">Classmate</div>
-                      </div>
-                      <UserPlus className={cn("w-3.5 h-3.5 shrink-0 transition-colors",opponentUserId===l.user_id?"text-[#3b5bdb]":"text-[#78788c]")}/>
+        {step === 3 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+            <h2 style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.1rem", color: C.text, margin: 0 }}>
+              Invite Challengers
+            </h2>
+            {type === "1v1" && (
+              <>
+                <input
+                  value={opponentQ}
+                  onChange={(e) => setOpponentQ(e.target.value)}
+                  placeholder="Search classmate…"
+                  style={inputStyle}
+                />
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", maxHeight: "200px", overflowY: "auto" }}>
+                  {filteredMates.length === 0 && (
+                    <div style={{ color: C.text3, fontSize: "0.8rem", padding: "0.5rem" }}>
+                      No classmates found — create an open battle with a code instead.
+                    </div>
+                  )}
+                  {filteredMates.map((m) => (
+                    <button
+                      key={m.user_id}
+                      type="button"
+                      onClick={() => setOpponentUserId(m.user_id)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.65rem",
+                        padding: "0.55rem 0.7rem",
+                        borderRadius: "10px",
+                        border: `1px solid ${opponentUserId === m.user_id ? C.blue : C.border}`,
+                        background: opponentUserId === m.user_id ? `${C.blue}18` : "transparent",
+                        cursor: "pointer",
+                        textAlign: "left",
+                      }}
+                    >
+                      <Avatar initials={m.avatar} size={32} color={m.color} />
+                      <span style={{ fontFamily: "Outfit, sans-serif", fontWeight: 600, fontSize: "0.85rem", color: C.text }}>
+                        {m.full_name}
+                      </span>
                     </button>
                   ))}
-                  {filteredMates.length === 0 && (
-                    <div className="text-[11px] text-[#78788c] py-2">No classmates found — start an open battle with a shareable code instead.</div>
-                  )}
                 </div>
+              </>
+            )}
+
+            {realCode && (
+              <div
+                style={{
+                  background: `${C.gold}12`,
+                  border: `1px solid ${C.gold}33`,
+                  borderRadius: "12px",
+                  padding: "1rem",
+                  textAlign: "center",
+                }}
+              >
+                <div style={{ color: C.text3, fontSize: "0.7rem", marginBottom: "0.35rem" }}>Battle code (Player 1 — you)</div>
+                <div style={{ fontFamily: "DM Mono, monospace", fontSize: "1.6rem", color: C.gold, letterSpacing: "0.15em" }}>
+                  {realCode}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyCode(realCode)}
+                  style={{
+                    marginTop: "0.5rem",
+                    background: "none",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: "8px",
+                    padding: "4px 12px",
+                    color: C.text2,
+                    fontSize: "0.75rem",
+                    cursor: "pointer",
+                  }}
+                >
+                  {copied ? "Copied!" : "Copy code"}
+                </button>
+                <p style={{ color: C.text3, fontSize: "0.72rem", marginTop: "0.5rem" }}>
+                  Waiting for challengers — share this code, then enter the arena.
+                </p>
               </div>
             )}
-          </div>
-        )}
 
-        {/* Footer buttons */}
-        <div className="flex gap-3 mt-6">
-          {step>1 && !createdId && (
-            <button onClick={()=>setStep(s=>(s-1) as CreateStep)}
-              className="px-5 py-3 rounded-2xl border border-white/10 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
-              Back
-            </button>
-          )}
-          {step<3 ? (
-            <button onClick={()=>setStep(s=>(s+1) as CreateStep)}
-              className="flex-1 py-3 rounded-2xl text-sm font-bold text-white transition-all hover:opacity-90"
-              style={{background:"linear-gradient(135deg,#cc5069,#e11d48)",boxShadow:"0 6px 20px rgba(244,63,94,0.25)"}}>
-              Continue <ChevronRight className="inline w-4 h-4"/>
-            </button>
-          ) : (
-            <button onClick={() => void handleStart()} disabled={creating}
-              className="flex-1 py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
-              style={{background:"linear-gradient(135deg,#cc5069,#e11d48)",boxShadow:"0 6px 20px rgba(244,63,94,0.25)"}}>
-              <Play className="w-4 h-4"/> {creating ? "Starting…" : createdId ? "Enter Arena" : "Start Battle!"}
-            </button>
-          )}
-        </div>
-      </GlassCard>
-    </div>
-  );
-}
-
-// ── Circular timer ────────────────────────────────────────────────────────────
-function CircleTimer({ seconds, total }: { seconds:number; total:number }) {
-  const pct = seconds / total;
-  const size=80, stroke=6, r=(size-stroke)/2, c=2*Math.PI*r;
-  const offset = c - pct*c;
-  const color = pct>0.5?"#4aa87a":pct>0.25?"#c08a3a":"#cc5069";
-  const mm = Math.floor(seconds/60).toString().padStart(2,"0");
-  const ss = (seconds%60).toString().padStart(2,"0");
-  return (
-    <div className="relative inline-flex items-center justify-center" style={{width:size,height:size}}>
-      <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke}/>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
-          strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          style={{filter:`drop-shadow(0 0 6px ${color})`,transition:"stroke-dashoffset 1s linear,stroke 0.5s"}}/>
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-black tabular-nums" style={{color}}>{mm}:{ss}</span>
-      </div>
-    </div>
-  );
-}
-
-// ── Battle arena ──────────────────────────────────────────────────────────────
-function BattleArena({ config, onFinish }: { config:BattleConfig; onFinish:(res:BattleResult)=>void }) {
-  const qs = BATTLE_QUESTIONS.slice(0, config.questions);
-  const totalSec = config.timeLimitMin * 60;
-  const [qIdx,      setQIdx]      = useState(0);
-  const [chosen,    setChosen]    = useState<number|null>(null);
-  const [phase,     setPhase]     = useState<"q"|"fb">("q");
-  const [correct,   setCorrect]   = useState(0);
-  const [timeLeft,  setTimeLeft]  = useState(totalSec);
-  const [oppScore,  setOppScore]  = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval>|null>(null);
-  const oppRef   = useRef<ReturnType<typeof setInterval>|null>(null);
-
-  const oppName = "Priya Nair"; const oppColor = "#c08a3a";
-
-  useEffect(() => {
-    timerRef.current = setInterval(() => setTimeLeft(t => { if(t<=1){finish();return 0;} return t-1; }), 1000);
-    oppRef.current   = setInterval(() => setOppScore(s => Math.min(s + (Math.random()>0.35?1:0), qs.length)), 3500);
-    return () => { clearInterval(timerRef.current!); clearInterval(oppRef.current!); };
-  }, []);
-
-  function answer(i: number) {
-    if (phase==="fb") return;
-    setChosen(i);
-    if (i===qs[qIdx].correct) setCorrect(c=>c+1);
-    setPhase("fb");
-    setTimeout(() => next(), 1200);
-  }
-
-  function next() {
-    if (qIdx+1>=qs.length) { finish(); return; }
-    setQIdx(i=>i+1); setChosen(null); setPhase("q");
-  }
-
-  function finish() {
-    clearInterval(timerRef.current!); clearInterval(oppRef.current!);
-    const myFinal = correct + (phase==="fb"&&chosen===qs[qIdx]?.correct?1:0);
-    onFinish({ myScore:myFinal, oppScore, total:qs.length, config, timeSpentSec:totalSec-timeLeft, oppName });
-  }
-
-  const q = qs[qIdx]; if (!q) return null;
-  const myPct   = Math.round((correct/qs.length)*100);
-  const oppPct  = Math.round((oppScore/qs.length)*100);
-  const winning = correct > oppScore;
-
-  return (
-    <div className="max-w-xl mx-auto space-y-4">
-      {/* Scoreboard header */}
-      <div className="rounded-2xl border border-white/7 bg-[#131316] p-4">
-        <div className="flex items-center gap-3">
-          {/* Me */}
-          <div className="flex-1 flex items-center gap-2">
-            <AvatarBubble initials="AS" color="#3b5bdb" size={9}/>
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-white truncate">You</div>
-              <div className="text-lg font-black text-[#3b5bdb] tabular-nums">{correct}</div>
-            </div>
-          </div>
-          {/* Timer */}
-          <div className="flex flex-col items-center gap-1 shrink-0">
-            <CircleTimer seconds={timeLeft} total={totalSec}/>
-            <div className="text-[9px] uppercase tracking-widest text-[#78788c]">Q{qIdx+1}/{qs.length}</div>
-          </div>
-          {/* Opponent */}
-          <div className="flex-1 flex items-center gap-2 flex-row-reverse">
-            <AvatarBubble initials="PN" color={oppColor} size={9}/>
-            <div className="flex-1 min-w-0 text-right">
-              <div className="text-xs font-bold text-white truncate">{oppName}</div>
-              <div className="text-lg font-black tabular-nums" style={{color:oppColor}}>{oppScore}</div>
-            </div>
-          </div>
-        </div>
-        {/* Dual progress */}
-        <div className="relative h-1.5 rounded-full bg-white/6 mt-3 overflow-hidden">
-          <div className="absolute left-0 h-full rounded-full transition-all duration-500 bg-[#3b5bdb]" style={{width:`${(correct/qs.length)*100}%`}}/>
-          <div className="absolute right-0 h-full rounded-full transition-all duration-500" style={{width:`${(oppScore/qs.length)*100}%`,background:oppColor}}/>
-        </div>
-        {winning && <div className="text-center text-[10px] text-emerald-400 font-bold mt-1.5 animate-pulse">🔥 You're ahead!</div>}
-        {!winning && correct===oppScore && <div className="text-center text-[10px] text-amber-400 font-bold mt-1.5">⚡ It's a tie!</div>}
-        {!winning && correct<oppScore && <div className="text-center text-[10px] text-rose-400 font-bold mt-1.5">💪 Fight back!</div>}
-      </div>
-
-      {/* Question */}
-      <GlassCard glow="blue" className="p-5">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[10px] uppercase tracking-widest text-[#78788c]">Question {qIdx+1}</span>
-          <SubjectBadge subject={q.subject} color={subjects.find(s=>s.name===q.subject)?.color??"#3b5bdb"}/>
-        </div>
-        <div className="text-base font-semibold text-white leading-relaxed">{q.text}</div>
-      </GlassCard>
-
-      {/* Options */}
-      <div className="grid grid-cols-1 gap-2.5">
-        {q.options.map((opt,i)=>{
-          const isChosen  = chosen===i;
-          const isCorrect = i===q.correct;
-          let style = "border-white/7 text-[#a0a0b0] hover:border-white/20 hover:text-white hover:bg-white/4";
-          if(phase==="fb"){
-            if(isCorrect)            style="border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
-            else if(isChosen)        style="border-rose-400/40 bg-rose-400/10 text-rose-300";
-            else                     style="border-white/4 text-[#78788c]/60";
-          }
-          return (
-            <button key={i} onClick={()=>answer(i)} disabled={phase==="fb"}
-              className={cn("w-full flex items-center gap-3 p-4 rounded-2xl border text-sm font-medium transition-all duration-150 text-left",style)}>
-              <span className="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 bg-white/8">
-                {String.fromCharCode(65+i)}
-              </span>
-              <span className="flex-1">{opt}</span>
-              {phase==="fb"&&isCorrect&&<CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0"/>}
-              {phase==="fb"&&isChosen&&!isCorrect&&<XCircle className="w-4 h-4 text-rose-400 shrink-0"/>}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Controls */}
-      <div className="flex gap-2">
-        {phase==="q" && (
-          <button onClick={()=>next()}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
-            <SkipForward className="w-3.5 h-3.5"/> Skip
-          </button>
-        )}
-        <button onClick={finish}
-          className="px-4 py-2.5 rounded-xl border border-white/7 text-sm text-rose-400 hover:border-rose-400/30 hover:bg-rose-400/5 transition-all ml-auto">
-          End Battle
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Results ───────────────────────────────────────────────────────────────────
-interface BattleResult {
-  myScore:number; oppScore:number; total:number;
-  config:BattleConfig; timeSpentSec:number; oppName:string;
-}
-
-function Results({ result, onHome, onReplay }: { result:BattleResult; onHome:()=>void; onReplay:()=>void }) {
-  const { myScore, oppScore, total, config, timeSpentSec, oppName } = result;
-  const won = myScore > oppScore; const draw = myScore===oppScore;
-  const pct = Math.round((myScore/total)*100);
-  const xp  = won ? 150 : draw ? 80 : 50;
-  const coins = won ? 30 : draw ? 15 : 10;
-  const mm  = Math.floor(timeSpentSec/60), ss = timeSpentSec%60;
-  const resultColor = won?"#c08a3a":draw?"#4b9fd4":"#cc5069";
-  const resultLabel = won?"Victory! 🏆":draw?"Draw! 🤝":"Defeat 💪";
-
-  const [showReview, setShowReview] = useState(false);
-
-  return (
-    <div className="max-w-lg mx-auto space-y-4">
-      {/* Main result card */}
-      <div className="relative overflow-hidden rounded-3xl border p-6 text-center"
-        style={{borderColor:`${resultColor}30`,background:`radial-gradient(ellipse at 50% 0%,${resultColor}12 0%,#131316 60%)`}}>
-        <div className="text-4xl mb-2">{won?"🏆":draw?"🤝":"💪"}</div>
-        <div className="text-3xl font-black mb-1" style={{color:resultColor,fontFamily:"var(--font-display)"}}>{resultLabel}</div>
-        <div className="text-[#78788c] text-sm mb-6">vs {oppName} · {config.subject}</div>
-
-        {/* Score VS */}
-        <div className="flex items-center justify-center gap-6 mb-6">
-          <div className="text-center">
-            <AvatarBubble initials="AS" color="#3b5bdb" size={12}/>
-            <div className="text-3xl font-black text-white mt-2 tabular-nums">{myScore}</div>
-            <div className="text-[11px] text-[#78788c]">You</div>
-          </div>
-          <div className="text-2xl font-black text-[#78788c]/40">VS</div>
-          <div className="text-center">
-            <AvatarBubble initials="PN" color="#c08a3a" size={12}/>
-            <div className="text-3xl font-black text-white mt-2 tabular-nums">{oppScore}</div>
-            <div className="text-[11px] text-[#78788c]">{oppName}</div>
-          </div>
-        </div>
-
-        {/* Stats grid */}
-        <div className="grid grid-cols-4 gap-2 mb-6">
-          {[
-            {label:"Accuracy",  value:`${pct}%`,           color:"#3b5bdb"},
-            {label:"Correct",   value:myScore,              color:"#4aa87a"},
-            {label:"Wrong",     value:total-myScore,        color:"#cc5069"},
-            {label:"Time",      value:`${mm}m${ss}s`,       color:"#4b9fd4"},
-          ].map(s=>(
-            <div key={s.label} className="rounded-xl bg-white/4 border border-white/5 p-2.5">
-              <div className="text-sm font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-              <div className="text-[9px] uppercase tracking-wider text-[#78788c] mt-0.5">{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Rewards */}
-        <div className="flex items-center justify-center gap-4 p-3 rounded-2xl border border-white/6 bg-white/3 mb-4">
-          <div className="flex items-center gap-1.5">
-            <Zap className="w-4 h-4 text-amber-400"/>
-            <span className="text-sm font-black text-amber-400">+{xp} XP</span>
-          </div>
-          <div className="w-px h-5 bg-white/10"/>
-          <div className="flex items-center gap-1.5">
-            <span className="text-base">🪙</span>
-            <span className="text-sm font-black text-yellow-300">+{coins} Coins</span>
-          </div>
-          {won && <>
-            <div className="w-px h-5 bg-white/10"/>
-            <div className="flex items-center gap-1.5">
-              <span className="text-base">🔥</span>
-              <span className="text-sm font-black text-rose-400">Streak +1</span>
-            </div>
-          </>}
-        </div>
-
-        {/* Badges unlocked */}
-        {won && (
-          <div className="p-3 rounded-2xl bg-amber-400/8 border border-amber-400/20 mb-2">
-            <div className="text-[10px] uppercase tracking-widest text-amber-400 mb-2">Badge Unlocked</div>
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">⚔️</span>
-              <div className="text-left">
-                <div className="text-xs font-bold text-white">Battle Champion</div>
-                <div className="text-[10px] text-[#78788c]">Win 10 battles — progress: 6/10</div>
-              </div>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                disabled={!!createdId}
+                style={{
+                  flex: 1,
+                  background: "none",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: "10px",
+                  padding: "0.7rem",
+                  color: C.text2,
+                  fontFamily: "Outfit, sans-serif",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  opacity: createdId ? 0.5 : 1,
+                }}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={creating}
+                onClick={() => void handleStart()}
+                style={{
+                  flex: 2,
+                  background: C.blue,
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "0.7rem",
+                  color: "#fff",
+                  fontFamily: "Outfit, sans-serif",
+                  fontWeight: 700,
+                  cursor: creating ? "wait" : "pointer",
+                  opacity: creating ? 0.7 : 1,
+                }}
+              >
+                {createdId ? "Enter Arena ▶" : creating ? "Creating…" : "Create Battle"}
+              </button>
             </div>
           </div>
         )}
-      </div>
-
-      {/* Actions */}
-      <div className="space-y-2.5">
-        <button onClick={() => setShowReview(v=>!v)}
-          className="w-full py-3 rounded-2xl border border-white/10 text-sm font-semibold text-[#a0a0b0] hover:text-white hover:border-white/20 transition-all flex items-center justify-center gap-2">
-          <Eye className="w-4 h-4"/> Review All Questions
-        </button>
-        <div className="flex gap-2.5">
-          <button onClick={onReplay}
-            className="flex-1 py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
-            style={{background:"linear-gradient(135deg,#cc5069,#e11d48)",boxShadow:"0 6px 20px rgba(244,63,94,0.25)"}}>
-            <Repeat className="w-4 h-4"/> Rematch
-          </button>
-          <button onClick={onHome}
-            className="flex-1 py-3 rounded-2xl border border-white/10 text-sm font-semibold text-[#a0a0b0] hover:text-white hover:border-white/20 transition-all">
-            Back to Arena
-          </button>
-        </div>
-      </div>
-
-      {/* Question review panel */}
-      {showReview && (
-        <GlassCard className="p-5">
-          <div className="text-xs font-bold text-[#78788c] uppercase tracking-wider mb-4">Question Review</div>
-          <div className="space-y-3">
-            {BATTLE_QUESTIONS.slice(0, result.total).map((q,i)=>{
-              const wasCorrect = i < result.myScore;
-              return (
-                <div key={q.id} className={cn("flex items-start gap-3 p-3 rounded-xl border",
-                  wasCorrect?"border-emerald-400/15 bg-emerald-400/5":"border-rose-400/15 bg-rose-400/5")}>
-                  <div className={cn("w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5",
-                    wasCorrect?"bg-emerald-400/20":"bg-rose-400/20")}>
-                    {wasCorrect?<Check className="w-3 h-3 text-emerald-400"/>:<X className="w-3 h-3 text-rose-400"/>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-medium text-white leading-relaxed mb-1">{q.text}</div>
-                    <div className="text-[10px] text-emerald-400">✓ {q.options[q.correct]}</div>
-                  </div>
-                  <span className="text-[10px] font-bold text-[#78788c] shrink-0">Q{i+1}</span>
-                </div>
-              );
-            })}
-          </div>
-        </GlassCard>
-      )}
-    </div>
-  );
-}
-
-// ── Leaderboard ───────────────────────────────────────────────────────────────
-function Leaderboard({ onBack }: { onBack:()=>void }) {
-  const { user } = useAuth();
-  const [period, setPeriod] = useState<LBPeriod>("overall");
-  const [scope,  setScope]  = useState<LBScope>("class");
-  const [selSubj,setSelSubj]= useState("Mathematics");
-  const [entries, setEntries] = useState<DesignLbEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const rows = await loadLeaderboardEntries(scope, selSubj, user?.id, period);
-        if (!cancelled) setEntries(rows);
-      } catch {
-        if (!cancelled) setEntries([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [scope, selSubj, user?.id, period]);
-
-  const medalColor = (r:number) => r===1?"#c08a3a":r===2?"#94a3b8":r===3?"#cd7c2f":"#78788c";
-  const medalIcon  = (r:number) => r===1?<Crown className="w-4 h-4"/>:r===2?<Medal className="w-4 h-4"/>:r===3?<Medal className="w-3.5 h-3.5"/>:<span className="text-xs font-black">#{r}</span>;
-  const scoreLabel = period === "overall" ? "XP" : period === "monthly" ? "Month pts" : "Week pts";
-  // daily maps to weekly category in RPC (no true daily board)
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <button onClick={onBack} className="w-8 h-8 rounded-xl border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white hover:border-white/20 transition-all">
-          <ArrowLeft className="w-4 h-4"/>
-        </button>
-        <h2 className="text-xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>⚔️ Leaderboard</h2>
-      </div>
-
-      {/* Period tabs */}
-      <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
-        {(["daily","weekly","monthly","overall"] as LBPeriod[]).map(p=>(
-          <button key={p} onClick={()=>setPeriod(p)}
-            className={cn("shrink-0 px-4 py-2 rounded-xl text-xs font-semibold capitalize transition-all",
-              period===p?"bg-[#c08a3a] text-white shadow-lg shadow-amber-500/25":"border border-white/7 text-[#78788c] hover:text-white hover:border-white/15"
-            )}>{p}</button>
-        ))}
-      </div>
-      {period === "daily" && (
-        <div className="text-[10px] text-[#78788c] -mt-3">No daily board yet — showing this week&apos;s battle scores</div>
-      )}
-      {period !== "daily" && (
-        <div className="text-[10px] text-[#78788c] -mt-3">
-          {period === "overall"
-            ? "Lifetime XP from finished battles"
-            : period === "monthly"
-              ? "Points earned this month"
-              : "Points earned this week"}
-        </div>
-      )}
-
-      {/* Scope tabs */}
-      <div className="flex gap-1 bg-white/4 rounded-xl p-1 w-fit">
-        {(["class","section","school","subject"] as LBScope[]).map(s=>(
-          <button key={s} onClick={()=>setScope(s)}
-            className={cn("px-3 py-1.5 rounded-lg text-xs font-semibold capitalize transition-all",
-              scope===s?"bg-white/12 text-white":"text-[#78788c] hover:text-white"
-            )}>{s}</button>
-        ))}
-      </div>
-
-      {/* Subject filter */}
-      {scope==="subject" && (
-        <div className="flex gap-2 overflow-x-auto scrollbar-none">
-          {LB_SUBJECT.map(s=>(
-            <button key={s} onClick={()=>setSelSubj(s)}
-              className={cn("shrink-0 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
-                selSubj===s?"bg-[#3b5bdb] text-white":"border border-white/7 text-[#78788c] hover:text-white"
-              )}>{s}</button>
-          ))}
-        </div>
-      )}
-
-      {/* Top 3 podium */}
-      {entries.length >= 3 && (
-        <div className="grid grid-cols-3 gap-3 items-end">
-          {[entries[1], entries[0], entries[2]].map((e,i)=>{
-            const podPos = [2,1,3][i]; const col = medalColor(podPos);
-            const heights = ["h-24","h-32","h-20"];
-            return (
-              <div key={e.rank} className={cn("flex flex-col items-center gap-2",i===1&&"-mt-4")}>
-                <AvatarBubble initials={e.avatar} color={e.color} size={10}/>
-                <div className="text-[10px] font-bold text-white truncate max-w-full px-1">{e.name.split(" ")[0]}</div>
-                <div className="text-[11px] font-black tabular-nums" style={{color:col}}>{e.xp.toLocaleString()} {scoreLabel}</div>
-                <div className={cn("w-full rounded-t-xl flex items-center justify-center",heights[i])} style={{background:`${col}18`,border:`1px solid ${col}25`}}>
-                  <div style={{color:col}}>{medalIcon(podPos)}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Full list */}
-      <GlassCard className="p-4">
-        <div className="space-y-1.5">
-          {loading && <div className="text-xs text-[#78788c] py-4 text-center">Loading…</div>}
-          {!loading && entries.length === 0 && (
-            <div className="text-xs text-[#78788c] py-4 text-center">No rankings yet — finish a battle to appear here</div>
-          )}
-          {entries.map(e => (
-            <div key={e.rank} className={cn(
-              "flex items-center gap-3 p-3 rounded-xl transition-all",
-              e.you?"border border-[#3b5bdb]/30 bg-[#3b5bdb]/8":"hover:bg-white/3"
-            )}>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                style={{color:medalColor(e.rank),background:`${medalColor(e.rank)}15`}}>
-                {medalIcon(e.rank)}
-              </div>
-              <AvatarBubble initials={e.avatar} color={e.color} size={8}/>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-white truncate">{e.name}</span>
-                  {e.you && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#3b5bdb]/20 text-[#3b5bdb] border border-[#3b5bdb]/25">YOU</span>}
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-[#78788c] mt-0.5">
-                  <span>🔥 {e.streak}</span>
-                  <span>·</span>
-                  <span>{e.accuracy}% acc</span>
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="text-sm font-black tabular-nums" style={{color:medalColor(e.rank)}}>{e.xp.toLocaleString()}</div>
-                <div className="text-[9px] text-[#78788c]">{scoreLabel}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </GlassCard>
-    </div>
-  );
-}
-
-// ── History ───────────────────────────────────────────────────────────────────
-function BattleHistory({
-  onBack,
-  entries,
-  streak,
-  bestStreak,
-  onViewReport,
-}: {
-  onBack: () => void;
-  entries: DesignHistoryEntry[];
-  streak: number;
-  bestStreak: number;
-  onViewReport: (participantId: string) => void;
-}) {
-  const totWins = entries.filter(h=>h.result==="won").length;
-  const totBattles = entries.length;
-  const totalXP = entries.reduce((a,h)=>a+h.xp,0);
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <button onClick={onBack} className="w-8 h-8 rounded-xl border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all">
-          <ArrowLeft className="w-4 h-4"/>
-        </button>
-        <h2 className="text-xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>Battle History</h2>
-      </div>
-
-      {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          {label:"Battles",  value:totBattles, color:"#3b5bdb"},
-          {label:"Won",      value:totWins,    color:"#4aa87a"},
-          {label:"Total XP", value:totalXP,   color:"#c08a3a"},
-        ].map(s=>(
-          <GlassCard key={s.label} className="p-4 text-center">
-            <div className="text-2xl font-black tabular-nums mb-0.5" style={{color:s.color}}>{s.value}</div>
-            <div className="text-[11px] text-[#78788c]">{s.label}</div>
-          </GlassCard>
-        ))}
-      </div>
-
-      {/* Win streak */}
-      <div className="flex items-center gap-3 p-4 rounded-2xl border border-rose-400/20 bg-rose-400/5">
-        <Flame className="w-6 h-6 text-rose-400"/>
-        <div>
-          <div className="text-sm font-black text-white">{streak}-win streak 🔥</div>
-          <div className="text-xs text-[#78788c]">Keep going — your best is {bestStreak} wins in a row</div>
-        </div>
-      </div>
-
-      {/* History list */}
-      <div className="space-y-3">
-        {entries.length === 0 && (
-          <div className="py-10 text-center text-sm text-[#78788c]">No battles finished yet</div>
-        )}
-        {entries.map(h=>{
-          const won   = h.result==="won";
-          const draw  = h.result==="draw" || h.result==="finished";
-          const rc    = won?"#4aa87a":draw?"#78788c":"#cc5069";
-          const mark  = won?"W":h.result==="finished"?"✓":draw?"D":"L";
-          const subj  = subjects.find(s=>s.name===h.subject);
-          return (
-            <div key={h.id} className="flex items-start gap-4 p-4 rounded-2xl border border-white/7 bg-[#131316] hover:border-white/12 transition-all">
-              {/* Result indicator */}
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-black text-sm"
-                style={{background:`${rc}15`,color:rc,border:`1px solid ${rc}25`}}>
-                {mark}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <TypeBadge type={h.type}/>
-                  {subj && <SubjectBadge subject={subj.name} color={subj.color}/>}
-                </div>
-                <div className="text-xs font-bold text-white mb-0.5">
-                  vs {h.opponent} · <span style={{color:rc}}>{h.myScore}–{h.theirScore}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[10px] text-[#78788c]">
-                  <span>{h.date}</span><span>·</span>
-                  <span>{h.duration}</span><span>·</span>
-                  <span>{h.accuracy}% accuracy</span>
-                </div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="flex items-center gap-1 text-amber-400 text-xs font-bold mb-1"><Zap className="w-3 h-3"/>+{h.xp}</div>
-                <div className="text-[10px] text-[#78788c]">🪙 +{h.coins}</div>
-                <button onClick={() => onViewReport(h.participantId)} className="mt-2 text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors flex items-center gap-0.5">
-                  <Eye className="w-3 h-3"/> Review
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      </Card>
     </div>
   );
 }
 
 // ── Root ──────────────────────────────────────────────────────────────────────
+
 export default function Battleground({ setPage }: { setPage?: (p: PageKey) => void }) {
   void setPage;
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const profile = useGurukulStudent();
   const data = useBattlegroundData();
   const [phase, setPhase] = useState<Phase>("home");
   const [busy, setBusy] = useState(false);
+  const [showJoin, setShowJoin] = useState(false);
+  const [lbEntries, setLbEntries] = useState<DesignLbEntry[]>([]);
+  const [schoolRank, setSchoolRank] = useState<number | null>(null);
+
+  const displayName = profile?.name || profile?.firstName || "Student";
+  const ini = initials(displayName);
+
+  const me: MeInfo = useMemo(() => {
+    const xp = data.xp?.xp ?? 0;
+    const wins = data.xp?.wins ?? 0;
+    const total = data.xp?.total_battles ?? 0;
+    const league = toLeagueName(leagueFromXp(xp));
+    const next = xpToNextLeague(xp);
+    const xpNext = next ? next.next.minXp : xp;
+    return {
+      name: displayName,
+      initials: ini,
+      league,
+      xp,
+      xpNext: Math.max(xpNext, xp || 1),
+      rating: battleRatingFromXp(xp, wins, total),
+      schoolRank,
+      classRank: data.classRank,
+      streak: data.xp?.win_streak ?? data.xp?.current_streak ?? 0,
+      bestStreak: data.xp?.best_win_streak ?? 0,
+      totalBattles: total,
+      wins,
+      accuracy: data.accuracy,
+      motivationTitle: data.motivation.title,
+      motivationMessage: data.motivation.message,
+      xpRemaining: next?.remaining ?? 0,
+      nextLeague: next?.next.name || "Champion",
+    };
+  }, [data, displayName, ini, schoolRank]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [classRows, schoolRows] = await Promise.all([
+          loadLeaderboardEntries("class", undefined, user?.id, "overall"),
+          loadLeaderboardEntries("school", undefined, user?.id, "overall"),
+        ]);
+        if (cancelled) return;
+        setLbEntries(classRows);
+        const mine = schoolRows.find((r) => r.you);
+        setSchoolRank(mine?.rank ?? null);
+      } catch {
+        if (!cancelled) setLbEntries([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, data.xp?.xp]);
+
+  const myBattles = useMemo(
+    () =>
+      data.battles.filter(
+        (b) => b.participantId || b.opponent || b.status === "pending" || b.result || b.battleCode,
+      ),
+    [data.battles],
+  );
+
+  const featuredLive = useMemo(() => data.battles.filter((b) => b.featured || b.hot), [data.battles]);
 
   function goBattle(id: string) {
     navigate(`/student/battleground/battle/${id}`);
@@ -1345,9 +2151,11 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
     try {
       const id = await joinBattleByCode(code);
       toast({ title: "Joined battle" });
+      setShowJoin(false);
       goBattle(id);
     } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not join";
+      const msg =
+        e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not join";
       toast({ title: msg, variant: "destructive" });
     } finally {
       setBusy(false);
@@ -1371,14 +2179,14 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       if (cfg.type === "team") {
         toast({
           title: "Open battle with join code",
-          description: "Team mode creates a shareable open battle for now — full team matchmaking is coming later.",
+          description: "Shareable open battle created — full team matchmaking comes later.",
         });
       }
       if (battleCode) {
         navigator.clipboard.writeText(battleCode).catch(() => {});
         toast({
           title: cfg.opponentUserId ? "Challenge sent" : "Battle created",
-          description: `Invite code ${battleCode} copied — share it to let friends join.`,
+          description: `Invite code ${battleCode} copied — share it so friends can join.`,
         });
       } else {
         toast({ title: cfg.opponentUserId ? "Challenge sent" : "Battle created" });
@@ -1386,7 +2194,10 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       void data.reload();
       return { id, battleCode };
     } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not create battle";
+      const msg =
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message: string }).message)
+          : "Could not create battle";
       toast({ title: msg, variant: "destructive" });
       throw e;
     } finally {
@@ -1404,7 +2215,10 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         void data.reload();
         goBattle(id);
       } catch (e: unknown) {
-        const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not accept";
+        const msg =
+          e && typeof e === "object" && "message" in e
+            ? String((e as { message: string }).message)
+            : "Could not accept";
         toast({ title: msg, variant: "destructive" });
       } finally {
         setBusy(false);
@@ -1414,59 +2228,182 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
     goBattle(id);
   }
 
-  async function handleFeatured(kind: "daily" | "weekly" | "ncert") {
+  async function handleFeatured(kind: FeaturedKind, battleId?: string) {
     setBusy(true);
     try {
+      if (battleId && data.battles.find((b) => b.id === battleId)?.participantId) {
+        goBattle(battleId);
+        return;
+      }
       const id = await ensureFeatured(kind);
       void data.reload();
       goBattle(id);
     } catch (e: unknown) {
-      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Featured battle unavailable";
+      const msg =
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message: string }).message)
+          : "Featured battle unavailable";
       toast({ title: msg, variant: "destructive" });
     } finally {
       setBusy(false);
     }
   }
 
-  function handleHome() { setPhase("home"); }
+  const classLabel =
+    profile?.class?.includes("-") || profile?.class?.includes("—")
+      ? profile.class
+      : [profile?.class, profile?.section].filter(Boolean).join("-") || "Your class";
 
   return (
-    <div>
-      {phase==="home" && (
-        <Home
-          onPhase={setPhase}
-          onStartBattle={() => setPhase("create")}
-          battles={data.battles}
-          heroStats={data.heroStats}
-          motivationTitle={data.motivation.title}
-          motivationMessage={data.motivation.message}
-          onOpenBattle={handleOpenBattle}
-          onViewReport={goReport}
-          onJoinCode={handleJoinCode}
-          onFeatured={handleFeatured}
-          joining={busy}
-          loading={data.loading}
-        />
-      )}
-      {phase==="create" && (
-        <CreateBattle
-          onBack={handleHome}
-          onCreate={handleCreate}
-          onEnter={goBattle}
-          classmates={data.classmates}
-          creating={busy}
-        />
-      )}
-      {phase==="leaderboard" && <Leaderboard onBack={handleHome}/>}
-      {phase==="history" && (
-        <BattleHistory
-          onBack={handleHome}
-          entries={data.history}
-          streak={data.xp?.win_streak ?? data.xp?.current_streak ?? 0}
-          bestStreak={data.xp?.best_win_streak ?? 0}
-          onViewReport={goReport}
-        />
-      )}
+    <div className="bg-design" style={{ minHeight: "100%", borderRadius: "16px", margin: "-0.25rem", overflow: "hidden" }}>
+      {/* Compact arena header (Layout already provides Gurukul chrome) */}
+      <div
+        style={{
+          borderBottom: `1px solid ${C.border}`,
+          padding: "0.75rem 1.25rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          background: "rgba(11,15,26,0.85)",
+          backdropFilter: "blur(12px)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "1.1rem" }}>⚔️</span>
+          <span style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1rem", color: C.blue }}>
+            Battleground
+          </span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+          <div
+            style={{
+              background: `${C.orange}18`,
+              border: `1px solid ${C.orange}33`,
+              borderRadius: "100px",
+              padding: "4px 12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+            }}
+          >
+            <span className="streak-icon" style={{ fontSize: "0.85rem" }}>
+              🔥
+            </span>
+            <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", fontWeight: 500, color: C.orange }}>
+              {me.streak} streak
+            </span>
+          </div>
+          <div
+            className="sm-hide"
+            style={{
+              background: `${C.purple}18`,
+              border: `1px solid ${C.purple}33`,
+              borderRadius: "100px",
+              padding: "4px 12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "5px",
+            }}
+          >
+            <span style={{ fontSize: "0.82rem" }}>⚡</span>
+            <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", fontWeight: 500, color: C.purple }}>
+              {me.xp.toLocaleString()} XP
+            </span>
+          </div>
+          <Avatar initials={me.initials} size={32} color={C.blue} />
+        </div>
+      </div>
+
+      <div aria-hidden style={{ position: "relative" }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            overflow: "hidden",
+            zIndex: 0,
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: "8%",
+              left: "6%",
+              width: "320px",
+              height: "320px",
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: "40%",
+              right: "4%",
+              width: "260px",
+              height: "260px",
+              borderRadius: "50%",
+              background: "radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)",
+            }}
+          />
+        </div>
+
+        <main style={{ maxWidth: "1280px", margin: "0 auto", padding: "1.25rem 1.1rem 2.5rem", position: "relative", zIndex: 1 }}>
+          {phase === "create" ? (
+            <CreateBattleWizard
+              onBack={() => setPhase("home")}
+              onCreate={handleCreate}
+              onEnter={goBattle}
+              classmates={data.classmates}
+              creating={busy}
+            />
+          ) : (
+            <>
+              <HeroSection me={me} onPlayDaily={() => void handleFeatured("daily")} busy={busy} />
+              <QuickActions
+                onCreate={() => setPhase("create")}
+                onJoin={() => setShowJoin(true)}
+                onDaily={() => void handleFeatured("daily")}
+                onWeekly={() => void handleFeatured("weekly")}
+                busy={busy}
+              />
+              <FeaturedBattles liveFeatured={featuredLive} onLaunch={(k, id) => void handleFeatured(k, id)} busy={busy} />
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 320px",
+                  gap: "1.25rem",
+                  marginBottom: "1.5rem",
+                  alignItems: "start",
+                }}
+                className="lg-two-col"
+              >
+                <MyBattlesPanel
+                  battles={myBattles}
+                  onNew={() => setPhase("create")}
+                  onOpen={(id) => void handleOpenBattle(id)}
+                  onAnalysis={goReport}
+                  loading={data.loading}
+                />
+                <LeaderboardPanel entries={lbEntries} classLabel={classLabel} />
+              </div>
+
+              <BattleHistoryPanel entries={data.history} onAnalysis={goReport} />
+
+              <div
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", alignItems: "start" }}
+                className="lg-two-col"
+              >
+                <AchievementsPanel me={me} />
+                <StatisticsPanel me={me} />
+              </div>
+            </>
+          )}
+        </main>
+      </div>
+
+      <JoinCodeModal open={showJoin} onClose={() => setShowJoin(false)} onJoin={handleJoinCode} joining={busy} />
     </div>
   );
 }
