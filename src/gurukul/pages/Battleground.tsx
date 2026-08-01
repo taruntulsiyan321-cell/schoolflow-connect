@@ -1,7 +1,21 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/data/mock";
-import { student, subjects, leaderboard } from "@/gurukul/data/mock";
+import { subjects } from "@/gurukul/data/mock";
 import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
+import {
+  useBattlegroundData,
+  createBattleFromDesign,
+  joinBattleByCode,
+  ensureFeatured,
+  loadLeaderboardEntries,
+  type DesignBattleCard,
+  type DesignHistoryEntry,
+  type DesignLbEntry,
+  type ClassmateOption,
+} from "@/gurukul/hooks/useBattlegroundData";
 import {
   Swords, Trophy, Zap, Clock, Shield, Users, Globe, Lock,
   Plus, Search, QrCode, Share2, Copy, Check, X, ChevronRight,
@@ -38,6 +52,7 @@ interface BattleCard {
   myScore?: number; theirScore?: number; result?: "won" | "lost" | "draw";
   timeLeft?: string; startsIn?: string; date?: string;
   xpReward: number; featured?: boolean; hot?: boolean;
+  participantId?: string;
 }
 
 interface BattleQuestion {
@@ -45,6 +60,7 @@ interface BattleQuestion {
 }
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
+// ── Mock questions kept only for unused in-page arena (play goes to live BattleRoom)
 const BATTLE_QUESTIONS: BattleQuestion[] = [
   { id:"bq1", text:"If A = [[2,1],[5,3]], what is A⁻¹?", options:["[[3,−1],[−5,2]]","[[3,1],[5,2]]","[[2,1],[3,5]]","[[1,0],[0,1]]"], correct:0, subject:"Mathematics" },
   { id:"bq2", text:"A ray of light goes from medium 1 (n=1.5) to medium 2 (n=1.0). At what angle of incidence does total internal reflection occur?", options:["41.8°","30°","60°","45°"], correct:0, subject:"Physics" },
@@ -56,25 +72,6 @@ const BATTLE_QUESTIONS: BattleQuestion[] = [
   { id:"bq8", text:"In SHM, when displacement is maximum, velocity is:", options:["Zero","Maximum","Equal to displacement","Negative"], correct:0, subject:"Physics" },
   { id:"bq9", text:"Molarity is defined as moles of solute per:", options:["Litre of solution","Kg of solvent","100g of solution","Litre of solvent"], correct:0, subject:"Chemistry" },
   { id:"bq10",text:"The number of prime numbers between 1 and 50 is:", options:["15","12","16","14"], correct:0, subject:"Mathematics" },
-];
-
-const BATTLES: BattleCard[] = [
-  { id:"fb1", type:"1v1",   title:"Integration Showdown",      subject:"Mathematics", status:"live",      players:2, maxPlayers:2,  opponent:"Priya Nair",   opponentAvatar:"PN", opponentColor:"#c08a3a", myScore:6, theirScore:5, timeLeft:"2:18", xpReward:150, featured:true, hot:true },
-  { id:"fb2", type:"class", title:"Physics Grand Battle",       subject:"Physics",     status:"upcoming",  players:18, maxPlayers:40, startsIn:"Starts in 12m", xpReward:300, featured:true },
-  { id:"fb3", type:"team",  title:"Chem League — Round 3",      subject:"Chemistry",   status:"live",      players:8, maxPlayers:8,   timeLeft:"8:45",         xpReward:250, hot:true },
-  { id:"fb4", type:"1v1",   title:"Physics 1v1",               subject:"Physics",     status:"pending",   players:1, maxPlayers:2,  opponent:"Rahul Mehta",  opponentAvatar:"RM", opponentColor:"#4b9fd4", xpReward:120 },
-  { id:"fb5", type:"1v1",   title:"Chemistry Duel",            subject:"Chemistry",   status:"completed", players:2, maxPlayers:2,  opponent:"Sneha Patel",  opponentAvatar:"SP", opponentColor:"#4aa87a", myScore:8, theirScore:5, result:"won",  date:"Today",   xpReward:150 },
-  { id:"fb6", type:"1v1",   title:"Biology Battle",            subject:"Biology",     status:"completed", players:2, maxPlayers:2,  opponent:"Karan Joshi",  opponentAvatar:"KJ", opponentColor:"#6882e8", myScore:4, theirScore:9, result:"lost", date:"Yesterday",xpReward:50 },
-  { id:"fb7", type:"class", title:"Mathematics Championship",  subject:"Mathematics", status:"upcoming",  players:32, maxPlayers:50, startsIn:"Starts in 2h", xpReward:500 },
-  { id:"fb8", type:"team",  title:"Science Olympiad",          subject:"Mixed",       status:"upcoming",  players:12, maxPlayers:20, startsIn:"Starts in 45m",xpReward:400 },
-];
-
-const HISTORY_ENTRIES = [
-  { id:1, type:"1v1" as BattleType, subject:"Mathematics", opponent:"Priya Nair",   result:"won"  as const, myScore:8, theirScore:6, xp:150, coins:30, date:"Today",          duration:"14m 20s", accuracy:80, rank:1 },
-  { id:2, type:"1v1" as BattleType, subject:"Chemistry",   opponent:"Sneha Patel",  result:"won"  as const, myScore:7, theirScore:4, xp:120, coins:25, date:"Yesterday",      duration:"11m 05s", accuracy:70, rank:1 },
-  { id:3, type:"1v1" as BattleType, subject:"Physics",     opponent:"Karan Joshi",  result:"lost" as const, myScore:3, theirScore:8, xp:40,  coins:10, date:"Jun 11",         duration:"9m 42s",  accuracy:30, rank:2 },
-  { id:4, type:"class" as BattleType,subject:"Mathematics",opponent:"Class XII-A",  result:"won"  as const, myScore:72,theirScore:0, xp:300, coins:60, date:"Jun 10",         duration:"25m 00s", accuracy:80, rank:2 },
-  { id:5, type:"1v1" as BattleType, subject:"Biology",     opponent:"Rahul Mehta",  result:"won"  as const, myScore:9, theirScore:7, xp:130, coins:28, date:"Jun 9",          duration:"18m 14s", accuracy:90, rank:1 },
 ];
 
 const LB_SUBJECT = ["Mathematics","Physics","Chemistry","Biology","English"];
@@ -241,29 +238,54 @@ function BCard({ b, onJoin, onView }: { b: BattleCard; onJoin:(id:string)=>void;
 }
 
 // ── Home ──────────────────────────────────────────────────────────────────────
-function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBattle:()=>void }) {
+function Home({
+  onPhase,
+  onStartBattle,
+  battles,
+  heroStats,
+  motivationTitle,
+  motivationMessage,
+  onOpenBattle,
+  onViewReport,
+  onJoinCode,
+  onFeatured,
+  joining,
+}: {
+  onPhase: (p: Phase) => void;
+  onStartBattle: () => void;
+  battles: DesignBattleCard[];
+  heroStats: { label: string; value: string; color: string }[];
+  motivationTitle?: string;
+  motivationMessage?: string;
+  onOpenBattle: (id: string) => void;
+  onViewReport: (participantId: string) => void;
+  onJoinCode: (code: string) => void;
+  onFeatured: (kind: "daily" | "weekly" | "ncert") => void;
+  joining?: boolean;
+}) {
   const [tab, setTab] = useState<HomeTab>("featured");
   const [joinCode, setJoinCode] = useState("");
   const [showJoin, setShowJoin] = useState(false);
 
   const stats = [
-    { label:"Battles Won", value:"24",   color:"#4aa87a", icon:<Trophy className="w-4 h-4"/> },
-    { label:"Win Rate",    value:"68%",  color:"#3b5bdb", icon:<Target className="w-4 h-4"/> },
-    { label:"Class Rank",  value:"#3",   color:"#c08a3a", icon:<Crown className="w-4 h-4"/> },
-    { label:"Battle XP",   value:"3,840",color:"#6882e8", icon:<Zap className="w-4 h-4"/> },
+    { label: heroStats[0]?.label ?? "Battles Won", value: heroStats[0]?.value ?? "0", color: "#4aa87a", icon: <Trophy className="w-4 h-4"/> },
+    { label: heroStats[1]?.label ?? "Win Rate", value: heroStats[1]?.value ?? "0%", color: "#3b5bdb", icon: <Target className="w-4 h-4"/> },
+    { label: heroStats[2]?.label ?? "Class Rank", value: heroStats[2]?.value ?? "—", color: "#c08a3a", icon: <Crown className="w-4 h-4"/> },
+    { label: heroStats[3]?.label ?? "Battle XP", value: heroStats[3]?.value ?? "0", color: "#6882e8", icon: <Zap className="w-4 h-4"/> },
   ];
 
-  const tabBattles: Record<HomeTab, BattleCard[]> = {
-    featured: BATTLES.filter(b => b.featured || b.hot),
-    ongoing:  BATTLES.filter(b => b.status==="live" || b.status==="pending"),
-    upcoming: BATTLES.filter(b => b.status==="upcoming"),
-    my:       BATTLES.filter(b => b.opponent || b.result),
+  const tabBattles: Record<HomeTab, DesignBattleCard[]> = {
+    featured: battles.filter(b => b.featured || b.hot),
+    ongoing:  battles.filter(b => b.status==="live" || b.status==="pending"),
+    upcoming: battles.filter(b => b.status==="upcoming"),
+    my:       battles.filter(b => b.opponent || b.result || b.participantId),
   };
 
-  const visible = tab === "featured" ? BATTLES : tabBattles[tab];
+  const visible = tab === "featured"
+    ? (tabBattles.featured.length ? tabBattles.featured : battles.filter(b => b.status !== "completed").slice(0, 6))
+    : tabBattles[tab];
 
-  // Pending challenges
-  const pending = BATTLES.filter(b => b.status==="pending");
+  const pending = battles.filter(b => b.status==="pending");
 
   return (
     <div className="space-y-6">
@@ -278,7 +300,12 @@ function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBatt
           <h1 className="text-3xl font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
             Battleground ⚔️
           </h1>
-          <p className="text-[#78788c] text-sm mb-5">Compete. Conquer. Level up.</p>
+          <p className="text-[#78788c] text-sm mb-5">
+            {motivationMessage || "Compete. Conquer. Level up."}
+          </p>
+          {motivationTitle && (
+            <div className="text-xs font-bold text-rose-300/90 mb-3">{motivationTitle}</div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {stats.map(s => (
               <div key={s.label} className="flex items-center gap-2.5 p-3 rounded-xl border border-white/5 bg-white/3">
@@ -322,9 +349,11 @@ function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBatt
           <input value={joinCode} onChange={e=>setJoinCode(e.target.value.toUpperCase())}
             placeholder="Enter invite code e.g. A3X9TK"
             className="flex-1 bg-[#131316] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/30 font-mono tracking-widest"/>
-          <button onClick={onStartBattle}
-            className="px-5 py-2.5 rounded-xl bg-[#3b5bdb] text-white text-sm font-bold hover:bg-blue-500 transition-all">
-            Join
+          <button
+            disabled={joining || !joinCode.trim()}
+            onClick={() => onJoinCode(joinCode)}
+            className="px-5 py-2.5 rounded-xl bg-[#3b5bdb] text-white text-sm font-bold hover:bg-blue-500 transition-all disabled:opacity-50">
+            {joining ? "…" : "Join"}
           </button>
         </div>
       )}
@@ -339,9 +368,10 @@ function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBatt
             </div>
             <div className="flex flex-wrap gap-1.5">
               {pending.map(b => (
-                <span key={b.id} className="text-[11px] text-[#a0a0b0] px-2 py-0.5 rounded-lg bg-white/5">
-                  {b.opponent} → {b.subject}
-                </span>
+                <button key={b.id} type="button" onClick={() => onOpenBattle(b.id)}
+                  className="text-[11px] text-[#a0a0b0] px-2 py-0.5 rounded-lg bg-white/5 hover:bg-white/10">
+                  {b.opponent || b.title} → {b.subject}
+                </button>
               ))}
             </div>
           </div>
@@ -364,7 +394,16 @@ function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBatt
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {visible.map(b => (
-            <BCard key={b.id} b={b} onJoin={onStartBattle} onView={onStartBattle}/>
+            <BCard
+              key={b.id}
+              b={b}
+              onJoin={onOpenBattle}
+              onView={(id) => {
+                const card = battles.find(x => x.id === id);
+                if (card?.participantId) onViewReport(card.participantId);
+                else onOpenBattle(id);
+              }}
+            />
           ))}
           {visible.length === 0 && (
             <div className="col-span-full py-12 text-center">
@@ -383,13 +422,13 @@ function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBatt
         </div>
         <div className="flex gap-3 overflow-x-auto scrollbar-none pb-1">
           {[
-            { label:"Integration Duel", subject:"Mathematics", xp:120, type:"1v1" as BattleType },
-            { label:"Optics Challenge", subject:"Physics",     xp:100, type:"1v1" as BattleType },
-            { label:"Chem Quick Fire",  subject:"Chemistry",   xp:90,  type:"1v1" as BattleType },
+            { label:"Daily Challenge", subject:"Mathematics", xp:120, type:"1v1" as BattleType, kind:"daily" as const },
+            { label:"Weekly Championship", subject:"Mathematics", xp:200, type:"class" as BattleType, kind:"weekly" as const },
+            { label:"NCERT Sprint", subject:"Physics", xp:100, type:"1v1" as BattleType, kind:"ncert" as const },
           ].map(r => {
             const subj = subjects.find(s=>s.name===r.subject);
             return (
-              <button key={r.label} onClick={onStartBattle}
+              <button key={r.label} onClick={() => onFeatured(r.kind)}
                 className="shrink-0 flex flex-col gap-2 p-3.5 rounded-2xl border border-white/7 bg-[#131316] hover:border-white/18 transition-all min-w-[160px]">
                 <TypeBadge type={r.type}/>
                 <div className="text-xs font-bold text-white text-left">{r.label}</div>
@@ -407,7 +446,17 @@ function Home({ onPhase, onStartBattle }: { onPhase:(p:Phase)=>void; onStartBatt
 }
 
 // ── Create wizard ─────────────────────────────────────────────────────────────
-function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:BattleConfig)=>void }) {
+function CreateBattle({
+  onBack,
+  onStart,
+  classmates,
+  creating,
+}: {
+  onBack: () => void;
+  onStart: (cfg: BattleConfig & { opponentUserId?: string }) => void;
+  classmates: ClassmateOption[];
+  creating?: boolean;
+}) {
   const [step,       setStep]       = useState<CreateStep>(1);
   const [type,       setType]       = useState<BattleType>("1v1");
   const [subject,    setSubject]    = useState("");
@@ -417,6 +466,7 @@ function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:Battl
   const [timeLimit,  setTimeLimit]  = useState(15);
   const [visibility, setVisibility] = useState<"public"|"private">("public");
   const [opponent,   setOpponent]   = useState("");
+  const [opponentUserId, setOpponentUserId] = useState<string | undefined>();
   const [copied,     setCopied]     = useState(false);
   const code = useRef(genCode()).current;
 
@@ -432,8 +482,22 @@ function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:Battl
   }
 
   function handleStart() {
-    onStart({ type, subject:subject||"Mathematics", chapter:chapter||"All", difficulty, questions, timeLimitMin:timeLimit, visibility, inviteCode:code });
+    onStart({
+      type,
+      subject: subject || "Mathematics",
+      chapter: chapter || "All",
+      difficulty,
+      questions,
+      timeLimitMin: timeLimit,
+      visibility,
+      inviteCode: code,
+      opponentUserId,
+    });
   }
+
+  const filteredMates = classmates.filter(m =>
+    !opponent || m.full_name.toLowerCase().includes(opponent.toLowerCase())
+  ).slice(0, 6);
 
   return (
     <div className="max-w-lg mx-auto space-y-5">
@@ -566,6 +630,7 @@ function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:Battl
             <div className="text-center p-5 rounded-2xl border border-dashed border-white/12 bg-white/2">
               <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-2">Your Invite Code</div>
               <div className="text-3xl font-black tracking-[0.3em] text-white mb-3" style={{fontFamily:"var(--font-mono)"}}>{code}</div>
+              <div className="text-[10px] text-[#78788c] mb-3">A real battle code is assigned when you start</div>
               <div className="flex justify-center gap-2">
                 <button onClick={copyCode}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all">
@@ -586,25 +651,28 @@ function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:Battl
                 <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-2">Challenge a Classmate</div>
                 <div className="relative mb-2">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#78788c]"/>
-                  <input value={opponent} onChange={e=>setOpponent(e.target.value)}
+                  <input value={opponent} onChange={e=>{ setOpponent(e.target.value); setOpponentUserId(undefined); }}
                     placeholder="Search by name…"
                     className="w-full bg-white/4 border border-white/8 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/30"/>
                 </div>
                 <div className="space-y-1.5">
-                  {leaderboard.filter(l=>!l.you).slice(0,3).map(l=>(
-                    <button key={l.rank} onClick={()=>setOpponent(l.name)}
+                  {filteredMates.map(l=>(
+                    <button key={l.user_id} onClick={()=>{ setOpponent(l.full_name); setOpponentUserId(l.user_id); }}
                       className={cn(
                         "w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left",
-                        opponent===l.name?"border-[#3b5bdb]/30 bg-[#3b5bdb]/8":"border-white/5 hover:border-white/12 hover:bg-white/3"
+                        opponentUserId===l.user_id?"border-[#3b5bdb]/30 bg-[#3b5bdb]/8":"border-white/5 hover:border-white/12 hover:bg-white/3"
                       )}>
                       <AvatarBubble initials={l.avatar} color={l.color} size={8}/>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-white">{l.name}</div>
-                        <div className="text-[10px] text-[#78788c]">Rank #{l.rank} · {l.accuracy}% accuracy</div>
+                        <div className="text-xs font-semibold text-white">{l.full_name}</div>
+                        <div className="text-[10px] text-[#78788c]">Classmate</div>
                       </div>
-                      <UserPlus className={cn("w-3.5 h-3.5 shrink-0 transition-colors",opponent===l.name?"text-[#3b5bdb]":"text-[#78788c]")}/>
+                      <UserPlus className={cn("w-3.5 h-3.5 shrink-0 transition-colors",opponentUserId===l.user_id?"text-[#3b5bdb]":"text-[#78788c]")}/>
                     </button>
                   ))}
+                  {filteredMates.length === 0 && (
+                    <div className="text-[11px] text-[#78788c] py-2">No classmates found — start an open battle with a shareable code instead.</div>
+                  )}
                 </div>
               </div>
             )}
@@ -626,10 +694,10 @@ function CreateBattle({ onBack, onStart }: { onBack:()=>void; onStart:(cfg:Battl
               Continue <ChevronRight className="inline w-4 h-4"/>
             </button>
           ) : (
-            <button onClick={handleStart}
-              className="flex-1 py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
+            <button onClick={handleStart} disabled={creating}
+              className="flex-1 py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50"
               style={{background:"linear-gradient(135deg,#cc5069,#e11d48)",boxShadow:"0 6px 20px rgba(244,63,94,0.25)"}}>
-              <Play className="w-4 h-4"/> Start Battle!
+              <Play className="w-4 h-4"/> {creating ? "Starting…" : "Start Battle!"}
             </button>
           )}
         </div>
@@ -936,13 +1004,28 @@ function Results({ result, onHome, onReplay }: { result:BattleResult; onHome:()=
 
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 function Leaderboard({ onBack }: { onBack:()=>void }) {
+  const { user } = useAuth();
   const [period, setPeriod] = useState<LBPeriod>("weekly");
   const [scope,  setScope]  = useState<LBScope>("class");
   const [selSubj,setSelSubj]= useState("Mathematics");
+  const [entries, setEntries] = useState<DesignLbEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const entries = leaderboard.map((e,i)=>({
-    ...e, battles:20+i*2, winRate:88-i*4, coins:500-i*40,
-  }));
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const rows = await loadLeaderboardEntries(scope, selSubj, user?.id);
+        if (!cancelled) setEntries(rows);
+      } catch {
+        if (!cancelled) setEntries([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [scope, selSubj, user?.id, period]);
 
   const medalColor = (r:number) => r===1?"#c08a3a":r===2?"#94a3b8":r===3?"#cd7c2f":"#78788c";
   const medalIcon  = (r:number) => r===1?<Crown className="w-4 h-4"/>:r===2?<Medal className="w-4 h-4"/>:r===3?<Medal className="w-3.5 h-3.5"/>:<span className="text-xs font-black">#{r}</span>;
@@ -989,26 +1072,32 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
       )}
 
       {/* Top 3 podium */}
-      <div className="grid grid-cols-3 gap-3 items-end">
-        {[entries[1], entries[0], entries[2]].map((e,i)=>{
-          const podPos = [2,1,3][i]; const col = medalColor(podPos);
-          const heights = ["h-24","h-32","h-20"];
-          return (
-            <div key={e.rank} className={cn("flex flex-col items-center gap-2",i===1&&"-mt-4")}>
-              <AvatarBubble initials={e.avatar} color={e.color} size={10}/>
-              <div className="text-[10px] font-bold text-white truncate max-w-full px-1">{e.name.split(" ")[0]}</div>
-              <div className="text-[11px] font-black tabular-nums" style={{color:col}}>{e.xp.toLocaleString()} XP</div>
-              <div className={cn("w-full rounded-t-xl flex items-center justify-center",heights[i])} style={{background:`${col}18`,border:`1px solid ${col}25`}}>
-                <div style={{color:col}}>{medalIcon(podPos)}</div>
+      {entries.length >= 3 && (
+        <div className="grid grid-cols-3 gap-3 items-end">
+          {[entries[1], entries[0], entries[2]].map((e,i)=>{
+            const podPos = [2,1,3][i]; const col = medalColor(podPos);
+            const heights = ["h-24","h-32","h-20"];
+            return (
+              <div key={e.rank} className={cn("flex flex-col items-center gap-2",i===1&&"-mt-4")}>
+                <AvatarBubble initials={e.avatar} color={e.color} size={10}/>
+                <div className="text-[10px] font-bold text-white truncate max-w-full px-1">{e.name.split(" ")[0]}</div>
+                <div className="text-[11px] font-black tabular-nums" style={{color:col}}>{e.xp.toLocaleString()} XP</div>
+                <div className={cn("w-full rounded-t-xl flex items-center justify-center",heights[i])} style={{background:`${col}18`,border:`1px solid ${col}25`}}>
+                  <div style={{color:col}}>{medalIcon(podPos)}</div>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Full list */}
       <GlassCard className="p-4">
         <div className="space-y-1.5">
+          {loading && <div className="text-xs text-[#78788c] py-4 text-center">Loading…</div>}
+          {!loading && entries.length === 0 && (
+            <div className="text-xs text-[#78788c] py-4 text-center">No rankings yet — finish a battle to appear here</div>
+          )}
           {entries.map(e => (
             <div key={e.rank} className={cn(
               "flex items-center gap-3 p-3 rounded-xl transition-all",
@@ -1043,10 +1132,22 @@ function Leaderboard({ onBack }: { onBack:()=>void }) {
 }
 
 // ── History ───────────────────────────────────────────────────────────────────
-function BattleHistory({ onBack, onReplay }: { onBack:()=>void; onReplay:()=>void }) {
-  const totWins = HISTORY_ENTRIES.filter(h=>h.result==="won").length;
-  const totBattles = HISTORY_ENTRIES.length;
-  const totalXP = HISTORY_ENTRIES.reduce((a,h)=>a+h.xp,0);
+function BattleHistory({
+  onBack,
+  entries,
+  streak,
+  bestStreak,
+  onViewReport,
+}: {
+  onBack: () => void;
+  entries: DesignHistoryEntry[];
+  streak: number;
+  bestStreak: number;
+  onViewReport: (participantId: string) => void;
+}) {
+  const totWins = entries.filter(h=>h.result==="won").length;
+  const totBattles = entries.length;
+  const totalXP = entries.reduce((a,h)=>a+h.xp,0);
 
   return (
     <div className="space-y-5">
@@ -1075,14 +1176,17 @@ function BattleHistory({ onBack, onReplay }: { onBack:()=>void; onReplay:()=>voi
       <div className="flex items-center gap-3 p-4 rounded-2xl border border-rose-400/20 bg-rose-400/5">
         <Flame className="w-6 h-6 text-rose-400"/>
         <div>
-          <div className="text-sm font-black text-white">2-win streak 🔥</div>
-          <div className="text-xs text-[#78788c]">Keep going — your best is 5 wins in a row</div>
+          <div className="text-sm font-black text-white">{streak}-win streak 🔥</div>
+          <div className="text-xs text-[#78788c]">Keep going — your best is {bestStreak} wins in a row</div>
         </div>
       </div>
 
       {/* History list */}
       <div className="space-y-3">
-        {HISTORY_ENTRIES.map(h=>{
+        {entries.length === 0 && (
+          <div className="py-10 text-center text-sm text-[#78788c]">No battles finished yet</div>
+        )}
+        {entries.map(h=>{
           const won   = h.result==="won";
           const rc    = won?"#4aa87a":"#cc5069";
           const subj  = subjects.find(s=>s.name===h.subject);
@@ -1110,8 +1214,8 @@ function BattleHistory({ onBack, onReplay }: { onBack:()=>void; onReplay:()=>voi
               <div className="text-right shrink-0">
                 <div className="flex items-center gap-1 text-amber-400 text-xs font-bold mb-1"><Zap className="w-3 h-3"/>+{h.xp}</div>
                 <div className="text-[10px] text-[#78788c]">🪙 +{h.coins}</div>
-                <button onClick={onReplay} className="mt-2 text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors flex items-center gap-0.5">
-                  <Repeat className="w-3 h-3"/> Rematch
+                <button onClick={() => onViewReport(h.participantId)} className="mt-2 text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors flex items-center gap-0.5">
+                  <Eye className="w-3 h-3"/> Review
                 </button>
               </div>
             </div>
@@ -1124,37 +1228,107 @@ function BattleHistory({ onBack, onReplay }: { onBack:()=>void; onReplay:()=>voi
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function Battleground({ setPage }: { setPage?: (p: PageKey) => void }) {
-  const [phase,   setPhase]   = useState<Phase>("home");
-  const [config,  setConfig]  = useState<BattleConfig|null>(null);
-  const [result,  setResult]  = useState<BattleResult|null>(null);
+  void setPage;
+  const navigate = useNavigate();
+  const data = useBattlegroundData();
+  const [phase, setPhase] = useState<Phase>("home");
+  const [busy, setBusy] = useState(false);
 
-  const defaultConfig: BattleConfig = {
-    type:"1v1", subject:"Mathematics", chapter:"Integration",
-    difficulty:"medium", questions:10, timeLimitMin:5,
-    visibility:"public", inviteCode:genCode(),
-  };
-
-  function handleStartBattle() { setPhase("create"); }
-
-  function handleConfigDone(cfg: BattleConfig) {
-    setConfig(cfg); setPhase("battle");
+  function goBattle(id: string) {
+    navigate(`/student/battleground/battle/${id}`);
   }
 
-  function handleBattleFinish(res: BattleResult) {
-    setResult(res); setPhase("results");
+  function goReport(participantId: string) {
+    navigate(`/student/battleground/report/${participantId}`);
   }
 
-  function handleHome() { setPhase("home"); setResult(null); }
-  function handleReplay() { setPhase("battle"); }
+  async function handleJoinCode(code: string) {
+    setBusy(true);
+    try {
+      const id = await joinBattleByCode(code);
+      toast({ title: "Joined battle" });
+      goBattle(id);
+    } catch (e: unknown) {
+      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not join";
+      toast({ title: msg, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCreate(cfg: BattleConfig & { opponentUserId?: string }) {
+    setBusy(true);
+    try {
+      const id = await createBattleFromDesign({
+        type: cfg.type,
+        subject: cfg.subject,
+        chapter: cfg.chapter,
+        difficulty: cfg.difficulty,
+        questions: cfg.questions,
+        timeLimitMin: cfg.timeLimitMin,
+        opponentUserId: cfg.opponentUserId,
+        classId: data.classId,
+      });
+      toast({ title: cfg.opponentUserId ? "Challenge sent" : "Battle created" });
+      goBattle(id);
+    } catch (e: unknown) {
+      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not create battle";
+      toast({ title: msg, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleFeatured(kind: "daily" | "weekly" | "ncert") {
+    setBusy(true);
+    try {
+      const id = await ensureFeatured(kind);
+      goBattle(id);
+    } catch (e: unknown) {
+      const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Featured battle unavailable";
+      toast({ title: msg, variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleHome() { setPhase("home"); }
 
   return (
     <div>
-      {phase==="home"        && <Home onPhase={setPhase} onStartBattle={handleStartBattle}/>}
-      {phase==="create"      && <CreateBattle onBack={()=>setPhase("home")} onStart={handleConfigDone}/>}
-      {phase==="battle"      && <BattleArena config={config??defaultConfig} onFinish={handleBattleFinish}/>}
-      {phase==="results"     && result && <Results result={result} onHome={handleHome} onReplay={handleReplay}/>}
+      {phase==="home" && (
+        <Home
+          onPhase={setPhase}
+          onStartBattle={() => setPhase("create")}
+          battles={data.battles}
+          heroStats={data.heroStats}
+          motivationTitle={data.motivation.title}
+          motivationMessage={data.motivation.message}
+          onOpenBattle={goBattle}
+          onViewReport={goReport}
+          onJoinCode={handleJoinCode}
+          onFeatured={handleFeatured}
+          joining={busy}
+        />
+      )}
+      {phase==="create" && (
+        <CreateBattle
+          onBack={handleHome}
+          onStart={handleCreate}
+          classmates={data.classmates}
+          creating={busy}
+        />
+      )}
       {phase==="leaderboard" && <Leaderboard onBack={handleHome}/>}
-      {phase==="history"     && <BattleHistory onBack={handleHome} onReplay={handleReplay}/>}
+      {phase==="history" && (
+        <BattleHistory
+          onBack={handleHome}
+          entries={data.history}
+          streak={data.xp?.win_streak ?? data.xp?.current_streak ?? 0}
+          bestStreak={data.xp?.best_win_streak ?? 0}
+          onViewReport={goReport}
+        />
+      )}
     </div>
   );
 }

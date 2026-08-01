@@ -98,7 +98,7 @@ function CreateBattle() {
 }
 
 // =================== BATTLE ROOM ===================
-function BattleRoom() {
+export function BattleRoom() {
   const { id } = useParams();
   const { user } = useAuth();
   const nav = useNavigate();

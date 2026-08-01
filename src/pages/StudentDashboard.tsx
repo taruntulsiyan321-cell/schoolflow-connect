@@ -37,7 +37,8 @@ import Class12AiSession from "./student/Class12AiSession";
 import PracticeSessionResult from "./student/PracticeSessionResult";
 import DppAttempt from "./student/DppAttempt";
 import DppResult from "./student/DppResult";
-import BattlegroundLive from "./student/Battleground";
+import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
+import BattleReportPage from "./student/BattleReportPage";
 import ChatPage from "./shared/ChatPage";
 import NoticesPage from "./shared/NoticesPage";
 
@@ -133,8 +134,10 @@ export default function StudentDashboard() {
           <Route path="revision" element={<Revision setPage={setPage} />} />
           <Route path="plans" element={<Navigate to="/student/revision" replace />} />
           <Route path="mistakes" element={<MistakeBook setPage={setPage} />} />
-          <Route path="battleground/*" element={<BattlegroundLive />} />
-          <Route path="battleground-design" element={<BattlegroundDesign setPage={setPage} />} />
+          <Route path="battleground/battle/:id" element={<LiveBattleRoom />} />
+          <Route path="battleground/report/:participantId" element={<BattleReportPage />} />
+          <Route path="battleground" element={<BattlegroundDesign setPage={setPage} />} />
+          <Route path="battleground-design" element={<Navigate to="/student/battleground" replace />} />
           <Route path="leaderboard" element={<Leaderboard />} />
           <Route path="achievements" element={<Achievements />} />
           <Route path="resources" element={<Resources />} />
