@@ -33,6 +33,9 @@ export type AcademicEntityKey =
   | "examination_marks"
   | "practice"
   | "practice_attempt"
+  | "battle"
+  | "student_xp"
+  | "student_badge"
   | "student_doubt"
   | "teacher_reply"
   | "announcement"
@@ -172,6 +175,26 @@ export const ENTITY_REGISTRY: Record<AcademicEntityKey, EntityMapping> = {
     key: "practice_attempt",
     table: "question_attempts",
     tenantScoped: true,
+  },
+  battle: {
+    key: "battle",
+    table: "battles",
+    aliases: ["battle_participants", "battle_questions", "battle_answers"],
+    notes: "Battleground experience — XP/wins live on student_xp; do not fork a parallel sync engine",
+    tenantScoped: false,
+  },
+  student_xp: {
+    key: "student_xp",
+    table: "student_xp",
+    notes: "Experience rollup written by battle/practice RPCs; UI reads via XpService only",
+    tenantScoped: false,
+  },
+  student_badge: {
+    key: "student_badge",
+    table: "student_badges",
+    aliases: ["badges"],
+    notes: "Earned badges; awards via _award_badge / BadgeService — never invent unlocks in UI",
+    tenantScoped: false,
   },
   student_doubt: {
     key: "student_doubt",

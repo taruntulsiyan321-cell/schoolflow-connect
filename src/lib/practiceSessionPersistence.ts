@@ -83,33 +83,43 @@ async function syncPracticeSessionToServer(sessionId: string, state: PracticeSes
 
   const correct = state.attempts.filter((a) => a.isCorrect).length;
 
-  const { error: fin1 } = await supabase.rpc("rpc_finish_practice_session", {
-    _session_id: sessionId,
-  });
-  if (fin1) {
-    await supabase.rpc("rpc_finish_practice_session", {
+  try {
+    const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+    const ctx = await resolveStudentServiceContext();
+    try {
+      await PracticeService.finish(ctx, { _session_id: sessionId });
+    } catch {
+      await PracticeService.finish(ctx, {
+        _session_id: sessionId,
+        _attempts: attemptsToFinishPayload(state.attempts),
+      });
+    }
+  } catch {
+    const { error: fin1 } = await supabase.rpc("rpc_finish_practice_session", {
       _session_id: sessionId,
-      _attempts: attemptsToFinishPayload(state.attempts),
-    } as { _session_id: string; _attempts: ReturnType<typeof attemptsToFinishPayload> });
-  }
-
-  await supabase.rpc("emit_academic_event", {
-    _event_type: "practice.session.completed",
-    _entity_type: "practice",
-    _entity_id: sessionId,
-    _school_id: null,
-    _student_id: null,
-    _class_id: null,
-    _teacher_id: null,
-    _payload: { session_id: sessionId, correct },
-  }).catch(() => undefined);
-
-  if (!fin1 && state.attempts.length > 0) {
-    await (supabase as any).rpc("rpc_post_assessment_concept_analysis", {
-      _source_type: "practice_session",
-      _source_id: sessionId,
     });
+    if (fin1) {
+      await supabase.rpc("rpc_finish_practice_session", {
+        _session_id: sessionId,
+        _attempts: attemptsToFinishPayload(state.attempts),
+      } as { _session_id: string; _attempts: ReturnType<typeof attemptsToFinishPayload> });
+    }
+    await supabase.rpc("emit_academic_event", {
+      _event_type: "practice.session.completed",
+      _entity_type: "practice",
+      _entity_id: sessionId,
+      _school_id: null,
+      _student_id: null,
+      _class_id: null,
+      _teacher_id: null,
+      _payload: { session_id: sessionId, correct },
+    }).catch(() => undefined);
   }
+
+  await (supabase as any).rpc("rpc_post_assessment_concept_analysis", {
+    _source_type: "practice_session",
+    _source_id: sessionId,
+  }).catch(() => undefined);
 
   void correct;
 }

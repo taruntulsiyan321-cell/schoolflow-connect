@@ -6,6 +6,8 @@ import {
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
 import { emitEvent } from "../repository/eventsRepository";
+import { broadcastAcademicWrite } from "../live";
+import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 
 /**
  * PracticeService — wraps practice session RPCs + finish path.
@@ -42,6 +44,11 @@ export const PracticeService = {
       studentId: ctx.studentId ?? null,
       payload: args,
     }).catch(() => undefined);
+    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
+      studentId: ctx.studentId,
+      source: "PracticeService",
+    });
+    notifyStudentXpUpdated();
     return data;
   },
 
@@ -54,5 +61,18 @@ export const PracticeService = {
       .maybeSingle();
     throwIfError(error, "Failed to load practice session");
     return data;
+  },
+
+  async listRecentFinished(ctx: ServiceContext, limit = 10) {
+    assertCanConsume(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("practice_sessions")
+      .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at")
+      .eq("user_id", ctx.userId)
+      .not("finished_at", "is", null)
+      .order("finished_at", { ascending: false })
+      .limit(limit);
+    throwIfError(error, "Failed to load practice history");
+    return data ?? [];
   },
 };

@@ -76,11 +76,19 @@ export default function StudentDashboard() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      const { data: x } = await supabase
-        .from("student_xp")
-        .select("xp, level, current_streak")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      let x: { xp?: number; level?: number; current_streak?: number } | null = null;
+      try {
+        const { XpService, resolveStudentServiceContext } = await import("@/academic");
+        const ctx = await resolveStudentServiceContext();
+        x = await XpService.getForUser(ctx, user.id);
+      } catch {
+        const { data: xpRow } = await supabase
+          .from("student_xp")
+          .select("xp, level, current_streak")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        x = xpRow;
+      }
 
       let rank: number | undefined;
       let totalStudents = 0;

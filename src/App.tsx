@@ -5,6 +5,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/auth";
+import { AcademicLiveProvider } from "@/academic/live";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -35,21 +36,23 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Suspense fallback={<RouteFallback />}>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/unauthorized" element={<ProtectedRoute><Unauthorized /></ProtectedRoute>} />
-              <Route path="/admin/*" element={<ProtectedRoute allow={["admin"]}><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/principal/*" element={<ProtectedRoute allow={["principal"]}><PrincipalDashboard /></ProtectedRoute>} />
-              <Route path="/teacher/*" element={<ProtectedRoute allow={["teacher"]}><TeacherDashboard /></ProtectedRoute>} />
-              <Route path="/student/*" element={<ProtectedRoute allow={["student"]}><StudentDashboard /></ProtectedRoute>} />
-              <Route path="/parent/*" element={<ProtectedRoute allow={["parent"]}><ParentDashboard /></ProtectedRoute>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+          <AcademicLiveProvider>
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/unauthorized" element={<ProtectedRoute><Unauthorized /></ProtectedRoute>} />
+                <Route path="/admin/*" element={<ProtectedRoute allow={["admin"]}><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/principal/*" element={<ProtectedRoute allow={["principal"]}><PrincipalDashboard /></ProtectedRoute>} />
+                <Route path="/teacher/*" element={<ProtectedRoute allow={["teacher"]}><TeacherDashboard /></ProtectedRoute>} />
+                <Route path="/student/*" element={<ProtectedRoute allow={["student"]}><StudentDashboard /></ProtectedRoute>} />
+                <Route path="/parent/*" element={<ProtectedRoute allow={["parent"]}><ParentDashboard /></ProtectedRoute>} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </AcademicLiveProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

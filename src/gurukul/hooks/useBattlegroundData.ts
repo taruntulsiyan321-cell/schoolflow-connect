@@ -13,7 +13,6 @@ import {
   formatBattleStatus,
   motivationCard,
 } from "@/lib/battlegroundHelpers";
-import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
 
 export type DesignBattleType = "1v1" | "team" | "class";
 
@@ -188,16 +187,35 @@ export function useBattlegroundData() {
     setLoading(true);
     setError(null);
     try {
-      const [stuRes, xpRes, matesRes, lbRes, schoolLbRes] = await Promise.all([
+      const [stuRes, matesRes, lbRes, schoolLbRes] = await Promise.all([
         supabase.from("students").select("id, class_id, full_name").eq("user_id", user.id).maybeSingle(),
-        supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle(),
         supabase.rpc("rpc_classmates"),
         supabase.rpc("rpc_leaderboard", { _scope: "class", _category: "xp", _subject: undefined, _limit: 200 }),
         supabase.rpc("rpc_leaderboard", { _scope: "school", _category: "xp", _subject: undefined, _limit: 500 }),
       ]);
 
+      let xpData: {
+        xp?: number;
+        level?: number;
+        wins?: number;
+        total_battles?: number;
+        current_streak?: number;
+        win_streak?: number;
+        best_win_streak?: number;
+        total_correct?: number;
+        total_answered?: number;
+      } | null = null;
+      try {
+        const { XpService, resolveStudentServiceContext } = await import("@/academic");
+        const ctx = await resolveStudentServiceContext();
+        xpData = await XpService.getForUser(ctx, user.id);
+      } catch {
+        const xpRes = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
+        if (xpRes.error) throw xpRes.error;
+        xpData = xpRes.data;
+      }
+
       if (stuRes.error) throw stuRes.error;
-      if (xpRes.error) throw xpRes.error;
       // Soft-fail classmates / leaderboard — don't blank the arena; never invent ranks
       if (matesRes.error) {
         toast({ title: "Could not load classmates", description: matesRes.error.message, variant: "destructive" });
@@ -213,7 +231,7 @@ export function useBattlegroundData() {
       }
 
       const s = stuRes.data;
-      const x = xpRes.data;
+      const x = xpData;
       const mates = matesRes.data;
       const lb = lbRes.data;
       const schoolLb = schoolLbRes.data;
@@ -747,200 +765,35 @@ export async function createBattleFromDesign(opts: {
   /** When false, mark battle private after create (code-gated). */
   isPublic?: boolean;
 }): Promise<{ id: string; battleCode: string | null }> {
-  const perQ = Math.max(10, Math.floor((opts.timeLimitMin * 60) / Math.max(1, opts.questions)));
-  const chap = opts.chapter && opts.chapter !== "All" ? opts.chapter : undefined;
-  const base = {
-    _subject: opts.subject,
-    _difficulty: opts.difficulty === "mixed" ? "medium" : opts.difficulty,
-    _count: opts.questions,
-    _per_q: perQ,
-    _chapter: chap,
-    _class_id: opts.classId ?? undefined,
-  };
-
-  let id: string;
-  const throwCreateErr = (err: { message?: string } | null, fallback: string) => {
-    if (!err) return;
-    const msg = err.message || fallback;
-    if (isEmptyQuestionBankError(msg)) {
-      throw new Error(NO_BANK_MSG + " — ask a teacher to add questions, or try another subject/chapter.");
-    }
-    throw err instanceof Error ? err : new Error(msg);
-  };
-
-  if (opts.type === "1v1" && opts.opponentUserId) {
-    const res = await supabase.rpc("rpc_challenge_student", {
-      _opponent_user_id: opts.opponentUserId,
-      _subject: base._subject,
-      _difficulty: base._difficulty,
-      _count: base._count,
-      _per_q: base._per_q,
-      _chapter: chap,
-    });
-    throwCreateErr(res.error, "Challenge could not be created");
-    if (!res.data) throw new Error("Challenge could not be created");
-    id = res.data as string;
-  } else if (opts.type === "class") {
-    const res = await supabase.rpc("rpc_create_class_battle", base);
-    throwCreateErr(res.error, "Class battle could not be created");
-    if (!res.data) throw new Error("Class battle could not be created");
-    id = res.data as string;
-  } else {
-    // team / open / 1v1 without opponent → open battle with join code
-    const res = await supabase.rpc("rpc_create_open_battle", base);
-    throwCreateErr(res.error, "Battle could not be created");
-    if (!res.data) throw new Error("Battle could not be created");
-    id = res.data as string;
-  }
-
-  // Private toggle: RPCs default is_public=true; flip when user chose private
-  if (opts.isPublic === false) {
-    const { error: privErr } = await supabase.from("battles").update({ is_public: false }).eq("id", id);
-    if (privErr) {
-      toast({
-        title: "Could not set private",
-        description: privErr.message || "Battle was created but stayed public.",
-        variant: "destructive",
-      });
-    }
-  }
-
-  const { data: row, error: codeErr } = await supabase
-    .from("battles")
-    .select("battle_code")
-    .eq("id", id)
-    .maybeSingle();
-
-  if (codeErr) {
-    toast({
-      title: "Battle created without code",
-      description: codeErr.message,
-      variant: "destructive",
-    });
-  } else if (!row?.battle_code) {
+  const { BattleExperienceService, resolveStudentServiceContext } = await import("@/academic");
+  const ctx = await resolveStudentServiceContext();
+  const result = await BattleExperienceService.createFromDesign(ctx, opts);
+  if (!result.battleCode) {
     toast({
       title: "Battle code missing",
       description: "Ask your admin to apply the battle_code migration, or share the battle link instead.",
       variant: "destructive",
     });
   }
-
-  return { id, battleCode: row?.battle_code ?? null };
+  return result;
 }
 
 export async function joinBattleByCode(code: string): Promise<string> {
-  const trimmed = code.trim().toUpperCase();
-  if (!trimmed) throw new Error("Enter a battle code to join.");
-
-  const res = await supabase.rpc("rpc_join_battle_by_code", { _code: trimmed });
-  if (res.error) {
-    const msg = res.error.message || "";
-    // Migration not applied yet — try legacy lookup if column missing
-    if (msg.includes("rpc_join_battle_by_code") || msg.includes("schema cache") || msg.includes("battle_code")) {
-      throw new Error("Battle codes need a database update. Ask your admin to apply the battle_code migration.");
-    }
-    throw res.error;
-  }
-  if (!res.data) throw new Error("Could not join battle");
-  return res.data as string;
+  const { BattleExperienceService, resolveStudentServiceContext } = await import("@/academic");
+  const ctx = await resolveStudentServiceContext();
+  return BattleExperienceService.joinByCode(ctx, code);
 }
 
 export async function acceptBattleInvite(inviteId: string, battleId: string): Promise<string> {
-  const res = await supabase.rpc("rpc_accept_battle_invite", { _invite_id: inviteId });
-  if (res.error) {
-    const msg = res.error.message || "";
-    // Fallback if migration not applied: mark accepted only AFTER successful join insert
-    if (msg.includes("rpc_accept_battle_invite") || msg.includes("schema cache")) {
-      const { data: auth } = await supabase.auth.getUser();
-      const uid = auth.user?.id;
-      if (!uid) throw new Error("Sign in to accept this challenge");
-      const { data: existing } = await supabase
-        .from("battle_participants")
-        .select("id")
-        .eq("battle_id", battleId)
-        .eq("user_id", uid)
-        .maybeSingle();
-      if (!existing) {
-        const { data: stu } = await supabase.from("students").select("id, full_name").eq("user_id", uid).maybeSingle();
-        const { error: joinErr } = await supabase.from("battle_participants").insert({
-          battle_id: battleId,
-          user_id: uid,
-          student_id: stu?.id ?? null,
-          display_name: stu?.full_name || "Challenger",
-        });
-        if (joinErr) throw joinErr;
-      }
-      const { error } = await supabase
-        .from("battle_invites")
-        .update({ status: "accepted" })
-        .eq("id", inviteId);
-      if (error) throw error;
-      return battleId;
-    }
-    throw res.error;
-  }
-  return (res.data as string) || battleId;
+  const { BattleExperienceService, resolveStudentServiceContext } = await import("@/academic");
+  const ctx = await resolveStudentServiceContext();
+  return BattleExperienceService.acceptInvite(ctx, inviteId, battleId);
 }
 
 export async function ensureFeatured(kind: "daily" | "weekly" | "ncert" | "beat_topper" | "teacher"): Promise<string> {
-  const res = await supabase.rpc("rpc_ensure_featured_battle", { _kind: kind });
-  if (res.error) {
-    const msg = res.error.message || "Featured battle unavailable";
-    if (isEmptyQuestionBankError(msg)) {
-      throw new Error(NO_BANK_MSG + " — featured challenges need questions in the bank first.");
-    }
-    throw res.error;
-  }
-  if (!res.data) throw new Error("Featured battle unavailable");
-  const battleId = res.data as string;
-
-  // Client fallback: ensure we are a participant (pre-migration / race)
-  const { data: auth } = await supabase.auth.getUser();
-  const uid = auth.user?.id;
-  if (uid) {
-    const { data: existing, error: existErr } = await supabase
-      .from("battle_participants")
-      .select("id")
-      .eq("battle_id", battleId)
-      .eq("user_id", uid)
-      .maybeSingle();
-    if (existErr) throw existErr;
-    if (!existing) {
-      const [{ data: stu }, { data: codeRow, error: codeErr }] = await Promise.all([
-        supabase.from("students").select("id, full_name").eq("user_id", uid).maybeSingle(),
-        supabase.from("battles").select("battle_code").eq("id", battleId).maybeSingle(),
-      ]);
-      if (codeErr) throw codeErr;
-      if (codeRow?.battle_code) {
-        try {
-          await joinBattleByCode(codeRow.battle_code);
-        } catch (joinErr) {
-          const { error: insertErr } = await supabase.from("battle_participants").insert({
-            battle_id: battleId,
-            user_id: uid,
-            student_id: stu?.id ?? null,
-            display_name: stu?.full_name || "Challenger",
-          });
-          if (insertErr) {
-            const joinMsg =
-              joinErr && typeof joinErr === "object" && "message" in joinErr
-                ? String((joinErr as { message: string }).message)
-                : "Could not join featured battle";
-            throw insertErr.message ? insertErr : new Error(joinMsg);
-          }
-        }
-      } else {
-        const { error: insertErr } = await supabase.from("battle_participants").insert({
-          battle_id: battleId,
-          user_id: uid,
-          student_id: stu?.id ?? null,
-          display_name: stu?.full_name || "Challenger",
-        });
-        if (insertErr) throw insertErr;
-      }
-    }
-  }
-  return battleId;
+  const { BattleExperienceService, resolveStudentServiceContext } = await import("@/academic");
+  const ctx = await resolveStudentServiceContext();
+  return BattleExperienceService.ensureFeatured(ctx, kind);
 }
 
 export async function loadLeaderboardEntries(

@@ -154,6 +154,24 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
     consumers: ["student", "teacher", "parent"],
     description: "Per-question practice attempt",
   },
+  battle: {
+    entity: "battle",
+    owners: ["student", "teacher", "admin"],
+    consumers: ["student", "teacher", "parent", "principal", "admin"],
+    description: "Battleground create/join/finish — student owns play; teacher may create featured",
+  },
+  student_xp: {
+    entity: "student_xp",
+    owners: ["student", "admin"],
+    consumers: ["student", "teacher", "parent", "principal", "admin"],
+    description: "XP/level/streaks — writes via battle/practice RPCs + limited equip; UI never invents totals",
+  },
+  student_badge: {
+    entity: "student_badge",
+    owners: ["admin"],
+    consumers: ["student", "teacher", "parent", "principal", "admin"],
+    description: "Badges awarded by engine (_award_badge); students equip via student_xp only",
+  },
   student_doubt: {
     entity: "student_doubt",
     owners: ["student"],

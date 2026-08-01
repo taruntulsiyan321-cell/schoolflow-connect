@@ -1,0 +1,25 @@
+---
+description: Student academic/experience actions go through Academic Engine services
+globs: src/gurukul/**,src/pages/student/**,src/pages/StudentDashboard.tsx,src/hooks/useStudent*.ts,src/lib/practice*.ts
+alwaysApply: false
+---
+
+# Student Experience via Academic Engine
+
+Student academic and experience facts must flow through the Academic Engine — do **not** invent a parallel SyncEngine, event outbox, or profile table.
+
+## Write path
+
+- Prefer `AcademicServices` / named services from `@/academic`:
+  - `PracticeService` — start/finish practice (not raw `rpc_*_practice_session`)
+  - `BattleExperienceService` — create/join/finish battles (not bare `rpc_finish_battle`)
+  - `XpService` / `BadgeService` — read XP & badges; equip only via service
+- After writes: `emitEvent` (service) + `broadcastAcademicWrite` + `notifyStudentXpUpdated` for compat
+- Events: `battle.finished`, `battle.joined`, `battle.created`, `badge.earned`, `xp.updated`, plus existing `practice.session.completed` / `test.attempt.completed` / homework submit
+
+## Do not
+
+- Direct Supabase writes from Student UI for XP, badges, battle finish, or practice finish
+- Demo/fake XP, ranks, classmates, or unlocked badges
+- Redesign Battleground UI when wiring data
+- Duplicate academic profile rollups for experience metrics

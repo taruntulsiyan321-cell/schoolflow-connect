@@ -72,6 +72,10 @@ export {
   TestService,
   PracticeService,
   DoubtService,
+  XpService,
+  BadgeService,
+  BattleExperienceService,
+  resolveStudentServiceContext,
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
@@ -89,6 +93,19 @@ export {
   type TestKind,
   type ExamType,
 } from "./services";
+
+export type { StudentXpRow } from "./services/xpService";
+export type { EarnedBadgeRow } from "./services/badgeService";
+export type { BattleCreateOpts } from "./services/battleExperienceService";
+
+export { AcademicLiveProvider, useAcademicLive, useAcademicLiveBump, broadcastAcademicWrite } from "./live";
+export {
+  academicQueryKeys,
+  invalidateAcademicQueries,
+  notifyAcademicChange,
+  subscribeAcademicChange,
+  type AcademicDomain,
+} from "./live";
 
 export type {
   AttendanceRecord,

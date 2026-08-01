@@ -19,6 +19,7 @@ import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import SharedLeaderboard from "@/pages/shared/LeaderboardPage";
 import BattleReportPage from "./BattleReportPage";
 import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
+import { useAcademicContext, BattleExperienceService } from "@/academic";
 import { StudentAnalyticsSkeleton, StudentDashboardSkeleton, StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 
@@ -102,6 +103,7 @@ function CreateBattle() {
 export function BattleRoom() {
   const { id } = useParams();
   const { user } = useAuth();
+  const { ctx, ready: academicReady } = useAcademicContext();
   const nav = useNavigate();
   const [battle, setBattle] = useState<any>(null);
   const [battleLoading, setBattleLoading] = useState(true);
@@ -181,11 +183,18 @@ export function BattleRoom() {
           if (firstUnanswered > 0) {
             setQIdx(firstUnanswered);
           } else if (firstUnanswered === -1 && (qs ?? []).length > 0 && !existing?.finished_at) {
-            const { error: finishErr } = await supabase.rpc("rpc_finish_battle", { _participant_id: pid });
-            if (!finishErr) {
-              notifyStudentXpUpdated();
+            try {
+              if (ctx && academicReady) {
+                await BattleExperienceService.finish(ctx, pid);
+              } else {
+                const { error: finishErr } = await supabase.rpc("rpc_finish_battle", { _participant_id: pid });
+                if (finishErr) throw finishErr;
+                notifyStudentXpUpdated();
+              }
               setFinished(true);
               didAutoFinish = true;
+            } catch {
+              /* keep room open if finish fails */
             }
           }
         }
@@ -196,7 +205,7 @@ export function BattleRoom() {
         setBattleLoading(false);
       }
     })();
-  }, [id, user]);
+  }, [id, user, ctx, academicReady]);
 
   // Pre-battle 3-2-1 countdown
   useEffect(() => {
@@ -322,27 +331,40 @@ export function BattleRoom() {
       }
       setFinishingBattle(true);
       try {
-        const { error: finishErr } = await supabase.rpc("rpc_finish_battle", { _participant_id: participantId });
-        if (finishErr) {
+        try {
+          if (ctx && academicReady) {
+            await BattleExperienceService.finish(ctx, participantId);
+          } else {
+            const { error: finishErr } = await supabase.rpc("rpc_finish_battle", {
+              _participant_id: participantId,
+            });
+            if (finishErr) throw finishErr;
+            notifyStudentXpUpdated();
+          }
+        } catch (finishErr) {
           const { data: fresh } = await supabase
             .from("battle_participants")
             .select("*")
             .eq("id", participantId)
             .maybeSingle();
           if (!fresh?.finished_at) {
-            toast({ title: finishErr.message, variant: "destructive" });
+            toast({
+              title: finishErr instanceof Error ? finishErr.message : "Could not finish battle",
+              variant: "destructive",
+            });
             return;
           }
           setMe(fresh);
-        } else {
-          const { data: fresh } = await supabase
-            .from("battle_participants")
-            .select("*")
-            .eq("id", participantId)
-            .maybeSingle();
-          if (fresh) setMe(fresh);
+          notifyStudentXpUpdated();
+          setFinished(true);
+          return;
         }
-        notifyStudentXpUpdated();
+        const { data: fresh } = await supabase
+          .from("battle_participants")
+          .select("*")
+          .eq("id", participantId)
+          .maybeSingle();
+        if (fresh) setMe(fresh);
         setFinished(true);
       } finally {
         setFinishingBattle(false);

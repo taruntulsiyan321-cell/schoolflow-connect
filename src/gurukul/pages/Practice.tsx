@@ -3,7 +3,7 @@ import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useAcademicContext, PracticeService } from "@/academic";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
   BookOpen, Clock, Zap, Target, RefreshCw, AlertCircle, Bookmark,
@@ -878,6 +878,7 @@ function Summary({ results, onRetry, onHub }: {
 export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const { user } = useAuth();
+  const { ctx, ready: academicReady } = useAcademicContext();
   const { data: charts } = useStudentPerformanceCharts();
   const [history, setHistory] = useState<HistoryRow[]>([]);
 
@@ -896,45 +897,40 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   );
 
   useEffect(() => {
-    if (!user) {
-      setHistory([]);
+    if (!user || !ctx || !academicReady) {
+      if (!user) setHistory([]);
       return;
     }
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from("practice_sessions")
-        .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at")
-        .eq("user_id", user.id)
-        .not("finished_at", "is", null)
-        .order("finished_at", { ascending: false })
-        .limit(10);
-      if (cancelled || error) {
+      try {
+        const data = await PracticeService.listRecentFinished(ctx, 10);
+        if (cancelled) return;
+        setHistory(
+          (data ?? []).map((row) => {
+            const pct = row.question_count > 0
+              ? Math.round((100 * row.correct_count) / row.question_count)
+              : 0;
+            return {
+              id: row.id,
+              date: formatSessionDate(row.finished_at!),
+              mode: row.chapter ? "Chapter Practice" : "Practice",
+              subject: row.subject || "Mixed",
+              qs: row.question_count,
+              attempted: row.question_count,
+              score: row.correct_count,
+              pct,
+              time: formatDuration(row.created_at, row.finished_at!),
+              status: "completed",
+            };
+          }),
+        );
+      } catch {
         if (!cancelled) setHistory([]);
-        return;
       }
-      setHistory(
-        (data ?? []).map((row) => {
-          const pct = row.question_count > 0
-            ? Math.round((100 * row.correct_count) / row.question_count)
-            : 0;
-          return {
-            id: row.id,
-            date: formatSessionDate(row.finished_at!),
-            mode: row.chapter ? "Chapter Practice" : "Practice",
-            subject: row.subject || "Mixed",
-            qs: row.question_count,
-            attempted: row.question_count,
-            score: row.correct_count,
-            pct,
-            time: formatDuration(row.created_at, row.finished_at!),
-            status: "completed",
-          };
-        }),
-      );
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, ctx, academicReady]);
 
   const streak = student.streak;
   const [phase,   setPhase]   = useState<Phase>("hub");

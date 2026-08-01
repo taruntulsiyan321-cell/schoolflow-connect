@@ -12,6 +12,10 @@ import { AcademicProfileService } from "./academicProfileService";
 import { TestService } from "./testService";
 import { PracticeService } from "./practiceService";
 import { DoubtService } from "./doubtService";
+import { XpService } from "./xpService";
+import { BadgeService } from "./badgeService";
+import { BattleExperienceService } from "./battleExperienceService";
+import { resolveStudentServiceContext } from "./resolveStudentContext";
 
 /**
  * Facade used by panels — single entry to academic write/read APIs.
@@ -27,6 +31,9 @@ export const AcademicServices = {
   test: TestService,
   practice: PracticeService,
   doubt: DoubtService,
+  xp: XpService,
+  badge: BadgeService,
+  battle: BattleExperienceService,
 } as const;
 
 export {
@@ -39,6 +46,10 @@ export {
   TestService,
   PracticeService,
   DoubtService,
+  XpService,
+  BadgeService,
+  BattleExperienceService,
+  resolveStudentServiceContext,
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
