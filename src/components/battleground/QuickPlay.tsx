@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Sword, Zap, Sparkles, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
 
 const SUBJECTS = ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "Social Studies", "General Knowledge", "Computer Science"];
 const DIFFICULTIES = ["easy", "medium", "hard"];
@@ -26,7 +27,17 @@ export function QuickPlay({ defaultClassId }: { defaultClassId?: string | null }
       _chapter: null, _class_id: defaultClassId ?? null, _topic: null,
     });
     setLoading(false);
-    if (error) { toast({ title: error.message, variant: "destructive" }); return; }
+    if (error) {
+      const msg = error.message || "Could not start battle";
+      toast({
+        title: isEmptyQuestionBankError(msg) ? NO_BANK_MSG : msg,
+        description: isEmptyQuestionBankError(msg)
+          ? "Ask a teacher to add questions, or try another subject."
+          : undefined,
+        variant: "destructive",
+      });
+      return;
+    }
     toast({ title: "Quick battle ready!" });
     nav(`/student/battleground/battle/${data}`);
   };

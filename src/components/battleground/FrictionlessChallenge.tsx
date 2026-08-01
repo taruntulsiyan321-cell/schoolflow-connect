@@ -207,11 +207,11 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
         battleId = res.data as string;
         error = res.error;
       } else if (mode === "class") {
-        const res = await supabase.rpc("rpc_create_class_battle" as never, base as never);
+        const res = await supabase.rpc("rpc_create_class_battle", base);
         battleId = res.data as string;
         error = res.error;
       } else {
-        const res = await supabase.rpc("rpc_create_open_battle" as never, base as never);
+        const res = await supabase.rpc("rpc_create_open_battle", base);
         battleId = res.data as string;
         error = res.error;
       }

@@ -129,9 +129,15 @@ export function BattleRoom() {
     (async () => {
       setBattleLoading(true);
       try {
-        const { data: b } = await supabase.from("battles").select("*").eq("id", id).maybeSingle();
+        const { data: b, error: battleErr } = await supabase.from("battles").select("*").eq("id", id).maybeSingle();
+        if (battleErr) {
+          toast({ title: "Could not load battle", description: battleErr.message, variant: "destructive" });
+        }
         setBattle(b);
-        const { data: qs } = await supabase.from("battle_questions").select("*").eq("battle_id", id).order("order_index");
+        const { data: qs, error: qsErr } = await supabase.from("battle_questions").select("*").eq("battle_id", id).order("order_index");
+        if (qsErr) {
+          toast({ title: "Could not load questions", description: qsErr.message, variant: "destructive" });
+        }
         setQuestions(qs ?? []);
         const { data: prof } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
         const name = prof?.full_name || prof?.email?.split("@")[0] || "Student";
@@ -629,8 +635,43 @@ function MyStats() {
       setLoading(true);
       const { data: x } = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
       if (x) setXp(x);
-      const { data: parts } = await supabase.from("battle_participants").select("*, battles(title,subject,topic,starts_at)").eq("user_id", user.id).order("joined_at", { ascending: false }).limit(20);
-      setHistory(parts ?? []);
+      const { data: parts, error: histErr } = await supabase
+        .from("battle_participants")
+        .select("*, battles(title,subject,topic,starts_at)")
+        .eq("user_id", user.id)
+        .order("joined_at", { ascending: false })
+        .limit(20);
+      if (histErr) {
+        // Fallback without embed if schema cache is stale
+        const { data: flatParts, error: flatErr } = await supabase
+          .from("battle_participants")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("joined_at", { ascending: false })
+          .limit(20);
+        if (flatErr) {
+          toast({ title: "Could not load battle history", description: flatErr.message, variant: "destructive" });
+          setHistory([]);
+        } else {
+          const ids = [...new Set((flatParts || []).map((p) => p.battle_id))];
+          const byId: Record<string, { title: string; subject: string; topic: string | null; starts_at: string }> = {};
+          if (ids.length) {
+            const { data: battles } = await supabase
+              .from("battles")
+              .select("id,title,subject,topic,starts_at")
+              .in("id", ids);
+            for (const b of battles || []) byId[b.id] = b;
+          }
+          setHistory(
+            (flatParts || []).map((p) => ({
+              ...p,
+              battles: byId[p.battle_id] ?? null,
+            })),
+          );
+        }
+      } else {
+        setHistory(parts ?? []);
+      }
       const { data: stu } = await supabase.from("students").select("id").eq("user_id", user.id).maybeSingle();
       if (stu) {
         const { data: m } = await supabase.from("marks").select("marks_obtained, exams(subject, max_marks)").eq("student_id", stu.id);

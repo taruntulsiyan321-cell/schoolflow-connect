@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { Swords, Search, Loader2, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
+import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
 
 const SUBJECTS = ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "Social Studies", "General Knowledge", "Computer Science", "Economics", "Accountancy", "Business Studies"];
 const DIFFICULTIES = ["easy", "medium", "hard"];
@@ -51,7 +52,14 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
     });
     setChallenging(null);
     if (error) {
-      toast({ title: error.message, variant: "destructive" });
+      const msg = error.message || "Could not send challenge";
+      toast({
+        title: isEmptyQuestionBankError(msg) ? NO_BANK_MSG : msg,
+        description: isEmptyQuestionBankError(msg)
+          ? "Ask a teacher to add questions, or try another subject."
+          : undefined,
+        variant: "destructive",
+      });
       return;
     }
     toast({ title: `Challenge sent to ${opponent.full_name.split(" ")[0]}!`, description: "Jump in — your battle is live." });

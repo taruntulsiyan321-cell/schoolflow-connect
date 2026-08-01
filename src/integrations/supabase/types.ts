@@ -591,7 +591,15 @@ export type Database = {
           inviter_user_id?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "battle_invites_battle_id_fkey"
+            columns: ["battle_id"]
+            isOneToOne: false
+            referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       battle_participants: {
         Row: {

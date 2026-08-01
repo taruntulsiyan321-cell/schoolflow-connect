@@ -2119,8 +2119,18 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         setLbEntries(classRows);
         const mine = schoolRows.find((r) => r.you);
         setSchoolRank(mine?.rank ?? null);
-      } catch {
-        if (!cancelled) setLbEntries([]);
+      } catch (err) {
+        if (!cancelled) {
+          setLbEntries([]);
+          toast({
+            title: "Could not load leaderboard",
+            description:
+              err && typeof err === "object" && "message" in err
+                ? String((err as { message: string }).message)
+                : "Try again in a moment",
+            variant: "destructive",
+          });
+        }
       }
     })();
     return () => {
@@ -2131,12 +2141,16 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   const myBattles = useMemo(
     () =>
       data.battles.filter(
-        (b) => b.participantId || b.opponent || b.status === "pending" || b.result || b.battleCode,
+        (b) =>
+          !!b.participantId ||
+          b.status === "pending" ||
+          !!b.inviteId ||
+          (b.type === "1v1" && !!b.opponent),
       ),
     [data.battles],
   );
 
-  const featuredLive = useMemo(() => data.battles.filter((b) => b.featured || b.hot), [data.battles]);
+  const featuredLive = useMemo(() => data.battles.filter((b) => b.featured), [data.battles]);
 
   function goBattle(id: string) {
     navigate(`/student/battleground/battle/${id}`);

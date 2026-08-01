@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Crown, Loader2, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 type Row = {
   user_id: string;
@@ -29,12 +30,17 @@ export function ArenaLeaderboard() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { data } = await supabase.rpc("rpc_leaderboard", {
+      const { data, error } = await supabase.rpc("rpc_leaderboard", {
         _scope: "class",
         _category: "xp",
         _limit: 8,
       });
-      setRows((data ?? []) as Row[]);
+      if (error) {
+        toast({ title: "Could not load leaderboard", description: error.message, variant: "destructive" });
+        setRows([]);
+      } else {
+        setRows((data ?? []) as Row[]);
+      }
       setLoading(false);
     })();
   }, []);

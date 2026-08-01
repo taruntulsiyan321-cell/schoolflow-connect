@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { accuracyFromXp, formatBattleStatus, motivationCard } from "@/lib/battlegroundHelpers";
+import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
 
 export type DesignBattleType = "1v1" | "team" | "class";
 
@@ -243,6 +244,8 @@ export function useBattlegroundData() {
       }
 
       // My participations (open + finished) for My Battles / History / pending
+      // Invites: two-query (no embed) — battle_invites historically lacked an FK, so
+      // PostgREST schema cache rejects `battles(...)` embeds until migration is applied.
       const [partsRes, invitesRes] = await Promise.all([
         supabase
           .from("battle_participants")
@@ -252,27 +255,87 @@ export function useBattlegroundData() {
           .limit(40),
         supabase
           .from("battle_invites")
-          .select(
-            "id, status, battle_id, inviter_user_id, battles(id,title,subject,status,mode,starts_at,duration_sec,question_count,source,battle_code,creator_user_id)",
-          )
+          .select("id, status, battle_id, inviter_user_id, created_at")
           .eq("invited_user_id", user.id)
           .eq("status", "pending")
           .order("created_at", { ascending: false })
           .limit(20),
       ]);
 
+      let myParts: PartRow[] | null = (partsRes.data as PartRow[] | null) ?? null;
       if (partsRes.error) {
-        const msg = partsRes.error.message || "Could not load your battles";
-        setError(msg);
-        toast({ title: "Battleground load failed", description: msg, variant: "destructive" });
-        return; // keep prior lists
+        // Embed may fail on stale schema cache — fall back to two queries
+        const msg = partsRes.error.message || "";
+        if (msg.toLowerCase().includes("relationship") || msg.toLowerCase().includes("schema cache")) {
+          const { data: flatParts, error: flatErr } = await supabase
+            .from("battle_participants")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("joined_at", { ascending: false })
+            .limit(40);
+          if (flatErr) {
+            setError(flatErr.message);
+            toast({ title: "Battleground load failed", description: flatErr.message, variant: "destructive" });
+            return;
+          }
+          const ids = [...new Set((flatParts || []).map((p) => p.battle_id))];
+          const battleMap: Record<string, BattleRow> = {};
+          if (ids.length) {
+            const { data: bRows, error: bErr } = await supabase.from("battles").select("*").in("id", ids);
+            if (bErr) {
+              toast({ title: "Could not load battles", description: bErr.message, variant: "destructive" });
+            }
+            for (const b of (bRows || []) as BattleRow[]) battleMap[b.id] = b;
+          }
+          myParts = (flatParts || []).map((p) => ({
+            ...p,
+            battles: battleMap[p.battle_id] ?? null,
+          })) as PartRow[];
+        } else {
+          setError(msg || "Could not load your battles");
+          toast({ title: "Battleground load failed", description: msg, variant: "destructive" });
+          return;
+        }
       }
       if (invitesRes.error) {
         toast({ title: "Could not load invites", description: invitesRes.error.message, variant: "destructive" });
       }
 
-      const myParts = partsRes.data;
-      const pendingInvites = invitesRes.error ? [] : invitesRes.data;
+      type InviteFlat = {
+        id: string;
+        battle_id: string;
+        inviter_user_id: string;
+        status?: string;
+        battles?: BattleRow | BattleRow[] | null;
+      };
+      let pendingInvites: InviteFlat[] = invitesRes.error ? [] : ((invitesRes.data || []) as InviteFlat[]);
+
+      // Attach battles via separate query (avoids schema-cache / missing-FK embed failures)
+      if (pendingInvites.length) {
+        const battleIds = [...new Set(pendingInvites.map((i) => i.battle_id).filter(Boolean))];
+        if (battleIds.length) {
+          const { data: inviteBattles, error: invBattleErr } = await supabase
+            .from("battles")
+            .select(
+              "id,title,subject,status,mode,starts_at,duration_sec,question_count,source,battle_code,creator_user_id",
+            )
+            .in("id", battleIds);
+          if (invBattleErr) {
+            toast({
+              title: "Could not load invite battles",
+              description: invBattleErr.message,
+              variant: "destructive",
+            });
+          } else {
+            const byId: Record<string, BattleRow> = {};
+            for (const b of (inviteBattles || []) as BattleRow[]) byId[b.id] = b;
+            pendingInvites = pendingInvites.map((inv) => ({
+              ...inv,
+              battles: byId[inv.battle_id] ?? null,
+            }));
+          }
+        }
+      }
 
       const parts = (myParts || []) as PartRow[];
       const myBattleIds = new Set(parts.map((p) => p.battle_id));
@@ -294,11 +357,11 @@ export function useBattlegroundData() {
       }
 
       // Open class/school battles I may not have joined yet
+      // Avoid stacking .in(mode) with .or(mode…) — PostgREST ANDs them and can drop rows.
       let openQ = supabase
         .from("battles")
         .select("*")
         .in("status", ["live", "scheduled"])
-        .in("mode", ["open", "lobby"])
         .order("starts_at", { ascending: false })
         .limit(20);
       if (s?.class_id) {
@@ -423,15 +486,7 @@ export function useBattlegroundData() {
       }
 
       // Incoming challenges (pending invites) — must stay "pending", not overwritten to live
-      type InviteRow = {
-        id: string;
-        battle_id: string;
-        inviter_user_id: string;
-        battles?: BattleRow | BattleRow[] | null;
-      };
-      const inviterIds = (pendingInvites || [])
-        .map((inv: InviteRow) => inv.inviter_user_id)
-        .filter(Boolean);
+      const inviterIds = pendingInvites.map((inv) => inv.inviter_user_id).filter(Boolean);
       const inviterNames: Record<string, string> = {};
       if (inviterIds.length) {
         const { data: inviters } = await supabase
@@ -442,7 +497,7 @@ export function useBattlegroundData() {
           inviterNames[row.user_id] = row.full_name || "Challenger";
         }
       }
-      for (const inv of (pendingInvites || []) as InviteRow[]) {
+      for (const inv of pendingInvites) {
         const b = unwrapBattle(inv.battles);
         if (!b) continue;
         if (seen.has(b.id)) {
@@ -654,6 +709,15 @@ export async function createBattleFromDesign(opts: {
   };
 
   let id: string;
+  const throwCreateErr = (err: { message?: string } | null, fallback: string) => {
+    if (!err) return;
+    const msg = err.message || fallback;
+    if (isEmptyQuestionBankError(msg)) {
+      throw new Error(NO_BANK_MSG + " — ask a teacher to add questions, or try another subject/chapter.");
+    }
+    throw err instanceof Error ? err : new Error(msg);
+  };
+
   if (opts.type === "1v1" && opts.opponentUserId) {
     const res = await supabase.rpc("rpc_challenge_student", {
       _opponent_user_id: opts.opponentUserId,
@@ -663,18 +727,18 @@ export async function createBattleFromDesign(opts: {
       _per_q: base._per_q,
       _chapter: chap,
     });
-    if (res.error) throw res.error;
+    throwCreateErr(res.error, "Challenge could not be created");
     if (!res.data) throw new Error("Challenge could not be created");
     id = res.data as string;
   } else if (opts.type === "class") {
     const res = await supabase.rpc("rpc_create_class_battle", base);
-    if (res.error) throw res.error;
+    throwCreateErr(res.error, "Class battle could not be created");
     if (!res.data) throw new Error("Class battle could not be created");
     id = res.data as string;
   } else {
     // team / open / 1v1 without opponent → open battle with join code
     const res = await supabase.rpc("rpc_create_open_battle", base);
-    if (res.error) throw res.error;
+    throwCreateErr(res.error, "Battle could not be created");
     if (!res.data) throw new Error("Battle could not be created");
     id = res.data as string;
   }
@@ -770,7 +834,13 @@ export async function acceptBattleInvite(inviteId: string, battleId: string): Pr
 
 export async function ensureFeatured(kind: "daily" | "weekly" | "ncert" | "beat_topper" | "teacher"): Promise<string> {
   const res = await supabase.rpc("rpc_ensure_featured_battle", { _kind: kind });
-  if (res.error) throw res.error;
+  if (res.error) {
+    const msg = res.error.message || "Featured battle unavailable";
+    if (isEmptyQuestionBankError(msg)) {
+      throw new Error(NO_BANK_MSG + " — featured challenges need questions in the bank first.");
+    }
+    throw res.error;
+  }
   if (!res.data) throw new Error("Featured battle unavailable");
   const battleId = res.data as string;
 
