@@ -41,8 +41,14 @@ FOR EACH ROW EXECUTE FUNCTION public._enforce_duel_capacity();
 
 -- ---------------------------------------------------------
 -- 4. is_battle_participant — drop arbitrary uid param
+-- Policies depend on the 2-arg overload; drop them FIRST.
 -- ---------------------------------------------------------
+DROP POLICY IF EXISTS "battles read participant" ON public.battles;
+DROP POLICY IF EXISTS "bp read as participant" ON public.battle_participants;
+DROP POLICY IF EXISTS "bq read participant" ON public.battle_questions;
+
 DROP FUNCTION IF EXISTS public.is_battle_participant(uuid, uuid);
+DROP FUNCTION IF EXISTS public.is_battle_participant(uuid);
 
 CREATE OR REPLACE FUNCTION public.is_battle_participant(_battle_id uuid)
 RETURNS boolean
@@ -62,18 +68,14 @@ $$;
 REVOKE ALL ON FUNCTION public.is_battle_participant(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_battle_participant(uuid) TO authenticated;
 
--- Recreate policies that call the helper (idempotent)
-DROP POLICY IF EXISTS "battles read participant" ON public.battles;
 CREATE POLICY "battles read participant" ON public.battles
 FOR SELECT TO authenticated
 USING (public.is_battle_participant(id));
 
-DROP POLICY IF EXISTS "bp read as participant" ON public.battle_participants;
 CREATE POLICY "bp read as participant" ON public.battle_participants
 FOR SELECT TO authenticated
 USING (public.is_battle_participant(battle_id));
 
-DROP POLICY IF EXISTS "bq read participant" ON public.battle_questions;
 CREATE POLICY "bq read participant" ON public.battle_questions
 FOR SELECT TO authenticated
 USING (public.is_battle_participant(battle_id));
