@@ -125,6 +125,8 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   const [homeworkRows, setHomeworkRows] = useState<StudentHomeworkRow[]>([]);
   const [recentMarks, setRecentMarks] = useState<MarksRecord[]>([]);
   const [remarks, setRemarks] = useState<TeacherRemark[]>([]);
+  const [remarkDraft, setRemarkDraft] = useState("");
+  const [remarkSaving, setRemarkSaving] = useState(false);
   const [attendanceHistory, setAttendanceHistory] = useState<
     Awaited<ReturnType<typeof AttendanceService.listForStudent>>
   >([]);
@@ -574,6 +576,82 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     “{r.body}”
                   </div>
                 ))}
+                <div className="pt-2 space-y-2 border-t border-white/5">
+                  <textarea
+                    value={remarkDraft}
+                    onChange={(e) => setRemarkDraft(e.target.value)}
+                    rows={2}
+                    placeholder="Add a remark for this student…"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[11px] text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={remarkSaving || remarkDraft.trim().length < 3 || !ctx || !selected}
+                    onClick={() => {
+                      if (!ctx || !selected) return;
+                      void (async () => {
+                        setRemarkSaving(true);
+                        try {
+                          const row = await RemarksService.create(ctx, {
+                            studentId: selected.id,
+                            classId,
+                            body: remarkDraft,
+                          });
+                          setRemarks((prev) => [row, ...prev]);
+                          setRemarkDraft("");
+                        } catch (e) {
+                          setDetailError(errMsg(e, "Could not save remark"));
+                        } finally {
+                          setRemarkSaving(false);
+                        }
+                      })();
+                    }}
+                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-[#3b5bdb] text-black disabled:opacity-40"
+                  >
+                    {remarkSaving ? "Saving…" : "Save remark"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!(weakSubjects.length > 0 || strongSubjects.length > 0 || remarks.length > 0) && (
+              <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+                <div className="text-xs font-bold text-white">Teacher remark</div>
+                <div className="pt-2 space-y-2 border-t border-white/5">
+                  <textarea
+                    value={remarkDraft}
+                    onChange={(e) => setRemarkDraft(e.target.value)}
+                    rows={2}
+                    placeholder="Add a remark for this student…"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[11px] text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={remarkSaving || remarkDraft.trim().length < 3 || !ctx || !selected}
+                    onClick={() => {
+                      if (!ctx || !selected) return;
+                      void (async () => {
+                        setRemarkSaving(true);
+                        try {
+                          const row = await RemarksService.create(ctx, {
+                            studentId: selected.id,
+                            classId,
+                            body: remarkDraft,
+                          });
+                          setRemarks((prev) => [row, ...prev]);
+                          setRemarkDraft("");
+                        } catch (e) {
+                          setDetailError(errMsg(e, "Could not save remark"));
+                        } finally {
+                          setRemarkSaving(false);
+                        }
+                      })();
+                    }}
+                    className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-[#3b5bdb] text-black disabled:opacity-40"
+                  >
+                    {remarkSaving ? "Saving…" : "Save remark"}
+                  </button>
+                </div>
               </div>
             )}
 

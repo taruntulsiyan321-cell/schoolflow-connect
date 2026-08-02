@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
+import { useAcademicContext } from "@/academic";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
+import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   RotateCcw, Brain, CheckCircle2, XCircle, AlertCircle,
@@ -44,19 +46,27 @@ function mapRevisionQueue(
   queue: NonNullable<ReturnType<typeof useStudentAcademicSnapshot>["data"]>["revision_queue"],
 ): RevItem[] {
   if (!queue?.length) return [];
-  return queue.map((r) => ({
-    id: r.id,
-    concept: r.topic ?? r.chapter ?? r.subject,
-    subject: r.subject,
-    chapter: r.chapter ?? "—",
-    dueIn: dueLabelFromDate(r.due_date),
-    priority: r.priority,
-    bookmarked: false,
-    teacherAssigned: false,
-    lastSeen: "—",
-    reviews: 0,
-    source: "revision",
-  }));
+  return queue
+    .map((r) => {
+      const concept = [r.topic, r.chapter, r.subject].find((x) => !isPlaceholderAcademicLabel(x));
+      const subject = !isPlaceholderAcademicLabel(r.subject) ? r.subject : "";
+      if (!concept || !subject) return null;
+      const chapter = !isPlaceholderAcademicLabel(r.chapter) ? (r.chapter ?? "—") : "—";
+      return {
+        id: r.id,
+        concept,
+        subject,
+        chapter,
+        dueIn: dueLabelFromDate(r.due_date),
+        priority: r.priority,
+        bookmarked: false,
+        teacherAssigned: false,
+        lastSeen: "—",
+        reviews: 0,
+        source: "revision",
+      };
+    })
+    .filter((row): row is RevItem => !!row);
 }
 
 const FLASHCARDS: Flashcard[] = [];
@@ -323,8 +333,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
       const ctx = await resolveStudentServiceContext();
       await PracticeService.completeRevision(ctx, item.id);
       await reload?.();
-    } catch {
-      /* toast via empty — stay on page */
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not mark revision complete");
     } finally {
       setCompletingId(null);
     }

@@ -42,7 +42,7 @@ export const DoubtService = {
       studentId: ctx.studentId ?? null,
       payload: args,
     }).catch(() => undefined);
-    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+    broadcastAcademicWrite(ctx.schoolId, ["doubt", "profile"], {
       studentId: ctx.studentId,
       source: "DoubtService.create",
     });
@@ -69,7 +69,7 @@ export const DoubtService = {
       entityId: typeof data === "string" ? data : (data as { id?: string })?.id ?? null,
       payload: args,
     }).catch(() => undefined);
-    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+    broadcastAcademicWrite(ctx.schoolId, ["doubt", "profile"], {
       source: "DoubtService.reply",
     });
     return data;
@@ -82,7 +82,7 @@ export const DoubtService = {
       { _doubt_id: doubtId } as never,
     );
     throwIfError(error, "Failed to vote on doubt");
-    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+    broadcastAcademicWrite(ctx.schoolId, ["doubt", "profile"], {
       source: "DoubtService.voteDoubt",
     });
     return typeof data === "number" ? data : Number(data ?? 0);
@@ -95,7 +95,7 @@ export const DoubtService = {
       { _answer_id: answerId } as never,
     );
     throwIfError(error, "Failed to vote on answer");
-    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+    broadcastAcademicWrite(ctx.schoolId, ["doubt", "profile"], {
       source: "DoubtService.voteAnswer",
     });
     return typeof data === "number" ? data : Number(data ?? 0);
@@ -116,7 +116,7 @@ export const DoubtService = {
       studentId: ctx.studentId ?? null,
       payload: { answerId },
     }).catch(() => undefined);
-    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+    broadcastAcademicWrite(ctx.schoolId, ["doubt", "profile"], {
       studentId: ctx.studentId,
       source: "DoubtService.markBestAnswer",
     });
