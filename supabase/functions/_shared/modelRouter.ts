@@ -23,7 +23,8 @@ import {
 } from "./failureRecovery.ts";
 import { selectPromptWithShadow } from "./promptEvaluation.ts";
 
-const DEFAULT_MODEL = "qwen/qwen-2.5-72b-instruct";
+/** Primary OpenRouter slug — Qwen 3.7 Flash (override with OPENROUTER_MODEL). */
+const DEFAULT_MODEL = "qwen/qwen3.7-flash";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export type ModelRouterResult =
