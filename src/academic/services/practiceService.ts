@@ -22,6 +22,7 @@ import {
   displayChapter,
   displayConcept,
   displaySubject,
+  isPlaceholderAcademicLabel,
   toPresentedTerm,
   type TaxonomyTermRef,
 } from "@/lib/academicPresentation";
@@ -717,23 +718,35 @@ export const PracticeService = {
       .limit(limit);
     throwIfError(error, "Failed to load weak concepts");
     const scope = await this.resolveCurriculumScope(ctx);
-    return (data ?? []).map((r) => {
-      const subjectRaw = String((r as { subject: string }).subject ?? "");
-      const chapterRaw = (r as { chapter?: string | null }).chapter ?? null;
-      const conceptRaw = String((r as { concept: string }).concept ?? "");
-      return {
-        // Keep raw concept for mastery keys / filters; callers should display via displayConcept.
-        subject: displaySubject(subjectRaw) || subjectRaw,
-        chapter: chapterRaw ? displayChapter(chapterRaw) : null,
-        concept: conceptRaw,
-        concept_label: displayConcept(conceptRaw),
-        mastery_score: Number((r as { mastery_score: number }).mastery_score) || 0,
-      };
-    }).filter((r) =>
-      r.subject &&
-      r.concept &&
-      isSubjectAllowedForScope(r.subject, scope.stream, scope.classLevel),
-    );
+    return (data ?? [])
+      .map((r) => {
+        const subjectRaw = String((r as { subject: string }).subject ?? "");
+        const chapterRaw = (r as { chapter?: string | null }).chapter ?? null;
+        const conceptRaw = String((r as { concept: string }).concept ?? "");
+        return {
+          subjectRaw,
+          chapterRaw,
+          conceptRaw,
+          // Keep raw concept for mastery keys / filters; callers should display via displayConcept.
+          subject: displaySubject(subjectRaw) || subjectRaw,
+          chapter:
+            chapterRaw && !isPlaceholderAcademicLabel(chapterRaw)
+              ? displayChapter(chapterRaw)
+              : null,
+          concept: conceptRaw,
+          concept_label: displayConcept(conceptRaw),
+          mastery_score: Number((r as { mastery_score: number }).mastery_score) || 0,
+        };
+      })
+      .filter(
+        (r) =>
+          r.subject &&
+          r.concept &&
+          !isPlaceholderAcademicLabel(r.subjectRaw) &&
+          !isPlaceholderAcademicLabel(r.conceptRaw) &&
+          isSubjectAllowedForScope(r.subject, scope.stream, scope.classLevel),
+      )
+      .map(({ subjectRaw: _s, chapterRaw: _c, conceptRaw: _k, ...row }) => row);
   },
 
   /** Unmastered mistakes + wrong attempts as practice-ready questions (honest empty if none). */

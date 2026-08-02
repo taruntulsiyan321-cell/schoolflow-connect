@@ -46,7 +46,7 @@ function localDateKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Today's self-practice count from heatmap ? not lifetime sessions_completed. */
+/** Today's self-practice count from heatmap - not lifetime sessions_completed. */
 function practiceSessionsToday(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"]) {
   const key = localDateKey();
   const row = (snapshot?.activity_heatmap ?? []).find((r) => String(r.date).slice(0, 10) === key);
@@ -95,7 +95,7 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
   } else {
     nextAction = {
       label: practiceToday > 0 ? "Keep practicing" : "Start a practice session",
-      reason: practiceToday > 0 ? "Daily practice done ? another session builds mastery" : "Build your daily practice habit",
+      reason: practiceToday > 0 ? "Daily practice done - another session builds mastery" : "Build your daily practice habit",
       page: "practice",
     };
   }
@@ -178,7 +178,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
     [charts?.weekly_activity],
   );
 
-  // One tile per canonical subject (Maths ? Mathematics); drop generic placeholders.
+  // One tile per canonical subject (Maths = Mathematics); drop generic placeholders.
   const subjects = useMemo(() => {
     return dedupeSubjectChartPoints(charts?.subjects ?? []).map((agg, i) => {
       const name = displaySubject(agg.name) || agg.name;
@@ -385,7 +385,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
           </div>
         ) : (
           <GlassCard className="p-6 text-center">
-            <p className="text-sm text-[#78788c]">No subject data yet ? complete practice to see performance.</p>
+            <p className="text-sm text-[#78788c]">No subject data yet - complete practice to see performance.</p>
           </GlassCard>
         )}
       </div>
@@ -407,10 +407,10 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 <div className="flex items-center gap-1 text-amber-400 capitalize"><span className="text-xs font-bold">{a.tier}</span></div>
               </div>
             )) : (
-              <p className="text-sm text-[#78788c] text-center py-4">No badges earned yet ? keep practicing!</p>
+              <p className="text-sm text-[#78788c] text-center py-4">No badges earned yet - keep practicing!</p>
             )}
             <button onClick={() => setPage("achievements")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors">
-              View all achievements ?
+              View all achievements ->
             </button>
           </div>
         </GlassCard>
@@ -434,7 +434,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             )}
           </div>
           <button onClick={() => setPage("leaderboard")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors mt-2">
-            See full leaderboard ?
+            See full leaderboard ->
           </button>
         </GlassCard>
       </div>
