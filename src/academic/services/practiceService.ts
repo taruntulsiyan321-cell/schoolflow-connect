@@ -8,6 +8,18 @@ import { getClient, throwIfError } from "../repository/base";
 import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
+import {
+  appliesCommerceSubjectAllowlist,
+  filterSubjectsForStream,
+  inferStreamFromText,
+  isSubjectAllowedForScope,
+  normalizeStream,
+  parseClassLevel,
+  type AcademicStream,
+  type CurriculumScope,
+} from "@/lib/curriculumScope";
+
+export type { CurriculumScope };
 
 /**
  * PracticeService — wraps practice session RPCs + finish path.
@@ -140,39 +152,116 @@ export const PracticeService = {
   },
 
   async resolveSchoolBoard(ctx: ServiceContext): Promise<string> {
-    const client = getClient(toRepoContext(ctx));
-    let schoolBoard = "rbse";
-    const { data: schoolRow } = await client
-      .from("schools")
-      .select("board")
-      .eq("id", ctx.schoolId)
-      .maybeSingle();
-    const rawBoard = (schoolRow as { board?: string | null } | null)?.board;
-    if (rawBoard && typeof rawBoard === "string" && rawBoard.trim()) {
-      schoolBoard = rawBoard.trim().toLowerCase();
-    }
-    return schoolBoard;
+    const scope = await this.resolveCurriculumScope(ctx);
+    return scope.board;
   },
 
-  /** Unique approved subjects from the live question bank (board-scoped). */
+  /**
+   * Resolve student's class_level + school board/stream for bank filtering.
+   * class_level comes from students → classes name/display (e.g. "11-A" → 11).
+   * stream from schools.stream, else class category/label (commerce/science/…).
+   */
+  async resolveCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
+    const client = getClient(toRepoContext(ctx));
+    let board = "rbse";
+    let schoolStream: AcademicStream | null = null;
+
+    // Prefer board+stream; fall back to board-only if stream column not migrated yet.
+    {
+      const withStream = await client
+        .from("schools")
+        .select("board, stream")
+        .eq("id", ctx.schoolId)
+        .maybeSingle();
+      if (withStream.error) {
+        const boardOnly = await client
+          .from("schools")
+          .select("board")
+          .eq("id", ctx.schoolId)
+          .maybeSingle();
+        const rawBoard = (boardOnly.data as { board?: string | null } | null)?.board;
+        if (rawBoard && typeof rawBoard === "string" && rawBoard.trim()) {
+          board = rawBoard.trim().toLowerCase();
+        }
+      } else {
+        const school = withStream.data as { board?: string | null; stream?: string | null } | null;
+        if (school?.board && typeof school.board === "string" && school.board.trim()) {
+          board = school.board.trim().toLowerCase();
+        }
+        schoolStream = normalizeStream(school?.stream ?? null);
+      }
+    }
+
+    let classLevel: number | null = null;
+    let classLabel: string | null = null;
+    let classCategory: string | null = null;
+
+    type ClassJoin = {
+      name?: string | null;
+      section?: string | null;
+      display_name?: string | null;
+      category?: string | null;
+    };
+
+    const readClass = (raw: ClassJoin | ClassJoin[] | null | undefined) => {
+      const c = Array.isArray(raw) ? raw[0] : raw;
+      if (!c) return;
+      classCategory = c.category ?? null;
+      const base = [c.name, c.section].filter(Boolean).join("-");
+      classLabel = c.display_name || base || null;
+      classLevel = parseClassLevel(classLabel) ?? parseClassLevel(c.name) ?? parseClassLevel(base);
+    };
+
+    if (ctx.studentId) {
+      const { data: stu } = await client
+        .from("students")
+        .select("class_id, classes(name, section, display_name, category)")
+        .eq("id", ctx.studentId)
+        .maybeSingle();
+      readClass((stu as { classes?: ClassJoin | ClassJoin[] | null } | null)?.classes);
+    } else if (ctx.userId) {
+      const { data: stu } = await client
+        .from("students")
+        .select("class_id, classes(name, section, display_name, category)")
+        .eq("user_id", ctx.userId)
+        .maybeSingle();
+      readClass((stu as { classes?: ClassJoin | ClassJoin[] | null } | null)?.classes);
+    }
+
+    const stream =
+      schoolStream ??
+      inferStreamFromText(classCategory, classLabel) ??
+      null;
+
+    return { classLevel, board, stream, classLabel };
+  },
+
+  /** Unique approved subjects from the live question bank (class + board + stream). */
   async listBankSubjects(
     ctx: ServiceContext,
     opts: { classLevel?: number | null } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
     const client = getClient(toRepoContext(ctx));
-    const schoolBoard = await this.resolveSchoolBoard(ctx);
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = opts.classLevel ?? scope.classLevel;
+
+    // Never dump all classes when we cannot resolve the student's class.
+    if (classLevel == null || !Number.isFinite(classLevel)) {
+      return [];
+    }
 
     let query = client
       .from("question_bank")
-      .select("subject")
+      .select("subject, stream")
       .eq("is_approved", true)
+      .eq("class_level", classLevel)
       .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
-      .or(`board.eq.${schoolBoard},board.eq.both,board.is.null`)
+      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
       .limit(800);
 
-    if (opts.classLevel != null && Number.isFinite(opts.classLevel)) {
-      query = query.eq("class_level", opts.classLevel);
+    if (scope.stream) {
+      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
     }
 
     const { data, error } = await query;
@@ -181,10 +270,11 @@ export const PracticeService = {
     for (const row of data ?? []) {
       const raw = String((row as { subject?: string }).subject ?? "").trim();
       if (!raw) continue;
+      if (!isSubjectAllowedForScope(raw, scope.stream, classLevel)) continue;
       const key = raw.toLowerCase();
       if (!seen.has(key)) seen.set(key, raw);
     }
-    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+    return filterSubjectsForStream([...seen.values()], scope.stream, classLevel);
   },
 
   /** Unique chapters for a subject from the live bank. */
@@ -194,19 +284,24 @@ export const PracticeService = {
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
     const client = getClient(toRepoContext(ctx));
-    const schoolBoard = await this.resolveSchoolBoard(ctx);
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = opts.classLevel ?? scope.classLevel;
+
+    if (classLevel == null || !Number.isFinite(classLevel)) return [];
+    if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
     let query = client
       .from("question_bank")
       .select("chapter")
       .eq("is_approved", true)
+      .eq("class_level", classLevel)
       .ilike("subject", opts.subject)
       .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
-      .or(`board.eq.${schoolBoard},board.eq.both,board.is.null`)
+      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
       .limit(800);
 
-    if (opts.classLevel != null && Number.isFinite(opts.classLevel)) {
-      query = query.eq("class_level", opts.classLevel);
+    if (scope.stream) {
+      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
     }
 
     const { data, error } = await query;
@@ -228,22 +323,27 @@ export const PracticeService = {
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
     const client = getClient(toRepoContext(ctx));
-    const schoolBoard = await this.resolveSchoolBoard(ctx);
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = opts.classLevel ?? scope.classLevel;
+
+    if (classLevel == null || !Number.isFinite(classLevel)) return [];
+    if (!isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)) return [];
 
     let query = client
       .from("question_bank")
       .select("topic, concept")
       .eq("is_approved", true)
+      .eq("class_level", classLevel)
       .ilike("subject", opts.subject)
       .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
-      .or(`board.eq.${schoolBoard},board.eq.both,board.is.null`)
+      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
       .limit(800);
 
     if (opts.chapter) {
       query = query.ilike("chapter", `%${opts.chapter}%`);
     }
-    if (opts.classLevel != null && Number.isFinite(opts.classLevel)) {
-      query = query.eq("class_level", opts.classLevel);
+    if (scope.stream) {
+      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
     }
 
     const { data, error } = await query;
@@ -420,18 +520,38 @@ export const PracticeService = {
     assertCanConsume(ctx, "practice");
     const client = getClient(toRepoContext(ctx));
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
-    const schoolBoard = await this.resolveSchoolBoard(ctx);
+    const scope = await this.resolveCurriculumScope(ctx);
+    const classLevel = opts.classLevel ?? scope.classLevel;
+
+    // Never dump all classes when class cannot be resolved (unless fetching by id).
+    const byIds = opts.ids && opts.ids.length > 0;
+    if (!byIds && (classLevel == null || !Number.isFinite(classLevel))) {
+      return [];
+    }
+    if (
+      opts.subject &&
+      opts.subject !== "Mixed" &&
+      !isSubjectAllowedForScope(opts.subject, scope.stream, classLevel)
+    ) {
+      return [];
+    }
 
     let query = client
       .from("question_bank")
-      .select("id, subject, chapter, topic, concept, difficulty, question, options, correct_index, explanation, exam_year, source, source_type")
+      .select("id, subject, chapter, topic, concept, difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
       .eq("is_approved", true)
       .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
-      .or(`board.eq.${schoolBoard},board.eq.both,board.is.null`)
+      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
       .limit(Math.min(400, Math.max(80, limit * 8)));
 
-    if (opts.ids && opts.ids.length > 0) {
-      query = query.in("id", opts.ids);
+    if (byIds) {
+      query = query.in("id", opts.ids!);
+    }
+    if (classLevel != null && Number.isFinite(classLevel)) {
+      query = query.eq("class_level", classLevel);
+    }
+    if (scope.stream) {
+      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
     }
     if (opts.subject && opts.subject !== "Mixed") {
       query = query.ilike("subject", opts.subject);
@@ -441,9 +561,6 @@ export const PracticeService = {
     }
     if (opts.difficulty && opts.difficulty !== "mixed") {
       query = query.eq("difficulty", opts.difficulty);
-    }
-    if (opts.classLevel != null && Number.isFinite(opts.classLevel)) {
-      query = query.eq("class_level", opts.classLevel);
     }
     if (opts.pyqOnly) {
       query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
@@ -465,7 +582,13 @@ export const PracticeService = {
       exam_year: number | null;
       source: string | null;
       source_type: string | null;
+      stream: string | null;
     }>;
+
+    // Hard allowlist for commerce (covers null-stream legacy science rows).
+    if (appliesCommerceSubjectAllowlist(scope.stream, classLevel)) {
+      rows = rows.filter((r) => isSubjectAllowedForScope(r.subject, scope.stream, classLevel));
+    }
 
     if (opts.topic) {
       const t = opts.topic.toLowerCase();
@@ -483,8 +606,12 @@ export const PracticeService = {
       );
     }
     if (opts.weakTargets && opts.weakTargets.length > 0) {
+      const targets = opts.weakTargets.filter((w) =>
+        !w.subject || isSubjectAllowedForScope(w.subject, scope.stream, classLevel),
+      );
+      if (targets.length === 0) return [];
       rows = rows.filter((r) =>
-        opts.weakTargets!.some((w) => {
+        targets.some((w) => {
           const subjOk = !w.subject || r.subject.toLowerCase() === w.subject.toLowerCase();
           if (!subjOk) return false;
           const needle = (w.concept || w.chapter || "").toLowerCase();

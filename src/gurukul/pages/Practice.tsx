@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicContext, PracticeService } from "@/academic";
+import { useAcademicContext, PracticeService, type CurriculumScope } from "@/academic";
 import { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { toast } from "sonner";
@@ -15,6 +15,9 @@ import {
   Save, Bookmark, Timer, BookMarked, Lightbulb,
   RotateCcw, HelpCircle, TrendingDown, FileText, Globe, AlertCircle,
 } from "lucide-react";
+
+const CLASS_UNRESOLVED_MSG =
+  "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 11-A) so practice can show the right subjects.";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Phase   = "hub" | "config" | "session" | "feedback" | "summary";
@@ -383,13 +386,14 @@ function Hub({ onMode, history, streak }: { onMode: (key: ModeKey) => void; hist
 
 // ── Config views ─────────────────────────────────────────────────────────────
 function ConfigView({
-  modeKey, onStart, onBack, subjects, onNavigate,
+  modeKey, onStart, onBack, subjects, onNavigate, classUnresolved,
 }: {
   modeKey: ModeKey;
   onStart: (cfg: SessionConfig) => void;
   onBack: () => void;
   subjects: PracticeSubject[];
   onNavigate?: (page: PageKey) => void;
+  classUnresolved?: boolean;
 }) {
   const mode = MODES.find(m => m.key === modeKey)!;
   const { ctx, ready: academicReady } = useAcademicContext();
@@ -458,6 +462,10 @@ function ConfigView({
       timeLimitSec: modeKey === "timed" || modeKey === "mock" ? timeLimitMin * 60 : null,
     });
   }
+
+  const subjectEmptyMsg = classUnresolved
+    ? CLASS_UNRESOLVED_MSG
+    : "No subjects in the question bank yet for your class and board.";
 
   if (modeKey === "teacher") {
     return (
@@ -533,7 +541,7 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll label="Subject (optional)"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject (optional)"/>
           <div>
             <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Time Limit</div>
             <div className="flex gap-2 flex-wrap">
@@ -559,7 +567,7 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll={false} label="Choose subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="Choose subject"/>
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
         <StartButton color={mode.color} disabled={!selSubject} onStart={handleStart}/>
@@ -571,7 +579,7 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll={false} label="1. Subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
           {selSubject && (
             <OptionChips
               label={metaLoading ? "Loading chapters…" : "2. Chapter"}
@@ -609,7 +617,7 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll={false} label="1. Subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
           {selSubject && (
             <OptionChips
               label="2. Chapter (optional)"
@@ -640,7 +648,7 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll label="Subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
           {selSubject && selSubject !== "Mixed" && (
             <OptionChips
               label="Chapter (optional)"
@@ -688,7 +696,7 @@ function ConfigView({
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
           <p className="text-xs text-[#78788c]">Loads past-paper / exam-year tagged questions from the bank when available.</p>
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll label="Subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
         <StartButton color={mode.color} onStart={handleStart}/>
@@ -701,7 +709,7 @@ function ConfigView({
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
           <p className="text-xs text-[#78788c]">No countdown — focus on understanding.</p>
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll label="Subject"/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
         <StartButton color={mode.color} onStart={handleStart}/>
@@ -712,7 +720,7 @@ function ConfigView({
   return (
     <ConfigShell mode={mode} onBack={onBack}>
       <div className="space-y-6">
-        <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll/>
+        <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll/>
         <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
       </div>
       <StartButton color={mode.color} onStart={handleStart}/>
@@ -806,19 +814,22 @@ function ConfigShell({ mode, onBack, children }: {
 
 // Subject picker
 function SubjectPicker({
-  selected, onSelect, subjects, allowAll = true, label = "Subject",
+  selected, onSelect, subjects, allowAll = true, label = "Subject", emptyMessage,
 }: {
   selected: string | null;
   onSelect: (s: string | null) => void;
   subjects: PracticeSubject[];
   allowAll?: boolean;
   label?: string;
+  emptyMessage?: string;
 }) {
   return (
     <div>
       <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">{label}</div>
       {subjects.length === 0 ? (
-        <p className="text-xs text-[#78788c]">No subjects in the question bank yet for your board.</p>
+        <p className="text-xs text-[#78788c]">
+          {emptyMessage ?? "No subjects in the question bank yet for your class and board."}
+        </p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {allowAll && (
@@ -885,8 +896,8 @@ interface SessionConfig {
 
 // ── Session (question-solving) ───────────────────────────────────────────────
 function Session({
-  config, onFinish, onBack, subjects,
-}: { config: SessionConfig; onFinish: (results: SessionResults) => void; onBack: () => void; subjects: PracticeSubject[] }) {
+  config, onFinish, onBack, subjects, classUnresolved,
+}: { config: SessionConfig; onFinish: (results: SessionResults) => void; onBack: () => void; subjects: PracticeSubject[]; classUnresolved?: boolean }) {
   const { ctx, ready: academicReady } = useAcademicContext();
   const [qs, setQs] = useState<BankQuestion[]>([]);
   const [loadingQs, setLoadingQs] = useState(true);
@@ -1126,8 +1137,10 @@ function Session({
         <HelpCircle className="w-10 h-10 text-[#78788c] mx-auto"/>
         <div className="text-lg font-bold text-white">No questions available</div>
         <p className="text-sm text-[#78788c]">
-          {emptyByMode[config.mode] ??
-            "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions."}
+          {classUnresolved
+            ? CLASS_UNRESOLVED_MSG
+            : emptyByMode[config.mode] ??
+              "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions."}
         </p>
         <button onClick={onBack}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
@@ -1307,15 +1320,25 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [historyTick, setHistoryTick] = useState(0);
   const [subjects, setSubjects] = useState<PracticeSubject[]>([]);
+  const [curriculumScope, setCurriculumScope] = useState<CurriculumScope | null>(null);
+  const classUnresolved = !!curriculumScope && curriculumScope.classLevel == null;
 
   useEffect(() => {
     if (!ctx || !academicReady) {
       setSubjects([]);
+      setCurriculumScope(null);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
+        const scope = await PracticeService.resolveCurriculumScope(ctx);
+        if (cancelled) return;
+        setCurriculumScope(scope);
+        if (scope.classLevel == null) {
+          setSubjects([]);
+          return;
+        }
         const names = await PracticeService.listBankSubjects(ctx);
         if (cancelled) return;
         setSubjects(
@@ -1328,6 +1351,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       } catch (e) {
         if (!cancelled) {
           setSubjects([]);
+          setCurriculumScope(null);
           toast.error(e instanceof Error ? e.message : "Could not load subjects");
         }
       }
@@ -1423,6 +1447,11 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   return (
     <>
+      {classUnresolved && (
+        <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100/90">
+          {CLASS_UNRESOLVED_MSG}
+        </div>
+      )}
       {phase === "hub"     && <Hub onMode={handleMode} history={history} streak={streak}/>}
       {phase === "config"  && (
         <ConfigView
@@ -1431,9 +1460,10 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           onBack={() => setPhase("hub")}
           subjects={subjects}
           onNavigate={setPage}
+          classUnresolved={classUnresolved}
         />
       )}
-      {phase === "session" && config && <Session config={config} onFinish={handleFinish} onBack={() => setPhase("hub")} subjects={subjects}/>}
+      {phase === "session" && config && <Session config={config} onFinish={handleFinish} onBack={() => setPhase("hub")} subjects={subjects} classUnresolved={classUnresolved}/>}
       {phase === "summary" && results && (
         <Summary results={results} onRetry={handleRetry} onHub={() => setPhase("hub")}/>
       )}

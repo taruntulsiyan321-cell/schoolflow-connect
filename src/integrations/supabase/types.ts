@@ -3861,6 +3861,7 @@ export type Database = {
           logo_url: string | null
           name: string
           slug: string | null
+          stream: string | null
           updated_at: string
         }
         Insert: {
@@ -3871,6 +3872,7 @@ export type Database = {
           logo_url?: string | null
           name: string
           slug?: string | null
+          stream?: string | null
           updated_at?: string
         }
         Update: {
@@ -3881,6 +3883,7 @@ export type Database = {
           logo_url?: string | null
           name?: string
           slug?: string | null
+          stream?: string | null
           updated_at?: string
         }
         Relationships: []

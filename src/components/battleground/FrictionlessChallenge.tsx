@@ -14,6 +14,8 @@ import {
   getNcertSubjects,
   parseClassGrade,
 } from "@/lib/ncertSyllabus";
+import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
+import { PracticeService, useAcademicContext } from "@/academic";
 import { isEmptyQuestionBankError, NO_BANK_MSG, canUseMath12TemplateSolo } from "@/lib/battleTemplateSolo";
 import { Globe, Loader2, Search, User, Users, UsersRound, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -48,8 +50,28 @@ const MODE_META: Record<BattleMode, { label: string; icon: typeof User; hint: st
 export function FrictionlessChallenge({ classId, className, variant = "card" }: Props) {
   const { user } = useAuth();
   const nav = useNavigate();
+  const { ctx, ready: academicReady } = useAcademicContext();
   const grade = useMemo(() => parseClassGrade(className), [className]);
-  const subjects = useMemo(() => getNcertSubjects(grade), [grade]);
+  const [stream, setStream] = useState<AcademicStream | null>(null);
+
+  useEffect(() => {
+    if (!ctx || !academicReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const scope = await PracticeService.resolveCurriculumScope(ctx);
+        if (!cancelled) setStream(scope.stream);
+      } catch {
+        if (!cancelled) setStream(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, academicReady]);
+
+  const subjects = useMemo(
+    () => subjectsForStreamPicker(stream, grade, getNcertSubjects(grade)),
+    [stream, grade],
+  );
 
   const [mode, setMode] = useState<BattleMode>("duel");
   const [classmates, setClassmates] = useState<Classmate[]>([]);

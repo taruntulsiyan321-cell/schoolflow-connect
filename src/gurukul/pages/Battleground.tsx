@@ -27,18 +27,15 @@ import {
   type League as HelperLeague,
 } from "@/lib/battlegroundHelpers";
 import { getNcertChapters, getNcertSubjects, parseClassGrade } from "@/lib/ncertSyllabus";
+import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
+import { PracticeService, useAcademicContext } from "@/academic";
 import "./battleground-design.css";
 
-/** Subject labels for create wizard — not mock accuracy/chapter stats. */
+/** Fallback subject labels when stream/class cannot be resolved. */
 const SUBJECT_OPTIONS = [
   "Mathematics",
-  "Science",
-  "Physics",
-  "Chemistry",
-  "Biology",
   "English",
-  "Social Studies",
-  "Computer Science",
+  "Hindi",
 ];
 
 // ── Design tokens (DesignAuthenticationPage) ─────────────────────────────────
@@ -1619,11 +1616,28 @@ function CreateBattleWizard({
   creating?: boolean;
   classLabel?: string;
 }) {
+  const { ctx, ready: academicReady } = useAcademicContext();
   const grade = useMemo(() => parseClassGrade(classLabel), [classLabel]);
+  const [stream, setStream] = useState<AcademicStream | null>(null);
+
+  useEffect(() => {
+    if (!ctx || !academicReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const scope = await PracticeService.resolveCurriculumScope(ctx);
+        if (!cancelled) setStream(scope.stream);
+      } catch {
+        if (!cancelled) setStream(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, academicReady]);
+
   const subjectOptions = useMemo(() => {
-    const ncert = getNcertSubjects(grade);
-    return ncert.length ? ncert : SUBJECT_OPTIONS;
-  }, [grade]);
+    const scoped = subjectsForStreamPicker(stream, grade, getNcertSubjects(grade));
+    return scoped.length ? scoped : SUBJECT_OPTIONS;
+  }, [grade, stream]);
 
   const [step, setStep] = useState<CreateStep>(1);
   const [type, setType] = useState<BattleType>("1v1");
@@ -1647,6 +1661,7 @@ function CreateBattleWizard({
   }, [subjectOptions, subject]);
 
   const chapters = useMemo(() => {
+    // Commerce / bank-driven subjects: free-form "All" until bank chapters load in battle RPC.
     const list = getNcertChapters(grade, subject);
     return ["All", ...list];
   }, [grade, subject]);
