@@ -1,3 +1,5 @@
+-- Meta3 unify: in-place WIN1252 UTF-8 repair (no delete-v1). See docs/APPLY_UTF8_MOJIBAKE_REPAIR.sql
+
 -- =============================================================================
 -- APPLY_UTF8_MOJIBAKE_REPAIR.sql  (CANONICAL — Meta-Supervisor 3)
 -- Paste into Supabase SQL Editor with UTF-8. Idempotent.
