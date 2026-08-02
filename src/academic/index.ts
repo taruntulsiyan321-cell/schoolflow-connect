@@ -83,6 +83,9 @@ export {
   TimetableService,
   ResourceService,
   resolveStudentServiceContext,
+  assertStudentContext,
+  evaluateStudentContext,
+  studentShellReady,
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
@@ -193,6 +196,7 @@ export {
   bandFromScore,
   EIE_ALGORITHM_ID,
   MASTERY_THRESHOLDS,
+  WEAK_CONCEPT_THRESHOLD,
 } from "./eie";
 
 export { AuditService, listAuditForEntity, listRecentAudit } from "./audit";

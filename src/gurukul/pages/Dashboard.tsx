@@ -1,5 +1,5 @@
 import type { PageKey } from "@/gurukul/nav";
-import { useGurukulStudent } from "@/gurukul/StudentContext";
+import { useGurukulStudent, useGurukulShellReady } from "@/gurukul/StudentContext";
 import { GlassCard, SectionLabel, StatTile, XPBar, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   ArrowRight, Flame, BookOpen, Brain,
@@ -215,6 +215,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   );
 
   const goalLine = student.goal ? ` · Goal: ${student.goal}` : "";
+  const levelLabel = shellReady ? `Lv.${student.level}` : "—";
+  const streakLabel = shellReady ? `${streakLabel}` : "…";
 
   return (
     <div className="space-y-6">
@@ -233,7 +235,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             </h1>
             <p className="text-[#78788c] text-sm mt-1">{student.class}{goalLine}</p>
             <div className="grid grid-cols-3 gap-3 mt-4">
-              <StatTile label="Accuracy"   value={`${student.accuracy}%`}   color="#4b9fd4"/>
+              <StatTile label="Exam accuracy"   value={`${student.accuracy}%`}   color="#4b9fd4"/>
               <StatTile label="Class Rank" value={student.rank > 0 ? `#${student.rank}` : "—"} color="#c08a3a"/>
               <StatTile label="Level"      value={`Lv.${student.level}`}    color="#6882e8"/>
             </div>

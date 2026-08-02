@@ -175,7 +175,7 @@ export function LeaderboardPanel({ embedded = false }: Props) {
           score: Number(r.score) || 0,
           label:
             category === "xp" || category === "weekly" || category === "monthly" ? `${Number(r.score)} XP`
-            : category === "streak" ? `${Number(r.score)} days`
+            : category === "streak" ? `${Number(r.score)}-day study streak`
             : category === "wins" ? `${Number(r.score)} wins`
             : category === "marks" || category === "attendance" || category === "homework" ? `${Number(r.score)}%`
             : category === "dpp" ? `${Number(r.score)}% avg`

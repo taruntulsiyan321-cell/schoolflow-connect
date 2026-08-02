@@ -1,6 +1,7 @@
 export {
   EIE_ALGORITHM_ID,
   MASTERY_THRESHOLDS,
+  WEAK_CONCEPT_THRESHOLD,
   bandFromScore,
   isWeakBand,
   isStrongBand,

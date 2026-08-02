@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicContext, PracticeService, HomeworkService, TestService, TEST_KIND_LABELS, type CurriculumScope } from "@/academic";
+import { useAcademicContext, PracticeService, HomeworkService, TestService, TEST_KIND_LABELS, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
 import type { PracticeSessionRow } from "@/academic";
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
@@ -164,7 +164,7 @@ const MODES: Mode[] = [
     icon:<Trophy className="w-5 h-5"/>,     color:"#c08a3a", cat:"type",    badge:"Mock test" },
   { key:"difficulty", label:"Difficulty-Based",       desc:"Subject → chapter → difficulty — real bank questions at your level",
     icon:<BarChart2 className="w-5 h-5"/>,  color:"#6882e8", cat:"type",    badge:"Pick level" },
-  { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from topics where your accuracy is below 70%",
+  { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from concepts where your mastery is below 60%",
     icon:<TrendingDown className="w-5 h-5"/>, color:"#cc5069", cat:"targeted", badge:"Weak areas", instant:true, hot:true },
   { key:"incorrect",  label:"Incorrect Questions",    desc:"Reattempt questions you got wrong in previous sessions",
     icon:<XCircle className="w-5 h-5"/>,    color:"#cc5069", cat:"targeted", badge:"Retry wrong", instant:true },
@@ -456,13 +456,13 @@ function Hub({
               onClick={onSaveLatest}
               className="flex items-center gap-1 text-[10px] text-[#3b5bdb] hover:text-blue-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Save className="w-3 h-3"/> {savingLatest ? "Saving…" : "Save current"}
+              <Save className="w-3 h-3"/> {savingLatest ? "Saving…" : "Save latest result"}
             </button>
           </div>
           <div className="space-y-2.5">
             {saved.length === 0 ? (
               <div className="py-8 text-center text-xs text-[#78788c]">
-                No saved sessions yet. Finish practice, open analysis, then Save Session — or use Save current for your latest result.
+                No saved sessions yet. Finish practice, open analysis, then Save Session — or bookmark your latest finished result here.
               </div>
             ) : saved.map(s => (
               <button
@@ -1426,7 +1426,7 @@ function Session({
             rows = rows.filter((r) => !skip.has(r.id));
           }
         } else if (config.mode === "weak") {
-          const weak = await PracticeService.listWeakConcepts(ctx, { threshold: 70, limit: 12 });
+          const weak = await PracticeService.listWeakConcepts(ctx, { threshold: WEAK_CONCEPT_THRESHOLD, limit: 12 });
           if (weak.length === 0) {
             rows = [];
           } else {
@@ -1592,6 +1592,9 @@ function Session({
         if (typeof serverStats.skippedCount === "number") results.skipped = serverStats.skippedCount;
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not save practice session");
+        results.serverStats = null;
+        onFinish({ ...results, finishFailed: true });
+        return;
       }
     }
     onFinish(results);
@@ -1790,7 +1793,7 @@ function Session({
 
   if (qs.length === 0) {
     const emptyByMode: Partial<Record<ModeKey, string>> = {
-      weak: "No weak concepts tracked yet (mastery below 70%). Practice more, then return here — or open Recovery.",
+      weak: `No weak concepts tracked yet (mastery below ${WEAK_CONCEPT_THRESHOLD}%). Practice more, then return here — or open Recovery.`,
       incorrect: "No incorrect questions saved yet. Mistakes from practice and tests will appear here.",
       skipped: "You have not skipped any bank questions yet.",
       pyq: "No previous-year / exam-tagged questions in the bank for this filter yet.",
@@ -1966,6 +1969,7 @@ interface SessionResults {
   sessionId: string | null;
   attempts: PracticeAttemptSnapshot[];
   startedAt?: string;
+  finishFailed?: boolean;
   serverStats?: {
     questionCount?: number;
     correctCount?: number;
@@ -1980,7 +1984,7 @@ interface SessionResults {
 function Summary({ results, onRetry, onHub }: {
   results: SessionResults; onRetry: ()=>void; onHub: ()=>void;
 }) {
-  const { correct, total, skipped, bookmarked, config, serverStats } = results;
+  const { correct, total, skipped, bookmarked, config, serverStats, finishFailed } = results;
   // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats — never invent XP.
   const stats = resolvePracticeSessionStats(null, {
     questionCount: serverStats?.questionCount ?? total,

@@ -25,6 +25,7 @@ import {
   toPresentedTerm,
   type TaxonomyTermRef,
 } from "@/lib/academicPresentation";
+import { WEAK_CONCEPT_THRESHOLD } from "../eie/masteryBands";
 
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
@@ -685,8 +686,8 @@ export const PracticeService = {
     mastery_score: number;
   }>> {
     assertCanConsume(ctx, "practice");
-    // Align with Nova/UI weak policy: mastery < 60 (callers may override).
-    const threshold = opts.threshold ?? 60;
+    // Align with EIE / Nova / Recovery: mastery < WEAK_CONCEPT_THRESHOLD.
+    const threshold = opts.threshold ?? WEAK_CONCEPT_THRESHOLD;
     const limit = opts.limit ?? 12;
     const client = getClient(toRepoContext(ctx));
     const { data, error } = await client
@@ -1183,7 +1184,8 @@ export const PracticeService = {
         _chapter: args.chapter ?? null,
         _concept: args.concept ?? args.chapter ?? null,
         _subconcept: null,
-        _accuracy: args.accuracy ?? 35,
+        // Never invent accuracy — omit so RPC uses DEFAULT.
+        ...(typeof args.accuracy === "number" ? { _accuracy: args.accuracy } : {}),
         _source_type: args.sourceType,
         _source_id: sourceId,
       } as never,
@@ -1225,6 +1227,73 @@ export const PracticeService = {
   },
 
   /** Mark student mistakes mastered after successful retry practice. */
+
+  async completeMistakeRetry(
+    ctx: ServiceContext,
+    attempts: Array<{
+      mistakeId: string;
+      bankQuestionId?: string | null;
+      subject: string;
+      chapter?: string | null;
+      concept?: string | null;
+      questionText: string;
+      options: string[];
+      selectedIndex: number;
+      correctIndex: number;
+      explanation?: string | null;
+      difficulty?: string | null;
+    }>,
+  ): Promise<{ score: number; masteredIds: string[]; sessionId: string | null; persisted: boolean }> {
+    assertCanOwn(ctx, "practice");
+    if (!attempts.length) return { score: 0, masteredIds: [], sessionId: null, persisted: false };
+    const correctN = attempts.filter((a) => a.selectedIndex === a.correctIndex).length;
+    const score = Math.round((100 * correctN) / attempts.length);
+    const subject = attempts[0]?.subject || "Practice";
+    const chapter = attempts[0]?.chapter || attempts[0]?.concept || "Mistake Book";
+    let sessionId: string | null = null;
+    try {
+      sessionId = (await this.start(ctx, {
+        _subject: subject, _chapter: String(chapter), _count: attempts.length, _practice_mode: "incorrect",
+      })) as string;
+    } catch (e) {
+      console.warn("mistake retry start:", e instanceof Error ? e.message : e);
+      return { score, masteredIds: [], sessionId: null, persisted: false };
+    }
+    const finishPayload: Array<Record<string, unknown>> = [];
+    for (const a of attempts) {
+      const isCorrect = a.selectedIndex === a.correctIndex;
+      const generatedQuestion = {
+        question: a.questionText, options: a.options, bank_question_id: a.bankQuestionId ?? null,
+        subject: a.subject, chapter: a.chapter ?? null, concept: a.concept ?? null,
+        practice_mode: "incorrect", mistake_id: a.mistakeId,
+      };
+      const selectedAnswer = { selected_index: a.selectedIndex };
+      const correctAnswer = { correct_index: a.correctIndex };
+      try {
+        await this.recordAttempt(ctx, {
+          sessionId, bankQuestionId: a.bankQuestionId ?? null, generatedQuestion, selectedAnswer, correctAnswer,
+          isCorrect, score: isCorrect ? 1 : 0, subject: a.subject, chapter: a.chapter ?? undefined,
+          concept: a.concept ?? undefined, difficulty: a.difficulty ?? undefined,
+          practiceMode: "incorrect", source: "mistake_book", sourceId: a.mistakeId,
+        });
+      } catch (e) { console.warn("mistake retry attempt:", e instanceof Error ? e.message : e); }
+      finishPayload.push({
+        bank_question_id: a.bankQuestionId ?? null, selected_answer: selectedAnswer, correct_answer: correctAnswer,
+        is_correct: isCorrect, score: isCorrect ? 1 : 0, generated_question: generatedQuestion,
+        practice_mode: "incorrect", source_id: a.mistakeId,
+      });
+    }
+    try {
+      await this.finish(ctx, { _session_id: sessionId, _attempts: finishPayload });
+    } catch (e) {
+      console.warn("mistake retry finish:", e instanceof Error ? e.message : e);
+      return { score, masteredIds: [], sessionId, persisted: false };
+    }
+    const masteredIds = score >= 70
+      ? attempts.filter((a) => a.selectedIndex === a.correctIndex).map((a) => a.mistakeId) : [];
+    if (masteredIds.length) await this.markMistakesMastered(ctx, masteredIds);
+    return { score, masteredIds, sessionId, persisted: true };
+  },
   async markMistakesMastered(ctx: ServiceContext, mistakeIds: string[]): Promise<void> {
     assertCanOwn(ctx, "practice");
     if (!mistakeIds.length) return;

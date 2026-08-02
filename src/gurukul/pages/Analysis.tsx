@@ -99,7 +99,7 @@ export default function Analysis() {
   const student = useGurukulStudent();
   const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
   const liveVersion = useAcademicLive(["marks", "examination", "profile"]);
-  const { data: analysis, loading: analysisLoading } = useAnalysisPageData();
+  const { data: analysis, loading: analysisLoading, error: analysisError } = useAnalysisPageData();
   const { data: charts, loading: chartsLoading } = useStudentPerformanceCharts();
   const { data: snapshot, loading: snapshotLoading } = useStudentAcademicSnapshot();
   const { items: mastery, loading: masteryLoading } = useConceptMastery();
@@ -119,10 +119,11 @@ export default function Analysis() {
           setMarks(markRows);
           setExams(examRows);
         }
-      } catch {
+      } catch (e) {
         if (!cancelled) {
           setMarks([]);
           setExams([]);
+          toast.error(e instanceof Error ? e.message : "Could not load marks for reports");
         }
       }
     })();
@@ -167,7 +168,7 @@ export default function Analysis() {
     const heatmap = snapshot?.activity_heatmap ?? [];
     const studyMinutes = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
     return {
-      accuracy: analysis?.totals.accuracy_pct ?? student.accuracy ?? 0,
+      accuracy: analysis?.totals.accuracy_pct ?? 0,
       totalQuestions,
       correct,
       incorrect,
@@ -175,12 +176,12 @@ export default function Analysis() {
       testsCompleted: testResults.length,
       avgScore: analysis?.totals.accuracy_pct ?? 0,
       studyHours: Math.round(studyMinutes / 60),
-      streak: snapshot?.xp?.current_streak ?? student.streak ?? 0,
-      rank: analysis?.class_rank ?? student.rank ?? 0,
-      totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
+      streak: snapshot?.xp?.study_streak ?? student.streak ?? 0,
+      rank: analysis?.class_rank ?? 0,
+      totalStudents: analysis?.class_size ?? 0,
       examReadiness: snapshot?.exam_readiness?.score ?? 0,
     };
-  }, [analysis, snapshot, student, testResults.length]);
+  }, [analysis, snapshot, testResults.length]);
 
   const scoreTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];
@@ -267,7 +268,7 @@ export default function Analysis() {
     const weekDone = weekly.reduce((s, d) => s + d.total, 0);
     const todayKey = new Date().toDateString();
     const todayDone = weekly.find((d) => new Date(d.date).toDateString() === todayKey)?.total ?? 0;
-    const streakDays = snapshot?.xp?.current_streak ?? student.streak ?? 0;
+    const streakDays = snapshot?.xp?.study_streak ?? student.streak ?? 0;
     const activeDays = (snapshot?.activity_heatmap ?? []).filter(
       (d) => (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0,
     ).length;

@@ -2,6 +2,8 @@ import {
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
+  ForbiddenError,
+  isSchoolOperator,
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
@@ -9,6 +11,9 @@ import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
+import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
+import { ValidationFailedError } from "../repository/errors";
+import { validateBattleQuestionDrafts } from "../validation/rules";
 
 export type BattleCreateOpts = {
   type: "1v1" | "team" | "class";
@@ -23,6 +28,22 @@ export type BattleCreateOpts = {
   opponentUserId?: string;
   classId?: string | null;
   isPublic?: boolean;
+};
+
+export type TeacherCustomBattleQuestion = {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  points?: number;
+};
+
+export type TeacherCustomBattleOpts = {
+  title: string;
+  subject: string;
+  topic?: string | null;
+  classId: string;
+  perQuestionSec: number;
+  questions: TeacherCustomBattleQuestion[];
 };
 
 export type QuickBattleOpts = {
@@ -404,6 +425,100 @@ export const BattleExperienceService = {
 
     afterExperienceWrite(ctx, ["battle"]);
     return { id, battleCode: row?.battle_code ?? null };
+  },
+
+  /**
+   * Teacher-authored class lobby battle with custom questions.
+   * Always mode=lobby + is_public so students see it in open/class lists.
+   */
+  async createTeacherCustom(
+    ctx: ServiceContext,
+    opts: TeacherCustomBattleOpts,
+  ): Promise<{ id: string; battleCode: string | null }> {
+    assertCanOwn(ctx, "battle");
+    if (ctx.role !== "teacher" && !isSchoolOperator(ctx.role)) {
+      throw new ForbiddenError("Only teachers may publish custom class battles");
+    }
+    if (!opts.classId) {
+      throw new ValidationFailedError([
+        { field: "classId", code: "required", message: "Select a class first" },
+      ]);
+    }
+    const title = opts.title.trim();
+    if (title.length < 2) {
+      throw new ValidationFailedError([
+        { field: "title", code: "required", message: "Battle title is required" },
+      ]);
+    }
+    const perQ = Math.max(5, Math.min(300, Math.floor(Number(opts.perQuestionSec) || 20)));
+    const drafts = opts.questions.map((q) => ({
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correctIndex,
+    }));
+    const qCheck = validateBattleQuestionDrafts(drafts);
+    if (!qCheck.ok) {
+      throw new ValidationFailedError((qCheck as { ok: false; issues: never[] }).issues);
+    }
+    if (!isSchoolOperator(ctx.role)) {
+      await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, opts.classId);
+    }
+
+    const client = getClient(toRepoContext(ctx));
+    const { data: b, error } = await client
+      .from("battles")
+      .insert({
+        title,
+        subject: opts.subject.trim() || "General",
+        topic: opts.topic?.trim() || null,
+        type: "mcq",
+        status: "live",
+        class_id: opts.classId,
+        creator_user_id: ctx.userId,
+        per_question_sec: perQ,
+        question_count: opts.questions.length,
+        duration_sec: perQ * opts.questions.length,
+        is_public: true,
+        mode: "lobby",
+        source: "custom",
+        starts_at: new Date().toISOString(),
+      } as never)
+      .select("id, battle_code")
+      .single();
+    throwIfError(error, "Failed to create class battle");
+    const battle = b as { id: string; battle_code?: string | null };
+    const id = battle.id;
+
+    const rows = opts.questions.map((q, i) => ({
+      battle_id: id,
+      order_index: i,
+      question: q.question.trim(),
+      options: q.options.map((o) => o.trim()),
+      correct_index: q.correctIndex,
+      points: q.points ?? 10,
+    }));
+    const { error: qErr } = await client.from("battle_questions").insert(rows as never);
+    if (qErr) {
+      await client.from("battles").delete().eq("id", id);
+      throwIfError(qErr, "Failed to save battle questions");
+    }
+
+    await emitEvent(toRepoContext(ctx), {
+      eventType: "battle.created",
+      entityType: "battle",
+      entityId: id,
+      studentId: null,
+      classId: opts.classId,
+      payload: {
+        type: "class",
+        source: "custom",
+        subject: opts.subject,
+        battle_code: battle.battle_code ?? null,
+      },
+    }).catch(() => undefined);
+
+    afterExperienceWrite(ctx, ["battle"]);
+    return { id, battleCode: battle.battle_code ?? null };
   },
 
   async joinByCode(ctx: ServiceContext, code: string): Promise<string> {

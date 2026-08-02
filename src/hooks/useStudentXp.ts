@@ -46,7 +46,7 @@ export function useStudentXp() {
           user_id: snap.user_id,
           xp: snap.xp,
           level: snap.level,
-          current_streak: snap.study_streak,
+          current_streak: snap.study_streak, // legacy alias — prefer study_streak
           longest_streak: snap.study_longest_streak,
           total_battles: snap.battleground.total_battles,
           wins: snap.battleground.wins,

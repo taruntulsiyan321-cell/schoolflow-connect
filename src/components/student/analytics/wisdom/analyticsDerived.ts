@@ -96,7 +96,7 @@ export function buildPersonalBests(
       icon: "timer",
     });
   }
-  const streak = data.xp?.current_streak ?? 0;
+  const streak = data.xp?.study_streak ?? data.xp?.current_streak ?? 0;
   if (streak >= 3) {
     items.push({
       kind: "STREAK",
@@ -134,7 +134,7 @@ export function pyramidStage(mastery: ConceptMasteryItem[], topicGaps: TopicGapI
   const mastered = mastery.filter((m) => m.mastery_score >= 75).length;
   const total = mastery.length || 1;
   const foundationalDone = mastered / total >= 0.5;
-  const coreTopic = topicGaps[0]?.topic ?? mastery.find((m) => m.mastery_score < 65)?.concept ?? "Core topics";
+  const coreTopic = topicGaps[0]?.topic ?? mastery.find((m) => m.mastery_score < 60)?.concept ?? "Core topics";
   return { foundationalDone, coreTopic, mastered, total };
 }
 

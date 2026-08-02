@@ -4,7 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AcademicSnapshot = {
   student?: { id: string; full_name: string; roll_number?: string; admission_number?: string } | null;
-  xp?: { xp: number; level: number; current_streak?: number; wins?: number; total_battles?: number } | null;
+  /** Raw student_xp via to_jsonb. Prefer study_streak for product streak UI; current_streak/win_streak are battle. */
+  xp?: {
+    xp: number;
+    level: number;
+    study_streak?: number;
+    current_streak?: number;
+    win_streak?: number;
+    wins?: number;
+    total_battles?: number;
+  } | null;
   homework?: { pending: number; completed: number };
   dpp?: { open: number; completed: number };
   weak_topics?: { subject: string; chapter?: string; topic?: string; accuracy: number }[];

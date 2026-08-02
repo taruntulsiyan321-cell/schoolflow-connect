@@ -16,6 +16,9 @@ export const MASTERY_THRESHOLDS = {
   // mastered: > 90
 } as const;
 
+/** Product SSOT for weak-concept UI / Recovery / Nova / Practice weak mode. */
+export const WEAK_CONCEPT_THRESHOLD = MASTERY_THRESHOLDS.weakMax;
+
 export function bandFromScore(score: number): MasteryBand {
   const s = Number.isFinite(score) ? score : 0;
   if (s < MASTERY_THRESHOLDS.criticalMax) return "critical";

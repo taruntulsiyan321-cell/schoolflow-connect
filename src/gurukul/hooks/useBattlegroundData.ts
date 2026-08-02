@@ -176,7 +176,7 @@ export function useBattlegroundData() {
     level: number;
     wins: number;
     total_battles: number;
-    current_streak: number;
+    study_streak: number;
     win_streak: number;
     best_win_streak: number;
     total_correct: number;
@@ -209,7 +209,7 @@ export function useBattlegroundData() {
         level: number;
         wins: number;
         total_battles: number;
-        current_streak: number;
+        study_streak: number;
         win_streak: number;
         best_win_streak: number;
         total_correct: number;
@@ -230,7 +230,7 @@ export function useBattlegroundData() {
           level: snap.level,
           wins: snap.battleground.wins,
           total_battles: snap.battleground.total_battles,
-          current_streak: snap.study_streak,
+          study_streak: snap.study_streak,
           win_streak: snap.battleground.win_streak,
           best_win_streak: snap.battleground.best_win_streak,
           total_correct: snap.battleground.total_correct,
@@ -263,24 +263,23 @@ export function useBattlegroundData() {
           /* ranks stay null */
         }
       } catch {
-        const xpRes = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
-        if (xpRes.error) throw xpRes.error;
-        const x = xpRes.data;
+        // Honest zeros — do not invent progress from a raw dual-formula fallback.
         xpData = {
-          xp: x?.xp ?? 0,
-          level: x?.level ?? 1,
-          wins: x?.wins ?? 0,
-          total_battles: x?.total_battles ?? 0,
-          current_streak: x?.study_streak ?? x?.current_streak ?? 0,
-          win_streak: x?.win_streak ?? 0,
-          best_win_streak: x?.best_win_streak ?? 0,
-          total_correct: x?.total_correct ?? 0,
-          total_answered: x?.total_answered ?? 0,
-          league_code: x?.league_code ?? null,
+          xp: 0,
+          level: 1,
+          wins: 0,
+          total_battles: 0,
+          study_streak: 0,
+          win_streak: 0,
+          best_win_streak: 0,
+          total_correct: 0,
+          total_answered: 0,
+          league_code: null,
           next_league_min_xp: null,
           next_league_remaining: null,
           next_league_label: null,
         };
+      }
       }
 
       if (stuRes.error) throw stuRes.error;
@@ -301,7 +300,7 @@ export function useBattlegroundData() {
         level: x?.level ?? 1,
         wins: x?.wins ?? 0,
         total_battles: x?.total_battles ?? 0,
-        current_streak: x?.current_streak ?? 0,
+        study_streak: x?.study_streak ?? 0,
         win_streak: x?.win_streak ?? 0,
         best_win_streak: x?.best_win_streak ?? 0,
         total_correct: x?.total_correct ?? 0,
@@ -760,7 +759,7 @@ export function useBattlegroundData() {
       { label: "Battles Won", value: String(wins), color: "#4aa87a" },
       { label: "Win Rate", value: `${winRate}%`, color: "#3b5bdb" },
       { label: "Class Rank", value: classRank ? `#${classRank}` : "—", color: "#c08a3a" },
-      { label: "Battle XP", value: (xp?.xp ?? 0).toLocaleString(), color: "#6882e8" },
+      { label: "XP", value: (xp?.xp ?? 0).toLocaleString(), color: "#6882e8" },
     ];
   }, [xp, classRank]);
 
@@ -769,7 +768,7 @@ export function useBattlegroundData() {
       motivationCard({
         xp: xp?.xp ?? 0,
         level: xp?.level ?? 1,
-        streak: xp?.current_streak ?? 0,
+        streak: xp?.win_streak ?? 0,
         wins: xp?.wins ?? 0,
         classRank,
         schoolRank,
@@ -779,13 +778,13 @@ export function useBattlegroundData() {
 
   const accuracy = useMemo(() => accuracyFromXp(xp || {}), [xp]);
 
-  /** Wins from student_xp; losses/draws only from finished history (never invent). */
+  /** Wins from student_xp lifetime; losses = non-wins (SSOT). Draws remain history-window only. */
   const record = useMemo(() => {
     const wins = xp?.wins ?? 0;
     const totalBattles = xp?.total_battles ?? 0;
     const finished = history.filter((h) => h.result === "won" || h.result === "lost" || h.result === "draw");
     const draws = finished.filter((h) => h.result === "draw").length;
-    const losses = finished.filter((h) => h.result === "lost").length;
+    const losses = Math.max(0, totalBattles - wins);
     return {
       totalBattles,
       wins,
@@ -795,7 +794,7 @@ export function useBattlegroundData() {
       rating: battleRatingFromXp(xp?.xp ?? 0, wins, totalBattles),
       xp: xp?.xp ?? 0,
       level: xp?.level ?? 1,
-      streak: xp?.win_streak ?? xp?.current_streak ?? 0,
+      streak: xp?.win_streak ?? 0,
       bestStreak: xp?.best_win_streak ?? 0,
       classRank,
       schoolRank,

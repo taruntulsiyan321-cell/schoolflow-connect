@@ -27,7 +27,7 @@ import "../dashboard/student-dashboard.css";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
-import { useAcademicContext, PracticeService } from "@/academic";
+import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD } from "@/academic";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import { resolvePracticeSessionStats } from "@/lib/practiceSessionStats";
 
@@ -221,7 +221,7 @@ export default function PracticeHubPage() {
     }));
     if (fromSnap.length) return fromSnap;
     return mastery
-      .filter((m) => (m.mastery_score ?? 100) < 70)
+      .filter((m) => (m.mastery_score ?? 100) < WEAK_CONCEPT_THRESHOLD)
       .sort((a, b) => (a.mastery_score ?? 0) - (b.mastery_score ?? 0))
       .slice(0, 4)
       .map((m) => ({

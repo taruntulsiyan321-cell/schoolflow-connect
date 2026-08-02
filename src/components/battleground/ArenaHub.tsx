@@ -90,10 +90,19 @@ export function ArenaHub() {
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [scopeClassLevel, setScopeClassLevel] = useState<number | null>(null);
   const [student, setStudent] = useState<any>(null);
-  const [xp, setXp] = useState<any>({
+  const [xp, setXp] = useState<{
+    xp: number;
+    level: number;
+    study_streak: number;
+    win_streak: number;
+    total_battles: number;
+    wins: number;
+    equipped_badge?: string | null;
+  }>({
     xp: 0,
     level: 1,
-    current_streak: 0,
+    study_streak: 0,
+    win_streak: 0,
     total_battles: 0,
     wins: 0,
   });

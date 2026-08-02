@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
@@ -29,10 +30,10 @@ function dueLabelFromDate(dueDate: string): string {
     today.setHours(0, 0, 0, 0);
     due.setHours(0, 0, 0, 0);
     const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
-    if (diff <= 0) return "Now";
-    if (diff === 1) return "Today";
-    if (diff === 2) return "Tomorrow";
-    if (diff <= 7) return `${diff - 1} days`;
+    if (diff < 0) return "Now";
+    if (diff === 0) return "Today";
+    if (diff === 1) return "Tomorrow";
+    if (diff <= 7) return `${diff} days`;
     return due.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
     return "—";
@@ -313,7 +314,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     ],
     [REVISION_ITEMS],
   );
-  const streak = snapshot?.xp?.current_streak ?? 0;
+  const streak = snapshot?.xp?.study_streak ?? 0;
 
   async function markComplete(item: RevItem) {
     setCompletingId(item.id);
