@@ -59,72 +59,80 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     [earned],
   );
 
-  useEffect(() => {
+  const liveVersion = useAcademicLive(["xp", "achievements", "profile"]);
+
+  const loadProfile = useCallback(async () => {
     if (!ready || !ctx || !studentId) {
       setLoading(false);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const settled = await Promise.allSettled([
-          supabase
-            .from("students")
-            .select("full_name, roll_number, classes(name, section)")
-            .eq("id", studentId)
-            .maybeSingle(),
-          AcademicProfileService.get(ctx, studentId),
-          AnalyticsService.forStudent(ctx, studentId),
-          ProgressionService.getForStudent(ctx, studentId),
-          ProgressionService.leaderboard(ctx, {
-            scope: "class",
-            period: "lifetime",
-            metric: "xp",
-            limit: 200,
-          }),
-        ]);
-        if (cancelled) return;
-        const sRes = settled[0].status === "fulfilled" ? settled[0].value : null;
-        const s = sRes?.data;
-        const profile = settled[1].status === "fulfilled" ? settled[1].value : null;
-        const analytics = settled[2].status === "fulfilled" ? settled[2].value : null;
-        const prog = settled[3].status === "fulfilled" ? settled[3].value : null;
-        const lb = settled[4].status === "fulfilled" ? settled[4].value : null;
-        setName(s?.full_name ?? "Student");
-        const cls = s?.classes as { name?: string; section?: string } | null;
-        setClassLabel(
-          cls ? `${cls.name ?? ""} ${cls.section ?? ""} · Roll ${s?.roll_number ?? "—"}` : "",
-        );
-        setAttPct(Math.round(profile?.attendancePct ?? analytics?.attendance.pct ?? 0));
-        setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
-        setHwPct(Math.round(analytics?.homework.pct ?? 0));
-        setTestsAvg(Math.round(analytics?.tests.averagePct ?? 0));
-        if (prog) {
-          setLevel(prog.level);
-          setXp(prog.xp);
-          setXpIntoLevel(prog.xp_into_level);
-          setXpToNext(prog.xp_to_next_level);
-          setLevelProgressPct(prog.level_progress_pct);
-          setLeague(prog.league?.label ?? prog.league?.code ?? "Bronze");
-          setStreak(prog.study_streak);
-          setReputation(prog.reputation);
-          setFeatured(Array.isArray(prog.featured_badges) ? prog.featured_badges : []);
-        }
-        if (lb && user?.id) {
-          const i = lb.rows.findIndex((r) => r.user_id === user.id);
-          setClassRank(i >= 0 ? i + 1 : null);
-        }
-      } catch {
-        /* empty */
-      } finally {
-        if (!cancelled) setLoading(false);
+    setLoading(true);
+    try {
+      const settled = await Promise.allSettled([
+        supabase
+          .from("students")
+          .select("full_name, roll_number, classes(name, section)")
+          .eq("id", studentId)
+          .maybeSingle(),
+        AcademicProfileService.get(ctx, studentId),
+        AnalyticsService.forStudent(ctx, studentId),
+        ProgressionService.getForStudent(ctx, studentId),
+        ProgressionService.leaderboard(ctx, {
+          scope: "class",
+          period: "lifetime",
+          metric: "xp",
+          limit: 200,
+        }),
+      ]);
+      const sRes = settled[0].status === "fulfilled" ? settled[0].value : null;
+      const s = sRes?.data;
+      const profile = settled[1].status === "fulfilled" ? settled[1].value : null;
+      const analytics = settled[2].status === "fulfilled" ? settled[2].value : null;
+      const prog = settled[3].status === "fulfilled" ? settled[3].value : null;
+      const lb = settled[4].status === "fulfilled" ? settled[4].value : null;
+      setName(s?.full_name ?? "Student");
+      const cls = s?.classes as { name?: string; section?: string } | null;
+      setClassLabel(
+        cls ? `${cls.name ?? ""} ${cls.section ?? ""} · Roll ${s?.roll_number ?? "—"}` : "",
+      );
+      setAttPct(Math.round(profile?.attendancePct ?? analytics?.attendance.pct ?? 0));
+      setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
+      setHwPct(Math.round(analytics?.homework.pct ?? 0));
+      setTestsAvg(Math.round(analytics?.tests.averagePct ?? 0));
+      if (prog) {
+        const derived = progressionLevelProgress(prog.xp, prog.level);
+        setLevel(prog.level);
+        setXp(prog.xp);
+        setXpIntoLevel(prog.xp_into_level ?? derived.xpIntoLevel);
+        setXpToNext(prog.xp_to_next_level ?? derived.xpToNextLevel);
+        setLevelProgressPct(prog.level_progress_pct ?? derived.levelProgressPct);
+        setLeague(prog.league?.label ?? prog.league?.code ?? "Bronze");
+        setStreak(prog.study_streak);
+        setReputation(prog.reputation);
+        setFeatured(Array.isArray(prog.featured_badges) ? prog.featured_badges : []);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+      if (lb && user?.id) {
+        const i = lb.rows.findIndex((r) => r.user_id === user.id);
+        setClassRank(i >= 0 ? i + 1 : null);
+      }
+    } catch {
+      /* empty */
+    } finally {
+      setLoading(false);
+    }
   }, [ready, ctx, studentId, user?.id]);
+
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile, liveVersion]);
+
+  useEffect(() => {
+    const onXp = () => {
+      void loadProfile();
+    };
+    window.addEventListener("student-xp-updated", onXp);
+    return () => window.removeEventListener("student-xp-updated", onXp);
+  }, [loadProfile]);
 
   if (loading) {
     return (
