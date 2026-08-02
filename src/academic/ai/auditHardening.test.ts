@@ -99,4 +99,16 @@ describe("AI audit hardening", () => {
     expect(redacted?.flags).toEqual({ plan_hash: "abc", keep_me: true });
     expect(JSON.stringify(redacted)).not.toMatch(/HUGE OUTLINE|MARKING|PAPER/);
   });
+
+  it("EIE data version counts open revision only", async () => {
+    const { computeDataVersion } = await import("../eie/studentIntelligence");
+    const v = computeDataVersion(
+      [{ subject: "Math", concept: "A", mastery_score: 50 }],
+      [
+        { subject: "Math", priority: 1, completed: true },
+        { subject: "Math", priority: 2, completed: false },
+      ],
+    );
+    expect(v.startsWith("eie:1:1:")).toBe(true);
+  });
 });

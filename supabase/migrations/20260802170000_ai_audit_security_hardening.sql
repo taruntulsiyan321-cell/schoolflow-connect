@@ -1,10 +1,13 @@
 -- AI audit hardening (post Phase 3):
 -- 1) Bind KMS retrieve role to caller's real app_role (no client spoof)
--- 2) Tenant-gate KMS reject (mirror approve)
--- 3) Embedding batch / defer — service_role only
+-- 2) Tenant-gate KMS reject (mirror approve); no school-admin cross-tenant bypass
+-- 3) Embedding batch / defer / complete — service_role only
 -- 4) Tighten ai_explanations INSERT
 -- 5) Fix digest() search_path on KMS submit
--- 6) GRANT write on kill-switch + budget quota tables for admin policies
+-- 6) GRANT write on kill-switch + budget quota tables; tenant-gate principal RLS
+-- 7) Tenant-gate control-plane SELECT policies (decisions/cache/explanations/sessions/feedback)
+-- 8) Analytics summary + prompt promote server-side gates
+-- 9) Session memory read VOLATILE (expires via UPDATE)
 -- Roles: admin | teacher | student | parent | principal only — NEVER super_admin.
 
 -- ═══════════════════════════════════════════════════════════════════════════
@@ -67,8 +70,8 @@ BEGIN
     ) THEN
       RAISE EXCEPTION 'not authorised';
     END IF;
-    IF NOT public.same_school(p_school_id)
-       AND NOT public.has_role(v_uid, 'admin'::public.app_role) THEN
+    -- School-bound admin/principal must stay in-tenant (no cross-school bypass).
+    IF NOT public.same_school(p_school_id) THEN
       RAISE EXCEPTION 'not authorised for school';
     END IF;
   END IF;
@@ -182,8 +185,7 @@ BEGIN
   SELECT * INTO v_doc FROM public.ai_kms_documents WHERE id = p_document_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'document not found'; END IF;
 
-  IF NOT public.same_school(v_doc.school_id)
-     AND NOT public.has_role(v_uid, 'admin'::public.app_role) THEN
+  IF NOT public.same_school(v_doc.school_id) THEN
     RAISE EXCEPTION 'not authorised for school';
   END IF;
 
@@ -447,8 +449,7 @@ BEGIN
   IF NOT FOUND THEN
     RAISE EXCEPTION 'document not found';
   END IF;
-  IF NOT public.same_school(v_doc.school_id)
-     AND NOT public.has_role(v_uid, 'admin'::public.app_role) THEN
+  IF NOT public.same_school(v_doc.school_id) THEN
     RAISE EXCEPTION 'not authorised for school';
   END IF;
 
@@ -532,8 +533,601 @@ GRANT EXECUTE ON FUNCTION public.ai_kms_submit_version(uuid, text, text, text[])
 GRANT EXECUTE ON FUNCTION public.ai_kms_submit_version(uuid, text, text, text[]) TO service_role;
 
 -- ═══════════════════════════════════════════════════════════════════════════
--- 6. Kill-switch + budget quota writes — match existing RLS write policies
+-- 6. Kill-switch + budget quota writes — match RLS; tenant-gate principal
 -- ═══════════════════════════════════════════════════════════════════════════
+
+-- Global flags (school_id IS NULL): service_role only (RLS bypass).
+-- School-scoped overrides: same-school admin or principal.
+DROP POLICY IF EXISTS "ai_flags write admin" ON public.ai_feature_flags;
+CREATE POLICY "ai_flags write admin" ON public.ai_feature_flags
+  FOR ALL TO authenticated
+  USING (
+    school_id IS NOT NULL
+    AND (
+      public.has_role(auth.uid(), 'admin'::public.app_role)
+      OR public.has_role(auth.uid(), 'principal'::public.app_role)
+    )
+    AND public.same_school(school_id)
+  )
+  WITH CHECK (
+    school_id IS NOT NULL
+    AND (
+      public.has_role(auth.uid(), 'admin'::public.app_role)
+      OR public.has_role(auth.uid(), 'principal'::public.app_role)
+    )
+    AND public.same_school(school_id)
+  );
+
+DROP POLICY IF EXISTS "ai_flags read authenticated" ON public.ai_feature_flags;
+CREATE POLICY "ai_flags read authenticated" ON public.ai_feature_flags
+  FOR SELECT TO authenticated
+  USING (
+    school_id IS NULL
+    OR school_id IN (SELECT s.school_id FROM public.students s WHERE s.user_id = auth.uid())
+    OR school_id IN (SELECT t.school_id FROM public.teachers t WHERE t.user_id = auth.uid())
+    OR school_id IN (SELECT p.school_id FROM public.parents p WHERE p.user_id = auth.uid())
+    OR (
+      (
+        public.has_role(auth.uid(), 'admin'::public.app_role)
+        OR public.has_role(auth.uid(), 'principal'::public.app_role)
+      )
+      AND public.same_school(school_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "ai_budget_quotas write admin" ON public.ai_budget_quotas;
+CREATE POLICY "ai_budget_quotas write admin" ON public.ai_budget_quotas
+  FOR ALL TO authenticated
+  USING (
+    (
+      public.has_role(auth.uid(), 'admin'::public.app_role)
+      OR public.has_role(auth.uid(), 'principal'::public.app_role)
+    )
+    AND public.same_school(school_id)
+  )
+  WITH CHECK (
+    (
+      public.has_role(auth.uid(), 'admin'::public.app_role)
+      OR public.has_role(auth.uid(), 'principal'::public.app_role)
+    )
+    AND public.same_school(school_id)
+  );
+
+DROP POLICY IF EXISTS "ai_budget_quotas read school" ON public.ai_budget_quotas;
+CREATE POLICY "ai_budget_quotas read school" ON public.ai_budget_quotas
+  FOR SELECT TO authenticated
+  USING (
+    school_id IN (SELECT s.school_id FROM public.students s WHERE s.user_id = auth.uid())
+    OR school_id IN (SELECT t.school_id FROM public.teachers t WHERE t.user_id = auth.uid())
+    OR school_id IN (SELECT p.school_id FROM public.parents p WHERE p.user_id = auth.uid())
+    OR (
+      (
+        public.has_role(auth.uid(), 'admin'::public.app_role)
+        OR public.has_role(auth.uid(), 'principal'::public.app_role)
+      )
+      AND public.same_school(school_id)
+    )
+  );
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_feature_flags TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.ai_budget_quotas TO authenticated;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 7. Tenant-gate AI control-plane SELECT policies (admin/principal)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+DROP POLICY IF EXISTS "ai_decisions read own school" ON public.ai_request_decisions;
+CREATE POLICY "ai_decisions read own school" ON public.ai_request_decisions
+  FOR SELECT TO authenticated
+  USING (
+    actor_user_id = auth.uid()
+    OR (
+      school_id IS NOT NULL
+      AND (
+        public.has_role(auth.uid(), 'admin'::public.app_role)
+        OR public.has_role(auth.uid(), 'principal'::public.app_role)
+      )
+      AND public.same_school(school_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "ai_solution_cache read tenant" ON public.ai_solution_cache;
+CREATE POLICY "ai_solution_cache read tenant" ON public.ai_solution_cache
+  FOR SELECT TO authenticated
+  USING (
+    school_id IN (SELECT s.school_id FROM public.students s WHERE s.user_id = auth.uid())
+    OR school_id IN (SELECT t.school_id FROM public.teachers t WHERE t.user_id = auth.uid())
+    OR school_id IN (SELECT p.school_id FROM public.parents p WHERE p.user_id = auth.uid())
+    OR (
+      (
+        public.has_role(auth.uid(), 'admin'::public.app_role)
+        OR public.has_role(auth.uid(), 'principal'::public.app_role)
+      )
+      AND public.same_school(school_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "ai_expl read tenant" ON public.ai_explanations;
+CREATE POLICY "ai_expl read tenant" ON public.ai_explanations
+  FOR SELECT TO authenticated
+  USING (
+    created_by = auth.uid()
+    OR (
+      school_id IS NOT NULL
+      AND school_id IN (SELECT s.school_id FROM public.students s WHERE s.user_id = auth.uid())
+    )
+    OR (
+      school_id IS NOT NULL
+      AND school_id IN (SELECT t.school_id FROM public.teachers t WHERE t.user_id = auth.uid())
+    )
+    OR (
+      school_id IS NOT NULL
+      AND (
+        public.has_role(auth.uid(), 'admin'::public.app_role)
+        OR public.has_role(auth.uid(), 'principal'::public.app_role)
+      )
+      AND public.same_school(school_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "ai_budget_usage read admin" ON public.ai_budget_usage;
+CREATE POLICY "ai_budget_usage read admin" ON public.ai_budget_usage
+  FOR SELECT TO authenticated
+  USING (
+    (
+      public.has_role(auth.uid(), 'admin'::public.app_role)
+      OR public.has_role(auth.uid(), 'principal'::public.app_role)
+    )
+    AND public.same_school(school_id)
+  );
+
+DROP POLICY IF EXISTS "ai_session_memory own read" ON public.ai_session_memory;
+CREATE POLICY "ai_session_memory own read" ON public.ai_session_memory
+  FOR SELECT TO authenticated
+  USING (
+    actor_user_id = auth.uid()
+    OR (
+      (
+        public.has_role(auth.uid(), 'admin'::public.app_role)
+        OR public.has_role(auth.uid(), 'principal'::public.app_role)
+      )
+      AND public.same_school(school_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "ai_feedback read own or admin" ON public.ai_feedback_signals;
+CREATE POLICY "ai_feedback read own or admin" ON public.ai_feedback_signals
+  FOR SELECT TO authenticated
+  USING (
+    actor_user_id = auth.uid()
+    OR (
+      school_id IS NOT NULL
+      AND (
+        public.has_role(auth.uid(), 'admin'::public.app_role)
+        OR public.has_role(auth.uid(), 'principal'::public.app_role)
+      )
+      AND public.same_school(school_id)
+    )
+  );
+
+DROP POLICY IF EXISTS "ai_feedback insert own" ON public.ai_feedback_signals;
+CREATE POLICY "ai_feedback insert own" ON public.ai_feedback_signals
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    actor_user_id = auth.uid()
+    AND (
+      school_id IS NULL
+      OR public.same_school(school_id)
+    )
+  );
+
+-- Embedding jobs: staff read only same school
+DROP POLICY IF EXISTS "ai_embedding_jobs staff read" ON public.ai_embedding_jobs;
+CREATE POLICY "ai_embedding_jobs staff read" ON public.ai_embedding_jobs
+  FOR SELECT TO authenticated
+  USING (
+    (
+      public.has_role(auth.uid(), 'admin'::public.app_role)
+      OR public.has_role(auth.uid(), 'principal'::public.app_role)
+      OR public.has_role(auth.uid(), 'teacher'::public.app_role)
+    )
+    AND public.same_school(school_id)
+  );
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 8. ai_kms_complete_chunk_embed — service_role only
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.ai_kms_complete_chunk_embed(
+  p_chunk_id uuid,
+  p_embedding real[] DEFAULT NULL,
+  p_model_version text DEFAULT NULL,
+  p_failed boolean DEFAULT false,
+  p_error text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_chunk public.ai_kms_chunks%ROWTYPE;
+  v_has_vector boolean := EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vector');
+BEGIN
+  IF current_user <> 'service_role' AND coalesce(auth.role(), '') <> 'service_role' THEN
+    RAISE EXCEPTION 'service_role only';
+  END IF;
+
+  SELECT * INTO v_chunk FROM public.ai_kms_chunks WHERE id = p_chunk_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'chunk not found'; END IF;
+
+  IF p_failed OR p_embedding IS NULL THEN
+    UPDATE public.ai_kms_chunks
+       SET embed_status = CASE WHEN p_failed THEN 'failed' ELSE 'deferred' END,
+           embedding_stub = jsonb_build_object(
+             'status', CASE WHEN p_failed THEN 'failed' ELSE 'deferred' END,
+             'dims', 0,
+             'error', left(coalesce(p_error, 'no embedding vector supplied'), 200)
+           )
+     WHERE id = p_chunk_id;
+
+    UPDATE public.ai_embedding_jobs
+       SET status = CASE WHEN p_failed THEN 'failed' ELSE 'deferred' END,
+           last_error = left(coalesce(p_error, 'no embedding vector supplied'), 500),
+           updated_at = now(),
+           completed_at = now(),
+           attempts = attempts + 1
+     WHERE chunk_id = p_chunk_id;
+
+    RETURN jsonb_build_object(
+      'chunk_id', p_chunk_id,
+      'embed_status', CASE WHEN p_failed THEN 'failed' ELSE 'deferred' END,
+      'safe_degrade', true
+    );
+  END IF;
+
+  UPDATE public.ai_kms_chunks
+     SET embed_status = 'embedded',
+         embedding_compat = p_embedding,
+         embedding_model_version = coalesce(p_model_version, embedding_model_version, 'compat-v0'),
+         embedded_at = now(),
+         embedding_stub = jsonb_build_object(
+           'status', 'embedded',
+           'dims', coalesce(array_length(p_embedding, 1), 0)
+         )
+   WHERE id = p_chunk_id;
+
+  IF v_has_vector AND coalesce(array_length(p_embedding, 1), 0) = 1536 THEN
+    BEGIN
+      EXECUTE
+        'UPDATE public.ai_kms_chunks SET embedding = $1::vector WHERE id = $2'
+        USING ('[' || array_to_string(p_embedding, ',') || ']'), p_chunk_id;
+    EXCEPTION WHEN OTHERS THEN
+      NULL;
+    END;
+  END IF;
+
+  UPDATE public.ai_embedding_jobs
+     SET status = 'embedded',
+         updated_at = now(),
+         completed_at = now(),
+         attempts = attempts + 1,
+         last_error = NULL
+   WHERE chunk_id = p_chunk_id;
+
+  RETURN jsonb_build_object(
+    'chunk_id', p_chunk_id,
+    'embed_status', 'embedded',
+    'dims', coalesce(array_length(p_embedding, 1), 0)
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ai_kms_complete_chunk_embed(uuid, real[], text, boolean, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.ai_kms_complete_chunk_embed(uuid, real[], text, boolean, text) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.ai_kms_complete_chunk_embed(uuid, real[], text, boolean, text) TO service_role;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 9. ai_analytics_summary_v1 — require same_school
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.ai_analytics_summary_v1(
+  p_school_id uuid,
+  p_from timestamptz,
+  p_to timestamptz
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_count int := 0;
+  v_model int := 0;
+  v_cache int := 0;
+  v_conf_sum numeric := 0;
+  v_conf_n int := 0;
+  v_low_conf int := 0;
+  v_lat_sum numeric := 0;
+  v_lat_n int := 0;
+  v_cost numeric := 0;
+  v_route jsonb := '{}'::jsonb;
+  v_decision jsonb := '{}'::jsonb;
+  v_feature jsonb := '{}'::jsonb;
+  r record;
+  v_is_service boolean := (
+    current_user = 'service_role' OR coalesce(auth.role(), '') = 'service_role'
+  );
+BEGIN
+  IF NOT v_is_service THEN
+    IF v_uid IS NULL THEN
+      RAISE EXCEPTION 'not authenticated';
+    END IF;
+    IF NOT (
+      public.has_role(v_uid, 'admin'::public.app_role)
+      OR public.has_role(v_uid, 'principal'::public.app_role)
+    ) THEN
+      RAISE EXCEPTION 'not authorised';
+    END IF;
+    IF NOT public.same_school(p_school_id) THEN
+      RAISE EXCEPTION 'not authorised for school';
+    END IF;
+  END IF;
+
+  FOR r IN
+    SELECT feature_id, route_class, decision, used_model, cache_hit, confidence, latency_ms,
+           coalesce(estimated_cost_units, 0) AS cost_units
+    FROM public.ai_request_decisions
+    WHERE school_id = p_school_id
+      AND created_at >= coalesce(p_from, now() - interval '7 days')
+      AND created_at <= coalesce(p_to, now())
+  LOOP
+    v_count := v_count + 1;
+    IF r.used_model THEN v_model := v_model + 1; END IF;
+    IF r.cache_hit THEN v_cache := v_cache + 1; END IF;
+    IF r.confidence IS NOT NULL THEN
+      v_conf_sum := v_conf_sum + r.confidence;
+      v_conf_n := v_conf_n + 1;
+      IF r.confidence < 0.65 THEN v_low_conf := v_low_conf + 1; END IF;
+    END IF;
+    IF r.latency_ms IS NOT NULL THEN
+      v_lat_sum := v_lat_sum + r.latency_ms;
+      v_lat_n := v_lat_n + 1;
+    END IF;
+    IF r.used_model THEN
+      v_cost := v_cost + GREATEST(r.cost_units, 1);
+    ELSE
+      v_cost := v_cost + r.cost_units;
+    END IF;
+
+    v_route := jsonb_set(
+      v_route,
+      ARRAY[coalesce(r.route_class, 'unknown')],
+      to_jsonb(coalesce((v_route ->> coalesce(r.route_class, 'unknown'))::int, 0) + 1)
+    );
+    v_decision := jsonb_set(
+      v_decision,
+      ARRAY[coalesce(r.decision, 'unknown')],
+      to_jsonb(coalesce((v_decision ->> coalesce(r.decision, 'unknown'))::int, 0) + 1)
+    );
+    v_feature := jsonb_set(
+      v_feature,
+      ARRAY[coalesce(r.feature_id, 'unknown')],
+      to_jsonb(coalesce((v_feature ->> coalesce(r.feature_id, 'unknown'))::int, 0) + 1)
+    );
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'window', jsonb_build_object(
+      'from', p_from,
+      'to', p_to,
+      'count', v_count
+    ),
+    'route_mix', v_route,
+    'decision_mix', v_decision,
+    'feature_mix', v_feature,
+    'model_calls', v_model,
+    'cache_hits', v_cache,
+    'deflection_pct', CASE WHEN v_count = 0 THEN 0
+      ELSE round(((v_count - v_model)::numeric / v_count) * 1000) / 10 END,
+    'avg_confidence', CASE WHEN v_conf_n = 0 THEN NULL
+      ELSE round((v_conf_sum / v_conf_n) * 1000) / 1000 END,
+    'avg_latency_ms', CASE WHEN v_lat_n = 0 THEN NULL ELSE round(v_lat_sum / v_lat_n) END,
+    'estimated_cost_units', v_cost,
+    'low_confidence_rate', CASE WHEN v_conf_n = 0 THEN NULL
+      ELSE round((v_low_conf::numeric / v_conf_n) * 1000) / 1000 END
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ai_analytics_summary_v1(uuid, timestamptz, timestamptz) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ai_analytics_summary_v1(uuid, timestamptz, timestamptz) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.ai_analytics_summary_v1(uuid, timestamptz, timestamptz) TO service_role;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 10. ai_prompt_promote — server-side benchmark gate (no client forge)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.ai_prompt_promote(
+  p_capability_id text,
+  p_version text,
+  p_to_status text,
+  p_rollback_version text DEFAULT NULL,
+  p_benchmark_run_ids uuid[] DEFAULT NULL,
+  p_scorecard jsonb DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_row public.ai_prompt_library%ROWTYPE;
+  v_from text;
+  v_gate jsonb;
+  v_label text;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'not authenticated';
+  END IF;
+  IF NOT (
+    public.has_role(v_uid, 'admin'::public.app_role)
+    OR public.has_role(v_uid, 'principal'::public.app_role)
+  ) THEN
+    RAISE EXCEPTION 'not authorised';
+  END IF;
+
+  IF p_to_status NOT IN ('draft', 'offline_benchmark', 'shadow', 'ab_test', 'production', 'retired') THEN
+    RAISE EXCEPTION 'invalid status';
+  END IF;
+
+  SELECT * INTO v_row
+    FROM public.ai_prompt_library
+   WHERE capability_id = p_capability_id AND version = p_version
+   FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'prompt version not found';
+  END IF;
+
+  v_from := v_row.status;
+
+  IF NOT (
+    (v_from = 'draft' AND p_to_status IN ('offline_benchmark', 'retired'))
+    OR (v_from = 'offline_benchmark' AND p_to_status IN ('shadow', 'draft', 'retired'))
+    OR (v_from = 'shadow' AND p_to_status IN ('ab_test', 'offline_benchmark', 'retired'))
+    OR (v_from = 'ab_test' AND p_to_status IN ('production', 'shadow', 'retired'))
+    OR (v_from = 'production' AND p_to_status IN ('retired', 'shadow'))
+    OR (v_from = 'retired' AND p_to_status IN ('draft'))
+  ) THEN
+    RAISE EXCEPTION 'invalid transition from % to %', v_from, p_to_status;
+  END IF;
+
+  IF p_to_status = 'production' THEN
+    v_label := coalesce(
+      nullif(trim(p_scorecard ->> 'candidate_label'), ''),
+      p_capability_id || '@' || p_version
+    );
+    v_gate := public.ai_benchmark_gate_passed(v_label, NULL);
+    IF NOT coalesce((v_gate ->> 'gate_passed')::boolean, false) THEN
+      RAISE EXCEPTION 'production promotion blocked — benchmark gate not passed for %', v_label;
+    END IF;
+
+    IF p_benchmark_run_ids IS NOT NULL AND array_length(p_benchmark_run_ids, 1) IS NOT NULL THEN
+      IF EXISTS (
+        SELECT 1
+          FROM unnest(p_benchmark_run_ids) AS rid(id)
+         WHERE NOT EXISTS (
+           SELECT 1 FROM public.ai_benchmark_runs br
+            WHERE br.id = rid.id AND br.passed IS TRUE
+         )
+      ) THEN
+        RAISE EXCEPTION 'production promotion blocked — invalid or failed benchmark_run_ids';
+      END IF;
+    END IF;
+
+    UPDATE public.ai_prompt_library
+       SET status = 'retired',
+           updated_at = now(),
+           metadata = coalesce(metadata, '{}'::jsonb) || jsonb_build_object('retired_for', p_version)
+     WHERE capability_id = p_capability_id
+       AND status = 'production'
+       AND version IS DISTINCT FROM p_version;
+  END IF;
+
+  UPDATE public.ai_prompt_library
+     SET status = p_to_status,
+         rollback_version = coalesce(p_rollback_version, rollback_version),
+         scorecard = coalesce(p_scorecard, scorecard) || CASE
+           WHEN p_to_status = 'production' THEN jsonb_build_object('gate_passed', true, 'gate', v_gate)
+           ELSE '{}'::jsonb
+         END,
+         benchmark_run_ids = coalesce(p_benchmark_run_ids, benchmark_run_ids),
+         promoted_by = CASE WHEN p_to_status = 'production' THEN v_uid ELSE promoted_by END,
+         promoted_at = CASE WHEN p_to_status = 'production' THEN now() ELSE promoted_at END,
+         updated_at = now()
+   WHERE id = v_row.id;
+
+  RETURN jsonb_build_object(
+    'capability_id', p_capability_id,
+    'version', p_version,
+    'from_status', v_from,
+    'to_status', p_to_status,
+    'rollback_version', coalesce(p_rollback_version, v_row.rollback_version),
+    'gate', v_gate
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ai_prompt_promote(text, text, text, text, uuid[], jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ai_prompt_promote(text, text, text, text, uuid[], jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.ai_prompt_promote(text, text, text, text, uuid[], jsonb) TO service_role;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 11. Session memory read — VOLATILE (performs UPDATE on expire)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.ai_session_memory_read(
+  p_session_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  r public.ai_session_memory%ROWTYPE;
+  v_is_service boolean := (
+    current_user = 'service_role' OR coalesce(auth.role(), '') = 'service_role'
+  );
+BEGIN
+  IF v_uid IS NULL AND NOT v_is_service THEN
+    RAISE EXCEPTION 'not authenticated';
+  END IF;
+
+  SELECT * INTO r FROM public.ai_session_memory WHERE id = p_session_id;
+  IF NOT FOUND THEN
+    RETURN NULL;
+  END IF;
+
+  IF NOT v_is_service THEN
+    IF r.actor_user_id IS DISTINCT FROM v_uid
+       AND NOT (
+         (public.has_role(v_uid, 'admin'::public.app_role)
+          OR public.has_role(v_uid, 'principal'::public.app_role))
+         AND public.same_school(r.school_id)
+       ) THEN
+      RAISE EXCEPTION 'not authorised';
+    END IF;
+  END IF;
+
+  IF r.status = 'active' AND r.expires_at IS NOT NULL AND r.expires_at < now() THEN
+    UPDATE public.ai_session_memory
+       SET status = 'expired', updated_at = now()
+     WHERE id = p_session_id;
+    r.status := 'expired';
+  END IF;
+
+  RETURN jsonb_build_object(
+    'session_id', r.id,
+    'school_id', r.school_id,
+    'workflow_scope', r.workflow_scope,
+    'capability_id', r.capability_id,
+    'workflow_id', r.workflow_id,
+    'target_student_id', r.target_student_id,
+    'status', r.status,
+    'summary', r.summary,
+    'turn_count', r.turn_count,
+    'expires_at', r.expires_at,
+    'updated_at', r.updated_at
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ai_session_memory_read(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ai_session_memory_read(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.ai_session_memory_read(uuid) TO service_role;

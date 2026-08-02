@@ -376,6 +376,12 @@ export async function projectParentChildSummary(
   }
   const summary = await buildStudentAiSummary(toRepoContext(ctx), studentId);
   const profile = await AcademicProfileService.get(ctx, studentId);
+  const hasMetrics =
+    !!profile &&
+    ((profile.attendanceTotal ?? 0) > 0 ||
+      (profile.homeworkAssigned ?? 0) > 0 ||
+      (profile.testsAttempted ?? 0) > 0 ||
+      (profile.examsRecorded ?? 0) > 0);
   return {
     projection: "ParentChildSummary",
     version: 1,
@@ -390,7 +396,7 @@ export async function projectParentChildSummary(
     ...meta(
       profile?.refreshedAt ?? null,
       `parent:${studentId}:${profile?.refreshedAt ?? "none"}`,
-      profile ? 1 : 0.3,
+      profile ? (hasMetrics ? 1 : 0.4) : 0.3,
     ),
   };
 }

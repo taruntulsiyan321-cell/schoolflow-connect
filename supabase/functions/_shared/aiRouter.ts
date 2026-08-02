@@ -190,7 +190,7 @@ export async function writeDecision(
     estimated_cost_units?: number | null;
   },
 ): Promise<void> {
-  await admin.from("ai_request_decisions").upsert(
+  const { error } = await admin.from("ai_request_decisions").upsert(
     {
       request_id: row.request_id,
       school_id: row.school_id,
@@ -213,6 +213,9 @@ export async function writeDecision(
     },
     { onConflict: "request_id" },
   );
+  if (error) {
+    console.error("ai_request_decisions upsert failed", error.message ?? error);
+  }
 }
 
 async function reserveBudget(
@@ -930,7 +933,9 @@ export async function routeAiRequest(
         studentId: studentId ?? "school",
         dataVersion: ver,
         payload: fresh,
-      }).catch(() => undefined);
+      }).catch((err) => {
+        console.error("ai L2 cache write failed", err);
+      });
       if (ver !== dataVersion) {
         await writeL2Cache(admin, {
           schoolId: req.actor.schoolId,
@@ -939,7 +944,9 @@ export async function routeAiRequest(
           studentId: studentId ?? "school",
           dataVersion: ver,
           payload: fresh,
-        }).catch(() => undefined);
+        }).catch((err) => {
+          console.error("ai L2 cache write failed", err);
+        });
       }
       return fresh;
     };
@@ -1917,13 +1924,20 @@ export async function routeAiRequest(
         ]);
         const rows = profiles.data ?? [];
         const n = rows.length || 0;
+        // Average only non-null metrics — never coerce missing to 0 (skews school health).
         const avg = (key: string) => {
-          if (!n) return null;
-          const sum = rows.reduce(
-            (a, r) => a + Number((r as Record<string, unknown>)[key] ?? 0),
-            0,
-          );
-          return Math.round((sum / n) * 10) / 10;
+          let sum = 0;
+          let count = 0;
+          for (const r of rows) {
+            const raw = (r as Record<string, unknown>)[key];
+            if (raw == null) continue;
+            const v = Number(raw);
+            if (!Number.isFinite(v)) continue;
+            sum += v;
+            count += 1;
+          }
+          if (!count) return null;
+          return Math.round((sum / count) * 10) / 10;
         };
         let avgMastery: number | null = null;
         let weakConceptCount: number | null = null;

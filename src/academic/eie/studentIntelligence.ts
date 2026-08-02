@@ -83,7 +83,9 @@ export function computeDataVersion(rows: ConceptMasteryRow[], revision: Revision
     const t = Date.parse(r.due_date ?? "") || 0;
     if (t > latest) latest = t;
   }
-  return `eie:${rows.length}:${revision.length}:${latest || 0}`;
+  // Match edge eieProjection: version on open (incomplete) revision depth.
+  const openCount = revision.filter((r) => !r.completed).length;
+  return `eie:${rows.length}:${openCount}:${latest || 0}`;
 }
 
 export function buildStudentEducationalIntelligence(input: {
