@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAcademicLive } from "@/academic";
 
 export type RecoveryAssignment = {
   id: string;
@@ -44,6 +45,7 @@ export function useRecoveryZone(enabled = true) {
   const [data, setData] = useState<RecoveryZoneData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const liveVersion = useAcademicLive(["profile", "xp"]);
 
   const reload = async () => {
     setLoading(true);
@@ -103,7 +105,7 @@ export function useRecoveryZone(enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     reload();
-  }, [enabled]);
+  }, [enabled, liveVersion]);
 
   return { data, loading, error, reload };
 }

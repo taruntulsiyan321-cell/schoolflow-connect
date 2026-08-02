@@ -385,9 +385,13 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     const fix = searchParams.get("fix");
     if (fix !== "1") return;
     fixHandledRef.current = true;
-    const subject = searchParams.get("subject") || "Mathematics";
+    const subject = searchParams.get("subject");
     const chapter = searchParams.get("chapter");
     const concept = searchParams.get("concept") || chapter || subject;
+    if (!subject || !concept) {
+      setSearchParams({}, { replace: true });
+      return;
+    }
     (async () => {
       const existing = TOPICS.find(
         (t) =>

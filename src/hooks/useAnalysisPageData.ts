@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAcademicLive } from "@/academic";
 
 export type PracticeSessionSummary = {
   id: string;
@@ -79,6 +80,7 @@ function sessionSummary(row: {
 
 export function useAnalysisPageData(enabled = true) {
   const { user } = useAuth();
+  const liveVersion = useAcademicLive(["xp", "profile", "battle"]);
   const [data, setData] = useState<AnalysisPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,7 +236,7 @@ export function useAnalysisPageData(enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     reload();
-  }, [enabled, reload]);
+  }, [enabled, reload, liveVersion]);
 
   return { data, loading, error, reload };
 }

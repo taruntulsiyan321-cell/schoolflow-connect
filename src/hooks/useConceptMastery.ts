@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAcademicLive } from "@/academic";
 
 export type ConceptMasteryItem = {
   subject: string;
@@ -18,6 +19,7 @@ export function useConceptMastery(enabled = true) {
   const [items, setItems] = useState<ConceptMasteryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const liveVersion = useAcademicLive(["xp", "profile"]);
 
   const reload = async () => {
     setLoading(true);
@@ -30,8 +32,8 @@ export function useConceptMastery(enabled = true) {
 
   useEffect(() => {
     if (!enabled) return;
-    reload();
-  }, [enabled]);
+    void reload();
+  }, [enabled, liveVersion]);
 
   return { items, loading, error, reload };
 }

@@ -18,7 +18,7 @@ type MBView = "list" | "practice" | "results";
 
 interface Mistake {
   id: string; question: string; options: string[]; correct: number; chosen: number;
-  subject: string; chapter: string; topic: string; difficulty: "easy"|"medium"|"hard";
+  subject: string; chapter: string; topic: string; difficulty: "easy"|"medium"|"hard"|null;
   /** Raw DB chapter/concept for recovery assign (not display-humanized). */
   chapterRaw: string | null;
   conceptRaw: string | null;
@@ -83,10 +83,10 @@ function sourceLabel(source: string): string {
   return labels[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
 }
 
-function parseDifficulty(raw: string | null | undefined): "easy" | "medium" | "hard" {
+function parseDifficulty(raw: string | null | undefined): "easy" | "medium" | "hard" | null {
   const d = (raw ?? "").toLowerCase();
   if (d === "easy" || d === "hard" || d === "medium") return d;
-  return "medium";
+  return null;
 }
 
 function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
@@ -263,12 +263,43 @@ function MistakeCard({
   );
 }
 
-function MistakePractice({ ids, mistakes, onDone }: { ids: string[]; mistakes: Mistake[]; onDone: (score: number) => void }) {
+type MistakeRetryAttempt = {
+  mistakeId: string;
+  bankQuestionId: string | null;
+  subject: string;
+  chapter: string | null;
+  concept: string | null;
+  questionText: string;
+  options: string[];
+  selectedIndex: number;
+  correctIndex: number;
+  explanation: string | null;
+  difficulty: string | null;
+};
+
+function MistakePractice({
+  ids,
+  mistakes,
+  onDone,
+}: {
+  ids: string[];
+  mistakes: Mistake[];
+  onDone: (payload: { score: number; attempts: MistakeRetryAttempt[] }) => void;
+}) {
   const practiceMs = ids.map(id => mistakes.find(m => m.id === id)!).filter(Boolean);
   const questions = practiceMs.map(m => ({
-    id: m.id, subject: m.subject, chapter: m.chapter, question: m.question,
-    options: m.options, correct: m.correct, explanation: m.aiExplanation,
-    difficulty: m.difficulty, frequency: m.frequency,
+    id: m.id,
+    subject: m.subject,
+    chapter: m.chapter,
+    chapterRaw: m.chapterRaw,
+    conceptRaw: m.conceptRaw,
+    question: m.question,
+    options: m.options,
+    correct: m.correct,
+    explanation: m.aiExplanation,
+    difficulty: m.difficulty,
+    frequency: m.frequency,
+    questionId: m.questionId,
   }));
 
   const [qi, setQi] = useState(0);
@@ -283,7 +314,24 @@ function MistakePractice({ ids, mistakes, onDone }: { ids: string[]; mistakes: M
   function next() {
     const newAnswers = [...answers, selected];
     if (isLast) {
-      onDone(Math.round(newAnswers.filter((a, i) => a === questions[i].correct).length / questions.length * 100));
+      const attempts: MistakeRetryAttempt[] = questions.map((qq, i) => ({
+        mistakeId: qq.id,
+        bankQuestionId: qq.questionId,
+        subject: qq.subject,
+        chapter: qq.chapterRaw,
+        concept: qq.conceptRaw,
+        questionText: qq.question,
+        options: qq.options,
+        selectedIndex: typeof newAnswers[i] === "number" ? (newAnswers[i] as number) : -1,
+        correctIndex: qq.correct,
+        explanation: qq.explanation || null,
+        difficulty: qq.difficulty,
+      }));
+      const scored = attempts.filter((a) => a.selectedIndex === a.correctIndex).length;
+      onDone({
+        score: questions.length ? Math.round((100 * scored) / questions.length) : 0,
+        attempts,
+      });
     } else { setAnswers(newAnswers); setQi(qi + 1); setSelected(null); setShowExp(false); }
   }
 
@@ -293,7 +341,7 @@ function MistakePractice({ ids, mistakes, onDone }: { ids: string[]; mistakes: M
         <AlertCircle className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
         <p className="text-sm font-semibold text-white mb-1">No practice questions available</p>
         <p className="text-xs text-[#78788c]">This mistake has no answer options to practice with.</p>
-        <button onClick={() => onDone(0)}
+        <button onClick={() => onDone({ score: 0, attempts: [] })}
           className="mt-4 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
           Back
         </button>
@@ -328,7 +376,7 @@ function MistakePractice({ ids, mistakes, onDone }: { ids: string[]; mistakes: M
                 You've missed this {q.frequency}× before
               </span>
             )}
-            <DifficultyBadge level={q.difficulty as any}/>
+            {q.difficulty ? <DifficultyBadge level={q.difficulty}/> : null}
           </div>
         </div>
 
@@ -347,19 +395,14 @@ function MistakePractice({ ids, mistakes, onDone }: { ids: string[]; mistakes: M
                 className={cn("w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all text-sm", cls)}>
                 <span className="w-6 h-6 rounded-lg border border-white/15 flex items-center justify-center text-xs font-bold text-[#78788c] shrink-0">{["A","B","C","D"][i]}</span>
                 <span className={selected !== null ? (i === q.correct ? "text-emerald-300 font-semibold" : i === selected ? "text-rose-300" : "text-[#78788c]") : "text-white"}>{opt}</span>
-                {selected !== null && i === q.correct && <CheckCircle2 className="w-4 h-4 text-emerald-400 ml-auto"/>}
-                {selected !== null && i === selected && i !== q.correct && <XCircle className="w-4 h-4 text-rose-400 ml-auto"/>}
               </button>
             );
           })}
         </div>
 
-        {showExp && (
-          <div className="mt-4 p-3 rounded-xl bg-violet-500/8 border border-violet-500/20">
-            <div className="text-[10px] text-violet-400 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-              <Brain className="w-3 h-3"/> AI Explanation
-            </div>
-            <p className="text-xs text-[#a0a0b0] leading-relaxed">{q.explanation}</p>
+        {selected !== null && q.explanation && (
+          <div className="mt-4 p-3 rounded-xl bg-white/4 border border-white/8 text-xs text-[#a0a0b0] leading-relaxed">
+            {q.explanation}
           </div>
         )}
 
@@ -372,7 +415,6 @@ function MistakePractice({ ids, mistakes, onDone }: { ids: string[]; mistakes: M
     </div>
   );
 }
-
 export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => void }) {
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
@@ -391,6 +433,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [toastMsg, setToast] = useState<string|null>(null);
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [classLevel, setClassLevel] = useState<number | null>(null);
+  const liveVersion = useAcademicLive(["profile", "xp"]);
 
   useEffect(() => {
     if (!user?.id || typeof localStorage === "undefined") {
@@ -470,7 +513,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, liveVersion]);
 
   const mistakes = useMemo(
     () =>
@@ -524,17 +567,28 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     }
   }
 
-  async function finishMistakePractice(score: number) {
-    setPracticeScore(score);
+  async function finishMistakePractice(payload: {
+    score: number;
+    attempts: MistakeRetryAttempt[];
+  }) {
+    setPracticeScore(payload.score);
     setView("results");
-    if (score < 70 || practiceIds.length === 0 || !ctx) return;
+    if (!ctx || payload.attempts.length === 0) return;
     try {
-      await PracticeService.markMistakesMastered(ctx, practiceIds);
-      setRows((prev) =>
-        prev.map((r) => (practiceIds.includes(r.id) ? { ...r, mastered: true } : r)),
-      );
+      const result = await PracticeService.completeMistakeRetry(ctx, payload.attempts);
+      setPracticeScore(result.score);
+      if (result.masteredIds.length) {
+        const mastered = new Set(result.masteredIds);
+        setRows((prev) =>
+          prev.map((r) => (mastered.has(r.id) ? { ...r, mastered: true } : r)),
+        );
+      }
+      if (!result.persisted) {
+        setToast("Could not save retry attempts — mastery not updated");
+      }
     } catch (e) {
-      console.warn("mark mistakes mastered:", e instanceof Error ? e.message : e);
+      console.warn("mistake retry:", e instanceof Error ? e.message : e);
+      setToast(e instanceof Error ? e.message : "Could not save mistake practice");
     }
   }
 
@@ -558,7 +612,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
 
   if (view === "practice") {
     return <MistakePractice ids={practiceIds} mistakes={mistakes}
-      onDone={(score) => void finishMistakePractice(score)}/>;
+      onDone={(payload) => void finishMistakePractice(payload)}/>;
   }
 
   if (view === "results") {

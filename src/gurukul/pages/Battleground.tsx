@@ -1631,7 +1631,7 @@ function StatisticsPanel({ me }: { me: MeInfo }) {
     { label: "Battles Played", value: String(me.totalBattles), icon: "⚔️", color: C.blue, sub: "Lifetime" },
     { label: "Battles Won", value: String(me.wins), icon: "🏆", color: C.green, sub: `${winRate}% win rate` },
     { label: "Current Streak", value: String(me.streak), icon: "🔥", color: C.orange, sub: `Personal best: ${me.bestStreak}` },
-    { label: "Battle XP", value: me.xp.toLocaleString(), icon: "⚡", color: C.purple, sub: me.league },
+    { label: "XP", value: me.xp.toLocaleString(), icon: "⚡", color: C.purple, sub: me.league },
     { label: "Avg. Accuracy", value: `${me.accuracy}%`, icon: "🎯", color: C.gold, sub: "From finished battles" },
     {
       label: "Battles Lost",
