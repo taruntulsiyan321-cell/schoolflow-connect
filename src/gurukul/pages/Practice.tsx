@@ -902,6 +902,7 @@ function Session({
   const [skipped,   setSkipped]   = useState<number[]>([]);
   const [timeLeft,  setTimeLeft]  = useState(config.timeLimitSec ?? 0);
   const [finishing, setFinishing] = useState(false);
+  const [hintRevealed, setHintRevealed] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const correctRef = useRef(0);
@@ -912,6 +913,7 @@ function Session({
   const finishedRef = useRef(false);
   const questionStartRef = useRef<number>(Date.now());
   const attemptNumberRef = useRef(0);
+  const hintUsedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -1051,7 +1053,7 @@ function Session({
           practiceMode: config.mode,
           sourceId: sessionIdRef.current,
           timeTakenMs: i === idx ? Date.now() - questionStartRef.current : 0,
-          hintUsed: false,
+          hintUsed: i === idx ? hintUsedRef.current : false,
           solutionViewed: false,
           attemptNumber: ++attemptNumberRef.current,
           answeredAt: new Date().toISOString(),
@@ -1115,7 +1117,7 @@ function Session({
       practiceMode: config.mode,
       sourceId: sessionIdRef.current,
       timeTakenMs: elapsed,
-      hintUsed: false,
+      hintUsed: hintUsedRef.current,
       solutionViewed: Boolean(q.explanation),
       attemptNumber: ++attemptNumberRef.current,
       answeredAt: new Date().toISOString(),
@@ -1126,9 +1128,26 @@ function Session({
     setPhase("fb");
   }
 
+  function revealHint() {
+    const current = qs[idx];
+    if (!current?.explanation || hintUsedRef.current) return;
+    hintUsedRef.current = true;
+    setHintRevealed(true);
+  }
+
+  function hintPreview(explanation: string): string {
+    const trimmed = explanation.trim();
+    if (trimmed.length <= 120) return trimmed;
+    const cut = trimmed.slice(0, 117);
+    const lastSpace = cut.lastIndexOf(" ");
+    return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trim()}…`;
+  }
+
   function next() {
     if (idx + 1 >= qs.length) { void finish(); return; }
     setIdx(i => i + 1); setChosen(null); setPhase("q");
+    hintUsedRef.current = false;
+    setHintRevealed(false);
     questionStartRef.current = Date.now();
   }
 
@@ -1211,7 +1230,7 @@ function Session({
       practiceMode: config.mode,
       sourceId: sessionIdRef.current,
       timeTakenMs: elapsed,
-      hintUsed: false,
+      hintUsed: hintUsedRef.current,
       solutionViewed: false,
       attemptNumber: ++attemptNumberRef.current,
       answeredAt: new Date().toISOString(),
@@ -1358,6 +1377,18 @@ function Session({
         })}
       </div>
 
+      {/* Hint (question phase — recorded as hint_used on attempt) */}
+      {phase === "q" && q.explanation && hintRevealed && (
+        <GlassCard className="p-4 border-[#c08a3a]/25">
+          <div className="flex items-start gap-2">
+            <Lightbulb className="w-4 h-4 text-[#c08a3a] shrink-0 mt-0.5"/>
+            <div className="text-sm text-[#a0a0b0] leading-relaxed">
+              <span className="font-semibold text-white">Hint: </span>{hintPreview(q.explanation)}
+            </div>
+          </div>
+        </GlassCard>
+      )}
+
       {/* Explanation (feedback phase) */}
       {phase === "fb" && q.explanation && (
         <GlassCard className="p-4 border-blue-500/20">
@@ -1376,6 +1407,12 @@ function Session({
           <button onClick={skip} disabled={finishing}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
             <SkipForward className="w-3.5 h-3.5"/> Skip
+          </button>
+        )}
+        {phase === "q" && q.explanation && !hintRevealed && (
+          <button onClick={revealHint} disabled={finishing}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#c08a3a]/30 text-sm text-[#c08a3a] hover:bg-[#c08a3a]/10 transition-all">
+            <Lightbulb className="w-3.5 h-3.5"/> Hint
           </button>
         )}
         {phase === "fb" && (

@@ -75,6 +75,8 @@ export {
   XpService,
   BadgeService,
   BattleExperienceService,
+  QuestionBankService,
+  AnnouncementService,
   resolveStudentServiceContext,
   assertCanOwn,
   assertCanConsume,
@@ -98,6 +100,13 @@ export type { StudentXpRow } from "./services/xpService";
 export type { EarnedBadgeRow } from "./services/badgeService";
 export type { BattleCreateOpts } from "./services/battleExperienceService";
 export type { CurriculumScope } from "./services/practiceService";
+export type { QuestionBankInsertRow } from "./services/questionBankService";
+export type {
+  TeacherAnnouncementRow,
+  UpsertAnnouncementInput,
+  AnnouncementPriority,
+  AnnouncementStatus,
+} from "./services/announcementService";
 
 export { AcademicLiveProvider, useAcademicLive, useAcademicLiveBump, broadcastAcademicWrite } from "./live";
 export {

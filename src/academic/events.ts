@@ -44,6 +44,7 @@ export const ACADEMIC_EVENT_TYPES = [
   "leave.requested",
   "leave.reviewed",
   "remark.created",
+  "question.bank.saved",
   "student.profile.refreshed",
   "role.changed",
 ] as const;
@@ -175,6 +176,7 @@ export const EVENT_SYNC_TARGETS: Record<AcademicEventType, readonly SyncTarget[]
     "ai_insights",
     "activity_feed",
   ],
+  "question.bank.saved": ["activity_feed", "audit"],
   "student.profile.refreshed": ["analytics", "ai_insights"],
   "role.changed": ["audit", "notifications"],
 };

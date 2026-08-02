@@ -9,6 +9,7 @@ import {
   ArrowLeft, Users, Trophy, Clock, Target, AlertTriangle, Activity,
   Zap, CheckCircle2, Radio, Flag, BarChart3, Loader2, FileBarChart, Sparkles,
 } from "lucide-react";
+import { useAcademicContext, BattleExperienceService } from "@/academic";
 
 type Participant = {
   user_id: string; display_name: string; score: number;
@@ -40,6 +41,7 @@ type ReportRow = {
 
 export default function BattleMonitor() {
   const { id } = useParams<{ id: string }>();
+  const { ctx, ready: academicReady } = useAcademicContext();
   const [data, setData] = useState<Monitor | null>(null);
   const [reports, setReports] = useState<ReportRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,12 +89,23 @@ export default function BattleMonitor() {
   const endBattle = async () => {
     if (!id) return;
     if (!confirm("End this battle for everyone? Students mid-question can still submit their current answer.")) return;
+    if (!academicReady || !ctx) {
+      toast({ title: "Academic context not ready", variant: "destructive" });
+      return;
+    }
     setEnding(true);
-    const { error: err } = await supabase.from("battles").update({ status: "finished" }).eq("id", id);
-    setEnding(false);
-    if (err) { toast({ title: err.message, variant: "destructive" }); return; }
-    toast({ title: "Battle ended" });
-    refresh();
+    try {
+      await BattleExperienceService.forceFinish(ctx, id);
+      toast({ title: "Battle ended" });
+      refresh();
+    } catch (e) {
+      toast({
+        title: e instanceof Error ? e.message : "Failed to end battle",
+        variant: "destructive",
+      });
+    } finally {
+      setEnding(false);
+    }
   };
 
   if (loading) {

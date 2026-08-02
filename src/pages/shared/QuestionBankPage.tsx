@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAcademicContext, QuestionBankService } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Database, Upload, Check, Trash2, Library, Target, Brain, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { normalizeIncomingAcademicTerm, presentAcademicLabel } from "@/lib/academicPresentation";
+import { supabase } from "@/integrations/supabase/client";
 import "@/pages/teacher/teacher-premium.css";
 
 const SUBJECTS = ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "Social Studies", "General Knowledge", "Computer Science", "Economics", "Accountancy", "Business Studies"];
@@ -27,6 +28,7 @@ type DraftQ = {
 
 export default function QuestionBankPage() {
   const { user } = useAuth();
+  const { ctx, ready: academicReady } = useAcademicContext();
   const [tab, setTab] = useState("generate");
 
   // shared meta
@@ -53,15 +55,22 @@ export default function QuestionBankPage() {
   const [total, setTotal] = useState(0);
 
   const loadSummary = async () => {
-    const { data, count: c } = await supabase
-      .from("question_bank")
-      .select("subject", { count: "exact" });
-    const map: Record<string, number> = {};
-    (data ?? []).forEach((r: any) => { map[r.subject] = (map[r.subject] ?? 0) + 1; });
-    setSummary(Object.entries(map).map(([subject, count]) => ({ subject, count })).sort((a, b) => b.count - a.count));
-    setTotal(c ?? (data?.length ?? 0));
+    if (!academicReady || !ctx) {
+      setSummary([]);
+      setTotal(0);
+      return;
+    }
+    try {
+      const rows = await QuestionBankService.listSummary(ctx);
+      setSummary(rows);
+      setTotal(rows.reduce((n, r) => n + r.count, 0));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not load question bank");
+      setSummary([]);
+      setTotal(0);
+    }
   };
-  useEffect(() => { loadSummary(); }, []);
+  useEffect(() => { void loadSummary(); }, [academicReady, ctx?.schoolId]);
 
   const generate = async () => {
     if (!topic.trim() && !url.trim() && !sourceText.trim()) {
@@ -94,6 +103,7 @@ export default function QuestionBankPage() {
   const saveDrafts = async () => {
     const chosen = drafts.filter((d) => d.include && d.question.trim() && d.options.filter(Boolean).length >= 2);
     if (chosen.length === 0) return toast.error("Nothing selected to save");
+    if (!academicReady || !ctx) return toast.error("Academic context not ready");
     setSaving(true);
     const rows = chosen.map((d) => ({
       class_level: classLevel ? Number(classLevel) : null,
@@ -101,28 +111,37 @@ export default function QuestionBankPage() {
       chapter: chapter.trim() ? normalizeIncomingAcademicTerm(chapter, "chapter") : null,
       topic: topic.trim() ? normalizeIncomingAcademicTerm(topic, "topic") : null,
       concept: topic.trim() ? normalizeIncomingAcademicTerm(topic, "concept") : null,
-      difficulty, question: d.question.trim(), options: d.options as any,
+      difficulty, question: d.question.trim(), options: d.options,
       correct_index: d.correct_index, explanation: d.explanation?.trim() || null,
       source: "ai", created_by: user?.id ?? null,
     }));
-    const { error } = await supabase.from("question_bank").insert(rows);
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success(`Saved ${rows.length} questions to the bank`);
-    setDrafts([]);
-    loadSummary();
+    try {
+      const { count } = await QuestionBankService.insert(ctx, rows);
+      toast.success(`Saved ${count} questions to the bank`);
+      setDrafts([]);
+      void loadSummary();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const importCsv = async () => {
     const rows = parseCsv(csv, { subject, classLevel, chapter, difficulty, userId: user?.id ?? null });
     if (rows.length === 0) return toast.error("No valid rows found. Check the format below.");
+    if (!academicReady || !ctx) return toast.error("Academic context not ready");
     setCsvBusy(true);
-    const { error } = await supabase.from("question_bank").insert(rows as any);
-    setCsvBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success(`Imported ${rows.length} questions`);
-    setCsv("");
-    loadSummary();
+    try {
+      const { count } = await QuestionBankService.insert(ctx, rows);
+      toast.success(`Imported ${count} questions`);
+      setCsv("");
+      void loadSummary();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Import failed");
+    } finally {
+      setCsvBusy(false);
+    }
   };
 
   const metaBar = (

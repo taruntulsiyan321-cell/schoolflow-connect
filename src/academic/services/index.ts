@@ -15,6 +15,8 @@ import { DoubtService } from "./doubtService";
 import { XpService } from "./xpService";
 import { BadgeService } from "./badgeService";
 import { BattleExperienceService } from "./battleExperienceService";
+import { QuestionBankService } from "./questionBankService";
+import { AnnouncementService } from "./announcementService";
 import { resolveStudentServiceContext } from "./resolveStudentContext";
 
 /**
@@ -34,6 +36,8 @@ export const AcademicServices = {
   xp: XpService,
   badge: BadgeService,
   battle: BattleExperienceService,
+  questionBank: QuestionBankService,
+  announcement: AnnouncementService,
 } as const;
 
 export {
@@ -49,6 +53,8 @@ export {
   XpService,
   BadgeService,
   BattleExperienceService,
+  QuestionBankService,
+  AnnouncementService,
   resolveStudentServiceContext,
   assertCanOwn,
   assertCanConsume,

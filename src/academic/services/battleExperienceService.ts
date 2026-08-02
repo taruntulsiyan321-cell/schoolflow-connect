@@ -472,4 +472,36 @@ export const BattleExperienceService = {
     throwIfError(error, "Failed to load battle");
     return data;
   },
+
+  /**
+   * Teacher force-end: mark the battle finished for the lobby/monitor.
+   * Students mid-question may still submit their current answer; participant
+   * finish/XP still goes through `finish()` when each student completes.
+   */
+  async forceFinish(ctx: ServiceContext, battleId: string): Promise<void> {
+    assertCanOwn(ctx, "battle");
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client
+      .from("battles")
+      .update({ status: "finished" })
+      .eq("id", battleId)
+      .select("id, status, title")
+      .maybeSingle();
+    throwIfError(error, "Failed to end battle");
+    if (!data) throw new Error("Battle not found or not allowed to end");
+
+    await emitEvent(toRepoContext(ctx), {
+      eventType: "battle.finished",
+      entityType: "battle",
+      entityId: battleId,
+      studentId: ctx.studentId ?? null,
+      payload: {
+        battle_id: battleId,
+        via: "teacher_force_finish",
+        title: (data as { title?: string }).title ?? null,
+      },
+    }).catch(() => undefined);
+
+    afterExperienceWrite(ctx, ["battle", "profile"]);
+  },
 };
