@@ -4,7 +4,7 @@ import { GlassCard, SectionLabel, StatTile, XPBar, ProgressBar, cn } from "@/gur
 import {
   ArrowRight, Flame, BookOpen, Brain,
   RefreshCw, RotateCcw, BarChart2, Trophy, CheckCircle2,
-  TrendingUp, AlertTriangle, Swords, Star,
+  TrendingUp, AlertTriangle, Swords, Star, Loader2,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useMemo } from "react";
@@ -138,9 +138,12 @@ function WeeklyRing({ sessions }: { sessions: number }) {
 export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const { user } = useAuth();
-  const { data: snapshot } = useStudentAcademicSnapshot();
-  const { data: charts } = useStudentPerformanceCharts();
+  const { data: snapshot, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
+  const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
   const { earned } = useStudentBadges(user?.id);
+
+  const loading = snapLoading || chartsLoading;
+  const loadError = snapError || chartsError;
 
   const mission = useMemo(() => buildMission(snapshot), [snapshot]);
 
@@ -216,7 +219,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
 
   const goalLine = student.goal ? ` · Goal: ${student.goal}` : "";
   const levelLabel = shellReady ? `Lv.${student.level}` : "—";
-  const streakLabel = shellReady ? `${student.streak}-day streak` : "�";
+  const streakLabel = shellReady ? `${student.streak}-day streak` : "�";
 
   return (
     <div className="space-y-6">
