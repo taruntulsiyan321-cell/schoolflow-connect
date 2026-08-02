@@ -174,6 +174,54 @@ export type Database = {
           },
         ]
       }
+      academic_taxonomy_terms: {
+        Row: {
+          aliases: Json
+          board: string | null
+          class_level: number | null
+          created_at: string
+          description: string | null
+          display_name: string
+          id: string
+          keywords: Json
+          kind: string
+          parent_term_id: string | null
+          subject: string | null
+          term_id: string
+          updated_at: string
+        }
+        Insert: {
+          aliases?: Json
+          board?: string | null
+          class_level?: number | null
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: string
+          keywords?: Json
+          kind: string
+          parent_term_id?: string | null
+          subject?: string | null
+          term_id: string
+          updated_at?: string
+        }
+        Update: {
+          aliases?: Json
+          board?: string | null
+          class_level?: number | null
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: string
+          keywords?: Json
+          kind?: string
+          parent_term_id?: string | null
+          subject?: string | null
+          term_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       academic_terms: {
         Row: {
           academic_year: string
@@ -1333,20 +1381,31 @@ export type Database = {
           date: string
           locked_at: string
           locked_by: string | null
+          school_id: string | null
         }
         Insert: {
           class_id: string
           date: string
           locked_at?: string
           locked_by?: string | null
+          school_id?: string | null
         }
         Update: {
           class_id?: string
           date?: string
           locked_at?: string
           locked_by?: string | null
+          school_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attendance_locks_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       audit_logs: {
         Row: {
@@ -1754,18 +1813,21 @@ export type Database = {
         Row: {
           class_id: string
           grid: Json
+          school_id: string | null
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           class_id: string
           grid?: Json
+          school_id?: string | null
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           class_id?: string
           grid?: Json
+          school_id?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -1775,6 +1837,13 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: true
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_timetables_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -2348,8 +2417,11 @@ export type Database = {
           instructions: string | null
           is_published: boolean
           negative_marking: number
+          published_at: string | null
           question_count: number
+          scheduled_publish_at: string | null
           school_id: string | null
+          status: string
           subject: string
           subject_id: string | null
           title: string
@@ -2369,8 +2441,11 @@ export type Database = {
           instructions?: string | null
           is_published?: boolean
           negative_marking?: number
+          published_at?: string | null
           question_count?: number
+          scheduled_publish_at?: string | null
           school_id?: string | null
+          status?: string
           subject: string
           subject_id?: string | null
           title: string
@@ -2390,8 +2465,11 @@ export type Database = {
           instructions?: string | null
           is_published?: boolean
           negative_marking?: number
+          published_at?: string | null
           question_count?: number
+          scheduled_publish_at?: string | null
           school_id?: string | null
+          status?: string
           subject?: string
           subject_id?: string | null
           title?: string
@@ -2428,6 +2506,7 @@ export type Database = {
           id: string
           max_marks: number
           name: string
+          results_published_at: string | null
           school_id: string | null
           start_date: string | null
           status: string
@@ -2445,6 +2524,7 @@ export type Database = {
           id?: string
           max_marks?: number
           name: string
+          results_published_at?: string | null
           school_id?: string | null
           start_date?: string | null
           status?: string
@@ -2462,6 +2542,7 @@ export type Database = {
           id?: string
           max_marks?: number
           name?: string
+          results_published_at?: string | null
           school_id?: string | null
           start_date?: string | null
           status?: string
@@ -2501,6 +2582,7 @@ export type Database = {
           month: string
           notes: string | null
           paid_amount: number
+          school_id: string | null
           status: Database["public"]["Enums"]["fee_status"]
           student_id: string
           updated_at: string
@@ -2513,6 +2595,7 @@ export type Database = {
           month: string
           notes?: string | null
           paid_amount?: number
+          school_id?: string | null
           status?: Database["public"]["Enums"]["fee_status"]
           student_id: string
           updated_at?: string
@@ -2525,11 +2608,19 @@ export type Database = {
           month?: string
           notes?: string | null
           paid_amount?: number
+          school_id?: string | null
           status?: Database["public"]["Enums"]["fee_status"]
           student_id?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fees_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fees_student_id_fkey"
             columns: ["student_id"]
@@ -3356,6 +3447,261 @@ export type Database = {
           },
         ]
       }
+      progression_achievements: {
+        Row: {
+          category: string
+          code: string
+          description: string | null
+          hidden: boolean
+          label: string
+          metric: string | null
+          rarity: string
+          threshold: number | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          code: string
+          description?: string | null
+          hidden?: boolean
+          label: string
+          metric?: string | null
+          rarity?: string
+          threshold?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          code?: string
+          description?: string | null
+          hidden?: boolean
+          label?: string
+          metric?: string | null
+          rarity?: string
+          threshold?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      progression_badge_catalog: {
+        Row: {
+          category: string
+          code: string
+          description: string | null
+          hidden: boolean
+          label: string
+          rarity: string
+          tier_default: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          code: string
+          description?: string | null
+          hidden?: boolean
+          label: string
+          rarity?: string
+          tier_default?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          code?: string
+          description?: string | null
+          hidden?: boolean
+          label?: string
+          rarity?: string
+          tier_default?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      progression_history: {
+        Row: {
+          created_at: string
+          direction: string
+          id: string
+          idempotency_key: string | null
+          league_after: string | null
+          league_before: string | null
+          level_after: number
+          level_before: number
+          meta: Json
+          reason: string | null
+          reputation_delta: number
+          rule_code: string | null
+          school_id: string | null
+          source_id: string | null
+          source_type: string | null
+          user_id: string
+          xp_after: number
+          xp_before: number
+          xp_delta: number
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          id?: string
+          idempotency_key?: string | null
+          league_after?: string | null
+          league_before?: string | null
+          level_after: number
+          level_before: number
+          meta?: Json
+          reason?: string | null
+          reputation_delta?: number
+          rule_code?: string | null
+          school_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          user_id: string
+          xp_after: number
+          xp_before: number
+          xp_delta: number
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          id?: string
+          idempotency_key?: string | null
+          league_after?: string | null
+          league_before?: string | null
+          level_after?: number
+          level_before?: number
+          meta?: Json
+          reason?: string | null
+          reputation_delta?: number
+          rule_code?: string | null
+          school_id?: string | null
+          source_id?: string | null
+          source_type?: string | null
+          user_id?: string
+          xp_after?: number
+          xp_before?: number
+          xp_delta?: number
+        }
+        Relationships: []
+      }
+      progression_league_history: {
+        Row: {
+          change_type: string
+          created_at: string
+          from_league: string | null
+          id: string
+          school_id: string | null
+          to_league: string
+          user_id: string
+          xp_at_change: number
+        }
+        Insert: {
+          change_type: string
+          created_at?: string
+          from_league?: string | null
+          id?: string
+          school_id?: string | null
+          to_league: string
+          user_id: string
+          xp_at_change: number
+        }
+        Update: {
+          change_type?: string
+          created_at?: string
+          from_league?: string | null
+          id?: string
+          school_id?: string | null
+          to_league?: string
+          user_id?: string
+          xp_at_change?: number
+        }
+        Relationships: []
+      }
+      progression_leagues: {
+        Row: {
+          code: string
+          color_token: string | null
+          demote_below_xp: number | null
+          label: string
+          min_xp: number
+          tier: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          color_token?: string | null
+          demote_below_xp?: number | null
+          label: string
+          min_xp: number
+          tier: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          color_token?: string | null
+          demote_below_xp?: number | null
+          label?: string
+          min_xp?: number
+          tier?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      progression_level_config: {
+        Row: {
+          base_xp: number
+          curve: string
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          base_xp?: number
+          curve?: string
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          base_xp?: number
+          curve?: string
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      progression_xp_rules: {
+        Row: {
+          amount: number
+          category: string
+          code: string
+          description: string | null
+          direction: string
+          enabled: boolean
+          label: string
+          reputation_delta: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          category?: string
+          code: string
+          description?: string | null
+          direction: string
+          enabled?: boolean
+          label: string
+          reputation_delta?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          code?: string
+          description?: string | null
+          direction?: string
+          enabled?: boolean
+          label?: string
+          reputation_delta?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       question_attempts: {
         Row: {
           answered_at: string | null
@@ -3468,6 +3814,13 @@ export type Database = {
             columns: ["bank_question_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_attempts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
           {
@@ -4111,6 +4464,35 @@ export type Database = {
           },
         ]
       }
+      student_achievements: {
+        Row: {
+          achievement_code: string
+          earned_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          achievement_code: string
+          earned_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          achievement_code?: string
+          earned_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_achievements_achievement_code_fkey"
+            columns: ["achievement_code"]
+            isOneToOne: false
+            referencedRelation: "progression_achievements"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       student_badges: {
         Row: {
           badge_code: string
@@ -4282,13 +4664,29 @@ export type Database = {
       }
       student_xp: {
         Row: {
+          ai_sessions_count: number
           best_score: number
           best_win_streak: number
           current_streak: number
+          demotion_warning_at: string | null
           equipped_badge: string | null
+          featured_badges: string[]
+          highest_league_code: string | null
+          homework_submitted_count: number
+          last_activity_at: string | null
           last_battle_at: string | null
+          last_study_date: string | null
+          league_code: string | null
           level: number
           longest_streak: number
+          practice_sessions_count: number
+          reputation: number
+          school_id: string | null
+          streak_protection_tokens: number
+          study_longest_streak: number
+          study_month_streak: number
+          study_streak: number
+          study_week_streak: number
           total_answered: number
           total_battles: number
           total_correct: number
@@ -4299,13 +4697,29 @@ export type Database = {
           xp: number
         }
         Insert: {
+          ai_sessions_count?: number
           best_score?: number
           best_win_streak?: number
           current_streak?: number
+          demotion_warning_at?: string | null
           equipped_badge?: string | null
+          featured_badges?: string[]
+          highest_league_code?: string | null
+          homework_submitted_count?: number
+          last_activity_at?: string | null
           last_battle_at?: string | null
+          last_study_date?: string | null
+          league_code?: string | null
           level?: number
           longest_streak?: number
+          practice_sessions_count?: number
+          reputation?: number
+          school_id?: string | null
+          streak_protection_tokens?: number
+          study_longest_streak?: number
+          study_month_streak?: number
+          study_streak?: number
+          study_week_streak?: number
           total_answered?: number
           total_battles?: number
           total_correct?: number
@@ -4316,13 +4730,29 @@ export type Database = {
           xp?: number
         }
         Update: {
+          ai_sessions_count?: number
           best_score?: number
           best_win_streak?: number
           current_streak?: number
+          demotion_warning_at?: string | null
           equipped_badge?: string | null
+          featured_badges?: string[]
+          highest_league_code?: string | null
+          homework_submitted_count?: number
+          last_activity_at?: string | null
           last_battle_at?: string | null
+          last_study_date?: string | null
+          league_code?: string | null
           level?: number
           longest_streak?: number
+          practice_sessions_count?: number
+          reputation?: number
+          school_id?: string | null
+          streak_protection_tokens?: number
+          study_longest_streak?: number
+          study_month_streak?: number
+          study_streak?: number
+          study_week_streak?: number
           total_answered?: number
           total_battles?: number
           total_correct?: number
@@ -4332,7 +4762,22 @@ export type Database = {
           wins?: number
           xp?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_xp_highest_league_code_fkey"
+            columns: ["highest_league_code"]
+            isOneToOne: false
+            referencedRelation: "progression_leagues"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "student_xp_league_code_fkey"
+            columns: ["league_code"]
+            isOneToOne: false
+            referencedRelation: "progression_leagues"
+            referencedColumns: ["code"]
+          },
+        ]
       }
       students: {
         Row: {
@@ -4775,6 +5220,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _award_achievement: {
+        Args: { _code: string; _uid: string }
+        Returns: undefined
+      }
       _award_badge: {
         Args: {
           _code: string
@@ -4858,6 +5307,48 @@ export type Database = {
         Returns: number
       }
       _concept_severity: { Args: { _accuracy: number }; Returns: string }
+      _ensure_student_xp: {
+        Args: { _uid: string }
+        Returns: {
+          ai_sessions_count: number
+          best_score: number
+          best_win_streak: number
+          current_streak: number
+          demotion_warning_at: string | null
+          equipped_badge: string | null
+          featured_badges: string[]
+          highest_league_code: string | null
+          homework_submitted_count: number
+          last_activity_at: string | null
+          last_battle_at: string | null
+          last_study_date: string | null
+          league_code: string | null
+          level: number
+          longest_streak: number
+          practice_sessions_count: number
+          reputation: number
+          school_id: string | null
+          streak_protection_tokens: number
+          study_longest_streak: number
+          study_month_streak: number
+          study_streak: number
+          study_week_streak: number
+          total_answered: number
+          total_battles: number
+          total_correct: number
+          updated_at: string
+          user_id: string
+          win_streak: number
+          wins: number
+          xp: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "student_xp"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       _exam_readiness: {
         Args: { _student_id: string; _uid: string }
         Returns: Json
@@ -4929,6 +5420,14 @@ export type Database = {
           subconcept: string
           subject: string
         }[]
+      }
+      _progression_bump_study_streak: {
+        Args: { _on?: string; _uid: string }
+        Returns: undefined
+      }
+      _progression_check_milestones: {
+        Args: { _uid: string }
+        Returns: undefined
       }
       _rebuild_revision_queue: {
         Args: { _student_id: string; _uid: string }
@@ -5048,6 +5547,13 @@ export type Database = {
       }
       admin_set_teacher_access: {
         Args: { _active: boolean; _teacher_id: string }
+        Returns: undefined
+      }
+      admin_set_unique_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
         Returns: undefined
       }
       ai_analytics_summary_v1: {
@@ -5244,13 +5750,32 @@ export type Database = {
         Args: { _limit?: number }
         Returns: number
       }
+      progression_league_for_xp: { Args: { _xp: number }; Returns: string }
+      progression_level_for_xp: { Args: { _xp: number }; Returns: number }
+      progression_xp_for_level: { Args: { _level: number }; Returns: number }
+      publish_due_scheduled_homework:
+        | { Args: never; Returns: number }
+        | { Args: { _school_id?: string }; Returns: number }
       refresh_student_academic_profile: {
         Args: { _student_id: string }
         Returns: string
       }
+      require_active_profile: { Args: never; Returns: string }
       rpc_add_community_answer: {
         Args: { _body: string; _doubt_id: string; _image_url?: string }
         Returns: string
+      }
+      rpc_apply_progression: {
+        Args: {
+          _amount_override?: number
+          _idempotency_key?: string
+          _meta?: Json
+          _rule_code: string
+          _source_id?: string
+          _source_type?: string
+          _target_user_id?: string
+        }
+        Returns: Json
       }
       rpc_assign_concept_recovery: {
         Args: {
@@ -5382,7 +5907,10 @@ export type Database = {
         Returns: number
       }
       rpc_dpp_start: { Args: { _dpp_id: string }; Returns: string }
-      rpc_dpp_submit: { Args: { _attempt_id: string }; Returns: undefined }
+      rpc_dpp_submit: {
+        Args: { _answers?: Json; _attempt_id: string }
+        Returns: Json
+      }
       rpc_ensure_battle_report: {
         Args: { _participant_id: string }
         Returns: Json
@@ -5394,10 +5922,6 @@ export type Database = {
       }
       rpc_finish_practice_session: {
         Args: { _attempts?: Json; _session_id: string }
-        Returns: Json
-      }
-      rpc_save_practice_session: {
-        Args: { _session_id: string; _snapshot?: Json }
         Returns: Json
       }
       rpc_generate_battle: {
@@ -5414,6 +5938,10 @@ export type Database = {
       }
       rpc_get_recovery_assignment: {
         Args: { _assignment_id: string }
+        Returns: Json
+      }
+      rpc_get_student_progression: {
+        Args: { _user_id?: string }
         Returns: Json
       }
       rpc_join_battle_by_code: { Args: { _code: string }; Returns: string }
@@ -5437,6 +5965,10 @@ export type Database = {
       rpc_mark_best_community_answer: {
         Args: { _answer_id: string }
         Returns: undefined
+      }
+      rpc_mirror_battle_answer: {
+        Args: { _participant_id: string; _question_id: string }
+        Returns: string
       }
       rpc_parent_child_snapshot: {
         Args: { _student_id?: string }
@@ -5477,6 +6009,16 @@ export type Database = {
       }
       rpc_principal_concept_analytics: { Args: never; Returns: Json }
       rpc_principal_school_health: { Args: never; Returns: Json }
+      rpc_progression_leaderboard: {
+        Args: {
+          _limit?: number
+          _metric?: string
+          _period?: string
+          _scope?: string
+          _subject?: string
+        }
+        Returns: Json
+      }
       rpc_record_community_doubt_view: {
         Args: { _doubt_id: string }
         Returns: number
@@ -5499,30 +6041,67 @@ export type Database = {
         }
         Returns: string
       }
-      rpc_record_question_attempt: {
-        Args: {
-          _bank_question_id?: string
-          _correct_answer: Json
-          _generated_question: Json
-          _hint_used?: boolean
-          _is_correct: boolean
-          _meta?: Json
-          _score?: number
-          _selected_answer: Json
-          _session_id: string
-          _skipped?: boolean
-          _source?: string
-          _template_id?: string
-          _time_taken_ms?: number
-        }
-        Returns: string
-      }
-      rpc_mirror_battle_answer: {
-        Args: { _participant_id: string; _question_id: string }
-        Returns: string
-      }
+      rpc_record_question_attempt:
+        | {
+            Args: {
+              _bank_question_id?: string
+              _correct_answer: Json
+              _generated_question: Json
+              _is_correct: boolean
+              _score?: number
+              _selected_answer: Json
+              _session_id: string
+              _skipped?: boolean
+              _template_id?: string
+              _time_taken_ms?: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _bank_question_id?: string
+              _correct_answer: Json
+              _generated_question: Json
+              _hint_used?: boolean
+              _is_correct: boolean
+              _score?: number
+              _selected_answer: Json
+              _session_id: string
+              _skipped?: boolean
+              _source?: string
+              _template_id?: string
+              _time_taken_ms?: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _bank_question_id?: string
+              _correct_answer: Json
+              _generated_question: Json
+              _hint_used?: boolean
+              _is_correct: boolean
+              _meta?: Json
+              _score?: number
+              _selected_answer: Json
+              _session_id: string
+              _skipped?: boolean
+              _source?: string
+              _template_id?: string
+              _time_taken_ms?: number
+            }
+            Returns: string
+          }
       rpc_save_battle_ai_insights: {
         Args: { _insights: Json; _participant_id: string }
+        Returns: undefined
+      }
+      rpc_save_practice_session: {
+        Args: { _session_id: string; _snapshot?: Json }
+        Returns: Json
+      }
+      rpc_set_featured_badges: {
+        Args: { _badges: string[] }
         Returns: undefined
       }
       rpc_start_practice_session: {
@@ -5546,6 +6125,15 @@ export type Database = {
       rpc_student_performance_charts: { Args: never; Returns: Json }
       rpc_student_recovery_zone: { Args: never; Returns: Json }
       rpc_student_revision_queue: { Args: never; Returns: Json }
+      rpc_submit_battle_answer: {
+        Args: {
+          _participant_id: string
+          _question_id: string
+          _selected_index: number
+          _time_ms?: number
+        }
+        Returns: Json
+      }
       rpc_submit_recovery_answer: {
         Args: {
           _is_correct: boolean
@@ -5559,6 +6147,10 @@ export type Database = {
         Returns: Json
       }
       rpc_teacher_class_insights: { Args: { _class_id: string }; Returns: Json }
+      rpc_teacher_class_progression_insights: {
+        Args: { _class_id: string }
+        Returns: Json
+      }
       rpc_teacher_concept_analytics: {
         Args: { _class_id: string }
         Returns: Json
