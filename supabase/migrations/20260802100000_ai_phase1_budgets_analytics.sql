@@ -216,9 +216,8 @@ BEGIN
   END IF;
 
   IF NOT (
-    public.has_role(v_uid, 'admin')
-    OR public.has_role(v_uid, 'principal')
-    OR public.has_role(v_uid, 'super_admin')
+    public.has_role(v_uid, 'admin'::public.app_role)
+    OR public.has_role(v_uid, 'principal'::public.app_role)
   ) THEN
     RAISE EXCEPTION 'not authorised';
   END IF;

@@ -1,7 +1,119 @@
--- Phase 1 remainder + Phase 2 foundations:
--- Prompt Library v1, AI Feedback Loop signals, optional workflow registry seed.
+-- Repair: AI Phase 2 foundations used invalid app_role 'super_admin'.
+-- Live enum labels: admin, teacher, student, parent, principal
+-- (super_admin was reserved in a DO-block but is not present on applied DBs / generated types).
+-- Safe if 20260802110000 partially applied or never applied: IF NOT EXISTS + DROP POLICY IF EXISTS.
+-- Also rewrites ai_analytics_summary_v1 from 20260802100000 to drop super_admin.
 
--- ── Prompt Library (versioned contracts) ──────────────────────────────────────
+-- ── Fix analytics RPC role gate (Phase 1) ─────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.ai_analytics_summary_v1(
+  p_school_id uuid,
+  p_from timestamptz,
+  p_to timestamptz
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_count int := 0;
+  v_model int := 0;
+  v_cache int := 0;
+  v_conf_sum numeric := 0;
+  v_conf_n int := 0;
+  v_low_conf int := 0;
+  v_lat_sum numeric := 0;
+  v_lat_n int := 0;
+  v_cost numeric := 0;
+  v_route jsonb := '{}'::jsonb;
+  v_decision jsonb := '{}'::jsonb;
+  v_feature jsonb := '{}'::jsonb;
+  r record;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'not authenticated';
+  END IF;
+
+  IF NOT (
+    public.has_role(v_uid, 'admin'::public.app_role)
+    OR public.has_role(v_uid, 'principal'::public.app_role)
+  ) THEN
+    RAISE EXCEPTION 'not authorised';
+  END IF;
+
+  FOR r IN
+    SELECT feature_id, route_class, decision, used_model, cache_hit, confidence, latency_ms,
+           coalesce(estimated_cost_units, 0) AS cost_units
+    FROM public.ai_request_decisions
+    WHERE school_id = p_school_id
+      AND created_at >= coalesce(p_from, now() - interval '7 days')
+      AND created_at <= coalesce(p_to, now())
+  LOOP
+    v_count := v_count + 1;
+    IF r.used_model THEN v_model := v_model + 1; END IF;
+    IF r.cache_hit THEN v_cache := v_cache + 1; END IF;
+    IF r.confidence IS NOT NULL THEN
+      v_conf_sum := v_conf_sum + r.confidence;
+      v_conf_n := v_conf_n + 1;
+      IF r.confidence < 0.65 THEN v_low_conf := v_low_conf + 1; END IF;
+    END IF;
+    IF r.latency_ms IS NOT NULL THEN
+      v_lat_sum := v_lat_sum + r.latency_ms;
+      v_lat_n := v_lat_n + 1;
+    END IF;
+    IF r.used_model THEN
+      v_cost := v_cost + GREATEST(r.cost_units, 1);
+    ELSE
+      v_cost := v_cost + r.cost_units;
+    END IF;
+
+    v_route := jsonb_set(
+      v_route,
+      ARRAY[coalesce(r.route_class, 'unknown')],
+      to_jsonb(coalesce((v_route ->> coalesce(r.route_class, 'unknown'))::int, 0) + 1)
+    );
+    v_decision := jsonb_set(
+      v_decision,
+      ARRAY[coalesce(r.decision, 'unknown')],
+      to_jsonb(coalesce((v_decision ->> coalesce(r.decision, 'unknown'))::int, 0) + 1)
+    );
+    v_feature := jsonb_set(
+      v_feature,
+      ARRAY[coalesce(r.feature_id, 'unknown')],
+      to_jsonb(coalesce((v_feature ->> coalesce(r.feature_id, 'unknown'))::int, 0) + 1)
+    );
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'window', jsonb_build_object(
+      'from', p_from,
+      'to', p_to,
+      'count', v_count
+    ),
+    'route_mix', v_route,
+    'decision_mix', v_decision,
+    'feature_mix', v_feature,
+    'model_calls', v_model,
+    'cache_hits', v_cache,
+    'deflection_pct', CASE WHEN v_count = 0 THEN 0
+      ELSE round(((v_count - v_model)::numeric / v_count) * 1000) / 10 END,
+    'avg_confidence', CASE WHEN v_conf_n = 0 THEN NULL
+      ELSE round((v_conf_sum / v_conf_n) * 1000) / 1000 END,
+    'avg_latency_ms', CASE WHEN v_lat_n = 0 THEN NULL ELSE round(v_lat_sum / v_lat_n) END,
+    'estimated_cost_units', v_cost,
+    'low_confidence_rate', CASE WHEN v_conf_n = 0 THEN NULL
+      ELSE round((v_low_conf::numeric / v_conf_n) * 1000) / 1000 END
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.ai_analytics_summary_v1(uuid, timestamptz, timestamptz) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.ai_analytics_summary_v1(uuid, timestamptz, timestamptz) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.ai_analytics_summary_v1(uuid, timestamptz, timestamptz) TO service_role;
+
+-- ── Prompt Library (idempotent Phase 2) ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.ai_prompt_library (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   capability_id text NOT NULL,
@@ -50,7 +162,6 @@ CREATE POLICY "ai_prompt_library write admin" ON public.ai_prompt_library
 GRANT SELECT ON public.ai_prompt_library TO authenticated;
 GRANT ALL ON public.ai_prompt_library TO service_role;
 
--- Seed production prompts (idempotent)
 INSERT INTO public.ai_prompt_library (
   capability_id, version, status, audience, system_template, user_template,
   output_schema, max_output_tokens, temperature, caching_eligible, metadata
@@ -103,7 +214,6 @@ WHERE NOT EXISTS (
   WHERE p.capability_id = v.capability_id AND p.version = v.version
 );
 
--- Loader helper for gateway / modelRouter (service_role)
 CREATE OR REPLACE FUNCTION public.ai_prompt_load_production(p_capability_id text)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -196,7 +306,7 @@ CREATE POLICY "ai_feedback read own or admin" ON public.ai_feedback_signals
 GRANT SELECT, INSERT ON public.ai_feedback_signals TO authenticated;
 GRANT ALL ON public.ai_feedback_signals TO service_role;
 
--- ── Workflow registry (definitions live in code; DB holds activation flags) ───
+-- ── Workflow registry ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.ai_workflow_registry (
   workflow_id text PRIMARY KEY,
   version text NOT NULL,
