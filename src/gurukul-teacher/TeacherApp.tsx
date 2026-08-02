@@ -21,6 +21,17 @@ import Leave from "./Leave";
 import TeacherProfile from "./Profile";
 import { teacherProfile } from "./data";
 import { useAuth } from "@/hooks/useAuth";
+import QuestionBankPage from "@/pages/shared/QuestionBankPage";
+
+/** Set My Classes sub-tab then bounce to /teacher/classes (sessionStorage contract). */
+function RedirectTeacherClassTab({ tab }: { tab: string }) {
+  try {
+    sessionStorage.setItem("teacher.openTab", tab);
+  } catch {
+    /* ignore */
+  }
+  return <Navigate to="/teacher/classes" replace />;
+}
 
 export type { TeacherPageKey } from "./nav";
 
@@ -240,20 +251,21 @@ export default function TeacherApp() {
               <Route path="class" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="my-class" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="my-subjects" element={<Navigate to="/teacher/classes" replace />} />
-              <Route path="exams" element={<Navigate to="/teacher/classes" replace />} />
+              <Route path="exams" element={<RedirectTeacherClassTab tab="exams-marks" />} />
               <Route path="timetable" element={<Navigate to="/teacher/classes" replace />} />
-              <Route path="performance" element={<Navigate to="/teacher/classes" replace />} />
-              <Route path="homework" element={<Navigate to="/teacher/classes" replace />} />
+              <Route path="performance" element={<RedirectTeacherClassTab tab="insights" />} />
+              <Route path="homework" element={<RedirectTeacherClassTab tab="homework" />} />
               <Route path="chat" element={<Navigate to="/teacher/communication" replace />} />
               <Route path="connect" element={<Navigate to="/teacher/communication" replace />} />
               <Route path="notices" element={<Navigate to="/teacher/announcements" replace />} />
               <Route path="leaves" element={<Navigate to="/teacher/leave" replace />} />
-              <Route path="insights" element={<Navigate to="/teacher" replace />} />
-              <Route path="practice" element={<Navigate to="/teacher" replace />} />
-              <Route path="battleground" element={<Navigate to="/teacher" replace />} />
-              <Route path="reports" element={<Navigate to="/teacher" replace />} />
-              <Route path="dpp/*" element={<Navigate to="/teacher" replace />} />
-              <Route path="question-bank" element={<Navigate to="/teacher" replace />} />
+              {/* Legacy academic surfaces → My Classes workspace (correct sub-tab) */}
+              <Route path="insights" element={<RedirectTeacherClassTab tab="insights" />} />
+              <Route path="practice" element={<Navigate to="/teacher/question-bank" replace />} />
+              <Route path="reports" element={<RedirectTeacherClassTab tab="insights" />} />
+              <Route path="dpp/*" element={<RedirectTeacherClassTab tab="tests" />} />
+              <Route path="question-bank" element={<QuestionBankPage />} />
+              <Route path="battleground/*" element={<Navigate to="/teacher" replace />} />
               <Route path="*" element={<Navigate to="/teacher" replace />} />
             </Routes>
           </div>
