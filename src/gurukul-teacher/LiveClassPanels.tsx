@@ -733,6 +733,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     if (!ctx) return;
     setLoading(true);
     try {
+      await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
       const t = await TestService.listForClass(ctx, classId);
       setTests((t ?? []) as TestRow[]);
       setError(null);

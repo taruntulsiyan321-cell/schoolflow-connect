@@ -40,7 +40,12 @@ import { broadcastAcademicWrite } from "../live";
 
 function afterHomeworkWrite(
   ctx: ServiceContext,
-  meta?: { classId?: string | null; studentId?: string | null; source?: string; domains?: Array<"homework" | "profile" | "xp"> },
+  meta?: {
+    classId?: string | null;
+    studentId?: string | null;
+    source?: string;
+    domains?: Array<"homework" | "test" | "profile" | "xp">;
+  },
 ) {
   broadcastAcademicWrite(ctx.schoolId, meta?.domains ?? ["homework", "profile"], {
     classId: meta?.classId,
@@ -421,11 +426,12 @@ export const HomeworkService = {
   },
 
   /**
-   * Publish homework whose scheduled_publish_at is due.
-   * Prefers RPC `publish_due_scheduled_homework`; falls back to direct update.
+   * Publish homework/tests whose scheduled_publish_at is due.
+   * Prefers RPC `publish_due_scheduled_homework(_school_id)`; falls back to direct update.
+   * Callable by any homework consumer (students included) so due work appears without cron.
    */
   async publishDueScheduled(ctx: ServiceContext): Promise<number> {
-    assertCanOwn(ctx, "homework");
+    assertCanConsume(ctx, "homework");
     const repo = toRepoContext(ctx);
     const schoolId = schoolIdOf(repo);
     const client = getClient(repo);
@@ -437,13 +443,16 @@ export const HomeworkService = {
     if (!rpcError) {
       const n = typeof rpcData === "number" ? rpcData : Number(rpcData ?? 0);
       if (n > 0) {
-        afterHomeworkWrite(ctx, { source: "HomeworkService.publishDueScheduled" });
+        afterHomeworkWrite(ctx, {
+          domains: ["homework", "test", "profile"],
+          source: "HomeworkService.publishDueScheduled",
+        });
       }
       return n;
     }
 
     const now = new Date().toISOString();
-    const { data: due, error: listErr } = await client
+    const { data: dueHw, error: listErr } = await client
       .from("homework")
       .select("id")
       .eq("school_id", schoolId)
@@ -451,21 +460,52 @@ export const HomeworkService = {
       .lte("scheduled_publish_at", now);
     throwIfError(listErr, "Failed to list due scheduled homework");
 
-    const ids = (due ?? []).map((r) => String(r.id));
-    if (ids.length === 0) return 0;
+    const hwIds = (dueHw ?? []).map((r) => String(r.id));
+    if (hwIds.length > 0) {
+      const { error: updErr } = await client
+        .from("homework")
+        .update({
+          status: "published",
+          published_at: now,
+          updated_at: now,
+        } as never)
+        .eq("school_id", schoolId)
+        .in("id", hwIds);
+      throwIfError(updErr, "Failed to publish due scheduled homework");
+    }
 
-    const { error: updErr } = await client
-      .from("homework")
-      .update({
-        status: "published",
-        published_at: now,
-        updated_at: now,
-      } as never)
+    const { data: dueTests, error: testListErr } = await client
+      .from("dpps")
+      .select("id")
       .eq("school_id", schoolId)
-      .in("id", ids);
-    throwIfError(updErr, "Failed to publish due scheduled homework");
-    afterHomeworkWrite(ctx, { source: "HomeworkService.publishDueScheduled" });
-    return ids.length;
+      .eq("status", "scheduled")
+      .lte("scheduled_publish_at", now);
+    // Optional column/school_id may be missing on older schemas — ignore list failures.
+    let testIds: string[] = [];
+    if (!testListErr) {
+      testIds = (dueTests ?? []).map((r) => String(r.id));
+      if (testIds.length > 0) {
+        await client
+          .from("dpps")
+          .update({
+            status: "published",
+            is_published: true,
+            published_at: now,
+            updated_at: now,
+          } as never)
+          .eq("school_id", schoolId)
+          .in("id", testIds);
+      }
+    }
+
+    const n = hwIds.length + testIds.length;
+    if (n > 0) {
+      afterHomeworkWrite(ctx, {
+        domains: ["homework", "test", "profile"],
+        source: "HomeworkService.publishDueScheduled",
+      });
+    }
+    return n;
   },
 
   async unpublish(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {

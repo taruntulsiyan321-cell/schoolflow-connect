@@ -19,7 +19,7 @@ import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
-import { MarksService } from "@/academic";
+import { MarksService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { displayChapter, displayTopic } from "@/lib/academicDisplay";
@@ -98,6 +98,7 @@ export default function Analysis() {
   const [tab, setTab] = useState<Tab>("overview");
   const student = useGurukulStudent();
   const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
+  const liveVersion = useAcademicLive(["marks", "examination", "profile"]);
   const { data: analysis, loading: analysisLoading } = useAnalysisPageData();
   const { data: charts, loading: chartsLoading } = useStudentPerformanceCharts();
   const { data: snapshot, loading: snapshotLoading } = useStudentAcademicSnapshot();
@@ -128,7 +129,7 @@ export default function Analysis() {
     return () => {
       cancelled = true;
     };
-  }, [academicReady, ctx, studentId, classId]);
+  }, [academicReady, ctx, studentId, classId, liveVersion]);
 
   const loading = analysisLoading || chartsLoading || snapshotLoading || masteryLoading;
 

@@ -32,6 +32,7 @@ export default function Assignments() {
 
   const reload = async () => {
     if (!ctx || !studentId) return;
+    await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
     const list = await HomeworkService.listForStudent(ctx, studentId);
     setRows(list);
   };

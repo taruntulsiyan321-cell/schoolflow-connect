@@ -91,6 +91,12 @@ export const MarksService = {
     const marks = await listMarksForStudent(repo, studentId, page);
     if (marks.length === 0) return [];
 
+    // Teachers / school operators need entered-but-unpublished marks for review.
+    // Students and parents only see results after publishResults.
+    if (ctx.role === "teacher" || isSchoolOperator(ctx.role)) {
+      return marks;
+    }
+
     const examIds = [...new Set(marks.map((m) => m.examId))];
     const { data: examsRaw, error } = await getClient(repo)
       .from("exams")

@@ -6,6 +6,7 @@ import {
   HomeworkService,
   AttendanceService,
   useAcademicLive,
+  WORK_KINDS,
   WORK_KIND_LABELS,
   type WorkKind,
 } from "@/academic";
@@ -53,6 +54,7 @@ export function LiveAcademicWorkTab({
     priority: "normal",
     maxMarks: "",
     scheduledPublishAt: "",
+    workKind: "homework" as WorkKind,
   });
   const [attachments, setAttachments] = useState<HomeworkAttachmentMeta[]>([]);
   const [saving, setSaving] = useState(false);
@@ -66,6 +68,7 @@ export function LiveAcademicWorkTab({
     if (!ctx) return;
     setLoading(true);
     try {
+      await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
       const list = await HomeworkService.listForClassWithStats(ctx, classId, { limit: 100 });
       setItems(list);
       setError(null);
@@ -120,7 +123,7 @@ export function LiveAcademicWorkTab({
         dueTime: form.dueTime || null,
         priority: form.priority,
         maxMarks: form.maxMarks && !Number.isNaN(Number(form.maxMarks)) ? Number(form.maxMarks) : null,
-        workKind: "homework" as WorkKind,
+        workKind: form.workKind,
         attachments,
       };
       if (publishMode === "draft") {
@@ -143,6 +146,7 @@ export function LiveAcademicWorkTab({
         priority: "normal",
         maxMarks: "",
         scheduledPublishAt: "",
+        workKind: "homework",
       });
       setAttachments([]);
       setCreating(false);
@@ -361,6 +365,17 @@ export function LiveAcademicWorkTab({
             placeholder="Instructions"
             className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[60px]"
           />
+          <select
+            value={form.workKind}
+            onChange={(e) => setForm((f) => ({ ...f, workKind: e.target.value as WorkKind }))}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+          >
+            {WORK_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {WORK_KIND_LABELS[k]}
+              </option>
+            ))}
+          </select>
           <div className="flex flex-wrap gap-2">
             <input
               type="date"
