@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAcademicLive } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui-bits";
 import { Users, ChevronRight, BookOpen } from "lucide-react";
@@ -15,6 +16,7 @@ type ClassRow = {
 };
 
 export default function PrincipalClasses() {
+  const liveVersion = useAcademicLive(["attendance", "profile"]);
   const [rows, setRows] = useState<ClassRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,21 +33,21 @@ export default function PrincipalClasses() {
       const [{ data: students }, { data: teachers }] = await Promise.all([
         ids.length
           ? supabase.from("students").select("id, class_id").in("class_id", ids)
-          : Promise.resolve({ data: [] as any[] }),
+          : Promise.resolve({ data: [] as { id: string; class_id: string }[] }),
         ids.length
           ? supabase
               .from("teachers")
               .select("full_name, class_teacher_of")
               .in("class_teacher_of", ids)
-          : Promise.resolve({ data: [] as any[] }),
+          : Promise.resolve({ data: [] as { full_name: string; class_teacher_of: string | null }[] }),
       ]);
 
       const counts: Record<string, number> = {};
-      (students ?? []).forEach((s: any) => {
+      (students ?? []).forEach((s) => {
         counts[s.class_id] = (counts[s.class_id] ?? 0) + 1;
       });
       const ctMap: Record<string, string> = {};
-      (teachers ?? []).forEach((t: any) => {
+      (teachers ?? []).forEach((t) => {
         if (t.class_teacher_of) ctMap[t.class_teacher_of] = t.full_name;
       });
 
@@ -61,7 +63,7 @@ export default function PrincipalClasses() {
       );
       setLoading(false);
     })();
-  }, []);
+  }, [liveVersion]);
 
   return (
     <>
@@ -79,7 +81,7 @@ export default function PrincipalClasses() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rows.map((r) => (
-            <Link key={r.id} to="/principal/students" className="group">
+            <Link key={r.id} to={`/principal/classes/${r.id}`} className="group">
               <Card className="p-5 shadow-card hover:shadow-elevated transition-all border hover:border-primary/40">
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-11 h-11 rounded-xl bg-gradient-primary text-primary-foreground flex items-center justify-center shadow-elevated">

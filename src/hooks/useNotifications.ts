@@ -19,19 +19,28 @@ export function useNotifications() {
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
-    if (!user) { setItems([]); setLoading(false); return; }
-    const { data } = await supabase
+    if (!user) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    const { data, error } = await supabase
       .from("notifications")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
-    setItems(data ?? []);
+    if (error) {
+      setItems([]);
+    } else {
+      setItems(data ?? []);
+    }
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
 
-  // Live updates
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -39,29 +48,55 @@ export function useNotifications() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => reload(),
+        () => {
+          void reload();
+        },
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user, reload]);
 
   const unread = items.filter((n) => !n.read).length;
 
-  const markRead = useCallback(async (id: string) => {
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    await supabase.from("notifications").update({ read: true }).eq("id", id);
-  }, []);
+  const markRead = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id);
+      if (error) {
+        await reload();
+        return;
+      }
+      setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    },
+    [reload],
+  );
 
   const markAllRead = useCallback(async () => {
     if (!user) return;
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("user_id", user.id)
+      .eq("read", false);
+    if (error) {
+      await reload();
+      return;
+    }
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-    await supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false);
-  }, [user]);
+  }, [user, reload]);
 
-  const remove = useCallback(async (id: string) => {
-    setItems((prev) => prev.filter((n) => n.id !== id));
-    await supabase.from("notifications").delete().eq("id", id);
-  }, []);
+  const remove = useCallback(
+    async (id: string) => {
+      const { error } = await supabase.from("notifications").delete().eq("id", id);
+      if (error) {
+        await reload();
+        return;
+      }
+      setItems((prev) => prev.filter((n) => n.id !== id));
+    },
+    [reload],
+  );
 
   return { items, unread, loading, reload, markRead, markAllRead, remove };
 }

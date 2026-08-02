@@ -135,16 +135,19 @@ export default function ParentProfile() {
         phone: draftPhone.trim() || null,
       })
       .eq("id", parentRow.id);
-    setSaving(false);
     if (error) {
+      setSaving(false);
       showError(error.message);
       return;
     }
-    // Keep profiles.full_name in sync when present
-    await supabase
+    const { error: profileErr } = await supabase
       .from("profiles")
       .update({ full_name: draftName.trim() })
       .eq("id", user.id);
+    setSaving(false);
+    if (profileErr) {
+      showError(`Parent record saved, but profile name sync failed: ${profileErr.message}`);
+    }
     setParentRow((p) =>
       p
         ? { ...p, full_name: draftName.trim(), phone: draftPhone.trim() || null }
@@ -152,7 +155,7 @@ export default function ParentProfile() {
     );
     setEditing(false);
     await refreshAuth();
-    showFlash("Profile updated");
+    if (!profileErr) showFlash("Profile updated");
   }
 
   async function handleChangePwd() {

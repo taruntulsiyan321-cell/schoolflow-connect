@@ -6,6 +6,7 @@ import {
   AnalyticsService,
   AttendanceService,
   AuditReadService,
+  useAcademicLive,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
@@ -41,7 +42,7 @@ type Student = { id: string; full_name: string; roll_number: string | null; admi
 export default function PrincipalClassDetail() {
   const { classId } = useParams<{ classId: string }>();
   const { ctx, ready } = useAcademicContext();
-  if (!classId) return <Navigate to="/principal/students" replace />;
+  const liveVersion = useAcademicLive(["attendance", "marks", "examination", "profile"]);
 
   const [klass, setKlass] = useState<Klass | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -96,25 +97,39 @@ export default function PrincipalClassDetail() {
       setTodayPresent(todayAtt.filter((r) => r.status === "present" || r.status === "late").length);
       setTodayAbsent(todayAtt.filter((r) => r.status === "absent").length);
 
-      const { data: feedRows } = await (supabase as any)
+      const { data: feedRows } = await supabase
         .from("school_activity_feed")
-        .select("title, created_at, entity_type")
+        .select("action, created_at, entity_type, metadata")
         .eq("school_id", ctx.schoolId)
         .eq("entity_type", "attendance")
         .order("created_at", { ascending: false })
-        .limit(12);
-      setFeed((feedRows ?? []) as { title: string; created_at: string }[]);
+        .limit(40);
+      const classFeed = ((feedRows ?? []) as {
+        action: string;
+        created_at: string;
+        metadata: { class_id?: string } | null;
+      }[])
+        .filter((row) => row.metadata?.class_id === classId)
+        .slice(0, 12)
+        .map((row) => ({ title: row.action, created_at: row.created_at }));
+      setFeed(classFeed);
 
       try {
         const recent = await AuditReadService.recent(ctx);
-        setAuditHint(recent.filter((a) => a.entityType === "attendance").length);
+        setAuditHint(
+          recent.filter((a) => {
+            if (a.entityType !== "attendance") return false;
+            const meta = a.metadata as { class_id?: string } | null;
+            return meta?.class_id === classId;
+          }).length,
+        );
       } catch {
         setAuditHint(0);
       }
 
       setLoading(false);
     })();
-  }, [classId, ctx, ready]);
+  }, [classId, ctx, ready, liveVersion]);
 
   const total = students.length;
   const attendanceRate = todayMarked
@@ -143,17 +158,18 @@ export default function PrincipalClassDetail() {
     return [{ date: "Class avg", rate: avgAttendancePct }];
   }, [avgAttendancePct]);
 
+  if (!classId) return <Navigate to="/principal/classes" replace />;
   if (loading) return <p className="text-muted-foreground text-center py-12">Loading class…</p>;
-  if (!klass) return <Navigate to="/principal/students" replace />;
+  if (!klass) return <Navigate to="/principal/classes" replace />;
 
   return (
     <>
       <div className="mb-3">
         <Link
-          to="/principal/students"
+          to="/principal/classes"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
         >
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back to students
+          <ChevronLeft className="w-4 h-4 mr-1" /> Back to classes
         </Link>
       </div>
 
