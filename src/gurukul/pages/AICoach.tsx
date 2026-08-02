@@ -235,8 +235,9 @@ function ContextPill({
 }
 
 // ── Suggestions (empty state) ─────────────────────────────────────────────────
-function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects, xp, level, streak, weakConcepts }: {
+function SuggestionGrid({ onSelect, onNavigate, firstName, studentClass, goal, chartSubjects, xp, level, streak, weakConcepts }: {
   onSelect: (text: string) => void;
+  onNavigate?: (page: PageKey) => void;
   firstName: string;
   studentClass: string;
   goal: string;
@@ -246,6 +247,13 @@ function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects
   streak: number;
   weakConcepts: string[];
 }) {
+  const jumpLinks: { page: PageKey; label: string; color: string }[] = [
+    { page: "practice", label: "Practice", color: "#3b5bdb" },
+    { page: "recovery", label: "Recovery", color: "#cc5069" },
+    { page: "battleground", label: "Battleground", color: "#c08a3a" },
+    { page: "doubtportal", label: "Doubts", color: "#4aa87a" },
+  ];
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
       {/* Nova orb */}
@@ -290,6 +298,23 @@ function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects
           </button>
         ))}
       </div>
+
+      {onNavigate && (
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          <span className="text-[11px] text-[#78788c] w-full text-center mb-1">Jump to</span>
+          {jumpLinks.map((j) => (
+            <button
+              key={j.page}
+              type="button"
+              onClick={() => onNavigate(j.page)}
+              className="text-[11px] px-3 py-1.5 rounded-xl border font-semibold hover:opacity-90 transition-opacity"
+              style={{ color: j.color, borderColor: `${j.color}40`, background: `${j.color}12` }}
+            >
+              {j.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -499,7 +524,7 @@ function InputBar({
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function AICoach({ setPage: _setPage }: { setPage?: (p: PageKey) => void }) {
+export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const { user, role } = useAuth();
   const { studentId, schoolId } = useAcademicContext();
@@ -832,6 +857,7 @@ export default function AICoach({ setPage: _setPage }: { setPage?: (p: PageKey) 
           {msgs.length === 0 ? (
             <SuggestionGrid
               onSelect={handleSuggestion}
+              onNavigate={setPage}
               firstName={student.firstName}
               studentClass={student.class ? `Class ${student.class}` : ""}
               goal={student.goal}

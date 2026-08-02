@@ -119,7 +119,7 @@ export default function BattleMonitor() {
   if (error || !data) {
     return (
       <div className="max-w-lg mx-auto">
-        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/teacher"><ArrowLeft className="w-4 h-4" /> Battleground</Link></Button>
+        <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/teacher/battleground"><ArrowLeft className="w-4 h-4" /> Battleground</Link></Button>
         <Card className="p-8 text-center">
           <AlertTriangle className="w-10 h-10 mx-auto text-warning mb-2" />
           <p className="font-semibold">Can't load this battle</p>
@@ -150,7 +150,7 @@ export default function BattleMonitor() {
 
   return (
     <div className="space-y-5 animate-rise">
-      <Button variant="ghost" size="sm" asChild className="mb-1"><Link to="/teacher"><ArrowLeft className="w-4 h-4" /> Battleground</Link></Button>
+      <Button variant="ghost" size="sm" asChild className="mb-1"><Link to="/teacher/battleground"><ArrowLeft className="w-4 h-4" /> Battleground</Link></Button>
 
       {/* Hero */}
       <Card className="hero-panel p-5">
@@ -292,7 +292,7 @@ export default function BattleMonitor() {
             {reports.map((r) => (
               <Link
                 key={r.participant_id}
-                to="/teacher"
+                to={`/teacher/battleground/report/${id}/${r.participant_id}`}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors",
                   r.expired && "opacity-60",

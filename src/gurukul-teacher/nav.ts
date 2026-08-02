@@ -5,7 +5,9 @@ export type TeacherPageKey =
   | "communication"
   | "announcements"
   | "leave"
-  | "profile";
+  | "profile"
+  | "battleground"
+  | "questionbank";
 
 export const TEACHER_PAGE_PATH: Record<TeacherPageKey, string> = {
   dashboard: "/teacher",
@@ -15,6 +17,8 @@ export const TEACHER_PAGE_PATH: Record<TeacherPageKey, string> = {
   announcements: "/teacher/announcements",
   leave: "/teacher/leave",
   profile: "/teacher/profile",
+  battleground: "/teacher/battleground",
+  questionbank: "/teacher/question-bank",
 };
 
 export const TEACHER_PAGE_TITLES: Record<TeacherPageKey, string> = {
@@ -25,6 +29,8 @@ export const TEACHER_PAGE_TITLES: Record<TeacherPageKey, string> = {
   announcements: "Announcements",
   leave: "Leave",
   profile: "My Profile",
+  battleground: "Battles Monitor",
+  questionbank: "Question Bank",
 };
 
 export function teacherPathToPage(pathname: string): TeacherPageKey {
@@ -39,7 +45,10 @@ export function teacherPathToPage(pathname: string): TeacherPageKey {
     p.startsWith("/teacher/exams") ||
     p.startsWith("/teacher/timetable") ||
     p.startsWith("/teacher/performance") ||
-    p.startsWith("/teacher/homework")
+    p.startsWith("/teacher/homework") ||
+    p.startsWith("/teacher/dpp") ||
+    p.startsWith("/teacher/reports") ||
+    p.startsWith("/teacher/insights")
   )
     return "myclasses";
   if (p.startsWith("/teacher/doubts")) return "doubts";
@@ -53,14 +62,9 @@ export function teacherPathToPage(pathname: string): TeacherPageKey {
     return "announcements";
   if (p.startsWith("/teacher/leave") || p.startsWith("/teacher/leaves")) return "leave";
   if (p.startsWith("/teacher/profile")) return "profile";
-  if (
-    p.startsWith("/teacher/dpp") ||
-    p.startsWith("/teacher/question-bank") ||
-    p.startsWith("/teacher/insights") ||
-    p.startsWith("/teacher/practice") ||
-    p.startsWith("/teacher/reports")
-  )
-    return "myclasses";
+  if (p.startsWith("/teacher/battleground")) return "battleground";
+  if (p.startsWith("/teacher/question-bank") || p.startsWith("/teacher/practice"))
+    return "questionbank";
   if (p === "/teacher") return "dashboard";
 
   const hit = (Object.entries(TEACHER_PAGE_PATH) as [TeacherPageKey, string][]).find(([, path]) => path === p);

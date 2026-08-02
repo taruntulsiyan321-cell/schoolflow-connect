@@ -132,7 +132,7 @@ export default function Auth() {
       return;
     }
     if (user && role && status === "authenticated") {
-      if (nextParam) {
+      if (nextParam && canAccessPath(role, nextParam)) {
         navigate(nextParam, { replace: true });
         return;
       }

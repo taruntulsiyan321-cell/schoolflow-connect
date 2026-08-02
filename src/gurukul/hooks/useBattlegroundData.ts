@@ -512,7 +512,7 @@ export function useBattlegroundData() {
         const type = modeToType(b.mode);
         const isFeatured = (b.source || "").startsWith("featured_");
         const isFinishedForXp = !!(p.finished_at || b.status === "finished");
-        // Battle score points once finished — Progression XP comes from rules, not this score.
+        // Battle score points once finished — not Progression XP (labeled "pts" in UI).
         const xpReward = isFinishedForXp && typeof p.score === "number" ? Math.max(0, p.score) : 0;
 
         let result: DesignBattleCard["result"];
@@ -531,7 +531,7 @@ export function useBattlegroundData() {
           status,
           players: totalParticipants,
           maxPlayers: b.mode === "duel" ? 2 : b.mode === "lobby" ? 40 : 20,
-          opponent: type === "1v1" ? "Opponent" : undefined,
+          opponent: type === "1v1" ? "Waiting for challenger" : undefined,
           myScore: p.score ?? undefined,
           theirScore: undefined,
           result,
@@ -559,11 +559,11 @@ export function useBattlegroundData() {
             participantId: p.id,
             type,
             subject: b.subject || "",
-            opponent: type === "class" ? "Class Battle" : "Opponent",
+            opponent: type === "class" ? "Class Battle" : "—",
             result: result === "won" ? "won" : result === "lost" ? "lost" : result === "draw" ? "draw" : "finished",
             myScore: p.score ?? 0,
             theirScore: 0,
-            // xpReward already equals the real earned XP (participant score) — no coins concept exists yet.
+            // Battle score points (UI shows as pts); Progression XP is separate on student_xp.
             xp: xpReward,
             coins: 0,
             date: formatRelativeDate(p.finished_at || b.starts_at),
@@ -779,14 +779,13 @@ export function useBattlegroundData() {
 
   const accuracy = useMemo(() => accuracyFromXp(xp || {}), [xp]);
 
-  /** Wins from student_xp; losses/draws from finished history only (never invent). */
+  /** Wins from student_xp; losses/draws only from finished history (never invent). */
   const record = useMemo(() => {
     const wins = xp?.wins ?? 0;
     const totalBattles = xp?.total_battles ?? 0;
     const finished = history.filter((h) => h.result === "won" || h.result === "lost" || h.result === "draw");
     const draws = finished.filter((h) => h.result === "draw").length;
-    const histLosses = finished.filter((h) => h.result === "lost").length;
-    const losses = finished.length > 0 ? histLosses : Math.max(0, totalBattles - wins);
+    const losses = finished.filter((h) => h.result === "lost").length;
     return {
       totalBattles,
       wins,

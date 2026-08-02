@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-
 import {
   LayoutDashboard, BookOpen, HelpCircle, MessageCircle, Megaphone,
   Calendar, User, ChevronLeft, ChevronRight, GraduationCap, Menu, LogOut,
+  Swords, Library,
 } from "lucide-react";
 import { cn } from "./shared";
 import {
@@ -19,9 +20,12 @@ import Communication from "./Communication";
 import Announcements from "./Announcements";
 import Leave from "./Leave";
 import TeacherProfile from "./Profile";
-import { teacherProfile } from "./data";
+import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
 import { useAuth } from "@/hooks/useAuth";
 import QuestionBankPage from "@/pages/shared/QuestionBankPage";
+import TeacherBattleground from "@/pages/teacher/TeacherBattleground";
+import BattleMonitor from "@/pages/teacher/BattleMonitor";
+import BattleTeacherReport from "@/pages/teacher/BattleTeacherReport";
 
 /** Set My Classes sub-tab then bounce to /teacher/classes (sessionStorage contract). */
 function RedirectTeacherClassTab({ tab }: { tab: string }) {
@@ -44,11 +48,13 @@ interface NavItem {
 const navItems: NavItem[] = [
   { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
   { key: "myclasses", label: "My Classes", icon: <BookOpen className="w-4 h-4" /> },
+  { key: "battleground", label: "Battles", icon: <Swords className="w-4 h-4" /> },
+  { key: "questionbank", label: "Question Bank", icon: <Library className="w-4 h-4" /> },
   { key: "doubts", label: "Student Doubts", icon: <HelpCircle className="w-4 h-4" /> },
   { key: "communication", label: "Communication", icon: <MessageCircle className="w-4 h-4" /> },
   { key: "announcements", label: "Announcements", icon: <Megaphone className="w-4 h-4" /> },
   { key: "leave", label: "Leave", icon: <Calendar className="w-4 h-4" /> },
-  { key: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
+  { key: "profile", label: "My Profile", icon: <User className="w-4 h-4" /> },
 ];
 
 function Sidebar({
@@ -59,6 +65,9 @@ function Sidebar({
   mobile = false,
   onClose,
   onSignOut,
+  displayName,
+  employeeId,
+  initials,
 }: {
   page: TeacherPageKey;
   setPage: (p: TeacherPageKey) => void;
@@ -67,15 +76,10 @@ function Sidebar({
   mobile?: boolean;
   onClose?: () => void;
   onSignOut?: () => void;
+  displayName: string;
+  employeeId: string;
+  initials: string;
 }) {
-  const initials = teacherProfile.name
-    .split(" ")
-    .filter((w) => w.length > 1)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
   return (
     <aside className={cn(
       "flex flex-col h-full bg-[#0a0a0c] border-r border-white/7 transition-all duration-300 shrink-0",
@@ -93,6 +97,7 @@ function Sidebar({
         )}
         {!mobile && (
           <button
+            type="button"
             onClick={() => setCollapsed(!collapsed)}
             className="w-6 h-6 rounded-lg bg-white/5 text-[#46465a] flex items-center justify-center hover:bg-white/10 hover:text-white transition-all shrink-0"
           >
@@ -107,6 +112,7 @@ function Sidebar({
           return (
             <button
               key={item.key}
+              type="button"
               onClick={() => {
                 setPage(item.key);
                 onClose?.();
@@ -141,12 +147,13 @@ function Sidebar({
               <span className="text-[11px] font-black text-black">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-white truncate">{teacherProfile.name}</div>
-              <div className="text-[9px] text-[#46465a] truncate">{teacherProfile.employeeId}</div>
+              <div className="text-xs font-bold text-white truncate">{displayName || "Teacher"}</div>
+              <div className="text-[9px] text-[#46465a] truncate">{employeeId || "—"}</div>
             </div>
           </div>
           {onSignOut && (
             <button
+              type="button"
               onClick={onSignOut}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[#78788c] hover:text-white hover:bg-white/5 text-xs font-medium transition-all"
             >
@@ -164,33 +171,37 @@ export default function TeacherApp() {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut } = useAuth();
+  const identity = useTeacherIdentity();
   const page = useMemo(() => teacherPathToPage(location.pathname), [location.pathname]);
   const setPage = (p: TeacherPageKey) => navigate(TEACHER_PAGE_PATH[p]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const initials = teacherProfile.name
-    .split(" ")
-    .filter((w) => w.length > 1)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const displayName = identity.name || "Teacher";
+  const employeeId = identity.employeeId || "—";
+  const initials = teacherInitials(displayName, "?");
 
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
   };
 
+  const sidebarProps = {
+    page,
+    setPage,
+    displayName,
+    employeeId,
+    initials,
+    onSignOut: handleSignOut,
+  };
+
   return (
     <div className="gurukul-teacher dark flex h-screen bg-[#0d0d0f] text-white overflow-hidden">
       <div className="hidden md:flex flex-col shrink-0 h-screen">
         <Sidebar
-          page={page}
-          setPage={setPage}
+          {...sidebarProps}
           collapsed={collapsed}
           setCollapsed={setCollapsed}
-          onSignOut={handleSignOut}
         />
       </div>
 
@@ -199,13 +210,11 @@ export default function TeacherApp() {
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <div className="relative z-50 flex h-full">
             <Sidebar
-              page={page}
-              setPage={setPage}
+              {...sidebarProps}
               collapsed={false}
               setCollapsed={() => {}}
               mobile
               onClose={() => setMobileOpen(false)}
-              onSignOut={handleSignOut}
             />
           </div>
         </div>
@@ -215,6 +224,7 @@ export default function TeacherApp() {
         <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/7 bg-[#0d0d0f] shrink-0 gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
+              type="button"
               onClick={() => setMobileOpen(true)}
               className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#78788c] hover:text-white shrink-0"
             >
@@ -223,11 +233,12 @@ export default function TeacherApp() {
             <div className="min-w-0">
               <div className="text-sm font-black text-white truncate">{TEACHER_PAGE_TITLES[page]}</div>
               <div className="text-[10px] text-[#46465a] mt-0.5 truncate">
-                {teacherProfile.name} · {teacherProfile.employeeId}
+                {displayName} · {employeeId}
               </div>
             </div>
           </div>
           <button
+            type="button"
             onClick={() => setPage("profile")}
             className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"
           >
@@ -248,6 +259,11 @@ export default function TeacherApp() {
               <Route path="announcements" element={<Announcements />} />
               <Route path="leave" element={<Leave />} />
               <Route path="profile" element={<TeacherProfile />} />
+              <Route path="question-bank" element={<QuestionBankPage />} />
+              <Route path="practice" element={<Navigate to="/teacher/question-bank" replace />} />
+              <Route path="battleground" element={<TeacherBattleground />} />
+              <Route path="battleground/monitor/:id" element={<BattleMonitor />} />
+              <Route path="battleground/monitor/:id/report/:participantId" element={<BattleTeacherReport />} />
               <Route path="class" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="my-class" element={<Navigate to="/teacher/classes" replace />} />
               <Route path="my-subjects" element={<Navigate to="/teacher/classes" replace />} />
@@ -259,13 +275,9 @@ export default function TeacherApp() {
               <Route path="connect" element={<Navigate to="/teacher/communication" replace />} />
               <Route path="notices" element={<Navigate to="/teacher/announcements" replace />} />
               <Route path="leaves" element={<Navigate to="/teacher/leave" replace />} />
-              {/* Legacy academic surfaces → My Classes workspace (correct sub-tab) */}
               <Route path="insights" element={<RedirectTeacherClassTab tab="insights" />} />
-              <Route path="practice" element={<Navigate to="/teacher/question-bank" replace />} />
               <Route path="reports" element={<RedirectTeacherClassTab tab="insights" />} />
               <Route path="dpp/*" element={<RedirectTeacherClassTab tab="tests" />} />
-              <Route path="question-bank" element={<QuestionBankPage />} />
-              <Route path="battleground/*" element={<Navigate to="/teacher" replace />} />
               <Route path="*" element={<Navigate to="/teacher" replace />} />
             </Routes>
           </div>

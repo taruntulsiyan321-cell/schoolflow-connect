@@ -47,10 +47,12 @@ export type PracticeSessionRow = {
   analysis_snapshot?: Record<string, unknown> | null;
   xp_earned?: number | null;
   difficulty?: string | null;
+  /** Timed/mock original limit (seconds); null = untimed. */
+  time_limit_sec?: number | null;
 };
 
 const PRACTICE_SESSION_LIST_SELECT =
-  "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty";
+  "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty, time_limit_sec";
 
 /**
  * PracticeService — wraps practice session RPCs + finish path.
@@ -66,6 +68,8 @@ export const PracticeService = {
       _practice_mode?: string | null;
       /** easy | medium | hard — persisted for resume; omitted/mixed → null in DB. */
       _difficulty?: string | null;
+      /** Timed/mock limit in seconds — persisted for honest resume; omitted → null. */
+      _time_limit_sec?: number | null;
     },
   ) {
     assertCanOwn(ctx, "practice");
@@ -74,6 +78,20 @@ export const PracticeService = {
       args._difficulty && !["mixed", "any", "all"].includes(String(args._difficulty).toLowerCase())
         ? String(args._difficulty).toLowerCase()
         : null;
+    const timeLimit =
+      typeof args._time_limit_sec === "number" && args._time_limit_sec > 0
+        ? Math.floor(args._time_limit_sec)
+        : null;
+
+    const withTime = await client.rpc("rpc_start_practice_session", {
+      _subject: args._subject,
+      _chapter: args._chapter,
+      _count: args._count ?? 10,
+      _practice_mode: args._practice_mode ?? null,
+      _difficulty: difficulty,
+      _time_limit_sec: timeLimit,
+    } as never);
+    if (!withTime.error) return withTime.data;
 
     const withDiff = await client.rpc("rpc_start_practice_session", {
       _subject: args._subject,
@@ -82,17 +100,38 @@ export const PracticeService = {
       _practice_mode: args._practice_mode ?? null,
       _difficulty: difficulty,
     } as never);
-    if (!withDiff.error) return withDiff.data;
+    if (!withDiff.error) {
+      const sid = withDiff.data as string;
+      if (sid && timeLimit != null) {
+        await client
+          .from("practice_sessions")
+          .update({ time_limit_sec: timeLimit } as never)
+          .eq("id", sid)
+          .eq("user_id", ctx.userId);
+      }
+      return sid;
+    }
 
-    // Pre-migration: start RPC without _difficulty.
+    // Pre-migration: start RPC without _difficulty / _time_limit_sec.
     const legacy = await client.rpc("rpc_start_practice_session", {
       _subject: args._subject,
       _chapter: args._chapter,
       _count: args._count ?? 10,
       _practice_mode: args._practice_mode ?? null,
     } as never);
-    throwIfError(legacy.error ?? withDiff.error, "Failed to start practice session");
-    return legacy.data;
+    throwIfError(legacy.error ?? withDiff.error ?? withTime.error, "Failed to start practice session");
+    const sid = legacy.data as string;
+    if (sid && (difficulty || timeLimit != null)) {
+      await client
+        .from("practice_sessions")
+        .update({
+          ...(difficulty ? { difficulty } : {}),
+          ...(timeLimit != null ? { time_limit_sec: timeLimit } : {}),
+        } as never)
+        .eq("id", sid)
+        .eq("user_id", ctx.userId);
+    }
+    return sid;
   },
 
   async finish(
@@ -646,7 +685,8 @@ export const PracticeService = {
     mastery_score: number;
   }>> {
     assertCanConsume(ctx, "practice");
-    const threshold = opts.threshold ?? 70;
+    // Align with Nova/UI weak policy: mastery < 60 (callers may override).
+    const threshold = opts.threshold ?? 60;
     const limit = opts.limit ?? 12;
     const client = getClient(toRepoContext(ctx));
     const { data, error } = await client
@@ -819,7 +859,10 @@ export const PracticeService = {
           id,
           subject: r.subject || gq.subject || "General",
           chapter: r.chapter ?? gq.chapter ?? null,
-          difficulty: "medium",
+          difficulty:
+            (typeof (gq as { difficulty?: string }).difficulty === "string"
+              ? (gq as { difficulty?: string }).difficulty
+              : null) || null,
           question: String(gq.question ?? ""),
           options: gq.options,
           correct_index: correctIndex,
@@ -915,7 +958,10 @@ export const PracticeService = {
         id: r.id,
         subject,
         chapter: r.chapter ?? gq.chapter ?? null,
-        difficulty: "medium",
+        difficulty:
+          (typeof (gq as { difficulty?: string }).difficulty === "string"
+            ? (gq as { difficulty?: string }).difficulty
+            : null) || null,
         question: stem,
         options: optsRaw,
         correct_index: correctIndex,

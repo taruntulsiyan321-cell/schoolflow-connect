@@ -344,7 +344,7 @@ export default function TeacherBattleground() {
                   <BattleCard
                     key={String(b.id)}
                     battle={b}
-                    onJoin={() => nav(`/teacher`)}
+                    onJoin={() => nav(`/teacher/battleground/monitor/${b.id}`)}
                   />
                 ))}
               </div>

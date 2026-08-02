@@ -1,6 +1,6 @@
 /**
  * Response Validator v1 — grounding checks against AE/EIE facts.
- * Numbers in model output must match evidence; invented mastery % is rejected.
+ * Numbers in model output must match evidence; invented mastery % / XP is rejected.
  */
 
 export type ValidationCode =
@@ -8,6 +8,9 @@ export type ValidationCode =
   | "invented_mastery_pct"
   | "invented_attendance_pct"
   | "invented_marks_pct"
+  | "invented_xp"
+  | "invented_level"
+  | "invented_streak"
   | "numeric_mismatch"
   | "empty_response"
   | "too_long"
@@ -29,6 +32,11 @@ export type EvidenceFacts = {
   homework_pending?: number | null;
   /** Explicit allow-list of percentages that may appear (0–100). */
   allowed_pcts?: number[];
+  /** Progression allow-list (Nova must not invent these). */
+  xp?: number | null;
+  level?: number | null;
+  study_streak?: number | null;
+  battleground_wins?: number | null;
 };
 
 const INVENTED_MASTERY_RE =
@@ -38,6 +46,9 @@ const ATTENDANCE_RE =
 const MARKS_RE =
   /\b(?:marks|score|average|avg)\b[^0-9%]{0,40}(\d{1,3}(?:\.\d+)?)\s*%/gi;
 const ANY_PCT_RE = /(\d{1,3}(?:\.\d+)?)\s*%/g;
+const XP_RE = /\b(\d{1,7})\s*(?:XP|xp)\b/g;
+const LEVEL_RE = /\b(?:level|Lv\.?|lvl)\s*(\d{1,3})\b/gi;
+const STREAK_RE = /\b(\d{1,4})\s*(?:-?\s*day\s+)?(?:study\s+)?streak\b/gi;
 
 function nearEqual(a: number, b: number, tol = 0.6): boolean {
   return Math.abs(a - b) <= tol;
@@ -97,7 +108,6 @@ export function validateModelResponse(
   for (const n of masteryClaims) {
     grounded += 1;
     if (facts.avg_mastery == null || !Number.isFinite(facts.avg_mastery)) {
-      // No mastery in evidence — any mastery % is invented
       codes.push("invented_mastery_pct");
     } else if (!nearEqual(n, facts.avg_mastery)) {
       codes.push("invented_mastery_pct");
@@ -118,7 +128,6 @@ export function validateModelResponse(
   for (const n of marksClaims) {
     grounded += 1;
     if (facts.average_marks_pct == null || !Number.isFinite(facts.average_marks_pct)) {
-      // May be generic "score" language — only fail if clearly not in allow-list
       if (!allow.some((a) => nearEqual(n, a))) {
         codes.push("invented_marks_pct");
       }
@@ -127,7 +136,34 @@ export function validateModelResponse(
     }
   }
 
-  // Catch bare percentages that don't match any known fact when we have numeric evidence
+  const xpClaims = collectMatches(XP_RE, text);
+  for (const n of xpClaims) {
+    grounded += 1;
+    if (facts.xp == null || !Number.isFinite(facts.xp) || !nearEqual(n, facts.xp, 0)) {
+      codes.push("invented_xp");
+    }
+  }
+
+  const levelClaims = collectMatches(LEVEL_RE, text);
+  for (const n of levelClaims) {
+    grounded += 1;
+    if (facts.level == null || !Number.isFinite(facts.level) || !nearEqual(n, facts.level, 0)) {
+      codes.push("invented_level");
+    }
+  }
+
+  const streakClaims = collectMatches(STREAK_RE, text);
+  for (const n of streakClaims) {
+    grounded += 1;
+    if (
+      facts.study_streak == null ||
+      !Number.isFinite(facts.study_streak) ||
+      !nearEqual(n, facts.study_streak, 0)
+    ) {
+      codes.push("invented_streak");
+    }
+  }
+
   if (allow.length > 0) {
     const allPcts = collectMatches(ANY_PCT_RE, text);
     for (const n of allPcts) {
@@ -135,10 +171,8 @@ export function validateModelResponse(
         codes.push("numeric_mismatch");
         continue;
       }
-      // Common non-academic percentages (e.g. "100% sure") — skip 100 when not in facts
       if (n === 100 && !allow.some((a) => nearEqual(a, 100))) continue;
       if (!allow.some((a) => nearEqual(n, a))) {
-        // Only material if claiming academic-looking precision with evidence present
         if (masteryClaims.includes(n) || attClaims.includes(n) || marksClaims.includes(n)) {
           codes.push("numeric_mismatch");
         }
@@ -156,6 +190,9 @@ export function validateModelResponse(
       "invented_mastery_pct",
       "invented_attendance_pct",
       "invented_marks_pct",
+      "invented_xp",
+      "invented_level",
+      "invented_streak",
       "numeric_mismatch",
       "forbidden_claim",
       "empty_response",
@@ -171,12 +208,18 @@ export function validateModelResponse(
   };
 }
 
-/** Extract evidence numbers from AE+EIE fact bundle used by performance.explain. */
+/** Extract evidence numbers from AE+EIE fact bundle used by performance.explain / Nova. */
 export function evidenceFromExplainFacts(facts: {
   attendance?: { attendance_pct?: number };
   marks?: { average_pct?: number | null };
   eie?: { avg_mastery?: number };
   homework?: { pending_count?: number };
+  progression?: {
+    xp?: number;
+    level?: number;
+    study_streak?: number;
+    battleground_wins?: number;
+  };
 }): EvidenceFacts {
   const allowed: number[] = [];
   if (typeof facts.attendance?.attendance_pct === "number") {
@@ -191,5 +234,9 @@ export function evidenceFromExplainFacts(facts: {
     avg_mastery: facts.eie?.avg_mastery ?? null,
     homework_pending: facts.homework?.pending_count ?? null,
     allowed_pcts: allowed,
+    xp: facts.progression?.xp ?? null,
+    level: facts.progression?.level ?? null,
+    study_streak: facts.progression?.study_streak ?? null,
+    battleground_wins: facts.progression?.battleground_wins ?? null,
   };
 }

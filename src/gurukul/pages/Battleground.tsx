@@ -7,6 +7,8 @@ import { useState, useEffect, useMemo, type CSSProperties, type ReactNode } from
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useAuth } from "@/hooks/useAuth";
+import { useStudentBadges } from "@/hooks/useStudentBadges";
+import { BADGES } from "@/lib/badges";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -234,7 +236,24 @@ function LeaguePill({ league }: { league: LeagueName }) {
   );
 }
 
-function DiffBadge({ level }: { level: "Easy" | "Medium" | "Hard" }) {
+function DiffBadge({ level }: { level: "Easy" | "Medium" | "Hard" | null }) {
+  if (!level) {
+    return (
+      <span
+        style={{
+          background: "rgba(255,255,255,0.06)",
+          color: C.text3,
+          border: `1px solid ${C.border}`,
+          borderRadius: "4px",
+          padding: "1px 7px",
+          fontSize: "0.7rem",
+          fontWeight: 700,
+        }}
+      >
+        —
+      </span>
+    );
+  }
   const map = {
     Easy: { color: C.green, bg: `${C.green}18` },
     Medium: { color: C.gold, bg: `${C.gold}18` },
@@ -256,6 +275,14 @@ function DiffBadge({ level }: { level: "Easy" | "Medium" | "Hard" }) {
       {level}
     </span>
   );
+}
+
+function difficultyBadgeLevel(raw: string | null | undefined): "Easy" | "Medium" | "Hard" | null {
+  const v = String(raw || "").toLowerCase();
+  if (v === "easy") return "Easy";
+  if (v === "hard") return "Hard";
+  if (v === "medium") return "Medium";
+  return null;
 }
 
 function SectionHeader({
@@ -914,15 +941,7 @@ function FeaturedBattles({
                   {live?.subject ? displaySubject(live.subject) || "—" : "—"}
                 </span>
                 {live ? (
-                  <DiffBadge
-                    level={
-                      String(live.difficulty || "").toLowerCase() === "easy"
-                        ? "Easy"
-                        : String(live.difficulty || "").toLowerCase() === "hard"
-                          ? "Hard"
-                          : "Medium"
-                    }
-                  />
+                  <DiffBadge level={difficultyBadgeLevel(live.difficulty)} />
                 ) : (
                   <span style={{ color: C.text3, fontSize: "0.68rem", fontFamily: "Inter, sans-serif" }}>Tap to open</span>
                 )}
@@ -930,9 +949,9 @@ function FeaturedBattles({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem", marginBottom: "0.85rem" }}>
                 <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "0.4rem 0.5rem" }}>
                   <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", color: C.gold }}>
-                    {live?.xpReward ? `${live.xpReward} XP` : "—"}
+                    {live?.xpReward ? `${live.xpReward} pts` : "—"}
                   </div>
-                  <div style={{ color: C.text3, fontSize: "0.6rem" }}>Reward</div>
+                  <div style={{ color: C.text3, fontSize: "0.6rem" }}>Score</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "0.4rem 0.5rem" }}>
                   <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", color: C.blue }}>
@@ -1130,15 +1149,7 @@ function MyBattlesPanel({
                     {displaySubject(b.subject) || "—"} · {b.type === "1v1" ? "1v1" : b.type} · {b.players}/{b.maxPlayers}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                    <DiffBadge
-                      level={
-                        String(b.difficulty || "").toLowerCase() === "easy"
-                          ? "Easy"
-                          : String(b.difficulty || "").toLowerCase() === "hard"
-                            ? "Hard"
-                            : "Medium"
-                      }
-                    />
+                    <DiffBadge level={difficultyBadgeLevel(b.difficulty)} />
                     <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.68rem", color: C.gold }}>
                       {b.xpReward > 0 ? `+${b.xpReward} pts` : "—"}
                     </span>
@@ -1368,7 +1379,11 @@ function BattleHistoryPanel({
         <div style={{ display: "flex", flexDirection: "column", gap: "0.7rem" }}>
           {entries.slice(0, 8).map((h) => {
             const won = h.result === "won";
-            const draw = h.result === "draw" || h.result === "finished";
+            const lost = h.result === "lost";
+            const draw = h.result === "draw";
+            const completed = h.result === "finished";
+            const tone = won ? C.green : lost ? C.red : C.text3;
+            const icon = won ? "🏆" : draw ? "🤝" : completed ? "✓" : "💔";
             return (
               <div
                 key={h.id}
@@ -1393,7 +1408,7 @@ function BattleHistoryPanel({
                     width: "10px",
                     height: "10px",
                     borderRadius: "50%",
-                    background: won ? C.green : draw ? C.text3 : C.red,
+                    background: tone,
                     border: "2px solid #0b0f1a",
                     zIndex: 1,
                   }}
@@ -1403,8 +1418,8 @@ function BattleHistoryPanel({
                     width: "36px",
                     height: "36px",
                     borderRadius: "8px",
-                    background: won ? `${C.green}18` : draw ? "rgba(255,255,255,0.06)" : `${C.red}18`,
-                    border: `1px solid ${won ? C.green : draw ? C.border : C.red}33`,
+                    background: won ? `${C.green}18` : lost ? `${C.red}18` : "rgba(255,255,255,0.06)",
+                    border: `1px solid ${won ? C.green : lost ? C.red : C.border}33`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1412,7 +1427,7 @@ function BattleHistoryPanel({
                     flexShrink: 0,
                   }}
                 >
-                  {won ? "🏆" : draw ? "🤝" : "💔"}
+                  {icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: "Outfit, sans-serif", fontWeight: 700, fontSize: "0.85rem", color: C.text }}>
@@ -1420,6 +1435,7 @@ function BattleHistoryPanel({
                   </div>
                   <div style={{ color: C.text3, fontSize: "0.7rem", fontFamily: "Inter, sans-serif", marginTop: "1px" }}>
                     {displaySubject(h.subject) || "—"} · {h.date}
+                    {completed ? " · Completed" : draw ? " · Draw" : ""}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -1428,7 +1444,7 @@ function BattleHistoryPanel({
                       style={{
                         fontFamily: "DM Mono, monospace",
                         fontSize: "0.88rem",
-                        color: won ? C.green : draw ? C.text2 : C.red,
+                        color: won ? C.green : lost ? C.red : C.text2,
                       }}
                     >
                       {h.myScore}–{h.theirScore}
@@ -1442,7 +1458,7 @@ function BattleHistoryPanel({
                   {h.xp > 0 && (
                     <div style={{ textAlign: "center" }}>
                       <div style={{ fontFamily: "DM Mono, monospace", fontSize: "0.88rem", color: C.gold }}>+{h.xp}</div>
-                      <div style={{ color: C.text3, fontSize: "0.6rem" }}>XP</div>
+                      <div style={{ color: C.text3, fontSize: "0.6rem" }}>pts</div>
                     </div>
                   )}
                   <button
@@ -1475,34 +1491,82 @@ function BattleHistoryPanel({
   );
 }
 
-// ── Achievements + stats (derived from live XP) ────────────────────────────────
+// ── Achievements (real student_badges only — never invent unlocks) ────────────
 
-function AchievementsPanel({ me }: { me: MeInfo }) {
-  const items = [
-    { id: 1, icon: "🏅", title: "First Victory", desc: "Win your first battle", unlocked: me.wins >= 1, rarity: "common" as const },
-    {
-      id: 2,
-      icon: "🔥",
-      title: "4 Win Streak",
-      desc: "4 consecutive wins",
-      unlocked: me.streak >= 4 || me.bestStreak >= 4,
-      rarity: "rare" as const,
-    },
-    { id: 3, icon: "⚔️", title: "Battle Tested", desc: "Play 50 battles", unlocked: me.totalBattles >= 50, rarity: "common" as const },
-    { id: 4, icon: "🎯", title: "Sharp Shooter", desc: "90%+ accuracy", unlocked: me.accuracy >= 90, rarity: "epic" as const },
-    { id: 5, icon: "👑", title: "Gold League", desc: "Reach Gold League", unlocked: ["Gold", "Platinum", "Diamond"].includes(me.league), rarity: "epic" as const },
-    { id: 6, icon: "💎", title: "Diamond Mind", desc: "Reach Diamond League", unlocked: me.league === "Diamond", rarity: "legendary" as const },
-    { id: 7, icon: "🌟", title: "Century Club", desc: "Win 100 battles", unlocked: me.wins >= 100, rarity: "legendary" as const },
-    { id: 8, icon: "📚", title: "Rising Star", desc: "Earn 1000 XP", unlocked: me.xp >= 1000, rarity: "rare" as const },
-  ];
+const BG_ACHIEVEMENT_CODES = [
+  "first_win",
+  "quiz_winner",
+  "gladiator",
+  "veteran",
+  "battleground_master",
+  "arena_legend",
+  "win_streak_3",
+  "win_streak_5",
+] as const;
+
+const BG_ACHIEVEMENT_EMOJI: Record<string, string> = {
+  first_win: "🏅",
+  quiz_winner: "🥇",
+  gladiator: "⚔️",
+  veteran: "🛡️",
+  battleground_master: "👑",
+  arena_legend: "🌟",
+  win_streak_3: "🔥",
+  win_streak_5: "💥",
+};
+
+function AchievementsPanel({ onSeeAll }: { onSeeAll?: () => void }) {
+  const { user } = useAuth();
+  const { earned, loading } = useStudentBadges(user?.id);
+  const earnedCodes = useMemo(() => new Set(earned.map((e) => e.badge_code)), [earned]);
+  const items = useMemo(
+    () =>
+      BG_ACHIEVEMENT_CODES.map((code, i) => {
+        const meta = BADGES[code];
+        return {
+          id: code,
+          idx: i,
+          icon: BG_ACHIEVEMENT_EMOJI[code] ?? "🎖️",
+          title: meta?.label ?? code,
+          desc: meta?.desc ?? "",
+          unlocked: earnedCodes.has(code),
+          rarity: (meta?.rarity ?? "common") as "common" | "rare" | "epic" | "legendary",
+        };
+      }),
+    [earnedCodes],
+  );
   const rarityColor = { common: "#94a3b8", rare: C.blue, epic: C.purple, legendary: C.gold };
   const rarityLabel = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
+  const unlockedCount = items.filter((a) => a.unlocked).length;
 
   return (
     <Card>
       <SectionHeader
         title="Achievements"
-        subtitle={`${items.filter((a) => a.unlocked).length} / ${items.length} unlocked`}
+        subtitle={
+          loading
+            ? "Loading…"
+            : `${unlockedCount} / ${items.length} unlocked`
+        }
+        action={
+          onSeeAll ? (
+            <button
+              type="button"
+              onClick={onSeeAll}
+              style={{
+                background: "none",
+                border: "none",
+                color: C.blue,
+                fontFamily: "Outfit, sans-serif",
+                fontWeight: 700,
+                fontSize: "0.72rem",
+                cursor: "pointer",
+              }}
+            >
+              See all →
+            </button>
+          ) : undefined
+        }
       />
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.7rem" }} className="sm-one-col">
         {items.map((a) => {
@@ -1520,7 +1584,7 @@ function AchievementsPanel({ me }: { me: MeInfo }) {
                 position: "relative",
                 filter: a.unlocked ? "none" : "grayscale(1)",
                 opacity: a.unlocked ? 1 : 0.45,
-                animation: a.unlocked ? `bg-badge-pop 0.4s ease-out ${a.id * 0.05}s both` : "none",
+                animation: a.unlocked ? `bg-badge-pop 0.4s ease-out ${a.idx * 0.05}s both` : "none",
               }}
             >
               {a.unlocked && (
@@ -2147,7 +2211,6 @@ function CreateBattleWizard({
 // ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function Battleground({ setPage }: { setPage?: (p: PageKey) => void }) {
-  void setPage;
   const navigate = useNavigate();
   const { user } = useAuth();
   const profile = useGurukulStudent();
@@ -2215,7 +2278,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       motivationMessage: data.motivation.message,
       xpRemaining: next?.remaining ?? 0,
       nextLeague: next?.nextName || "Champion",
-      dailyXpLabel: dailyLive?.xpReward ? `+${dailyLive.xpReward} XP` : "Earn XP",
+      dailyXpLabel: dailyLive?.xpReward ? `+${dailyLive.xpReward} pts` : "Earn pts",
     };
   }, [data, displayName, ini, dailyLive]);
 
@@ -2545,7 +2608,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
                 style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem", alignItems: "start" }}
                 className="lg-two-col"
               >
-                <AchievementsPanel me={me} />
+                <AchievementsPanel onSeeAll={setPage ? () => setPage("achievements") : undefined} />
                 <StatisticsPanel me={me} />
               </div>
             </>

@@ -1221,8 +1221,15 @@ interface SessionConfig {
 
 // ── Session (question-solving) ───────────────────────────────────────────────
 function Session({
-  config, onFinish, onBack, subjects, classUnresolved,
-}: { config: SessionConfig; onFinish: (results: SessionResults) => void; onBack: () => void; subjects: PracticeSubject[]; classUnresolved?: boolean }) {
+  config, onFinish, onBack, onNavigate, subjects, classUnresolved,
+}: {
+  config: SessionConfig;
+  onFinish: (results: SessionResults) => void;
+  onBack: () => void;
+  onNavigate?: (p: PageKey) => void;
+  subjects: PracticeSubject[];
+  classUnresolved?: boolean;
+}) {
   const { ctx, ready: academicReady } = useAcademicContext();
   const [qs, setQs] = useState<BankQuestion[]>([]);
   const [loadingQs, setLoadingQs] = useState(true);
@@ -1367,6 +1374,17 @@ function Session({
           setAttempted(priorAttempted);
           setSkipped(priorSkipped);
           attemptNumberRef.current = priorLog.length;
+          // Honest timed resume: remaining = persisted limit − elapsed attempt time (never invent 15m).
+          const limitSec =
+            typeof existing.time_limit_sec === "number" && existing.time_limit_sec > 0
+              ? existing.time_limit_sec
+              : config.timeLimitSec;
+          if (typeof limitSec === "number" && limitSec > 0) {
+            const usedMs = priorLog.reduce((sum, a) => sum + (a.timeTakenMs || 0), 0);
+            setTimeLeft(Math.max(0, limitSec - Math.floor(usedMs / 1000)));
+          } else {
+            setTimeLeft(0);
+          }
           const target = existing.question_count || config.qCount;
           remainingCount = Math.max(0, target - priorLog.length);
           if (remainingCount === 0) {
@@ -1381,6 +1399,7 @@ function Session({
             _count: config.qCount,
             _practice_mode: config.mode,
             _difficulty: config.difficulty,
+            _time_limit_sec: config.timeLimitSec,
           });
           if (cancelled) return;
           sessionIdRef.current = sid as string;
@@ -1737,6 +1756,7 @@ function Session({
       ? bookmarkedRef.current.filter(x => x !== idx)
       : [...bookmarkedRef.current, idx];
     setBookmarked([...bookmarkedRef.current]);
+    toast.message("Flagged for this session only — use Mistake Book to save mistakes for review.");
   }
 
   const q       = qs[idx];
@@ -1790,10 +1810,21 @@ function Session({
             : emptyByMode[config.mode] ??
               "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions."}
         </p>
-        <button onClick={onBack}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
-          <ArrowLeft className="w-4 h-4"/> Back to Practice
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {config.mode === "weak" && onNavigate && (
+            <button
+              type="button"
+              onClick={() => onNavigate("recovery")}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#4aa87a]/40 text-sm text-[#4aa87a] hover:bg-[#4aa87a]/10 transition-all"
+            >
+              Open Recovery
+            </button>
+          )}
+          <button onClick={onBack}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+            <ArrowLeft className="w-4 h-4"/> Back to Practice
+          </button>
+        </div>
       </div>
     );
   }
@@ -1832,7 +1863,7 @@ function Session({
             <span className="text-[10px] text-[#78788c]">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button onClick={toggleBookmark} title="Bookmark"
+            <button onClick={toggleBookmark} title="Flag for this session (not saved to Mistake Book)"
               className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
                 bookmarked.includes(idx) ? "text-[#4b9fd4] bg-[#4b9fd4]/15" : "text-[#78788c] hover:text-white hover:bg-white/8"
               )}>
@@ -1982,7 +2013,7 @@ function Summary({ results, onRetry, onHub }: {
             { label:"Correct",    value:correct,    color:"#4aa87a" },
             { label:"Wrong",      value:wrong, color:"#cc5069" },
             { label:"Skipped",    value:skipped,    color:"#c08a3a" },
-            { label:"Bookmarked", value:bookmarked, color:"#4b9fd4" },
+            { label:"Flagged", value:bookmarked, color:"#4b9fd4" },
           ].map(s => (
             <div key={s.label} className="bg-white/4 rounded-xl p-2.5 border border-white/5">
               <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
@@ -2191,6 +2222,14 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         ? row.practice_mode
         : "subject") as ModeKey;
       const mode = MODES.find((m) => m.key === modeKeyResume) ?? MODES[1];
+      const snap = (row.analysis_snapshot ?? null) as { time_limit_sec?: number } | null;
+      const persistedLimit =
+        typeof row.time_limit_sec === "number" && row.time_limit_sec > 0
+          ? row.time_limit_sec
+          : typeof snap?.time_limit_sec === "number" && snap.time_limit_sec > 0
+            ? snap.time_limit_sec
+            : null;
+      // Never invent a 15-minute clock — timed resume without a stored limit stays untimed.
       setModeKey(modeKeyResume);
       setConfig({
         mode: modeKeyResume,
@@ -2202,7 +2241,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         topic: null,
         difficulty: row.difficulty || "mixed",
         qCount: row.question_count || 20,
-        timeLimitSec: modeKeyResume === "timed" || modeKeyResume === "mock" ? 15 * 60 : null,
+        timeLimitSec: persistedLimit,
         resumeSessionId: sessionId,
       });
       setPhase("session");
@@ -2309,7 +2348,16 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           classUnresolved={classUnresolved}
         />
       )}
-      {phase === "session" && config && <Session config={config} onFinish={handleFinish} onBack={() => setPhase("hub")} subjects={subjects} classUnresolved={classUnresolved}/>}
+      {phase === "session" && config && (
+        <Session
+          config={config}
+          onFinish={handleFinish}
+          onBack={() => setPhase("hub")}
+          onNavigate={setPage}
+          subjects={subjects}
+          classUnresolved={classUnresolved}
+        />
+      )}
       {phase === "summary" && results && (
         <Summary results={results} onRetry={handleRetry} onHub={() => setPhase("hub")}/>
       )}
