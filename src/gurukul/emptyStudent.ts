@@ -44,7 +44,7 @@ export const EMPTY_STUDENT: GurukulStudentProfile = {
   xpToNext: 100,
   xpIntoLevel: 0,
   levelProgressPct: 0,
-  league: "Bronze",
+  league: "",
   reputation: 0,
   streak: 0,
   rank: 0,

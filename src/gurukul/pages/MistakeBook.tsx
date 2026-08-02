@@ -393,6 +393,20 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [classLevel, setClassLevel] = useState<number | null>(null);
 
   useEffect(() => {
+    if (!user?.id || typeof localStorage === "undefined") {
+      setBookmarks(new Set());
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(`gurukul.mistake.bookmarks.${user.id}`);
+      const arr = raw ? (JSON.parse(raw) as string[]) : [];
+      setBookmarks(new Set(Array.isArray(arr) ? arr : []));
+    } catch {
+      setBookmarks(new Set());
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!ctx || !academicReady) return;
     let cancelled = false;
     (async () => {
@@ -478,6 +492,9 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      if (user?.id && typeof localStorage !== "undefined") {
+        localStorage.setItem(`gurukul.mistake.bookmarks.${user.id}`, JSON.stringify([...next]));
+      }
       return next;
     });
   }

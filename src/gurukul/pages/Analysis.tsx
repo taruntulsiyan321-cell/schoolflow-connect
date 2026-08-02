@@ -1254,7 +1254,30 @@ export default function Analysis() {
                       window.print();
                       return;
                     }
-                    toast.info(r.action === "pdf" ? "PDF export is not available yet." : "Sharing is not available yet.");
+                    if (r.action === "pdf") {
+                      toast.info("Use your browser Print dialog → Save as PDF.");
+                      window.print();
+                      return;
+                    }
+                    const summary = [
+                      "Gurukul performance summary",
+                      `Accuracy: ${overview.accuracy}%`,
+                      `Questions: ${overview.totalQuestions}`,
+                      `Practice sessions: ${overview.practiceCompleted}`,
+                    ].join("\n");
+                    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+                      void navigator.share({ title: "Gurukul Analysis", text: summary }).catch(() => {
+                        void navigator.clipboard?.writeText(summary).then(
+                          () => toast.success("Summary copied — paste to share."),
+                          () => toast.info("Sharing is not available on this device."),
+                        );
+                      });
+                      return;
+                    }
+                    void navigator.clipboard?.writeText(summary).then(
+                      () => toast.success("Summary copied — paste to share."),
+                      () => toast.info("Sharing is not available on this device."),
+                    );
                   }}
                   className="flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/20 hover:bg-[#131316] transition-all text-left group"
                 >

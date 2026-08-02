@@ -71,6 +71,7 @@ interface Doubt {
   authorName: string; authorAvatar: string; authorColor: string;
   authorRank: number; date: string; time: string;
   status: DoubtStatus; views: number; replies: Reply[];
+  answerCount: number;
   upvotes: number; upvotedByMe: boolean; bookmarked: boolean;
   attachments: string[]; mine: boolean; tags: string[];
 }
@@ -87,6 +88,7 @@ type DbDoubtRow = {
   status: string;
   view_count: number;
   upvote_count: number;
+  answer_count?: number;
   image_url: string | null;
   created_at: string;
 };
@@ -126,7 +128,7 @@ function mapDbStatus(status: string): DoubtStatus {
   return "answered";
 }
 
-function mapRowToDoubt(row: DbDoubtRow, userId: string | undefined): Doubt {
+function mapRowToDoubt(row: DbDoubtRow, userId: string | undefined, bookmarked = false): Doubt {
   const created = new Date(row.created_at);
   const subj = row.subject ?? "General";
   return {
@@ -145,9 +147,10 @@ function mapRowToDoubt(row: DbDoubtRow, userId: string | undefined): Doubt {
     status: mapDbStatus(row.status),
     views: row.view_count ?? 0,
     replies: [],
+    answerCount: row.answer_count ?? 0,
     upvotes: row.upvote_count ?? 0,
     upvotedByMe: false,
-    bookmarked: false,
+    bookmarked,
     attachments: row.image_url ? [row.image_url] : [],
     mine: row.user_id === userId,
     tags: [row.subject, row.chapter, row.concept].filter(Boolean).map((t) => String(t).toLowerCase()),
@@ -185,6 +188,49 @@ async function loadAnswersForDoubt(doubtId: string): Promise<Reply[]> {
     .order("created_at", { ascending: true });
   if (error) throw error;
   return ((data ?? []) as DbAnswerRow[]).map(mapAnswerRow);
+}
+
+async function loadMyVoteState(doubtId: string, userId: string | undefined) {
+  if (!userId) return { upvotedDoubt: false, likedAnswers: new Set<string>() };
+  const [{ data: doubtVotes }, { data: answerVotes }] = await Promise.all([
+    supabase
+      .from("community_doubt_votes")
+      .select("doubt_id, answer_id")
+      .eq("user_id", userId)
+      .eq("doubt_id", doubtId),
+    supabase
+      .from("community_doubt_votes")
+      .select("answer_id")
+      .eq("user_id", userId)
+      .not("answer_id", "is", null),
+  ]);
+  const likedAnswers = new Set(
+    (answerVotes ?? [])
+      .map((v) => v.answer_id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  return {
+    upvotedDoubt: (doubtVotes ?? []).some((v) => v.doubt_id === doubtId && !v.answer_id),
+    likedAnswers,
+  };
+}
+
+const DOUBT_BOOKMARK_KEY = "gurukul.doubt.bookmarks";
+
+function readDoubtBookmarks(userId: string | undefined): Set<string> {
+  if (!userId || typeof localStorage === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(`${DOUBT_BOOKMARK_KEY}.${userId}`);
+    const arr = raw ? (JSON.parse(raw) as string[]) : [];
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeDoubtBookmarks(userId: string | undefined, ids: Set<string>) {
+  if (!userId || typeof localStorage === "undefined") return;
+  localStorage.setItem(`${DOUBT_BOOKMARK_KEY}.${userId}`, JSON.stringify([...ids]));
 }
 
 // ── Helper components ──────────────────────────────────────────────────────────
@@ -264,7 +310,7 @@ function DoubtCard({ doubt, onClick }: { doubt: Doubt; onClick: () => void }) {
           <p className="text-xs text-[#78788c] mt-1 line-clamp-2 leading-relaxed">{doubt.body}</p>
           <div className="flex items-center gap-3 mt-2.5 text-[10px] text-[#78788c]">
             <span>{doubt.authorName} · {doubt.date}</span>
-            <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3"/>{doubt.replies.length}</span>
+            <span className="flex items-center gap-1"><MessageCircle className="w-3 h-3"/>{doubt.answerCount || doubt.replies.length}</span>
             <span className="flex items-center gap-1"><Eye className="w-3 h-3"/>{doubt.views}</span>
             <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3"/>{doubt.upvotes}</span>
             <span className="ml-auto text-[#818cf8] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -283,8 +329,11 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
   onUpdateDoubt: (d: Doubt) => void;
 }) {
   const student = useGurukulStudent();
-  const { studentId } = useAcademicContext();
+  const { user, role } = useAuth();
+  const { ctx, ready, studentId } = useAcademicContext();
   const [replyText, setReplyText] = useState("");
+  const [replying, setReplying] = useState(false);
+  const [voting, setVoting] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiReply, setAiReply] = useState<string|null>(null);
@@ -297,8 +346,21 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
     (async () => {
       setLoadingReplies(true);
       try {
-        const replies = await loadAnswersForDoubt(doubt.id);
-        if (!cancelled) setLocalDoubt((d) => ({ ...d, replies }));
+        const [replies, votes] = await Promise.all([
+          loadAnswersForDoubt(doubt.id),
+          loadMyVoteState(doubt.id, user?.id),
+        ]);
+        if (cancelled) return;
+        setLocalDoubt((d) => ({
+          ...d,
+          replies: replies.map((r) => ({
+            ...r,
+            likedByMe: votes.likedAnswers.has(r.id),
+          })),
+          answerCount: replies.length,
+          upvotedByMe: votes.upvotedDoubt,
+          bookmarked: readDoubtBookmarks(user?.id).has(doubt.id),
+        }));
       } catch (e) {
         if (!cancelled) toast.error(e instanceof Error ? e.message : "Failed to load replies");
       } finally {
@@ -308,29 +370,88 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
     return () => {
       cancelled = true;
     };
-  }, [doubt.id]);
+  }, [doubt.id, user?.id]);
 
-  function toggleUpvote() {
-    setLocalDoubt(d => ({ ...d, upvotes: d.upvotedByMe ? d.upvotes-1 : d.upvotes+1, upvotedByMe: !d.upvotedByMe }));
+  async function toggleUpvote() {
+    if (!ctx || !ready || voting) return;
+    setVoting(true);
+    try {
+      const count = await DoubtService.voteDoubt(ctx, localDoubt.id);
+      setLocalDoubt((d) => {
+        const next = { ...d, upvotes: count, upvotedByMe: !d.upvotedByMe };
+        onUpdateDoubt(next);
+        return next;
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update vote");
+    } finally {
+      setVoting(false);
+    }
   }
+
   function toggleBookmark() {
-    setLocalDoubt(d => ({ ...d, bookmarked: !d.bookmarked }));
+    const bookmarks = readDoubtBookmarks(user?.id);
+    if (bookmarks.has(localDoubt.id)) bookmarks.delete(localDoubt.id);
+    else bookmarks.add(localDoubt.id);
+    writeDoubtBookmarks(user?.id, bookmarks);
+    setLocalDoubt((d) => {
+      const next = { ...d, bookmarked: bookmarks.has(d.id) };
+      onUpdateDoubt(next);
+      return next;
+    });
   }
-  function likeReply(rid: string) {
-    setLocalDoubt(d => ({
-      ...d,
-      replies: d.replies.map(r => r.id === rid ? {...r, likes: r.likedByMe ? r.likes-1 : r.likes+1, likedByMe: !r.likedByMe} : r)
-    }));
+
+  async function likeReply(rid: string) {
+    if (!ctx || !ready || voting) return;
+    setVoting(true);
+    try {
+      const count = await DoubtService.voteAnswer(ctx, rid);
+      setLocalDoubt((d) => ({
+        ...d,
+        replies: d.replies.map((r) =>
+          r.id === rid
+            ? { ...r, likes: count, likedByMe: !r.likedByMe }
+            : r,
+        ),
+      }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update vote");
+    } finally {
+      setVoting(false);
+    }
   }
-  function sendReply() {
-    if (!replyText.trim()) return;
-    const newReply: Reply = {
-      id: `r${Date.now()}`, author: student.name, avatar: student.avatar, authorColor:"#3b5bdb",
-      text: replyText, time:"Just now", likes:0, likedByMe:false,
-      isTeacher:false, isAccepted:false, isHelpful:false,
-    };
-    setLocalDoubt(d => ({ ...d, replies: [...d.replies, newReply] }));
-    setReplyText("");
+
+  async function sendReply() {
+    if (!replyText.trim() || !ctx || !ready || replying) return;
+    setReplying(true);
+    try {
+      await DoubtService.reply(ctx, {
+        _doubt_id: localDoubt.id,
+        _body: replyText.trim(),
+        _image_url: null,
+      });
+      const replies = await loadAnswersForDoubt(localDoubt.id);
+      const votes = await loadMyVoteState(localDoubt.id, user?.id);
+      setLocalDoubt((d) => {
+        const next = {
+          ...d,
+          replies: replies.map((r) => ({
+            ...r,
+            likedByMe: votes.likedAnswers.has(r.id),
+          })),
+          answerCount: replies.length,
+          status: d.status === "pending" ? ("answered" as DoubtStatus) : d.status,
+        };
+        onUpdateDoubt(next);
+        return next;
+      });
+      setReplyText("");
+      toast.success("Reply posted");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not post reply");
+    } finally {
+      setReplying(false);
+    }
   }
   async function askAI() {
     setShowAI(true);
@@ -348,6 +469,9 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
       const { text, response } = await askAiCoach({
         text: prompt || "Help me with this doubt",
         studentId: studentId || undefined,
+        role: role === "student" || role === "parent" || role === "teacher" || role === "principal" || role === "admin"
+          ? role
+          : "student",
         feature_id: "student.nova.chat",
         channel: "student_app",
         locale: typeof navigator !== "undefined" ? navigator.language : undefined,
@@ -488,9 +612,9 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
               <button className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-all"><Image className="w-3.5 h-3.5"/></button>
               <button className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-all"><Mic className="w-3.5 h-3.5"/></button>
             </div>
-            <button onClick={sendReply} disabled={!replyText.trim()}
+            <button onClick={() => void sendReply()} disabled={!replyText.trim() || replying || !ready}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all">
-              <Send className="w-3.5 h-3.5"/> Reply
+              <Send className="w-3.5 h-3.5"/>{replying ? "Posting…" : "Reply"}
             </button>
           </div>
         </GlassCard>
@@ -500,13 +624,15 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
 }
 
 // ── Ask View ───────────────────────────────────────────────────────────────────
-function AskDoubt({ onBack, onPosted, existingDoubts, ctx }: {
+function AskDoubt({ onBack, onPosted, existingDoubts, ctx, onOpenDoubt }: {
   onBack: () => void;
   onPosted: () => void;
   existingDoubts: Doubt[];
   ctx: ServiceContext | null;
+  onOpenDoubt?: (d: Doubt) => void;
 }) {
   const student = useGurukulStudent();
+  const { role } = useAuth();
   const { studentId } = useAcademicContext();
   const { subjects: subjectOptions } = useScopedSubjects();
   const [step, setStep] = useState<"ai"|"form">("form");
@@ -555,6 +681,9 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx }: {
       const { text, response } = await askAiCoach({
         text: prompt,
         studentId: studentId || undefined,
+        role: role === "student" || role === "parent" || role === "teacher" || role === "principal" || role === "admin"
+          ? role
+          : "student",
         feature_id: "student.nova.chat",
         channel: "student_app",
         locale: typeof navigator !== "undefined" ? navigator.language : undefined,
@@ -624,12 +753,17 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx }: {
           </div>
           <div className="space-y-1.5">
             {similarDoubts.map(s => (
-              <div key={s.id} className="flex items-center gap-2 text-xs text-[#a0a0b0] hover:text-white cursor-pointer group">
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => onOpenDoubt?.(s)}
+                className="w-full flex items-center gap-2 text-xs text-[#a0a0b0] hover:text-white cursor-pointer group text-left"
+              >
                 <MessageCircle className="w-3 h-3 text-[#78788c] group-hover:text-white"/>
                 <span className="flex-1">{s.title}</span>
-                <span className="text-[10px] text-[#78788c]">{s.replies.length} replies</span>
+                <span className="text-[10px] text-[#78788c]">{s.answerCount} replies</span>
                 <ArrowRight className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity"/>
-              </div>
+              </button>
             ))}
           </div>
           <p className="text-[10px] text-[#78788c] mt-2">These might already answer your question. Continue if yours is different.</p>
@@ -817,7 +951,11 @@ export default function DoubtPortal() {
       try {
         const rows = await DoubtService.list(ctx, classId ? { classId } : undefined);
         if (cancelled) return;
-        setDoubts((rows as DbDoubtRow[]).map((r) => mapRowToDoubt(r, user?.id)));
+        setDoubts(
+          (rows as DbDoubtRow[]).map((r) =>
+            mapRowToDoubt(r, user?.id, readDoubtBookmarks(user?.id).has(r.id)),
+          ),
+        );
       } catch (e) {
         if (!cancelled) toast.error(e instanceof Error ? e.message : "Failed to load doubts");
       } finally {
@@ -839,7 +977,13 @@ export default function DoubtPortal() {
     <DoubtDetail doubt={activeDoubt} onBack={() => setView("feed")} onUpdateDoubt={d => setActiveDoubt(d)}/>
   );
   if (view === "ask") return (
-    <AskDoubt onBack={() => setView("feed")} onPosted={handlePosted} existingDoubts={doubts} ctx={ctx}/>
+    <AskDoubt
+      onBack={() => setView("feed")}
+      onPosted={handlePosted}
+      existingDoubts={doubts}
+      ctx={ctx}
+      onOpenDoubt={openDoubt}
+    />
   );
 
   const filtered = doubts.filter(d => {
@@ -850,7 +994,7 @@ export default function DoubtPortal() {
     return matchSearch && matchSub && matchStatus;
   }).sort((a, b) =>
     sort === "popular" ? b.upvotes - a.upvotes :
-    sort === "unanswered" ? a.replies.length - b.replies.length :
+    sort === "unanswered" ? a.answerCount - b.answerCount :
     0
   );
 

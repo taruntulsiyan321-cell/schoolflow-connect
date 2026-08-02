@@ -74,4 +74,30 @@ export const DoubtService = {
     });
     return data;
   },
+
+  async voteDoubt(ctx: ServiceContext, doubtId: string) {
+    assertCanConsume(ctx, "student_doubt");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_vote_community_doubt",
+      { _doubt_id: doubtId } as never,
+    );
+    throwIfError(error, "Failed to vote on doubt");
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      source: "DoubtService.voteDoubt",
+    });
+    return typeof data === "number" ? data : Number(data ?? 0);
+  },
+
+  async voteAnswer(ctx: ServiceContext, answerId: string) {
+    assertCanConsume(ctx, "student_doubt");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_vote_community_answer",
+      { _answer_id: answerId } as never,
+    );
+    throwIfError(error, "Failed to vote on answer");
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      source: "DoubtService.voteAnswer",
+    });
+    return typeof data === "number" ? data : Number(data ?? 0);
+  },
 };

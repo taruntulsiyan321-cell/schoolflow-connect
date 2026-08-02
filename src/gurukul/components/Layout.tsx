@@ -117,11 +117,19 @@ export default function Layout({
     navigate("/auth");
   };
 
-  const defaultOpen = {
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     learninghub: LEARNING_KEYS.includes(page),
     classhub: CLASS_KEYS.includes(page),
-  };
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(defaultOpen);
+  });
+
+  // Keep hub groups expanded when deep-linking into a child page.
+  useEffect(() => {
+    setOpenGroups((g) => ({
+      ...g,
+      ...(LEARNING_KEYS.includes(page) ? { learninghub: true } : {}),
+      ...(CLASS_KEYS.includes(page) ? { classhub: true } : {}),
+    }));
+  }, [page]);
 
   // Close profile dropdown on outside click
   useEffect(() => {
@@ -436,7 +444,10 @@ export default function Layout({
 
                     {/* Footer */}
                     <div className="px-2 py-2 border-t border-white/5">
-                      <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-[#78788c] hover:text-white hover:bg-white/5 transition-all">
+                      <button
+                        onClick={() => { setPage("profile"); setProfileOpen(false); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-[#78788c] hover:text-white hover:bg-white/5 transition-all"
+                      >
                         <Settings className="w-3.5 h-3.5"/>
                         Settings
                       </button>

@@ -295,7 +295,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   const [view, setView] = useState<RevView>("overview");
   const [activeItem, setActiveItem] = useState<RevItem | null>(null);
   const [score, setScore] = useState(0);
-  const [filter, setFilter] = useState<"all"|"due"|"upcoming"|"done"|"bookmarked">("all");
+  const [filter, setFilter] = useState<"all"|"due"|"upcoming">("all");
   const [subjectTab, setSubjectTab] = useState("all");
   const [showHistory, setShowHistory] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
@@ -377,16 +377,14 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     const matchFilter =
       filter === "all" ? true :
       filter === "due" ? (r.dueIn === "Now" || r.dueIn === "Today") :
-      filter === "upcoming" ? (r.dueIn === "Tomorrow" || r.dueIn === "2 days" || r.dueIn === "3 days") :
-      filter === "done" ? r.dueIn === "Done" :
-      filter === "bookmarked" ? r.bookmarked : true;
+      filter === "upcoming" ? !(r.dueIn === "Now" || r.dueIn === "Today") :
+      true;
     const matchSub = subjectTab === "all" || r.subject === subjectTab;
     return matchFilter && matchSub;
   });
 
   const dueNow = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today").length;
-  const upcoming = REVISION_ITEMS.filter(r => r.dueIn === "Tomorrow" || r.dueIn === "2 days" || r.dueIn === "3 days").length;
-  const completed = REVISION_ITEMS.filter(r => r.dueIn === "Done").length;
+  const upcoming = REVISION_ITEMS.length - dueNow;
 
   return (
     <div className="space-y-6">
@@ -408,8 +406,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
         {[
           { label:"Due Now",   value:dueNow,     color:"#cc5069", icon:<Zap className="w-4 h-4"/> },
           { label:"Upcoming",  value:upcoming,   color:"#c08a3a", icon:<Calendar className="w-4 h-4"/> },
-          { label:"Completed", value:completed,  color:"#4aa87a", icon:<CheckCircle2 className="w-4 h-4"/> },
-          { label:"Total Items",value:REVISION_ITEMS.length, color:"#6882e8", icon:<Layers className="w-4 h-4"/> },
+          { label:"In Queue",  value:REVISION_ITEMS.length, color:"#6882e8", icon:<Layers className="w-4 h-4"/> },
         ].map(s => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
@@ -507,7 +504,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Filter tabs */}
       <div>
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          {(["all","due","upcoming","done","bookmarked"] as const).map(f => (
+          {(["all","due","upcoming"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={cn("px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all",
                 filter === f ? "bg-violet-500/20 border border-violet-500/40 text-violet-300" : "bg-white/5 border border-white/10 text-[#78788c] hover:bg-white/10")}>

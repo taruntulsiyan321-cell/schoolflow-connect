@@ -255,6 +255,12 @@ export default function StudentDashboard() {
           <Route path="mistakes" element={<MistakeBook setPage={setPage} />} />
           <Route path="battleground/battle/:id" element={<LiveBattleRoom />} />
           <Route path="battleground/report/:participantId" element={<BattleReportPage />} />
+          {/* Legacy arena tabs — design Battleground is canonical (create/progress live in-page). */}
+          <Route path="battleground/create" element={<Navigate to="/student/battleground" replace />} />
+          <Route path="battleground/progress" element={<Navigate to="/student/battleground" replace />} />
+          <Route path="battleground/stats" element={<Navigate to="/student/battleground" replace />} />
+          <Route path="battleground/achievements" element={<Navigate to="/student/achievements" replace />} />
+          <Route path="battleground/leaderboard" element={<Navigate to="/student/leaderboard" replace />} />
           <Route path="battleground" element={<BattlegroundDesign setPage={setPage} />} />
           <Route path="battleground-design" element={<Navigate to="/student/battleground" replace />} />
           <Route path="leaderboard" element={<Leaderboard />} />
@@ -278,6 +284,7 @@ export default function StudentDashboard() {
           <Route path="practice/math12/session" element={<Class12MathSession />} />
           <Route path="practice/ai/session" element={<Class12AiSession />} />
           <Route path="practice/session/:id/result" element={<PracticeSessionResult />} />
+          <Route path="dpp" element={<Navigate to="/student/tests" replace />} />
           <Route path="dpp/:id/attempt" element={<DppAttempt />} />
           <Route path="dpp/:id/result" element={<DppResult />} />
           <Route path="chat" element={<ChatPage userRole="student" />} />

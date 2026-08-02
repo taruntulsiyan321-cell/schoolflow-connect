@@ -40,7 +40,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
   const [xpIntoLevel, setXpIntoLevel] = useState(0);
   const [xpToNext, setXpToNext] = useState(0);
   const [levelProgressPct, setLevelProgressPct] = useState(0);
-  const [league, setLeague] = useState("Bronze");
+  const [league, setLeague] = useState("");
   const [streak, setStreak] = useState(0);
   const [reputation, setReputation] = useState(0);
   const [featured, setFeatured] = useState<string[]>([]);
@@ -106,7 +106,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         setXpIntoLevel(prog.xp_into_level ?? derived.xpIntoLevel);
         setXpToNext(prog.xp_to_next_level ?? derived.xpToNextLevel);
         setLevelProgressPct(prog.level_progress_pct ?? derived.levelProgressPct);
-        setLeague(prog.league?.label ?? prog.league?.code ?? "Bronze");
+        setLeague(prog.league?.label ?? prog.league?.code ?? "");
         setStreak(prog.study_streak);
         setReputation(prog.reputation);
         setFeatured(Array.isArray(prog.featured_badges) ? prog.featured_badges : []);
@@ -165,7 +165,9 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             </h2>
             <div className="text-sm text-[#78788c]">{classLabel}</div>
             <div className="text-xs text-[#3b5bdb] mt-0.5">
-              Level {level} · {league} · {xp} XP · Streak {streak}d · Rep {reputation}
+              Level {level}
+              {league ? ` · ${league}` : ""}
+              {` · ${xp} XP · Streak ${streak}d · Rep ${reputation}`}
               {classRank != null ? ` · Rank #${classRank}` : ""}
             </div>
             <div className="mt-3">
