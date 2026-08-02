@@ -1,3 +1,5 @@
+-- NOTE: Tenant predicates updated by APPLY_QA_AUDITOR_DB_API_AUTH.sql (prefer that after this).
+
 -- =============================================================================
 -- APPLY_PARENT_DPPS_RLS.sql  (Meta-Supervisor 1 / SupB)
 -- Paste into Supabase SQL Editor. Idempotent.

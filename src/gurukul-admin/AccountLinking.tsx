@@ -135,7 +135,7 @@ function LinkModal({
 
 export function AccountLinkingPanel({ entityType, status }: AccountLinkingProps) {
   const [account, setAccount] = useState<LinkedAccount>({
-    googleEmail: entityType === "teacher" ? "teacher@gmail.com" : null,
+    googleEmail: null,
     mobile: null,
     activationSent: false,
     accountStatus: status === "active" ? "active" : status === "suspended" ? "suspended" : "inactive",
@@ -151,17 +151,16 @@ export function AccountLinkingPanel({ entityType, status }: AccountLinkingProps)
 
   function sendActivation() {
     setAccount((a) => ({ ...a, activationSent: true }));
-    showFlash("Activation invitation sent");
+    showFlash("Not connected — auth admin APIs are not wired yet");
   }
 
   function resetPassword() {
-    showFlash("Password reset link sent");
+    showFlash("Not connected — auth admin APIs are not wired yet");
   }
 
   function setAccountStatus(s: "active" | "inactive" | "suspended") {
     setAccount((a) => ({ ...a, accountStatus: s }));
-    const labels = { active: "Account activated", inactive: "Account deactivated", suspended: "Account suspended" };
-    showFlash(labels[s]);
+    showFlash("Not connected — auth admin APIs are not wired yet");
   }
 
   const statusColor = account.accountStatus === "active" ? "#4aa87a"
@@ -171,11 +170,14 @@ export function AccountLinkingPanel({ entityType, status }: AccountLinkingProps)
     <div className="space-y-3">
       {/* Flash notification */}
       {flash && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#4aa87a]/15 border border-[#4aa87a]/25 text-[#4aa87a] text-xs font-semibold">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#c08a3a]/15 border border-[#c08a3a]/25 text-[#c08a3a] text-xs font-semibold">
           <Check className="w-3.5 h-3.5 shrink-0" /> {flash}
         </div>
       )}
 
+      <p className="text-[10px] text-[#78788c] leading-relaxed">
+        Account linking is display-only until school auth admin APIs are connected. Actions will not send email or change login state.
+      </p>
       {/* Account Status */}
       <div className="p-3 rounded-xl bg-white/3 space-y-2">
         <div className="text-[9px] font-bold text-[#78788c] uppercase tracking-wider">Account Status</div>

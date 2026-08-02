@@ -1,11 +1,11 @@
 /**
  * Connection-only OpenRouter ping — no product AI features.
- * Sends a fixed prompt and returns model text + model id.
+ * Staff-only (admin | principal) to prevent JWT-any credit burn.
  *
  * Secrets: OPENROUTER_API_KEY (required), OPENROUTER_MODEL (optional).
  */
 import { corsHeaders, jsonResponse } from "../_shared/gemini.ts";
-import { requireUserJwt } from "../_shared/requireAuth.ts";
+import { requireAnyRole } from "../_shared/requireRole.ts";
 import {
   completeWithQwen,
   getConfiguredModelId,
@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const __auth = await requireUserJwt(req);
+  const __auth = await requireAnyRole(req, ["admin", "principal"]);
   if (!__auth.ok) return __auth.response;
 
   if (req.method !== "POST" && req.method !== "GET") {

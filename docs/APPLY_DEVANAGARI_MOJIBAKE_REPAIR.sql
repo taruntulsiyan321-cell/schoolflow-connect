@@ -1,4 +1,7 @@
-﻿-- APPLY: Devanagari / Hindi UTF-8 mojibake repair
+-- DO NOT USE - superseded by APPLY_UTF8_MOJIBAKE_REPAIR.sql (Western + Devanagari).
+-- Kept only for historical reference.
+
+-- APPLY: Devanagari / Hindi UTF-8 mojibake repair
 -- Paste into Supabase Dashboard → SQL Editor → Run (UTF-8 client; do not re-import seeds via ANSI).
 -- Safe / idempotent: only rows containing à¤ or à¥ are rewritten via WIN1252→UTF8 (LATIN1 fallback).
 -- Prefer in-place UPDATE; does not delete questions.

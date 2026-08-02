@@ -16,6 +16,18 @@ Order matters:
 4. `20260730030000_academic_sync_engine.sql` — sync processors + notifications
 5. `20260730040000_academic_sync_large_class.sql` — large-class profile refresh enqueue
 
+### Security / integrity (Aug 2026 — apply in timestamp order)
+
+| Migration | Clipboard APPLY |
+|-----------|-----------------|
+| `20260802430000_unify_utf8_mojibake_repair.sql` | `docs/APPLY_UTF8_MOJIBAKE_REPAIR.sql` (prefer over Devanagari-only APPLY) |
+| `20260802510000_auth_tenant_security_hardening.sql` | `docs/APPLY_AUTH_TENANT_HARDENING.sql` |
+| `20260802520000_parent_dpps_read_rls.sql` | `docs/APPLY_PARENT_DPPS_RLS.sql` |
+| `20260802540000_supervisor_d_tenant_isolation_closures.sql` | `docs/APPLY_SUPERVISOR_D_TENANT_ISOLATION.sql` |
+| `20260802551000_qa_auditor_db_api_auth_closures.sql` | `docs/APPLY_QA_AUDITOR_DB_API_AUTH.sql` |
+
+`npm run db:migrate` applies all files on/after `20260509000000`. Use `db:migrate:all` for the full folder. Prefer unique `YYYYMMDDHHMMSS` prefixes (avoid duplicate timestamps).
+
 After push, regenerate types:
 
 ```bash

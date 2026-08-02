@@ -6,7 +6,7 @@
  *   DATABASE_URL=postgresql://...
  *
  * Run:
- *   npm run db:migrate          # recent migration files only
+ *   npm run db:migrate          # migrations on/after RECENT_SINCE
  *   npm run db:migrate:all      # every file in supabase/migrations/
  */
 import { readFileSync, existsSync, readdirSync } from "fs";
@@ -18,35 +18,13 @@ const ROOT = join(__dirname, "..");
 const MIGRATIONS_DIR = join(ROOT, "supabase", "migrations");
 const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "kdmjipeksjdyojjdokbi";
 
-/** Migrations added after the initial Lovable deploy — safe to run on existing DBs. */
-const RECENT_PREFIXES = [
-  "20260509065137",
-  "20260516000000",
-  "20260604030000",
-  "20260604060340",
-  "20260604080000",
-  "20260604100000",
-  "20260605000000",
-  "20260606000000",
-  "20260607000000",
-  "20260608000000",
-  "20260604120000",
-  "20260609000000",
-  "20260610000000",
-  "20260611000000",
-  "20260612000000",
-  "20260613000000",
-  "20260614000000",
-  "20260615000000",
-  "20260616000000",
-  "20260617000000",
-  "20260618000000",
-  "20260619000000",
-  "20260620000000",
-  "20260621000000",
-  "20260622000000",
-  "20260623000000",
-];
+/**
+ * Default npm run db:migrate applies every migration whose filename is on/after
+ * this cutoff (panel era to current). Avoids a stale hand-maintained prefix list
+ * that previously skipped 70+ Aug 2026 security/integrity migrations.
+ * Use npm run db:migrate:all for the full folder including pre-cutoff files.
+ */
+const RECENT_SINCE = "20260509000000";
 
 function loadEnvFile(name) {
   const path = join(ROOT, name);
@@ -65,9 +43,7 @@ function listMigrations({ all }) {
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
     .sort();
-  const selected = all
-    ? files
-    : files.filter((f) => RECENT_PREFIXES.some((p) => f.startsWith(p)));
+  const selected = all ? files : files.filter((f) => f >= RECENT_SINCE);
   return selected.map((f) => join(MIGRATIONS_DIR, f));
 }
 
@@ -148,12 +124,11 @@ Verify with: npm run db:check-migrations
       if (e.message === "missing_credentials") throw e;
       console.error(`  FAILED: ${name}`);
       console.error(e.message || e);
-      console.error("\nStopped. Fix the error above, then re-run.");
       process.exit(1);
     }
   }
 
-  console.log("\nDone. Run: npm run db:check-migrations");
+  console.log("\nDone.");
 }
 
 main().catch((e) => {

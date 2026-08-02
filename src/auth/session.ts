@@ -1,6 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { AuthContextData, AppRole } from "./types";
-import { DEFAULT_SCHOOL_ID } from "./constants";
 
 type AuthContextRow = {
   user_id: string;
@@ -40,6 +39,7 @@ function mapRow(row: AuthContextRow): AuthContextData {
       isActive: row.is_active !== false,
     },
     role: row.role,
+    // Never invent a tenant — missing school_id must fail closed for Academic Engine.
     school: row.school_id
       ? {
           id: row.school_id,
@@ -47,24 +47,19 @@ function mapRow(row: AuthContextRow): AuthContextData {
           slug: row.school_slug,
           logoUrl: row.school_logo_url,
         }
-      : {
-          id: DEFAULT_SCHOOL_ID,
-          name: "Wisdom Campus",
-          slug: "wisdom-campus",
-          logoUrl: null,
-        },
+      : null,
   };
 }
 
 /**
  * Same role resolution as the pre-refactor AuthProvider:
- * link portal → read user_roles → ensure_default_role if empty → pick by priority.
+ * link portal -> read user_roles -> ensure_default_role if empty -> pick by priority.
  */
 async function resolveRole(userId: string): Promise<AppRole | null> {
   try {
     await supabase.rpc("link_portal_on_auth", { _uid: userId });
   } catch {
-    /* optional — portal linking may not exist in all envs */
+    /* optional - portal linking may not exist in all envs */
   }
 
   let { data } = await supabase.from("user_roles").select("role").eq("user_id", userId);
@@ -90,7 +85,7 @@ async function resolveRole(userId: string): Promise<AppRole | null> {
  * payload but must never wipe a successfully resolved role.
  */
 export async function loadAuthContext(userId: string): Promise<AuthContextData | null> {
-  // 1) Resolve role first — this is what broke after the refactor
+  // 1) Resolve role first - this is what broke after the refactor
   const role = await resolveRole(userId);
 
   // 2) Optional enriched context (may be missing until migrations are applied)
@@ -104,7 +99,7 @@ export async function loadAuthContext(userId: string): Promise<AuthContextData |
     });
   }
 
-  // 3) Profile fallback — use columns that always existed; school fields optional
+  // 3) Profile fallback - use columns that always existed; school fields optional
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, email, full_name, photo_url")
@@ -112,10 +107,10 @@ export async function loadAuthContext(userId: string): Promise<AuthContextData |
     .maybeSingle();
 
   // Best-effort school fields (ignore errors if columns not migrated yet)
-  let schoolId: string | null = DEFAULT_SCHOOL_ID;
+  let schoolId: string | null = null;
   let isActive = true;
-  let schoolName = "Wisdom Campus";
-  let schoolSlug: string | null = "wisdom-campus";
+  let schoolName = "School";
+  let schoolSlug: string | null = null;
   let schoolLogo: string | null = null;
 
   const enriched = await supabase
@@ -125,10 +120,10 @@ export async function loadAuthContext(userId: string): Promise<AuthContextData |
     .maybeSingle();
 
   if (!enriched.error && enriched.data) {
-    schoolId = (enriched.data as { school_id?: string | null }).school_id ?? DEFAULT_SCHOOL_ID;
+    schoolId = (enriched.data as { school_id?: string | null }).school_id ?? null;
     isActive = (enriched.data as { is_active?: boolean }).is_active !== false;
 
-    if (schoolId && schoolId !== DEFAULT_SCHOOL_ID) {
+    if (schoolId) {
       const { data: school } = await supabase
         .from("schools")
         .select("name, slug, logo_url")
@@ -152,12 +147,14 @@ export async function loadAuthContext(userId: string): Promise<AuthContextData |
       isActive,
     },
     role,
-    school: {
-      id: schoolId ?? DEFAULT_SCHOOL_ID,
-      name: schoolName,
-      slug: schoolSlug,
-      logoUrl: schoolLogo,
-    },
+    school: schoolId
+      ? {
+          id: schoolId,
+          name: schoolName,
+          slug: schoolSlug,
+          logoUrl: schoolLogo,
+        }
+      : null,
   };
 }
 

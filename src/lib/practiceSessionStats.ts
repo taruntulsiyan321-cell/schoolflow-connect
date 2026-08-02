@@ -95,15 +95,21 @@ export function resolvePracticeSessionStats(
         : deriveSessionAccuracy(correctCount, questionCount);
   const accuracy = Math.round(Number.isFinite(accuracyRaw) ? accuracyRaw : 0);
 
+  // Column xp_earned is NOT NULL DEFAULT 0 — credit only after finish, positive award, or snapshot.
+  const sessionFinished = Boolean(session?.finished_at);
+  const snapshotHasXp =
+    typeof snapshot?.xpEarned === "number" && Number.isFinite(snapshot.xpEarned);
+  const sessionXpRaw =
+    typeof session?.xp_earned === "number" && Number.isFinite(session.xp_earned)
+      ? Math.max(0, Math.floor(session.xp_earned))
+      : null;
   const xpFromDb =
-    (typeof snapshot?.xpEarned === "number" && Number.isFinite(snapshot.xpEarned) && snapshot.xpEarned >= 0) ||
-    (typeof session?.xp_earned === "number" && Number.isFinite(session.xp_earned) && session.xp_earned >= 0);
-  const xpEarned =
-    typeof snapshot?.xpEarned === "number" && Number.isFinite(snapshot.xpEarned)
-      ? Math.max(0, Math.floor(snapshot.xpEarned))
-      : typeof session?.xp_earned === "number" && Number.isFinite(session.xp_earned)
-        ? Math.max(0, Math.floor(session.xp_earned))
-        : 0;
+    snapshotHasXp || sessionFinished || (sessionXpRaw != null && sessionXpRaw > 0);
+  const xpEarned = snapshotHasXp
+    ? Math.max(0, Math.floor(snapshot!.xpEarned!))
+    : xpFromDb && sessionXpRaw != null
+      ? sessionXpRaw
+      : 0;
 
   const totalTimeMs =
     snapshot?.totalTimeMs ??
