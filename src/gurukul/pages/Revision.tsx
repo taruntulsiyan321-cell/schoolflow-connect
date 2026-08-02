@@ -1,13 +1,14 @@
 import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
-import { GlassCard, SubjectBadge, ProgressBar, DifficultyBadge, cn } from "@/gurukul/components/shared";
+import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
-  RotateCcw, BookOpen, Brain, Clock, CheckCircle2, XCircle, AlertCircle,
-  ChevronRight, ChevronDown, Flame, Star, ArrowRight, History,
-  Play, Target, Bookmark, Calendar, Layers, RefreshCw,
-  TrendingUp, SkipForward, Zap, FileText,
+  RotateCcw, Brain, CheckCircle2, XCircle, AlertCircle,
+  ChevronRight, ChevronDown, Flame, History, Bookmark,
+  Play, Layers, RefreshCw, Calendar,
+  TrendingUp, Zap, FileText, BookOpen,
 } from "lucide-react";
 
 type RevView = "overview" | "flashcards" | "session" | "results";
@@ -75,7 +76,7 @@ function DueTag({ dueIn }: { dueIn: string }) {
   );
 }
 
-function RevItemCard({ item, onRevise, onFlashcard }: { item: RevItem; onRevise: () => void; onFlashcard: () => void }) {
+function RevItemCard({ item, onRevise, onComplete }: { item: RevItem; onRevise: () => void; onComplete: () => void }) {
   return (
     <GlassCard className="p-4 hover:border-white/15 transition-all">
       <div className="flex items-start gap-3">
@@ -89,17 +90,25 @@ function RevItemCard({ item, onRevise, onFlashcard }: { item: RevItem; onRevise:
             {item.bookmarked && <Bookmark className="w-3.5 h-3.5 text-amber-400 fill-amber-400"/>}
           </div>
           <div className="text-sm font-bold text-white">{displayConcept(item.concept)}</div>
-          <div className="text-[11px] text-[#78788c] mt-0.5">{displayChapter(item.chapter)} · Last seen {item.lastSeen} · {item.reviews} reviews</div>
+          <div className="text-[11px] text-[#78788c] mt-0.5">{displayChapter(item.chapter)}</div>
         </div>
       </div>
-      <div className="flex items-center gap-2 mt-3">
+      <div className="flex items-center gap-2 mt-3 flex-wrap">
         <button onClick={onRevise}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-bold hover:bg-violet-500/30 transition-all">
-          <Play className="w-3 h-3"/> Revise
+          <Play className="w-3 h-3"/> Practice topic
         </button>
-        <button onClick={onFlashcard}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-[#78788c] text-xs font-semibold hover:bg-white/10 transition-all">
-          <Layers className="w-3 h-3 text-cyan-400"/> Flashcard
+        <Link to="/student/aicoach"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-violet-300 text-xs font-semibold hover:bg-white/10 transition-all">
+          <Brain className="w-3 h-3"/> Ask Nova
+        </Link>
+        <Link to="/student/recovery"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 transition-all">
+          <RefreshCw className="w-3 h-3"/> Recovery
+        </Link>
+        <button onClick={onComplete}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 transition-all">
+          <CheckCircle2 className="w-3 h-3"/> Mark done
         </button>
       </div>
     </GlassCard>
@@ -195,91 +204,40 @@ function FlashcardView({ cards, onDone }: { cards: Flashcard[]; onDone: () => vo
   );
 }
 
-function RevisionSession({ item, onDone, onBack }: { item: RevItem; onDone: (score: number) => void; onBack: () => void }) {
-  const questions: { subject: string; difficulty: string; question: string; options: string[]; correct: number; explanation: string }[] = [];
-  const [qi, setQi] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<(number|null)[]>([]);
-  const [showExp, setShowExp] = useState(false);
-
-  if (questions.length === 0) {
-    return (
-      <div className="space-y-5">
-        <GlassCard className="p-8 text-center">
-          <RotateCcw className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
-          <p className="text-sm font-semibold text-white mb-1">No revision questions available</p>
-          <p className="text-xs text-[#78788c]">Questions will appear when this topic is queued with content.</p>
-          <button onClick={onBack}
-            className="mt-4 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
-            Back to Revision Hub
-          </button>
-        </GlassCard>
-      </div>
-    );
-  }
-
-  const q = questions[qi];
-  const isLast = qi === questions.length - 1;
-
-  function submit(idx: number) { if (selected !== null) return; setSelected(idx); setShowExp(true); }
-  function next() {
-    const newAnswers = [...answers, selected];
-    if (isLast) {
-      onDone(Math.round(newAnswers.filter((a, i) => a === questions[i].correct).length / questions.length * 100));
-    } else { setAnswers(newAnswers); setQi(qi + 1); setSelected(null); setShowExp(false); }
-  }
-
+function RevisionSession({ item, onBack }: { item: RevItem; onBack: () => void }) {
+  const chapter = item.chapter !== "—" ? item.chapter : item.concept;
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-violet-500/15 flex items-center justify-center">
-          <RotateCcw className="w-4 h-4 text-violet-400"/>
-        </div>
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.15em] text-violet-400">Revision Session</div>
-          <div className="text-sm font-bold text-white">{displayConcept(item.concept)}</div>
-        </div>
-      </div>
-      <div className="flex gap-1.5">
-        {questions.map((_, i) => <div key={i} className={cn("h-1.5 flex-1 rounded-full", i < qi ? "bg-violet-400" : i === qi ? "bg-violet-400/50" : "bg-white/10")}/>)}
-      </div>
-      <div className="text-[11px] text-[#78788c]">Question {qi + 1} / {questions.length}</div>
-      <GlassCard className="p-5">
-        <div className="flex items-center justify-between mb-3">
-          <SubjectBadge subject={q.subject}/>
-          <DifficultyBadge level={q.difficulty as any}/>
-        </div>
-        <p className="text-sm font-semibold text-white leading-relaxed mb-5">{q.question}</p>
-        <div className="space-y-2">
-          {q.options.map((opt, i) => {
-            let cls = "border-white/10 bg-white/3 hover:bg-white/7 hover:border-white/20";
-            if (selected !== null) {
-              if (i === q.correct) cls = "border-emerald-400/50 bg-emerald-400/10";
-              else if (i === selected && i !== q.correct) cls = "border-rose-400/50 bg-rose-400/10";
-              else cls = "border-white/5 bg-white/2 opacity-50";
-            }
-            return (
-              <button key={i} onClick={() => submit(i)}
-                className={cn("w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all text-sm", cls)}>
-                <span className="w-6 h-6 rounded-lg border border-white/15 flex items-center justify-center text-xs font-bold text-[#78788c] shrink-0">{["A","B","C","D"][i]}</span>
-                <span className={selected !== null ? (i === q.correct ? "text-emerald-300 font-semibold" : i === selected ? "text-rose-300" : "text-[#78788c]") : "text-white"}>{opt}</span>
-                {selected !== null && i === q.correct && <CheckCircle2 className="w-4 h-4 text-emerald-400 ml-auto"/>}
-                {selected !== null && i === selected && i !== q.correct && <XCircle className="w-4 h-4 text-rose-400 ml-auto"/>}
-              </button>
-            );
-          })}
-        </div>
-        {showExp && (
-          <div className="mt-4 p-3 rounded-xl bg-violet-500/8 border border-violet-500/20">
-            <div className="text-[10px] text-violet-400 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5"><Brain className="w-3 h-3"/>Explanation</div>
-            <p className="text-xs text-[#a0a0b0] leading-relaxed">{q.explanation}</p>
-          </div>
-        )}
-        {selected !== null && (
-          <button onClick={next} className="mt-4 w-full py-2.5 rounded-xl bg-violet-500 hover:bg-violet-400 text-white text-sm font-bold transition-all flex items-center justify-center gap-2">
-            {isLast ? "See Results" : "Next Question"}<ArrowRight className="w-4 h-4"/>
+      <GlassCard className="p-8 text-center">
+        <RotateCcw className="w-8 h-8 text-violet-400 mx-auto mb-3"/>
+        <p className="text-sm font-semibold text-white mb-1">Revise {displayConcept(item.concept)}</p>
+        <p className="text-xs text-[#78788c] mb-4">
+          Revision uses live Practice, Recovery, or Nova — there is no separate question bank for this hub.
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Link
+            to={`/student/practice?chapter=${encodeURIComponent(chapter)}`}
+            className="px-4 py-2 rounded-xl bg-violet-500/20 border border-violet-500/30 text-violet-300 text-sm font-semibold hover:bg-violet-500/30 transition-all"
+          >
+            <BookOpen className="w-3.5 h-3.5 inline mr-1.5"/> Practice
+          </Link>
+          <Link
+            to="/student/recovery"
+            className="px-4 py-2 rounded-xl bg-rose-500/15 border border-rose-500/25 text-rose-300 text-sm font-semibold"
+          >
+            Recovery
+          </Link>
+          <Link
+            to="/student/aicoach"
+            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-violet-300 text-sm font-semibold"
+          >
+            Ask Nova
+          </Link>
+          <button onClick={onBack}
+            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+            Back
           </button>
-        )}
+        </div>
       </GlassCard>
     </div>
   );
@@ -325,7 +283,8 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
 }
 
 export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }) {
-  const { data: snapshot, loading, error } = useStudentAcademicSnapshot();
+  const navigate = useNavigate();
+  const { data: snapshot, loading, error, reload } = useStudentAcademicSnapshot();
   const [view, setView] = useState<RevView>("overview");
   const [activeItem, setActiveItem] = useState<RevItem | null>(null);
   const [score, setScore] = useState(0);
@@ -333,6 +292,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   const [subjectTab, setSubjectTab] = useState("all");
   const [showHistory, setShowHistory] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   const REVISION_ITEMS = useMemo(
     () => mapRevisionQueue(snapshot?.revision_queue),
@@ -347,6 +307,25 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     [REVISION_ITEMS],
   );
   const streak = snapshot?.xp?.current_streak ?? 0;
+
+  async function markComplete(item: RevItem) {
+    setCompletingId(item.id);
+    try {
+      const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+      const ctx = await resolveStudentServiceContext();
+      await PracticeService.completeRevision(ctx, item.id);
+      await reload?.();
+    } catch {
+      /* toast via empty — stay on page */
+    } finally {
+      setCompletingId(null);
+    }
+  }
+
+  function openPractice(item: RevItem) {
+    const chapter = item.chapter !== "—" ? item.chapter : item.concept;
+    navigate(`/student/practice?chapter=${encodeURIComponent(chapter)}`);
+  }
 
   if (loading) {
     return (
@@ -367,19 +346,24 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   }
 
   if (view === "flashcards") return <FlashcardView cards={FLASHCARDS} onDone={() => setView("overview")}/>;
-  if (view === "session" && activeItem) return <RevisionSession item={activeItem} onDone={async (s) => {
-    setScore(s);
-    setView("results");
-    try {
-      const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
-      const ctx = await resolveStudentServiceContext();
-      await PracticeService.completeRevision(ctx, activeItem.id);
-    } catch {
-      /* session score still shown; queue refresh on remount */
-    }
-  }}
-    onBack={() => { setView("overview"); setActiveItem(null); }}/>;
-  if (view === "results" && activeItem) return <RevResults item={activeItem} score={score} setPage={setPage} onBack={() => { setView("overview"); setActiveItem(null); }}/>;
+  if (view === "session" && activeItem) {
+    return (
+      <RevisionSession
+        item={activeItem}
+        onBack={() => { setView("overview"); setActiveItem(null); }}
+      />
+    );
+  }
+  if (view === "results" && activeItem) {
+    return (
+      <RevResults
+        item={activeItem}
+        score={score}
+        setPage={setPage}
+        onBack={() => { setView("overview"); setActiveItem(null); }}
+      />
+    );
+  }
 
   const subjects = ["all", ...Array.from(new Set(REVISION_ITEMS.map((r) => r.subject)))];
   const filtered = REVISION_ITEMS.filter(r => {
@@ -437,11 +421,16 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           <div className="text-sm font-bold text-white">Flashcards</div>
           <div className="text-xs text-[#78788c] mt-0.5">{FLASHCARDS.length} cards ready</div>
         </button>
-        <button onClick={() => { const due = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today")[0]; if (due) { setActiveItem(due); setView("session"); } }}
+        <button onClick={() => {
+          const due = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today")[0];
+          if (due) openPractice(due);
+        }}
           className="p-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 transition-all text-left group">
           <Zap className="w-5 h-5 text-violet-400 mb-2 group-hover:scale-110 transition-transform"/>
           <div className="text-sm font-bold text-white">Quick Revision</div>
-          <div className="text-xs text-[#78788c] mt-0.5">Start with due items</div>
+          <div className="text-xs text-[#78788c] mt-0.5">
+            {dueNow > 0 ? `Practice ${dueNow} due item${dueNow === 1 ? "" : "s"}` : "No items due"}
+          </div>
         </button>
         <button onClick={() => setShowNotes(n => !n)}
           className="p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all text-left group">
@@ -484,7 +473,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           </div>
           <div>
             <div className="text-sm font-bold text-white">AI Revision Schedule</div>
-            <div className="text-[11px] text-[#78788c]">Spaced repetition optimized for your exam date</div>
+            <div className="text-[11px] text-[#78788c]">From your live revision queue</div>
           </div>
         </div>
         <div className="space-y-4">
@@ -496,7 +485,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
               <div className="text-[10px] uppercase tracking-wider text-[#78788c] mb-2">{slot.time}</div>
               <div className="flex flex-wrap gap-2">
                 {slot.items.map(item => (
-                  <button key={item.id} onClick={() => { setActiveItem(item); setView("session"); }}
+                  <button key={item.id} onClick={() => openPractice(item)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-semibold hover:bg-violet-500/20 transition-all">
                     <RotateCcw className="w-3 h-3"/> {displayConcept(item.concept)}
                   </button>
@@ -538,8 +527,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           ) : (
             filtered.map(item => (
               <RevItemCard key={item.id} item={item}
-                onRevise={() => { setActiveItem(item); setView("session"); }}
-                onFlashcard={() => setView("flashcards")}/>
+                onRevise={() => openPractice(item)}
+                onComplete={() => markComplete(item)}/>
             ))
           )}
         </div>
@@ -553,23 +542,15 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           </div>
           <div className="flex-1">
             <div className="text-sm font-bold text-white mb-0.5">
-              {streak > 0 ? `${streak}-day Revision Streak 🔥` : "Start your revision streak"}
+              {streak > 0 ? `${streak}-day learning streak` : "Start your revision streak"}
             </div>
             <div className="text-xs text-[#78788c] mb-2">
               {streak > 0
-                ? "Keep it up! Revise at least 3 items daily to maintain your streak."
+                ? "From your XP profile — keep practicing and revising to maintain it."
                 : "Revise items from your queue to build a streak."}
             </div>
-            <div className="flex gap-1.5">
-              {["M","T","W","T","F","S","S"].map((d, i) => (
-                <div key={i} className="flex flex-col items-center gap-1">
-                  <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold",
-                    i < streak ? "bg-amber-400/20 text-amber-300" : "bg-white/5 text-[#78788c]")}>
-                    {i < streak ? "✓" : d}
-                  </div>
-                  <span className="text-[9px] text-[#78788c]">{d}</span>
-                </div>
-              ))}
+            <div className="text-xs text-[#78788c]">
+              Current streak: <span className="text-amber-300 font-bold tabular-nums">{streak}</span> day{streak === 1 ? "" : "s"}
             </div>
           </div>
         </div>

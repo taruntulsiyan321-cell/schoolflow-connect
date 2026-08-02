@@ -184,6 +184,12 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
     consumers: ["teacher", "student", "principal"],
     description: "Teacher answer to a doubt",
   },
+  learning_resource: {
+    entity: "learning_resource",
+    owners: ["admin", "principal", "teacher"],
+    consumers: ["admin", "principal", "teacher", "student", "parent"],
+    description: "Published class study materials",
+  },
   announcement: {
     entity: "announcement",
     owners: ["admin", "principal", "teacher"],

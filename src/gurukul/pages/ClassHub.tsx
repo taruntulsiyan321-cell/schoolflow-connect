@@ -1,18 +1,42 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   Clock, Calendar, CalendarDays, ClipboardList, FlaskConical,
   MessageCircle, Trophy, Medal, ArrowRight, Library, Loader2,
+  Bell, MessageSquare,
 } from "lucide-react";
 import {
   AcademicProfileService,
   AnalyticsService,
   HomeworkService,
+  useAcademicLive,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toast } from "@/hooks/use-toast";
 
 type Props = { setPage: (p: PageKey) => void };
+
+type HubTile =
+  | {
+      kind: "page";
+      key: PageKey;
+      label: string;
+      sub: string;
+      icon: React.ReactNode;
+      color: string;
+      badge: string;
+    }
+  | {
+      kind: "path";
+      path: string;
+      label: string;
+      sub: string;
+      icon: React.ReactNode;
+      color: string;
+      badge: string;
+    };
 
 function MiniRing({ pct, color }: { pct: number; color: string }) {
   const size = 52;
@@ -50,7 +74,9 @@ function MiniRing({ pct, color }: { pct: number; color: string }) {
  * Navigation chrome only for non-academic modules (timetable, resources, etc.).
  */
 export default function ClassHub({ setPage }: Props) {
+  const navigate = useNavigate();
   const { ctx, ready, studentId } = useAcademicContext();
+  const liveVersion = useAcademicLive(["attendance", "homework", "profile", "examination"]);
   const [attPct, setAttPct] = useState(0);
   const [examAvg, setExamAvg] = useState(0);
   const [hwPending, setHwPending] = useState(0);
@@ -60,6 +86,11 @@ export default function ClassHub({ setPage }: Props) {
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
+      setAttPct(0);
+      setExamAvg(0);
+      setHwPending(0);
+      setHwTotal(0);
+      setHwPct(0);
       setLoading(false);
       return;
     }
@@ -83,8 +114,26 @@ export default function ClassHub({ setPage }: Props) {
         setHwPending(
           hw.filter((r) => !r.submission || ["pending", "returned"].includes(r.submission.status)).length,
         );
-      } catch {
-        /* empty engine state is fine */
+        if (settled.every((s) => s.status === "rejected")) {
+          toast({
+            title: "Could not load class stats",
+            description: "Showing zeros until Academic Engine responds.",
+            variant: "destructive",
+          });
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setAttPct(0);
+          setExamAvg(0);
+          setHwPending(0);
+          setHwTotal(0);
+          setHwPct(0);
+          toast({
+            title: "Could not load class stats",
+            description: e instanceof Error ? e.message : "Unknown error",
+            variant: "destructive",
+          });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -92,17 +141,11 @@ export default function ClassHub({ setPage }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId]);
+  }, [ready, ctx, studentId, liveVersion]);
 
-  const features: {
-    key: PageKey;
-    label: string;
-    sub: string;
-    icon: React.ReactNode;
-    color: string;
-    badge: string;
-  }[] = [
+  const features: HubTile[] = [
     {
+      kind: "page",
       key: "timetable",
       label: "Timetable",
       sub: "Daily class schedule with periods, teachers & rooms",
@@ -111,6 +154,7 @@ export default function ClassHub({ setPage }: Props) {
       badge: "Schedule",
     },
     {
+      kind: "page",
       key: "calendar",
       label: "Calendar",
       sub: "Tests, exams, events and submission deadlines",
@@ -119,6 +163,7 @@ export default function ClassHub({ setPage }: Props) {
       badge: "Events",
     },
     {
+      kind: "page",
       key: "attendance",
       label: "Attendance",
       sub: "Track your presence via Academic Engine",
@@ -127,6 +172,7 @@ export default function ClassHub({ setPage }: Props) {
       badge: `${attPct}% overall`,
     },
     {
+      kind: "page",
       key: "assignments",
       label: "Homework",
       sub: "Assignments from HomeworkService",
@@ -135,6 +181,7 @@ export default function ClassHub({ setPage }: Props) {
       badge: `${hwPending} pending`,
     },
     {
+      kind: "page",
       key: "tests",
       label: "Tests",
       sub: "Exam averages from AnalyticsService",
@@ -143,6 +190,7 @@ export default function ClassHub({ setPage }: Props) {
       badge: `${examAvg}% exam avg`,
     },
     {
+      kind: "page",
       key: "doubtportal",
       label: "Doubts",
       sub: "Ask questions, get teacher answers",
@@ -151,14 +199,34 @@ export default function ClassHub({ setPage }: Props) {
       badge: "Open portal",
     },
     {
+      kind: "path",
+      path: "/student/notices",
+      label: "Notices",
+      sub: "School and class announcements",
+      icon: <Bell className="w-6 h-6" />,
+      color: "#6882e8",
+      badge: "Announcements",
+    },
+    {
+      kind: "path",
+      path: "/student/chat",
+      label: "Messages",
+      sub: "Direct messages with teachers",
+      icon: <MessageSquare className="w-6 h-6" />,
+      color: "#4aa87a",
+      badge: "Inbox",
+    },
+    {
+      kind: "page",
       key: "leaderboard",
       label: "Rankings",
-      sub: "Class standing from academic profiles",
+      sub: "Class XP from Progression Engine",
       icon: <Trophy className="w-6 h-6" />,
       color: "#c08a3a",
       badge: "Live rankings",
     },
     {
+      kind: "page",
       key: "achievements",
       label: "Achievements",
       sub: "Milestones unlocked through learning",
@@ -167,6 +235,7 @@ export default function ClassHub({ setPage }: Props) {
       badge: "View",
     },
     {
+      kind: "page",
       key: "resources",
       label: "Resources",
       sub: "Notes, PDFs and videos shared by your teachers",
@@ -180,6 +249,14 @@ export default function ClassHub({ setPage }: Props) {
     return (
       <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading class hub…
+      </div>
+    );
+  }
+
+  if (ready && !studentId) {
+    return (
+      <div className="text-center text-sm text-[#78788c] py-16">
+        No student profile linked to this account.
       </div>
     );
   }
@@ -215,8 +292,8 @@ export default function ClassHub({ setPage }: Props) {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {features.map((f) => (
           <button
-            key={`${f.key}-${f.label}`}
-            onClick={() => setPage(f.key)}
+            key={f.kind === "page" ? `${f.key}-${f.label}` : f.path}
+            onClick={() => (f.kind === "page" ? setPage(f.key) : navigate(f.path))}
             className="group text-left p-5 rounded-2xl border border-white/7 bg-[#131316]/90 transition-all duration-200 hover:border-white/20 hover:scale-[1.02]"
           >
             <div className="flex items-start justify-between mb-4">

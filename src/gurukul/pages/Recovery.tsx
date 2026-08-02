@@ -1,15 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useRecoveryZone, type RecoveryZoneData, type WeakConcept } from "@/hooks/useRecoveryZone";
 import { PracticeService, useAcademicContext } from "@/academic";
+import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
-import { GlassCard, SubjectBadge, ProgressBar, DifficultyBadge, cn } from "@/gurukul/components/shared";
+import { GlassCard, SubjectBadge, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
-  RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2, XCircle,
-  Brain, BookOpen, Clock, Target, Flame, Search, Filter, ArrowRight,
-  RotateCcw, Zap, Star, TrendingUp, History, Play, SkipForward,
+  RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2,
+  Brain, BookOpen, Clock, Target, Search, Filter,
+  RotateCcw, TrendingUp, History, Play, SkipForward,
 } from "lucide-react";
 
 type RecoveryView = "overview" | "session" | "results";
@@ -17,7 +18,7 @@ type Priority = "high" | "medium" | "low";
 
 interface RecoveryTopic {
   id: string; assignmentId?: string; concept: string; subject: string; chapter: string;
-  priority: Priority; accuracy: number; attempts: number;
+  priority: Priority; mastery: number; attempts: number;
   source: string; pendingQs: number; lastAttempt: string;
   aiReason: string; teacherAssigned: boolean;
 }
@@ -61,12 +62,14 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
       subject: a.subject,
       chapter: a.chapter ?? "—",
       priority: severityToPriority(a.severity),
-      accuracy: Math.round(weak?.mastery_score ?? 0),
+      mastery: Math.round(weak?.mastery_score ?? 0),
       attempts: weak?.mistake_count ?? 0,
       source: "practice",
       pendingQs: Math.max(0, (a.question_count ?? 0) - (a.questions_completed ?? 0)),
       lastAttempt: formatRelativeDate(a.created_at),
-      aiReason: "Based on your recent mistakes",
+      aiReason: weak
+        ? `Mastery ${Math.round(weak.mastery_score)}% on ${displayConcept(a.concept)} — recovery drill queued from recent mistakes.`
+        : `Recovery assignment for ${displayConcept(a.concept)} from your mistake pattern.`,
       teacherAssigned: false,
     });
   }
@@ -80,12 +83,12 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
       subject: w.subject,
       chapter: w.chapter ?? "—",
       priority: w.mastery_score < 40 ? "high" : w.mastery_score < 55 ? "medium" : "low",
-      accuracy: Math.round(w.mastery_score),
+      mastery: Math.round(w.mastery_score),
       attempts: w.mistake_count ?? 0,
       source: "practice",
       pendingQs: 0,
       lastAttempt: "—",
-      aiReason: "Based on your recent mistakes",
+      aiReason: `Weak concept detected at ${Math.round(w.mastery_score)}% mastery — start practice or open Nova for a targeted review.`,
       teacherAssigned: false,
     });
   }
@@ -139,39 +142,48 @@ function TopicCard({ topic, onStart }: { topic: RecoveryTopic; onStart: () => vo
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="text-right">
-              <div className="text-lg font-black tabular-nums" style={{color:m.color}}>{topic.accuracy}%</div>
-              <div className="text-[10px] text-[#78788c]">{topic.attempts} attempts</div>
+              <div className="text-lg font-black tabular-nums" style={{color:m.color}}>{topic.mastery}%</div>
+              <div className="text-[10px] text-[#78788c]">{topic.attempts} mistakes</div>
             </div>
           </div>
         </div>
 
         <div className="mt-3">
           <div className="flex items-center justify-between text-[10px] text-[#78788c] mb-1">
-            <span>Accuracy</span><span>{topic.accuracy}%</span>
+            <span>Mastery</span><span>{topic.mastery}%</span>
           </div>
-          <ProgressBar value={topic.accuracy} color={m.color} height="h-1.5"/>
+          <ProgressBar value={topic.mastery} color={m.color} height="h-1.5"/>
         </div>
 
-        <div className="flex items-center gap-2 mt-3">
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
           <button onClick={onStart}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:brightness-110"
             style={{background:m.color,color:"#fff"}}>
-            <Play className="w-3 h-3"/> Start Recovery ({topic.pendingQs} Qs)
+            <Play className="w-3 h-3"/>
+            {topic.assignmentId
+              ? `Start Recovery (${topic.pendingQs} Qs)`
+              : "Practice this concept"}
           </button>
           <button onClick={() => setExpanded(e => !e)}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all">
             <Brain className="w-3 h-3 text-violet-400"/>
-            AI Insight {expanded ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
+            Insight {expanded ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
           </button>
         </div>
 
         {expanded && (
-          <div className="mt-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/15 text-xs text-[#a0a0b0] leading-relaxed">
-            <div className="flex items-center gap-1.5 mb-1">
+          <div className="mt-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/15 text-xs text-[#a0a0b0] leading-relaxed space-y-2">
+            <div className="flex items-center gap-1.5">
               <Brain className="w-3.5 h-3.5 text-violet-400"/>
-              <span className="text-violet-400 font-semibold text-[10px] uppercase tracking-wider">Nova's Analysis</span>
+              <span className="text-violet-400 font-semibold text-[10px] uppercase tracking-wider">Recovery insight</span>
             </div>
-            {topic.aiReason}
+            <p>{topic.aiReason}</p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Link to="/student/practice" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-[#4b9fd4] hover:bg-white/10">Practice</Link>
+              <Link to="/student/revision" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-[#c08a3a] hover:bg-white/10">Revision</Link>
+              <Link to="/student/aicoach" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-violet-400 hover:bg-white/10">Ask Nova</Link>
+              <Link to="/student/mistakes" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-rose-400 hover:bg-white/10">Mistake Book</Link>
+            </div>
           </div>
         )}
       </div>
@@ -179,116 +191,39 @@ function TopicCard({ topic, onStart }: { topic: RecoveryTopic; onStart: () => vo
   );
 }
 
-function RecoverySession({ topic, onDone, onBack }: { topic: RecoveryTopic; onDone: (score: number) => void; onBack: () => void }) {
-  const questions: { subject: string; difficulty: string; question: string; options: string[]; correct: number; explanation: string }[] = [];
-  const [qi, setQi] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<(number|null)[]>([]);
-  const [showExp, setShowExp] = useState(false);
-
-  if (questions.length === 0) {
-    return (
-      <div className="space-y-5">
-        <GlassCard className="p-8 text-center">
-          <RefreshCw className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
-          <p className="text-sm font-semibold text-white mb-1">No questions available here</p>
-          <p className="text-xs text-[#78788c]">Open the live recovery session to practice this topic.</p>
-          <button onClick={onBack}
-            className="mt-4 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
-            Back to Recovery Hub
-          </button>
-        </GlassCard>
-      </div>
-    );
-  }
-
-  const q = questions[qi];
-  const isLast = qi === questions.length - 1;
-  const correct = selected === q.correct;
-
-  function submit(idx: number) {
-    if (selected !== null) return;
-    setSelected(idx);
-    setShowExp(true);
-  }
-
-  function next() {
-    const newAnswers = [...answers, selected];
-    if (isLast) {
-      const score = Math.round(newAnswers.filter((a,i) => a === questions[i].correct).length / questions.length * 100);
-      onDone(score);
-    } else {
-      setAnswers(newAnswers);
-      setQi(qi + 1);
-      setSelected(null);
-      setShowExp(false);
-    }
-  }
-
+function RecoverySession({ topic, onBack }: { topic: RecoveryTopic; onBack: () => void }) {
   return (
     <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{background:"rgba(244,63,94,0.15)"}}>
-          <RefreshCw className="w-4.5 h-4.5 text-rose-400"/>
-        </div>
-        <div>
-          <div className="text-[10px] uppercase tracking-[0.15em] text-rose-400">Recovery Session</div>
-          <div className="text-sm font-bold text-white">{displayConcept(topic.concept)}</div>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        {questions.map((_, i) => (
-          <div key={i} className={cn("h-1.5 flex-1 rounded-full transition-all", i < qi ? "bg-rose-400" : i === qi ? "bg-rose-400/60" : "bg-white/10")}/>
-        ))}
-      </div>
-      <div className="text-[11px] text-[#78788c]">Question {qi + 1} of {questions.length}</div>
-
-      <GlassCard className="p-5">
-        <div className="flex items-center justify-between mb-3">
-          <SubjectBadge subject={q.subject}/>
-          <DifficultyBadge level={q.difficulty as any}/>
-        </div>
-        <p className="text-sm font-semibold text-white leading-relaxed mb-5">{q.question}</p>
-        <div className="space-y-2">
-          {q.options.map((opt, i) => {
-            let cls = "border-white/10 bg-white/3 hover:bg-white/7 hover:border-white/20";
-            if (selected !== null) {
-              if (i === q.correct) cls = "border-emerald-400/50 bg-emerald-400/10";
-              else if (i === selected && selected !== q.correct) cls = "border-rose-400/50 bg-rose-400/10";
-              else cls = "border-white/5 bg-white/2 opacity-50";
-            }
-            return (
-              <button key={i} onClick={() => submit(i)}
-                className={cn("w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all text-sm", cls)}>
-                <span className="w-6 h-6 rounded-lg border border-white/15 flex items-center justify-center text-xs font-bold text-[#78788c] shrink-0">
-                  {["A","B","C","D"][i]}
-                </span>
-                <span className={selected !== null ? (i === q.correct ? "text-emerald-300 font-semibold" : i === selected ? "text-rose-300" : "text-[#78788c]") : "text-white"}>
-                  {opt}
-                </span>
-                {selected !== null && i === q.correct && <CheckCircle2 className="w-4 h-4 text-emerald-400 ml-auto"/>}
-                {selected !== null && i === selected && selected !== q.correct && <XCircle className="w-4 h-4 text-rose-400 ml-auto"/>}
-              </button>
-            );
-          })}
-        </div>
-
-        {showExp && (
-          <div className="mt-4 p-3 rounded-xl bg-violet-500/8 border border-violet-500/20">
-            <div className="text-[10px] text-violet-400 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1.5">
-              <Brain className="w-3 h-3"/>Explanation
-            </div>
-            <p className="text-xs text-[#a0a0b0] leading-relaxed">{q.explanation}</p>
-          </div>
-        )}
-
-        {selected !== null && (
-          <button onClick={next}
-            className="mt-4 w-full py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-sm font-bold transition-all flex items-center justify-center gap-2">
-            {isLast ? "See Results" : "Next Question"}<ArrowRight className="w-4 h-4"/>
+      <GlassCard className="p-8 text-center">
+        <RefreshCw className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
+        <p className="text-sm font-semibold text-white mb-1">Open live recovery</p>
+        <p className="text-xs text-[#78788c] mb-4">
+          Recovery drills load from your assigned concepts. Practice, Revision, or Nova can help meanwhile.
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {topic.assignmentId ? (
+            <Link
+              to={`/student/recovery/${topic.assignmentId}`}
+              className="px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-semibold hover:bg-rose-500/30 transition-all"
+            >
+              Open assignment
+            </Link>
+          ) : (
+            <Link
+              to={`/student/practice?chapter=${encodeURIComponent(topic.chapter !== "—" ? topic.chapter : topic.concept)}`}
+              className="px-4 py-2 rounded-xl bg-[#3b5bdb]/20 border border-[#3b5bdb]/30 text-[#4b9fd4] text-sm font-semibold hover:bg-[#3b5bdb]/30 transition-all"
+            >
+              Go to Practice
+            </Link>
+          )}
+          <Link to="/student/aicoach" className="px-4 py-2 rounded-xl bg-violet-500/15 border border-violet-500/25 text-violet-300 text-sm font-semibold">
+            Ask Nova
+          </Link>
+          <button onClick={onBack}
+            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+            Back
           </button>
-        )}
+        </div>
       </GlassCard>
     </div>
   );
@@ -299,6 +234,27 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
   const color = passed ? "#4aa87a" : "#c08a3a";
   const size = 110, stroke = 9, r = (size - stroke) / 2, c = 2 * Math.PI * r;
   const offset = c - (score / 100) * c;
+  const [addingRevision, setAddingRevision] = useState(false);
+
+  async function addToRevision() {
+    setAddingRevision(true);
+    try {
+      await assignRecoveryOnMistake({
+        subject: topic.subject,
+        chapter: topic.chapter !== "—" ? topic.chapter : null,
+        concept: topic.concept,
+        sourceType: "recovery_followup",
+        sourceId: topic.assignmentId ?? topic.id,
+        accuracy: score,
+      });
+      // Recovery assign also queues revision when applicable; navigate to revision hub.
+      setPage?.("revision");
+    } catch {
+      setPage?.("revision");
+    } finally {
+      setAddingRevision(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -327,8 +283,8 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
         <div className="grid grid-cols-3 gap-3 mt-5">
           {[
             { label:"Score",    value:`${score}%`,            color },
-            { label:"Previous", value:`${topic.accuracy}%`,   color:"#78788c" },
-            { label:"Change",   value:`+${score - topic.accuracy}%`, color: score > topic.accuracy ? "#4aa87a" : "#cc5069" },
+            { label:"Previous", value:`${topic.mastery}%`,   color:"#78788c" },
+            { label:"Change",   value: score >= topic.mastery ? `+${score - topic.mastery}%` : `${score - topic.mastery}%`, color: score > topic.mastery ? "#4aa87a" : "#cc5069" },
           ].map(s => (
             <div key={s.label} className="p-3 rounded-xl bg-white/3 border border-white/8">
               <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
@@ -340,9 +296,9 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
 
       <div className="space-y-2">
         {!passed && (
-          <button onClick={() => setPage?.("revision")}
-            className="w-full py-3 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-300 text-sm font-bold flex items-center justify-center gap-2 hover:bg-violet-500/25 transition-all">
-            <RotateCcw className="w-4 h-4"/> Add to Revision Schedule
+          <button onClick={addToRevision} disabled={addingRevision}
+            className="w-full py-3 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-300 text-sm font-bold flex items-center justify-center gap-2 hover:bg-violet-500/25 transition-all disabled:opacity-50">
+            <RotateCcw className="w-4 h-4"/> {addingRevision ? "Adding…" : "Add to Revision Schedule"}
           </button>
         )}
         <button onClick={onBack}
@@ -356,7 +312,8 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
 
 export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }) {
   const navigate = useNavigate();
-  const { data, loading, error } = useRecoveryZone();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data, loading, error, reload } = useRecoveryZone();
   const { ctx, ready: academicReady } = useAcademicContext();
   const [view, setView] = useState<RecoveryView>("overview");
   const [activeTopic, setActiveTopic] = useState<RecoveryTopic | null>(null);
@@ -367,6 +324,8 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
   const [showHistory, setShowHistory] = useState(false);
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [classLevel, setClassLevel] = useState<number | null>(null);
+  const [startingId, setStartingId] = useState<string | null>(null);
+  const fixHandledRef = useRef(false);
 
   useEffect(() => {
     if (!ctx || !academicReady) return;
@@ -404,18 +363,83 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
           subject: t.subject,
           time: t.pendingQs > 0 ? `${Math.max(10, t.pendingQs * 2)} min` : "—",
           priority: t.priority as Priority,
+          topic: t,
         })),
     [TOPICS],
   );
-  const HISTORY: { id: string; concept: string; subject: string; date: string; score: number; improved: boolean }[] = [];
+  const HISTORY = useMemo(() => {
+    return (data?.recent_completed ?? []).map((h) => ({
+      id: h.id,
+      concept: h.concept,
+      subject: h.subject,
+      date: formatRelativeDate(h.date),
+      score: h.score,
+      improved: h.improved,
+    }));
+  }, [data?.recent_completed]);
+  const sessionsDone = data?.completed_count ?? HISTORY.length;
 
-  function startSession(topic: RecoveryTopic) {
+  // Deep-link ?fix=1&subject=&chapter=&concept= (legacy RevisionQueue / analytics)
+  useEffect(() => {
+    if (fixHandledRef.current || loading || !data) return;
+    const fix = searchParams.get("fix");
+    if (fix !== "1") return;
+    fixHandledRef.current = true;
+    const subject = searchParams.get("subject") || "Mathematics";
+    const chapter = searchParams.get("chapter");
+    const concept = searchParams.get("concept") || chapter || subject;
+    (async () => {
+      const existing = TOPICS.find(
+        (t) =>
+          t.subject.toLowerCase() === subject.toLowerCase() &&
+          t.concept.toLowerCase() === concept.toLowerCase() &&
+          t.assignmentId,
+      );
+      if (existing?.assignmentId) {
+        setSearchParams({}, { replace: true });
+        navigate(`/student/recovery/${existing.assignmentId}`);
+        return;
+      }
+      const assignmentId = await assignRecoveryOnMistake({
+        subject,
+        chapter,
+        concept,
+        sourceType: "deep_link",
+        sourceId: crypto.randomUUID(),
+      });
+      setSearchParams({}, { replace: true });
+      if (assignmentId) navigate(`/student/recovery/${assignmentId}`);
+      else navigate(`/student/practice?chapter=${encodeURIComponent(chapter || concept)}`);
+    })();
+  }, [loading, data, TOPICS, searchParams, navigate, setSearchParams]);
+
+  async function startSession(topic: RecoveryTopic) {
     if (topic.assignmentId) {
       navigate(`/student/recovery/${topic.assignmentId}`);
       return;
     }
-    setActiveTopic(topic);
-    setView("session");
+    setStartingId(topic.id);
+    try {
+      const assignmentId = await assignRecoveryOnMistake({
+        subject: topic.subject,
+        chapter: topic.chapter !== "—" ? topic.chapter : null,
+        concept: topic.concept,
+        sourceType: "weak_concept",
+        sourceId: topic.id,
+        accuracy: topic.mastery,
+      });
+      if (assignmentId) {
+        navigate(`/student/recovery/${assignmentId}`);
+        return;
+      }
+      // No bank questions for this concept — open practice for the chapter.
+      navigate(
+        `/student/practice?chapter=${encodeURIComponent(topic.chapter !== "—" ? topic.chapter : topic.concept)}`,
+      );
+      void reload();
+    } finally {
+      setStartingId(null);
+    }
   }
 
   function onSessionDone(score: number) {
@@ -442,7 +466,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
   }
 
   if (view === "session" && activeTopic) {
-    return <RecoverySession topic={activeTopic} onDone={onSessionDone}
+    return <RecoverySession topic={activeTopic}
       onBack={() => { setView("overview"); setActiveTopic(null); }}/>;
   }
   if (view === "results" && activeTopic) {
@@ -481,7 +505,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
           { label:"Topics Pending",   value:TOPICS.length,   color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/> },
           { label:"Questions Queued", value:totalPending,    color:"#c08a3a", icon:<BookOpen className="w-4 h-4"/> },
           { label:"High Priority",    value:highCount,       color:"#cc5069", icon:<AlertCircle className="w-4 h-4"/> },
-          { label:"Sessions Done",    value:HISTORY.length,  color:"#4aa87a", icon:<CheckCircle2 className="w-4 h-4"/> },
+          { label:"Sessions Done",    value:sessionsDone,    color:"#4aa87a", icon:<CheckCircle2 className="w-4 h-4"/> },
         ].map(s => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
@@ -500,7 +524,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
           </div>
           <div>
             <div className="text-sm font-bold text-white">Nova's Recovery Plan</div>
-            <div className="text-[11px] text-[#78788c]">AI-generated for today based on your weak areas</div>
+            <div className="text-[11px] text-[#78788c]">Based on your highest-priority weak concepts</div>
           </div>
         </div>
         <div className="grid sm:grid-cols-3 gap-3">
@@ -510,8 +534,14 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
             AI_PLAN.map((item, i) => {
             const m = PRIORITY_META[item.priority];
             return (
-              <div key={i} className="p-3 rounded-xl border bg-white/2 hover:bg-white/5 transition-all cursor-pointer group"
-                style={{borderColor:`${m.color}25`}}>
+              <button
+                key={i}
+                type="button"
+                onClick={() => startSession(item.topic)}
+                disabled={startingId === item.topic.id}
+                className="p-3 rounded-xl border bg-white/2 hover:bg-white/5 transition-all text-left group disabled:opacity-50"
+                style={{borderColor:`${m.color}25`}}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black text-white"
                     style={{background:m.color}}>{i+1}</span>
@@ -521,7 +551,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                 <div className="flex items-center gap-1.5 text-[10px] text-[#78788c]">
                   <Clock className="w-3 h-3"/>{item.time}
                 </div>
-              </div>
+              </button>
             );
           })
           )}

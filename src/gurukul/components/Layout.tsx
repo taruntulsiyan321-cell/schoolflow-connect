@@ -11,7 +11,7 @@ import {
   Trophy, Medal, MessageCircle, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, Flame, Zap, Bell, Menu, X,
   FlaskConical, Calendar, Clock, GraduationCap, Settings, LogOut,
-  User, BarChart, HelpCircle, Wallet,
+  User, BarChart, Wallet,
 } from "lucide-react";
 
 type NavItem  = { key: PageKey; label: string; icon: ReactNode };

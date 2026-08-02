@@ -609,6 +609,74 @@ async function fetchTimetableToday(admin: SupabaseClient, schoolId: string, stud
   };
 }
 
+/** Progression Engine facts for Nova context (never invent XP/streak). */
+async function fetchProgression(admin: SupabaseClient, schoolId: string, studentId: string) {
+  const { data: student } = await admin
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const userId = student?.user_id ? String(student.user_id) : null;
+  if (!userId) {
+    return {
+      projection: "StudentProgression",
+      version: 1,
+      studentId,
+      schoolId,
+      xp: 0,
+      level: 1,
+      study_streak: 0,
+      battleground_wins: 0,
+      practice_sessions: 0,
+      total_battles: 0,
+      source_as_of: null as string | null,
+      data_version: `prog:${studentId}:none`,
+      completeness: 0,
+    };
+  }
+
+  const [{ data: xp }, { count: practiceCount }] = await Promise.all([
+    admin
+      .from("student_xp")
+      .select(
+        "xp, level, current_streak, wins, total_battles, updated_at",
+      )
+      .eq("user_id", userId)
+      .maybeSingle(),
+    admin
+      .from("practice_sessions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+  ]);
+
+  const hasRow = !!xp;
+  const xpVal = Number(xp?.xp ?? 0);
+  const level = Number(xp?.level ?? 1);
+  const streak = Number(xp?.current_streak ?? 0);
+  const wins = Number(xp?.wins ?? 0);
+  const battles = Number(xp?.total_battles ?? 0);
+  const practice = practiceCount ?? 0;
+  const asOf = xp?.updated_at ? String(xp.updated_at) : null;
+  const hasData = hasRow && (xpVal > 0 || practice > 0 || battles > 0 || streak > 0);
+
+  return {
+    projection: "StudentProgression",
+    version: 1,
+    studentId,
+    schoolId,
+    xp: xpVal,
+    level,
+    study_streak: streak,
+    battleground_wins: wins,
+    practice_sessions: practice,
+    total_battles: battles,
+    source_as_of: asOf,
+    data_version: `prog:${studentId}:${xpVal}:${level}:${streak}`,
+    completeness: hasData ? 1 : hasRow ? 0.4 : 0,
+  };
+}
+
 async function fetchEie(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: student } = await admin
     .from("students")
@@ -2510,12 +2578,13 @@ export async function routeAiRequest(
 
         const factsVersionSeed = `nova-facts:${studentId}`;
         const factsBundle = (await withCache(factsVersionSeed, async () => {
-          const [attendance, homework, marks, eie, profile] = await Promise.all([
+          const [attendance, homework, marks, eie, profile, progression] = await Promise.all([
             fetchAttendance(admin, req.actor.schoolId, studentId),
             fetchHomeworkDue(admin, req.actor.schoolId, studentId),
             fetchMarksSummary(admin, req.actor.schoolId, studentId),
             fetchEie(admin, req.actor.schoolId, studentId),
             fetchParentSummary(admin, req.actor.schoolId, studentId),
+            fetchProgression(admin, req.actor.schoolId, studentId),
           ]);
           return {
             attendance,
@@ -2523,7 +2592,8 @@ export async function routeAiRequest(
             marks,
             eie,
             profile,
-            data_version: `nova:${attendance.data_version}:${homework.data_version}:${marks.data_version}:${eie.data_version}:${profile.data_version}`,
+            progression,
+            data_version: `nova:${attendance.data_version}:${homework.data_version}:${marks.data_version}:${eie.data_version}:${profile.data_version}:${progression.data_version}`,
             source_as_of: (() => {
               const stamps = [
                 attendance.source_as_of,
@@ -2531,6 +2601,7 @@ export async function routeAiRequest(
                 marks.source_as_of,
                 eie.computed_at,
                 profile.source_as_of,
+                progression.source_as_of,
               ].filter((v): v is string => typeof v === "string" && v.length > 0);
               stamps.sort();
               return stamps.length ? stamps[stamps.length - 1] : null;
@@ -2540,8 +2611,9 @@ export async function routeAiRequest(
                 homework.completeness +
                 marks.completeness +
                 eie.completeness +
-                profile.completeness) /
-              5,
+                profile.completeness +
+                progression.completeness) /
+              6,
           };
         })) as {
           attendance: Awaited<ReturnType<typeof fetchAttendance>>;
@@ -2549,22 +2621,24 @@ export async function routeAiRequest(
           marks: Awaited<ReturnType<typeof fetchMarksSummary>>;
           eie: Awaited<ReturnType<typeof fetchEie>>;
           profile: Awaited<ReturnType<typeof fetchParentSummary>>;
+          progression: Awaited<ReturnType<typeof fetchProgression>>;
           data_version: string;
           source_as_of: string | null;
           completeness: number;
         };
 
-        const { attendance, homework, marks, eie, profile } = factsBundle;
-        const facts = { attendance, homework, marks, eie, profile };
+        const { attendance, homework, marks, eie, profile, progression } = factsBundle;
+        const facts = { attendance, homework, marks, eie, profile, progression };
         const factsEmpty =
           factsBundle.completeness < 0.25 &&
           !(eie.weak_concepts?.length || eie.strong_concepts?.length) &&
-          !(profile.weak_topics?.length || profile.strong_topics?.length);
+          !(profile.weak_topics?.length || profile.strong_topics?.length) &&
+          !(progression.xp > 0 || progression.practice_sessions > 0 || progression.total_battles > 0);
 
         const pack = buildContextPack({
           capability: cap.feature_id,
           request_text: question,
-          ae: { attendance, homework, marks, profile },
+          ae: { attendance, homework, marks, profile, progression },
           eie,
           session_memory: sessionForContext,
           tier_signals: {

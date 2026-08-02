@@ -50,7 +50,11 @@ export default function RecoveryZone() {
           _chapter: searchParams.get("chapter") || null,
           _concept: concept,
           _subconcept: null,
-          _accuracy: 35,
+          _accuracy: Math.round(
+            data?.weak_concepts?.find((w) => w.concept === concept)?.mastery_score ??
+              brain?.weak_concepts?.find((w) => w.concept === concept)?.mastery_score ??
+              0,
+          ),
           _source_type: "analytics",
           _source_id: null,
         });
@@ -85,7 +89,11 @@ export default function RecoveryZone() {
         _chapter: m.chapter ?? null,
         _concept: m.concept ?? m.topic ?? m.chapter ?? null,
         _subconcept: null,
-        _accuracy: 35,
+        _accuracy: Math.round(
+          data?.weak_concepts?.find(
+            (w) => w.concept === (m.concept ?? m.topic ?? m.chapter),
+          )?.mastery_score ?? 0,
+        ),
         _source_type: "practice",
         _source_id: m.id,
       });
@@ -119,21 +127,30 @@ export default function RecoveryZone() {
             rank: i + 1,
             concept: displayConcept(w.concept),
             subject: w.subject,
-            accuracy: Math.max(0, Math.round(100 - (w.mastery_score ?? 50))),
+            accuracy: Math.round(w.mastery_score ?? 0),
             mastery: Math.round(w.mastery_score ?? 0),
             questionsAssigned: assignments.find((a) => a.concept === w.concept)?.question_count ?? 0,
           }))
         : [];
 
-    const tasks: RecoveryTask[] = assignments.map((a) => ({
-      id: a.id,
-      concept: displayConcept(a.concept),
-      subject: a.subject,
-      currentMastery: Math.round((a.questions_completed / Math.max(1, a.question_count)) * 40 + 30),
-      targetMastery: 80,
-      questionsAssigned: a.question_count,
-      estimatedImprovement: `+${Math.min(12, a.question_count)}% accuracy`,
-    }));
+    const tasks: RecoveryTask[] = assignments.map((a) => {
+      const weak = displayWeak.find((w) => w.concept === a.concept);
+      const masteryNow = Math.round(weak?.mastery_score ?? 0);
+      const progressPct =
+        a.question_count > 0
+          ? Math.round((a.questions_completed / a.question_count) * 100)
+          : 0;
+      return {
+        id: a.id,
+        concept: displayConcept(a.concept),
+        subject: a.subject,
+        currentMastery: masteryNow,
+        targetMastery: 80,
+        questionsAssigned: a.question_count,
+        estimatedImprovement:
+          progressPct > 0 ? `${progressPct}% of drill complete` : `${a.question_count} Qs assigned`,
+      };
+    });
 
     const mastery = data?.mastery ?? [];
     const fixedConcepts: FixedConcept[] = mastery

@@ -23,6 +23,7 @@ import {
   buildPracticeAnalysisSnapshot,
   type PracticeAnalysisSnapshot,
 } from "@/lib/practiceAnalysisSnapshot";
+import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
@@ -116,41 +117,41 @@ export default function PracticeSessionResult() {
   const chapterRaw = session?.chapter ?? snapshot?.chapter ?? localState?.chapter ?? "";
   const subject = displaySubject(subjectRaw);
   const chapter = chapterRaw ? displayChapter(chapterRaw) : "";
-  const total = Math.max(
-    snapshot?.questionCount ?? 0,
-    session?.question_count ?? 0,
-    displayAttempts.length,
-  );
-  const correct =
-    snapshot?.correctCount ??
-    (displayAttempts.length > 0
-      ? displayAttempts.filter((a) => a.is_correct).length
-      : (session?.correct_count ?? 0));
-  const wrong =
-    snapshot?.wrongCount ??
-    (displayAttempts.length > 0
-      ? displayAttempts.filter((a) => !a.is_correct && !(a as AttemptRow).skipped).length
-      : (session?.wrong_count ?? Math.max(0, total - correct)));
-  const skipped =
-    snapshot?.skippedCount ??
-    (displayAttempts.length > 0
-      ? displayAttempts.filter((a) => !!(a as AttemptRow).skipped).length
-      : (session?.skipped_count ?? 0));
-  const accuracy =
-    snapshot?.accuracy ??
-    (typeof session?.accuracy === "number"
-      ? Math.round(Number(session.accuracy))
-      : total
-        ? Math.round((correct / total) * 100)
-        : 0);
-  const xpEarned =
-    snapshot?.xpEarned ??
-    (typeof session?.xp_earned === "number" && session.xp_earned > 0
-      ? session.xp_earned
-      : correct * 10);
+
+  // Prefer finish-RPC payload (nav/serverStats) + DB columns. Local tallies only as last resort.
+  const localCorrect = displayAttempts.filter((a) => a.is_correct).length;
+  const localSkipped = displayAttempts.filter((a) => !!(a as AttemptRow).skipped).length;
+  const localWrong = displayAttempts.filter(
+    (a) => !a.is_correct && !(a as AttemptRow).skipped,
+  ).length;
+  const overlay = snapshot ?? (localState?.serverStats
+    ? {
+        questionCount: localState.serverStats.questionCount,
+        correctCount: localState.serverStats.correctCount,
+        wrongCount: localState.serverStats.wrongCount,
+        skippedCount: localState.serverStats.skippedCount,
+        accuracy: localState.serverStats.accuracy,
+        xpEarned: localState.serverStats.xpEarned,
+        totalTimeMs: localState.serverStats.totalTimeMs,
+      }
+    : null);
+  const stats = resolvePracticeSessionStats(session, overlay);
+  const hasSessionRow = Boolean(session || overlay);
+  const total = hasSessionRow
+    ? Math.max(stats.questionCount, displayAttempts.length)
+    : Math.max(displayAttempts.length, 0);
+  const correct = hasSessionRow ? stats.correctCount : localCorrect;
+  const wrong = hasSessionRow ? stats.wrongCount : localWrong;
+  const skipped = hasSessionRow ? stats.skippedCount : localSkipped;
+  const accuracy = hasSessionRow
+    ? stats.accuracy
+    : total
+      ? Math.round((correct / total) * 100)
+      : 0;
+  const xpEarned = hasSessionRow ? stats.xpEarned : 0;
+  const xpLabel = formatSessionXp(xpEarned, hasSessionRow ? stats.xpFromDb : false);
   const finishedMs =
-    snapshot?.totalTimeMs ??
-    session?.total_time_ms ??
+    stats.totalTimeMs ??
     (session?.finished_at && session?.created_at
       ? new Date(session.finished_at).getTime() - new Date(session.created_at).getTime()
       : localState?.startedAt
@@ -201,41 +202,58 @@ export default function PracticeSessionResult() {
       setDbLoading(true);
       setLoadError(null);
 
-      const { data: s, error: sErr } = await supabase
-        .from("practice_sessions")
-        .select("*")
-        .eq("id", id)
-        .eq("user_id", user.id)
-        .maybeSingle();
+      try {
+        if (ctx && academicReady) {
+          const row = await PracticeService.getSession(ctx, id);
+          if (row) {
+            setSession(row as unknown as SessionRow);
+            setSavedAt(row.saved_at ?? null);
+          }
+          const rows = await PracticeService.listSessionAttempts(ctx, id);
+          if (rows?.length) setAttempts(rows as AttemptRow[]);
+          setDbLoading(false);
+          return;
+        }
 
-      if (sErr) {
-        setLoadError(sErr.message);
+        const { data: s, error: sErr } = await supabase
+          .from("practice_sessions")
+          .select("*")
+          .eq("id", id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (sErr) {
+          setLoadError(sErr.message);
+          setDbLoading(false);
+          return;
+        }
+
+        if (s) {
+          const row = s as unknown as SessionRow;
+          setSession(row);
+          setSavedAt(row.saved_at ?? null);
+        }
+
+        const { data: rows, error: aErr } = await supabase
+          .from("question_attempts")
+          .select("*")
+          .eq("session_id", id)
+          .order("created_at");
+
+        if (aErr) {
+          setLoadError(aErr.message);
+          setDbLoading(false);
+          return;
+        }
+
+        if (rows?.length) setAttempts(rows as AttemptRow[]);
         setDbLoading(false);
-        return;
-      }
-
-      if (s) {
-        const row = s as unknown as SessionRow;
-        setSession(row);
-        setSavedAt(row.saved_at ?? null);
-      }
-
-      const { data: rows, error: aErr } = await supabase
-        .from("question_attempts")
-        .select("*")
-        .eq("session_id", id)
-        .order("created_at");
-
-      if (aErr) {
-        setLoadError(aErr.message);
+      } catch (e) {
+        setLoadError(e instanceof Error ? e.message : "Could not load session");
         setDbLoading(false);
-        return;
       }
-
-      if (rows?.length) setAttempts(rows as AttemptRow[]);
-      setDbLoading(false);
     })();
-  }, [id, user, hasLocalData]);
+  }, [id, user, hasLocalData, ctx, academicReady]);
 
   async function handleSaveSession() {
     if (!id || !ctx || !academicReady) {
@@ -382,7 +400,7 @@ export default function PracticeSessionResult() {
           </div>
           <div>
             <div className="text-xs text-muted-foreground">XP earned</div>
-            <div className="font-bold text-lg">{xpEarned}</div>
+            <div className="font-bold text-lg">{xpLabel}</div>
           </div>
         </div>
       </Card>

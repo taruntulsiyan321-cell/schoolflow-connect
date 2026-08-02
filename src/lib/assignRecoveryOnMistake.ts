@@ -6,11 +6,11 @@ export async function assignRecoveryOnMistake(opts: {
   sourceType: string;
   sourceId: string;
   accuracy?: number;
-}) {
+}): Promise<string | null> {
   try {
     const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
     const ctx = await resolveStudentServiceContext();
-    await PracticeService.assignRecovery(ctx, {
+    return await PracticeService.assignRecovery(ctx, {
       subject: opts.subject,
       chapter: opts.chapter,
       concept: opts.concept,
@@ -20,5 +20,6 @@ export async function assignRecoveryOnMistake(opts: {
     });
   } catch (e) {
     console.warn("recovery assign:", e instanceof Error ? e.message : e);
+    return null;
   }
 }

@@ -29,9 +29,14 @@ import { broadcastAcademicWrite } from "../live";
 
 function afterAttendanceWrite(
   ctx: ServiceContext,
-  meta?: { classId?: string | null; studentId?: string | null; source?: string },
+  meta?: {
+    classId?: string | null;
+    studentId?: string | null;
+    source?: string;
+    domains?: Array<"attendance" | "profile" | "xp">;
+  },
 ) {
-  broadcastAcademicWrite(ctx.schoolId, ["attendance", "profile"], {
+  broadcastAcademicWrite(ctx.schoolId, meta?.domains ?? ["attendance", "profile"], {
     classId: meta?.classId,
     studentId: meta?.studentId,
     source: meta?.source ?? "AttendanceService",
@@ -127,6 +132,10 @@ export const AttendanceService = {
       classId: input.classId,
       studentId: input.studentId,
       source: "AttendanceService.mark",
+      domains:
+        input.status === "present" || input.status === "late"
+          ? ["attendance", "profile", "xp"]
+          : ["attendance", "profile"],
     });
 
     if (input.status === "present" || input.status === "late") {
@@ -165,10 +174,51 @@ export const AttendanceService = {
       await assertTeacherMayMarkClass(ctx, classId);
     }
     const saved = await bulkUpsertAttendance(toRepoContext(ctx), rows);
+    const awardsXp = rows.some((r) => r.status === "present" || r.status === "late");
     afterAttendanceWrite(ctx, {
       classId: classIds[0] ?? null,
       source: "AttendanceService.markBulk",
+      domains: awardsXp
+        ? ["attendance", "profile", "xp"]
+        : ["attendance", "profile"],
     });
+
+    // Teacher UI saves via markBulk — award attendance XP consistently with mark().
+    const presentRows = rows.filter(
+      (r) => r.status === "present" || r.status === "late",
+    );
+    if (presentRows.length > 0) {
+      try {
+        const repo = toRepoContext(ctx);
+        const studentIds = [...new Set(presentRows.map((r) => r.studentId))];
+        const { data: stus } = await getClient(repo)
+          .from("students")
+          .select("id, user_id")
+          .in("id", studentIds)
+          .eq("school_id", schoolIdOf(repo));
+        const userByStudent = new Map(
+          (stus ?? [])
+            .filter((s) => s.user_id)
+            .map((s) => [String(s.id), String(s.user_id)] as const),
+        );
+        const { ProgressionService } = await import("./progressionService");
+        for (const r of presentRows) {
+          const uid = userByStudent.get(r.studentId);
+          if (!uid) continue;
+          await ProgressionService.awardSafe(ctx, {
+            ruleCode: "attendance.present",
+            sourceType: "attendance",
+            sourceId: `${r.studentId}:${r.date}`,
+            idempotencyKey: `attendance.present:${r.studentId}:${r.date}`,
+            meta: { status: r.status },
+            targetUserId: uid,
+          });
+        }
+      } catch {
+        /* optional until progression migration applied */
+      }
+    }
+
     return saved;
   },
 

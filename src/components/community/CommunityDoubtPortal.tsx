@@ -903,7 +903,7 @@ export function CommunityDoubtPortal({ mode = "student" }: { mode?: "student" | 
         <Card className="border-accent/20 bg-accent/5 p-4 text-sm text-muted-foreground">
           <Star className="mr-2 inline h-4 w-4 text-accent" />
           Helpful classmates earn reputation points for answers, upvotes, and accepted solutions. Teachers can verify answers so trusted explanations rise to the top.
-          <Link to="/student/classes#leaderboard" className="ml-1 font-semibold text-primary">View class rankings.</Link>
+          <Link to="/student/leaderboard" className="ml-1 font-semibold text-primary">View class rankings.</Link>
         </Card>
       )}
     </div>

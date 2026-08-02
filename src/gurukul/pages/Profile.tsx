@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
-import { GlassCard, SectionLabel, cn } from "@/gurukul/components/shared";
+import { GlassCard, SectionLabel, XPBar, cn } from "@/gurukul/components/shared";
 import { Trophy, Target, Medal, Loader2, ArrowRight } from "lucide-react";
-import { AcademicProfileService, AnalyticsService, ProgressionService } from "@/academic";
+import { AcademicProfileService, AnalyticsService, ProgressionService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
 import { getBadge, TIER_CLASS } from "@/lib/badges";
+import { EquippedBadge } from "@/components/battleground/EquippedBadge";
+import { progressionLevelProgress } from "@/academic/services/progressionMath";
 
 function formatEarnedDate(iso: string) {
   try {
@@ -19,7 +21,8 @@ function formatEarnedDate(iso: string) {
 
 /**
  * Student Profile — academic metrics from Academic Engine.
- * Milestones from live student_badges + Progression Engine.
+ * Level/XP/league/streak/reputation from ProgressionService (rpc_get_student_progression).
+ * Milestones from live student_badges + featured badges from progression snapshot.
  */
 export default function Profile({ setPage }: { setPage?: (p: PageKey) => void }) {
   const { user } = useAuth();
@@ -34,9 +37,14 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
   const [loading, setLoading] = useState(true);
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(0);
+  const [xpIntoLevel, setXpIntoLevel] = useState(0);
+  const [xpToNext, setXpToNext] = useState(0);
+  const [levelProgressPct, setLevelProgressPct] = useState(0);
   const [league, setLeague] = useState("Bronze");
   const [streak, setStreak] = useState(0);
   const [reputation, setReputation] = useState(0);
+  const [featured, setFeatured] = useState<string[]>([]);
+  const [classRank, setClassRank] = useState<number | null>(null);
 
   const recentMilestones = useMemo(
     () =>
@@ -69,6 +77,12 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           AcademicProfileService.get(ctx, studentId),
           AnalyticsService.forStudent(ctx, studentId),
           ProgressionService.getForStudent(ctx, studentId),
+          ProgressionService.leaderboard(ctx, {
+            scope: "class",
+            period: "lifetime",
+            metric: "xp",
+            limit: 200,
+          }),
         ]);
         if (cancelled) return;
         const sRes = settled[0].status === "fulfilled" ? settled[0].value : null;
@@ -76,6 +90,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         const profile = settled[1].status === "fulfilled" ? settled[1].value : null;
         const analytics = settled[2].status === "fulfilled" ? settled[2].value : null;
         const prog = settled[3].status === "fulfilled" ? settled[3].value : null;
+        const lb = settled[4].status === "fulfilled" ? settled[4].value : null;
         setName(s?.full_name ?? "Student");
         const cls = s?.classes as { name?: string; section?: string } | null;
         setClassLabel(
@@ -88,9 +103,17 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         if (prog) {
           setLevel(prog.level);
           setXp(prog.xp);
+          setXpIntoLevel(prog.xp_into_level);
+          setXpToNext(prog.xp_to_next_level);
+          setLevelProgressPct(prog.level_progress_pct);
           setLeague(prog.league?.label ?? prog.league?.code ?? "Bronze");
           setStreak(prog.study_streak);
           setReputation(prog.reputation);
+          setFeatured(Array.isArray(prog.featured_badges) ? prog.featured_badges : []);
+        }
+        if (lb && user?.id) {
+          const i = lb.rows.findIndex((r) => r.user_id === user.id);
+          setClassRank(i >= 0 ? i + 1 : null);
         }
       } catch {
         /* empty */
@@ -101,7 +124,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId]);
+  }, [ready, ctx, studentId, user?.id]);
 
   if (loading) {
     return (
@@ -135,7 +158,24 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             <div className="text-sm text-[#78788c]">{classLabel}</div>
             <div className="text-xs text-[#3b5bdb] mt-0.5">
               Level {level} · {league} · {xp} XP · Streak {streak}d · Rep {reputation}
+              {classRank != null ? ` · Rank #${classRank}` : ""}
             </div>
+            <div className="mt-3">
+              <XPBar
+                xp={xp}
+                level={level}
+                xpIntoLevel={xpIntoLevel}
+                xpToNext={xpToNext}
+                progressPct={levelProgressPct}
+              />
+            </div>
+            {featured.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {featured.map((code) => (
+                  <EquippedBadge key={code} code={code} size="sm" showLabel />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </GlassCard>
@@ -175,7 +215,9 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           )}
         </div>
         <div className="text-xs text-[#78788c]">
-          Class rankings load from AcademicProfileService on the Rankings page.
+          {classRank != null
+            ? `Your class XP rank is #${classRank} (Progression Engine).`
+            : "Class XP rankings load from ProgressionService on the Rankings page."}
         </div>
       </GlassCard>
 

@@ -50,11 +50,24 @@ export type PracticeAttemptMeta = {
   hint_used?: boolean;
 };
 
+/** Finish-RPC aggregates — prefer over client tallies on the result page. */
+export type PracticeServerStats = {
+  questionCount?: number;
+  correctCount?: number;
+  wrongCount?: number;
+  skippedCount?: number;
+  accuracy?: number;
+  xpEarned?: number;
+  totalTimeMs?: number | null;
+};
+
 export type PracticeSessionResultState = {
   subject: string;
   chapter: string;
   attempts: PracticeAttemptSnapshot[];
   startedAt?: string;
+  /** From rpc_finish_practice_session — SSOT until practice_sessions row hydrates. */
+  serverStats?: PracticeServerStats | null;
 };
 
 /** Build the optional intelligence meta blob for rpc_record_question_attempt. */

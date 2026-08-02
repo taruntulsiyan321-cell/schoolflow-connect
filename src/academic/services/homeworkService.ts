@@ -40,9 +40,9 @@ import { broadcastAcademicWrite } from "../live";
 
 function afterHomeworkWrite(
   ctx: ServiceContext,
-  meta?: { classId?: string | null; studentId?: string | null; source?: string },
+  meta?: { classId?: string | null; studentId?: string | null; source?: string; domains?: Array<"homework" | "profile" | "xp"> },
 ) {
-  broadcastAcademicWrite(ctx.schoolId, ["homework", "profile"], {
+  broadcastAcademicWrite(ctx.schoolId, meta?.domains ?? ["homework", "profile"], {
     classId: meta?.classId,
     studentId: meta?.studentId ?? ctx.studentId,
     source: meta?.source ?? "HomeworkService",
@@ -433,7 +433,11 @@ export const HomeworkService = {
       { _school_id: schoolId },
     );
     if (!rpcError) {
-      return typeof rpcData === "number" ? rpcData : Number(rpcData ?? 0);
+      const n = typeof rpcData === "number" ? rpcData : Number(rpcData ?? 0);
+      if (n > 0) {
+        afterHomeworkWrite(ctx, { source: "HomeworkService.publishDueScheduled" });
+      }
+      return n;
     }
 
     const now = new Date().toISOString();
@@ -458,6 +462,7 @@ export const HomeworkService = {
       .eq("school_id", schoolId)
       .in("id", ids);
     throwIfError(updErr, "Failed to publish due scheduled homework");
+    afterHomeworkWrite(ctx, { source: "HomeworkService.publishDueScheduled" });
     return ids.length;
   },
 
@@ -524,43 +529,57 @@ export const HomeworkService = {
       classId: hwGate.classId,
       studentId: input.studentId,
       source: "HomeworkService.submit",
+      domains: ["homework", "profile", "xp"],
     });
 
     // Progression Engine — homework submit (+ before-deadline bonus when due is set)
     try {
+      const repo = toRepoContext(ctx);
+      const client = getClient(repo);
+      const { data: stu } = await client
+        .from("students")
+        .select("user_id")
+        .eq("id", input.studentId)
+        .eq("school_id", schoolIdOf(repo))
+        .maybeSingle();
+      const targetUserId = stu?.user_id ? String(stu.user_id) : null;
+
       const { ProgressionService } = await import("./progressionService");
-      const hw = await getHomework(toRepoContext(ctx), input.homeworkId);
       await ProgressionService.awardSafe(ctx, {
         ruleCode: "homework.submit",
         sourceType: "homework_submission",
         sourceId: row.id,
         idempotencyKey: `homework.submit:${row.id}`,
         meta: { homework_id: input.homeworkId },
+        targetUserId,
       });
-      if (hw.dueDate) {
-        const due = new Date(`${hw.dueDate}T${hw.dueTime || "23:59:59"}`);
+      if (hwGate.dueDate) {
+        const due = new Date(`${hwGate.dueDate}T${hwGate.dueTime || "23:59:59"}`);
         if (!Number.isNaN(due.getTime()) && Date.now() <= due.getTime()) {
           await ProgressionService.awardSafe(ctx, {
             ruleCode: "homework.before_deadline",
             sourceType: "homework_submission",
             sourceId: row.id,
             idempotencyKey: `homework.before:${row.id}`,
+            targetUserId,
           });
         }
       }
-      const client = getClient(toRepoContext(ctx));
-      const { data: xpRow } = await client
-        .from("student_xp")
-        .select("homework_submitted_count")
-        .eq("user_id", ctx.userId)
-        .maybeSingle();
-      if (xpRow) {
-        await client
+      // Count only the first real turn-in (resubmits keep progression idempotent but must not inflate counters).
+      if (targetUserId && row.version <= 1) {
+        const { data: xpRow } = await client
           .from("student_xp")
-          .update({
-            homework_submitted_count: (Number(xpRow.homework_submitted_count) || 0) + 1,
-          })
-          .eq("user_id", ctx.userId);
+          .select("homework_submitted_count")
+          .eq("user_id", targetUserId)
+          .maybeSingle();
+        if (xpRow) {
+          await client
+            .from("student_xp")
+            .update({
+              homework_submitted_count: (Number(xpRow.homework_submitted_count) || 0) + 1,
+            })
+            .eq("user_id", targetUserId);
+        }
       }
     } catch {
       /* progression optional if migration not applied yet */

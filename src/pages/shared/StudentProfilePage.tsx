@@ -197,6 +197,9 @@ export default function StudentProfilePage() {
               xp={Number(progression?.xp) || 0}
               level={Number(progression?.level) || 1}
               size={120}
+              xpIntoLevel={Number(progression?.xp_into_level) || 0}
+              xpToNext={Number(progression?.xp_to_next_level) || 0}
+              progressPct={Number(progression?.level_progress_pct) || 0}
             />
             <div className="flex-1 w-full">
               <div className="text-xs uppercase tracking-widest opacity-80 font-semibold mb-2">

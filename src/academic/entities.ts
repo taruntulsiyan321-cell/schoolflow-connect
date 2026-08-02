@@ -38,6 +38,7 @@ export type AcademicEntityKey =
   | "student_badge"
   | "student_doubt"
   | "teacher_reply"
+  | "learning_resource"
   | "announcement"
   | "message"
   | "notification"
@@ -204,6 +205,13 @@ export const ENTITY_REGISTRY: Record<AcademicEntityKey, EntityMapping> = {
   teacher_reply: {
     key: "teacher_reply",
     table: "community_doubt_answers",
+    tenantScoped: true,
+  },
+  learning_resource: {
+    key: "learning_resource",
+    table: "learning_resources",
+    aliases: ["resources", "study_materials"],
+    notes: "Teacher/admin published notes, PDFs, videos for class library",
     tenantScoped: true,
   },
   announcement: {

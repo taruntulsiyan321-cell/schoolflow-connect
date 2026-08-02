@@ -52,12 +52,24 @@ function sessionSummary(row: {
   score: number;
   created_at: string;
   finished_at: string;
+  accuracy?: number | null;
+  wrong_count?: number | null;
+  skipped_count?: number | null;
+  total_time_ms?: number | null;
 }): PracticeSessionSummary {
   const start = new Date(row.created_at).getTime();
   const end = new Date(row.finished_at).getTime();
-  const duration_minutes = Math.max(1, Math.round((end - start) / 60000));
+  const duration_minutes =
+    typeof row.total_time_ms === "number" && row.total_time_ms > 0
+      ? Math.max(1, Math.round(row.total_time_ms / 60000))
+      : Math.max(1, Math.round((end - start) / 60000));
+  // Prefer finish-RPC accuracy column — never re-derive when present.
   const accuracy_pct =
-    row.question_count > 0 ? Math.round((100 * row.correct_count) / row.question_count) : 0;
+    typeof row.accuracy === "number"
+      ? Math.round(Number(row.accuracy))
+      : row.question_count > 0
+        ? Math.round((100 * row.correct_count) / row.question_count)
+        : 0;
   return {
     ...row,
     duration_minutes,
@@ -85,11 +97,11 @@ export function useAnalysisPageData(enabled = true) {
       const [sessionsRes, rankRes, masteryRes, classRes] = await Promise.all([
         supabase
           .from("practice_sessions")
-          .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at")
+          .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at, accuracy, wrong_count, skipped_count, total_time_ms")
           .eq("user_id", user.id)
           .not("finished_at", "is", null)
           .order("finished_at", { ascending: false })
-          .limit(12),
+          .limit(40),
         supabase.rpc("rpc_leaderboard", {
           _scope: "class",
           _category: "xp",
@@ -161,9 +173,14 @@ export function useAnalysisPageData(enabled = true) {
       const accuracy_pct =
         totalAttempts > 0 ? Math.round((100 * correct) / totalAttempts) : latest?.accuracy_pct ?? 0;
 
+      // Average pace across recent timed sessions (not only the latest).
+      const timed = sessions.filter((s) => s.question_count > 0 && s.duration_minutes > 0);
       const avg_sec_per_question =
-        latest && latest.question_count > 0
-          ? Math.round((latest.duration_minutes * 60) / latest.question_count)
+        timed.length > 0
+          ? Math.round(
+              timed.reduce((sum, s) => sum + (s.duration_minutes * 60) / s.question_count, 0) /
+                timed.length,
+            )
           : null;
 
       const current_accuracy = latest?.accuracy_pct ?? null;

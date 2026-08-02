@@ -1,19 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Trophy, Zap } from "lucide-react";
-import { AcademicProfileService } from "@/academic";
+import { ProgressionService } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/shared";
 
+type LbRow = {
+  userId: string;
+  name: string;
+  value: number;
+  level: number;
+  league: string;
+  you: boolean;
+};
+
 /**
- * Class rankings from AcademicProfileService (class roster profiles).
- * No mock leaderboard XP.
+ * Class XP rankings from ProgressionService (rpc_progression_leaderboard).
+ * No mock leaderboard XP; no client-invented ranks.
  */
 export default function Leaderboard() {
-  const { ctx, ready, studentId, classId } = useAcademicContext();
-  const [rows, setRows] = useState<
-    { studentId: string; name: string; exams: number; attendance: number; homework: number; you: boolean }[]
-  >([]);
+  const { user } = useAuth();
+  const { ctx, ready } = useAcademicContext();
+  const [rows, setRows] = useState<LbRow[]>([]);
+  const [period, setPeriod] = useState<"lifetime" | "weekly" | "monthly">("lifetime");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,31 +34,30 @@ export default function Leaderboard() {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setError(null);
       try {
-        let profiles: Awaited<ReturnType<typeof AcademicProfileService.listForClass>> = [];
-        if (classId) {
-          profiles = await AcademicProfileService.listForClass(ctx, classId, { limit: 100 });
-        }
-        const ids = profiles.map((p) => p.studentId);
-        const { data: students } = ids.length
-          ? await supabase.from("students").select("id, full_name").in("id", ids)
-          : { data: [] as { id: string; full_name: string }[] };
-        const nameById = new Map((students ?? []).map((s) => [s.id, s.full_name]));
+        const lb = await ProgressionService.leaderboard(ctx, {
+          scope: "class",
+          period,
+          metric: "xp",
+          limit: 100,
+        });
         if (cancelled) return;
         setRows(
-          profiles
-            .map((p) => ({
-              studentId: p.studentId,
-              name: nameById.get(p.studentId) ?? p.studentId.slice(0, 8),
-              exams: Math.round(p.examsAvgPct),
-              attendance: Math.round(p.attendancePct),
-              homework: Math.round(p.homeworkCompletionPct),
-              you: p.studentId === studentId,
-            }))
-            .sort((a, b) => b.exams - a.exams),
+          lb.rows.map((r) => ({
+            userId: r.user_id,
+            name: r.name || r.user_id.slice(0, 8),
+            value: Number(r.value) || 0,
+            level: Number(r.level) || 1,
+            league: r.league || "bronze",
+            you: r.user_id === user?.id,
+          })),
         );
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load rankings");
+        if (!cancelled) {
+          setRows([]);
+          setError(e instanceof Error ? e.message : "Failed to load rankings");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -57,11 +65,15 @@ export default function Leaderboard() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, classId, studentId]);
+  }, [ready, ctx, period, user?.id]);
 
   const ranked = useMemo(
     () => rows.map((r, i) => ({ ...r, rank: i + 1 })),
     [rows],
+  );
+  const maxXp = useMemo(
+    () => Math.max(1, ...ranked.map((r) => r.value)),
+    [ranked],
   );
 
   if (loading) {
@@ -78,17 +90,41 @@ export default function Leaderboard() {
 
   return (
     <div className="space-y-5">
+      <div className="flex gap-2">
+        {(
+          [
+            { key: "lifetime" as const, label: "All time" },
+            { key: "weekly" as const, label: "This week" },
+            { key: "monthly" as const, label: "This month" },
+          ]
+        ).map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => setPeriod(p.key)}
+            className={cn(
+              "px-3 py-1.5 rounded-xl text-[11px] font-semibold border transition-colors",
+              period === p.key
+                ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
+                : "border-white/7 text-[#78788c] hover:text-white",
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <GlassCard className="p-5">
-        <SectionLabel>Class rankings · AcademicProfileService</SectionLabel>
+        <SectionLabel>Class XP · Progression Engine</SectionLabel>
         {ranked.length === 0 && (
           <div className="text-xs text-[#46465a] py-8 text-center">
-            No class academic profiles available yet. Rankings appear once profiles sync.
+            No class XP rankings yet. Earn XP from practice, homework, and battles to appear here.
           </div>
         )}
         <div className="space-y-2">
           {ranked.map((p) => (
             <div
-              key={p.studentId}
+              key={p.userId}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-xl border transition-colors",
                 p.you ? "border-blue-500/30 bg-blue-500/8" : "border-white/7 hover:border-white/12",
@@ -118,16 +154,17 @@ export default function Leaderboard() {
                   )}
                 </div>
                 <div className="flex items-center gap-3 mt-1">
-                  <ProgressBar value={p.exams} color="#6882e8" height="h-1" />
-                  <span className="text-[11px] text-[#78788c] shrink-0">{p.exams}% exams</span>
+                  <ProgressBar value={Math.round((p.value / maxXp) * 100)} color="#6882e8" height="h-1" />
+                  <span className="text-[11px] text-[#78788c] shrink-0 capitalize">
+                    Lv.{p.level} · {p.league}
+                  </span>
                 </div>
               </div>
               <div className="text-right shrink-0 text-[11px] text-[#78788c]">
                 <div className="flex items-center gap-1 justify-end text-white font-bold">
                   <Zap className="w-3 h-3 text-amber-400" />
-                  {p.attendance}% att
+                  {p.value} XP
                 </div>
-                <div className="mt-0.5">{p.homework}% HW</div>
               </div>
             </div>
           ))}

@@ -1,6 +1,6 @@
 import { Navigate } from "react-router-dom";
 
-/** Leaderboard lives inside Classes — redirect legacy URL. */
+/** Leaderboard lives under Gurukul Class → Rankings. */
 export default function LeaderboardPage() {
-  return <Navigate to="/student/classes#leaderboard" replace />;
+  return <Navigate to="/student/leaderboard" replace />;
 }

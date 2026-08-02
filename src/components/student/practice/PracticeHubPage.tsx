@@ -29,6 +29,7 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useAcademicContext, PracticeService } from "@/academic";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import { resolvePracticeSessionStats } from "@/lib/practiceSessionStats";
 
 /* Mode chrome only — not academic stats */
 const PRACTICE_MODES = [
@@ -156,22 +157,15 @@ export default function PracticeHubPage() {
         if (cancelled) return;
         setRecent(
           (rows ?? []).map((r) => {
-            const qs = r.question_count || 0;
-            const correct = r.correct_count || 0;
-            const accuracy =
-              typeof r.accuracy === "number"
-                ? Math.round(Number(r.accuracy))
-                : qs
-                  ? Math.round((100 * correct) / qs)
-                  : 0;
+            const stats = resolvePracticeSessionStats(r);
             return {
               id: r.id,
               topic: [displaySubject(r.subject), r.chapter ? displayChapter(r.chapter) : null]
                 .filter(Boolean)
                 .join(" – "),
-              accuracy,
-              correct,
-              incorrect: Math.max(0, qs - correct),
+              accuracy: stats.accuracy,
+              correct: stats.correctCount,
+              incorrect: stats.wrongCount,
               time: formatRelativeSession(r.finished_at),
             };
           }),
@@ -222,7 +216,7 @@ export default function PracticeHubPage() {
     const fromSnap = (snapshot?.weak_topics ?? []).slice(0, 4).map((t) => ({
       topic: t.topic || t.chapter || "Topic",
       subject: t.subject,
-      accuracy: Math.round(t.accuracy ?? 0),
+      mastery: Math.round(t.accuracy ?? 0),
       questions: 0,
     }));
     if (fromSnap.length) return fromSnap;
@@ -233,7 +227,7 @@ export default function PracticeHubPage() {
       .map((m) => ({
         topic: m.concept || m.chapter || "Concept",
         subject: m.subject,
-        accuracy: Math.round(m.mastery_score ?? 0),
+        mastery: Math.round(m.mastery_score ?? 0),
         questions: m.total_attempts ?? 0,
       }));
   }, [snapshot, mastery]);
@@ -242,7 +236,7 @@ export default function PracticeHubPage() {
     const fromSnap = (snapshot?.strong_topics ?? []).slice(0, 4).map((t) => ({
       topic: t.topic || t.chapter || "Topic",
       subject: t.subject,
-      accuracy: Math.round(t.accuracy ?? 0),
+      mastery: Math.round(t.accuracy ?? 0),
       questions: 0,
     }));
     if (fromSnap.length) return fromSnap;
@@ -253,7 +247,7 @@ export default function PracticeHubPage() {
       .map((m) => ({
         topic: m.concept || m.chapter || "Concept",
         subject: m.subject,
-        accuracy: Math.round(m.mastery_score ?? 0),
+        mastery: Math.round(m.mastery_score ?? 0),
         questions: m.total_attempts ?? 0,
       }));
   }, [snapshot, mastery]);
@@ -546,7 +540,7 @@ export default function PracticeHubPage() {
                   Focus on {displayTopic(focusTopic.topic)} today
                 </h3>
                 <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-xl">
-                  Your accuracy here is {focusTopic.accuracy}%. A short session on this topic can strengthen{" "}
+                  Your mastery here is {focusTopic.mastery}%. A short session on this topic can strengthen{" "}
                   {displaySubject(focusTopic.subject)}.
                 </p>
                 <Button
@@ -641,14 +635,14 @@ function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }
 function TopicCard({
   topic,
   subject,
-  accuracy,
+  mastery,
   questions,
   variant,
   onPractice,
 }: {
   topic: string;
   subject: string;
-  accuracy: number;
+  mastery: number;
   questions: number;
   variant: "weak" | "strong";
   onPractice: () => void;
@@ -666,7 +660,7 @@ function TopicCard({
         <p className="text-sm text-muted-foreground mt-0.5">{displaySubject(subject)}</p>
         <div className="flex flex-wrap gap-3 mt-2 text-xs">
           <span className={cn("font-semibold tabular-nums", weak ? "text-orange-700" : "text-emerald-700")}>
-            {accuracy}% accuracy
+            {mastery}% mastery
           </span>
           {questions > 0 && (
             <span className="text-muted-foreground">{questions} attempts tracked</span>

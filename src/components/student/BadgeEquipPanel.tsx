@@ -1,11 +1,17 @@
+import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BadgeCard } from "@/components/battleground/bg-bits";
 import { BADGES, getBadge, type BadgeTier } from "@/lib/badges";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
+import { ProgressionService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/lib/utils";
-import { Award } from "lucide-react";
+import { Award, Star } from "lucide-react";
+import { toast } from "sonner";
+
+const MAX_FEATURED = 5;
 
 type Props = {
   userId: string | undefined;
@@ -36,9 +42,46 @@ function EquippedHeader({
 }
 
 export function BadgeEquipPanel({ userId, compact }: Props) {
+  const { ctx, ready } = useAcademicContext();
   const { earned, equipped, loading, saving, equip } = useStudentBadges(userId);
+  const [featured, setFeatured] = useState<string[]>([]);
+  const [featSaving, setFeatSaving] = useState(false);
   const earnedSet = new Set(earned.map((b) => b.badge_code));
   const equippedMeta = getBadge(equipped);
+
+  const loadFeatured = useCallback(async () => {
+    if (!userId || !ready || !ctx) return;
+    try {
+      const snap = await ProgressionService.getSnapshot(ctx, userId);
+      setFeatured(Array.isArray(snap.featured_badges) ? snap.featured_badges : []);
+    } catch {
+      setFeatured([]);
+    }
+  }, [userId, ready, ctx]);
+
+  useEffect(() => {
+    void loadFeatured();
+  }, [loadFeatured]);
+
+  const toggleFeatured = async (code: string) => {
+    if (!ctx || !ready) return;
+    if (!featured.includes(code) && featured.length >= MAX_FEATURED) {
+      toast.error(`At most ${MAX_FEATURED} featured badges`);
+      return;
+    }
+    const next = featured.includes(code)
+      ? featured.filter((c) => c !== code)
+      : [...featured, code];
+    setFeatSaving(true);
+    try {
+      await ProgressionService.setFeaturedBadges(ctx, next);
+      setFeatured(next);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not update featured badges");
+    } finally {
+      setFeatSaving(false);
+    }
+  };
 
   if (loading) {
     return <p className="text-sm text-muted-foreground py-4 text-center">Loading badges…</p>;
@@ -53,11 +96,19 @@ export function BadgeEquipPanel({ userId, compact }: Props) {
             Achievements & public badge
           </h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {earned.length} unlocked · equip one for your public identity
+            {earned.length} unlocked · equip one · feature up to {MAX_FEATURED}
           </p>
         </div>
         <EquippedHeader equipped={equipped} equippedMeta={equippedMeta} />
       </div>
+
+      {featured.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {featured.map((code) => (
+            <EquippedBadge key={code} code={code} size="sm" showLabel />
+          ))}
+        </div>
+      )}
 
       {earned.length === 0 ? (
         <p className="text-sm text-muted-foreground">
@@ -66,30 +117,44 @@ export function BadgeEquipPanel({ userId, compact }: Props) {
       ) : (
         <>
           <p className="text-xs text-muted-foreground mb-3">
-            Tap an earned badge to equip it publicly (one at a time). Visible in class, battleground, and leaderboards.
+            Tap an earned badge to equip it publicly. Use Feature to showcase up to {MAX_FEATURED} on your profile.
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {Object.values(BADGES).map((b) => {
               if (!earnedSet.has(b.code)) return null;
               const row = earned.find((e) => e.badge_code === b.code);
               const isEquipped = equipped === b.code;
+              const isFeatured = featured.includes(b.code);
               const tier = (row?.tier ?? b.tier) as BadgeTier;
               return (
-                <button
-                  key={b.code}
-                  type="button"
-                  disabled={saving}
-                  onClick={() => equip(isEquipped ? null : b.code)}
-                  className={cn(
-                    "text-left rounded-lg transition-all ring-2 ring-transparent",
-                    isEquipped && "ring-primary shadow-elevated",
-                  )}
-                >
-                  <BadgeCard code={b.code} tier={tier} earned />
-                  {isEquipped && (
-                    <div className="text-[10px] text-center font-semibold text-primary -mt-2 pb-2">Equipped</div>
-                  )}
-                </button>
+                <div key={b.code} className="relative">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => equip(isEquipped ? null : b.code)}
+                    className={cn(
+                      "text-left rounded-lg transition-all ring-2 ring-transparent w-full",
+                      isEquipped && "ring-primary shadow-elevated",
+                    )}
+                  >
+                    <BadgeCard code={b.code} tier={tier} earned />
+                    {isEquipped && (
+                      <div className="text-[10px] text-center font-semibold text-primary -mt-2 pb-2">Equipped</div>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={featSaving}
+                    onClick={() => void toggleFeatured(b.code)}
+                    className={cn(
+                      "absolute top-1 right-1 p-1 rounded-md border bg-background/90",
+                      isFeatured ? "border-primary text-primary" : "border-border text-muted-foreground",
+                    )}
+                    title={isFeatured ? "Remove from featured" : "Add to featured"}
+                  >
+                    <Star className={cn("w-3 h-3", isFeatured && "fill-current")} />
+                  </button>
+                </div>
               );
             })}
           </div>

@@ -599,7 +599,7 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
         </div>
         <div className="mt-4 flex justify-center">
           <Button variant="outline" size="sm" className="rounded-full" asChild>
-            <Link to="/student/classes#leaderboard">
+            <Link to="/student/leaderboard">
               <Award className="w-3.5 h-3.5 mr-1.5" />
               View full leaderboard
             </Link>

@@ -30,7 +30,7 @@ export function AnalysisClassStanding({
           <FlowSectionTitle>Class standing</FlowSectionTitle>
         )}
         <Link
-          to="/student/classes#leaderboard"
+          to="/student/leaderboard"
           className={cn(
             "text-xs font-medium hover:underline",
             isWisdom ? "text-[var(--wa-primary)]" : "text-primary",

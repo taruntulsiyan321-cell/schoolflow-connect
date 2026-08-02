@@ -22,6 +22,7 @@ import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
 import { useAcademicContext, BattleExperienceService, resolveStudentServiceContext, type ServiceContext } from "@/academic";
 import { StudentAnalyticsSkeleton, StudentDashboardSkeleton, StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
+import { displaySubject, displayTopic } from "@/lib/academicDisplay";
 
 const BG_BASE = "/student/battleground";
 
@@ -543,7 +544,7 @@ export function BattleRoom() {
           )}>
             {readyCount === 0 ? "FIGHT!" : readyCount}
           </div>
-          <p className="text-sm text-muted-foreground mt-4">{battle.subject} · {questions.length} questions</p>
+          <p className="text-sm text-muted-foreground mt-4">{displaySubject(battle.subject) || "—"} · {questions.length} questions</p>
         </div>
       </div>
     );
@@ -568,7 +569,7 @@ export function BattleRoom() {
       <Progress value={pct} className={cn("h-2", timeLeft <= 5 && "[&>div]:bg-destructive")} />
 
       <Card className="p-6 border border-border/70 bg-card">
-        <div className="section-label">{battle.subject}</div>
+        <div className="section-label">{displaySubject(battle.subject) || "—"}</div>
         <MathText block className="text-lg md:text-xl font-semibold mt-2 leading-snug text-foreground" text={currentQ.question} />
       </Card>
 
@@ -626,14 +627,32 @@ function Achievements() {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
-    Promise.all([
-      supabase.from("student_badges").select("*").eq("user_id", user.id),
-      supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle(),
-    ]).then(([badgesRes, xpRes]) => {
-      setBadges(badgesRes.data ?? []);
-      if (xpRes.data) setXp(xpRes.data);
-      setLoading(false);
-    });
+    (async () => {
+      try {
+        const { ProgressionService, BadgeService, resolveStudentServiceContext } = await import("@/academic");
+        const ctx = await resolveStudentServiceContext();
+        const [snap, badgeList] = await Promise.all([
+          ProgressionService.getSnapshot(ctx, user.id),
+          BadgeService.listEarned(ctx, user.id),
+        ]);
+        setXp({
+          xp: snap.xp,
+          level: snap.level,
+          current_streak: snap.study_streak,
+          total_battles: snap.battleground.total_battles,
+          wins: snap.battleground.wins,
+          xp_into_level: snap.xp_into_level,
+          xp_to_next_level: snap.xp_to_next_level,
+          level_progress_pct: snap.level_progress_pct,
+        });
+        setBadges(badgeList);
+      } catch {
+        setXp({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
+        setBadges([]);
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [user]);
 
   const earnedCodes = new Set(badges.map((b) => b.badge_code));
@@ -647,7 +666,14 @@ function Achievements() {
   return (
     <div className="space-y-5 animate-rise">
       <Card className="p-5 hero-panel flex items-center gap-5 flex-wrap">
-        <XPRing xp={xp.xp} level={xp.level} size={100} />
+        <XPRing
+          xp={xp.xp}
+          level={xp.level}
+          size={100}
+          xpIntoLevel={xp.xp_into_level}
+          xpToNext={xp.xp_to_next_level}
+          progressPct={xp.level_progress_pct}
+        />
         <div className="flex-1 min-w-[220px]">
           <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">Achievements</div>
           <h1 className="text-2xl font-semibold mt-1 text-white">{earnedCount} / {totalBadges} badges</h1>
@@ -699,8 +725,24 @@ function MyStats() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data: x } = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
-      if (x) setXp(x);
+      try {
+        const { ProgressionService, resolveStudentServiceContext } = await import("@/academic");
+        const ctx = await resolveStudentServiceContext();
+        const snap = await ProgressionService.getSnapshot(ctx, user.id);
+        setXp({
+          xp: snap.xp,
+          level: snap.level,
+          current_streak: snap.study_streak,
+          total_battles: snap.battleground.total_battles,
+          wins: snap.battleground.wins,
+          best_win_streak: snap.battleground.best_win_streak,
+          xp_into_level: snap.xp_into_level,
+          xp_to_next_level: snap.xp_to_next_level,
+          level_progress_pct: snap.level_progress_pct,
+        });
+      } catch {
+        setXp({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
+      }
       const { data: parts, error: histErr } = await supabase
         .from("battle_participants")
         .select("*, battles(title,subject,topic,starts_at)")
@@ -793,7 +835,13 @@ function MyStats() {
   return (
     <div className="space-y-5 animate-rise">
       <Card className="p-5 hero-panel flex flex-wrap items-center gap-5">
-        <XPRing xp={xp.xp} level={xp.level} />
+        <XPRing
+          xp={xp.xp}
+          level={xp.level}
+          xpIntoLevel={xp.xp_into_level}
+          xpToNext={xp.xp_to_next_level}
+          progressPct={xp.level_progress_pct}
+        />
         <div className="flex-1 min-w-[200px]">
           <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">Performance</div>
           <h1 className="text-2xl font-semibold mt-1 text-white">Your battle profile</h1>
@@ -836,14 +884,14 @@ function MyStats() {
           {strongest && (
             <Card className="p-4 border-l-4 border-accent">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Strongest</div>
-              <div className="text-xl font-bold mt-1 text-accent">{strongest.subject}</div>
+              <div className="text-xl font-bold mt-1 text-accent">{displaySubject(strongest.subject)}</div>
               <div className="text-sm text-muted-foreground">{strongest.overall}% overall accuracy</div>
             </Card>
           )}
           {weakest && weakest.subject !== strongest?.subject && (
             <Card className="p-4 border-l-4 border-warning">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Needs work</div>
-              <div className="text-xl font-bold mt-1 text-warning">{weakest.subject}</div>
+              <div className="text-xl font-bold mt-1 text-warning">{displaySubject(weakest.subject)}</div>
               <div className="text-sm text-muted-foreground">{weakest.overall}% — focus here</div>
             </Card>
           )}
@@ -859,7 +907,7 @@ function MyStats() {
             {subjectStats.map((s) => (
               <div key={s.subject}>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium">{s.subject}</span>
+                  <span className="font-medium">{displaySubject(s.subject)}</span>
                   <span className="text-muted-foreground">{s.overall}%</span>
                 </div>
                 <div className="h-2.5 rounded-full bg-muted overflow-hidden">
@@ -885,7 +933,7 @@ function MyStats() {
               >
                 <div>
                   <div className="font-semibold text-sm">{h.battles?.title}</div>
-                  <div className="text-xs text-muted-foreground">{h.battles?.subject}{h.battles?.topic ? ` · ${h.battles.topic}` : ""}</div>
+                  <div className="text-xs text-muted-foreground">{displaySubject(h.battles?.subject)}{h.battles?.topic ? ` · ${displayTopic(h.battles.topic)}` : ""}</div>
                 </div>
                 <div className="text-right">
                   <div className="font-bold tabular-nums">{h.score} pts</div>

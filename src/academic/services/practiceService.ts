@@ -273,16 +273,41 @@ export const PracticeService = {
       dateFrom?: string | null;
       dateTo?: string | null;
       search?: string | null;
+      sort?:
+        | "finished_at_desc"
+        | "accuracy_desc"
+        | "accuracy_asc"
+        | "xp_desc"
+        | "xp_asc"
+        | null;
     },
   ) {
     assertCanConsume(ctx, "practice");
-    let q = getClient(toRepoContext(ctx))
+    const client = getClient(toRepoContext(ctx));
+    const limit = opts?.limit ?? 100;
+
+    // Prefer server RPC (filter/search/sort beyond client window).
+    const rpc = await client.rpc("rpc_list_practice_history", {
+      _limit: limit,
+      _subject: opts?.subject?.trim() || null,
+      _practice_mode: opts?.practiceMode?.trim() || null,
+      _date_from: opts?.dateFrom || null,
+      _date_to: opts?.dateTo || null,
+      _search: opts?.search?.trim() || null,
+      _sort: opts?.sort || "finished_at_desc",
+    } as never);
+    if (!rpc.error && Array.isArray(rpc.data)) {
+      return rpc.data as PracticeSessionRow[];
+    }
+
+    // Fallback when RPC not yet applied: filtered select + client search.
+    let q = client
       .from("practice_sessions")
       .select(PRACTICE_SESSION_LIST_SELECT)
       .eq("user_id", ctx.userId)
       .not("finished_at", "is", null)
       .order("finished_at", { ascending: false })
-      .limit(opts?.limit ?? 50);
+      .limit(limit);
 
     if (opts?.subject?.trim()) {
       q = q.ilike("subject", opts.subject.trim());
@@ -303,12 +328,7 @@ export const PracticeService = {
     const search = opts?.search?.trim().toLowerCase();
     if (search) {
       rows = rows.filter((r) => {
-        const hay = [
-          r.subject,
-          r.chapter,
-          r.practice_mode,
-          r.difficulty,
-        ]
+        const hay = [r.subject, r.chapter, r.practice_mode, r.difficulty]
           .filter(Boolean)
           .join(" ")
           .toLowerCase();
@@ -328,6 +348,20 @@ export const PracticeService = {
       .order("saved_at", { ascending: false })
       .limit(limit);
     throwIfError(error, "Failed to load saved practice sessions");
+    return (data ?? []) as PracticeSessionRow[];
+  },
+
+  /** Unfinished sessions the student can resume (live attempts already on the row). */
+  async listIncompleteSessions(ctx: ServiceContext, limit = 8) {
+    assertCanConsume(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("practice_sessions")
+      .select(PRACTICE_SESSION_LIST_SELECT)
+      .eq("user_id", ctx.userId)
+      .is("finished_at", null)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    throwIfError(error, "Failed to load incomplete practice sessions");
     return (data ?? []) as PracticeSessionRow[];
   },
 
@@ -670,6 +704,25 @@ export const PracticeService = {
       .limit(limit);
     throwIfError(error, "Failed to load incorrect questions");
 
+    const bankIds = Array.from(
+      new Set(
+        (data ?? [])
+          .map((r) => (r as { question_id?: string | null }).question_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const difficultyByBank = new Map<string, string>();
+    if (bankIds.length > 0) {
+      const { data: bankRows } = await client
+        .from("question_bank")
+        .select("id, difficulty")
+        .in("id", bankIds);
+      for (const b of bankRows ?? []) {
+        const row = b as { id: string; difficulty: string | null };
+        if (row.difficulty) difficultyByBank.set(row.id, row.difficulty);
+      }
+    }
+
     for (const row of data ?? []) {
       const r = row as {
         id: string;
@@ -693,7 +746,7 @@ export const PracticeService = {
         id: r.question_id || r.id,
         subject: r.subject || "General",
         chapter: r.chapter,
-        difficulty: "medium",
+        difficulty: (r.question_id && difficultyByBank.get(r.question_id)) || null,
         question: r.question_text,
         options: r.options,
         correct_index: correctIndex,
@@ -873,6 +926,8 @@ export const PracticeService = {
       limit?: number;
       pyqOnly?: boolean;
       ids?: string[];
+      /** Skip these bank ids (session resume). */
+      excludeIds?: string[];
       /** Match any of these chapter/concept/topic strings (weak-area mode). */
       weakTargets?: Array<{ subject?: string; chapter?: string | null; concept?: string }>;
     } = {},
@@ -946,6 +1001,11 @@ export const PracticeService = {
 
     // Senior stream allowlists (commerce / science 11–12) — covers null-stream legacy rows.
     rows = rows.filter((r) => isSubjectAllowedForScope(r.subject, scope.stream, classLevel));
+
+    if (opts.excludeIds && opts.excludeIds.length > 0) {
+      const skip = new Set(opts.excludeIds);
+      rows = rows.filter((r) => !skip.has(r.id));
+    }
 
     if (opts.chapter) {
       rows = rows.filter((r) => academicLabelMatches(r.chapter, opts.chapter));
@@ -1029,7 +1089,7 @@ export const PracticeService = {
     return data;
   },
 
-  /** Queue recovery work when a concept is weak (idempotent per concept). */
+  /** Queue recovery work when a concept is weak (idempotent per concept). Returns assignment id when available. */
   async assignRecovery(
     ctx: ServiceContext,
     args: {
@@ -1040,9 +1100,12 @@ export const PracticeService = {
       sourceId: string;
       accuracy?: number;
     },
-  ): Promise<void> {
+  ): Promise<string | null> {
     assertCanOwn(ctx, "practice");
-    const { error } = await getClient(toRepoContext(ctx)).rpc(
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const sourceId = uuidRe.test(args.sourceId) ? args.sourceId : null;
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
       "rpc_assign_concept_recovery",
       {
         _subject: args.subject,
@@ -1051,16 +1114,58 @@ export const PracticeService = {
         _subconcept: null,
         _accuracy: args.accuracy ?? 35,
         _source_type: args.sourceType,
-        _source_id: args.sourceId,
+        _source_id: sourceId,
       } as never,
     );
     if (error) {
       console.warn("recovery assign:", error.message);
-      return;
+      return null;
     }
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {
       studentId: ctx.studentId,
       source: "PracticeService.assignRecovery",
+    });
+    return typeof data === "string" ? data : data != null ? String(data) : null;
+  },
+
+  /** Mark a recovery assignment complete (AI/template sessions without bank question UUIDs). */
+  async completeRecoveryAssignment(
+    ctx: ServiceContext,
+    args: {
+      assignmentId: string;
+      questionsCompleted?: number;
+      questionsCorrect?: number;
+    },
+  ): Promise<void> {
+    assertCanOwn(ctx, "practice_attempt");
+    const { error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_complete_recovery_assignment",
+      {
+        _assignment_id: args.assignmentId,
+        _questions_completed: args.questionsCompleted ?? null,
+        _questions_correct: args.questionsCorrect ?? null,
+      } as never,
+    );
+    throwIfError(error, "Failed to complete recovery assignment");
+    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
+      studentId: ctx.studentId,
+      source: "PracticeService.completeRecoveryAssignment",
+    });
+  },
+
+  /** Mark student mistakes mastered after successful retry practice. */
+  async markMistakesMastered(ctx: ServiceContext, mistakeIds: string[]): Promise<void> {
+    assertCanOwn(ctx, "practice");
+    if (!mistakeIds.length) return;
+    const { error } = await getClient(toRepoContext(ctx))
+      .from("student_mistakes")
+      .update({ mastered: true })
+      .eq("user_id", ctx.userId)
+      .in("id", mistakeIds);
+    throwIfError(error, "Failed to mark mistakes mastered");
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      studentId: ctx.studentId,
+      source: "PracticeService.markMistakesMastered",
     });
   },
 

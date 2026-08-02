@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { TimetableService, useAcademicLive } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toast } from "@/hooks/use-toast";
 import { GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { Clock, MapPin, User, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 
@@ -38,13 +39,6 @@ interface DaySchedule {
   periods: PeriodRow[];
 }
 
-function normalizeTimetableGrid(grid: unknown): Record<string, string> {
-  if (!grid || typeof grid !== "object" || Array.isArray(grid)) return {};
-  return Object.fromEntries(
-    Object.entries(grid as Record<string, unknown>).map(([key, value]) => [key, String(value ?? "")]),
-  );
-}
-
 function gridToTimetable(grid: Record<string, string>): DaySchedule[] {
   return DAY_MAP.map(({ short, full }) => ({
     day: full,
@@ -64,8 +58,13 @@ function gridToTimetable(grid: Record<string, string>): DaySchedule[] {
   }));
 }
 
+/**
+ * Student Timetable — TimetableService (class_timetables) only.
+ * No invented periods / teachers.
+ */
 export default function Timetable() {
-  const { user } = useAuth();
+  const { ctx, ready, classId } = useAcademicContext();
+  const liveVersion = useAcademicLive("profile");
   const [dayIdx, setDayIdx] = useState(TODAY_IDX < 0 ? 0 : TODAY_IDX);
   const [timetable, setTimetable] = useState<DaySchedule[]>([]);
   const [classLabel, setClassLabel] = useState("");
@@ -73,7 +72,7 @@ export default function Timetable() {
   const [hasTimetable, setHasTimetable] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (!ready || !ctx) {
       setLoading(false);
       return;
     }
@@ -81,58 +80,27 @@ export default function Timetable() {
     (async () => {
       setLoading(true);
       try {
-        const { data: s, error: studentErr } = await supabase
-          .from("students")
-          .select("class_id, classes(name, section)")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
+        const snap = await TimetableService.forClass(ctx, classId);
         if (cancelled) return;
-
-        if (studentErr) {
+        if (!snap) {
           setClassLabel("");
           setTimetable([]);
           setHasTimetable(false);
-          setLoading(false);
           return;
         }
-
-        if (s?.classes) {
-          const raw = s.classes as { name?: string; section?: string } | { name?: string; section?: string }[];
-          const cls = Array.isArray(raw) ? raw[0] : raw;
-          const name = cls?.name ?? "";
-          const section = cls?.section ?? "";
-          setClassLabel(section ? `${name} — Section ${section}` : name);
-        } else {
-          setClassLabel("");
-        }
-
-        if (!s?.class_id) {
-          setTimetable([]);
-          setHasTimetable(false);
-          return;
-        }
-
-        const { data: tt, error: ttErr } = await supabase
-          .from("class_timetables")
-          .select("grid")
-          .eq("class_id", s.class_id)
-          .maybeSingle();
-
+        setClassLabel(snap.classLabel);
+        setHasTimetable(snap.hasData);
+        setTimetable(snap.hasData ? gridToTimetable(snap.grid) : []);
+      } catch (e) {
         if (cancelled) return;
-
-        if (ttErr) {
-          setTimetable([]);
-          setHasTimetable(false);
-          return;
-        }
-
-        if (cancelled) return;
-
-        const grid = normalizeTimetableGrid(tt?.grid);
-        const populated = Object.values(grid).some((v) => v.trim() !== "");
-        setHasTimetable(populated);
-        setTimetable(populated ? gridToTimetable(grid) : []);
+        setClassLabel("");
+        setTimetable([]);
+        setHasTimetable(false);
+        toast({
+          title: "Could not load timetable",
+          description: e instanceof Error ? e.message : "Unknown error",
+          variant: "destructive",
+        });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -140,7 +108,7 @@ export default function Timetable() {
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [ready, ctx, classId, liveVersion]);
 
   const day = timetable[dayIdx];
   const periods = day?.periods ?? [];

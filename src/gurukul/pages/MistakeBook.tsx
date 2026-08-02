@@ -40,6 +40,8 @@ type MistakeRow = {
   times_wrong: number;
   explanation: string | null;
   mastered: boolean;
+  question_id?: string | null;
+  difficulty?: string | null;
 };
 
 function parseOptions(raw: unknown): string[] {
@@ -77,6 +79,12 @@ function sourceLabel(source: string): string {
   return labels[source] ?? source.charAt(0).toUpperCase() + source.slice(1);
 }
 
+function parseDifficulty(raw: string | null | undefined): "easy" | "medium" | "hard" {
+  const d = (raw ?? "").toLowerCase();
+  if (d === "easy" || d === "hard" || d === "medium") return d;
+  return "medium";
+}
+
 function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
   const options = parseOptions(row.options);
   return {
@@ -88,7 +96,7 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     subject: row.subject,
     chapter: displayChapter(row.chapter) || "—",
     topic: displayTopic(row.concept ?? row.topic) || "—",
-    difficulty: "medium",
+    difficulty: parseDifficulty(row.difficulty),
     source: row.source,
     sourceLabel: sourceLabel(row.source),
     date: formatMistakeDate(row.last_wrong_at),
@@ -391,7 +399,27 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         setLoadError(error.message);
         setRows([]);
       } else {
-        setRows((data ?? []) as MistakeRow[]);
+        const base = (data ?? []) as MistakeRow[];
+        const bankIds = Array.from(
+          new Set(base.map((r) => r.question_id).filter((id): id is string => Boolean(id))),
+        );
+        const difficultyByBank = new Map<string, string>();
+        if (bankIds.length > 0) {
+          const { data: bankRows } = await supabase
+            .from("question_bank")
+            .select("id, difficulty")
+            .in("id", bankIds);
+          for (const b of bankRows ?? []) {
+            const row = b as { id: string; difficulty: string | null };
+            if (row.difficulty) difficultyByBank.set(row.id, row.difficulty);
+          }
+        }
+        setRows(
+          base.map((r) => ({
+            ...r,
+            difficulty: (r.question_id && difficultyByBank.get(r.question_id)) || r.difficulty || null,
+          })),
+        );
       }
       setLoading(false);
     })();

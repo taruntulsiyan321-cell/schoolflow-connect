@@ -1,5 +1,13 @@
 // Pure helpers for the Student Battleground — leagues, ratings, motivation
 // copy and battle status labels. No network calls, no new services.
+// League thresholds SSOT: academic/services/progressionMath (mirrors SQL).
+
+import {
+  PROGRESSION_LEAGUES,
+  progressionLeagueFromCodeOrXp,
+  progressionLeagueFromXp,
+  progressionXpToNextLeague,
+} from "@/academic/services/progressionMath";
 
 export type League = {
   name: string;
@@ -8,49 +16,48 @@ export type League = {
   minXp: number;
 };
 
-export const LEAGUES: League[] = [
-  { name: "Bronze", tier: 1, colorClass: "text-tier-bronze", minXp: 0 },
-  { name: "Silver", tier: 2, colorClass: "text-tier-silver", minXp: 300 },
-  { name: "Gold", tier: 3, colorClass: "text-tier-gold", minXp: 800 },
-  { name: "Platinum", tier: 4, colorClass: "text-primary", minXp: 1800 },
-  { name: "Diamond", tier: 5, colorClass: "text-accent", minXp: 3500 },
-  { name: "Master", tier: 6, colorClass: "text-warning", minXp: 6000 },
-  { name: "Champion", tier: 7, colorClass: "text-warning", minXp: 10000 },
-  { name: "Legend", tier: 8, colorClass: "text-destructive", minXp: 16000 },
-  { name: "Titan", tier: 9, colorClass: "text-primary", minXp: 25000 },
-  { name: "Nova", tier: 10, colorClass: "text-accent", minXp: 40000 },
-];
+const COLOR_BY_CODE: Record<string, string> = {
+  bronze: "text-tier-bronze",
+  silver: "text-tier-silver",
+  gold: "text-tier-gold",
+  platinum: "text-primary",
+  diamond: "text-accent",
+  master: "text-warning",
+  champion: "text-warning",
+  legend: "text-destructive",
+  titan: "text-primary",
+  nova: "text-accent",
+};
 
-/** Prefer backend league_code when present; else derive from XP thresholds. */
-export function leagueFromCodeOrXp(leagueCode: string | null | undefined, xp: number): League {
-  if (leagueCode) {
-    const found = LEAGUES.find((l) => l.name.toLowerCase() === leagueCode.toLowerCase()
-      || l.name.toLowerCase().replace(/\s+/g, "_") === leagueCode.toLowerCase());
-    // codes are bronze/silver/... matching name lowercased
-    const byCode = LEAGUES.find((l) => l.name.toLowerCase() === leagueCode.toLowerCase());
-    if (byCode) return byCode;
-    if (found) return found;
-  }
-  return leagueFromXp(xp);
+function toUiLeague(def: { code: string; label: string; tier: number; minXp: number }): League {
+  return {
+    name: def.label,
+    tier: def.tier,
+    colorClass: COLOR_BY_CODE[def.code] ?? "text-tier-bronze",
+    minXp: def.minXp,
+  };
 }
 
-/** Which league a student is in based on lifetime XP. */
+/** UI leagues — thresholds from Progression Engine seed. */
+export const LEAGUES: League[] = PROGRESSION_LEAGUES.map(toUiLeague);
+
+/**
+ * Prefer engine league_code (includes demotion hysteresis) over XP-only derivation.
+ */
+export function leagueFromCodeOrXp(leagueCode: string | null | undefined, xp: number): League {
+  return toUiLeague(progressionLeagueFromCodeOrXp(leagueCode, xp));
+}
+
+/** Fallback when league_code unavailable — matches SQL progression_league_for_xp. */
 export function leagueFromXp(xp: number): League {
-  let current = LEAGUES[0];
-  for (const l of LEAGUES) {
-    if (xp >= l.minXp) current = l;
-    else break;
-  }
-  return current;
+  return toUiLeague(progressionLeagueFromXp(xp));
 }
 
 /** XP still needed to reach the next league, or null if already at the top. */
 export function xpToNextLeague(xp: number): { next: League; remaining: number } | null {
-  const current = leagueFromXp(xp);
-  const idx = LEAGUES.findIndex((l) => l.tier === current.tier);
-  const next = LEAGUES[idx + 1];
-  if (!next) return null;
-  return { next, remaining: Math.max(0, next.minXp - xp) };
+  const hit = progressionXpToNextLeague(xp);
+  if (!hit) return null;
+  return { next: toUiLeague(hit.next), remaining: hit.remaining };
 }
 
 /**

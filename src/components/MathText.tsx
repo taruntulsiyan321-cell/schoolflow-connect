@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
+import { fixUtf8Content } from "@/lib/utf8Text";
 
 /**
  * Renders text with inline math. Detection rules:
@@ -9,6 +10,9 @@ import { cn } from "@/lib/utils";
  *  - `$$...$$`, `\[...\]` -> display math
  *  - bare expressions with math operators (^, _, \frac, sqrt, =) wrapped in a span with
  *    `katex`-rendered glyphs when they parse cleanly. Plain prose passes through unchanged.
+ *
+ * UTF-8 mojibake is repaired at the root via fixUtf8Content so π θ √ α β Σ ∞ ≤ ≥ ± × ÷
+ * and vulgar fractions survive import/DB/API paths without page-level char maps.
  *
  * The output is rendered "on screen" (proper typeset glyphs), not as raw typed text.
  */
@@ -64,7 +68,8 @@ function render(html: string, kind: "inline" | "block") {
 }
 
 export function MathText({ text, className, block }: Props) {
-  const segs = useMemo(() => tokenize(text ?? ""), [text]);
+  const cleaned = useMemo(() => fixUtf8Content(text), [text]);
+  const segs = useMemo(() => tokenize(cleaned), [cleaned]);
   const Tag = block ? "div" : "span";
   return (
     <Tag className={cn("math-text", className)}>
@@ -76,6 +81,7 @@ export function MathText({ text, className, block }: Props) {
             output: "html",
             displayMode: s.kind === "block",
             strict: "ignore",
+            trust: false,
           });
           return (
             <span

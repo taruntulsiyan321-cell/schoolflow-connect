@@ -39,6 +39,9 @@ export type DesignBattleCard = {
   hot?: boolean;
   participantId?: string;
   battleCode?: string | null;
+  /** DB battles.source — e.g. featured_daily (preserved after question gen). */
+  source?: string | null;
+  chapter?: string | null;
   /** Pending battle_invites.id — Accept Challenge updates this row. */
   inviteId?: string;
 };
@@ -132,6 +135,7 @@ type BattleRow = {
   id: string;
   title: string;
   subject: string;
+  chapter?: string | null;
   status: string;
   mode: string;
   starts_at: string;
@@ -174,6 +178,10 @@ export function useBattlegroundData() {
     best_win_streak: number;
     total_correct: number;
     total_answered: number;
+    league_code: string | null;
+    next_league_min_xp: number | null;
+    next_league_remaining: number | null;
+    next_league_label: string | null;
   } | null>(null);
   const [classRank, setClassRank] = useState<number | null>(null);
   const [schoolRank, setSchoolRank] = useState<number | null>(null);
@@ -188,54 +196,100 @@ export function useBattlegroundData() {
     setLoading(true);
     setError(null);
     try {
-      const [stuRes, matesRes, lbRes, schoolLbRes] = await Promise.all([
+      const [stuRes, matesRes] = await Promise.all([
         supabase.from("students").select("id, class_id, full_name").eq("user_id", user.id).maybeSingle(),
         supabase.rpc("rpc_classmates"),
-        supabase.rpc("rpc_leaderboard", { _scope: "class", _category: "xp", _subject: undefined, _limit: 200 }),
-        supabase.rpc("rpc_leaderboard", { _scope: "school", _category: "xp", _subject: undefined, _limit: 500 }),
       ]);
 
       let xpData: {
-        xp?: number;
-        level?: number;
-        wins?: number;
-        total_battles?: number;
-        current_streak?: number;
-        win_streak?: number;
-        best_win_streak?: number;
-        total_correct?: number;
-        total_answered?: number;
+        xp: number;
+        level: number;
+        wins: number;
+        total_battles: number;
+        current_streak: number;
+        win_streak: number;
+        best_win_streak: number;
+        total_correct: number;
+        total_answered: number;
+        league_code: string | null;
+        next_league_min_xp: number | null;
+        next_league_remaining: number | null;
+        next_league_label: string | null;
       } | null = null;
+      let classRankFromProg: number | null = null;
+      let schoolRankFromProg: number | null = null;
       try {
-        const { XpService, resolveStudentServiceContext } = await import("@/academic");
+        const { ProgressionService, resolveStudentServiceContext } = await import("@/academic");
         const ctx = await resolveStudentServiceContext();
-        xpData = await XpService.getForUser(ctx, user.id);
+        const snap = await ProgressionService.getSnapshot(ctx, user.id);
+        xpData = {
+          xp: snap.xp,
+          level: snap.level,
+          wins: snap.battleground.wins,
+          total_battles: snap.battleground.total_battles,
+          current_streak: snap.study_streak,
+          win_streak: snap.battleground.win_streak,
+          best_win_streak: snap.battleground.best_win_streak,
+          total_correct: snap.battleground.total_correct,
+          total_answered: snap.battleground.total_answered,
+          league_code: snap.league?.code ?? null,
+          next_league_min_xp: snap.next_league?.min_xp ?? null,
+          next_league_remaining: snap.next_league?.remaining ?? null,
+          next_league_label: snap.next_league?.label ?? null,
+        };
+        try {
+          const [classLb, schoolLb] = await Promise.all([
+            ProgressionService.leaderboard(ctx, {
+              scope: "class",
+              period: "lifetime",
+              metric: "xp",
+              limit: 200,
+            }),
+            ProgressionService.leaderboard(ctx, {
+              scope: "school",
+              period: "lifetime",
+              metric: "xp",
+              limit: 500,
+            }),
+          ]);
+          const ci = classLb.rows.findIndex((r) => r.user_id === user.id);
+          classRankFromProg = ci >= 0 ? ci + 1 : null;
+          const si = schoolLb.rows.findIndex((r) => r.user_id === user.id);
+          schoolRankFromProg = si >= 0 ? si + 1 : null;
+        } catch {
+          /* ranks stay null */
+        }
       } catch {
         const xpRes = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
         if (xpRes.error) throw xpRes.error;
-        xpData = xpRes.data;
+        const x = xpRes.data;
+        xpData = {
+          xp: x?.xp ?? 0,
+          level: x?.level ?? 1,
+          wins: x?.wins ?? 0,
+          total_battles: x?.total_battles ?? 0,
+          current_streak: x?.study_streak ?? x?.current_streak ?? 0,
+          win_streak: x?.win_streak ?? 0,
+          best_win_streak: x?.best_win_streak ?? 0,
+          total_correct: x?.total_correct ?? 0,
+          total_answered: x?.total_answered ?? 0,
+          league_code: x?.league_code ?? null,
+          next_league_min_xp: null,
+          next_league_remaining: null,
+          next_league_label: null,
+        };
       }
 
       if (stuRes.error) throw stuRes.error;
-      // Soft-fail classmates / leaderboard — don't blank the arena; never invent ranks
+      // Soft-fail classmates — don't blank the arena; never invent ranks
       if (matesRes.error) {
         toast({ title: "Could not load classmates", description: matesRes.error.message, variant: "destructive" });
         setClassmates([]);
-      }
-      if (lbRes.error) {
-        toast({ title: "Could not load class rank", description: lbRes.error.message, variant: "destructive" });
-        setClassRank(null);
-      }
-      if (schoolLbRes.error) {
-        toast({ title: "Could not load school rank", description: schoolLbRes.error.message, variant: "destructive" });
-        setSchoolRank(null);
       }
 
       const s = stuRes.data;
       const x = xpData;
       const mates = matesRes.data;
-      const lb = lbRes.data;
-      const schoolLb = schoolLbRes.data;
 
       setClassId(s?.class_id ?? null);
       // Always zeros when no row — never leave prior session demo values
@@ -249,16 +303,14 @@ export function useBattlegroundData() {
         best_win_streak: x?.best_win_streak ?? 0,
         total_correct: x?.total_correct ?? 0,
         total_answered: x?.total_answered ?? 0,
+        league_code: x?.league_code ?? null,
+        next_league_min_xp: x?.next_league_min_xp ?? null,
+        next_league_remaining: x?.next_league_remaining ?? null,
+        next_league_label: x?.next_league_label ?? null,
       });
 
-      if (!lbRes.error && Array.isArray(lb)) {
-        const i = lb.findIndex((r: { user_id?: string }) => r.user_id === user.id);
-        setClassRank(i >= 0 ? i + 1 : null);
-      }
-      if (!schoolLbRes.error && Array.isArray(schoolLb)) {
-        const i = schoolLb.findIndex((r: { user_id?: string }) => r.user_id === user.id);
-        setSchoolRank(i >= 0 ? i + 1 : null);
-      }
+      setClassRank(classRankFromProg);
+      setSchoolRank(schoolRankFromProg);
 
       if (!matesRes.error) {
         setClassmates(
@@ -347,7 +399,7 @@ export function useBattlegroundData() {
           const { data: inviteBattles, error: invBattleErr } = await supabase
             .from("battles")
             .select(
-              "id,title,subject,status,mode,starts_at,duration_sec,question_count,source,battle_code,creator_user_id",
+              "id,title,subject,chapter,status,mode,starts_at,duration_sec,question_count,source,battle_code,creator_user_id",
             )
             .in("id", battleIds);
           if (invBattleErr) {
@@ -472,8 +524,8 @@ export function useBattlegroundData() {
         pushCard({
           id: b.id,
           type,
-          title: b.title || `${b.subject} Battle`,
-          subject: b.subject || "Mathematics",
+          title: b.title || (b.subject ? `${b.subject} Battle` : "Battle"),
+          subject: b.subject || "",
           status,
           players: totalParticipants,
           maxPlayers: b.mode === "duel" ? 2 : b.mode === "lobby" ? 40 : 20,
@@ -489,6 +541,8 @@ export function useBattlegroundData() {
           hot: status === "live",
           participantId: p.id,
           battleCode: b.battle_code ?? null,
+          source: b.source ?? null,
+          chapter: b.chapter ?? null,
         });
 
         if (isFinishedForXp) {
@@ -501,7 +555,7 @@ export function useBattlegroundData() {
             id: p.id,
             participantId: p.id,
             type,
-            subject: b.subject || "Mathematics",
+            subject: b.subject || "",
             opponent: type === "class" ? "Class Battle" : "Opponent",
             result: result === "won" ? "won" : result === "lost" ? "lost" : result === "draw" ? "draw" : "finished",
             myScore: p.score ?? 0,
@@ -548,8 +602,8 @@ export function useBattlegroundData() {
         pushCard({
           id: b.id,
           type: modeToType(b.mode),
-          title: b.title || `${b.subject} Challenge`,
-          subject: b.subject || "Mathematics",
+          title: b.title || (b.subject ? `${b.subject} Challenge` : "Challenge"),
+          subject: b.subject || "",
           status: "pending",
           players: 1,
           maxPlayers: b.mode === "duel" ? 2 : 20,
@@ -559,6 +613,8 @@ export function useBattlegroundData() {
           xpReward: 0, // not played yet — no real XP earned
           featured: (b.source || "").startsWith("featured_"),
           battleCode: b.battle_code ?? null,
+          source: b.source ?? null,
+          chapter: b.chapter ?? null,
           inviteId: inv.id,
         });
       }
@@ -633,8 +689,8 @@ export function useBattlegroundData() {
         pushCard({
           id: b.id,
           type: modeToType(b.mode),
-          title: b.title || `${b.subject} Battle`,
-          subject: b.subject || "Mathematics",
+          title: b.title || (b.subject ? `${b.subject} Battle` : "Battle"),
+          subject: b.subject || "",
           status,
           players: 0,
           maxPlayers: b.mode === "lobby" ? 40 : 20,
@@ -644,6 +700,8 @@ export function useBattlegroundData() {
           featured: isFeatured,
           hot: status === "live" && isFeatured,
           battleCode: b.battle_code ?? null,
+          source: b.source ?? null,
+          chapter: b.chapter ?? null,
         });
       }
 
@@ -740,6 +798,10 @@ export function useBattlegroundData() {
       bestStreak: xp?.best_win_streak ?? 0,
       classRank,
       schoolRank,
+      leagueCode: xp?.league_code ?? null,
+      nextLeagueMinXp: xp?.next_league_min_xp ?? null,
+      nextLeagueRemaining: xp?.next_league_remaining ?? null,
+      nextLeagueLabel: xp?.next_league_label ?? null,
     };
   }, [xp, history, accuracy, classRank, schoolRank]);
 

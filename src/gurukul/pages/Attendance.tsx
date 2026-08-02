@@ -7,6 +7,7 @@ import {
   type AttendanceRecord,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toast } from "@/hooks/use-toast";
 import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/shared";
 
 /**
@@ -15,16 +16,19 @@ import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/s
  */
 export default function Attendance() {
   const { ctx, ready, studentId } = useAcademicContext();
-  const liveVersion = useAcademicLive("attendance");
+  const liveVersion = useAcademicLive(["attendance", "profile"]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [pct, setPct] = useState(0);
   const [present, setPresent] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
+      setRecords([]);
+      setPct(0);
+      setPresent(0);
+      setTotal(0);
       setLoading(false);
       return;
     }
@@ -43,13 +47,25 @@ export default function Attendance() {
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);
         setTotal(profile?.attendanceTotal ?? 0);
-        if (settled[0].status === "rejected" && settled[1].status === "rejected") {
-          setError("Failed to load attendance");
-        } else {
-          setError(null);
+        if (settled.every((s) => s.status === "rejected")) {
+          toast({
+            title: "Could not load attendance",
+            description: "Showing zeros until Academic Engine responds.",
+            variant: "destructive",
+          });
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load attendance");
+        if (!cancelled) {
+          setRecords([]);
+          setPct(0);
+          setPresent(0);
+          setTotal(0);
+          toast({
+            title: "Could not load attendance",
+            description: e instanceof Error ? e.message : "Unknown error",
+            variant: "destructive",
+          });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -85,10 +101,6 @@ export default function Attendance() {
         No student profile linked to this account.
       </div>
     );
-  }
-
-  if (error) {
-    return <div className="text-center text-sm text-[#cc5069] py-16">{error}</div>;
   }
 
   return (

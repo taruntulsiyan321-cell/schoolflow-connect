@@ -21,6 +21,9 @@ import { ArenaLiveBattleCard } from "@/components/battleground/ArenaLiveBattleCa
 import { ArenaFocusCards } from "@/components/battleground/ArenaFocusCards";
 import { StudentDashboardSkeleton } from "@/components/student/StudentPanelStates";
 import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
+import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
+import { getNcertSubjects, parseClassGrade } from "@/lib/ncertSyllabus";
+import { PracticeService, useAcademicContext } from "@/academic";
 import "./battle-arena.css";
 
 const BG_BASE = "/student/battleground";
@@ -81,6 +84,9 @@ export function ArenaHub() {
   const { user } = useAuth();
   const nav = useNavigate();
   const { data: recovery } = useRecoveryZone();
+  const { ctx, ready: academicReady } = useAcademicContext();
+  const [stream, setStream] = useState<AcademicStream | null>(null);
+  const [scopeClassLevel, setScopeClassLevel] = useState<number | null>(null);
   const [student, setStudent] = useState<any>(null);
   const [xp, setXp] = useState<any>({
     xp: 0,
@@ -93,6 +99,36 @@ export function ArenaHub() {
   const [participantsByBattle, setParticipantsByBattle] = useState<Record<string, { display_name: string }[]>>({});
   const [loading, setLoading] = useState(true);
   const [quickLoading, setQuickLoading] = useState(false);
+
+  useEffect(() => {
+    if (!ctx || !academicReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const scope = await PracticeService.resolveCurriculumScope(ctx);
+        if (!cancelled) {
+          setStream(scope.stream);
+          setScopeClassLevel(scope.classLevel);
+        }
+      } catch {
+        if (!cancelled) {
+          setStream(null);
+          setScopeClassLevel(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx, academicReady]);
+
+  const classLabel =
+    student?.classes?.display_name || student?.classes?.name || null;
+  const grade = scopeClassLevel ?? parseClassGrade(classLabel);
+  const quickSubjects = useMemo(
+    () => subjectsForStreamPicker(stream, grade, getNcertSubjects(grade)),
+    [stream, grade],
+  );
 
   const refreshXp = useCallback(async () => {
     if (!user) return;
@@ -174,8 +210,9 @@ export function ArenaHub() {
 
   const launchQuickBattle = async () => {
     setQuickLoading(true);
+    const subject = quickSubjects[0] || "Mathematics";
     const { data, error } = await supabase.rpc("rpc_create_quick_battle", {
-      _subject: "Mathematics",
+      _subject: subject,
       _difficulty: "medium",
       _count: 5,
       _per_q: 20,

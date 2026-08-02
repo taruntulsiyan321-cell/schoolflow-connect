@@ -588,7 +588,8 @@ async function fetchTopicCoachPlan(
 ): Promise<{ plan: ImprovementPlanPayload; live: boolean }> {
   const topicMistakes = mistakesForAggregate(agg, mistakes);
   const m = masteryForAggregate(agg, mastery);
-  const accuracy = m?.mastery_score ?? snapshot?.exam_readiness?.accuracy_pct ?? 45;
+  // Honest zeros only — never invent a demo accuracy (e.g. 45) for coach prompts.
+  const accuracy = m?.mastery_score ?? snapshot?.exam_readiness?.accuracy_pct ?? 0;
   const attempts = m?.total_attempts ?? Math.max(3, agg.mistake_count);
 
   const { data, error } = await invokeEdgeFunction<ImprovementPlanPayload>("ai-improvement-plan", {
@@ -647,7 +648,7 @@ async function fetchGeminiAnalyticsViaImprovementPlan(
       "Analyse these wrong answers. Find cross-topic patterns and today's #1 priority.",
       mistakePrompt.slice(0, 6000),
     ].join("\n\n"),
-    accuracy: snapshot?.exam_readiness?.accuracy_pct ?? 45,
+    accuracy: snapshot?.exam_readiness?.accuracy_pct ?? 0,
     attempts: Math.max(5, mistakes.length),
     mistake_count: mistakes.length,
     display_name: displayName,

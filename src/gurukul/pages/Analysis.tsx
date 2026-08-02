@@ -23,6 +23,20 @@ import { MarksService } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { displayChapter, displayTopic } from "@/lib/academicDisplay";
+import {
+  DAY_LABELS,
+  buildWeekComparison,
+  deriveSubjectRows,
+  deriveChapterRows,
+  deriveImprovingTopics,
+  deriveSpeedStats,
+  deriveMonthComparison,
+  deriveRecoveryProgress,
+  deriveRecoveryTopics,
+  deriveRevisionData,
+  practiceCountForTopic,
+  scoreAxisDomain,
+} from "@/lib/studentAnalysisMetrics";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "#3b5bdb",
@@ -39,12 +53,6 @@ const FALLBACK_COLORS = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
 
 function subjectColor(name: string, index: number) {
   return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
-}
-
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-function weekdayLabel(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString(undefined, { weekday: "short" });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -193,38 +201,20 @@ export default function Analysis() {
     return [];
   }, [charts?.practice_trend, analysis?.recent_sessions]);
 
-  const weekComparison = useMemo(() => {
-    const weekly = charts?.weekly_activity ?? [];
-    const recent = weekly.slice(-7);
-    const byDay = new Map<string, number>();
-    for (const row of recent) {
-      byDay.set(weekdayLabel(row.date), row.total);
-    }
-    return DAY_LABELS.map((day) => ({
-      day,
-      thisWeek: byDay.get(day) ?? 0,
-      lastWeek: 0,
-    }));
-  }, [charts?.weekly_activity]);
-
-  const subjectData = useMemo(
-    () =>
-      (charts?.subjects ?? []).map((s, i) => {
-        const accuracy = Math.round(s.accuracy);
-        return {
-          name: s.name,
-          color: subjectColor(s.name, i),
-          score: accuracy,
-          accuracy,
-          questions: s.attempts,
-          timeHrs: 0,
-          trend: 0,
-          status: accuracy >= 85 ? "best" : accuracy < 65 ? "needs-attention" : "good",
-          rankInClass: 0,
-        };
-      }),
-    [charts?.subjects],
+  const weekComparison = useMemo(
+    () => buildWeekComparison(charts?.weekly_activity ?? []),
+    [charts?.weekly_activity],
   );
+
+  const subjectData = useMemo(() => {
+    const rows = deriveSubjectRows(charts?.subjects ?? [], analysis?.recent_sessions ?? []);
+    return rows.map((s, i) => ({
+      ...s,
+      color: subjectColor(s.name, i),
+      score: s.accuracy,
+      rankInClass: 0,
+    }));
+  }, [charts?.subjects, analysis?.recent_sessions]);
 
   const radarData = useMemo(
     () => subjectData.map((s) => ({ subject: s.name.slice(0, 4), score: s.score })),
@@ -232,36 +222,18 @@ export default function Analysis() {
   );
 
   const chapterData = useMemo(() => {
-    const fromMastery = mastery.slice(0, 12).map((m) => {
-      const acc = Math.round(m.mastery_score);
-      return {
-        chapter: m.chapter || m.concept,
-        subject: m.subject,
-        color: subjectColor(m.subject, 0),
-        completion: Math.min(100, m.total_attempts > 0 ? acc : 0),
-        questions: m.total_attempts,
-        accuracy: acc,
-        trend: 0,
-        status: acc >= 75 ? "ready" : acc >= 55 ? "practice-more" : "needs-work",
-      };
-    });
-    if (fromMastery.length > 0) return fromMastery;
-    const weak = snapshot?.weak_topics ?? [];
-    const strong = snapshot?.strong_topics ?? [];
-    return [...strong, ...weak].slice(0, 12).map((t) => {
-      const acc = Math.round(t.accuracy);
-      return {
-        chapter: t.topic || t.chapter || "Topic",
-        subject: t.subject,
-        color: subjectColor(t.subject, 0),
-        completion: acc,
-        questions: 0,
-        accuracy: acc,
-        trend: 0,
-        status: acc >= 75 ? "ready" : acc >= 55 ? "practice-more" : "needs-work",
-      };
-    });
-  }, [mastery, snapshot?.weak_topics, snapshot?.strong_topics]);
+    const rows = deriveChapterRows(mastery, analysis?.recent_sessions ?? [], snapshot);
+    return rows.map((c) => ({
+      chapter: c.chapter,
+      subject: c.subject,
+      color: subjectColor(c.subject, 0),
+      completion: c.practiceDepth,
+      questions: c.questions,
+      accuracy: c.accuracy,
+      trend: c.trend,
+      status: c.status,
+    }));
+  }, [mastery, analysis?.recent_sessions, snapshot]);
 
   const topicGroups = useMemo(() => ({
     doing_well: (snapshot?.strong_topics ?? []).map((t) => ({
@@ -273,14 +245,21 @@ export default function Analysis() {
       topic: t.topic || t.chapter || "Topic",
       subject: t.subject,
       score: Math.round(t.accuracy),
-      practiceCount: 0,
+      practiceCount: practiceCountForTopic(
+        analysis?.recent_sessions ?? [],
+        t.subject,
+        t.topic || t.chapter || "",
+      ),
     })),
-    improving: [] as { topic: string; subject: string; improvement: number }[],
+    improving: deriveImprovingTopics(
+      charts?.practice_trend ?? [],
+      analysis?.recent_sessions ?? [],
+    ),
     not_started: mastery
       .filter((m) => m.total_attempts === 0)
       .slice(0, 8)
       .map((m) => ({ topic: m.concept, subject: m.subject })),
-  }), [snapshot?.strong_topics, snapshot?.weak_topics, mastery]);
+  }), [snapshot?.strong_topics, snapshot?.weak_topics, mastery, charts?.practice_trend, analysis?.recent_sessions]);
 
   const practiceStats = useMemo(() => {
     const weekly = charts?.weekly_activity ?? [];
@@ -316,44 +295,46 @@ export default function Analysis() {
     return [...byMonth.entries()].map(([month, done]) => ({ month, done }));
   }, [charts?.weekly_activity]);
 
-  const speedStats = useMemo(() => {
-    const avgSec = analysis?.totals.avg_sec_per_question ?? 0;
-    return {
-      avgSec,
-      // Per-subject timing is not in the analysis RPC yet — show overall only.
-      fastestSubject: "—",
-      fastestSec: 0,
-      slowestSubject: "—",
-      slowestSec: 0,
-      improvementSec: 0,
+  const { speedStats, speedBySubject } = useMemo(() => {
+    const derived = deriveSpeedStats(analysis?.recent_sessions ?? []);
+    const fallbackAvg = analysis?.totals.avg_sec_per_question ?? 0;
+    const stats = {
+      ...derived.stats,
+      avgSec: derived.stats.avgSec > 0 ? derived.stats.avgSec : fallbackAvg,
     };
-  }, [analysis]);
-
-  const speedBySubject = useMemo(
-    () =>
-      speedStats.avgSec > 0
-        ? [{ name: "Overall", color: "#3b5bdb", avgSec: speedStats.avgSec }]
-        : [],
-    [speedStats.avgSec],
-  );
+    const bySubject =
+      derived.bySubject.length > 0
+        ? derived.bySubject.map((s, i) => ({
+            name: s.name,
+            color: subjectColor(s.name, i),
+            avgSec: s.avgSec,
+          }))
+        : stats.avgSec > 0
+          ? [{ name: "Overall", color: "#3b5bdb", avgSec: stats.avgSec }]
+          : [];
+    return { speedStats: stats, speedBySubject: bySubject };
+  }, [analysis?.recent_sessions, analysis?.totals.avg_sec_per_question]);
 
   const studyActivity = useMemo(() => {
     const heatmap = snapshot?.activity_heatmap ?? [];
     const weeklyHrs = DAY_LABELS.map((day) => {
       const mins = heatmap
-        .filter((d) => weekdayLabel(d.date) === day)
+        .filter((d) => new Date(d.date).toLocaleDateString(undefined, { weekday: "short" }) === day)
         .reduce((s, d) => s + (d.minutes ?? 0), 0);
       return Math.round((mins / 60) * 10) / 10;
     });
     const totalMins = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
     const activeDays = heatmap.filter((d) => (d.minutes ?? 0) > 0);
-    const bestDayRow = activeDays.sort((a, b) => (b.minutes ?? 0) - (a.minutes ?? 0))[0];
+    const bestDayRow = [...activeDays].sort((a, b) => (b.minutes ?? 0) - (a.minutes ?? 0))[0];
     return {
       totalHrs: Math.round(totalMins / 60),
       avgDailyMin: activeDays.length > 0 ? Math.round(totalMins / activeDays.length) : 0,
-      bestDay: bestDayRow ? weekdayLabel(bestDayRow.date) : "—",
+      bestDay: bestDayRow
+        ? new Date(bestDayRow.date).toLocaleDateString(undefined, { weekday: "short" })
+        : "—",
+      // Hourly buckets are not in academic_daily_activity — honest empty.
       bestHour: "—",
-      weeklyHrs,
+      weeklyHrs: [...weeklyHrs],
     };
   }, [snapshot?.activity_heatmap]);
 
@@ -373,42 +354,20 @@ export default function Analysis() {
     return weeks.slice(-4);
   }, [snapshot?.activity_heatmap]);
 
-  const recoveryProgress = useMemo(() => {
-    const pending = snapshot?.recovery_pending ?? 0;
-    const total = pending + (mastery.filter((m) => m.recovery_attempts > 0).length);
-    const completed = mastery.filter((m) => m.recovery_attempts > 0 && m.mastery_score >= 65).length;
-    return {
-      totalToRevisit: total,
-      completed,
-      stillPending: pending,
-      improvementAfter: 0,
-    };
-  }, [snapshot?.recovery_pending, mastery]);
-
-  const recoveryTopics = useMemo(
-    () =>
-      (snapshot?.weak_topics ?? []).slice(0, 6).map((t) => ({
-        topic: t.topic || t.chapter || "Topic",
-        subject: t.subject,
-        status: "pending" as "pending" | "completed",
-        attempts: 0,
-        improvement: 0,
-      })),
-    [snapshot?.weak_topics],
+  const recoveryProgress = useMemo(
+    () => deriveRecoveryProgress(mastery, snapshot?.recovery_pending ?? 0),
+    [snapshot?.recovery_pending, mastery],
   );
 
-  const revisionData = useMemo(() => {
-    const queue = snapshot?.revision_queue ?? [];
-    const dueToday = queue
-      .filter((r) => new Date(r.due_date).toDateString() === new Date().toDateString())
-      .map((r) => r.topic || r.chapter || r.subject);
-    return {
-      totalRevised: queue.length,
-      completed: 0,
-      pending: queue.length,
-      dueToday,
-    };
-  }, [snapshot?.revision_queue]);
+  const recoveryTopics = useMemo(
+    () => deriveRecoveryTopics(snapshot?.weak_topics, mastery),
+    [snapshot?.weak_topics, mastery],
+  );
+
+  const revisionData = useMemo(
+    () => deriveRevisionData(snapshot?.revision_queue),
+    [snapshot?.revision_queue],
+  );
 
   const learningProgress = useMemo(() => {
     const completed = mastery.filter((m) => m.mastery_score >= 75).length;
@@ -547,24 +506,25 @@ export default function Analysis() {
     ? scoreTrend[scoreTrend.length - 1].score - scoreTrend[0].score
     : null;
 
-  const monthComparison = useMemo(() => {
-    const weekly = charts?.weekly_activity ?? [];
-    const now = new Date();
-    const thisMonth = now.getMonth();
-    const thisYear = now.getFullYear();
-    let thisM = 0;
-    let lastM = 0;
-    for (const row of weekly) {
-      const d = new Date(row.date);
-      if (d.getFullYear() === thisYear && d.getMonth() === thisMonth) thisM += row.total;
-      if (d.getFullYear() === thisYear && d.getMonth() === thisMonth - 1) lastM += row.total;
-    }
-    return [
-      { label: "Questions", thisM, lastM, unit: "" },
-      { label: "Avg score", thisM: overview.avgScore, lastM: 0, unit: "%" },
-      { label: "Study time", thisM: overview.studyHours, lastM: 0, unit: "h" },
-    ];
-  }, [charts?.weekly_activity, overview]);
+  const monthComparison = useMemo(
+    () =>
+      deriveMonthComparison(
+        charts?.weekly_activity ?? [],
+        charts?.practice_trend ?? [],
+        snapshot?.activity_heatmap,
+      ),
+    [charts?.weekly_activity, charts?.practice_trend, snapshot?.activity_heatmap],
+  );
+
+  const scoreTrendDomain = useMemo(
+    () => scoreAxisDomain(scoreTrend.map((p) => p.score)),
+    [scoreTrend],
+  );
+
+  const testTrendDomain = useMemo(
+    () => scoreAxisDomain(testTrend.map((t) => t.score)),
+    [testTrend],
+  );
 
   const upcomingMilestones = useMemo(() => {
     const items = [];
@@ -661,7 +621,7 @@ export default function Analysis() {
                   </defs>
                   <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="week" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[50, 100]} tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                  <YAxis domain={scoreTrendDomain} tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
                   <Area type="monotone" dataKey="score" name="Score" stroke="#3b5bdb" strokeWidth={2.5} fill="url(#an-scGrad)"
                     isAnimationActive={false} dot={{ r: 4, fill: "#3b5bdb", strokeWidth: 0 }} activeDot={{ r: 6, fill: "#3b5bdb", stroke: "#0d0d0f", strokeWidth: 2 }} />
@@ -688,7 +648,7 @@ export default function Analysis() {
 
           {/* This week vs last week */}
           <Card label="This week vs last week — questions done">
-            {weekComparison.some((d) => d.thisWeek > 0) ? (
+            {weekComparison.some((d) => d.thisWeek > 0 || d.lastWeek > 0) ? (
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weekComparison} barSize={14} barGap={2}>
@@ -773,10 +733,14 @@ export default function Analysis() {
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-lg font-black tabular-nums" style={{ color: s.color }}>{s.score}%</div>
+                    {s.trend != null ? (
                     <div className={cn("flex items-center gap-0.5 text-[11px] font-medium justify-end", s.trend >= 0 ? "text-emerald-400" : "text-rose-400")}>
                       {s.trend >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                       {Math.abs(s.trend)}%
                     </div>
+                    ) : (
+                      <div className="text-[11px] text-[#78788c]">—</div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -811,17 +775,21 @@ export default function Analysis() {
                     <div className="grid grid-cols-3 gap-2 mb-2">
                       <div className="text-center">
                         <div className="text-sm font-black tabular-nums text-white">{c.completion}%</div>
-                        <div className="text-[9px] text-[#78788c]">Done</div>
+                        <div className="text-[9px] text-[#78788c]">Practice</div>
                       </div>
                       <div className="text-center">
                         <div className="text-sm font-black tabular-nums text-white">{c.accuracy}%</div>
                         <div className="text-[9px] text-[#78788c]">Accuracy</div>
                       </div>
                       <div className="text-center">
+                        {c.trend != null ? (
                         <div className={cn("text-sm font-black tabular-nums flex items-center justify-center gap-0.5", c.trend >= 0 ? "text-emerald-400" : "text-rose-400")}>
                           {c.trend >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                           {Math.abs(c.trend)}%
                         </div>
+                        ) : (
+                          <div className="text-sm font-black tabular-nums text-[#78788c]">—</div>
+                        )}
                         <div className="text-[9px] text-[#78788c]">Change</div>
                       </div>
                     </div>
@@ -986,8 +954,8 @@ export default function Analysis() {
                   <div className="text-[11px] text-[#78788c]">Pending</div>
                 </div>
                 <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
-                  <div className="text-xl font-black text-white">{revisionData.totalRevised}</div>
-                  <div className="text-[11px] text-[#78788c]">Total</div>
+                  <div className="text-xl font-black text-white">{revisionData.pending}</div>
+                  <div className="text-[11px] text-[#78788c]">In queue</div>
                 </div>
               </div>
               <SLabel>Due for revision today</SLabel>
@@ -1083,7 +1051,7 @@ export default function Analysis() {
                 <LineChart data={testTrend}>
                   <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="name" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[50, 100]} tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                  <YAxis domain={testTrendDomain} tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
                   <Line type="monotone" dataKey="score" name="Score" stroke="#4b9fd4" strokeWidth={2.5}
                     isAnimationActive={false} dot={{ r: 5, fill: "#4b9fd4", strokeWidth: 0 }} activeDot={{ r: 7, stroke: "#0d0d0f", strokeWidth: 2 }} />

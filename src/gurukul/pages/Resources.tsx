@@ -1,25 +1,69 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
-import { FileText, Video, Download, Search } from "lucide-react";
+import { FileText, Video, Download, Search, Loader2, ExternalLink } from "lucide-react";
+import { ResourceService, type LearningResourceRow } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toast } from "sonner";
 
-type ResourceItem = {
-  id: string;
-  title: string;
-  subject: string;
-  type: string;
-  size: string;
-  date: string;
-  downloads: number;
-};
-
-/** No student resources backend yet — honest empty list. */
-const resources: ResourceItem[] = [];
+function formatDate(iso: string | null) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return "—";
+  }
+}
 
 export default function Resources() {
+  const { ctx, ready, classId } = useAcademicContext();
   const [q, setQ] = useState("");
-  const filtered = resources.filter(
-    (r) => r.title.toLowerCase().includes(q.toLowerCase()) || r.subject.toLowerCase().includes(q.toLowerCase()),
+  const [rows, setRows] = useState<LearningResourceRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!ready || !ctx) {
+      setLoading(false);
+      setRows([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const list = await ResourceService.listForStudent(ctx, { classId: classId ?? null });
+        if (!cancelled) setRows(list);
+      } catch (e) {
+        if (!cancelled) {
+          setRows([]);
+          toast.error(e instanceof Error ? e.message : "Failed to load resources");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, classId]);
+
+  const filtered = useMemo(
+    () =>
+      rows.filter(
+        (r) =>
+          !q ||
+          r.title.toLowerCase().includes(q.toLowerCase()) ||
+          r.subject.toLowerCase().includes(q.toLowerCase()),
+      ),
+    [rows, q],
   );
+
+  const openResource = (r: LearningResourceRow) => {
+    if (r.url) {
+      window.open(r.url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    toast.info("No download link available for this material yet.");
+  };
 
   return (
     <div className="space-y-5">
@@ -35,41 +79,55 @@ export default function Resources() {
 
       <GlassCard className="p-5">
         <SectionLabel>Study materials</SectionLabel>
-        <div className="space-y-2">
-          {filtered.map((r) => {
-            const col = subjectColor[r.subject] ?? "#78788c";
-            return (
-              <div
-                key={r.id}
-                className="flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-white/2 hover:border-white/15 transition-colors group cursor-pointer"
-              >
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: `${col}15`, color: col }}
+        {loading ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-[#78788c] text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading resources…
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((r) => {
+              const col = subjectColor[r.subject] ?? "#78788c";
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => openResource(r)}
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-white/2 hover:border-white/15 transition-colors group text-left"
                 >
-                  {r.type === "Video" ? <Video className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white truncate">{r.title}</div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <SubjectBadge subject={r.subject} color={col} />
-                    <span className="text-[11px] text-[#78788c]">
-                      {r.size} · {r.date} · {r.downloads} downloads
-                    </span>
+                  <div
+                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: `${col}15`, color: col }}
+                  >
+                    {r.type === "Video" ? <Video className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                   </div>
-                </div>
-                <button className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <Download className="w-4 h-4 text-[#78788c]" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-white truncate">{r.title}</div>
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                      <SubjectBadge subject={r.subject} color={col} />
+                      <span className="text-[11px] text-[#78788c]">
+                        {r.type} · {formatDate(r.publishedAt)}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    {r.url ? (
+                      <ExternalLink className="w-4 h-4 text-[#78788c]" />
+                    ) : (
+                      <Download className="w-4 h-4 text-[#78788c]" />
+                    )}
+                  </span>
                 </button>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="text-center py-8 text-[#78788c] text-sm">
+                {q
+                  ? "No resources found."
+                  : "No study materials uploaded for your class yet."}
               </div>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="text-center py-8 text-[#78788c] text-sm">
-              {q ? "No resources found." : "No study materials uploaded for your class yet."}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </GlassCard>
     </div>
   );

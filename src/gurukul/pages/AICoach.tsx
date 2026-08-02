@@ -294,18 +294,40 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
 }
 
 // ── Context pill ──────────────────────────────────────────────────────────────
-function ContextPill({ studentClass, subjectNames }: { studentClass: string; subjectNames: string[] }) {
+function ContextPill({
+  studentClass,
+  subjectNames,
+  xp,
+  level,
+  streak,
+}: {
+  studentClass: string;
+  subjectNames: string[];
+  xp: number;
+  level: number;
+  streak: number;
+}) {
   const [expanded, setExpanded] = useState(false);
   const subjectPreview = subjectNames.length > 0
     ? subjectNames.slice(0, 3).join(", ") + (subjectNames.length > 3 ? "…" : "")
     : "No subjects yet";
+  const progressionBits = [
+    xp > 0 ? `${xp.toLocaleString()} XP` : null,
+    level > 1 || xp > 0 ? `Lv ${level}` : null,
+    streak > 0 ? `${streak}d streak` : null,
+  ].filter(Boolean);
+  const contextLine = [
+    studentClass || null,
+    progressionBits.length ? progressionBits.join(" · ") : null,
+    subjectPreview,
+  ].filter(Boolean).join(" · ");
   return (
     <div className="flex justify-center py-3">
       <button onClick={() => setExpanded(e => !e)}
         className="group flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/7 bg-white/3 hover:border-white/12 hover:bg-white/5 transition-all">
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
         <span className="text-[11px] text-[#78788c] group-hover:text-[#a0a0b0] transition-colors">
-          Nova knows your context{studentClass ? ` · ${studentClass}` : ""} · {subjectPreview}
+          Nova knows your context{contextLine ? ` · ${contextLine}` : ""}
         </span>
         <Brain className="w-3 h-3 text-[#78788c]"/>
       </button>
@@ -314,12 +336,15 @@ function ContextPill({ studentClass, subjectNames }: { studentClass: string; sub
 }
 
 // ── Suggestions (empty state) ─────────────────────────────────────────────────
-function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects }: {
+function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects, xp, level, streak }: {
   onSelect: (text: string) => void;
   firstName: string;
   studentClass: string;
   goal: string;
   chartSubjects: { name: string; color: string }[];
+  xp: number;
+  level: number;
+  streak: number;
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
@@ -339,7 +364,9 @@ function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects
       <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
         {[
           ...(studentClass ? [{ label: studentClass, color:"#3b5bdb" }] : []),
-          ...(goal ? [{ label: goal, color:"#6882e8" }] : []),
+          ...(xp > 0 || level > 1 ? [{ label: `Lv ${level} · ${xp.toLocaleString()} XP`, color:"#6882e8" }] : []),
+          ...(streak > 0 ? [{ label: `${streak}d streak`, color:"#c08a3a" }] : []),
+          ...(goal ? [{ label: goal, color:"#4aa87a" }] : []),
           ...chartSubjects.slice(0, 3).map(s => ({ label: s.name, color: s.color })),
         ].map(item => (
           <span key={item.label} className="text-[11px] px-2.5 py-1 rounded-full border font-medium"
@@ -935,12 +962,18 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
               studentClass={student.class ? `Class ${student.class}` : ""}
               goal={student.goal}
               chartSubjects={chartSubjects}
+              xp={student.xp}
+              level={student.level}
+              streak={student.streak}
             />
           ) : (
             <div className="px-4 py-4 space-y-5 max-w-3xl mx-auto w-full">
               <ContextPill
                 studentClass={student.class ? `Class ${student.class}` : ""}
                 subjectNames={chartSubjects.map(s => s.name)}
+                xp={student.xp}
+                level={student.level}
+                streak={student.streak}
               />
               {msgs.map((m, i) => (
                 <MessageBubble key={m.id} msg={m}

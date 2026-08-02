@@ -5,7 +5,7 @@ import { lookupDisplayName } from "./registry";
 
 const SMALL_WORDS = new Set(["a", "an", "the", "and", "or", "of", "in", "on", "to", "for", "vs", "via"]);
 
-/** Common UTF-8-as-Windows-1252 / Latin-1 mojibake → intended characters. */
+/** Common UTF-8-as-Windows-1252 / Latin-1 mojibake → intended characters (labels). */
 const MOJIBAKE_MAP: Array<[RegExp, string]> = [
   [/â€”/g, "\u2014"],
   [/â€“/g, "\u2013"],
@@ -20,7 +20,18 @@ const MOJIBAKE_MAP: Array<[RegExp, string]> = [
   [/Â\s/g, " "],
   [/Â/g, ""],
   [/Ã—/g, "\u00D7"],
+  [/Ã·/g, "\u00F7"],
+  [/Â±/g, "\u00B1"],
   [/Ã±/g, "\u00F1"],
+  [/âˆš/g, "\u221A"],
+  [/âˆž/g, "\u221E"],
+  [/â‰¤/g, "\u2264"],
+  [/â‰¥/g, "\u2265"],
+  [/Ï€/g, "\u03C0"],
+  [/Î¸/g, "\u03B8"],
+  [/Î±/g, "\u03B1"],
+  [/Î²/g, "\u03B2"],
+  [/Î£/g, "\u03A3"],
 ];
 
 /**

@@ -261,17 +261,42 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       if (typeof d.reply === "string" && d.reply.trim()) return d.reply;
       if (typeof d.explanation === "string" && d.explanation.trim()) return d.explanation;
       const facts = d.facts as Record<string, unknown> | undefined;
-      if (facts?.attendance || facts?.eie || facts?.marks || facts?.homework) {
+      if (facts?.attendance || facts?.eie || facts?.marks || facts?.homework || facts?.progression) {
         const att = facts.attendance as { attendance_pct?: number; total_marked?: number } | undefined;
         const marks = facts.marks as { average_pct?: number | null; exams_count?: number } | undefined;
-        const eie = facts.eie as { avg_mastery?: number; total_tracked?: number } | undefined;
+        const eie = facts.eie as {
+          avg_mastery?: number;
+          total_tracked?: number;
+          weak_concepts?: { concept?: string; subject?: string; mastery_score?: number }[];
+        } | undefined;
         const hw = facts.homework as { pending_count?: number } | undefined;
+        const prog = facts.progression as {
+          xp?: number;
+          level?: number;
+          study_streak?: number;
+          battleground_wins?: number;
+          practice_sessions?: number;
+          weak_concepts?: string[];
+        } | undefined;
         if (d.facts_empty === true) {
           return (
             "I do not have enough Academic Engine / mastery records for you yet, so I cannot cite personal attendance, marks, or mastery. " +
             "Ask about a study concept, or check attendance / homework / marks once your school data is synced."
           );
         }
+        const progBits = [
+          prog?.xp != null ? `XP **${prog.xp}**` : null,
+          prog?.level != null ? `Level **${prog.level}**` : null,
+          prog?.study_streak != null ? `Streak **${prog.study_streak}d**` : null,
+          prog?.practice_sessions != null ? `Practice **${prog.practice_sessions}**` : null,
+          prog?.battleground_wins != null ? `Battle wins **${prog.battleground_wins}**` : null,
+        ].filter(Boolean);
+        const weakFromEie = (eie?.weak_concepts ?? [])
+          .slice(0, 3)
+          .map((c) => presentAcademicLabel(c.concept, "concept"))
+          .filter(Boolean);
+        const weakFromProg = (prog?.weak_concepts ?? []).slice(0, 3).filter(Boolean);
+        const weakBits = weakFromEie.length ? weakFromEie : weakFromProg;
         return (
           `**Nova (facts only)**\n` +
           `Attendance **${att?.attendance_pct ?? 0}%**` +
@@ -279,7 +304,9 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
           ` · Homework pending **${hw?.pending_count ?? 0}**` +
           ` · Marks avg **${marks?.average_pct == null ? "—" : `${marks.average_pct}%`}**` +
           ` · Mastery **${eie?.avg_mastery ?? 0}%**` +
-          `\n_Generative reply unavailable — showing Academic Engine + EIE facts._`
+          (progBits.length ? `\nProgression: ${progBits.join(" · ")}` : "") +
+          (weakBits.length ? `\nWeak areas: ${weakBits.join(", ")}` : "") +
+          `\n_Generative reply unavailable — showing Academic Engine + EIE + Progression facts._`
         );
       }
       return AI_BILLING_UNAVAILABLE_MSG;

@@ -31,6 +31,22 @@ export const PAGE_PATH: Record<PageKey, string> = {
   classhub: "/student/class",
 };
 
+/** Legacy `/student/classes#section` → Gurukul class-facing routes. */
+const LEGACY_CLASSES_HASH: Record<string, PageKey> = {
+  attendance: "attendance",
+  timetable: "timetable",
+  leaderboard: "leaderboard",
+  homework: "assignments",
+  exams: "tests",
+  doubts: "doubtportal",
+};
+
+export function legacyClassesRedirectPath(hash?: string): string {
+  const key = (hash ?? "").replace(/^#/, "").trim();
+  const page = LEGACY_CLASSES_HASH[key];
+  return page ? PAGE_PATH[page] : PAGE_PATH.classhub;
+}
+
 const LEARNING: PageKey[] = ["learninghub", "analysis", "recovery", "revision", "mistakebook"];
 const CLASS: PageKey[] = [
   "classhub", "timetable", "calendar", "attendance", "assignments",

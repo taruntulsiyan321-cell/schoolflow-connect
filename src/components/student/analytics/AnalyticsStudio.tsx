@@ -179,12 +179,10 @@ export function AnalyticsStudio({ data, charts }: Props) {
   const weakConcepts = topicGaps.slice(0, 5);
   const mistakeBuckets = classifyMistakes(aggregates);
   const mostRepeated = repeatedMistake(aggregates);
+  // Align with classifyMistakes SSOT (heavy / concept / careless) — never invent calc/time splits.
+  const heavyMistakes = mistakeBuckets.find((b) => b.key === "heavy")?.count ?? 0;
   const conceptErrors = mistakeBuckets.find((b) => b.key === "concept")?.count ?? 0;
-  const calculationErrors = mistakeBuckets.find((b) => b.key === "calc")?.count ?? 0;
   const carelessMistakes = mistakeBuckets.find((b) => b.key === "careless")?.count ?? 0;
-  const timePressureMistakes = mistakeBuckets.find((b) => b.key === "time")?.count ?? 0;
-  const misinterpretationMistakes =
-    displayInsights?.error_patterns.filter((p) => /read|interpret|misread|word/i.test(p)).length ?? 0;
   const hasRecoveryImpact = recoveryPending > 0 || weakConceptCount > 0;
   const subjectRows = charts?.subjects ?? [];
   const trendValues = practiceTrend.slice(-7).map((p) => p.score_pct);
@@ -193,7 +191,8 @@ export function AnalyticsStudio({ data, charts }: Props) {
     ...(topGap ? [topGap] : []),
     ...topicGaps.filter((g) => g.topic !== topGap?.topic),
   ].slice(0, 3);
-  const expectedGain = weakConceptCount > 0 ? Math.min(12, weakConceptCount * 2 + 2) : 0;
+  // Measured session improvement only — never invent a projected accuracy gain.
+  const measuredGain = improvement != null && improvement > 0 ? Math.round(improvement) : 0;
   const strength =
     strongConcepts[0]?.concept ??
     data.strong_topics?.[0]?.topic ??
@@ -302,7 +301,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
           <div className="rounded-2xl bg-[var(--wa-primary)] text-white px-4 py-3">
             <p className="wa-label text-white/65">Estimated gain</p>
             <p className="text-3xl font-bold tabular-nums">
-              {expectedGain > 0 ? `+${expectedGain}%` : "—"}
+              {measuredGain > 0 ? `+${measuredGain}%` : "—"}
             </p>
           </div>
         </div>
@@ -369,13 +368,11 @@ export function AnalyticsStudio({ data, charts }: Props) {
             <p className="font-bold text-amber-950">{mostRepeated?.topic ?? weakness}</p>
           </div>
         </div>
-        <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-3">
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {[
-            ["Concept Errors", conceptErrors],
-            ["Calculation Errors", calculationErrors],
-            ["Careless Mistakes", carelessMistakes],
-            ["Time Pressure", timePressureMistakes],
-            ["Misinterpretation", misinterpretationMistakes],
+            ["Repeated weak topics", heavyMistakes],
+            ["Recurring topic gaps", conceptErrors],
+            ["One-off mistakes", carelessMistakes],
           ].map(([label, value]) => (
             <div key={label} className="wa-mistake-type">
               <p className="wa-label text-[10px]">{label}</p>

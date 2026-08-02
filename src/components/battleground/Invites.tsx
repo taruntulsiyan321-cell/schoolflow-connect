@@ -10,7 +10,7 @@ import { Users, Search, Send, Inbox, Check, X, Swords } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { acceptBattleInvite } from "@/gurukul/hooks/useBattlegroundData";
-import { displayChapter, displayTopic } from "@/lib/academicDisplay";
+import { displayChapter, displayTopic, displaySubject } from "@/lib/academicDisplay";
 import { BattleExperienceService, resolveStudentServiceContext } from "@/academic";
 
 type InviteBattle = {
@@ -247,7 +247,7 @@ export function MyInvites() {
                 {i.battles?.title || "Battle challenge"}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                {i.battles?.subject || "Subject"}
+                {displaySubject(i.battles?.subject) || "Subject"}
                 {i.battles?.chapter ? ` · ${displayChapter(i.battles.chapter)}` : ""}
                 {i.battles?.topic ? ` · ${displayTopic(i.battles.topic)}` : ""}
                 {i.battles?.question_count != null ? ` · ${i.battles.question_count}Q` : ""}

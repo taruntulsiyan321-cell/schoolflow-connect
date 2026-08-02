@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { displayChapter, displayTopic } from "@/lib/academicPresentation";
+import { displayChapter, displayTopic, displaySubject } from "@/lib/academicPresentation";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -312,7 +312,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
           <Label className="text-xs text-muted-foreground">Subject</Label>
           <Select value={subject} onValueChange={setSubject}>
             <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-            <SelectContent>{subjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            <SelectContent>{subjects.map((s) => <SelectItem key={s} value={s}>{displaySubject(s)}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>

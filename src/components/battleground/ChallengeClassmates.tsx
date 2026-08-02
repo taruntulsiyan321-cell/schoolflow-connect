@@ -14,6 +14,7 @@ import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo"
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
 import { PracticeService, useAcademicContext } from "@/academic";
+import { displaySubject } from "@/lib/academicDisplay";
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
 const FALLBACK = ["Mathematics", "English"];
@@ -118,7 +119,7 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
           <Label className="text-xs">Subject</Label>
           <Select value={subject} onValueChange={setSubject}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{subjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            <SelectContent>{subjects.map((s) => <SelectItem key={s} value={s}>{displaySubject(s)}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>

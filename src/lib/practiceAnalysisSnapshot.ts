@@ -99,7 +99,10 @@ export function buildPracticeAnalysisSnapshot(input: {
     wrongCount,
     skippedCount,
     accuracy,
-    xpEarned: input.xpEarned ?? correctCount * 10,
+    // XP must come from finish RPC (practice_sessions.xp_earned). Never invent correct×N.
+    xpEarned: typeof input.xpEarned === "number" && Number.isFinite(input.xpEarned)
+      ? Math.max(0, Math.floor(input.xpEarned))
+      : 0,
     totalTimeMs: input.totalTimeMs ?? null,
     finishedAt: input.finishedAt ?? null,
     startedAt: input.startedAt ?? null,

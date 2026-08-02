@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
-import { PracticeService, useAcademicContext } from "@/academic";
+import { PracticeService, ProgressionService, useAcademicContext } from "@/academic";
+import { toast } from "sonner";
 
 type Scope = "class" | "school";
 type Category =
@@ -30,12 +31,12 @@ type RankRow = {
 
 const FALLBACK_SUBJECTS = ["Mathematics", "English"];
 
-const CATS: { key: Category; label: string; icon: React.ReactNode; mode: "rpc" | "client"; classOnly?: boolean }[] = [
-  { key: "xp", label: "XP", icon: <Zap className="w-3.5 h-3.5" />, mode: "rpc" },
+const CATS: { key: Category; label: string; icon: React.ReactNode; mode: "progression" | "rpc"; classOnly?: boolean }[] = [
+  { key: "xp", label: "XP", icon: <Zap className="w-3.5 h-3.5" />, mode: "progression" },
   { key: "wins", label: "Wins", icon: <Sword className="w-3.5 h-3.5" />, mode: "rpc" },
-  { key: "streak", label: "Streak", icon: <Flame className="w-3.5 h-3.5" />, mode: "rpc" },
-  { key: "weekly", label: "This Week", icon: <CalendarDays className="w-3.5 h-3.5" />, mode: "rpc" },
-  { key: "monthly", label: "This Month", icon: <CalendarRange className="w-3.5 h-3.5" />, mode: "rpc" },
+  { key: "streak", label: "Streak", icon: <Flame className="w-3.5 h-3.5" />, mode: "progression" },
+  { key: "weekly", label: "This Week", icon: <CalendarDays className="w-3.5 h-3.5" />, mode: "progression" },
+  { key: "monthly", label: "This Month", icon: <CalendarRange className="w-3.5 h-3.5" />, mode: "progression" },
   { key: "subject", label: "By Subject", icon: <Star className="w-3.5 h-3.5" />, mode: "rpc" },
   { key: "marks", label: "Marks", icon: <Trophy className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
   { key: "attendance", label: "Attendance", icon: <ClipboardCheck className="w-3.5 h-3.5" />, mode: "rpc", classOnly: true },
@@ -108,10 +109,58 @@ export function LeaderboardPanel({ embedded = false }: Props) {
     (async () => {
       setLoading(true);
 
-      if (meta.mode === "rpc") {
+      if (meta.mode === "progression" && ctx && academicReady) {
+        try {
+          const period =
+            category === "weekly" ? "weekly" : category === "monthly" ? "monthly" : "lifetime";
+          const metric = category === "streak" ? "streak" : "xp";
+          const lb = await ProgressionService.leaderboard(ctx, {
+            scope,
+            period,
+            metric,
+            limit: 100,
+          });
+          if (cancelled) return;
+          const ranked: RankRow[] = lb.rows.map((r) => ({
+            key: r.user_id,
+            userId: r.user_id,
+            full_name: r.name,
+            roll_number: null,
+            classLabel: null,
+            score: Number(r.value) || 0,
+            label:
+              metric === "streak"
+                ? `${Number(r.value)} days`
+                : `${Number(r.value)} XP`,
+          }));
+          const ids = ranked.map((r) => r.userId).filter(Boolean) as string[];
+          let bm: Record<string, string | null> = {};
+          if (ids.length) {
+            try {
+              const { XpService } = await import("@/academic");
+              bm = await XpService.getEquippedByUserIds(ctx, ids);
+            } catch {
+              /* leave empty */
+            }
+          }
+          setRows(ranked);
+          setBadgeMap(bm);
+          setLoading(false);
+          return;
+        } catch (e) {
+          if (!cancelled) {
+            setRows([]);
+            toast.error(e instanceof Error ? e.message : "Could not load progression leaderboard");
+            setLoading(false);
+            return;
+          }
+        }
+      }
+
+      if (meta.mode === "rpc" || meta.mode === "progression") {
         const { data, error } = await supabase.rpc("rpc_leaderboard", {
           _scope: scope,
-          _category: category,
+          _category: category === "weekly" || category === "monthly" ? "xp" : category,
           _subject: category === "subject" ? subject : undefined,
           _limit: 100,
         });
@@ -125,7 +174,7 @@ export function LeaderboardPanel({ embedded = false }: Props) {
           classLabel: r.class_label,
           score: Number(r.score) || 0,
           label:
-            category === "xp" ? `${Number(r.score)} XP`
+            category === "xp" || category === "weekly" || category === "monthly" ? `${Number(r.score)} XP`
             : category === "streak" ? `${Number(r.score)} days`
             : category === "wins" ? `${Number(r.score)} wins`
             : category === "marks" || category === "attendance" || category === "homework" ? `${Number(r.score)}%`
@@ -145,7 +194,7 @@ export function LeaderboardPanel({ embedded = false }: Props) {
     })();
 
     return () => { cancelled = true; };
-  }, [user, scope, category, subject, classId]);
+  }, [user, scope, category, subject, classId, ctx, academicReady]);
 
   const myRank = useMemo(() => {
     if (!user) return null;

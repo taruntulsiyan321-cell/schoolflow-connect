@@ -433,9 +433,23 @@ export default function RecoverySession() {
 
 
 
-  const finishSession = (snapshots: RecoveryAttemptSnapshot[]) => {
+  const finishSession = async (snapshots: RecoveryAttemptSnapshot[]) => {
 
     if (!id || !assignment) return;
+
+    const correct = snapshots.filter((s) => s.isCorrect).length;
+
+    try {
+      const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+      const ctx = await resolveStudentServiceContext();
+      await PracticeService.completeRecoveryAssignment(ctx, {
+        assignmentId: id,
+        questionsCompleted: snapshots.length,
+        questionsCorrect: correct,
+      });
+    } catch (e) {
+      console.warn("complete recovery:", e instanceof Error ? e.message : e);
+    }
 
     persistRecoveryResult(nav, {
 

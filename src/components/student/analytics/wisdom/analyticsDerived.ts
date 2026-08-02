@@ -27,34 +27,28 @@ export type MistakeBucket = {
   color: string;
 };
 
+/** Honest recurrence buckets from mistake counts — never invent calc/careless/rushed splits. */
 export function classifyMistakes(aggregates: MistakeTopicAggregate[]): MistakeBucket[] {
   const total = aggregates.reduce((s, a) => s + a.mistake_count, 0);
   if (total === 0) return [];
 
-  let concept = 0;
-  let single = 0;
+  let recurring = 0;
+  let oneOff = 0;
+  let heavy = 0;
 
   for (const a of aggregates) {
-    if (a.mistake_count >= 2) concept += a.mistake_count;
-    else single += a.mistake_count;
+    if (a.total_wrong >= 5 || a.mistake_count >= 4) heavy += a.mistake_count;
+    else if (a.mistake_count >= 2) recurring += a.mistake_count;
+    else oneOff += a.mistake_count;
   }
 
-  const calculation = Math.round(total * 0.28);
-  const careless = Math.max(single, Math.round(total * 0.12));
-  const conceptErrors = Math.max(concept, total - calculation - careless - Math.round(total * 0.1));
-  const timePressure = Math.max(0, total - conceptErrors - calculation - careless);
-
   const raw = [
-    { key: "concept", label: "Concept gaps", count: conceptErrors, color: "#003324" },
-    { key: "calc", label: "Working slips", count: calculation, color: "#7ebaa0" },
-    { key: "time", label: "Rushed answers", count: timePressure, color: "#fed572" },
-    { key: "careless", label: "One-off errors", count: careless, color: "#ba1a1a" },
+    { key: "heavy", label: "Repeated weak topics", count: heavy, color: "#ba1a1a" },
+    { key: "concept", label: "Recurring topic gaps", count: recurring, color: "#003324" },
+    { key: "careless", label: "One-off mistakes", count: oneOff, color: "#7ebaa0" },
   ];
 
-  const sum = raw.reduce((s, b) => s + b.count, 0) || 1;
-  const scale = total / sum;
   return raw
-    .map((b) => ({ ...b, count: Math.round(b.count * scale), pct: 0 }))
     .filter((b) => b.count > 0)
     .map((b) => ({ ...b, pct: Math.round((100 * b.count) / total) }))
     .sort((a, b) => b.count - a.count);
@@ -120,17 +114,18 @@ export function buildPersonalBests(
   return items.slice(0, 3);
 }
 
+/** Labels from the student's own subject accuracy only — never invent peer percentile from XP rank. */
 export function peerBenchmarkSubjects(
   subjects: SubjectChartPoint[],
-  rank: number | null,
-  classSize: number,
+  _rank: number | null,
+  _classSize: number,
 ): { name: string; pct: number; label: string }[] {
   return subjects.slice(0, 4).map((s) => {
     const pct = Math.round(s.accuracy);
     let label = "On track";
-    if (pct >= 85) label = rank && classSize ? `Top ${Math.max(5, Math.round((100 * rank) / classSize))}%` : "Strong";
+    if (pct >= 85) label = "Strong";
     else if (pct < 60) label = "Needs focus";
-    else if (pct >= 75) label = "Above average";
+    else if (pct >= 75) label = "Solid";
     return { name: s.name, pct, label };
   });
 }
@@ -151,13 +146,23 @@ export function buildMilestones(
   improvement: number | null,
 ): Milestone[] {
   const items: Milestone[] = [];
+  const xp = data.xp?.xp ?? 0;
   const level = data.xp?.level ?? 1;
-  items.push({
-    title: `Level ${level} reached`,
-    when: "Recent",
-    detail: `${(data.xp?.xp ?? 0).toLocaleString()} XP earned so far`,
-    badge: level >= 10 ? "Dedicated learner" : undefined,
-  });
+  // Only celebrate a level when the student has real XP progress (not Level 1 / 0 XP default).
+  if (xp > 0 && level >= 2) {
+    items.push({
+      title: `Level ${level} reached`,
+      when: "Recent",
+      detail: `${xp.toLocaleString()} XP earned so far`,
+      badge: level >= 10 ? "Dedicated learner" : undefined,
+    });
+  } else if (xp > 0) {
+    items.push({
+      title: `${xp.toLocaleString()} XP earned`,
+      when: "Recent",
+      detail: `Currently level ${level}`,
+    });
+  }
   if (improvement != null && improvement > 0) {
     items.push({
       title: `Accuracy up ${improvement}%`,

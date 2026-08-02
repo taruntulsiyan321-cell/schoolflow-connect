@@ -354,26 +354,28 @@ export function RecoveryCompletionReportView({ report }: Props) {
         <p className="text-sm text-muted-foreground mb-4">Your personalised path forward.</p>
         <div className="rc-card p-5 sm:p-6 space-y-4">
           <div className="grid sm:grid-cols-3 gap-4">
-            <div className="rounded-xl bg-muted/40 p-4">
+            <Link to="/student/recovery" className="rounded-xl bg-muted/40 p-4 hover:bg-muted/60 transition-colors block">
               <Wrench className="w-5 h-5 text-emerald-700 mb-2" />
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Next recovery</p>
               <p className="font-semibold mt-1">{r.whatsNext.nextRecovery}</p>
-              <p className="text-xs text-emerald-700 mt-1">Potential +{r.whatsNext.potentialGain}% accuracy</p>
-            </div>
-            <div className="rounded-xl bg-muted/40 p-4">
+            </Link>
+            <Link to="/student/revision" className="rounded-xl bg-muted/40 p-4 hover:bg-muted/60 transition-colors block">
               <ListChecks className="w-5 h-5 text-amber-700 mb-2" />
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Recommended revision</p>
               <p className="font-semibold mt-1">{r.whatsNext.nextRevision}</p>
-            </div>
-            <div className="rounded-xl bg-muted/40 p-4">
+            </Link>
+            <Link
+              to={`/student/practice?chapter=${encodeURIComponent(r.whatsNext.nextPractice)}`}
+              className="rounded-xl bg-muted/40 p-4 hover:bg-muted/60 transition-colors block"
+            >
               <BookOpen className="w-5 h-5 text-blue-700 mb-2" />
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Practice session</p>
               <p className="font-semibold mt-1">{r.whatsNext.nextPractice}</p>
-            </div>
+            </Link>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button className="rc-cta-primary rounded-full flex-1 h-11 border-0" asChild>
-              <Link to="/student/analytics">
+              <Link to="/student/analysis">
                 Continue improvement <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
             </Button>
@@ -381,6 +383,9 @@ export function RecoveryCompletionReportView({ report }: Props) {
               <Link to="/student/recovery">
                 <Target className="w-4 h-4 mr-2" /> Start next recovery
               </Link>
+            </Button>
+            <Button variant="outline" className="rounded-full flex-1 h-11" asChild>
+              <Link to="/student/aicoach">Ask Nova</Link>
             </Button>
           </div>
           <Button variant="ghost" size="sm" className="w-full text-muted-foreground" asChild>

@@ -60,12 +60,6 @@ export type RecoveryCompletionReport = {
 
 const SUCCESS_HISTORY_KEY = "recovery-success-history";
 
-function hashSeed(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Math.round(n)));
 }
@@ -83,35 +77,23 @@ function findMastery(
   );
 }
 
+/** Related concepts from real mastery rows only — current scores, no invented gains. */
 function relatedConcepts(
   mastery: ConceptMasteryItem[],
   concept: string,
   chapter: string,
-  seed: number,
 ): ConceptImprovement[] {
-  const chapterItems = mastery.filter(
-    (m) => !chapter || (m.chapter ?? "").toLowerCase().includes(chapter.toLowerCase()),
-  );
+  const chapterItems = mastery.filter((m) => {
+    if (chapter && (m.chapter ?? "").toLowerCase().includes(chapter.toLowerCase())) return true;
+    const c = concept.toLowerCase();
+    return m.concept.toLowerCase() !== c && (
+      m.concept.toLowerCase().includes(c) || c.includes(m.concept.toLowerCase())
+    );
+  });
 
-  if (chapterItems.length >= 2) {
-    return chapterItems.slice(0, 5).map((item, i) => {
-      const gain = 18 + ((seed + i * 7) % 22);
-      const after = clamp(item.mastery_score, 40, 95);
-      const before = clamp(after - gain, 28, after - 8);
-      return { name: item.concept, before, after };
-    });
-  }
-
-  const fallbacks = [
-    `${concept} — fundamentals`,
-    `${concept} — applications`,
-    `${concept} — problem solving`,
-  ];
-  return fallbacks.map((name, i) => {
-    const gain = 18 + ((seed + i * 7) % 22);
-    const before = clamp(38 + (seed % 14) + i * 4, 28, 58);
-    const after = clamp(before + gain, before + 8, 92);
-    return { name, before, after };
+  return chapterItems.slice(0, 5).map((item) => {
+    const score = clamp(item.mastery_score, 0, 100);
+    return { name: item.concept, before: score, after: score };
   });
 }
 
@@ -144,7 +126,6 @@ export function buildRecoveryCompletionReport(opts: {
   nextWeakConcept?: string;
 }): RecoveryCompletionReport {
   const { state, mastery, snapshot, weakConcepts = [], nextWeakConcept } = opts;
-  const seed = hashSeed(state.assignmentId);
   const attempts = state.attempts;
   const total = attempts.length;
   const correct = attempts.filter((a) => a.isCorrect).length;
@@ -154,49 +135,26 @@ export function buildRecoveryCompletionReport(opts: {
   const concept = state.concept;
   const m = findMastery(mastery, concept, chapter);
 
-  const severityBoost = state.severity === "severe" ? 22 : state.severity === "moderate" ? 16 : 12;
-  const performanceGain = clamp((recoveryAccuracy - 45) * 0.4 + severityBoost, 10, 32);
-
-  const masteryAfter = m
-    ? clamp(m.mastery_score, 40, 95)
-    : clamp(55 + performanceGain, 50, 90);
-  const masteryBefore = clamp(masteryAfter - performanceGain, 28, masteryAfter - 8);
-
-  const beforeAccuracy = clamp(masteryBefore - 6 + (seed % 8), 32, 62);
-  const afterAccuracy = clamp(Math.max(recoveryAccuracy, masteryAfter - 8), beforeAccuracy + 8, 95);
-
-  const beforeSpeed = clamp(52 + (seed % 18), 48, 68);
-  const afterSpeed = clamp(beforeSpeed + performanceGain * 0.7, beforeSpeed + 6, 88);
-
-  const beforeConfidence = clamp(masteryBefore - 4, 35, 65);
-  const afterConfidence = clamp(masteryAfter - 2, beforeConfidence + 10, 90);
-
-  const conceptImprovements = relatedConcepts(mastery, concept, chapter, seed);
+  // Honest mastery: current DB score only (no seed-based invented before/after).
+  const masteryAfter = m ? clamp(m.mastery_score, 0, 100) : 0;
+  const masteryBefore = masteryAfter;
 
   const practiceAcc = practiceAccuracyFromSnapshot(snapshot);
-  const overallBefore = clamp(practiceAcc - Math.round(performanceGain * 0.55), 45, 78);
-  const overallAfter = clamp(overallBefore + Math.round(performanceGain * 0.55), overallBefore + 4, 92);
+  const conceptImprovements = relatedConcepts(mastery, concept, chapter);
 
-  const healthBefore = clamp(
-    (beforeAccuracy + masteryBefore + beforeConfidence + beforeSpeed) / 4,
-    55,
-    72,
-  );
-  const healthAfter = clamp(
-    (afterAccuracy + masteryAfter + afterConfidence + afterSpeed) / 4,
-    healthBefore + 6,
-    92,
-  );
-
-  const weakFixed = conceptImprovements.filter((c) => c.before < 55 && c.after >= 70).length;
   const mastered = conceptImprovements.filter((c) => c.after >= 80).map((c) => c.name);
   const improving = conceptImprovements.filter((c) => c.after >= 60 && c.after < 80).map((c) => c.name);
-  const needsRecovery = conceptImprovements.filter((c) => c.after < 60).map((c) => c.name);
+  const needsRecovery = [
+    ...conceptImprovements.filter((c) => c.after < 60).map((c) => c.name),
+    ...weakConcepts
+      .filter((w) => w.concept !== concept && (w.mastery_score ?? 0) < 60)
+      .map((w) => w.concept),
+  ].filter((v, i, arr) => arr.indexOf(v) === i);
 
   const completedAt = new Date().toISOString();
   const historyEntry: SuccessHistoryItem = {
     topic: concept,
-    gain: masteryAfter - masteryBefore,
+    gain: 0,
     completedAt,
   };
   const priorHistory = readSuccessHistory().filter((h) => h.topic !== concept);
@@ -205,64 +163,75 @@ export function buildRecoveryCompletionReport(opts: {
   const nextRecovery =
     nextWeakConcept ??
     weakConcepts.find((w) => w.concept !== concept)?.concept ??
-    "Probability";
-  const potentialGain = 3 + (seed % 6);
+    "";
 
-  const accuracyDelta = afterAccuracy - beforeAccuracy;
   const coachHeadline =
-    accuracyDelta >= 25
-      ? `You significantly improved in ${concept.toLowerCase()}-based questions.`
-      : accuracyDelta >= 12
-        ? `Solid progress on ${concept} — your recovery is working.`
-        : `You completed recovery for ${concept}. Keep building momentum.`;
+    recoveryAccuracy >= 75
+      ? `Strong recovery session on ${concept} — ${recoveryAccuracy}% accuracy.`
+      : recoveryAccuracy >= 50
+        ? `You completed recovery for ${concept} at ${recoveryAccuracy}% accuracy.`
+        : `Recovery for ${concept} finished — review misses and keep practicing.`;
 
   const coachBullets = [
-    `Your accuracy increased by ${accuracyDelta}% during this session.`,
-    recoveryAccuracy >= 75
-      ? `You are now consistently solving ${concept.toLowerCase()} problems correctly.`
-      : `You answered ${correct} of ${total} correctly — review the ones you missed.`,
-    `Mastery moved from ${masteryBefore}% to ${masteryAfter}% on this concept.`,
+    `You answered ${correct} of ${total} correctly this session (${recoveryAccuracy}%).`,
+    m
+      ? `Current mastery on this concept is ${masteryAfter}% (from your academic profile).`
+      : `Mastery for this concept will update as more graded attempts are recorded.`,
+    needsRecovery[0]
+      ? `Still weak nearby: ${needsRecovery[0]}.`
+      : nextRecovery
+        ? `Next weak area in your queue: ${nextRecovery}.`
+        : `No other weak concepts currently flagged.`,
   ];
 
-  const focusNext =
-    needsRecovery[0] ??
-    `Focus next on ${nextRecovery} to continue improving your ${state.subject} performance.`;
+  const focusNext = needsRecovery[0]
+    ? `Focus next on ${needsRecovery[0]}.`
+    : nextRecovery
+      ? `Focus next on ${nextRecovery}.`
+      : `Continue practice in ${chapter || state.subject} or open Nova for a targeted review.`;
 
+  // Session milestones from real attempt counts — not student_badges unlocks.
   const achievements = [
     {
       id: "streak",
-      label: "Recovery Streak",
-      description: "2+ recoveries completed",
+      label: "Recovery streak",
+      description: "2+ recovery sessions logged on this device",
       earned: successHistory.length >= 2,
     },
     {
       id: "mastery",
-      label: "Mastery Badge",
-      description: "+15 mastery in one session",
-      earned: masteryAfter - masteryBefore >= 15,
+      label: "Accurate session",
+      description: "75%+ on this recovery session",
+      earned: recoveryAccuracy >= 75,
     },
     {
       id: "conqueror",
-      label: "Concept Conqueror",
-      description: "Mastery above 85%",
+      label: "Strong mastery",
+      description: "Concept mastery at or above 85%",
       earned: masteryAfter >= 85,
     },
     {
       id: "weakness",
-      label: "Weakness Eliminated",
-      description: "Crossed from weak to strong",
-      earned: masteryBefore < 50 && masteryAfter >= 70,
+      label: "Session complete",
+      description: "Finished every assigned recovery question",
+      earned: total > 0,
     },
   ];
 
   const journey: JourneyStage[] = [
     { id: "detected", label: "Weakness Detected", description: `${concept} flagged from practice mistakes`, completed: true },
-    { id: "assigned", label: "Questions Assigned", description: `${total} targeted recovery questions prepared`, completed: true },
+    { id: "assigned", label: "Questions Assigned", description: `${total} recovery questions in this session`, completed: true },
     { id: "started", label: "Recovery Started", description: state.startedAt ? new Date(state.startedAt).toLocaleString() : "Session began", completed: true },
     { id: "completed", label: "Recovery Completed", description: `${recoveryAccuracy}% session accuracy`, completed: true },
-    { id: "improved", label: "Concept Improved", description: `${masteryBefore}% → ${masteryAfter}% mastery`, completed: masteryAfter > masteryBefore },
-    { id: "achieved", label: "Mastery Achieved", description: mastered.length > 0 ? `${mastered.length} sub-skill(s) mastered` : "Progress recorded", completed: masteryAfter >= 75 },
+    { id: "improved", label: "Profile mastery", description: m ? `Current mastery ${masteryAfter}%` : "Mastery pending more graded attempts", completed: !!m },
+    { id: "achieved", label: "Session goal", description: recoveryAccuracy >= 70 ? "Hit 70%+ session accuracy" : "Keep practicing to raise session accuracy", completed: recoveryAccuracy >= 70 },
   ];
+
+  const healthScore = clamp(
+    (recoveryAccuracy + (m ? masteryAfter : practiceAcc || recoveryAccuracy) + (practiceAcc || recoveryAccuracy)) / 3,
+    0,
+    100,
+  );
 
   return {
     assignmentId: state.assignmentId,
@@ -277,34 +246,42 @@ export function buildRecoveryCompletionReport(opts: {
       masteryAfter,
     },
     beforeAfter: [
-      { label: "Accuracy", before: beforeAccuracy, after: afterAccuracy },
-      { label: "Mastery", before: masteryBefore, after: masteryAfter },
-      { label: "Confidence", before: beforeConfidence, after: afterConfidence },
-      { label: "Speed", before: beforeSpeed, after: afterSpeed },
+      { label: "Session accuracy", before: 0, after: recoveryAccuracy },
+      { label: "Concept mastery", before: masteryBefore, after: masteryAfter },
+      { label: "Practice accuracy", before: practiceAcc, after: practiceAcc },
     ],
     conceptImprovements,
     recoveryImpact: {
-      overallAccuracy: { label: `Overall ${state.subject} accuracy`, before: overallBefore, after: overallAfter },
-      practiceAccuracy: { label: "Practice accuracy", before: overallBefore, after: clamp(practiceAcc || overallAfter, overallBefore + 2, 95) },
-      weakConceptsFixed: Math.max(weakFixed, mastered.length > 0 ? mastered.length : 1),
-      masteryScoreIncrease: masteryAfter - masteryBefore,
+      overallAccuracy: {
+        label: `Overall ${state.subject} practice accuracy`,
+        before: practiceAcc,
+        after: practiceAcc,
+      },
+      practiceAccuracy: {
+        label: "Practice accuracy",
+        before: practiceAcc,
+        after: practiceAcc,
+      },
+      weakConceptsFixed: masteryAfter >= 60 ? 1 : 0,
+      masteryScoreIncrease: 0,
     },
-    academicHealth: { label: "Academic health score", before: healthBefore, after: healthAfter },
+    academicHealth: { label: "Session health (accuracy + mastery)", before: healthScore, after: healthScore },
     journey,
     conceptStatus: { mastered, improving, needsRecovery },
     successHistory: successHistory.slice(0, 5),
     coach: { headline: coachHeadline, bullets: coachBullets, focusNext },
     whatsNext: {
-      nextRecovery,
+      nextRecovery: nextRecovery || "None queued",
       nextRevision: chapter || concept,
       nextPractice: chapter || state.subject,
-      potentialGain,
+      potentialGain: 0,
     },
     achievements,
   };
 }
 
 export function formatDelta(before: number, after: number): string {
+  if (before === after) return `${after}%`;
   return `${before}% → ${after}%`;
 }
 

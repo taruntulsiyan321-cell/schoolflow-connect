@@ -52,17 +52,14 @@ export default function LearningHub({ setPage }: Props) {
   const accuracyTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];
     if (trend.length > 0) {
-      return trend.map((p, i) => ({
+      return trend.map((p) => ({
         week: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         score: Math.round(p.score_pct),
       }));
     }
-    const weekly = charts?.weekly_activity ?? [];
-    return weekly.map((p) => ({
-      week: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
-      score: p.total > 0 ? overallAccuracy : 0,
-    }));
-  }, [charts?.practice_trend, charts?.weekly_activity, overallAccuracy]);
+    // No practice_trend — do not invent a flat overall-accuracy line on activity days.
+    return [] as { week: string; score: number }[];
+  }, [charts?.practice_trend]);
 
   const trendDelta = accuracyTrend.length >= 2
     ? accuracyTrend[accuracyTrend.length - 1].score - accuracyTrend[0].score

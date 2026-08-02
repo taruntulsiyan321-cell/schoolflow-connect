@@ -5,13 +5,39 @@ import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BADGES, TIER_CLASS, RARITY_LABEL, type BadgeTier } from "@/lib/badges";
 import { displaySubject, displayTopic } from "@/lib/academicPresentation";
+import { progressionLevelProgress } from "@/academic/services/progressionMath";
 
-export const XPRing = ({ xp, level, size = 120 }: { xp: number; level: number; size?: number }) => {
-  const xpInLevel = xp % 100;
+/** Level ring — prefer ProgressionService fields; else SQL-mirrored curve (never invent xp%N). */
+export const XPRing = ({
+  xp,
+  level,
+  size = 120,
+  xpIntoLevel,
+  xpToNext,
+  progressPct,
+}: {
+  xp: number;
+  level: number;
+  size?: number;
+  xpIntoLevel?: number;
+  xpToNext?: number;
+  progressPct?: number;
+}) => {
+  const derived = progressionLevelProgress(xp, level);
+  const into = Math.max(0, xpIntoLevel ?? derived.xpIntoLevel);
+  const remaining = Math.max(0, xpToNext ?? derived.xpToNextLevel);
+  const span = into + remaining;
+  const pct =
+    progressPct != null
+      ? Math.min(100, Math.max(0, progressPct))
+      : span > 0
+        ? Math.min(100, (into / span) * 100)
+        : derived.levelProgressPct;
   const stroke = 8;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const offset = c - (xpInLevel / 100) * c;
+  const offset = c - (pct / 100) * c;
+  const label = span > 0 ? `${into}/${span} XP` : `${Math.max(0, xp)} XP`;
   return (
     <div className="relative inline-flex" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
@@ -32,7 +58,7 @@ export const XPRing = ({ xp, level, size = 120 }: { xp: number; level: number; s
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="text-xs uppercase tracking-wide text-muted-foreground">Level</div>
         <div className="text-2xl font-bold text-primary">{level}</div>
-        <div className="text-[10px] text-muted-foreground">{xpInLevel}/100 XP</div>
+        <div className="text-[10px] text-muted-foreground">{label}</div>
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ import {
   type ClassmateOption,
 } from "@/gurukul/hooks/useBattlegroundData";
 import {
-  leagueFromXp,
+  leagueFromCodeOrXp,
   xpToNextLeague,
   type League as HelperLeague,
 } from "@/lib/battlegroundHelpers";
@@ -156,13 +156,19 @@ const FEATURED_META: {
 ];
 
 function guessFeaturedKind(c: DesignBattleCard): FeaturedKind | null {
-  const s = (c.title || "") + " " + (c.id || "");
-  const src = s.toLowerCase();
-  if (src.includes("daily")) return "daily";
-  if (src.includes("ncert")) return "ncert";
-  if (src.includes("teacher")) return "teacher";
-  if (src.includes("topper") || src.includes("beat")) return "beat_topper";
-  if (src.includes("week") || src.includes("champ")) return "weekly";
+  const src = (c.source || "").toLowerCase();
+  if (src.startsWith("featured_")) {
+    const kind = src.slice("featured_".length) as FeaturedKind;
+    if (kind === "daily" || kind === "weekly" || kind === "ncert" || kind === "beat_topper" || kind === "teacher") {
+      return kind;
+    }
+  }
+  const hay = `${c.title || ""} ${c.id || ""}`.toLowerCase();
+  if (hay.includes("daily")) return "daily";
+  if (hay.includes("ncert")) return "ncert";
+  if (hay.includes("teacher")) return "teacher";
+  if (hay.includes("topper") || hay.includes("beat")) return "beat_topper";
+  if (hay.includes("week") || hay.includes("champ")) return "weekly";
   if (c.featured) return "daily";
   return null;
 }
@@ -889,7 +895,7 @@ function FeaturedBattles({
                 {live?.title || meta.title}
               </div>
               <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.72rem", marginTop: "1px", fontFamily: "Inter, sans-serif" }}>
-                {humanizeAcademicLabel(meta.chapter)}
+                {live?.chapter ? displayChapter(live.chapter) : humanizeAcademicLabel(meta.chapter)}
               </div>
             </div>
             <div style={{ padding: "0.85rem 1.1rem" }}>
@@ -904,7 +910,7 @@ function FeaturedBattles({
                     fontFamily: "Inter, sans-serif",
                   }}
                 >
-                  {displaySubject(live?.subject || meta.subject)}
+                  {displaySubject(live?.subject) || displaySubject(meta.subject) || "—"}
                 </span>
                 <DiffBadge level={meta.difficulty} />
               </div>
@@ -1108,7 +1114,7 @@ function MyBattlesPanel({
                     )}
                   </div>
                   <div style={{ color: C.text3, fontSize: "0.7rem", fontFamily: "Inter, sans-serif" }}>
-                    {displaySubject(b.subject)} · {b.type === "1v1" ? "1v1" : b.type} · {b.players}/{b.maxPlayers}
+                    {displaySubject(b.subject) || "—"} · {b.type === "1v1" ? "1v1" : b.type} · {b.players}/{b.maxPlayers}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
                     <DiffBadge level="Medium" />
@@ -1226,7 +1232,7 @@ function LeaderboardPanel({ entries, classLabel }: { entries: DesignLbEntry[]; c
             marginBottom: "0.4rem",
           }}
         >
-          {["#", "Student", "XP", "W%"].map((h) => (
+          {["#", "Student", "XP", "Acc"].map((h) => (
             <span
               key={h}
               style={{
@@ -1390,7 +1396,7 @@ function BattleHistoryPanel({
                     vs {h.opponent}
                   </div>
                   <div style={{ color: C.text3, fontSize: "0.7rem", fontFamily: "Inter, sans-serif", marginTop: "1px" }}>
-                    {displaySubject(h.subject)} · {h.date}
+                    {displaySubject(h.subject) || "—"} · {h.date}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -1852,7 +1858,7 @@ function CreateBattleWizard({
               <select value={subject} onChange={(e) => { setSubject(e.target.value); setChapter("All"); }} style={inputStyle}>
                 {subjectOptions.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {displaySubject(s)}
                   </option>
                 ))}
               </select>
@@ -1862,7 +1868,7 @@ function CreateBattleWizard({
               <select value={chapter} onChange={(e) => setChapter(e.target.value)} style={inputStyle}>
                 {chapters.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {c === "All" ? "All" : displayChapter(c)}
                   </option>
                 ))}
               </select>
@@ -2148,9 +2154,24 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
     const xp = data.stats.xp;
     const wins = data.stats.wins;
     const total = data.stats.totalBattles;
-    const league = toLeagueName(leagueFromXp(xp));
-    const next = xpToNextLeague(xp);
-    const xpNext = next ? next.next.minXp : xp;
+    const league = toLeagueName(leagueFromCodeOrXp(data.stats.leagueCode, xp));
+    const engineNext =
+      data.stats.nextLeagueRemaining != null && data.stats.nextLeagueLabel
+        ? {
+            remaining: data.stats.nextLeagueRemaining,
+            nextName: data.stats.nextLeagueLabel,
+            nextMin: data.stats.nextLeagueMinXp ?? xp + data.stats.nextLeagueRemaining,
+          }
+        : null;
+    const next =
+      engineNext ??
+      (() => {
+        const n = xpToNextLeague(xp);
+        return n
+          ? { remaining: n.remaining, nextName: n.next.name, nextMin: n.next.minXp }
+          : null;
+      })();
+    const xpNext = next ? next.nextMin : xp;
     return {
       name: displayName,
       initials: ini,
@@ -2170,7 +2191,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       motivationTitle: data.motivation.title,
       motivationMessage: data.motivation.message,
       xpRemaining: next?.remaining ?? 0,
-      nextLeague: next?.next.name || "Champion",
+      nextLeague: next?.nextName || "Champion",
       dailyXpLabel: dailyLive?.xpReward ? `+${dailyLive.xpReward} XP` : "Earn XP",
     };
   }, [data, displayName, ini, dailyLive]);
