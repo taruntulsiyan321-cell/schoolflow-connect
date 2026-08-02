@@ -11,8 +11,8 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { ConceptMastery } from "@/components/student/ConceptMastery";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildRuleConceptReport } from "@/lib/conceptReportFallback";
-import {
 import { displayChapter, displaySubject } from "@/lib/academicDisplay";
+import {
   formatLearningProgressSummary,
   practiceAccuracyFromSnapshot,
   studyActiveDaysFromSnapshot,

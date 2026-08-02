@@ -3219,15 +3219,18 @@ export type Database = {
       practice_sessions: {
         Row: {
           accuracy: number | null
+          analysis_snapshot: Json | null
           board: string | null
           chapter: string
           class_level: number | null
           correct_count: number
           created_at: string
+          difficulty: string | null
           finished_at: string | null
           id: string
           practice_mode: string | null
           question_count: number
+          saved_at: string | null
           school_id: string | null
           score: number
           skipped_count: number
@@ -3237,18 +3240,22 @@ export type Database = {
           total_time_ms: number | null
           user_id: string
           wrong_count: number
+          xp_earned: number
         }
         Insert: {
           accuracy?: number | null
+          analysis_snapshot?: Json | null
           board?: string | null
           chapter: string
           class_level?: number | null
           correct_count?: number
           created_at?: string
+          difficulty?: string | null
           finished_at?: string | null
           id?: string
           practice_mode?: string | null
           question_count?: number
+          saved_at?: string | null
           school_id?: string | null
           score?: number
           skipped_count?: number
@@ -3258,18 +3265,22 @@ export type Database = {
           total_time_ms?: number | null
           user_id: string
           wrong_count?: number
+          xp_earned?: number
         }
         Update: {
           accuracy?: number | null
+          analysis_snapshot?: Json | null
           board?: string | null
           chapter?: string
           class_level?: number | null
           correct_count?: number
           created_at?: string
+          difficulty?: string | null
           finished_at?: string | null
           id?: string
           practice_mode?: string | null
           question_count?: number
+          saved_at?: string | null
           school_id?: string | null
           score?: number
           skipped_count?: number
@@ -3279,6 +3290,7 @@ export type Database = {
           total_time_ms?: number | null
           user_id?: string
           wrong_count?: number
+          xp_earned?: number
         }
         Relationships: [
           {
@@ -5376,6 +5388,10 @@ export type Database = {
       }
       rpc_finish_practice_session: {
         Args: { _attempts?: Json; _session_id: string }
+        Returns: Json
+      }
+      rpc_save_practice_session: {
+        Args: { _session_id: string; _snapshot?: Json }
         Returns: Json
       }
       rpc_generate_battle: {

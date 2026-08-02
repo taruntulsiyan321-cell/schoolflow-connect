@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAcademicContext, PracticeService } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Check, Target, Timer, X } from "lucide-react";
+import { ArrowLeft, BarChart2, Check, Lightbulb, Save, Target, Timer, X } from "lucide-react";
 import { ScoreRing } from "@/components/dpp/ScoreRing";
 import { PageHeader } from "@/components/ui-bits";
 import { ExplainPanel } from "@/components/learn/ExplainPanel";
@@ -12,11 +13,17 @@ import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryRepor
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   buildPracticeRecoveryReport,
   snapshotsToAttemptRows,
   type PracticeSessionResultState,
 } from "@/lib/practiceSessionSnapshot";
+import {
+  buildPracticeAnalysisSnapshot,
+  type PracticeAnalysisSnapshot,
+} from "@/lib/practiceAnalysisSnapshot";
+import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -31,11 +38,12 @@ function readLocalState(id: string): PracticeSessionResultState | null {
 
 type AttemptRow = {
   id: string;
-  generated_question: { question?: string; options?: string[] };
+  generated_question: { question?: string; options?: string[]; explanation?: string };
   correct_answer: { index?: number; text?: string };
   selected_answer: { index?: number; text?: string } | null;
   is_correct: boolean | null;
   created_at: string;
+  skipped?: boolean | null;
 };
 
 type SessionRow = {
@@ -47,12 +55,22 @@ type SessionRow = {
   score: number;
   created_at: string;
   finished_at: string | null;
+  practice_mode?: string | null;
+  skipped_count?: number | null;
+  wrong_count?: number | null;
+  total_time_ms?: number | null;
+  accuracy?: number | null;
+  saved_at?: string | null;
+  analysis_snapshot?: PracticeAnalysisSnapshot | null;
+  xp_earned?: number | null;
+  difficulty?: string | null;
 };
 
 export default function PracticeSessionResult() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const { user } = useAuth();
+  const { ctx, ready: academicReady } = useAcademicContext();
 
   const localState = useMemo(() => {
     const fromNav = location.state as PracticeSessionResultState | null;
@@ -65,50 +83,113 @@ export default function PracticeSessionResult() {
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
   const [dbLoading, setDbLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  const snapshot = session?.analysis_snapshot ?? null;
 
   const localAttempts = useMemo(
     () => (localState ? snapshotsToAttemptRows(localState.attempts) : []),
     [localState],
   );
 
-  const displayAttempts = useMemo(
-    () => (attempts.length > 0 ? attempts : localAttempts),
-    [attempts, localAttempts],
-  );
+  const snapshotAttempts = useMemo(() => {
+    if (!snapshot?.attempts?.length) return [];
+    return snapshot.attempts.map((a, i) => ({
+      id: `snap-${i}`,
+      generated_question: { question: a.question, options: a.options, explanation: a.explanation },
+      correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
+      selected_answer: { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
+      is_correct: a.isCorrect,
+      created_at: snapshot.finishedAt ?? new Date().toISOString(),
+      skipped: a.skipped ?? false,
+    }));
+  }, [snapshot]);
 
-  const subject = session?.subject ?? localState?.subject ?? "Practice";
-  const chapter = session?.chapter ?? localState?.chapter ?? "";
-  const total = Math.max(session?.question_count ?? 0, displayAttempts.length);
+  const displayAttempts = useMemo(() => {
+    if (attempts.length > 0) return attempts;
+    if (snapshotAttempts.length > 0) return snapshotAttempts;
+    return localAttempts;
+  }, [attempts, snapshotAttempts, localAttempts]);
+
+  const subjectRaw = session?.subject ?? snapshot?.subject ?? localState?.subject ?? "Practice";
+  const chapterRaw = session?.chapter ?? snapshot?.chapter ?? localState?.chapter ?? "";
+  const subject = displaySubject(subjectRaw);
+  const chapter = chapterRaw ? displayChapter(chapterRaw) : "";
+  const total = Math.max(
+    snapshot?.questionCount ?? 0,
+    session?.question_count ?? 0,
+    displayAttempts.length,
+  );
   const correct =
-    displayAttempts.length > 0
+    snapshot?.correctCount ??
+    (displayAttempts.length > 0
       ? displayAttempts.filter((a) => a.is_correct).length
-      : (session?.correct_count ?? 0);
-  const accuracy = total ? Math.round((correct / total) * 100) : 0;
+      : (session?.correct_count ?? 0));
+  const wrong =
+    snapshot?.wrongCount ??
+    (displayAttempts.length > 0
+      ? displayAttempts.filter((a) => !a.is_correct && !(a as AttemptRow).skipped).length
+      : (session?.wrong_count ?? Math.max(0, total - correct)));
+  const skipped =
+    snapshot?.skippedCount ??
+    (displayAttempts.length > 0
+      ? displayAttempts.filter((a) => !!(a as AttemptRow).skipped).length
+      : (session?.skipped_count ?? 0));
+  const accuracy =
+    snapshot?.accuracy ??
+    (typeof session?.accuracy === "number"
+      ? Math.round(Number(session.accuracy))
+      : total
+        ? Math.round((correct / total) * 100)
+        : 0);
+  const xpEarned =
+    snapshot?.xpEarned ??
+    (typeof session?.xp_earned === "number" && session.xp_earned > 0
+      ? session.xp_earned
+      : correct * 10);
   const finishedMs =
-    session?.finished_at && session?.created_at
+    snapshot?.totalTimeMs ??
+    session?.total_time_ms ??
+    (session?.finished_at && session?.created_at
       ? new Date(session.finished_at).getTime() - new Date(session.created_at).getTime()
       : localState?.startedAt
         ? Date.now() - new Date(localState.startedAt).getTime()
-        : 0;
-  const mins = Math.max(1, Math.round(finishedMs / 60000));
+        : 0);
+  const mins = Math.max(1, Math.round((finishedMs || 60000) / 60000));
+  const avgSec =
+    snapshot?.statistics?.avgSecPerQuestion ??
+    (finishedMs && total ? Math.round(finishedMs / total / 1000) : null);
+
+  const insights = snapshot?.insights;
+  const recommendations =
+    insights?.recommendations ??
+    (accuracy < 100
+      ? [
+          accuracy < 60 ? "Review wrong answers below — they feed Mistake Book automatically." : null,
+          accuracy < 80 ? "Revise weak topics from Analysis before your next practice session." : null,
+          'Use "Explain my mistake" on each wrong question to understand the concept.',
+        ].filter(Boolean) as string[]
+      : ["Excellent accuracy — keep momentum with a short daily practice."]);
 
   const fallbackReport = useMemo(() => {
     if (!id || displayAttempts.length === 0) return null;
-    const snapshots =
+    const snaps =
       localState?.attempts ??
+      snapshot?.attempts ??
       displayAttempts.map((a) => ({
         question: a.generated_question?.question ?? "",
         options: a.generated_question?.options ?? [],
         correctIndex: typeof a.correct_answer?.index === "number" ? a.correct_answer.index : 0,
         selectedIndex: typeof a.selected_answer?.index === "number" ? a.selected_answer.index : 0,
         isCorrect: !!a.is_correct,
+        skipped: !!a.skipped,
       }));
-    return buildPracticeRecoveryReport(id, subject, chapter, snapshots, mins);
-  }, [id, subject, chapter, localState, displayAttempts, mins]);
+    return buildPracticeRecoveryReport(id, subjectRaw, chapterRaw, snaps, mins);
+  }, [id, subjectRaw, chapterRaw, localState, snapshot, displayAttempts, mins]);
 
-  const retryUrl = `/student/practice/ai/session?subject=${encodeURIComponent(subject)}&chapter=${encodeURIComponent(chapter)}&count=${total || 10}`;
-
-  const hasLocalData = displayAttempts.length > 0;
+  const retryUrl = `/student/practice`;
+  const hasLocalData = displayAttempts.length > 0 || !!snapshot;
 
   useEffect(() => {
     if (!id || !user) {
@@ -133,7 +214,11 @@ export default function PracticeSessionResult() {
         return;
       }
 
-      if (s) setSession(s as SessionRow);
+      if (s) {
+        const row = s as unknown as SessionRow;
+        setSession(row);
+        setSavedAt(row.saved_at ?? null);
+      }
 
       const { data: rows, error: aErr } = await supabase
         .from("question_attempts")
@@ -152,24 +237,82 @@ export default function PracticeSessionResult() {
     })();
   }, [id, user, hasLocalData]);
 
+  async function handleSaveSession() {
+    if (!id || !ctx || !academicReady) {
+      toast.error("Sign in to save this session");
+      return;
+    }
+    if (savedAt) {
+      toast.message("Session already saved");
+      return;
+    }
+    setSaving(true);
+    try {
+      const snap = buildPracticeAnalysisSnapshot({
+        subject: subjectRaw,
+        chapter: chapterRaw,
+        practiceMode: session?.practice_mode ?? snapshot?.practiceMode ?? null,
+        practiceTypeLabel: snapshot?.practiceTypeLabel,
+        difficulty: session?.difficulty ?? snapshot?.difficulty ?? null,
+        questionCount: total,
+        correctCount: correct,
+        wrongCount: wrong,
+        skippedCount: skipped,
+        accuracy,
+        xpEarned,
+        totalTimeMs: finishedMs || null,
+        finishedAt: session?.finished_at ?? snapshot?.finishedAt ?? null,
+        startedAt: session?.created_at ?? snapshot?.startedAt ?? localState?.startedAt ?? null,
+        attempts:
+          localState?.attempts?.map((a) => ({
+            question: a.question,
+            options: a.options,
+            correctIndex: a.correctIndex,
+            selectedIndex: a.selectedIndex,
+            isCorrect: a.isCorrect,
+            skipped: a.skipped,
+            explanation: a.explanation,
+          })) ??
+          displayAttempts.map((a) => ({
+            question: a.generated_question?.question ?? "",
+            options: a.generated_question?.options ?? [],
+            correctIndex: typeof a.correct_answer?.index === "number" ? a.correct_answer.index : 0,
+            selectedIndex: typeof a.selected_answer?.index === "number" ? a.selected_answer.index : -1,
+            isCorrect: !!a.is_correct,
+            skipped: !!a.skipped,
+            explanation: a.generated_question?.explanation,
+          })),
+        bookmarked: snapshot?.statistics?.bookmarked ?? 0,
+      });
+      const res = await PracticeService.saveSession(ctx, id, snap as unknown as Record<string, unknown>);
+      setSavedAt(res.saved_at);
+      if (res.already_saved) toast.message("Session already saved");
+      else toast.success("Session saved — find it under Saved Sessions");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save session");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (dbLoading && !hasLocalData) return <StudentListSkeleton rows={4} />;
 
   if (loadError && !hasLocalData) {
     return (
       <>
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link to="/student/practice/math12"><ArrowLeft className="w-4 h-4" /> Practice</Link>
+          <Link to="/student/practice"><ArrowLeft className="w-4 h-4" /> Practice</Link>
         </Button>
         <StudentErrorState title="Could not load results" message={loadError} onRetry={() => window.location.reload()} />
       </>
     );
   }
 
-  if (!session && !localState) {
+  if (!session && !localState && !snapshot) {
     return (
       <>
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link to="/student/practice/math12"><ArrowLeft className="w-4 h-4" /> Practice</Link>
+          <Link to="/student/practice"><ArrowLeft className="w-4 h-4" /> Practice</Link>
         </Button>
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">This practice session could not be found.</p>
@@ -181,23 +324,42 @@ export default function PracticeSessionResult() {
   return (
     <>
       <Button variant="ghost" size="sm" asChild className="mb-2">
-        <Link to="/student/practice/math12"><ArrowLeft className="w-4 h-4" /> Practice</Link>
+        <Link to="/student/practice"><ArrowLeft className="w-4 h-4" /> Practice</Link>
       </Button>
       <PageHeader
-        title={`${subject} · ${chapter}`}
-        subtitle={`Practice session · ${session?.finished_at ? new Date(session.finished_at).toLocaleString() : "Just now"}`}
+        title={`${subject}${chapter ? ` · ${chapter}` : ""}`}
+        subtitle={`Practice analysis · ${
+          session?.finished_at
+            ? new Date(session.finished_at).toLocaleString()
+            : snapshot?.finishedAt
+              ? new Date(snapshot.finishedAt).toLocaleString()
+              : "Just now"
+        }`}
       />
 
-      {id && fallbackReport && (
-        <ConceptRecoveryReport
-          sourceType="practice_session"
-          sourceId={id}
-          title="Practice concept recovery report"
-          fallbackReport={fallbackReport}
-        />
-      )}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <Button
+          size="sm"
+          onClick={() => void handleSaveSession()}
+          disabled={saving || Boolean(savedAt)}
+          className="gap-1.5"
+        >
+          <Save className="w-4 h-4" />
+          {savedAt ? "Saved" : saving ? "Saving…" : "Save Session"}
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link to={retryUrl}>Back to Practice</Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/student/mistakes">Mistake book</Link>
+        </Button>
+        <Button asChild variant="ghost" size="sm">
+          <Link to="/student/recovery">Recovery zone</Link>
+        </Button>
+      </div>
 
-      <Card className="p-6 mb-6 flex flex-col sm:flex-row items-center gap-6">
+      {/* Performance Summary */}
+      <Card className="p-6 mb-6 flex flex-col sm:flex-row items-center gap-6 transition-shadow hover:shadow-md">
         <ScoreRing value={correct} max={total || 1} size={140} label="correct" />
         <div className="grid grid-cols-2 gap-4 flex-1 w-full">
           <div className="flex items-center gap-3">
@@ -219,34 +381,71 @@ export default function PracticeSessionResult() {
             <div className="font-bold text-lg">{correct}/{total || displayAttempts.length}</div>
           </div>
           <div>
-            <div className="text-xs text-muted-foreground">Score</div>
-            <div className="font-bold text-lg">{Number(session?.score ?? correct).toFixed(1)} / {total || displayAttempts.length}</div>
+            <div className="text-xs text-muted-foreground">XP earned</div>
+            <div className="font-bold text-lg">{xpEarned}</div>
           </div>
         </div>
       </Card>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        <Button asChild variant="outline" size="sm">
-          <Link to="/student/practice/math12">New chapter</Link>
-        </Button>
-        <Button asChild size="sm">
-          <Link to={retryUrl}>Same chapter again</Link>
-        </Button>
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/student/mistakes">Mistake book</Link>
-        </Button>
-        <Button asChild variant="ghost" size="sm">
-          <Link to="/student/recovery">Recovery zone</Link>
-        </Button>
-      </div>
+      {/* Statistics */}
+      <Card className="p-5 mb-6">
+        <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
+          <BarChart2 className="w-4 h-4" /> Statistics
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+          <div className="rounded-lg border p-3">
+            <div className="text-xs text-muted-foreground">Wrong</div>
+            <div className="font-bold text-lg">{wrong}</div>
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="text-xs text-muted-foreground">Skipped</div>
+            <div className="font-bold text-lg">{skipped}</div>
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="text-xs text-muted-foreground">Avg / question</div>
+            <div className="font-bold text-lg">{avgSec != null ? `${avgSec}s` : "—"}</div>
+          </div>
+          <div className="rounded-lg border p-3">
+            <div className="text-xs text-muted-foreground">Score</div>
+            <div className="font-bold text-lg">{Number(session?.score ?? correct).toFixed(0)} / {total || displayAttempts.length}</div>
+          </div>
+        </div>
+      </Card>
 
-      {accuracy < 100 && displayAttempts.length > 0 && (
+      {id && fallbackReport && (
+        <ConceptRecoveryReport
+          sourceType="practice_session"
+          sourceId={id}
+          title="Practice concept recovery report"
+          fallbackReport={fallbackReport}
+        />
+      )}
+
+      {/* Insights */}
+      {(insights?.headline || insights?.bullets?.length) && (
         <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
-          <h3 className="font-semibold text-sm mb-2">Improvement focus</h3>
+          <h3 className="font-semibold text-sm mb-2 flex items-center gap-2">
+            <Lightbulb className="w-4 h-4" /> Insights
+          </h3>
+          {insights?.headline && <p className="text-sm font-medium mb-2">{insights.headline}</p>}
+          {insights?.bullets && insights.bullets.length > 0 && (
+            <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
+              {insights.bullets.map((b) => (
+                <li key={b}>{b}</li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      )}
+
+      {/* Recommendations */}
+      {recommendations.length > 0 && (
+        <Card className="p-4 mb-6 border-primary/20 bg-primary/5">
+          <h3 className="font-semibold text-sm mb-2">Recommendations</h3>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc pl-4">
-            {accuracy < 60 && <li>Review wrong answers below — they were added to your Mistake Book automatically.</li>}
-            {accuracy < 80 && <li>Revise weak topics from Analysis before your next practice session.</li>}
-            <li>Use &quot;Explain my mistake&quot; on each wrong question to understand the concept, not just the answer.</li>
+            {recommendations.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
           </ul>
         </Card>
       )}
@@ -263,7 +462,7 @@ export default function PracticeSessionResult() {
           const questionText = gq.question ?? "";
 
           return (
-            <Card key={a.id} className="p-5">
+            <Card key={a.id} className="p-5 transition-shadow hover:shadow-sm">
               <div className="text-xs text-muted-foreground mb-2">Q{i + 1}</div>
               <MathText block className="text-base leading-relaxed font-medium mb-4" text={questionText} />
               <div className="space-y-2 mb-4">
@@ -295,8 +494,8 @@ export default function PracticeSessionResult() {
                 selectedIndex={selectedIdx}
                 correctText={correctText}
                 selectedText={selectedText}
-                subject={subject}
-                chapter={chapter}
+                subject={subjectRaw}
+                chapter={chapterRaw}
                 wasCorrect={a.is_correct}
               />
             </Card>

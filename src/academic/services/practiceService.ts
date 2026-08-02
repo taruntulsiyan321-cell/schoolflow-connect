@@ -29,6 +29,29 @@ import {
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
 
+export type PracticeSessionRow = {
+  id: string;
+  subject: string;
+  chapter: string;
+  question_count: number;
+  correct_count: number;
+  score: number;
+  created_at: string;
+  finished_at: string | null;
+  practice_mode?: string | null;
+  skipped_count?: number | null;
+  wrong_count?: number | null;
+  total_time_ms?: number | null;
+  accuracy?: number | null;
+  saved_at?: string | null;
+  analysis_snapshot?: Record<string, unknown> | null;
+  xp_earned?: number | null;
+  difficulty?: string | null;
+};
+
+const PRACTICE_SESSION_LIST_SELECT =
+  "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty";
+
 /**
  * PracticeService — wraps practice session RPCs + finish path.
  * AI/practice modules should call this instead of raw RPCs where practical.
@@ -212,20 +235,130 @@ export const PracticeService = {
       .eq("id", sessionId)
       .maybeSingle();
     throwIfError(error, "Failed to load practice session");
-    return data;
+    return data as PracticeSessionRow | null;
   },
 
-  async listRecentFinished(ctx: ServiceContext, limit = 10) {
+  async listSessionAttempts(ctx: ServiceContext, sessionId: string) {
+    assertCanConsume(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("question_attempts")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("user_id", ctx.userId)
+      .order("created_at", { ascending: true });
+    throwIfError(error, "Failed to load practice attempts");
+    return data ?? [];
+  },
+
+  /** Finished sessions for Practice History (presentation-ready fields stay in UI). */
+  async listRecentFinished(ctx: ServiceContext, limit = 40) {
     assertCanConsume(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx))
       .from("practice_sessions")
-      .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at")
+      .select(PRACTICE_SESSION_LIST_SELECT)
       .eq("user_id", ctx.userId)
       .not("finished_at", "is", null)
       .order("finished_at", { ascending: false })
       .limit(limit);
     throwIfError(error, "Failed to load practice history");
-    return data ?? [];
+    return (data ?? []) as PracticeSessionRow[];
+  },
+
+  async listHistory(
+    ctx: ServiceContext,
+    opts?: {
+      limit?: number;
+      subject?: string | null;
+      practiceMode?: string | null;
+      dateFrom?: string | null;
+      dateTo?: string | null;
+      search?: string | null;
+    },
+  ) {
+    assertCanConsume(ctx, "practice");
+    let q = getClient(toRepoContext(ctx))
+      .from("practice_sessions")
+      .select(PRACTICE_SESSION_LIST_SELECT)
+      .eq("user_id", ctx.userId)
+      .not("finished_at", "is", null)
+      .order("finished_at", { ascending: false })
+      .limit(opts?.limit ?? 50);
+
+    if (opts?.subject?.trim()) {
+      q = q.ilike("subject", opts.subject.trim());
+    }
+    if (opts?.practiceMode?.trim()) {
+      q = q.eq("practice_mode", opts.practiceMode.trim());
+    }
+    if (opts?.dateFrom) {
+      q = q.gte("finished_at", opts.dateFrom);
+    }
+    if (opts?.dateTo) {
+      q = q.lte("finished_at", opts.dateTo);
+    }
+
+    const { data, error } = await q;
+    throwIfError(error, "Failed to load practice history");
+    let rows = (data ?? []) as PracticeSessionRow[];
+    const search = opts?.search?.trim().toLowerCase();
+    if (search) {
+      rows = rows.filter((r) => {
+        const hay = [
+          r.subject,
+          r.chapter,
+          r.practice_mode,
+          r.difficulty,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return hay.includes(search);
+      });
+    }
+    return rows;
+  },
+
+  async listSavedSessions(ctx: ServiceContext, limit = 30) {
+    assertCanConsume(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("practice_sessions")
+      .select(PRACTICE_SESSION_LIST_SELECT)
+      .eq("user_id", ctx.userId)
+      .not("saved_at", "is", null)
+      .order("saved_at", { ascending: false })
+      .limit(limit);
+    throwIfError(error, "Failed to load saved practice sessions");
+    return (data ?? []) as PracticeSessionRow[];
+  },
+
+  /**
+   * Persist analysis snapshot for a finished session (idempotent).
+   * Duplicate saves return already_saved without rewriting the snapshot.
+   */
+  async saveSession(
+    ctx: ServiceContext,
+    sessionId: string,
+    snapshot?: Record<string, unknown> | null,
+  ) {
+    assertCanOwn(ctx, "practice");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_save_practice_session",
+      {
+        _session_id: sessionId,
+        _snapshot: snapshot ?? null,
+      } as never,
+    );
+    throwIfError(error, "Failed to save practice session");
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      studentId: ctx.studentId,
+      source: "PracticeService.saveSession",
+    });
+    return data as {
+      session_id: string;
+      saved: boolean;
+      already_saved: boolean;
+      saved_at: string;
+    };
   },
 
   async resolveSchoolBoard(ctx: ServiceContext): Promise<string> {

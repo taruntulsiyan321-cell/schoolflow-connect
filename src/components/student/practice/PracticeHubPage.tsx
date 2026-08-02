@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -24,17 +24,13 @@ import {
 } from "lucide-react";
 import "./practice-hub.css";
 import "../dashboard/student-dashboard.css";
-import { displayTopic } from "@/lib/academicDisplay";
+import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
+import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { useConceptMastery } from "@/hooks/useConceptMastery";
+import { useAcademicContext, PracticeService } from "@/academic";
+import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 
-/* Placeholder data — visual pass */
-const HERO = {
-  accuracy: 78,
-  questionsToday: 145,
-  topicsPracticed: 12,
-  goalTotal: 20,
-  goalDone: 14,
-};
-
+/* Mode chrome only — not academic stats */
 const PRACTICE_MODES = [
   {
     id: "topic",
@@ -59,29 +55,23 @@ const PRACTICE_MODES = [
   },
 ];
 
-const SUBJECTS = [
-  { id: "Mathematics", icon: Calculator, mastery: 74, color: "text-emerald-700 bg-emerald-500/10" },
-  { id: "Physics", icon: Atom, mastery: 68, color: "text-blue-700 bg-blue-500/10" },
-  { id: "Chemistry", icon: Beaker, mastery: 61, color: "text-violet-700 bg-violet-500/10" },
-  { id: "Biology", icon: Dna, mastery: 72, color: "text-teal-700 bg-teal-500/10" },
-  { id: "English", icon: BookOpen, mastery: 85, color: "text-amber-800 bg-amber-500/10" },
-];
+const SUBJECT_ICONS: Record<string, typeof Calculator> = {
+  Mathematics: Calculator,
+  Math: Calculator,
+  Physics: Atom,
+  Chemistry: Beaker,
+  Biology: Dna,
+  English: BookOpen,
+};
 
-const WEAK_TOPICS = [
-  { topic: "Determinants", subject: "Mathematics", accuracy: 42, questions: 48 },
-  { topic: "Integration by Substitution", subject: "Mathematics", accuracy: 51, questions: 36 },
-];
-
-const STRONG_TOPICS = [
-  { topic: "Probability", subject: "Mathematics", accuracy: 91, questions: 52 },
-  { topic: "Vector Algebra", subject: "Mathematics", accuracy: 88, questions: 44 },
-];
-
-const RECENT_SESSIONS = [
-  { topic: "Matrices – Determinants", accuracy: 45, correct: 4, incorrect: 4, time: "18 min ago" },
-  { topic: "Probability – Bayes", accuracy: 82, correct: 9, incorrect: 2, time: "Yesterday" },
-  { topic: "Integrals – Substitution", accuracy: 60, correct: 6, incorrect: 4, time: "2 days ago" },
-];
+const SUBJECT_COLORS: Record<string, string> = {
+  Mathematics: "text-emerald-700 bg-emerald-500/10",
+  Math: "text-emerald-700 bg-emerald-500/10",
+  Physics: "text-blue-700 bg-blue-500/10",
+  Chemistry: "text-violet-700 bg-violet-500/10",
+  Biology: "text-teal-700 bg-teal-500/10",
+  English: "text-amber-800 bg-amber-500/10",
+};
 
 const QUESTION_SETS = [
   { id: "10", label: "Random 10 Questions", count: 10 },
@@ -115,14 +105,169 @@ function HeroIllustration() {
   );
 }
 
+function formatRelativeSession(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMin = Math.round((now.getTime() - d.getTime()) / 60000);
+  if (diffMin < 60) return `${Math.max(1, diffMin)} min ago`;
+  if (diffMin < 1440) return `${Math.floor(diffMin / 60)}h ago`;
+  if (diffMin < 2880) return "Yesterday";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export default function PracticeHubPage() {
   const nav = useNavigate();
+  const { ctx, ready: academicReady } = useAcademicContext();
+  const { data: snapshot, loading: snapLoading } = useStudentAcademicSnapshot();
+  const { items: mastery, loading: masteryLoading } = useConceptMastery();
+
   const [selectedSubject, setSelectedSubject] = useState("Mathematics");
   const [questionSet, setQuestionSet] = useState<(typeof QUESTION_SETS)[number]["id"]>("10");
   const [difficulty, setDifficulty] = useState<(typeof DIFFICULTIES)[number]>("Medium");
   const [activeMode, setActiveMode] = useState<string | null>(null);
+  const [bankSubjects, setBankSubjects] = useState<string[]>([]);
+  const [recent, setRecent] = useState<
+    Array<{
+      id: string;
+      topic: string;
+      accuracy: number;
+      correct: number;
+      incorrect: number;
+      time: string;
+    }>
+  >([]);
 
-  const goalPct = Math.round((HERO.goalDone / HERO.goalTotal) * 100);
+  useEffect(() => {
+    if (!ctx || !academicReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const names = await PracticeService.listBankSubjects(ctx);
+        if (!cancelled && names.length) {
+          setBankSubjects(names);
+          setSelectedSubject((prev) => (names.includes(prev) ? prev : names[0]));
+        }
+      } catch {
+        if (!cancelled) setBankSubjects([]);
+      }
+      try {
+        const rows = await PracticeService.listRecentFinished(ctx, 5);
+        if (cancelled) return;
+        setRecent(
+          (rows ?? []).map((r) => {
+            const qs = r.question_count || 0;
+            const correct = r.correct_count || 0;
+            const accuracy =
+              typeof r.accuracy === "number"
+                ? Math.round(Number(r.accuracy))
+                : qs
+                  ? Math.round((100 * correct) / qs)
+                  : 0;
+            return {
+              id: r.id,
+              topic: [displaySubject(r.subject), r.chapter ? displayChapter(r.chapter) : null]
+                .filter(Boolean)
+                .join(" – "),
+              accuracy,
+              correct,
+              incorrect: Math.max(0, qs - correct),
+              time: formatRelativeSession(r.finished_at),
+            };
+          }),
+        );
+      } catch {
+        if (!cancelled) setRecent([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx, academicReady]);
+
+  const accuracy = practiceAccuracyFromSnapshot(snapshot) || 0;
+  const heatmap = snapshot?.activity_heatmap ?? [];
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayRow = heatmap.find((h) => h.date === todayKey);
+  const questionsToday =
+    (todayRow?.dpp ?? 0) + (todayRow?.homework ?? 0) + (todayRow?.self_practice ?? 0);
+  const topicsPracticed = new Set(
+    mastery.map((m) => `${m.subject}:${m.chapter ?? m.concept}`),
+  ).size;
+  const goalTotal = 20;
+  const goalDone = Math.min(goalTotal, questionsToday);
+  const goalPct = Math.round((goalDone / goalTotal) * 100);
+
+  const subjects = useMemo(() => {
+    const names =
+      bankSubjects.length > 0
+        ? bankSubjects
+        : Array.from(new Set(mastery.map((m) => m.subject).filter(Boolean)));
+    return names.slice(0, 8).map((name) => {
+      const rows = mastery.filter((m) => m.subject === name);
+      const masteryPct =
+        rows.length > 0
+          ? Math.round(rows.reduce((s, r) => s + (r.mastery_score ?? 0), 0) / rows.length)
+          : 0;
+      return {
+        id: name,
+        mastery: masteryPct,
+        color: SUBJECT_COLORS[name] ?? "text-slate-700 bg-slate-500/10",
+        icon: SUBJECT_ICONS[name] ?? BookOpen,
+      };
+    });
+  }, [bankSubjects, mastery]);
+
+  const weakTopics = useMemo(() => {
+    const fromSnap = (snapshot?.weak_topics ?? []).slice(0, 4).map((t) => ({
+      topic: t.topic || t.chapter || "Topic",
+      subject: t.subject,
+      accuracy: Math.round(t.accuracy ?? 0),
+      questions: 0,
+    }));
+    if (fromSnap.length) return fromSnap;
+    return mastery
+      .filter((m) => (m.mastery_score ?? 100) < 70)
+      .sort((a, b) => (a.mastery_score ?? 0) - (b.mastery_score ?? 0))
+      .slice(0, 4)
+      .map((m) => ({
+        topic: m.concept || m.chapter || "Concept",
+        subject: m.subject,
+        accuracy: Math.round(m.mastery_score ?? 0),
+        questions: m.total_attempts ?? 0,
+      }));
+  }, [snapshot, mastery]);
+
+  const strongTopics = useMemo(() => {
+    const fromSnap = (snapshot?.strong_topics ?? []).slice(0, 4).map((t) => ({
+      topic: t.topic || t.chapter || "Topic",
+      subject: t.subject,
+      accuracy: Math.round(t.accuracy ?? 0),
+      questions: 0,
+    }));
+    if (fromSnap.length) return fromSnap;
+    return mastery
+      .filter((m) => (m.mastery_score ?? 0) >= 80)
+      .sort((a, b) => (b.mastery_score ?? 0) - (a.mastery_score ?? 0))
+      .slice(0, 4)
+      .map((m) => ({
+        topic: m.concept || m.chapter || "Concept",
+        subject: m.subject,
+        accuracy: Math.round(m.mastery_score ?? 0),
+        questions: m.total_attempts ?? 0,
+      }));
+  }, [snapshot, mastery]);
+
+  const focusTopic = weakTopics[0];
+  const loading = snapLoading || masteryLoading;
+
+  const totalQuestions = mastery.reduce((s, m) => s + (m.total_attempts ?? 0), 0);
+  const overallAccuracy = accuracy;
+  const practiceMinutes = heatmap.reduce((s, h) => s + (h.minutes ?? 0), 0);
+  const practiceTimeLabel =
+    practiceMinutes >= 60
+      ? `${Math.floor(practiceMinutes / 60)}h ${practiceMinutes % 60}m`
+      : `${practiceMinutes}m`;
 
   const startSession = (chapter?: string, count?: number) => {
     if (questionSet === "recovery") {
@@ -135,25 +280,24 @@ export default function PracticeHubPage() {
     }
     const ch = chapter ?? CLASS12_MATH_CHAPTERS[0];
     const n = count ?? QUESTION_SETS.find((q) => q.id === questionSet)?.count ?? 10;
-    if (selectedSubject === "Mathematics") {
-      nav(`/student/practice/math12/session?chapter=${encodeURIComponent(ch)}&count=${n}`);
+    if (selectedSubject === "Mathematics" || selectedSubject === "Math") {
+      nav(`/student/practice/math12/session?chapter=${encodeURIComponent(ch)}&count=${n}&difficulty=${encodeURIComponent(difficulty)}`);
       return;
     }
     nav(
-      `/student/practice/ai/session?subject=${encodeURIComponent(selectedSubject)}&chapter=${encodeURIComponent(ch)}&count=${n}`,
+      `/student/practice/ai/session?subject=${encodeURIComponent(selectedSubject)}&chapter=${encodeURIComponent(ch)}&count=${n}&difficulty=${encodeURIComponent(difficulty)}`,
     );
   };
 
   return (
     <div className="practice-hub student-premium space-y-8 px-1 sm:px-0">
-      {/* ── HERO ───────────────────────────────────────────── */}
       <section className="ph-hero rounded-[2rem] overflow-hidden relative text-primary-foreground">
         <div className="ph-hero-glow absolute inset-0 pointer-events-none" />
         <div className="relative z-10 p-6 sm:p-8 lg:p-10">
           <div className="flex flex-col lg:flex-row lg:items-center gap-8">
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary-foreground/70">
-                Class 12 · NCERT
+                Practice Hub
               </p>
               <h1 className="font-['Sora'] text-3xl sm:text-4xl font-semibold mt-2 tracking-tight">Practice</h1>
               <p className="text-base text-primary-foreground/80 mt-2">
@@ -162,10 +306,10 @@ export default function PracticeHubPage() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
                 {[
-                  { label: "Accuracy", value: `${HERO.accuracy}%` },
-                  { label: "Questions today", value: HERO.questionsToday },
-                  { label: "Topics practiced", value: HERO.topicsPracticed },
-                  { label: "Daily goal", value: `${HERO.goalDone}/${HERO.goalTotal}` },
+                  { label: "Accuracy", value: loading ? "…" : `${overallAccuracy}%` },
+                  { label: "Questions today", value: loading ? "…" : questionsToday },
+                  { label: "Topics practiced", value: loading ? "…" : topicsPracticed },
+                  { label: "Daily goal", value: `${goalDone}/${goalTotal}` },
                 ].map((s) => (
                   <div
                     key={s.label}
@@ -184,7 +328,7 @@ export default function PracticeHubPage() {
                 </div>
                 <Progress value={goalPct} className="h-2.5 bg-white/15 [&>div]:bg-[#e8c468]" />
                 <p className="text-xs text-primary-foreground/60 mt-2">
-                  {HERO.goalTotal - HERO.goalDone} more questions to hit today&apos;s target
+                  {Math.max(0, goalTotal - goalDone)} more activity points to hit today&apos;s target
                 </p>
               </div>
             </div>
@@ -193,7 +337,6 @@ export default function PracticeHubPage() {
         </div>
       </section>
 
-      {/* ── PRACTICE MODES ─────────────────────────────────── */}
       <section>
         <SectionHeader title="Practice modes" subtitle="Choose how you want to train today." />
         <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -204,7 +347,7 @@ export default function PracticeHubPage() {
               <div
                 key={m.id}
                 className={cn(
-                  "ph-mode-card ph-card rounded-2xl p-5 flex flex-col cursor-pointer",
+                  "ph-mode-card ph-card rounded-2xl p-5 flex flex-col cursor-pointer transition-transform hover:-translate-y-0.5",
                   active && "ring-2 ring-primary/30 border-primary/20",
                 )}
                 onClick={() => setActiveMode(m.id)}
@@ -234,40 +377,57 @@ export default function PracticeHubPage() {
               </div>
             );
           })}
+          <div
+            className="ph-mode-card ph-card rounded-2xl p-5 flex flex-col cursor-pointer transition-transform hover:-translate-y-0.5"
+            onClick={() => nav("/student/practice")}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/5 text-amber-700 flex items-center justify-center mb-4">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h3 className="font-semibold text-foreground">All practice modes</h3>
+            <p className="text-sm text-muted-foreground mt-1 flex-1 leading-relaxed">
+              Open the full Practice hub with history and saved sessions.
+            </p>
+            <Button size="sm" variant="outline" className="mt-4 rounded-full w-full">
+              Open hub
+            </Button>
+          </div>
         </div>
       </section>
 
-      {/* ── SUBJECTS ───────────────────────────────────────── */}
       <section>
         <SectionHeader title="Subjects" subtitle="Pick a subject and track your mastery." />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {SUBJECTS.map((s) => {
-            const Icon = s.icon;
-            const selected = selectedSubject === s.id;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSelectedSubject(s.id)}
-                className={cn(
-                  "ph-card rounded-2xl p-4 text-left transition-all",
-                  selected && "ring-2 ring-primary/25 border-primary/20 scale-[1.02]",
-                )}
-              >
-                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", s.color)}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <p className="font-semibold text-sm text-foreground">{s.id}</p>
-                <p className="text-2xl font-bold text-foreground mt-1 tabular-nums">{s.mastery}%</p>
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Mastery</p>
-                <Progress value={s.mastery} className="h-1.5 mt-3 bg-muted [&>div]:bg-primary" />
-              </button>
-            );
-          })}
-        </div>
+        {subjects.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-6">No subjects in your bank yet for this class.</p>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            {subjects.map((s) => {
+              const Icon = s.icon;
+              const selected = selectedSubject === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSelectedSubject(s.id)}
+                  className={cn(
+                    "ph-card rounded-2xl p-4 text-left transition-all",
+                    selected && "ring-2 ring-primary/25 border-primary/20 scale-[1.02]",
+                  )}
+                >
+                  <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3", s.color)}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <p className="font-semibold text-sm text-foreground">{displaySubject(s.id)}</p>
+                  <p className="text-2xl font-bold text-foreground mt-1 tabular-nums">{s.mastery}%</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-0.5">Mastery</p>
+                  <Progress value={s.mastery} className="h-1.5 mt-3 bg-muted [&>div]:bg-primary" />
+                </button>
+              );
+            })}
+          </div>
+        )}
       </section>
 
-      {/* ── RECOMMENDED TOPICS ─────────────────────────────── */}
       <section>
         <SectionHeader title="Recommended topics" subtitle="Based on your recent performance." />
         <div className="grid lg:grid-cols-2 gap-6">
@@ -276,9 +436,13 @@ export default function PracticeHubPage() {
               <Flame className="w-3.5 h-3.5" /> Weak topics — practice these
             </p>
             <div className="space-y-3">
-              {WEAK_TOPICS.map((t) => (
-                <TopicCard key={t.topic} {...t} variant="weak" onPractice={() => startSession(t.topic, 10)} />
-              ))}
+              {weakTopics.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">No weak topics tracked yet.</p>
+              ) : (
+                weakTopics.map((t) => (
+                  <TopicCard key={`${t.subject}-${t.topic}`} {...t} variant="weak" onPractice={() => startSession(t.topic, 10)} />
+                ))
+              )}
             </div>
           </div>
           <div>
@@ -286,15 +450,18 @@ export default function PracticeHubPage() {
               <TrendingUp className="w-3.5 h-3.5" /> Strong topics — keep momentum
             </p>
             <div className="space-y-3">
-              {STRONG_TOPICS.map((t) => (
-                <TopicCard key={t.topic} {...t} variant="strong" onPractice={() => startSession(t.topic, 10)} />
-              ))}
+              {strongTopics.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4">No strong topics yet — keep practicing.</p>
+              ) : (
+                strongTopics.map((t) => (
+                  <TopicCard key={`${t.subject}-${t.topic}`} {...t} variant="strong" onPractice={() => startSession(t.topic, 10)} />
+                ))
+              )}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── QUICK START ────────────────────────────────────── */}
       <section id="quick-start" className="ph-quick-start rounded-[2rem] p-6 sm:p-8">
         <div className="flex flex-col lg:flex-row lg:items-end gap-8">
           <div className="flex-1 space-y-6">
@@ -343,7 +510,7 @@ export default function PracticeHubPage() {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Subject: <span className="font-medium text-foreground">{selectedSubject}</span>
+              Subject: <span className="font-medium text-foreground">{displaySubject(selectedSubject)}</span>
               {activeMode && (
                 <>
                   {" "}
@@ -355,7 +522,7 @@ export default function PracticeHubPage() {
 
           <Button
             size="lg"
-            className="rounded-2xl h-14 px-10 text-base font-semibold shadow-lg shrink-0 w-full lg:w-auto"
+            className="rounded-2xl h-14 px-10 text-base font-semibold shadow-lg shrink-0 w-full lg:w-auto active:scale-[0.98] transition-transform"
             onClick={() => startSession()}
           >
             <Play className="w-5 h-5 mr-2" />
@@ -364,7 +531,6 @@ export default function PracticeHubPage() {
         </div>
       </section>
 
-      {/* ── SMART RECOMMENDATION ───────────────────────────── */}
       <section className="ph-ai-card rounded-2xl p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row gap-5 items-start">
           <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0">
@@ -374,51 +540,77 @@ export default function PracticeHubPage() {
             <Badge variant="outline" className="text-[10px] uppercase tracking-wider mb-2 border-blue-200 text-blue-700">
               Smart recommendation
             </Badge>
-            <h3 className="font-semibold text-lg text-foreground">Focus on Determinants today</h3>
-            <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-xl">
-              Improving this topic can increase your overall accuracy by{" "}
-              <span className="font-semibold text-emerald-700">7%</span>. You have 48 questions available
-              — a 10-question session takes about 15 minutes.
-            </p>
-            <Button size="sm" className="mt-4 rounded-full" onClick={() => startSession("Determinants", 10)}>
-              Practice Determinants
-            </Button>
+            {focusTopic ? (
+              <>
+                <h3 className="font-semibold text-lg text-foreground">
+                  Focus on {displayTopic(focusTopic.topic)} today
+                </h3>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-xl">
+                  Your accuracy here is {focusTopic.accuracy}%. A short session on this topic can strengthen{" "}
+                  {displaySubject(focusTopic.subject)}.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-4 rounded-full"
+                  onClick={() => startSession(focusTopic.topic, 10)}
+                >
+                  Practice {displayTopic(focusTopic.topic)}
+                </Button>
+              </>
+            ) : (
+              <>
+                <h3 className="font-semibold text-lg text-foreground">Keep a daily practice habit</h3>
+                <p className="text-sm text-muted-foreground mt-2 leading-relaxed max-w-xl">
+                  No weak topics yet. Start a short session to build your mastery baseline.
+                </p>
+                <Button size="sm" className="mt-4 rounded-full" onClick={() => startSession()}>
+                  Start practice
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </section>
 
-      {/* ── RECENT ACTIVITY ────────────────────────────────── */}
       <section>
         <SectionHeader title="Recent practice activity" subtitle="Review your latest sessions." />
         <div className="space-y-3">
-          {RECENT_SESSIONS.map((s) => (
-            <div key={s.topic} className="ph-card rounded-2xl p-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <p className="font-semibold text-foreground">{displayTopic(s.topic)}</p>
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    {s.time}
-                  </p>
+          {recent.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6">No practice sessions yet.</p>
+          ) : (
+            recent.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className="ph-card rounded-2xl p-5 w-full text-left transition-shadow hover:shadow-sm"
+                onClick={() => nav(`/student/practice/session/${s.id}/result`)}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-foreground">{s.topic}</p>
+                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {s.time}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-4 sm:gap-6">
+                    <Stat label="Accuracy" value={`${s.accuracy}%`} highlight={s.accuracy >= 75} />
+                    <Stat label="Correct" value={String(s.correct)} />
+                    <Stat label="Incorrect" value={String(s.incorrect)} warn />
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-4 sm:gap-6">
-                  <Stat label="Accuracy" value={`${s.accuracy}%`} highlight={s.accuracy >= 75} />
-                  <Stat label="Correct" value={String(s.correct)} />
-                  <Stat label="Incorrect" value={String(s.incorrect)} warn />
-                </div>
-              </div>
-            </div>
-          ))}
+              </button>
+            ))
+          )}
         </div>
       </section>
 
-      {/* ── BOTTOM SUMMARY ─────────────────────────────────── */}
       <section className="ph-summary rounded-[1.75rem] px-6 py-8 sm:px-10 text-primary-foreground">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center sm:text-left">
           {[
-            { label: "Total questions", value: "1,245" },
-            { label: "Overall accuracy", value: "78%" },
-            { label: "Practice time", value: "24h 30m" },
+            { label: "Total questions", value: String(totalQuestions) },
+            { label: "Overall accuracy", value: `${overallAccuracy}%` },
+            { label: "Practice time", value: practiceTimeLabel },
           ].map((s) => (
             <div key={s.label}>
               <p className="text-xs uppercase tracking-wider text-primary-foreground/65">{s.label}</p>
@@ -471,12 +663,14 @@ function TopicCard({
     >
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-foreground">{displayTopic(topic)}</p>
-        <p className="text-sm text-muted-foreground mt-0.5">{subject}</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{displaySubject(subject)}</p>
         <div className="flex flex-wrap gap-3 mt-2 text-xs">
           <span className={cn("font-semibold tabular-nums", weak ? "text-orange-700" : "text-emerald-700")}>
             {accuracy}% accuracy
           </span>
-          <span className="text-muted-foreground">{questions} questions available</span>
+          {questions > 0 && (
+            <span className="text-muted-foreground">{questions} attempts tracked</span>
+          )}
         </div>
       </div>
       <Button size="sm" className="rounded-full shrink-0" variant={weak ? "default" : "outline"} onClick={onPractice}>

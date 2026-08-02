@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService, HomeworkService, type CurriculumScope } from "@/academic";
+import type { PracticeSessionRow } from "@/academic";
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
-import { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
+import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
+import { buildPracticeAnalysisSnapshot } from "@/lib/practiceAnalysisSnapshot";
 import { toast } from "sonner";
 import { displayChapter, displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
 import type { AcademicTermRef } from "@/academic/services/practiceService";
@@ -14,9 +17,9 @@ import {
   BookOpen, Clock, Target, ClipboardList,
   Trophy, BarChart2, Search,
   ChevronRight, CheckCircle2, XCircle, ArrowLeft, Play, SkipForward,
-  Flame, Layers, History,
+  Flame, Layers,
   Save, Bookmark, Timer, BookMarked, Lightbulb,
-  RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle,
+  RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle, Filter,
 } from "lucide-react";
 
 const CLASS_UNRESOLVED_MSG =
@@ -79,9 +82,38 @@ type PracticeSubject = {
 };
 
 type HistoryRow = {
-  id: string; date: string; mode: string; subject: string;
-  qs: number; attempted: number; score: number; pct: number; time: string; status: string;
+  id: string;
+  date: string;
+  mode: string;
+  practiceType: string;
+  subject: string;
+  chapter: string;
+  difficulty: string;
+  qs: number;
+  attempted: number;
+  score: number;
+  pct: number;
+  time: string;
+  xp: number;
+  status: string;
+  finishedAt: string | null;
+  practiceMode: string | null;
+  saved: boolean;
 };
+
+function formatDurationMs(ms: number | null | undefined, startIso?: string, endIso?: string) {
+  if (typeof ms === "number" && ms > 0) {
+    const mins = Math.max(1, Math.round(ms / 60000));
+    if (mins >= 60) {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m > 0 ? `${h}h ${m}m` : `${h}h`;
+    }
+    return `${mins}m`;
+  }
+  if (startIso && endIso) return formatDuration(startIso, endIso);
+  return "—";
+}
 
 function formatSessionDate(iso: string) {
   const d = new Date(iso);
@@ -146,7 +178,49 @@ const CATS: { key: Cat; label: string }[] = [
   { key:"targeted", label:"Targeted" },
 ];
 
-const SAVED: { id: number; label: string; config: string; lastUsed: string }[] = [];
+function practiceTypeLabel(mode: string | null | undefined): string {
+  if (!mode) return "Practice";
+  const found = MODES.find((m) => m.key === mode);
+  if (found) return found.label;
+  return presentAcademicLabel(mode) || mode;
+}
+
+function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
+  const snap = row.analysis_snapshot as { difficulty?: string; practiceTypeLabel?: string } | null;
+  const qs = row.question_count ?? 0;
+  const correct = row.correct_count ?? 0;
+  const pct =
+    typeof row.accuracy === "number"
+      ? Math.round(Number(row.accuracy))
+      : qs > 0
+        ? Math.round((100 * correct) / qs)
+        : 0;
+  const xp =
+    typeof row.xp_earned === "number" && row.xp_earned > 0
+      ? row.xp_earned
+      : correct * 10;
+  const difficultyRaw = row.difficulty || snap?.difficulty || "mixed";
+  return {
+    id: row.id,
+    date: row.finished_at ? formatSessionDate(row.finished_at) : formatSessionDate(row.created_at),
+    mode: row.chapter ? displayChapter(String(row.chapter)) : practiceTypeLabel(row.practice_mode),
+    practiceType: snap?.practiceTypeLabel || practiceTypeLabel(row.practice_mode),
+    subject: displaySubject(row.subject || "Mixed"),
+    chapter: row.chapter ? displayChapter(String(row.chapter)) : "—",
+    difficulty: presentAcademicLabel(String(difficultyRaw)) || String(difficultyRaw),
+    qs,
+    attempted: qs,
+    score: correct,
+    pct,
+    time: formatDurationMs(row.total_time_ms, row.created_at, row.finished_at ?? undefined),
+    xp,
+    status: row.finished_at ? "completed" : "incomplete",
+    finishedAt: row.finished_at,
+    practiceMode: row.practice_mode ?? null,
+    saved: Boolean(row.saved_at),
+  };
+}
+
 const MOCK_TESTS: { id: number; title: string; qs: number; dur: string; subject: string }[] = [];
 
 const DIFFICULTIES = [
@@ -178,7 +252,29 @@ function StatusTag({ status }: { status: string }) {
 }
 
 // ── Hub view ─────────────────────────────────────────────────────────────────
-function Hub({ onMode, history, streak }: { onMode: (key: ModeKey) => void; history: HistoryRow[]; streak: number }) {
+function Hub({
+  onMode,
+  history,
+  saved,
+  streak,
+  onOpenSession,
+  onSaveLatest,
+  savingLatest,
+  historyFilters,
+  onHistoryFilters,
+  subjects,
+}: {
+  onMode: (key: ModeKey) => void;
+  history: HistoryRow[];
+  saved: HistoryRow[];
+  streak: number;
+  onOpenSession: (id: string) => void;
+  onSaveLatest: () => void;
+  savingLatest: boolean;
+  historyFilters: { search: string; subject: string; practiceType: string; date: string };
+  onHistoryFilters: (next: Partial<{ search: string; subject: string; practiceType: string; date: string }>) => void;
+  subjects: PracticeSubject[];
+}) {
   const [cat,    setCat]    = useState<Cat>("all");
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -190,9 +286,23 @@ function Hub({ onMode, history, streak }: { onMode: (key: ModeKey) => void; hist
 
   const hot = MODES.filter(m => m.hot || m.instant).slice(0, 4);
 
+  const filteredHistory = history.filter((h) => {
+    const q = historyFilters.search.trim().toLowerCase();
+    if (q) {
+      const hay = `${h.subject} ${h.chapter} ${h.practiceType} ${h.difficulty}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    if (historyFilters.subject && h.subject !== historyFilters.subject) return false;
+    if (historyFilters.practiceType && h.practiceMode !== historyFilters.practiceType) return false;
+    if (historyFilters.date && h.finishedAt) {
+      const day = h.finishedAt.slice(0, 10);
+      if (day !== historyFilters.date) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-8">
-      {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="flex-1">
           <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Wisdom Campus</div>
@@ -204,93 +314,83 @@ function Hub({ onMode, history, streak }: { onMode: (key: ModeKey) => void; hist
           </p>
         </div>
         {streak > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-2xl border border-amber-400/20 bg-amber-400/8">
-          <Flame className="w-4 h-4 text-amber-400"/>
-          <span className="text-sm font-black text-amber-400">{streak}-day streak</span>
-          <span className="text-[11px] text-amber-400/60">· Keep it up!</span>
-        </div>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#c08a3a]/10 border border-[#c08a3a]/20">
+            <Flame className="w-4 h-4 text-[#c08a3a]"/>
+            <span className="text-xs font-bold text-[#c08a3a]">{streak}-day streak</span>
+          </div>
         )}
       </div>
 
-      {/* ── Quick Start ── */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-1 h-4 rounded-full bg-[#3b5bdb]"/>
-          <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Quick Start</span>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {hot.map(m => (
-            <button key={m.key} onClick={() => onMode(m.key)}
-              className="group text-left p-4 rounded-2xl border transition-all duration-200 hover:scale-[1.02] hover:border-white/20"
-              style={{ borderColor:`${m.color}30`, background:`${m.color}08` }}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110"
-                  style={{ background:`${m.color}15`, color:m.color }}>
-                  {m.icon}
-                </div>
-                {m.hot && <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-[#c08a3a]/15 text-amber-400 border border-amber-400/20">HOT</span>}
-              </div>
-              <div className="text-sm font-black text-white mb-0.5">{m.label}</div>
-              <div className="text-[11px] text-[#78788c] leading-snug">{m.badge}</div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── All Modes ── */}
-      <div>
-        {/* Search + filter bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#78788c]"/>
-            <input
-              value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search practice modes…"
-              className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/40 transition-colors"
-            />
+      {hot.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-4 rounded-full bg-[#c08a3a]"/>
+            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Quick Start</span>
           </div>
-          <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
-            {CATS.map(c => (
-              <button key={c.key} onClick={() => setCat(c.key)}
-                className={cn(
-                  "shrink-0 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all",
-                  cat === c.key ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-white/7 text-[#78788c] hover:text-white hover:border-white/20"
-                )}>{c.label}</button>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {hot.map(m => (
+              <button key={m.key} type="button" onClick={() => onMode(m.key)}
+                className="group text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
+                <div className="flex items-center gap-2 mb-2" style={{ color: m.color }}>
+                  {m.icon}
+                  <span className="text-sm font-bold text-white">{m.label}</span>
+                </div>
+                <div className="text-[11px] text-[#78788c] line-clamp-2">{m.desc}</div>
+              </button>
             ))}
           </div>
         </div>
+      )}
 
-        {/* Mode grid */}
+      <div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+          <div className="flex flex-wrap gap-1.5 flex-1">
+            {CATS.map(c => (
+              <button key={c.key} type="button" onClick={() => setCat(c.key)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all",
+                  cat === c.key ? "bg-white/12 text-white" : "text-[#78788c] hover:text-white hover:bg-white/5"
+                )}>
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#78788c]"/>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search modes…"
+              className="pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20 w-full sm:w-48"
+            />
+          </div>
+        </div>
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {visible.map(m => (
-            <button key={m.key} onClick={() => onMode(m.key)}
-              className="group text-left p-5 rounded-2xl border border-white/7 bg-[#131316]/80 hover:border-white/18 hover:bg-[#131316] transition-all duration-200 flex gap-4">
-              {/* Left color stripe + icon */}
-              <div className="flex flex-col items-center gap-3 shrink-0">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110"
+            <button key={m.key} type="button" onClick={() => onMode(m.key)}
+              className="group text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
+              <div className="flex items-start gap-2 mb-2">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                   style={{ background:`${m.color}15`, color:m.color }}>
                   {m.icon}
                 </div>
-                <div className="w-0.5 flex-1 rounded-full opacity-20" style={{ background:m.color }}/>
-              </div>
-              {/* Content */}
-              <div className="flex-1 min-w-0 py-0.5">
-                <div className="flex items-start gap-2 mb-1">
-                  <span className="text-sm font-black text-white leading-tight">{m.label}</span>
-                  {m.instant && (
-                    <span className="shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded-full mt-0.5"
-                      style={{ color:m.color, background:`${m.color}15`, border:`1px solid ${m.color}20` }}>
-                      INSTANT
-                    </span>
-                  )}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-white truncate">{m.label}</div>
                 </div>
-                <div className="text-[11px] text-[#78788c] leading-relaxed mb-3">{m.desc}</div>
-                <div className="flex items-center justify-between">
-                  <Tag color={m.color}>{m.badge}</Tag>
-                  <div className="flex items-center gap-1 text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
-                    style={{ color:m.color }}>
-                    Start <ChevronRight className="w-3 h-3"/>
-                  </div>
+                {m.instant && (
+                  <span className="shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded-full mt-0.5"
+                    style={{ color:m.color, background:`${m.color}15`, border:`1px solid ${m.color}20` }}>
+                    INSTANT
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-[#78788c] leading-relaxed mb-3">{m.desc}</div>
+              <div className="flex items-center justify-between">
+                <Tag color={m.color}>{m.badge}</Tag>
+                <div className="flex items-center gap-1 text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ color:m.color }}>
+                  Start <ChevronRight className="w-3 h-3"/>
                 </div>
               </div>
             </button>
@@ -305,71 +405,145 @@ function Hub({ onMode, history, streak }: { onMode: (key: ModeKey) => void; hist
         </div>
       </div>
 
-      {/* ── Bottom row: Saved + History ── */}
       <div className="grid lg:grid-cols-[1fr_1.6fr] gap-4">
-        {/* Saved sessions */}
         <GlassCard className="p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 rounded-full bg-[#4b9fd4]"/>
               <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Saved Sessions</span>
             </div>
-            <button className="flex items-center gap-1 text-[10px] text-[#3b5bdb] hover:text-blue-300 transition-colors">
-              <Save className="w-3 h-3"/> Save current
+            <button
+              type="button"
+              disabled={savingLatest || history.length === 0}
+              onClick={onSaveLatest}
+              className="flex items-center gap-1 text-[10px] text-[#3b5bdb] hover:text-blue-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Save className="w-3 h-3"/> {savingLatest ? "Saving…" : "Save current"}
             </button>
           </div>
           <div className="space-y-2.5">
-            {SAVED.map(s => (
-              <div key={s.id} className="group flex items-start gap-3 p-3 rounded-xl border border-white/5 hover:border-white/12 hover:bg-white/3 transition-all cursor-pointer">
+            {saved.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#78788c]">
+                No saved sessions yet. Finish practice, open analysis, then Save Session — or use Save current for your latest result.
+              </div>
+            ) : saved.map(s => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => onOpenSession(s.id)}
+                className="group w-full flex items-start gap-3 p-3 rounded-xl border border-white/5 hover:border-white/12 hover:bg-white/3 transition-all text-left"
+              >
                 <div className="w-8 h-8 rounded-lg bg-[#4b9fd4]/10 flex items-center justify-center shrink-0 text-[#4b9fd4]">
                   <Save className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{s.label}</div>
-                  <div className="text-[10px] text-[#78788c] truncate mt-0.5">{s.config}</div>
-                  <div className="text-[10px] text-[#78788c]/60 mt-0.5">Used {s.lastUsed}</div>
+                  <div className="text-xs font-bold text-white truncate">{s.subject} · {s.chapter}</div>
+                  <div className="text-[10px] text-[#78788c] truncate mt-0.5">{s.practiceType} · {s.pct}% · {s.attempted} Qs · {s.xp} XP</div>
+                  <div className="text-[10px] text-[#78788c]/60 mt-0.5">{s.date}</div>
                 </div>
                 <Play className="w-3.5 h-3.5 text-[#78788c] group-hover:text-[#4b9fd4] transition-colors shrink-0 mt-1"/>
-              </div>
+              </button>
             ))}
           </div>
         </GlassCard>
 
-        {/* Practice History */}
         <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-[#6882e8]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Practice History</span>
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-1 h-4 rounded-full bg-[#6882e8]"/>
+              <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Practice History</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              className={cn(
+                "flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors",
+                showFilters ? "border-[#6882e8]/40 text-[#6882e8]" : "border-white/10 text-[#78788c] hover:text-white"
+              )}
+            >
+              <Filter className="w-3 h-3"/> Filters
+            </button>
           </div>
-          <div className="space-y-2">
-            {history.length === 0 ? (
-              <div className="py-8 text-center text-xs text-[#78788c]">No practice history yet</div>
-            ) : history.map(h => (
-              <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-white/10 transition-all">
+
+          {showFilters && (
+            <div className="grid sm:grid-cols-2 gap-2 mb-4">
+              <div className="relative sm:col-span-2">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#78788c]"/>
+                <input
+                  value={historyFilters.search}
+                  onChange={(e) => onHistoryFilters({ search: e.target.value })}
+                  placeholder="Search subject, chapter, type…"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20"
+                />
+              </div>
+              <select
+                value={historyFilters.subject}
+                onChange={(e) => onHistoryFilters({ subject: e.target.value })}
+                className="px-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white focus:outline-none"
+              >
+                <option value="">All subjects</option>
+                {subjects.map((s) => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+              <select
+                value={historyFilters.practiceType}
+                onChange={(e) => onHistoryFilters({ practiceType: e.target.value })}
+                className="px-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white focus:outline-none"
+              >
+                <option value="">All practice types</option>
+                {MODES.map((m) => (
+                  <option key={m.key} value={m.key}>{m.label}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={historyFilters.date}
+                onChange={(e) => onHistoryFilters({ date: e.target.value })}
+                className="sm:col-span-2 px-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white focus:outline-none"
+              />
+            </div>
+          )}
+
+          <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
+            {filteredHistory.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#78788c]">
+                {history.length === 0 ? "No practice history yet" : "No sessions match these filters"}
+              </div>
+            ) : filteredHistory.map(h => (
+              <button
+                key={h.id}
+                type="button"
+                onClick={() => onOpenSession(h.id)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-all text-left"
+              >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background:`${h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069"}15`, color:h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069" }}>
                   <span className="text-xs font-black">{h.pct}%</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-white truncate">{h.mode}</span>
+                    <span className="text-xs font-semibold text-white truncate">{h.chapter !== "—" ? h.chapter : h.practiceType}</span>
                     <StatusTag status={h.status}/>
+                    {h.saved && <Tag color="#4b9fd4">Saved</Tag>}
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-[10px] text-[#78788c]">{h.subject}</span>
                     <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#78788c]">{h.attempted}/{h.qs} Qs</span>
+                    <span className="text-[10px] text-[#78788c]">{h.practiceType}</span>
+                    <span className="text-[10px] text-[#78788c]/40">·</span>
+                    <span className="text-[10px] text-[#78788c]">{h.difficulty}</span>
+                    <span className="text-[10px] text-[#78788c]/40">·</span>
+                    <span className="text-[10px] text-[#78788c]">{h.attempted} Qs</span>
                     <span className="text-[10px] text-[#78788c]/40">·</span>
                     <span className="text-[10px] text-[#78788c]">{h.time}</span>
+                    <span className="text-[10px] text-[#78788c]/40">·</span>
+                    <span className="text-[10px] text-[#c08a3a]">{h.xp} XP</span>
                   </div>
                 </div>
                 <div className="text-[10px] text-[#78788c] shrink-0 text-right hidden sm:block">{h.date}</div>
-                {h.status === "incomplete" && (
-                  <button className="shrink-0 text-[10px] font-bold text-[#c08a3a] bg-amber-400/10 border border-amber-400/20 px-2 py-1 rounded-lg hover:bg-amber-400/20 transition-colors">
-                    Resume
-                  </button>
-                )}
-              </div>
+                <ChevronRight className="w-3.5 h-3.5 text-[#78788c] shrink-0"/>
+              </button>
             ))}
           </div>
         </GlassCard>
@@ -1091,15 +1265,18 @@ function Session({
       }
     }
 
+    const sid = sessionIdRef.current;
     const results: SessionResults = {
       correct: correctRef.current,
       total: attemptedRef.current,
       skipped: skippedRef.current.length,
       bookmarked: bookmarkedRef.current.length,
       config,
+      sessionId: sid,
+      attempts: [...attemptLog.current],
+      startedAt: undefined,
     };
 
-    const sid = sessionIdRef.current;
     if (sid && ctx) {
       try {
         await PracticeService.finish(ctx, {
@@ -1430,7 +1607,7 @@ function Session({
       {/* Action buttons */}
       <div className="flex items-center gap-3">
         {phase === "q" && (
-          <button onClick={skip} disabled={finishing}
+          <button onClick={() => skip()} disabled={finishing}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
             <SkipForward className="w-3.5 h-3.5"/> Skip
           </button>
@@ -1458,7 +1635,14 @@ function Session({
 
 // ── Results ───────────────────────────────────────────────────────────────────
 interface SessionResults {
-  correct: number; total: number; skipped: number; bookmarked: number; config: SessionConfig;
+  correct: number;
+  total: number;
+  skipped: number;
+  bookmarked: number;
+  config: SessionConfig;
+  sessionId: string | null;
+  attempts: PracticeAttemptSnapshot[];
+  startedAt?: string;
 }
 
 function Summary({ results, onRetry, onHub }: {
@@ -1517,11 +1701,20 @@ function Summary({ results, onRetry, onHub }: {
 export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { ctx, ready: academicReady } = useAcademicContext();
   const [history, setHistory] = useState<HistoryRow[]>([]);
+  const [saved, setSaved] = useState<HistoryRow[]>([]);
   const [historyTick, setHistoryTick] = useState(0);
   const [subjects, setSubjects] = useState<PracticeSubject[]>([]);
   const [curriculumScope, setCurriculumScope] = useState<CurriculumScope | null>(null);
+  const [savingLatest, setSavingLatest] = useState(false);
+  const [historyFilters, setHistoryFilters] = useState({
+    search: "",
+    subject: "",
+    practiceType: "",
+    date: "",
+  });
   const classUnresolved = !!curriculumScope && curriculumScope.classLevel == null;
 
   useEffect(() => {
@@ -1562,36 +1755,26 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   useEffect(() => {
     if (!user || !ctx || !academicReady) {
-      if (!user) setHistory([]);
+      if (!user) {
+        setHistory([]);
+        setSaved([]);
+      }
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const data = await PracticeService.listRecentFinished(ctx, 10);
+        const [hist, savedRows] = await Promise.all([
+          PracticeService.listRecentFinished(ctx, 50),
+          PracticeService.listSavedSessions(ctx, 30),
+        ]);
         if (cancelled) return;
-        setHistory(
-          (data ?? []).map((row) => {
-            const pct = row.question_count > 0
-              ? Math.round((100 * row.correct_count) / row.question_count)
-              : 0;
-            return {
-              id: row.id,
-              date: formatSessionDate(row.finished_at!),
-              mode: row.chapter ? displayChapter(String(row.chapter)) : "Practice",
-              subject: row.subject || "Mixed",
-              qs: row.question_count,
-              attempted: row.question_count,
-              score: row.correct_count,
-              pct,
-              time: formatDuration(row.created_at, row.finished_at!),
-              status: "completed",
-            };
-          }),
-        );
+        setHistory((hist ?? []).map(mapSessionToHistoryRow));
+        setSaved((savedRows ?? []).map(mapSessionToHistoryRow));
       } catch (e) {
         if (!cancelled) {
           setHistory([]);
+          setSaved([]);
           toast.error(e instanceof Error ? e.message : "Could not load practice history");
         }
       }
@@ -1636,9 +1819,60 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     setConfig(cfg); setPhase("session");
   }
 
+  function openSessionAnalysis(sessionId: string) {
+    navigate(`/student/practice/session/${sessionId}/result`);
+  }
+
+  async function saveLatestSession() {
+    if (!ctx || history.length === 0) {
+      toast.message("Complete a practice session first");
+      return;
+    }
+    const latest = history[0];
+    setSavingLatest(true);
+    try {
+      const session = await PracticeService.getSession(ctx, latest.id);
+      const snap = buildPracticeAnalysisSnapshot({
+        subject: session?.subject ?? latest.subject,
+        chapter: session?.chapter ?? latest.chapter,
+        practiceMode: session?.practice_mode ?? latest.practiceMode,
+        practiceTypeLabel: latest.practiceType,
+        difficulty: session?.difficulty ?? latest.difficulty,
+        questionCount: session?.question_count ?? latest.qs,
+        correctCount: session?.correct_count ?? latest.score,
+        wrongCount: session?.wrong_count ?? undefined,
+        skippedCount: session?.skipped_count ?? undefined,
+        accuracy: session?.accuracy ?? latest.pct,
+        xpEarned: session?.xp_earned ?? latest.xp,
+        totalTimeMs: session?.total_time_ms ?? null,
+        finishedAt: session?.finished_at ?? latest.finishedAt,
+        startedAt: session?.created_at ?? null,
+      });
+      const res = await PracticeService.saveSession(ctx, latest.id, snap as unknown as Record<string, unknown>);
+      if (res.already_saved) toast.message("Session already saved");
+      else toast.success("Session saved");
+      setHistoryTick((t) => t + 1);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save session");
+    } finally {
+      setSavingLatest(false);
+    }
+  }
+
   function handleFinish(res: SessionResults) {
-    setResults(res); setPhase("summary");
     setHistoryTick((t) => t + 1);
+    if (res.sessionId) {
+      const chapter = res.config.chapter || res.attempts[0]?.chapter || res.config.label;
+      persistAndGoToPracticeResult(navigate, res.sessionId, {
+        subject: res.config.subject,
+        chapter: String(chapter),
+        attempts: res.attempts,
+        startedAt: res.startedAt,
+      });
+      return;
+    }
+    setResults(res);
+    setPhase("summary");
   }
 
   function handleRetry() {
@@ -1653,7 +1887,20 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           {CLASS_UNRESOLVED_MSG}
         </div>
       )}
-      {phase === "hub"     && <Hub onMode={handleMode} history={history} streak={streak}/>}
+      {phase === "hub" && (
+        <Hub
+          onMode={handleMode}
+          history={history}
+          saved={saved}
+          streak={streak}
+          onOpenSession={openSessionAnalysis}
+          onSaveLatest={() => void saveLatestSession()}
+          savingLatest={savingLatest}
+          historyFilters={historyFilters}
+          onHistoryFilters={(next) => setHistoryFilters((prev) => ({ ...prev, ...next }))}
+          subjects={subjects}
+        />
+      )}
       {phase === "config"  && (
         <ConfigView
           modeKey={modeKey}
