@@ -61,6 +61,7 @@ export {
 } from "./humanize";
 
 export { COMMERCE_CHAPTERS, COMMERCE_SUBJECTS, commerceTaxonomyBundle } from "./seeds/commerceRbse";
+export { BANK_CONCEPT_DISPLAY } from "./seeds/bankConcepts";
 export {
   SCIENCE_CHAPTER_PLACEHOLDERS,
   SCIENCE_SUBJECTS,

@@ -311,7 +311,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
               </div>
               <MathText block className="text-sm font-medium leading-snug" text={q.question} />
               {(q.chapter || q.topic) && (
-                <p className="text-[11px] text-muted-foreground mt-1">{[q.chapter, q.topic].filter(Boolean).join(" · ")}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">{[q.chapter ? displayChapter(q.chapter) : null, q.topic ? displayTopic(q.topic) : null].filter(Boolean).join(" · ")}</p>
               )}
               {!q.skipped && (
                 <ExplainPanel

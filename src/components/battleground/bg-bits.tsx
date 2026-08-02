@@ -4,6 +4,7 @@ import { Crown, Lock, HelpCircle, Flame, Target, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BADGES, TIER_CLASS, RARITY_LABEL, type BadgeTier } from "@/lib/badges";
+import { displaySubject, displayTopic } from "@/lib/academicPresentation";
 
 export const XPRing = ({ xp, level, size = 120 }: { xp: number; level: number; size?: number }) => {
   const xpInLevel = xp % 100;
@@ -116,7 +117,7 @@ export const BattleCard = ({ battle, onJoin }: { battle: any; onJoin: () => void
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="section-label">
-              {battle.subject}{battle.topic ? ` · ${battle.topic}` : ""}
+              {displaySubject(battle.subject)}{battle.topic ? ` · ${displayTopic(battle.topic)}` : ""}
               {modeLabel && <span className="ml-2 text-primary">· {modeLabel}</span>}
             </div>
             <div className="text-base font-semibold mt-1 truncate text-foreground">{battle.title}</div>

@@ -57,6 +57,12 @@ describe("looksLikeAcademicSlug", () => {
     expect(looksLikeAcademicSlug("Introduction to Accounting")).toBe(false);
     expect(looksLikeAcademicSlug("Accountancy")).toBe(false);
   });
+
+  it("detects bare lowercase bank topic ids", () => {
+    expect(looksLikeAcademicSlug("industry")).toBe(true);
+    expect(looksLikeAcademicSlug("fayol")).toBe(true);
+    expect(looksLikeAcademicSlug("4ps")).toBe(true);
+  });
 });
 
 describe("presentAcademicLabel / dictionary", () => {
@@ -68,6 +74,14 @@ describe("presentAcademicLabel / dictionary", () => {
     expect(presentAcademicLabel("double_entry", "concept")).toBe("Double Entry System");
     expect(presentAcademicLabel("journal_proper", "concept")).toBe("Journal Proper");
     expect(presentAcademicLabel("journal_proper")).toBe("Journal Proper");
+  });
+
+  it("presents BST bare/slug topics professionally", () => {
+    expect(presentAcademicLabel("industry", "concept")).toBe("Industry");
+    expect(presentAcademicLabel("sole_prop", "concept")).toBe("Sole Proprietorship");
+    expect(presentAcademicLabel("4ps", "concept")).toMatch(/4Ps/i);
+    expect(presentAcademicLabel("fayol", "concept")).toMatch(/Fayol/i);
+    expect(presentAcademicLabel("wto_etc", "concept")).toMatch(/WTO/i);
   });
 
   it("title-cases unknown snake_case with vs handling", () => {

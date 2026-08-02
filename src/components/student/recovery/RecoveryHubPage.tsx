@@ -18,6 +18,7 @@ import {
   Wrench,
   Zap,
 } from "lucide-react";
+import { displayConcept, displaySubject } from "@/lib/academicPresentation";
 import "./recovery-hub.css";
 import "../dashboard/student-dashboard.css";
 
@@ -221,12 +222,12 @@ export function RecoveryHubPage({
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold text-foreground">{p.concept}</p>
+                    <p className="font-semibold text-foreground">{displayConcept(p.concept)}</p>
                     <Badge variant="outline" className="text-[10px]">
                       Priority {p.rank}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">{p.subject}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5">{displaySubject(p.subject)}</p>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-4 sm:gap-6 text-center sm:text-left">
@@ -305,8 +306,8 @@ export function RecoveryHubPage({
             <div key={t.id} className="rh-task rh-card rounded-2xl p-6 flex flex-col">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div>
-                  <p className="font-semibold text-lg text-foreground">{t.concept}</p>
-                  <p className="text-sm text-muted-foreground">{t.subject}</p>
+                  <p className="font-semibold text-lg text-foreground">{displayConcept(t.concept)}</p>
+                  <p className="text-sm text-muted-foreground">{displaySubject(t.subject)}</p>
                 </div>
                 <Flag className="w-5 h-5 text-amber-600 shrink-0" />
               </div>
@@ -367,8 +368,8 @@ export function RecoveryHubPage({
                 key={f.concept}
                 className="rounded-2xl bg-white/80 border border-emerald-200/50 p-4 shadow-sm"
               >
-                <p className="font-semibold text-foreground">{f.concept}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{f.subject}</p>
+                <p className="font-semibold text-foreground">{displayConcept(f.concept)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{displaySubject(f.subject)}</p>
                 <p className="text-sm font-semibold text-emerald-700 mt-2 flex items-center gap-1">
                   <ArrowUpRight className="w-4 h-4" />
                   {f.improvement}
@@ -415,8 +416,8 @@ export function RecoveryHubPage({
                 <div className="flex items-center gap-3 min-w-0">
                   <span className={cn("w-2.5 h-2.5 rounded-full shrink-0", heatDots[h.level])} />
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{h.concept}</p>
-                    <p className="text-[10px] opacity-70">{h.subject}</p>
+                    <p className="text-sm font-medium truncate">{displayConcept(h.concept)}</p>
+                    <p className="text-[10px] opacity-70">{displaySubject(h.subject)}</p>
                   </div>
                 </div>
                 <div className="text-right shrink-0">

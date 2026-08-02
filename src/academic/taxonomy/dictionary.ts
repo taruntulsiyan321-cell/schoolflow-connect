@@ -1,8 +1,11 @@
+import { BANK_CONCEPT_DISPLAY } from "./seeds/bankConcepts";
+
 /**
  * Educational terminology dictionary — known commerce/math/science concept slugs
  * → professional display names (not naive Title Case).
+ * Bank-derived topics (BANK_CONCEPT_DISPLAY) are merged below so every QB slug resolves.
  */
-export const CONCEPT_DISPLAY_DICTIONARY: Record<string, string> = {
+const CORE_CONCEPT_DISPLAY: Record<string, string> = {
   // Accountancy — user-prompt + high-traffic
   cash_book: "Cash Book",
   brs_purpose: "Purpose of Bank Reconciliation Statement",
@@ -137,6 +140,12 @@ export const CONCEPT_DISPLAY_DICTIONARY: Record<string, string> = {
   concept: "Concept Check",
 };
 
+/** SSOT concept slug → display name (core curated + live bank topics). */
+export const CONCEPT_DISPLAY_DICTIONARY: Record<string, string> = {
+  ...BANK_CONCEPT_DISPLAY,
+  ...CORE_CONCEPT_DISPLAY,
+};
+
 /** Token-level overrides inside humanized slugs. */
 export const TOKEN_DISPLAY: Record<string, string> = {
   vs: "vs",
@@ -158,6 +167,20 @@ export const TOKEN_DISPLAY: Record<string, string> = {
   roe: "ROE",
   npo: "NPO",
   wto: "WTO",
+  huf: "HUF",
+  mnc: "MNC",
+  ppp: "PPP",
+  csr: "CSR",
+  aoa: "AoA",
+  moa: "MoA",
+  cogs: "COGS",
+  wdv: "WDV",
+  crr: "CRR",
+  bop: "BoP",
+  ppf: "PPF",
+  "4ps": "4Ps",
+  ncr: "nCr",
+  npr: "nPr",
   ii: "II",
   iii: "III",
   iv: "IV",
@@ -193,6 +216,9 @@ export const SUBJECT_DISPLAY: Record<string, string> = {
   science: "Science",
   computer_science: "Computer Science",
   informatics_practices: "Informatics Practices",
+  social_science: "Social Science",
+  social_studies: "Social Science",
+  sst: "Social Science",
 };
 
 export const BOARD_DISPLAY: Record<string, string> = {

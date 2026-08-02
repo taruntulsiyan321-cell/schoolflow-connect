@@ -7,7 +7,7 @@ import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { toast } from "sonner";
-import { displayChapter, presentAcademicLabel } from "@/lib/academicPresentation";
+import { displayChapter, displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
 import type { AcademicTermRef } from "@/academic/services/practiceService";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
@@ -126,7 +126,7 @@ const MODES: Mode[] = [
     icon:<BookOpen className="w-5 h-5"/>,   color:"#4aa87a", cat:"type",    badge:"Relaxed mode" },
   { key:"mock",       label:"Mock Tests",             desc:"Full-length exam simulation under real test conditions",
     icon:<Trophy className="w-5 h-5"/>,     color:"#c08a3a", cat:"type",    badge:"Mock test" },
-  { key:"difficulty", label:"Difficulty-Based",       desc:"Choose Easy, Medium, Hard or Mixed to match your prep level",
+  { key:"difficulty", label:"Difficulty-Based",       desc:"Subject → chapter → difficulty — real bank questions at your level",
     icon:<BarChart2 className="w-5 h-5"/>,  color:"#6882e8", cat:"type",    badge:"Pick level" },
   { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from topics where your accuracy is below 70%",
     icon:<TrendingDown className="w-5 h-5"/>, color:"#cc5069", cat:"targeted", badge:"Weak areas", instant:true, hot:true },
@@ -410,7 +410,7 @@ function ConfigView({
     setChapters([]);
     setTopics([]);
     if (!selSubject || !ctx || !academicReady) return;
-    if (!["chapter", "topic"].includes(modeKey)) return;
+    if (!["chapter", "topic", "difficulty"].includes(modeKey)) return;
     let cancelled = false;
     (async () => {
       setMetaLoading(true);
@@ -450,7 +450,7 @@ function ConfigView({
     setSelTopic(null);
     setTopics([]);
     if (!selSubject || !ctx || !academicReady) return;
-    if (modeKey !== "topic") return;
+    if (!["topic", "difficulty"].includes(modeKey)) return;
     let cancelled = false;
     (async () => {
       try {
@@ -548,24 +548,50 @@ function ConfigView({
   if (modeKey === "difficulty") {
     return (
       <ConfigShell mode={mode} onBack={onBack}>
-        <div>
-          <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Select Difficulty</div>
-          <div className="grid sm:grid-cols-2 gap-3 mb-6">
-            {DIFFICULTIES.map(d => (
-              <button key={d.key} onClick={() => setSelDifficulty(d.key)}
-                className={cn(
-                  "p-4 rounded-2xl border text-left transition-all",
-                  selDifficulty === d.key ? "scale-[1.02]" : "border-white/7 hover:border-white/15"
-                )}
-                style={selDifficulty === d.key ? { borderColor:`${d.color}40`, background:`${d.color}10` } : {}}>
-                <div className="text-sm font-black mb-1" style={{ color:selDifficulty===d.key?d.color:"white" }}>{d.label}</div>
-                <div className="text-[11px] text-[#78788c]">{d.desc}</div>
-              </button>
-            ))}
-          </div>
+        <div className="space-y-6">
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
+          {selSubject && (
+            <OptionChips
+              label={metaLoading ? "Loading chapters…" : "2. Chapter"}
+              options={chapters}
+              selected={selChapter}
+              onSelect={setSelChapter}
+              empty="No chapters in the bank for this subject yet."
+            />
+          )}
+          {selSubject && selChapter && topics.length > 0 && (
+            <OptionChips
+              label="3. Topic / concept (optional)"
+              options={topics}
+              selected={selTopic}
+              onSelect={setSelTopic}
+              allowClear
+              empty="No topics tagged for this chapter yet."
+            />
+          )}
+          {selSubject && selChapter && (
+            <div>
+              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">
+                {topics.length > 0 ? "4. Difficulty" : "3. Difficulty"}
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {DIFFICULTIES.map(d => (
+                  <button key={d.key} type="button" onClick={() => setSelDifficulty(d.key)}
+                    className={cn(
+                      "p-4 rounded-2xl border text-left transition-all",
+                      selDifficulty === d.key ? "scale-[1.02]" : "border-white/7 hover:border-white/15"
+                    )}
+                    style={selDifficulty === d.key ? { borderColor:`${d.color}40`, background:`${d.color}10` } : {}}>
+                    <div className="text-sm font-black mb-1" style={{ color:selDifficulty===d.key?d.color:"white" }}>{d.label}</div>
+                    <div className="text-[11px] text-[#78788c]">{d.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
-        <StartButton color={mode.color} onStart={handleStart}/>
+        <StartButton color={mode.color} disabled={!selSubject || !selChapter} onStart={handleStart}/>
       </ConfigShell>
     );
   }
@@ -837,7 +863,7 @@ function SubjectPicker({
                 selected === s.name ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
               )}
               style={selected===s.name ? { background:s.color, boxShadow:`0 4px 14px ${s.color}40` } : {}}>
-              {s.name}
+              {displaySubject(s.name) || s.name}
             </button>
           ))}
         </div>

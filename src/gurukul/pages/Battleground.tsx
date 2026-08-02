@@ -28,7 +28,7 @@ import {
 } from "@/lib/battlegroundHelpers";
 import { getNcertChapters, getNcertSubjects, parseClassGrade } from "@/lib/ncertSyllabus";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
-import { displayChapter, humanizeAcademicLabel } from "@/lib/academicDisplay";
+import { displayChapter, displaySubject, humanizeAcademicLabel } from "@/lib/academicDisplay";
 import { PracticeService, useAcademicContext } from "@/academic";
 import "./battleground-design.css";
 
@@ -904,7 +904,7 @@ function FeaturedBattles({
                     fontFamily: "Inter, sans-serif",
                   }}
                 >
-                  {live?.subject || meta.subject}
+                  {displaySubject(live?.subject || meta.subject)}
                 </span>
                 <DiffBadge level={meta.difficulty} />
               </div>
@@ -1108,7 +1108,7 @@ function MyBattlesPanel({
                     )}
                   </div>
                   <div style={{ color: C.text3, fontSize: "0.7rem", fontFamily: "Inter, sans-serif" }}>
-                    {b.subject} · {b.type === "1v1" ? "1v1" : b.type} · {b.players}/{b.maxPlayers}
+                    {displaySubject(b.subject)} · {b.type === "1v1" ? "1v1" : b.type} · {b.players}/{b.maxPlayers}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
                     <DiffBadge level="Medium" />
@@ -1390,7 +1390,7 @@ function BattleHistoryPanel({
                     vs {h.opponent}
                   </div>
                   <div style={{ color: C.text3, fontSize: "0.7rem", fontFamily: "Inter, sans-serif", marginTop: "1px" }}>
-                    {h.subject} · {h.date}
+                    {displaySubject(h.subject)} · {h.date}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>

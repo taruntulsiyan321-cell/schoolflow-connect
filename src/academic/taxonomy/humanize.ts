@@ -23,15 +23,22 @@ const MOJIBAKE_MAP: Array<[RegExp, string]> = [
   [/Ã±/g, "\u00F1"],
 ];
 
+/**
+ * True for internal taxonomy ids: snake_case, kebab-case, or bare lowercase tokens
+ * (e.g. industry, 4ps, cash_book). Human titles with spaces / capitals are false.
+ */
 export function looksLikeAcademicSlug(raw: string): boolean {
   const s = raw.trim();
   if (!s) return false;
   if (/\s/.test(s)) return false;
-  if (!/[_-]/.test(s)) {
-    // bare acronyms / single tokens that are all-lowercase ids
-    return /^[a-z][a-z0-9]{1,12}$/.test(s) && CONCEPT_DISPLAY_DICTIONARY[s] != null;
+  // Devanagari / other scripts are human lesson titles, not slugs
+  if (/[^\u0000-\u007f]/.test(s) && !/[_-]/.test(s)) return false;
+  if (s !== s.toLowerCase()) return false;
+  if (/[_-]/.test(s)) {
+    return /^[a-z0-9]+(?:[_-][a-z0-9]+)+$/.test(s);
   }
-  return /^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(s) && s === s.toLowerCase();
+  // Bare lowercase bank topic ids (industry, risk, fayol, 4ps, nCr → after lower)
+  return /^[a-z][a-z0-9]{0,24}$/.test(s) || /^\d+[a-z]{0,3}$/.test(s);
 }
 
 /**
@@ -86,7 +93,8 @@ export function humanizeAcademicLabel(raw: string | null | undefined): string {
     return CONCEPT_DISPLAY_DICTIONARY[canon];
   }
 
-  if (!looksLikeAcademicSlug(cleaned) && !/^[a-z]+(?:_[a-z0-9]+)+$/.test(cleaned)) {
+  // Always humanize internal ids — never leave bare lowercase / snake_case in UI
+  if (!looksLikeAcademicSlug(cleaned) && !/^[a-z0-9]+(?:_[a-z0-9]+)+$/.test(cleaned)) {
     return cleaned;
   }
 

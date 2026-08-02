@@ -27,4 +27,9 @@ export {
   lookupDisplayName,
 } from "@/academic/taxonomy";
 
+import { presentAcademicLabel as _present } from "@/academic/taxonomy";
+
+/** Stable UI alias — same as presentAcademicLabel. */
+export const formatAcademicLabel = _present;
+
 export type { AcademicLabelKind, TaxonomyTermRef, TaxonomyPath, PresentedTaxonomyPath } from "@/academic/taxonomy";

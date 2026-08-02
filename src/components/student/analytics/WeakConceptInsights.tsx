@@ -14,6 +14,7 @@ import {
   Loader2, Microscope, RefreshCw, Target, Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { displayChapter, displayConcept, displaySubject, displayTopic } from "@/lib/academicPresentation";
 import "@/components/student/analytics/wisdom/wisdom-analytics.css";
 
 const severityStyle: Record<string, { badge: string; stripe: string }> = {
@@ -38,14 +39,14 @@ function TopicGapCard({ gap }: { gap: TopicGapInsight }) {
         <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
           <div className="min-w-0 flex-1">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-              {gap.subject} · {gap.chapter}
+              {displaySubject(gap.subject)} · {displayChapter(gap.chapter)}
             </div>
             <div className="font-bold text-base sm:text-lg leading-snug mt-1 text-foreground">
-              {gap.topic}
+              {displayTopic(gap.topic)}
             </div>
             {gap.concept && gap.concept !== gap.topic && (
               <Badge variant="outline" className="mt-2 text-[10px] font-normal">
-                Skill: {gap.concept}
+                Skill: {displayConcept(gap.concept)}
               </Badge>
             )}
           </div>
@@ -256,8 +257,8 @@ export function WeakConceptInsights({
             <div className="flex flex-wrap gap-2">
               {strong.map((s, i) => (
                 <Badge key={i} variant="outline" className="bg-accent/10 text-accent border-accent/25 py-1.5 px-3 font-normal">
-                  <span className="font-semibold">{s.concept}</span>
-                  <span className="opacity-75 ml-1.5">· {s.subject}</span>
+                  <span className="font-semibold">{displayConcept(s.concept)}</span>
+                  <span className="opacity-75 ml-1.5">· {displaySubject(s.subject)}</span>
                 </Badge>
               ))}
             </div>

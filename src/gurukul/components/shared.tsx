@@ -38,17 +38,21 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
   );
 }
 
+import { displaySubject } from "@/lib/academicPresentation";
+
 const SUBJECT_COLORS: Record<string,string> = {
   Mathematics:"#3b5bdb", Physics:"#4b9fd4", Chemistry:"#6882e8",
-  Biology:"#4aa87a", English:"#c08a3a",
+  Biology:"#4aa87a", English:"#c08a3a", Accountancy:"#4aa87a",
+  "Business Studies":"#6882e8", Economics:"#c08a3a", Hindi:"#cc5069",
 };
 
 export function SubjectBadge({ subject, color }: { subject: string; color?: string }) {
-  const c = color ?? SUBJECT_COLORS[subject] ?? "#78788c";
+  const label = displaySubject(subject) || subject;
+  const c = color ?? SUBJECT_COLORS[label] ?? SUBJECT_COLORS[subject] ?? "#78788c";
   return (
     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
       style={{ color:c, borderColor:`${c}30`, background:`${c}12` }}>
-      {subject}
+      {label}
     </span>
   );
 }

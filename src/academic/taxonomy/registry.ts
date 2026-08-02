@@ -62,12 +62,12 @@ function buildRegistry(): {
   const byId = new Map<string, TaxonomyTerm>();
   const byAlias = new Map<string, string>();
 
-  const rememberAlias = (alias: string, id: string) => {
+  const rememberAlias = (alias: string, id: string, force = false) => {
     const key = alias.trim().toLowerCase();
     if (!key) return;
-    if (!byAlias.has(key)) byAlias.set(key, id);
+    if (force || !byAlias.has(key)) byAlias.set(key, id);
     const slug = slugifyAcademicId(alias);
-    if (slug && !byAlias.has(slug)) byAlias.set(slug, id);
+    if (slug && (force || !byAlias.has(slug))) byAlias.set(slug, id);
   };
 
   for (const term of all) {
@@ -83,12 +83,12 @@ function buildRegistry(): {
     for (const a of term.aliases) rememberAlias(a, term.id);
   }
 
-  // Explicit high-value aliases
-  rememberAlias("BRS", "bank_reconciliation_statement");
-  rememberAlias("brs", "bank_reconciliation_statement");
-  rememberAlias("Bank Reconciliation", "bank_reconciliation_statement");
-  rememberAlias("Proper Journal", "journal_proper");
-  rememberAlias("Double Entry System", "double_entry");
+  // Explicit high-value aliases (force — win over near-match concept ids like brs_purpose)
+  rememberAlias("BRS", "bank_reconciliation_statement", true);
+  rememberAlias("brs", "bank_reconciliation_statement", true);
+  rememberAlias("Bank Reconciliation", "bank_reconciliation_statement", true);
+  rememberAlias("Proper Journal", "journal_proper", true);
+  rememberAlias("Double Entry System", "double_entry", true);
 
   return { byId, byAlias, all };
 }

@@ -27,7 +27,22 @@ describe("taxonomy seeds", () => {
 
   it("seeds science placeholders", () => {
     expect(SCIENCE_SUBJECTS.map((s) => s.id)).toEqual(
-      expect.arrayContaining(["physics", "chemistry", "biology"]),
+      expect.arrayContaining(["physics", "chemistry", "biology", "computer_science"]),
+    );
+  });
+
+  it("registers Economics/Math/English/Hindi chapters from bank", async () => {
+    const { COMMERCE_CHAPTERS } = await import("./seeds/commerceRbse");
+    const subjects = new Set(COMMERCE_CHAPTERS.map((c) => c.subjectId));
+    expect([...subjects].sort()).toEqual(
+      expect.arrayContaining([
+        "accountancy",
+        "business_studies",
+        "economics",
+        "mathematics",
+        "english",
+        "hindi",
+      ]),
     );
   });
 });
