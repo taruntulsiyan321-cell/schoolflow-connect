@@ -8,6 +8,25 @@
 -- Supervisor A: scheduled publish school-scope + marks publish gate at RLS
 -- Cross-impact: teacher schedule → student homework/tests; finalize≠publish for student/parent reads.
 
+-- ── 0. Ensure publish-gate / RPC columns exist (idempotent) ───────────────────
+-- Prior migrations (homework_engine / teacher_academic_workspace) may be unapplied
+-- on some environments; policies and the publish RPC must not fail on missing cols.
+ALTER TABLE public.exams
+  ADD COLUMN IF NOT EXISTS results_published_at timestamptz;
+
+ALTER TABLE public.homework
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'draft',
+  ADD COLUMN IF NOT EXISTS scheduled_publish_at timestamptz,
+  ADD COLUMN IF NOT EXISTS published_at timestamptz,
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
+ALTER TABLE public.dpps
+  ADD COLUMN IF NOT EXISTS is_published boolean NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'published',
+  ADD COLUMN IF NOT EXISTS scheduled_publish_at timestamptz,
+  ADD COLUMN IF NOT EXISTS published_at timestamptz,
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
 -- ── 1. School-scoped due publish (homework + class tests) ─────────────────────
 CREATE OR REPLACE FUNCTION public.publish_due_scheduled_homework(_school_id uuid DEFAULT NULL)
 RETURNS int
