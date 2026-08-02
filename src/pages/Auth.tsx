@@ -191,7 +191,7 @@ export default function Auth() {
     }
     // Prefer SECURITY DEFINER RPC (bypasses RLS) over direct user_roles insert
     if (data.session && data.user && (suRole === "student" || suRole === "parent")) {
-      const { error: roleErr } = await supabase.rpc("claim_signup_role", { _role: suRole });
+      const { error: roleErr } = await (supabase.rpc as any)("claim_signup_role", { _role: suRole });
       if (roleErr) {
         console.warn("[auth] claim_signup_role:", roleErr.message);
       }

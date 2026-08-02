@@ -100,8 +100,9 @@ export default function ParentInsights() {
             const hwPct = k.homeworkTotal ? Math.round((k.homeworkDone / k.homeworkTotal) * 100) : 0;
             const weekly = digestByStudent.get(k.id);
             const snap = weekly?.snapshot as {
-              exam_readiness?: { score?: number; label?: string; active_days_14d?: number };
+              exam_readiness?: { score?: number; label?: string; active_days_14d?: number; accuracy_pct?: number };
               mistake_count?: number;
+              recovery_pending?: number;
             } | undefined;
             const alerts = weekly?.alerts ?? [];
             const concepts = conceptByStudent.get(k.id) as {

@@ -89,19 +89,19 @@ function normalizeBrain(raw: Record<string, unknown> | null): AcademicBrain {
 }
 
 export async function fetchAcademicBrain(): Promise<AcademicBrain> {
-  const { data, error } = await supabase.rpc("rpc_get_academic_brain");
+  const { data, error } = await (supabase.rpc as any)("rpc_get_academic_brain");
   if (error) throw new Error(error.message);
   return normalizeBrain(data as Record<string, unknown>);
 }
 
 export async function refreshAcademicBrain(): Promise<AcademicBrain> {
-  const { data, error } = await supabase.rpc("rpc_refresh_academic_brain");
+  const { data, error } = await (supabase.rpc as any)("rpc_refresh_academic_brain");
   if (error) throw new Error(error.message);
   return normalizeBrain(data as Record<string, unknown>);
 }
 
 export async function fetchRevisionPlan(): Promise<RevisionPlanPayload> {
-  const { data, error } = await supabase.rpc("rpc_academic_revision_plan");
+  const { data, error } = await (supabase.rpc as any)("rpc_academic_revision_plan");
   if (error) throw new Error(error.message);
   const payload = data as RevisionPlanPayload;
   return {
@@ -114,7 +114,7 @@ export async function fetchRevisionPlan(): Promise<RevisionPlanPayload> {
 }
 
 export async function computeSessionAnalyticsRpc(sessionId?: string) {
-  const { data, error } = await supabase.rpc("rpc_compute_session_analytics", {
+  const { data, error } = await (supabase.rpc as any)("rpc_compute_session_analytics", {
     _session_id: sessionId ?? null,
   });
   if (error) throw new Error(error.message);
@@ -126,7 +126,7 @@ export async function cacheAgentInsight(
   payload: Record<string, unknown>,
   source: "coach" | "rule" = "coach",
 ) {
-  await supabase.rpc("rpc_cache_agent_insight", {
+  await (supabase.rpc as any)("rpc_cache_agent_insight", {
     _agent_type: agentType,
     _payload: payload,
     _source: source,
@@ -135,7 +135,7 @@ export async function cacheAgentInsight(
 }
 
 export async function getCachedAgentInsight(agentType: string) {
-  const { data } = await supabase.rpc("rpc_get_cached_agent_insight", { _agent_type: agentType });
+  const { data } = await (supabase.rpc as any)("rpc_get_cached_agent_insight", { _agent_type: agentType });
   if (!data || data === null) return null;
   return data as Record<string, unknown>;
 }

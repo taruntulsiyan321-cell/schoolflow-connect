@@ -14,7 +14,7 @@ import {
   getNcertSubjects,
   parseClassGrade,
 } from "@/lib/ncertSyllabus";
-import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
+import { isEmptyQuestionBankError, NO_BANK_MSG, canUseMath12TemplateSolo } from "@/lib/battleTemplateSolo";
 import { Globe, Loader2, Search, User, Users, UsersRound, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
@@ -22,7 +22,7 @@ import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 const ANY = "__any__";
 
-type BattleMode = "duel" | "class" | "open";
+type BattleMode = "duel" | "class" | "open" | "solo";
 
 type Classmate = {
   id: string;

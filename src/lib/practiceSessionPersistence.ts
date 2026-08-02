@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { PracticeAttemptSnapshot, PracticeSessionResultState } from "@/lib/practiceSessionSnapshot";
+export type { PracticeAttemptSnapshot };
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 
 export type RecordPracticeAttemptOptions = {
@@ -54,7 +55,7 @@ async function syncPracticeSessionToServer(sessionId: string, state: PracticeSes
     if (finErr) {
       console.error("practice finish failed", finErr.message ?? finErr);
     }
-    await supabase.rpc("emit_academic_event", {
+    await (supabase.rpc("emit_academic_event", {
       _event_type: "practice.session.completed",
       _entity_type: "practice",
       _entity_id: sessionId,
@@ -63,15 +64,17 @@ async function syncPracticeSessionToServer(sessionId: string, state: PracticeSes
       _class_id: null,
       _teacher_id: null,
       _payload: { session_id: sessionId, correct },
-    }).catch(() => undefined);
+    } as any) as unknown as Promise<unknown>).catch(() => undefined);
   }
 
-  await (supabase as { rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown> }).rpc(
-    "rpc_post_assessment_concept_analysis",
-    {
-      _source_type: "practice_session",
-      _source_id: sessionId,
-    },
+  await (
+    (supabase.rpc as any)(
+      "rpc_post_assessment_concept_analysis",
+      {
+        _source_type: "practice_session",
+        _source_id: sessionId,
+      },
+    ) as Promise<unknown>
   ).catch(() => undefined);
 }
 
@@ -122,18 +125,7 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
     _template_id: opts.templateId ?? null,
     _time_taken_ms: opts.timeTakenMs ?? null,
     _bank_question_id: bankQuestionId,
-  } as {
-    _correct_answer: object;
-    _generated_question: object;
-    _is_correct: boolean;
-    _selected_answer: object;
-    _session_id: string;
-    _score: number;
-    _skipped: boolean;
-    _template_id: string | null;
-    _time_taken_ms: number | null;
-    _bank_question_id: string | null;
-  });
+  } as any);
   if (!currentRpc.error) return { ok: true as const };
 
   // Legacy migration signature (no bank_question_id arg) — still no client table insert.
@@ -145,15 +137,7 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
     _selected_answer: selectedAnswer,
     _is_correct: opts.isCorrect,
     _score: score,
-  } as {
-    _session_id: string;
-    _template_id: string | null;
-    _generated_question: object;
-    _correct_answer: object;
-    _selected_answer: object;
-    _is_correct: boolean;
-    _score: number;
-  });
+  } as any);
   if (!legacyRpc.error) return { ok: true as const };
 
   return {

@@ -127,18 +127,19 @@ export function runImageDoubtSolve(input: ImageDoubtSolveInput): ImageDoubtSolve
   ];
 
   const gate = gateImageDoubtSolveConfidence(input);
+  const gateFail = gate as Extract<typeof gate, { ok: false }>;
   checkpoints.push({
     step_id: "confidence_gate",
     ok: gate.ok,
-    detail: gate.ok ? `confidence_${gate.confidence}` : gate.reason,
+    detail: gate.ok ? `confidence_${gate.confidence}` : gateFail.reason,
   });
   if (!gate.ok) {
     return {
       capability_id: "student.image_doubt.solve",
       workflow_id: "student.image_doubt.solve.v1",
       status: "clarify",
-      stop_reason: gate.reason,
-      message: gate.message,
+      stop_reason: gateFail.reason,
+      message: gateFail.message,
       invented_problem_text: false,
       reconstructed_question: normalizeQuestion(input.reconstructed_question),
       extraction_confidence:

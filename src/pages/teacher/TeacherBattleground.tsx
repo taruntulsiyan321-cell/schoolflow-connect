@@ -128,7 +128,7 @@ export default function TeacherBattleground() {
         question_count: questions.length,
         duration_sec: perQ * questions.length,
         is_public: true,
-      })
+      } as any)
       .select()
       .single();
     if (error) {

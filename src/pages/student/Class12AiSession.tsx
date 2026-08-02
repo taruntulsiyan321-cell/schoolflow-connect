@@ -182,15 +182,7 @@ export default function Class12AiSession() {
       _selected_answer: { index: optionIndex, text: current.options[optionIndex] },
       _is_correct: ok,
       _score: ok ? 1 : 0,
-    } as {
-      _session_id: string;
-      _template_id: string | null;
-      _generated_question: object;
-      _correct_answer: object;
-      _selected_answer: object;
-      _is_correct: boolean;
-      _score: number;
-    });
+    } as any);
     if (recErr) console.warn("record attempt:", recErr.message);
   };
 

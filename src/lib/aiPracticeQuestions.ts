@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { mcqOptionsInvalid, normalizeMcqOptions } from "@/lib/mcqOptions";
+import { invokeEdgeFunction } from "@/lib/edgeFunction";
 
 export type AiMcq = {
   question: string;
