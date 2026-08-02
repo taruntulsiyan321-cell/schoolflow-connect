@@ -7,9 +7,14 @@ export type PracticeAttemptSnapshot = {
   correctIndex: number;
   selectedIndex: number;
   isCorrect: boolean;
+  skipped?: boolean;
   explanation?: string;
   /** When set, finish RPC grades against question_bank (ignores client isCorrect). */
   bankQuestionId?: string | null;
+  subject?: string;
+  chapter?: string;
+  concept?: string;
+  source?: string;
 };
 
 export type PracticeSessionResultState = {
@@ -87,12 +92,17 @@ export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
       options: a.options,
       explanation: a.explanation ?? "",
       bank_question_id: a.bankQuestionId ?? null,
+      subject: a.subject ?? null,
+      chapter: a.chapter ?? null,
+      concept: a.concept ?? a.chapter ?? null,
     },
     selected_answer: { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
     // Server ignores these when bank_question_id is present; kept for audit/legacy.
     correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
-    is_correct: a.isCorrect,
-    score: a.isCorrect ? 1 : 0,
+    is_correct: a.skipped ? false : a.isCorrect,
+    score: a.skipped ? 0 : a.isCorrect ? 1 : 0,
+    skipped: a.skipped ?? false,
+    source: a.source ?? "practice",
   }));
 }
 

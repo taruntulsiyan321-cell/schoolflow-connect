@@ -95,20 +95,41 @@ export const PracticeService = {
     const generatedQuestion = {
       ...args.generatedQuestion,
       ...(args.bankQuestionId ? { bank_question_id: args.bankQuestionId } : {}),
+      ...(args.subject ? { subject: args.subject } : {}),
+      ...(args.chapter ? { chapter: args.chapter } : {}),
+      ...(args.concept ? { concept: args.concept } : {}),
     };
-    const { data, error } = await client.rpc("rpc_record_question_attempt", {
+    const payload = {
       _correct_answer: args.correctAnswer,
       _generated_question: generatedQuestion,
       _is_correct: args.isCorrect,
       _selected_answer: args.selectedAnswer,
       _session_id: args.sessionId,
-      _score: args.score ?? (args.isCorrect ? 1 : 0),
+      _score: args.score ?? (args.skipped ? 0 : args.isCorrect ? 1 : 0),
+      _skipped: args.skipped ?? false,
+      _template_id: args.templateId ?? null,
+      _time_taken_ms: args.timeTakenMs ?? null,
+      _bank_question_id: args.bankQuestionId ?? null,
+      _hint_used: args.hintUsed ?? false,
+      _source: args.source ?? "practice",
+    };
+    const { data, error } = await client.rpc("rpc_record_question_attempt", payload as never);
+    if (!error) return data as string;
+
+    // Mid-migration signature (bank id, no hint/source).
+    const withBank = await client.rpc("rpc_record_question_attempt", {
+      _correct_answer: args.correctAnswer,
+      _generated_question: generatedQuestion,
+      _is_correct: args.isCorrect,
+      _selected_answer: args.selectedAnswer,
+      _session_id: args.sessionId,
+      _score: args.score ?? (args.skipped ? 0 : args.isCorrect ? 1 : 0),
       _skipped: args.skipped ?? false,
       _template_id: args.templateId ?? null,
       _time_taken_ms: args.timeTakenMs ?? null,
       _bank_question_id: args.bankQuestionId ?? null,
     } as never);
-    if (!error) return data as string;
+    if (!withBank.error) return withBank.data as string;
 
     // Pre-grading-migration signature (no bank_question_id).
     const legacy = await client.rpc("rpc_record_question_attempt", {
@@ -117,12 +138,12 @@ export const PracticeService = {
       _is_correct: args.isCorrect,
       _selected_answer: args.selectedAnswer,
       _session_id: args.sessionId,
-      _score: args.score ?? (args.isCorrect ? 1 : 0),
+      _score: args.score ?? (args.skipped ? 0 : args.isCorrect ? 1 : 0),
       _skipped: args.skipped ?? false,
       _template_id: args.templateId ?? null,
       _time_taken_ms: args.timeTakenMs ?? null,
     } as never);
-    throwIfError(legacy.error ?? error, "Failed to record practice attempt");
+    throwIfError(legacy.error ?? withBank.error ?? error, "Failed to record practice attempt");
     return legacy.data as string;
   },
 
@@ -391,7 +412,7 @@ export const PracticeService = {
     );
   },
 
-  /** Unmastered mistakes as practice-ready questions (honest empty if none). */
+  /** Unmastered mistakes + wrong attempts as practice-ready questions (honest empty if none). */
   async listMistakeQuestions(
     ctx: ServiceContext,
     opts: { limit?: number } = {},
@@ -408,17 +429,9 @@ export const PracticeService = {
     assertCanConsume(ctx, "practice");
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
     const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client
-      .from("student_mistakes")
-      .select("id, subject, chapter, question_text, options, correct_answer, explanation, question_id")
-      .eq("user_id", ctx.userId)
-      .eq("mastered", false)
-      .order("last_wrong_at", { ascending: false })
-      .limit(limit);
-    throwIfError(error, "Failed to load incorrect questions");
     const scope = await this.resolveCurriculumScope(ctx);
 
-    const out: Array<{
+    type OutRow = {
       id: string;
       subject: string;
       chapter: string | null;
@@ -427,7 +440,29 @@ export const PracticeService = {
       options: unknown;
       correct_index: number;
       explanation: string | null;
-    }> = [];
+    };
+    const out: OutRow[] = [];
+    const seen = new Set<string>();
+
+    const pushRow = (row: OutRow) => {
+      if (!row.question) return;
+      const optsRaw = Array.isArray(row.options) ? row.options : [];
+      if (optsRaw.length < 2) return;
+      if (!isSubjectAllowedForScope(row.subject || "", scope.stream, scope.classLevel)) return;
+      const key = (row.id || row.question).toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ ...row, options: optsRaw });
+    };
+
+    const { data, error } = await client
+      .from("student_mistakes")
+      .select("id, subject, chapter, question_text, options, correct_answer, explanation, question_id")
+      .eq("user_id", ctx.userId)
+      .eq("mastered", false)
+      .order("last_wrong_at", { ascending: false })
+      .limit(limit);
+    throwIfError(error, "Failed to load incorrect questions");
 
     for (const row of data ?? []) {
       const r = row as {
@@ -436,34 +471,83 @@ export const PracticeService = {
         chapter: string | null;
         question_text: string;
         options: unknown;
-        correct_answer: { correct_index?: number; indexes?: number[] } | null;
+        correct_answer: { correct_index?: number; indexes?: number[]; index?: number } | null;
         explanation: string | null;
         question_id: string | null;
       };
-      if (!isSubjectAllowedForScope(r.subject || "", scope.stream, scope.classLevel)) continue;
-      const optsRaw = Array.isArray(r.options) ? r.options : [];
-      if (!r.question_text || optsRaw.length < 2) continue;
       let correctIndex = 0;
       if (typeof r.correct_answer?.correct_index === "number") {
         correctIndex = r.correct_answer.correct_index;
+      } else if (typeof r.correct_answer?.index === "number") {
+        correctIndex = r.correct_answer.index;
       } else if (Array.isArray(r.correct_answer?.indexes) && r.correct_answer.indexes.length > 0) {
         correctIndex = r.correct_answer.indexes[0];
       }
-      out.push({
+      pushRow({
         id: r.question_id || r.id,
         subject: r.subject || "General",
         chapter: r.chapter,
         difficulty: "medium",
         question: r.question_text,
-        options: optsRaw,
+        options: r.options,
         correct_index: correctIndex,
         explanation: r.explanation,
       });
     }
-    return out;
+
+    if (out.length < limit) {
+      const { data: attempts, error: attErr } = await client
+        .from("question_attempts")
+        .select("id, bank_question_id, subject, chapter, generated_question, correct_answer, is_correct, skipped")
+        .eq("user_id", ctx.userId)
+        .eq("is_correct", false)
+        .eq("skipped", false)
+        .order("created_at", { ascending: false })
+        .limit(limit * 3);
+      throwIfError(attErr, "Failed to load incorrect attempts");
+
+      for (const row of attempts ?? []) {
+        if (out.length >= limit) break;
+        const r = row as {
+          id: string;
+          bank_question_id?: string | null;
+          subject?: string | null;
+          chapter?: string | null;
+          generated_question?: {
+            question?: string;
+            options?: unknown;
+            explanation?: string;
+            bank_question_id?: string;
+            subject?: string;
+            chapter?: string;
+          } | null;
+          correct_answer?: { correct_index?: number; index?: number } | null;
+        };
+        const gq = r.generated_question ?? {};
+        const id = r.bank_question_id || gq.bank_question_id || r.id;
+        const correctIndex =
+          typeof r.correct_answer?.correct_index === "number"
+            ? r.correct_answer.correct_index
+            : typeof r.correct_answer?.index === "number"
+              ? r.correct_answer.index
+              : 0;
+        pushRow({
+          id,
+          subject: r.subject || gq.subject || "General",
+          chapter: r.chapter ?? gq.chapter ?? null,
+          difficulty: "medium",
+          question: String(gq.question ?? ""),
+          options: gq.options,
+          correct_index: correctIndex,
+          explanation: gq.explanation ?? null,
+        });
+      }
+    }
+
+    return out.slice(0, limit);
   },
 
-  /** Previously skipped bank questions (honest empty if none). */
+  /** Previously skipped questions from attempts (honest empty if none). */
   async listSkippedBankQuestions(
     ctx: ServiceContext,
     opts: { limit?: number } = {},
@@ -480,9 +564,10 @@ export const PracticeService = {
     assertCanConsume(ctx, "practice");
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
     const client = getClient(toRepoContext(ctx));
+    const scope = await this.resolveCurriculumScope(ctx);
     const { data: attempts, error } = await client
       .from("question_attempts")
-      .select("bank_question_id, generated_question")
+      .select("id, bank_question_id, subject, chapter, generated_question, correct_answer")
       .eq("user_id", ctx.userId)
       .eq("skipped", true)
       .order("created_at", { ascending: false })
@@ -490,21 +575,83 @@ export const PracticeService = {
     throwIfError(error, "Failed to load skipped questions");
 
     const ids: string[] = [];
-    const seen = new Set<string>();
+    const seenIds = new Set<string>();
+    const fallback: Array<{
+      id: string;
+      subject: string;
+      chapter: string | null;
+      difficulty: string | null;
+      question: string;
+      options: unknown;
+      correct_index: number;
+      explanation: string | null;
+    }> = [];
+    const seenFallback = new Set<string>();
+
     for (const row of attempts ?? []) {
       const r = row as {
+        id: string;
         bank_question_id?: string | null;
-        generated_question?: { bank_question_id?: string } | null;
+        subject?: string | null;
+        chapter?: string | null;
+        generated_question?: {
+          question?: string;
+          options?: unknown;
+          explanation?: string;
+          bank_question_id?: string;
+          subject?: string;
+          chapter?: string;
+        } | null;
+        correct_answer?: { correct_index?: number; index?: number } | null;
       };
-      const id = r.bank_question_id || r.generated_question?.bank_question_id || null;
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      ids.push(id);
-      if (ids.length >= limit) break;
+      const bankId = r.bank_question_id || r.generated_question?.bank_question_id || null;
+      if (bankId) {
+        if (!seenIds.has(bankId)) {
+          seenIds.add(bankId);
+          ids.push(bankId);
+        }
+        continue;
+      }
+      const gq = r.generated_question ?? {};
+      const stem = String(gq.question ?? "").trim();
+      const optsRaw = Array.isArray(gq.options) ? gq.options : [];
+      if (!stem || optsRaw.length < 2) continue;
+      const subject = r.subject || gq.subject || "General";
+      if (!isSubjectAllowedForScope(subject, scope.stream, scope.classLevel)) continue;
+      const key = stem.toLowerCase();
+      if (seenFallback.has(key)) continue;
+      seenFallback.add(key);
+      const correctIndex =
+        typeof r.correct_answer?.correct_index === "number"
+          ? r.correct_answer.correct_index
+          : typeof r.correct_answer?.index === "number"
+            ? r.correct_answer.index
+            : 0;
+      fallback.push({
+        id: r.id,
+        subject,
+        chapter: r.chapter ?? gq.chapter ?? null,
+        difficulty: "medium",
+        question: stem,
+        options: optsRaw,
+        correct_index: correctIndex,
+        explanation: gq.explanation ?? null,
+      });
     }
-    if (ids.length === 0) return [];
 
-    return this.listBankQuestions(ctx, { ids, limit });
+    const fromBank = ids.length > 0
+      ? await this.listBankQuestions(ctx, { ids: ids.slice(0, limit), limit })
+      : [];
+
+    const merged = [...fromBank];
+    const seenMerge = new Set(fromBank.map((r) => r.id));
+    for (const row of fallback) {
+      if (merged.length >= limit) break;
+      if (seenMerge.has(row.id)) continue;
+      seenMerge.add(row.id);
+      merged.push(row);
+    }
+    return merged.slice(0, limit);
   },
 
   /** Approved bank questions for student practice sessions (honest empty if none). */

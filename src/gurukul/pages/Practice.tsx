@@ -9,11 +9,11 @@ import { toast } from "sonner";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
   BookOpen, Clock, Target, ClipboardList,
-  Shuffle, Trophy, BarChart2, Search,
+  Trophy, BarChart2, Search,
   ChevronRight, CheckCircle2, XCircle, ArrowLeft, Play, SkipForward,
-  Flame, Layers, SlidersHorizontal, History,
+  Flame, Layers, History,
   Save, Bookmark, Timer, BookMarked, Lightbulb,
-  RotateCcw, HelpCircle, TrendingDown, FileText, Globe, AlertCircle,
+  RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle,
 } from "lucide-react";
 
 const CLASS_UNRESOLVED_MSG =
@@ -23,10 +23,10 @@ const CLASS_UNRESOLVED_MSG =
 type Phase   = "hub" | "config" | "session" | "feedback" | "summary";
 type Cat     = "all" | "content" | "source" | "type" | "targeted";
 type ModeKey =
-  | "daily" | "subject" | "chapter" | "topic" | "custom"
-  | "teacher" | "pyq" | "qbank" | "timed" | "untimed"
-  | "mixed" | "difficulty" | "weak" | "incorrect" | "skipped"
-  | "bookmarked" | "random" | "mock";
+  | "daily" | "subject" | "chapter" | "topic"
+  | "teacher" | "pyq" | "timed" | "untimed"
+  | "difficulty" | "weak" | "incorrect" | "skipped"
+  | "bookmarked" | "mock";
 
 interface Mode {
   key: ModeKey; label: string; desc: string;
@@ -113,20 +113,14 @@ const MODES: Mode[] = [
     icon:<Layers className="w-5 h-5"/>,     color:"#4b9fd4", cat:"content",  badge:"Chapter" },
   { key:"topic",      label:"Topic Practice",         desc:"Drill down to a precise concept or sub-topic",
     icon:<Target className="w-5 h-5"/>,     color:"#6882e8", cat:"content",  badge:"Topic" },
-  { key:"custom",     label:"Custom Practice",        desc:"Pick subjects, chapters, topics, difficulty, and question count",
-    icon:<SlidersHorizontal className="w-5 h-5"/>, color:"#4aa87a", cat:"content", badge:"Full control" },
   { key:"teacher",    label:"Teacher Assigned",       desc:"Practice sets assigned by your teachers with due dates",
     icon:<ClipboardList className="w-5 h-5"/>, color:"#c08a3a", cat:"source", badge:"Assigned" },
   { key:"pyq",        label:"Previous Year Questions",desc:"Board and competitive exam questions from past years",
     icon:<FileText className="w-5 h-5"/>,   color:"#cc5069", cat:"source",  badge:"Past papers" },
-  { key:"qbank",      label:"Question Bank",          desc:"Browse the full repository and filter by any parameter",
-    icon:<Globe className="w-5 h-5"/>,      color:"#3b5bdb", cat:"source",  badge:"Browse all" },
   { key:"timed",      label:"Timed Practice",         desc:"Solve questions against the clock — choose your time limit",
     icon:<Timer className="w-5 h-5"/>,      color:"#cc5069", cat:"type",    badge:"Speed mode" },
   { key:"untimed",    label:"Untimed Practice",       desc:"No time pressure — focus on understanding, not speed",
     icon:<BookOpen className="w-5 h-5"/>,   color:"#4aa87a", cat:"type",    badge:"Relaxed mode" },
-  { key:"mixed",      label:"Mixed Practice",         desc:"Questions from multiple subjects and chapters in one go",
-    icon:<Shuffle className="w-5 h-5"/>,    color:"#4b9fd4", cat:"type",    badge:"All subjects", instant:true },
   { key:"mock",       label:"Mock Tests",             desc:"Full-length exam simulation under real test conditions",
     icon:<Trophy className="w-5 h-5"/>,     color:"#c08a3a", cat:"type",    badge:"Mock test" },
   { key:"difficulty", label:"Difficulty-Based",       desc:"Choose Easy, Medium, Hard or Mixed to match your prep level",
@@ -139,8 +133,6 @@ const MODES: Mode[] = [
     icon:<SkipForward className="w-5 h-5"/>, color:"#c08a3a", cat:"targeted", badge:"Skipped", instant:true },
   { key:"bookmarked", label:"Bookmarked Questions",   desc:"Opens Mistake Book for mistakes you saved for review",
     icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"Mistake Book" },
-  { key:"random",     label:"Random Practice",        desc:"Surprise yourself — questions picked randomly from your syllabus",
-    icon:<Shuffle className="w-5 h-5"/>,    color:"#3b5bdb", cat:"type",    badge:"Surprise me", instant:true },
 ];
 
 const CATS: { key: Cat; label: string }[] = [
@@ -414,7 +406,7 @@ function ConfigView({
     setChapters([]);
     setTopics([]);
     if (!selSubject || !ctx || !academicReady) return;
-    if (!["chapter", "topic", "custom", "qbank"].includes(modeKey)) return;
+    if (!["chapter", "topic"].includes(modeKey)) return;
     let cancelled = false;
     (async () => {
       setMetaLoading(true);
@@ -434,7 +426,7 @@ function ConfigView({
     setSelTopic(null);
     setTopics([]);
     if (!selSubject || !ctx || !academicReady) return;
-    if (!["topic", "custom"].includes(modeKey)) return;
+    if (modeKey !== "topic") return;
     let cancelled = false;
     (async () => {
       try {
@@ -640,53 +632,6 @@ function ConfigView({
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
         <StartButton color={mode.color} disabled={!selSubject || !selTopic} onStart={handleStart}/>
-      </ConfigShell>
-    );
-  }
-
-  if (modeKey === "custom" || modeKey === "qbank") {
-    return (
-      <ConfigShell mode={mode} onBack={onBack}>
-        <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
-          {selSubject && selSubject !== "Mixed" && (
-            <OptionChips
-              label="Chapter (optional)"
-              options={chapters}
-              selected={selChapter}
-              onSelect={setSelChapter}
-              allowClear
-              empty="No chapters for this subject yet."
-            />
-          )}
-          {modeKey === "custom" && selSubject && (
-            <OptionChips
-              label="Topic (optional)"
-              options={topics}
-              selected={selTopic}
-              onSelect={setSelTopic}
-              allowClear
-              empty="No topics tagged yet."
-            />
-          )}
-          <div>
-            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Difficulty</div>
-            <div className="flex gap-2 flex-wrap">
-              {DIFFICULTIES.map(d => (
-                <button key={d.key} onClick={() => setSelDifficulty(d.key)}
-                  className={cn(
-                    "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                    selDifficulty === d.key ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
-                  )}
-                  style={selDifficulty === d.key ? { background:d.color } : {}}>
-                  {d.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
-        </div>
-        <StartButton color={mode.color} onStart={handleStart}/>
       </ConfigShell>
     );
   }
@@ -1061,15 +1006,22 @@ function Session({
       correctRef.current += 1;
       setCorrect(correctRef.current);
     }
-    attemptLog.current.push({
+    const snap: PracticeAttemptSnapshot = {
       question: q.question,
       options: q.options,
       correctIndex: q.correct,
       selectedIndex: i,
       isCorrect: ok,
+      skipped: false,
       explanation: q.explanation,
       bankQuestionId: q.id,
-    });
+      subject: q.subject,
+      chapter: q.chapter,
+      concept: q.chapter,
+      source: "practice",
+    };
+    attemptLog.current.push(snap);
+    void persistAttemptLive(snap);
     setPhase("fb");
   }
 
@@ -1078,9 +1030,62 @@ function Session({
     setIdx(i => i + 1); setChosen(null); setPhase("q");
   }
 
+  async function persistAttemptLive(snap: PracticeAttemptSnapshot) {
+    const sid = sessionIdRef.current;
+    if (!sid || !ctx) return;
+    try {
+      await PracticeService.recordAttempt(ctx, {
+        sessionId: sid,
+        bankQuestionId: snap.bankQuestionId ?? null,
+        generatedQuestion: {
+          question: snap.question,
+          options: snap.options,
+          explanation: snap.explanation ?? "",
+          bank_question_id: snap.bankQuestionId ?? null,
+        },
+        selectedAnswer: {
+          index: snap.selectedIndex,
+          text: snap.options[snap.selectedIndex] ?? "",
+        },
+        correctAnswer: {
+          index: snap.correctIndex,
+          text: snap.options[snap.correctIndex] ?? "",
+        },
+        isCorrect: snap.isCorrect,
+        score: snap.skipped ? 0 : snap.isCorrect ? 1 : 0,
+        skipped: snap.skipped ?? false,
+        subject: snap.subject,
+        chapter: snap.chapter,
+        concept: snap.concept ?? snap.chapter,
+        source: snap.source ?? "practice",
+        hintUsed: false,
+      });
+    } catch {
+      /* finish() batch-writes if live persist fails */
+    }
+  }
+
   function skip() {
+    const q = qs[idx];
+    if (!q) return;
     skippedRef.current = [...skippedRef.current, idx];
     setSkipped(skippedRef.current);
+    const snap: PracticeAttemptSnapshot = {
+      question: q.question,
+      options: q.options,
+      correctIndex: q.correct,
+      selectedIndex: -1,
+      isCorrect: false,
+      skipped: true,
+      explanation: q.explanation,
+      bankQuestionId: q.id,
+      subject: q.subject,
+      chapter: q.chapter,
+      concept: q.chapter,
+      source: "practice",
+    };
+    attemptLog.current.push(snap);
+    void persistAttemptLive(snap);
     next();
   }
 
@@ -1405,7 +1410,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const [results, setResults] = useState<SessionResults | null>(null);
 
   /** Instant modes skip config and load with mode-specific filters. */
-  const INSTANT: ModeKey[] = ["daily", "weak", "incorrect", "skipped", "random", "mixed"];
+  const INSTANT: ModeKey[] = ["daily", "weak", "incorrect", "skipped"];
 
   function handleMode(key: ModeKey) {
     if (key === "bookmarked") {

@@ -33,6 +33,11 @@ function afterExperienceWrite(ctx: ServiceContext, domains: ("battle" | "xp" | "
 /**
  * BattleExperienceService — wraps battleground RPCs and emits academic events.
  * UI must not call rpc_finish_battle / create-join RPCs directly.
+ *
+ * Finish path (rpc_finish_battle → _capture_battle_mistakes) mirrors every
+ * battle answer into question_attempts with source='battle' (skipped when
+ * selected_index < 0; wrong → student_mistakes + mastery) so Practice
+ * Incorrect / Skipped modes and profile weak topics stay in sync.
  */
 export const BattleExperienceService = {
   async finish(ctx: ServiceContext, participantId: string): Promise<void> {

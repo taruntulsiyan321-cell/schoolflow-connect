@@ -14,7 +14,6 @@ import {
   Clock,
   Dna,
   Flame,
-  Layers,
   Play,
   Shuffle,
   Sparkles,
@@ -56,13 +55,6 @@ const PRACTICE_MODES = [
     title: "Timed Practice",
     description: "Focus on speed and accuracy under pressure.",
     accent: "from-violet-500/15 to-violet-600/5 text-violet-700",
-  },
-  {
-    id: "custom",
-    icon: Layers,
-    title: "Custom Practice",
-    description: "Create personalized practice sessions.",
-    accent: "from-amber-500/20 to-amber-600/5 text-amber-800",
   },
 ];
 

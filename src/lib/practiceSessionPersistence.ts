@@ -20,8 +20,11 @@ export type RecordPracticeAttemptOptions = {
   correctIndex: number;
   selectedIndex: number;
   isCorrect: boolean;
+  skipped?: boolean;
   score?: number;
   timeTakenMs?: number;
+  hintUsed?: boolean;
+  source?: string;
 };
 
 /** Go to results immediately; sync to Supabase in the background. */
@@ -103,10 +106,12 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
       isCorrect: opts.isCorrect,
       score,
       timeTakenMs: opts.timeTakenMs ?? null,
+      skipped: opts.skipped ?? false,
       subject: opts.subject,
       chapter: opts.chapter,
       concept: opts.concept ?? opts.chapter,
-      source: "practice",
+      hintUsed: opts.hintUsed ?? false,
+      source: opts.source ?? "practice",
     });
     return { ok: true as const };
   } catch {
@@ -121,10 +126,12 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
     _selected_answer: selectedAnswer,
     _session_id: opts.sessionId,
     _score: score,
-    _skipped: false,
+    _skipped: opts.skipped ?? false,
     _template_id: opts.templateId ?? null,
     _time_taken_ms: opts.timeTakenMs ?? null,
     _bank_question_id: bankQuestionId,
+    _hint_used: opts.hintUsed ?? false,
+    _source: opts.source ?? "practice",
   } as any);
   if (!currentRpc.error) return { ok: true as const };
 
