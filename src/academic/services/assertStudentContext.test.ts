@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  assertStudentClassContext,
   assertStudentContext,
   evaluateStudentContext,
   studentShellReady,
@@ -34,6 +35,11 @@ describe("assertStudentContext", () => {
     const r = evaluateStudentContext({ ...base, classId: null }, { requireClass: true });
     expect(r.ready).toBe(false);
     expect(r.reason).toMatch(/class/i);
+  });
+
+  it("requires a linked student row and class for class-scoped actions", () => {
+    expect(() => assertStudentClassContext({ ...base, classId: "class-1" })).not.toThrow();
+    expect(() => assertStudentClassContext({ ...base, classId: null })).toThrow(/class/i);
   });
 
   it("studentShellReady requires both academic and progression", () => {

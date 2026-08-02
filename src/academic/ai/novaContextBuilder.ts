@@ -108,8 +108,43 @@ export function dedupeLabels(labels: Array<string | null | undefined>, limit = 1
   return out;
 }
 
+/** Curriculum subject aliases — collapse Math/Maths → Mathematics etc. */
+const SUBJECT_ALIASES: Record<string, string> = {
+  math: "Mathematics",
+  maths: "Mathematics",
+  mathematics: "Mathematics",
+  accounts: "Accountancy",
+  accounting: "Accountancy",
+  accountancy: "Accountancy",
+  bst: "Business Studies",
+  "business studies": "Business Studies",
+  eco: "Economics",
+  economics: "Economics",
+  "english core": "English",
+  english: "English",
+  "hindi core": "Hindi",
+  hindi: "Hindi",
+};
+
+export function canonicalizeSubjectLabel(raw: string): string {
+  const key = normalizeLabelKey(raw);
+  return SUBJECT_ALIASES[key] ?? String(raw).trim();
+}
+
 export function dedupeSubjects(subjects: Array<string | null | undefined>, limit = 12): string[] {
-  return dedupeLabels(subjects, limit);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of subjects) {
+    if (raw == null) continue;
+    const label = canonicalizeSubjectLabel(String(raw));
+    if (isPlaceholderLabel(label)) continue;
+    const key = normalizeLabelKey(label);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(label);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 /**

@@ -5,6 +5,7 @@
 
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
 import { presentAcademicLabel } from "@/lib/academicPresentation";
+import { isGenericAcademicLabel } from "@/lib/qualityGuards";
 import type { AiActorRole, AiClientRequest, AiGatewayResponse } from "./envelope";
 import { mapIntentToCapability } from "./intentMapper";
 import { getCapability } from "./capabilityCatalog";
@@ -183,9 +184,13 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       const strongLines = strong.slice(0, 4).map((c: { concept?: string; subject?: string; mastery_score?: number }) =>
         `• ${presentAcademicLabel(c.subject, "subject")}: **${presentAcademicLabel(c.concept, "concept")}** — ${c.mastery_score}%`,
       );
-      const revLines = rev.slice(0, 4).map((r: { topic?: string; subject?: string; priority?: number }) =>
-        `• ${presentAcademicLabel(r.subject, "subject")}: ${presentAcademicLabel(r.topic ?? "topic", "topic")} (priority ${r.priority})`,
-      );
+      const revLines = rev
+        .slice(0, 4)
+        .map((r: { topic?: string; subject?: string; priority?: number }) => {
+          if (isGenericAcademicLabel(r.subject) || isGenericAcademicLabel(r.topic)) return "";
+          return `• ${presentAcademicLabel(r.subject, "subject")}: ${presentAcademicLabel(r.topic ?? "", "topic")} (priority ${r.priority})`;
+        })
+        .filter(Boolean);
       return (
         `**Mastery & revision (Educational Intelligence)**\n` +
         `Average mastery: **${d.avg_mastery ?? 0}%** · Concepts tracked: **${d.total_tracked ?? 0}**\n` +

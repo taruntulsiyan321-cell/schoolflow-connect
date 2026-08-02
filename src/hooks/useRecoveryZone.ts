@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAcademicLive } from "@/academic";
+import { isGenericAcademicLabel } from "@/lib/qualityGuards";
 
 export type RecoveryAssignment = {
   id: string;
@@ -41,6 +42,18 @@ export type RecoveryZoneData = {
   recent_completed?: RecentCompletedRecovery[];
 };
 
+function hasUsableRecoveryLabels(item: {
+  subject?: string | null;
+  chapter?: string | null;
+  concept?: string | null;
+}): boolean {
+  return (
+    !isGenericAcademicLabel(item.subject) &&
+    !isGenericAcademicLabel(item.concept) &&
+    (!item.chapter || !isGenericAcademicLabel(item.chapter))
+  );
+}
+
 export function useRecoveryZone(enabled = true) {
   const [data, setData] = useState<RecoveryZoneData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,11 +82,14 @@ export function useRecoveryZone(enabled = true) {
         mastery: [],
         open_assignments: [],
       };
+      const weak_concepts = (base.weak_concepts ?? []).filter(hasUsableRecoveryLabels);
+      const mastery = (base.mastery ?? []).filter(hasUsableRecoveryLabels);
+      const open_assignments = (base.open_assignments ?? []).filter(hasUsableRecoveryLabels);
       // Prefer RPC recent_completed when present; fallback client select if older RPC.
       const fromRpc = Array.isArray(base.recent_completed) ? base.recent_completed : null;
       const recent_completed: RecentCompletedRecovery[] =
         fromRpc && fromRpc.length > 0
-          ? fromRpc
+          ? fromRpc.filter(hasUsableRecoveryLabels)
           : (completedRes.data ?? []).map((row) => {
               const qCount = row.question_count ?? 0;
               const correct = row.questions_correct ?? 0;
@@ -88,14 +104,20 @@ export function useRecoveryZone(enabled = true) {
                 score,
                 improved: score >= 65,
               };
-            });
+            })
+            .filter(hasUsableRecoveryLabels);
       setData({
         ...base,
+        weak_concepts,
+        mastery,
+        open_assignments,
         // Prefer server completed_count (full total), not truncated recent list length.
         completed_count:
           typeof base.completed_count === "number"
             ? base.completed_count
             : recent_completed.length,
+        // Keep the visible count aligned with assignments that have usable academic labels.
+        pending_count: open_assignments.length,
         recent_completed,
       });
     }

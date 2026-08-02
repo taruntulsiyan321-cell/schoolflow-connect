@@ -31,6 +31,13 @@ export type SessionAnalytics = {
   computed_at: string;
 };
 
+const PLACEHOLDER_LABELS = new Set(["subject", "topic", "daily", "general", "concept", "chapter", "mixed"]);
+
+function usableAcademicLabel(value: string | null | undefined): string | null {
+  const label = value?.trim();
+  return label && !PLACEHOLDER_LABELS.has(label.toLowerCase()) ? label : null;
+}
+
 function countByKey<T extends Record<string, unknown>>(
   items: T[],
   keyFn: (item: T) => string,
@@ -63,24 +70,24 @@ export function computeSessionAnalytics(attempts: AttemptRecord[]): SessionAnaly
 
   const strongChapterMap = countByKey(
     attempts,
-    (a) => `${a.subject ?? "General"}::${a.chapter ?? "general"}`,
-    (a) => a.is_correct && !!a.chapter,
+    (a) => `${usableAcademicLabel(a.subject)}::${usableAcademicLabel(a.chapter)}`,
+    (a) => a.is_correct && !!usableAcademicLabel(a.subject) && !!usableAcademicLabel(a.chapter),
   );
   const weakChapterMap = countByKey(
     attempts,
-    (a) => `${a.subject ?? "General"}::${a.chapter ?? "general"}`,
-    (a) => !a.is_correct && !a.skipped && !!a.chapter,
+    (a) => `${usableAcademicLabel(a.subject)}::${usableAcademicLabel(a.chapter)}`,
+    (a) => !a.is_correct && !a.skipped && !!usableAcademicLabel(a.subject) && !!usableAcademicLabel(a.chapter),
   );
 
   const strongConceptMap = countByKey(
     attempts,
-    (a) => `${a.subject ?? "General"}::${a.concept ?? "general"}`,
-    (a) => a.is_correct && !!a.concept,
+    (a) => `${usableAcademicLabel(a.subject)}::${usableAcademicLabel(a.concept)}`,
+    (a) => a.is_correct && !!usableAcademicLabel(a.subject) && !!usableAcademicLabel(a.concept),
   );
   const weakConceptMap = countByKey(
     attempts,
-    (a) => `${a.subject ?? "General"}::${a.concept ?? "general"}`,
-    (a) => !a.is_correct && !a.skipped && !!a.concept,
+    (a) => `${usableAcademicLabel(a.subject)}::${usableAcademicLabel(a.concept)}`,
+    (a) => !a.is_correct && !a.skipped && !!usableAcademicLabel(a.subject) && !!usableAcademicLabel(a.concept),
   );
 
   const toChapterList = (m: Map<string, { count: number; sample: AttemptRecord }>) =>
@@ -88,8 +95,8 @@ export function computeSessionAnalytics(attempts: AttemptRecord[]): SessionAnaly
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 5)
       .map(([, v]) => ({
-        chapter: v.sample.chapter ?? "General",
-        subject: v.sample.subject ?? "General",
+        chapter: usableAcademicLabel(v.sample.chapter)!,
+        subject: usableAcademicLabel(v.sample.subject)!,
       }));
 
   const toConceptList = (m: Map<string, { count: number; sample: AttemptRecord }>) =>
@@ -97,9 +104,9 @@ export function computeSessionAnalytics(attempts: AttemptRecord[]): SessionAnaly
       .sort((a, b) => b[1].count - a[1].count)
       .slice(0, 8)
       .map(([, v]) => ({
-        concept: v.sample.concept ?? "General",
-        subject: v.sample.subject ?? "General",
-        chapter: v.sample.chapter,
+        concept: usableAcademicLabel(v.sample.concept)!,
+        subject: usableAcademicLabel(v.sample.subject)!,
+        chapter: usableAcademicLabel(v.sample.chapter),
       }));
 
   return {

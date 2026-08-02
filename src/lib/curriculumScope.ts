@@ -71,11 +71,16 @@ export type CurriculumScope = {
   classLabel: string | null;
 };
 
-/** Parse class level from class name / display (e.g. "11-A", "Class 12 Commerce"). */
+/** Parse class level from digits or senior Roman numerals (e.g. "Class-10", "Std 9", "XI-A"). */
 export function parseClassLevel(label?: string | null): number | null {
   if (!label) return null;
-  const m = String(label).match(/\b(6|7|8|9|10|11|12)\b/);
-  return m ? Number(m[1]) : null;
+  const text = String(label);
+  const m = text.match(/\b(6|7|8|9|10|11|12)\b/);
+  if (m) return Number(m[1]);
+  const roman = text.toUpperCase().match(/\b(XII|XI|X)\b/);
+  if (!roman) return null;
+  const romanLevels: Record<string, number> = { X: 10, XI: 11, XII: 12 };
+  return romanLevels[roman[1]] ?? null;
 }
 
 export function normalizeStream(raw?: string | null): AcademicStream | null {

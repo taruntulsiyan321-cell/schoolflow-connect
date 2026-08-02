@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { PracticeService, useAcademicContext } from "@/academic";
+import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import { displayChapter, displayTopic } from "@/lib/academicDisplay";
@@ -469,7 +469,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   }, [ctx, academicReady]);
 
   useEffect(() => {
-    if (!user) {
+    if (!academicReady || !ctx || !user) {
       setRows([]);
       setLoading(false);
       return;
@@ -513,7 +513,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [user, liveVersion]);
+  }, [academicReady, ctx, user, liveVersion]);
 
   const mistakes = useMemo(
     () =>
@@ -543,6 +543,10 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   }
 
   async function addToRecovery(id: string) {
+    if (!academicReady || !ctx) {
+      showToast("Academic context is still loading");
+      return;
+    }
     const m = mistakes.find(x => x.id === id);
     if (!m) return;
     try {
@@ -573,7 +577,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   }) {
     setPracticeScore(payload.score);
     setView("results");
-    if (!ctx || payload.attempts.length === 0) return;
+    if (!academicReady || !ctx || payload.attempts.length === 0) return;
     try {
       const result = await PracticeService.completeMistakeRetry(ctx, payload.attempts);
       setPracticeScore(result.score);

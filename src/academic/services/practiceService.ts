@@ -4,6 +4,7 @@ import {
   toRepoContext,
   type ServiceContext,
 } from "./context";
+import { assertStudentClassContext } from "./assertStudentContext";
 import { getClient, throwIfError } from "../repository/base";
 import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
@@ -503,9 +504,12 @@ export const PracticeService = {
       }
     }
 
-    let classLevel: number | null = null;
     let classLabel: string | null = ctx.classLabel ?? null;
-    let classCategory: string | null = null;
+    let classCategory: string | null = ctx.classCategory ?? null;
+    // Identity RPC metadata is authoritative; avoid re-querying students/classes
+    // when its label or category already identifies the class level.
+    let classLevel: number | null =
+      parseClassLevel(classLabel) ?? parseClassLevel(classCategory);
     let resolvedClassId: string | null = ctx.classId ?? null;
 
     type ClassJoin = {
@@ -518,13 +522,17 @@ export const PracticeService = {
     const readClass = (raw: ClassJoin | ClassJoin[] | null | undefined) => {
       const c = Array.isArray(raw) ? raw[0] : raw;
       if (!c) return;
-      classCategory = c.category ?? null;
+      classCategory = c.category ?? classCategory;
       const base = [c.name, c.section].filter(Boolean).join("-");
       classLabel = c.display_name || base || classLabel || null;
-      classLevel = parseClassLevel(classLabel) ?? parseClassLevel(c.name) ?? parseClassLevel(base);
+      classLevel =
+        parseClassLevel(classLabel) ??
+        parseClassLevel(c.name) ??
+        parseClassLevel(base) ??
+        parseClassLevel(classCategory);
     };
 
-    if (ctx.studentId) {
+    if (!resolvedClassId && ctx.studentId) {
       const { data: stu } = await client
         .from("students")
         .select("class_id, classes(name, section, display_name, category)")
@@ -532,7 +540,7 @@ export const PracticeService = {
         .maybeSingle();
       resolvedClassId = (stu as { class_id?: string | null } | null)?.class_id ?? resolvedClassId;
       readClass((stu as { classes?: ClassJoin | ClassJoin[] | null } | null)?.classes);
-    } else if (ctx.userId) {
+    } else if (!resolvedClassId && ctx.userId) {
       const { data: stu } = await client
         .from("students")
         .select("class_id, classes(name, section, display_name, category)")
@@ -542,7 +550,8 @@ export const PracticeService = {
       readClass((stu as { classes?: ClassJoin | ClassJoin[] | null } | null)?.classes);
     }
 
-    // Embed can be null when classes RLS blocked the join — fetch own class by id.
+    // A label/category can be unparseable. Fetch once by the identity-provided
+    // class id (also handles an RLS-blocked embedded class join).
     if (resolvedClassId && classLevel == null) {
       const { data: c } = await client
         .from("classes")
@@ -571,6 +580,7 @@ export const PracticeService = {
     opts: { classLevel?: number | null } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
+    assertStudentClassContext(ctx);
     const client = getClient(toRepoContext(ctx));
     const scope = await this.resolveCurriculumScope(ctx);
     const classLevel = opts.classLevel ?? scope.classLevel;

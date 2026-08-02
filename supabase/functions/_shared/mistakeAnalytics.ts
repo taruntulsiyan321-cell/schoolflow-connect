@@ -8,6 +8,13 @@ const ANALYTICS_MODELS = [
   "gemini-2.0-flash-lite",
 ];
 
+const PLACEHOLDER_LABELS = new Set(["subject", "topic", "daily", "general", "concept", "chapter", "mixed"]);
+
+function usableAcademicLabel(value: string | null | undefined): string {
+  const label = value?.trim() ?? "";
+  return PLACEHOLDER_LABELS.has(label.toLowerCase()) ? "" : label;
+}
+
 type TopicMistakeBundle = {
   topic: string;
   chapter?: string;
@@ -289,22 +296,24 @@ export async function handleMistakeAnalyticsRequest(body: Record<string, unknown
 
   if (!result.ok) return jsonResponse({ error: result.error }, result.status);
 
-  const weak_topics = (result.data.weak_topics ?? []).map((w) => ({
-    topic: w.topic ?? "Topic",
-    chapter: w.chapter ?? "General",
-    subject: w.subject ?? "General",
-    concept: w.concept,
-    severity: normalizeSeverity(w.severity),
-    misconception: w.misconception ?? "Method mix-up",
-    why_weak: w.why_weak ?? "",
-    root_cause: w.root_cause ?? "Review where your working diverged from the correct method.",
-    error_pattern: w.error_pattern,
-    fix_hint: w.fix_hint ?? "",
-    micro_drills: w.micro_drills ?? [],
-    evidence: w.evidence ?? "",
-    ncert_ref: w.ncert_ref,
-    mistake_count: Math.max(1, w.mistake_count ?? 1),
-  }));
+  const weak_topics = (result.data.weak_topics ?? [])
+    .map((w) => ({
+      topic: usableAcademicLabel(w.topic),
+      chapter: usableAcademicLabel(w.chapter),
+      subject: usableAcademicLabel(w.subject),
+      concept: usableAcademicLabel(w.concept),
+      severity: normalizeSeverity(w.severity),
+      misconception: w.misconception ?? "Method mix-up",
+      why_weak: w.why_weak ?? "",
+      root_cause: w.root_cause ?? "Review where your working diverged from the correct method.",
+      error_pattern: w.error_pattern,
+      fix_hint: w.fix_hint ?? "",
+      micro_drills: w.micro_drills ?? [],
+      evidence: w.evidence ?? "",
+      ncert_ref: w.ncert_ref,
+      mistake_count: Math.max(1, w.mistake_count ?? 1),
+    }))
+    .filter((w) => Boolean(w.topic && w.subject));
 
   return jsonResponse({
     headline: result.data.headline ?? "",

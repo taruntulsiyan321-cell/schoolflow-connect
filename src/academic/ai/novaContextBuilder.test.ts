@@ -10,6 +10,13 @@ import {
 import { buildContextPack, packForModel } from "./contextBuilder";
 
 describe("Nova Context Builder", () => {
+  it("merges Math/Maths/Mathematics aliases", () => {
+    expect(dedupeSubjects(["Math", "Maths", "Mathematics", "Physics"])).toEqual([
+      "Mathematics",
+      "Physics",
+    ]);
+  });
+
   it("deduplicates subjects case-insensitively", () => {
     expect(dedupeSubjects(["Mathematics", "mathematics", " Physics ", "Mathematics"])).toEqual([
       "Mathematics",

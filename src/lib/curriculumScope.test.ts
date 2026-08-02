@@ -20,6 +20,10 @@ describe("curriculumScope — class level", () => {
   it("parses class level from common labels", () => {
     expect(parseClassLevel("11-A")).toBe(11);
     expect(parseClassLevel("Class 12 Commerce")).toBe(12);
+    expect(parseClassLevel("Class-10")).toBe(10);
+    expect(parseClassLevel("Std 9")).toBe(9);
+    expect(parseClassLevel("XI-A")).toBe(11);
+    expect(parseClassLevel("Class XII Science")).toBe(12);
     expect(parseClassLevel("IX-B")).toBe(null);
     expect(parseClassLevel("10")).toBe(10);
     expect(parseClassLevel("9-C")).toBe(9);

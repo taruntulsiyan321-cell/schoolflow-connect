@@ -149,17 +149,17 @@ export function ArenaHub() {
       const snap = await ProgressionService.getSnapshot(svcCtx, user.id);
       setXp({
         xp: snap.xp, level: snap.level, study_streak: snap.study_streak,
-        win_streak: snap.battleground.win_streak, current_streak: snap.battleground.win_streak,
+        win_streak: snap.battleground.win_streak,
         total_battles: snap.battleground.total_battles, wins: snap.battleground.wins,
         equipped_badge: snap.equipped_badge,
       });
     } catch {
-      setXp({ xp: 0, level: 1, study_streak: 0, win_streak: 0, current_streak: 0, total_battles: 0, wins: 0 });
+      setXp({ xp: 0, level: 1, study_streak: 0, win_streak: 0, total_battles: 0, wins: 0 });
     }
   }, [user, ctx, academicReady]);
 
   const loadArena = useCallback(async () => {
-    if (!user) return;
+    if (!user || !academicReady || !ctx) return;
     setLoading(true);
     const { data: s } = await supabase
       .from("students")
@@ -174,8 +174,8 @@ export function ArenaHub() {
       .select("*")
       .in("status", ["live", "scheduled"])
       .in("mode", ["open", "lobby"]);
-    if (s?.class_id) {
-      battleQuery = battleQuery.or(`mode.eq.open,and(mode.eq.lobby,class_id.eq.${s.class_id})`);
+    if (ctx.classId) {
+      battleQuery = battleQuery.or(`mode.eq.open,and(mode.eq.lobby,class_id.eq.${ctx.classId})`);
     } else {
       battleQuery = battleQuery.eq("mode", "open");
     }
@@ -213,7 +213,7 @@ export function ArenaHub() {
     }
 
     setLoading(false);
-  }, [user, refreshXp]);
+  }, [user, academicReady, ctx, refreshXp]);
 
   useEffect(() => {
     loadArena();
@@ -243,7 +243,7 @@ export function ArenaHub() {
         difficulty: "medium",
         questions: 5,
         perQuestionSec: 20,
-        classId: student?.class_id ?? null,
+        classId: ctx?.classId ?? null,
       });
       notifyStudentXpUpdated();
       nav(`${BG_BASE}/battle/${id}`);
@@ -281,7 +281,7 @@ export function ArenaHub() {
               from level {xp.level + 1}. Win battles to climb the class leaderboard.
             </p>
             <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-              <StreakFlame streak={xp.win_streak ?? xp.study_streak ?? xp.current_streak ?? 0} />
+              <StreakFlame streak={xp.win_streak} />
               <span className="text-xs px-2.5 py-1 rounded-full ba-glass text-white/90 font-medium">
                 {xp.wins} wins
               </span>
@@ -390,7 +390,7 @@ export function ArenaHub() {
         </div>
       </div>
 
-      <ArenaFocusCards streak={xp.win_streak ?? xp.study_streak ?? xp.current_streak ?? 0} wins={xp.wins} recovery={recovery} />
+      <ArenaFocusCards streak={xp.win_streak} wins={xp.wins} recovery={recovery} />
 
       {/* Quick match FAB */}
       <button

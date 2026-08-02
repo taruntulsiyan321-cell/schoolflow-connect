@@ -149,22 +149,18 @@ BEGIN
     NULL;
   END;
 
-  -- Portal-scoped role: users who are both teachers/admins and students must
-  -- retain explicit student access in the student portal despite global priority.
-  _role := CASE
-    WHEN EXISTS (SELECT 1 FROM public.students s WHERE s.user_id = _uid)
-     AND EXISTS (
-       SELECT 1
-       FROM public.user_roles ur
-       WHERE ur.user_id = _uid AND ur.role = 'student'::public.app_role
-     )
-    THEN 'student'::public.app_role
-    ELSE public.get_my_role()
-  END;
   _has_student_role := EXISTS (
     SELECT 1 FROM public.user_roles ur
     WHERE ur.user_id = _uid AND ur.role = 'student'::public.app_role
   );
+  -- Portal-scoped role: users who are both teachers/admins and students must
+  -- retain explicit student access in the student portal despite global priority.
+  _role := CASE
+    WHEN _has_student_role
+     AND EXISTS (SELECT 1 FROM public.students s WHERE s.user_id = _uid)
+    THEN 'student'::public.app_role
+    ELSE public.get_my_role()
+  END;
 
   -- Prefer student school; keep profile in sync when linked
   UPDATE public.profiles p
@@ -174,14 +170,6 @@ BEGIN
     AND s.user_id = _uid
     AND s.school_id IS NOT NULL
     AND p.school_id IS DISTINCT FROM s.school_id;
-
-  -- When a linked students row + student role grant exist, expose role=student
-  -- for the student portal even if global priority prefers teacher/admin.
-  IF _has_student_role AND EXISTS (
-    SELECT 1 FROM public.students s WHERE s.user_id = _uid
-  ) THEN
-    _role := 'student'::public.app_role;
-  END IF;
 
   RETURN QUERY
   SELECT
