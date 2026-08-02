@@ -22,7 +22,7 @@ import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 const ANY = "__any__";
 
-type BattleMode = "duel" | "class" | "open" | "solo";
+type BattleMode = "duel" | "class" | "open";
 
 type Classmate = {
   id: string;
@@ -376,7 +376,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
         className="w-full btn-cta"
       >
         {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
-        {mode === "solo" ? "Start solo practice" : mode === "duel" ? "Send challenge" : "Host battle"}
+        {(mode as string) === "solo" ? "Start solo practice" : mode === "duel" ? "Send challenge" : "Host battle"}
       </Button>
     </>
   );

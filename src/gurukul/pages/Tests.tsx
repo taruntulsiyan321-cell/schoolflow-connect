@@ -6,9 +6,8 @@ import {
   MarksService,
   TestService,
   useAcademicLive,
-  type MarksRecord,
 } from "@/academic";
-import type { ExamRecord } from "@/academic/repository/marksRepository";
+import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/gurukul/components/shared";
 

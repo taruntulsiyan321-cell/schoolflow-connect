@@ -404,10 +404,10 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         sourceType: "student_mistake",
         sourceId: m.id,
       });
-      toast.success(`"${m.topic || m.chapter}" queued for Recovery`);
+      setToast(`"${m.topic || m.chapter}" queued for Recovery`);
       setTimeout(() => setPage?.("recovery"), 800);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not add to Recovery");
+      setToast(e instanceof Error ? e.message : "Could not add to Recovery");
     }
   }
 

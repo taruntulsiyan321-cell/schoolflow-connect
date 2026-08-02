@@ -94,7 +94,7 @@ export async function loadAuthContext(userId: string): Promise<AuthContextData |
   const role = await resolveRole(userId);
 
   // 2) Optional enriched context (may be missing until migrations are applied)
-  const { data: rpcData, error: rpcError } = await supabase.rpc("get_auth_context");
+  const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("get_auth_context");
   if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
     const row = rpcData[0] as AuthContextRow;
     // Prefer RPC profile/school, but never trust a null role over user_roles

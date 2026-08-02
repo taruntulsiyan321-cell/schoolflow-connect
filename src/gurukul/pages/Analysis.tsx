@@ -330,8 +330,9 @@ export default function Analysis() {
       (snapshot?.weak_topics ?? []).slice(0, 6).map((t) => ({
         topic: t.topic || t.chapter || "Topic",
         subject: t.subject,
-        status: "pending" as const,
+        status: "pending" as "pending" | "completed",
         attempts: 0,
+        improvement: 0,
       })),
     [snapshot?.weak_topics],
   );

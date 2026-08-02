@@ -221,7 +221,7 @@ export async function publishMarks(ctx: RepoContext, input: PublishMarksInput): 
   const schoolId = schoolIdOf(ctx);
 
   const assignCheck = validateTeacherSubjectAssignment(input.teacherAssignedToSubject);
-  if (!assignCheck.ok) throw new ValidationFailedError(assignCheck.issues);
+  if (!assignCheck.ok) throw new ValidationFailedError((assignCheck as { ok: false; issues: unknown[] }).issues as never);
 
   const exam = await getExam(ctx, input.examId);
   if (exam.marksLocked) {
@@ -234,7 +234,7 @@ export async function publishMarks(ctx: RepoContext, input: PublishMarksInput): 
     ]);
   }
   const marksCheck = validateMarks(input.marksObtained, exam.maxMarks);
-  if (!marksCheck.ok) throw new ValidationFailedError(marksCheck.issues);
+  if (!marksCheck.ok) throw new ValidationFailedError((marksCheck as { ok: false; issues: unknown[] }).issues as never);
 
   const { data: student, error: sErr } = await getClient(ctx)
     .from("students")

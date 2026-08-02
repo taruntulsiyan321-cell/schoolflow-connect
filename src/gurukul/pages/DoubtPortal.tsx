@@ -134,7 +134,7 @@ function mapAnswerRow(row: DbAnswerRow): Reply {
 }
 
 async function loadAnswersForDoubt(doubtId: string): Promise<Reply[]> {
-  await supabase.rpc("rpc_record_community_doubt_view", { _doubt_id: doubtId }).catch(() => undefined);
+  await (supabase.rpc as any)("rpc_record_community_doubt_view", { _doubt_id: doubtId }).catch(() => undefined);
   const { data, error } = await supabase
     .from("community_doubt_answers")
     .select("*")
@@ -733,7 +733,7 @@ function MyDoubts({ doubts, onOpen }: { doubts: Doubt[]; onOpen: (d: Doubt) => v
 // ── Root ───────────────────────────────────────────────────────────────────────
 export default function DoubtPortal() {
   const { ctx, ready, classId } = useAcademicContext();
-  const liveVersion = useAcademicLive(["doubt"]);
+  const liveVersion = useAcademicLive(["doubt"] as any);
   const { user } = useAuth();
   const student = useGurukulStudent();
   const [doubts, setDoubts] = useState<Doubt[]>([]);

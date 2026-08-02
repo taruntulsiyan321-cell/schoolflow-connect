@@ -409,9 +409,9 @@ export const HomeworkService = {
     const schoolId = schoolIdOf(repo);
     const client = getClient(repo);
 
-    const { data: rpcData, error: rpcError } = await client.rpc(
+    const { data: rpcData, error: rpcError } = await (client.rpc as any)(
       "publish_due_scheduled_homework",
-      { _school_id: schoolId } as never,
+      { _school_id: schoolId },
     );
     if (!rpcError) {
       return typeof rpcData === "number" ? rpcData : Number(rpcData ?? 0);
