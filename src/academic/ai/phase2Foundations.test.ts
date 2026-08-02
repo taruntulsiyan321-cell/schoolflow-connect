@@ -126,6 +126,32 @@ describe("Recommendation Engine v1", () => {
     expect(pkg.actions).toEqual([]);
     expect(pickNextConcept(pkg)).toBeNull();
   });
+
+  it("skips Subject/Topic/Daily/General placeholder seeds", () => {
+    const pkg = buildRecommendationPackage({
+      studentId: "s3",
+      schoolId: "sch1",
+      intelligence_version: "eie:1:0:0",
+      completeness: 0.5,
+      weak_concepts: [
+        { subject: "General", concept: "Daily", mastery_score: 10, band: "weak" },
+        { subject: "Subject", concept: "Topic", mastery_score: 5, band: "weak" },
+        { subject: "Mathematics", concept: "Limits", mastery_score: 40, band: "weak" },
+      ],
+      revision_priority: [
+        { subject: "General", topic: "Daily", priority: 99 },
+        { subject: "Mathematics", topic: "Derivatives", priority: 8 },
+      ],
+    });
+    expect(pickNextConcept(pkg)?.concept_or_topic).toBe("Limits");
+    const rev = pkg.actions.find((a) => a.kind === "revision_priority");
+    expect(rev?.concept_or_topic).toBe("Derivatives");
+    expect(
+      pkg.actions.some((a) =>
+        ["Daily", "General", "Subject", "Topic"].includes(String(a.concept_or_topic)),
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("Workflow Orchestrator skeleton", () => {

@@ -402,7 +402,13 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     const subject = searchParams.get("subject");
     const chapter = searchParams.get("chapter");
     const concept = searchParams.get("concept") || chapter || subject;
-    if (!subject || !concept) {
+    if (
+      !subject ||
+      !concept ||
+      isPlaceholderAcademicLabel(subject) ||
+      isPlaceholderAcademicLabel(concept) ||
+      isPlaceholderAcademicLabel(chapter)
+    ) {
       setSearchParams({}, { replace: true });
       return;
     }

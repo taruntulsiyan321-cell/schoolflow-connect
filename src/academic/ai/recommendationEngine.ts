@@ -3,6 +3,8 @@
  * Optional short rationale is phrased via Gateway/Router; metrics stay here.
  */
 
+import { isPlaceholderAcademicLabel } from "../taxonomy";
+
 export type RecommendationSeedConcept = {
   subject: string;
   chapter?: string | null;
@@ -67,7 +69,13 @@ export function buildRecommendationPackage(
   const actions: RecommendationAction[] = [];
 
   const weakest = [...(input.weak_concepts ?? [])]
-    .filter((c) => c && c.concept)
+    .filter(
+      (c) =>
+        c &&
+        c.concept &&
+        !isPlaceholderAcademicLabel(c.concept) &&
+        !isPlaceholderAcademicLabel(c.subject),
+    )
     .sort((a, b) => (a.mastery_score ?? 0) - (b.mastery_score ?? 0))[0];
 
   if (weakest) {
@@ -87,24 +95,35 @@ export function buildRecommendationPackage(
   }
 
   const topRev = [...(input.revision_priority ?? [])]
-    .filter((r) => r && (r.topic || r.subject))
+    .filter(
+      (r) =>
+        r &&
+        !isPlaceholderAcademicLabel(r.subject) &&
+        (r.topic || r.chapter || r.subject) &&
+        [r.topic, r.chapter, r.subject].some((x) => !isPlaceholderAcademicLabel(x)),
+    )
     .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))[0];
 
   if (topRev) {
-    const topic = topRev.topic ?? topRev.subject;
-    actions.push({
-      action_id: `revision:${topRev.subject}:${topic}`,
-      kind: "revision_priority",
-      title: `Revise ${topic}`,
-      subject: topRev.subject,
-      concept_or_topic: topic,
-      priority: topRev.priority ?? 0,
-      reason_codes: ["eie_revision_queue", topRev.reason ?? "scheduled_revision"],
-      metrics: {
-        revision_priority: topRev.priority ?? 0,
-        due_date: topRev.due_date ?? null,
-      },
-    });
+    const topic =
+      [topRev.topic, topRev.chapter, topRev.subject].find(
+        (x) => !isPlaceholderAcademicLabel(x),
+      ) ?? null;
+    if (topic) {
+      actions.push({
+        action_id: `revision:${topRev.subject}:${topic}`,
+        kind: "revision_priority",
+        title: `Revise ${topic}`,
+        subject: topRev.subject,
+        concept_or_topic: topic,
+        priority: topRev.priority ?? 0,
+        reason_codes: ["eie_revision_queue", topRev.reason ?? "scheduled_revision"],
+        metrics: {
+          revision_priority: topRev.priority ?? 0,
+          due_date: topRev.due_date ?? null,
+        },
+      });
+    }
   }
 
   const att = input.attendance_pct;
