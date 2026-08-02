@@ -11,6 +11,7 @@ import type {
 } from "@/lib/analyticsInsights";
 import { FlowSectionTitle } from "@/components/student/flow/FlowDesign";
 import { AlertTriangle, BookOpen, Calendar, Clock, TrendingDown, TrendingUp } from "lucide-react";
+import { displayChapter, displayConcept, displayTopic, displaySubject } from "@/lib/academicDisplay";
 
 function severityBadge(severity: TopicGapInsight["severity"]) {
   const styles = {
@@ -77,9 +78,9 @@ export function TopicDeepCards({ topics, variant = "default" }: { topics: TopicG
             <article key={`${t.subject}-${t.chapter}-${t.topic}-${i}`} className={`wa-topic-card severity-${t.severity}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h3 className="text-base font-semibold text-[var(--wa-on-surface)] truncate">{t.topic}</h3>
+                  <h3 className="text-base font-semibold text-[var(--wa-on-surface)] truncate">{displayTopic(t.topic)}</h3>
                   <p className="text-xs text-[var(--wa-on-surface-variant)] mt-0.5 truncate">
-                    {t.chapter} · {t.subject}
+                    {displayChapter(t.chapter)} · {displaySubject(t.subject)}
                   </p>
                 </div>
                 {severityBadge(t.severity)}
@@ -138,10 +139,10 @@ export function TopicDeepCards({ topics, variant = "default" }: { topics: TopicG
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <h3 className="text-base font-semibold text-foreground">{t.topic}</h3>
+                <h3 className="text-base font-semibold text-foreground">{displayTopic(t.topic)}</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {t.chapter} · {t.subject}
-                  {t.concept ? ` · ${t.concept}` : ""}
+                  {displayChapter(t.chapter)} · {displaySubject(t.subject)}
+                  {t.concept ? ` · ${displayConcept(t.concept)}` : ""}
                 </p>
               </div>
               {severityBadge(t.severity)}
@@ -229,7 +230,7 @@ export function MistakeTopicTable({ aggregates, variant = "default" }: { aggrega
             <tbody className="divide-y divide-border/50">
               {aggregates.slice(0, 12).map((a, i) => (
                 <tr key={`${a.topic}-${i}`} className="hover:bg-muted/20">
-                  <td className="px-4 py-3 font-medium text-foreground">{a.topic}</td>
+                  <td className="px-4 py-3 font-medium text-foreground">{displayTopic(a.topic)}</td>
                   <td className="px-4 py-3 text-muted-foreground">{a.chapter ?? "—"}</td>
                   <td className="px-4 py-3 tabular-nums">{a.mistake_count}</td>
                   <td className="px-4 py-3 text-orange-800 hidden sm:table-cell max-w-[140px] truncate">
@@ -272,8 +273,8 @@ export function WeeklyStudyPlan({ plan, variant = "default" }: { plan: StudyPlan
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-semibold text-foreground">{item.topic}</p>
-                <span className="text-[10px] text-muted-foreground">{item.chapter}</span>
+                <p className="font-semibold text-foreground">{displayTopic(item.topic)}</p>
+                <span className="text-[10px] text-muted-foreground">{displayChapter(item.chapter)}</span>
               </div>
               <p className="text-sm text-foreground/85 mt-1 leading-relaxed">{item.action}</p>
               <p className="text-[11px] text-muted-foreground mt-1.5 inline-flex items-center gap-1">
@@ -302,7 +303,7 @@ function MomentumRow({ signal, variant = "default" }: { signal: MomentumSignal }
       )}
       <div>
         <p className="text-sm font-medium text-foreground">
-          {signal.topic}
+          {displayTopic(signal.topic)}
           <span className="text-muted-foreground font-normal"> · {signal.subject}</span>
         </p>
         <p className="text-xs text-muted-foreground mt-0.5">{signal.note}</p>

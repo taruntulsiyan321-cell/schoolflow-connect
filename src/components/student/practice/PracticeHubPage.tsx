@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import "./practice-hub.css";
 import "../dashboard/student-dashboard.css";
+import { displayTopic } from "@/lib/academicDisplay";
 
 /* Placeholder data — visual pass */
 const HERO = {
@@ -394,7 +395,7 @@ export default function PracticeHubPage() {
             <div key={s.topic} className="ph-card rounded-2xl p-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <p className="font-semibold text-foreground">{s.topic}</p>
+                  <p className="font-semibold text-foreground">{displayTopic(s.topic)}</p>
                   <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5" />
                     {s.time}
@@ -469,7 +470,7 @@ function TopicCard({
       )}
     >
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-foreground">{topic}</p>
+        <p className="font-semibold text-foreground">{displayTopic(topic)}</p>
         <p className="text-sm text-muted-foreground mt-0.5">{subject}</p>
         <div className="flex flex-wrap gap-3 mt-2 text-xs">
           <span className={cn("font-semibold tabular-nums", weak ? "text-orange-700" : "text-emerald-700")}>

@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { BookMarked, CheckCircle2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
+import { displayChapter, displayConcept, displayTopic } from "@/lib/academicDisplay";
 
 export default function MistakeBank() {
   const { user } = useAuth();
@@ -81,8 +82,8 @@ export default function MistakeBank() {
             <div className="flex flex-wrap gap-2 mb-2">
               <Badge>{m.subject}</Badge>
               {m.assessment_type && <Badge variant="secondary">{m.assessment_type}</Badge>}
-              {m.chapter && <Badge variant="outline">{m.chapter}</Badge>}
-              {(m.concept || m.topic) && <Badge variant="outline">{m.concept ?? m.topic}</Badge>}
+              {m.chapter && <Badge variant="outline">{displayChapter(m.chapter)}</Badge>}
+              {(m.concept || m.topic) && <Badge variant="outline">{displayConcept(m.concept ?? m.topic)}</Badge>}
               <Badge variant="outline" className="text-warning">×{m.times_wrong}</Badge>
             </div>
             <p className="font-medium">{m.question_text}</p>

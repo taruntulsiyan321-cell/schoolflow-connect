@@ -22,6 +22,7 @@ import { buildMilestones, consistencyGrid } from "@/components/student/analytics
 import { MarksService } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
+import { displayChapter, displayTopic } from "@/lib/academicDisplay";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "#3b5bdb",
@@ -800,7 +801,7 @@ export default function Analysis() {
                   <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
-                        <div className="text-sm font-semibold text-white">{c.chapter}</div>
+                        <div className="text-sm font-semibold text-white">{displayChapter(c.chapter)}</div>
                         <div className="text-[11px] mt-0.5" style={{ color: c.color }}>{c.subject}</div>
                       </div>
                       <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: `${st.color}12` }}>
@@ -865,7 +866,7 @@ export default function Analysis() {
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-emerald-400/12 bg-emerald-400/5 hover:border-emerald-400/25 transition-colors">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{t.topic}</div>
+                      <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
                       <div className="text-[11px] text-[#78788c]">{t.subject}</div>
                     </div>
                     <span className="text-sm font-black text-emerald-400 shrink-0">{t.score}%</span>
@@ -884,7 +885,7 @@ export default function Analysis() {
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-amber-400/12 bg-amber-400/5 hover:border-amber-400/25 transition-colors cursor-pointer">
                     <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{t.topic}</div>
+                      <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
                       <div className="text-[11px] text-[#78788c]">{t.subject}{t.practiceCount > 0 ? ` · ${t.practiceCount} questions done` : ""}</div>
                     </div>
                     <div className="text-right shrink-0">
@@ -908,7 +909,7 @@ export default function Analysis() {
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
                     <TrendingUp className="w-4 h-4 text-[#3b5bdb] shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{t.topic}</div>
+                      <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
                       <div className="text-[11px] text-[#78788c]">{t.subject}</div>
                     </div>
                     <span className="text-sm font-black text-emerald-400 shrink-0">+{t.improvement}%</span>
@@ -927,7 +928,7 @@ export default function Analysis() {
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/2">
                     <Minus className="w-4 h-4 text-[#78788c] shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-[#a0a0b0] truncate">{t.topic}</div>
+                      <div className="text-sm font-semibold text-[#a0a0b0] truncate">{displayTopic(t.topic)}</div>
                       <div className="text-[11px] text-[#78788c]">{t.subject}</div>
                     </div>
                     <span className="text-[10px] text-[#78788c]">Not started</span>
@@ -961,7 +962,7 @@ export default function Analysis() {
                       : <Clock className="w-4 h-4 text-amber-400 shrink-0" />
                     }
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate">{r.topic}</div>
+                      <div className="text-sm font-medium text-white truncate">{displayTopic(r.topic)}</div>
                       <div className="text-[11px] text-[#78788c]">{r.subject}</div>
                     </div>
                     {r.status === "completed"
@@ -996,7 +997,7 @@ export default function Analysis() {
                 ) : revisionData.dueToday.map((topic) => (
                   <div key={topic} className="flex items-center gap-3 p-3 rounded-xl border border-[#3b5bdb]/20 bg-[#3b5bdb]/5">
                     <Clock className="w-4 h-4 text-[#3b5bdb] shrink-0" />
-                    <span className="text-sm text-white">{topic}</span>
+                    <span className="text-sm text-white">{displayTopic(topic)}</span>
                     <span className="ml-auto text-[10px] text-[#3b5bdb] font-semibold">Due today</span>
                   </div>
                 ))}

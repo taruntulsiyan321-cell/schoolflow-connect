@@ -14,6 +14,7 @@ import {
 import { ListChecks, Check, Info, Clock, Loader2, BookOpen } from "lucide-react";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { toast } from "sonner";
+import { displayChapter, displayConcept, displayTopic } from "@/lib/academicDisplay";
 
 type RevisionItem = {
   id: string;
@@ -173,9 +174,9 @@ export default function RevisionQueue() {
                   <div key={i} className="sp-stat-card rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold">{p.topic}</div>
+                        <div className="font-semibold">{displayTopic(p.topic)}</div>
                         <div className="text-sm text-muted-foreground">
-                          {[p.chapter, p.subject].filter(Boolean).join(" · ")}
+                          {[p.chapter ? displayChapter(p.chapter) : null, p.subject].filter(Boolean).join(" · ")}
                         </div>
                         <p className="text-sm mt-2">{p.action}</p>
                         {p.reason && (
@@ -201,7 +202,7 @@ export default function RevisionQueue() {
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold">{r.subject}</div>
                       <div className="text-sm text-muted-foreground">
-                        {[r.chapter, r.topic].filter(Boolean).join(" · ")}
+                        {[r.chapter ? displayChapter(r.chapter) : null, r.topic ? displayTopic(r.topic) : null].filter(Boolean).join(" · ")}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         <Badge variant={priorityTone(r.priority_label) as "default" | "destructive" | "secondary"}>
@@ -239,8 +240,8 @@ export default function RevisionQueue() {
               <div className="space-y-2">
                 {brainPriorities.map((bp, i) => (
                   <div key={i} className="sp-stat-card rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
-                    <div className="font-semibold">{bp.concept}</div>
-                    <div className="text-sm text-muted-foreground">{bp.subject}{bp.chapter ? ` · ${bp.chapter}` : ""}</div>
+                    <div className="font-semibold">{displayConcept(bp.concept)}</div>
+                    <div className="text-sm text-muted-foreground">{bp.subject}{bp.chapter ? ` · ${displayChapter(bp.chapter)}` : ""}</div>
                     <p className="text-sm mt-2">{bp.action ?? "Review and practice"}</p>
                     <div className="mt-2">
                       <Button size="sm" variant="outline" className="rounded-full" asChild>

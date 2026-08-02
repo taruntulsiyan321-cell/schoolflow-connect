@@ -4,6 +4,7 @@
  */
 
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import { presentAcademicLabel } from "@/lib/academicPresentation";
 import type { AiActorRole, AiClientRequest, AiGatewayResponse } from "./envelope";
 import { mapIntentToCapability } from "./intentMapper";
 import { getCapability } from "./capabilityCatalog";
@@ -164,13 +165,13 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       const strong = Array.isArray(d.strong_concepts) ? d.strong_concepts : [];
       const rev = Array.isArray(d.revision_priority) ? d.revision_priority : [];
       const weakLines = weak.slice(0, 5).map((c: { concept?: string; subject?: string; mastery_score?: number; band?: string }) =>
-        `• ${c.subject}: **${c.concept}** — ${c.mastery_score}% (${c.band})`,
+        `• ${presentAcademicLabel(c.subject, "subject")}: **${presentAcademicLabel(c.concept, "concept")}** — ${c.mastery_score}% (${c.band})`,
       );
       const strongLines = strong.slice(0, 4).map((c: { concept?: string; subject?: string; mastery_score?: number }) =>
-        `• ${c.subject}: **${c.concept}** — ${c.mastery_score}%`,
+        `• ${presentAcademicLabel(c.subject, "subject")}: **${presentAcademicLabel(c.concept, "concept")}** — ${c.mastery_score}%`,
       );
       const revLines = rev.slice(0, 4).map((r: { topic?: string; subject?: string; priority?: number }) =>
-        `• ${r.subject}: ${r.topic ?? "topic"} (priority ${r.priority})`,
+        `• ${presentAcademicLabel(r.subject, "subject")}: ${presentAcademicLabel(r.topic ?? "topic", "topic")} (priority ${r.priority})`,
       );
       return (
         `**Mastery & revision (Educational Intelligence)**\n` +
@@ -203,7 +204,7 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       const concept = d.concept as Record<string, unknown> | undefined;
       if (concept?.name || concept?.concept) {
         return (
-          `**Concept: ${concept.name ?? concept.concept}** (${concept.subject ?? "Subject"})\n` +
+          `**Concept: ${presentAcademicLabel(String(concept.name ?? concept.concept), "concept")}** (${presentAcademicLabel(String(concept.subject ?? "Subject"), "subject")})\n` +
           `Your mastery: **${concept.mastery_score ?? "—"}%**` +
           (concept.band ? ` (${concept.band})` : "") +
           `\n_Generative explanation unavailable — showing Educational Intelligence facts._`
@@ -243,7 +244,10 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       if (facts?.attendance && facts?.eie) {
         const att = facts.attendance as { attendance_pct?: number };
         const eie = facts.eie as { avg_mastery?: number; weak_concepts?: { concept?: string }[] };
-        const weak = (eie.weak_concepts ?? []).slice(0, 3).map((c) => c.concept).filter(Boolean);
+        const weak = (eie.weak_concepts ?? [])
+          .slice(0, 3)
+          .map((c) => presentAcademicLabel(c.concept, "concept"))
+          .filter(Boolean);
         return (
           `**Performance (facts only)**\n` +
           `Attendance **${att.attendance_pct ?? 0}%** · Avg mastery **${eie.avg_mastery ?? 0}%**` +

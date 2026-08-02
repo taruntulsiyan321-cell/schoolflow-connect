@@ -3,6 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { Brain } from "lucide-react";
+import { displayChapter, displayConcept, displaySubject } from "@/lib/academicDisplay";
 
 function masteryTone(score: number) {
   if (score >= 75) return "text-accent";
@@ -33,8 +34,8 @@ export function ConceptMastery({ compact = false, limit = 8 }: Props) {
         {shown.map((m, i) => (
           <div key={i} className="flex items-center gap-2">
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{m.concept}</div>
-              <div className="text-[11px] text-muted-foreground truncate">{m.subject}{m.chapter ? ` · ${m.chapter}` : ""}</div>
+              <div className="text-sm font-medium truncate">{displayConcept(m.concept)}</div>
+              <div className="text-[11px] text-muted-foreground truncate">{displaySubject(m.subject)}{m.chapter ? ` · ${displayChapter(m.chapter)}` : ""}</div>
             </div>
             <span className={`text-sm font-bold tabular-nums ${masteryTone(m.mastery_score)}`}>{Math.round(m.mastery_score)}</span>
           </div>
@@ -54,7 +55,7 @@ export function ConceptMastery({ compact = false, limit = 8 }: Props) {
           <div key={i}>
             <div className="flex justify-between items-center mb-1">
               <div>
-                <span className="font-medium text-sm">{m.concept}</span>
+                <span className="font-medium text-sm">{displayConcept(m.concept)}</span>
                 <span className="text-xs text-muted-foreground ml-2">{m.subject}</span>
               </div>
               <Badge variant="outline" className={masteryTone(m.mastery_score)}>{Math.round(m.mastery_score)}%</Badge>

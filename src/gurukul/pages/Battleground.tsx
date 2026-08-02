@@ -28,6 +28,7 @@ import {
 } from "@/lib/battlegroundHelpers";
 import { getNcertChapters, getNcertSubjects, parseClassGrade } from "@/lib/ncertSyllabus";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
+import { displayChapter, humanizeAcademicLabel } from "@/lib/academicDisplay";
 import { PracticeService, useAcademicContext } from "@/academic";
 import "./battleground-design.css";
 
@@ -888,7 +889,7 @@ function FeaturedBattles({
                 {live?.title || meta.title}
               </div>
               <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.72rem", marginTop: "1px", fontFamily: "Inter, sans-serif" }}>
-                {meta.chapter}
+                {humanizeAcademicLabel(meta.chapter)}
               </div>
             </div>
             <div style={{ padding: "0.85rem 1.1rem" }}>

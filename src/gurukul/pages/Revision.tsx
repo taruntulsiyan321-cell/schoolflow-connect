@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { GlassCard, SubjectBadge, ProgressBar, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
   RotateCcw, BookOpen, Brain, Clock, CheckCircle2, XCircle, AlertCircle,
@@ -87,8 +88,8 @@ function RevItemCard({ item, onRevise, onFlashcard }: { item: RevItem; onRevise:
             )}
             {item.bookmarked && <Bookmark className="w-3.5 h-3.5 text-amber-400 fill-amber-400"/>}
           </div>
-          <div className="text-sm font-bold text-white">{item.concept}</div>
-          <div className="text-[11px] text-[#78788c] mt-0.5">{item.chapter} · Last seen {item.lastSeen} · {item.reviews} reviews</div>
+          <div className="text-sm font-bold text-white">{displayConcept(item.concept)}</div>
+          <div className="text-[11px] text-[#78788c] mt-0.5">{displayChapter(item.chapter)} · Last seen {item.lastSeen} · {item.reviews} reviews</div>
         </div>
       </div>
       <div className="flex items-center gap-2 mt-3">
@@ -236,7 +237,7 @@ function RevisionSession({ item, onDone, onBack }: { item: RevItem; onDone: (sco
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-[0.15em] text-violet-400">Revision Session</div>
-          <div className="text-sm font-bold text-white">{item.concept}</div>
+          <div className="text-sm font-bold text-white">{displayConcept(item.concept)}</div>
         </div>
       </div>
       <div className="flex gap-1.5">
@@ -304,7 +305,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
             </div>
           </div>
         </div>
-        <div className="text-lg font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>{item.concept}</div>
+        <div className="text-lg font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>{displayConcept(item.concept)}</div>
         <p className="text-sm text-[#78788c]">{passed ? "Solid revision — this concept is strengthening." : "Need more practice. Consider a recovery session."}</p>
       </GlassCard>
       <div className="space-y-2">
@@ -487,7 +488,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
                 {slot.items.map(item => (
                   <button key={item.id} onClick={() => { setActiveItem(item); setView("session"); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-semibold hover:bg-violet-500/20 transition-all">
-                    <RotateCcw className="w-3 h-3"/> {item.concept}
+                    <RotateCcw className="w-3 h-3"/> {displayConcept(item.concept)}
                   </button>
                 ))}
               </div>
@@ -584,7 +585,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
                   <TrendingUp className="w-4 h-4 text-violet-400"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white">{h.concept}</div>
+                  <div className="text-sm font-semibold text-white">{displayConcept(h.concept)}</div>
                   <div className="text-[11px] text-[#78788c]">{h.subject} · {h.date} · {h.duration}</div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">

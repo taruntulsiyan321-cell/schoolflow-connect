@@ -166,3 +166,20 @@ export {
 } from "./eie";
 
 export { AuditService, listAuditForEntity, listRecentAudit } from "./audit";
+
+export {
+  presentAcademicLabel,
+  fixMojibake,
+  displayChapter,
+  displayConcept,
+  displayTopic,
+  displaySubject,
+  canonicalizeConceptId,
+  normalizeIncomingAcademicTerm,
+  resolveTaxonomyDisplayPath,
+  formatTaxonomyBreadcrumb,
+  toPresentedTerm,
+  type AcademicLabelKind,
+  type TaxonomyTermRef,
+  type TaxonomyPath,
+} from "./taxonomy";

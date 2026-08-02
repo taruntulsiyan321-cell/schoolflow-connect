@@ -12,6 +12,7 @@ import { ConceptMastery } from "@/components/student/ConceptMastery";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildRuleConceptReport } from "@/lib/conceptReportFallback";
 import {
+import { displayChapter, displaySubject } from "@/lib/academicDisplay";
   formatLearningProgressSummary,
   practiceAccuracyFromSnapshot,
   studyActiveDaysFromSnapshot,
@@ -127,7 +128,7 @@ export default function AcademicReport() {
                 <h2 className="font-semibold mb-2">Focus areas</h2>
                 <ul className="text-sm space-y-1">
                   {(snap?.weak_topics ?? []).map((t, i) => (
-                    <li key={i}>{t.subject}{t.chapter ? ` · ${t.chapter}` : ""} — {t.accuracy}% accuracy</li>
+                    <li key={i}>{displaySubject(t.subject)}{t.chapter ? ` · ${displayChapter(t.chapter)}` : ""} — {t.accuracy}% accuracy</li>
                   ))}
                 </ul>
               </Card>
@@ -138,7 +139,7 @@ export default function AcademicReport() {
                 <h2 className="font-semibold mb-2">Strengths</h2>
                 <ul className="text-sm space-y-1">
                   {(snap?.strong_topics ?? []).map((t, i) => (
-                    <li key={i}>{t.subject}{t.chapter ? ` · ${t.chapter}` : ""} — {t.accuracy}% accuracy</li>
+                    <li key={i}>{displaySubject(t.subject)}{t.chapter ? ` · ${displayChapter(t.chapter)}` : ""} — {t.accuracy}% accuracy</li>
                   ))}
                 </ul>
               </Card>

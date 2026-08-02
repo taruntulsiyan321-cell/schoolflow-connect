@@ -4,6 +4,7 @@ import type { PageKey } from "@/gurukul/nav";
 import { useRecoveryZone, type RecoveryZoneData, type WeakConcept } from "@/hooks/useRecoveryZone";
 import { PracticeService, useAcademicContext } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
+import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { GlassCard, SubjectBadge, ProgressBar, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2, XCircle,
@@ -133,8 +134,8 @@ function TopicCard({ topic, onStart }: { topic: RecoveryTopic; onStart: () => vo
                 </span>
               )}
             </div>
-            <div className="text-sm font-bold text-white">{topic.concept}</div>
-            <div className="text-xs text-[#78788c] mt-0.5">{topic.chapter} · {SOURCE_LABELS[topic.source]} · {topic.lastAttempt}</div>
+            <div className="text-sm font-bold text-white">{displayConcept(topic.concept)}</div>
+            <div className="text-xs text-[#78788c] mt-0.5">{displayChapter(topic.chapter)} · {SOURCE_LABELS[topic.source]} · {topic.lastAttempt}</div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="text-right">
@@ -232,7 +233,7 @@ function RecoverySession({ topic, onDone, onBack }: { topic: RecoveryTopic; onDo
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-[0.15em] text-rose-400">Recovery Session</div>
-          <div className="text-sm font-bold text-white">{topic.concept}</div>
+          <div className="text-sm font-bold text-white">{displayConcept(topic.concept)}</div>
         </div>
       </div>
 
@@ -317,7 +318,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
           </div>
         </div>
         <div className="text-lg font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
-          {topic.concept}
+          {displayConcept(topic.concept)}
         </div>
         <p className="text-sm text-[#78788c]">
           {passed ? "Great improvement! Topic is recovering well." : "Keep going — a few more sessions will strengthen this."}
@@ -399,7 +400,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
       TOPICS.filter((t) => t.priority === "high")
         .slice(0, 3)
         .map((t) => ({
-          task: `Complete ${t.concept} recovery (${t.pendingQs || 0} questions)`,
+          task: `Complete ${displayConcept(t.concept)} recovery (${t.pendingQs || 0} questions)`,
           subject: t.subject,
           time: t.pendingQs > 0 ? `${Math.max(10, t.pendingQs * 2)} min` : "—",
           priority: t.priority as Priority,
@@ -618,7 +619,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                   {h.improved ? <TrendingUp className="w-4 h-4 text-emerald-400"/> : <SkipForward className="w-4 h-4 text-amber-400"/>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white">{h.concept}</div>
+                  <div className="text-sm font-semibold text-white">{displayConcept(h.concept)}</div>
                   <div className="text-[11px] text-[#78788c]">{h.subject} · {h.date}</div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">

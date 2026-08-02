@@ -8,6 +8,7 @@ import {
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import { displayChapter, displayTopic, displayConcept } from "@/lib/academicDisplay";
 
 export type TopicGapInsight = {
   topic: string;
@@ -214,20 +215,20 @@ export function aggregatesToTopicGaps(aggregates: MistakeTopicAggregate[]): Topi
   return aggregates.map((a) => {
     const misconception = inferMisconception(a.sample_wrong, a.sample_correct);
     return {
-      topic: a.topic,
-      chapter: a.chapter ?? "General",
+      topic: displayTopic(a.topic),
+      chapter: displayChapter(a.chapter) || "General",
       subject: a.subject,
-      concept: a.concept ?? undefined,
+      concept: a.concept ? displayConcept(a.concept) : undefined,
       severity: severityFromWrong(a.total_wrong, a.mistake_count),
       misconception,
-      why_weak: `You missed ${a.mistake_count} question${a.mistake_count === 1 ? "" : "s"} on "${a.topic}"${a.chapter ? ` in ${a.chapter}` : ""}. On a recent one you chose "${a.sample_wrong ?? "?"}" instead of "${a.sample_correct ?? "?"}".`,
+      why_weak: `You missed ${a.mistake_count} question${a.mistake_count === 1 ? "" : "s"} on "${displayTopic(a.topic)}"${a.chapter ? ` in ${displayChapter(a.chapter)}` : ""}. On a recent one you chose "${a.sample_wrong ?? "?"}" instead of "${a.sample_correct ?? "?"}".`,
       root_cause:
         a.mistake_count >= 2
           ? "This keeps coming up — likely a conceptual gap, not a one-off slip."
           : "Walk through where your working diverged from the correct approach.",
-      error_pattern: a.mistake_count >= 2 ? `Repeated errors on ${a.topic}` : undefined,
-      fix_hint: `Open NCERT on "${a.topic}"${a.chapter ? ` (${a.chapter})` : ""}, do the quick checks below, then fix matching mistakes in Recovery.`,
-      micro_drills: buildMicroDrills(a.topic, a.chapter),
+      error_pattern: a.mistake_count >= 2 ? `Repeated errors on ${displayTopic(a.topic)}` : undefined,
+      fix_hint: `Open NCERT on "${displayTopic(a.topic)}"${a.chapter ? ` (${displayChapter(a.chapter)})` : ""}, do the quick checks below, then fix matching mistakes in Recovery.`,
+      micro_drills: buildMicroDrills(displayTopic(a.topic), a.chapter ? displayChapter(a.chapter) : a.chapter),
       evidence: a.sample_question ? `Recent question: "${a.sample_question.slice(0, 120)}…"` : undefined,
       mistake_count: a.mistake_count,
       total_wrong: a.total_wrong,
@@ -245,14 +246,14 @@ function buildMomentumFromMastery(mastery: ConceptMasteryItem[]): MomentumSignal
   for (const m of mastery) {
     if (m.mastery_score >= 78 && m.mistake_count <= 1 && m.total_attempts >= 3) {
       signals.push({
-        topic: m.concept,
+        topic: displayConcept(m.concept),
         subject: m.subject,
         direction: "improving",
         note: `${Math.round(m.mastery_score)}% mastery — keep mixing in harder questions.`,
       });
     } else if (m.mastery_score < 55 && m.mistake_count >= 2) {
       signals.push({
-        topic: m.concept,
+        topic: displayConcept(m.concept),
         subject: m.subject,
         direction: "slipping",
         note: `${m.mistake_count} recent mistakes — revisit before your next test.`,

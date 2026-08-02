@@ -46,6 +46,7 @@ import {
   Wrench,
 } from "lucide-react";
 import "./wisdom/wisdom-analytics.css";
+import { displayChapter, displayConcept, displayTopic } from "@/lib/academicDisplay";
 
 type Props = {
   data: AcademicSnapshot;
@@ -309,8 +310,8 @@ export function AnalyticsStudio({ data, charts }: Props) {
           {focusTopics.length > 0 ? focusTopics.map((topic, i) => (
             <div key={`${topic.topic}-${i}`} className="wa-priority-card">
               <p className="wa-label text-[10px]">Priority {i + 1}</p>
-              <p className="font-semibold text-[var(--wa-on-surface)] mt-1">{topic.topic}</p>
-              <p className="text-xs text-[var(--wa-on-surface-variant)] mt-1">{topic.chapter}</p>
+              <p className="font-semibold text-[var(--wa-on-surface)] mt-1">{displayTopic(topic.topic)}</p>
+              <p className="text-xs text-[var(--wa-on-surface-variant)] mt-1">{displayChapter(topic.chapter)}</p>
             </div>
           )) : (
             <p className="wa-body md:col-span-3">No priority topics yet — keep practising to surface gaps.</p>
@@ -336,7 +337,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
           <div className="space-y-3">
             {strongConcepts.length > 0 ? strongConcepts.map((c) => (
               <div key={`${c.subject}-${c.concept}`} className="wa-concept-row">
-                <span>✓ {c.concept}</span>
+                <span>✓ {displayConcept(c.concept)}</span>
                 <strong>{Math.round(c.mastery_score)}%</strong>
               </div>
             )) : <p className="wa-body">Strong concepts appear as you complete more practice.</p>}
@@ -349,7 +350,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
           <div className="space-y-3">
             {weakConcepts.length > 0 ? weakConcepts.map((c) => (
               <div key={`${c.subject}-${c.topic}`} className="wa-concept-row">
-                <span>⚠ {c.topic}</span>
+                <span>⚠ {displayTopic(c.topic)}</span>
                 <strong>{c.mistake_count} mistakes</strong>
               </div>
             )) : <p className="wa-body">No major weak concepts detected yet.</p>}
@@ -455,11 +456,11 @@ export function AnalyticsStudio({ data, charts }: Props) {
               <div className="mt-3 space-y-3">
                 {[...chapters.entries()].slice(0, 4).map(([chapter, concepts]) => (
                   <div key={chapter} className="wa-skill-map-chapter">
-                    <p className="text-xs font-semibold text-[var(--wa-on-surface-variant)]">{chapter}</p>
+                    <p className="text-xs font-semibold text-[var(--wa-on-surface-variant)]">{displayChapter(chapter)}</p>
                     <div className="grid md:grid-cols-2 gap-2 mt-2">
                       {concepts.slice(0, 6).map((concept) => (
                         <div key={`${subject}-${chapter}-${concept.concept}`} className="wa-skill-map-concept">
-                          <span>{concept.concept}</span>
+                          <span>{displayConcept(concept.concept)}</span>
                           <strong>{Math.round(concept.mastery_score)}%</strong>
                         </div>
                       ))}

@@ -53,6 +53,7 @@ import {
 } from "@/lib/recoverySessionSnapshot";
 
 import { loadMath12TemplatePractice } from "@/lib/templatePracticeLoader";
+import { displayChapter, displayConcept, displaySubject } from "@/lib/academicDisplay";
 
 
 
@@ -696,9 +697,9 @@ export default function RecoverySession() {
 
       <PageHeader
 
-        title={`Recovery: ${assignment.concept}`}
+        title={`Recovery: ${displayConcept(assignment.concept)}`}
 
-        subtitle={`${assignment.subject}${assignment.chapter ? ` · ${assignment.chapter}` : ""} · ${assignment.severity} priority`}
+        subtitle={`${displaySubject(assignment.subject)}${assignment.chapter ? ` · ${displayChapter(assignment.chapter)}` : ""} · ${assignment.severity} priority`}
 
       />
 

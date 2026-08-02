@@ -1,0 +1,179 @@
+import type { AcademicLabelKind } from "./types";
+import { canonicalizeConceptId, slugifyAcademicId } from "./canonicalize";
+import { CONCEPT_DISPLAY_DICTIONARY, TOKEN_DISPLAY } from "./dictionary";
+import { lookupDisplayName } from "./registry";
+
+const SMALL_WORDS = new Set(["a", "an", "the", "and", "or", "of", "in", "on", "to", "for", "vs", "via"]);
+
+/** Common UTF-8-as-Windows-1252 / Latin-1 mojibake → intended characters. */
+const MOJIBAKE_MAP: Array<[RegExp, string]> = [
+  [/â€”/g, "\u2014"],
+  [/â€“/g, "\u2013"],
+  [/â€˜/g, "\u2018"],
+  [/â€™/g, "\u2019"],
+  [/â€œ/g, "\u201C"],
+  [/â€/g, "\u201D"],
+  [/â€¦/g, "\u2026"],
+  [/â€¢/g, "\u2022"],
+  [/Â·/g, "\u00B7"],
+  [/Â°/g, "\u00B0"],
+  [/Â\s/g, " "],
+  [/Â/g, ""],
+  [/Ã—/g, "\u00D7"],
+  [/Ã±/g, "\u00F1"],
+];
+
+export function looksLikeAcademicSlug(raw: string): boolean {
+  const s = raw.trim();
+  if (!s) return false;
+  if (/\s/.test(s)) return false;
+  if (!/[_-]/.test(s)) {
+    // bare acronyms / single tokens that are all-lowercase ids
+    return /^[a-z][a-z0-9]{1,12}$/.test(s) && CONCEPT_DISPLAY_DICTIONARY[s] != null;
+  }
+  return /^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(s) && s === s.toLowerCase();
+}
+
+/**
+ * Decode common UTF-8-as-Latin1 corruption and normalize dashes/quotes
+ * to clean ASCII hyphen / straight quotes for consistent UI.
+ */
+export function fixMojibake(text: string | null | undefined): string {
+  if (text == null) return "";
+  let s = String(text);
+  if (!s) return "";
+
+  for (const [re, repl] of MOJIBAKE_MAP) {
+    s = s.replace(re, repl);
+  }
+
+  s = s.replace(/\s*[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]\s*/g, " - ");
+  s = s.replace(/[\u2018\u2019\u201A\u201B]/g, "'");
+  s = s.replace(/[\u201C\u201D\u201E\u201F]/g, '"');
+  s = s.replace(/\u2026/g, "...");
+  s = s.replace(/[ \t\u00A0]+/g, " ").trim();
+
+  return s;
+}
+
+function titleCaseToken(token: string, index: number, total: number): string {
+  const lower = token.toLowerCase();
+  if (TOKEN_DISPLAY[lower] != null) {
+    const mapped = TOKEN_DISPLAY[lower];
+    if (SMALL_WORDS.has(lower) && index > 0 && index < total - 1) return mapped;
+    if (!SMALL_WORDS.has(lower)) return mapped;
+  }
+  if (/^\d+[a-z]?$/i.test(token)) return token.toUpperCase();
+
+  const keepSmall = index > 0 && index < total - 1 && SMALL_WORDS.has(lower);
+  if (keepSmall) return lower;
+
+  if (token.length <= 2 && token === token.toUpperCase()) return token;
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+/**
+ * Intelligent humanize for unknown slugs (educational token map + Title Case).
+ * Always applies mojibake cleanup. Non-slug titles are cleaned but not re-cased.
+ */
+export function humanizeAcademicLabel(raw: string | null | undefined): string {
+  if (raw == null) return "";
+  const cleaned = fixMojibake(String(raw));
+  if (!cleaned) return "";
+
+  const canon = canonicalizeConceptId(cleaned);
+  if (CONCEPT_DISPLAY_DICTIONARY[canon]) {
+    return CONCEPT_DISPLAY_DICTIONARY[canon];
+  }
+
+  if (!looksLikeAcademicSlug(cleaned) && !/^[a-z]+(?:_[a-z0-9]+)+$/.test(cleaned)) {
+    return cleaned;
+  }
+
+  const parts = cleaned.split(/[_-]+/).filter(Boolean);
+  if (parts.length === 0) return cleaned;
+
+  return parts.map((part, i) => titleCaseToken(part, i, parts.length)).join(" ");
+}
+
+/**
+ * SSOT presentation entry: taxonomy displayName when known, else intelligent humanize.
+ * NEVER returns raw snake_case to UI callers.
+ */
+export function presentAcademicLabel(
+  raw: string | null | undefined,
+  kind?: AcademicLabelKind,
+): string {
+  if (raw == null) return "";
+  const cleaned = fixMojibake(String(raw));
+  if (!cleaned) return "";
+
+  const fromRegistry = lookupDisplayName(cleaned, kind);
+  if (fromRegistry) return fromRegistry;
+
+  if (kind === "class_level") {
+    const m = cleaned.match(/\b(6|7|8|9|10|11|12)\b/);
+    if (m) return `Class ${m[1]}`;
+  }
+
+  const humanized = humanizeAcademicLabel(cleaned);
+  // Final guard: never leak snake_case
+  if (/^[a-z0-9]+(?:_[a-z0-9]+)+$/.test(humanized)) {
+    return humanized
+      .split("_")
+      .map((part, i, arr) => titleCaseToken(part, i, arr.length))
+      .join(" ");
+  }
+  return humanized;
+}
+
+export function displayChapter(raw: string | null | undefined): string {
+  return presentAcademicLabel(raw, "chapter");
+}
+
+export function displayConcept(raw: string | null | undefined): string {
+  return presentAcademicLabel(raw, "concept");
+}
+
+export function displayTopic(raw: string | null | undefined): string {
+  return presentAcademicLabel(raw, "topic");
+}
+
+export function displaySubject(raw: string | null | undefined): string {
+  return presentAcademicLabel(raw, "subject");
+}
+
+export function academicMatchKey(raw: string | null | undefined): string {
+  const cleaned = fixMojibake(raw).toLowerCase();
+  if (!cleaned) return "";
+  const canon = canonicalizeConceptId(cleaned);
+  return (canon || cleaned)
+    .replace(/[_-]+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function academicLabelMatches(
+  stored: string | null | undefined,
+  query: string | null | undefined,
+): boolean {
+  const a = academicMatchKey(stored);
+  const b = academicMatchKey(query);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (canonicalizeConceptId(stored) === canonicalizeConceptId(query)) return true;
+  return a.includes(b) || b.includes(a);
+}
+
+export function toPresentedTerm(
+  raw: string | null | undefined,
+  kind?: AcademicLabelKind,
+): { id: string; displayName: string } | null {
+  if (raw == null || !String(raw).trim()) return null;
+  const id =
+    kind === "concept" || kind === "topic"
+      ? canonicalizeConceptId(raw) || slugifyAcademicId(raw)
+      : String(raw).trim();
+  return { id, displayName: presentAcademicLabel(raw, kind) };
+}

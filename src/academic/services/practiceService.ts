@@ -17,8 +17,17 @@ import {
   type AcademicStream,
   type CurriculumScope,
 } from "@/lib/curriculumScope";
+import {
+  academicLabelMatches,
+  displayChapter,
+  displayConcept,
+  displaySubject,
+  toPresentedTerm,
+  type TaxonomyTermRef,
+} from "@/lib/academicPresentation";
 
 export type { CurriculumScope };
+export type AcademicTermRef = TaxonomyTermRef;
 
 /**
  * PracticeService — wraps practice session RPCs + finish path.
@@ -340,17 +349,18 @@ export const PracticeService = {
       const raw = String((row as { subject?: string }).subject ?? "").trim();
       if (!raw) continue;
       if (!isSubjectAllowedForScope(raw, scope.stream, classLevel)) continue;
-      const key = raw.toLowerCase();
-      if (!seen.has(key)) seen.set(key, raw);
+      const label = displaySubject(raw);
+      const key = label.toLowerCase();
+      if (!seen.has(key)) seen.set(key, label);
     }
     return filterSubjectsForStream([...seen.values()], scope.stream, classLevel);
   },
 
-  /** Unique chapters for a subject from the live bank. */
+  /** Unique chapters for a subject from the live bank (`id` = DB value, `displayName` for UI). */
   async listBankChapters(
     ctx: ServiceContext,
     opts: { subject: string; classLevel?: number | null },
-  ): Promise<string[]> {
+  ): Promise<AcademicTermRef[]> {
     assertCanConsume(ctx, "practice");
     const client = getClient(toRepoContext(ctx));
     const scope = await this.resolveCurriculumScope(ctx);
@@ -375,21 +385,23 @@ export const PracticeService = {
 
     const { data, error } = await query;
     throwIfError(error, "Failed to load practice chapters");
-    const seen = new Map<string, string>();
+    const seen = new Map<string, AcademicTermRef>();
     for (const row of data ?? []) {
       const raw = String((row as { chapter?: string | null }).chapter ?? "").trim();
       if (!raw) continue;
-      const key = raw.toLowerCase();
-      if (!seen.has(key)) seen.set(key, raw);
+      const term = toPresentedTerm(raw, "chapter");
+      if (!term) continue;
+      const key = term.displayName.toLowerCase();
+      if (!seen.has(key)) seen.set(key, { id: raw, displayName: term.displayName });
     }
-    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+    return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
   },
 
   /** Unique topics/concepts for subject (+ optional chapter). */
   async listBankTopics(
     ctx: ServiceContext,
     opts: { subject: string; chapter?: string | null; classLevel?: number | null },
-  ): Promise<string[]> {
+  ): Promise<AcademicTermRef[]> {
     assertCanConsume(ctx, "practice");
     const client = getClient(toRepoContext(ctx));
     const scope = await this.resolveCurriculumScope(ctx);
@@ -400,7 +412,7 @@ export const PracticeService = {
 
     let query = client
       .from("question_bank")
-      .select("topic, concept")
+      .select("topic, concept, chapter")
       .eq("is_approved", true)
       .eq("class_level", classLevel)
       .ilike("subject", opts.subject)
@@ -408,33 +420,39 @@ export const PracticeService = {
       .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
       .limit(800);
 
-    if (opts.chapter) {
-      query = query.ilike("chapter", `%${opts.chapter}%`);
-    }
     if (scope.stream) {
       query = query.or(`stream.eq.${scope.stream},stream.is.null`);
     }
 
     const { data, error } = await query;
     throwIfError(error, "Failed to load practice topics");
-    const seen = new Map<string, string>();
+    const seen = new Map<string, AcademicTermRef>();
     for (const row of data ?? []) {
-      const r = row as { topic?: string | null; concept?: string | null };
+      const r = row as { topic?: string | null; concept?: string | null; chapter?: string | null };
+      if (opts.chapter && !academicLabelMatches(r.chapter, opts.chapter)) continue;
       for (const candidate of [r.topic, r.concept]) {
         const raw = String(candidate ?? "").trim();
         if (!raw) continue;
-        const key = raw.toLowerCase();
-        if (!seen.has(key)) seen.set(key, raw);
+        const term = toPresentedTerm(raw, "concept");
+        if (!term) continue;
+        const key = term.displayName.toLowerCase();
+        if (!seen.has(key)) seen.set(key, { id: raw, displayName: term.displayName });
       }
     }
-    return [...seen.values()].sort((a, b) => a.localeCompare(b));
+    return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
   },
 
   /** Weak concepts from concept_mastery (honest empty if none tracked). */
   async listWeakConcepts(
     ctx: ServiceContext,
     opts: { threshold?: number; limit?: number } = {},
-  ): Promise<Array<{ subject: string; chapter: string | null; concept: string; mastery_score: number }>> {
+  ): Promise<Array<{
+    subject: string;
+    chapter: string | null;
+    concept: string;
+    concept_label: string;
+    mastery_score: number;
+  }>> {
     assertCanConsume(ctx, "practice");
     const threshold = opts.threshold ?? 70;
     const limit = opts.limit ?? 12;
@@ -448,12 +466,19 @@ export const PracticeService = {
       .limit(limit);
     throwIfError(error, "Failed to load weak concepts");
     const scope = await this.resolveCurriculumScope(ctx);
-    return (data ?? []).map((r) => ({
-      subject: String((r as { subject: string }).subject ?? ""),
-      chapter: (r as { chapter?: string | null }).chapter ?? null,
-      concept: String((r as { concept: string }).concept ?? ""),
-      mastery_score: Number((r as { mastery_score: number }).mastery_score) || 0,
-    })).filter((r) =>
+    return (data ?? []).map((r) => {
+      const subjectRaw = String((r as { subject: string }).subject ?? "");
+      const chapterRaw = (r as { chapter?: string | null }).chapter ?? null;
+      const conceptRaw = String((r as { concept: string }).concept ?? "");
+      return {
+        // Keep raw concept for mastery keys / filters; callers should display via displayConcept.
+        subject: displaySubject(subjectRaw) || subjectRaw,
+        chapter: chapterRaw ? displayChapter(chapterRaw) : null,
+        concept: conceptRaw,
+        concept_label: displayConcept(conceptRaw),
+        mastery_score: Number((r as { mastery_score: number }).mastery_score) || 0,
+      };
+    }).filter((r) =>
       r.subject &&
       r.concept &&
       isSubjectAllowedForScope(r.subject, scope.stream, scope.classLevel),
@@ -758,9 +783,8 @@ export const PracticeService = {
     if (opts.subject && opts.subject !== "Mixed") {
       query = query.ilike("subject", opts.subject);
     }
-    if (opts.chapter) {
-      query = query.ilike("chapter", `%${opts.chapter}%`);
-    }
+    // Chapter / topic / concept filters applied client-side with academicLabelMatches
+    // so display-cleaned labels still hit slug or mojibake-stored rows.
     if (opts.difficulty && opts.difficulty !== "mixed") {
       query = query.eq("difficulty", opts.difficulty);
     }
@@ -790,19 +814,20 @@ export const PracticeService = {
     // Senior stream allowlists (commerce / science 11–12) — covers null-stream legacy rows.
     rows = rows.filter((r) => isSubjectAllowedForScope(r.subject, scope.stream, classLevel));
 
+    if (opts.chapter) {
+      rows = rows.filter((r) => academicLabelMatches(r.chapter, opts.chapter));
+    }
     if (opts.topic) {
-      const t = opts.topic.toLowerCase();
       rows = rows.filter((r) =>
-        (r.topic ?? "").toLowerCase().includes(t) ||
-        (r.concept ?? "").toLowerCase().includes(t) ||
-        (r.chapter ?? "").toLowerCase().includes(t),
+        academicLabelMatches(r.topic, opts.topic) ||
+        academicLabelMatches(r.concept, opts.topic) ||
+        academicLabelMatches(r.chapter, opts.topic),
       );
     }
     if (opts.concept) {
-      const c = opts.concept.toLowerCase();
       rows = rows.filter((r) =>
-        (r.concept ?? "").toLowerCase().includes(c) ||
-        (r.topic ?? "").toLowerCase().includes(c),
+        academicLabelMatches(r.concept, opts.concept) ||
+        academicLabelMatches(r.topic, opts.concept),
       );
     }
     if (opts.weakTargets && opts.weakTargets.length > 0) {
@@ -814,12 +839,12 @@ export const PracticeService = {
         targets.some((w) => {
           const subjOk = !w.subject || r.subject.toLowerCase() === w.subject.toLowerCase();
           if (!subjOk) return false;
-          const needle = (w.concept || w.chapter || "").toLowerCase();
+          const needle = w.concept || w.chapter || "";
           if (!needle) return subjOk;
           return (
-            (r.concept ?? "").toLowerCase().includes(needle) ||
-            (r.topic ?? "").toLowerCase().includes(needle) ||
-            (r.chapter ?? "").toLowerCase().includes(needle)
+            academicLabelMatches(r.concept, needle) ||
+            academicLabelMatches(r.topic, needle) ||
+            academicLabelMatches(r.chapter, needle)
           );
         }),
       );
@@ -832,8 +857,8 @@ export const PracticeService = {
     }
     return rows.slice(0, limit).map((r) => ({
       id: r.id,
-      subject: r.subject,
-      chapter: r.chapter,
+      subject: displaySubject(r.subject) || r.subject,
+      chapter: r.chapter ? displayChapter(r.chapter) : r.chapter,
       difficulty: r.difficulty,
       question: r.question,
       options: r.options,

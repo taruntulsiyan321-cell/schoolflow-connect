@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, TrendingUp, Trophy, Lightbulb, Target, CheckCircle2, Clock, Brain } from "lucide-react";
 import "./teacher-premium.css";
+import { displayChapter, displayConcept, displaySubject } from "@/lib/academicDisplay";
 
 export default function ClassInsights() {
   const { user } = useAuth();
@@ -122,8 +123,8 @@ export default function ClassInsights() {
               <div key={`${concept.subject}-${concept.concept}-${index}`} className="tp-row">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div>
-                    <p className="font-bold text-sm">{concept.concept || "Concept gap"}</p>
-                    <p className="text-xs text-muted-foreground">{concept.subject || "Subject"} · {concept.students ?? 0} students struggled</p>
+                    <p className="font-bold text-sm">{displayConcept(concept.concept) || "Concept gap"}</p>
+                    <p className="text-xs text-muted-foreground">{displaySubject(concept.subject) || "Subject"} · {concept.students ?? 0} students struggled</p>
                   </div>
                   <span className="rounded-full bg-warning/15 px-2 py-1 text-xs font-bold text-warning">{struggle}% confused</span>
                 </div>
@@ -167,7 +168,7 @@ export default function ClassInsights() {
         {weakTopics.map((t: any, i: number) => (
           <div key={i} className="mb-3">
             <div className="flex justify-between text-sm mb-1">
-              <span>{t.subject} · {t.chapter}</span><span>{t.accuracy}%</span>
+              <span>{displaySubject(t.subject)} · {displayChapter(t.chapter)}</span><span>{t.accuracy}%</span>
             </div>
             <div className="tp-progress"><span style={{ width: `${Math.max(0, Math.min(100, Number(t.accuracy) || 0))}%` }} /></div>
           </div>
@@ -182,7 +183,7 @@ export default function ClassInsights() {
           )}
           {weakConcepts.map((t: any, i: number) => (
             <div key={i} className="tp-row flex justify-between text-sm mb-2">
-              <span>{t.subject} · {t.concept}</span>
+              <span>{displaySubject(t.subject)} · {displayConcept(t.concept)}</span>
               <span>{t.avg_mastery}% · {t.students} students</span>
             </div>
           ))}

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 
 import { Activity, ClipboardCheck, Target, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { displayConcept, displaySubject } from "@/lib/academicDisplay";
 
 
 
@@ -179,7 +180,7 @@ export default function SchoolEngagement() {
             <h4 className="font-semibold mb-2">Weakest concepts (school-wide)</h4>
             {(concepts.school_weak_concepts ?? []).map((c: any, i: number) => (
               <div key={i} className="flex justify-between text-sm py-1">
-                <span>{c.subject} · {c.concept}</span>
+                <span>{displaySubject(c.subject)} · {displayConcept(c.concept)}</span>
                 <span>{c.avg_mastery}% · {c.students_affected} students</span>
               </div>
             ))}

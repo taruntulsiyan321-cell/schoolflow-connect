@@ -1,4 +1,5 @@
 import { generateStructuredWithFallback, jsonResponse } from "./gemini.ts";
+import { displayChapter, displayConcept, displayTopic } from "./academicDisplay.ts";
 
 const ANALYTICS_MODELS = [
   "gemini-2.5-flash",
@@ -67,7 +68,7 @@ export async function handleMistakeAnalyticsRequest(body: Record<string, unknown
     .slice(0, 15)
     .map(
       (m) =>
-        `${m.concept} | ${m.subject}${m.chapter ? ` · ${m.chapter}` : ""}: ${Math.round(m.mastery_score)}% mastery, ${m.mistake_count ?? 0} mistakes`,
+        `${displayConcept(m.concept)} | ${m.subject}${m.chapter ? ` · ${displayChapter(m.chapter)}` : ""}: ${Math.round(m.mastery_score)}% mastery, ${m.mistake_count ?? 0} mistakes`,
     )
     .join("\n");
 
@@ -86,7 +87,7 @@ export async function handleMistakeAnalyticsRequest(body: Record<string, unknown
     .slice(0, 12)
     .map(
       (t) =>
-        `- TOPIC: "${t.topic}" | Chapter: ${t.chapter ?? "unknown"} | ${t.subject} | ${t.mistake_count} wrong Qs${t.sample_wrong ? ` | picked "${t.sample_wrong}" not "${t.sample_correct ?? "?"}"` : ""}`,
+        `- TOPIC: "${displayTopic(t.topic)}" | Chapter: ${t.chapter ? displayChapter(t.chapter) : "unknown"} | ${t.subject} | ${t.mistake_count} wrong Qs${t.sample_wrong ? ` | picked "${t.sample_wrong}" not "${t.sample_correct ?? "?"}"` : ""}`,
     )
     .join("\n");
 
@@ -103,7 +104,7 @@ export async function handleMistakeAnalyticsRequest(body: Record<string, unknown
    Correct: "${q.correct_pick}"${q.explanation ? `\n   Solution: ${q.explanation.slice(0, 500)}` : ""}${q.times_wrong ? ` (wrong ${q.times_wrong}x)` : ""}`;
         })
         .join("\n");
-      return `### ${bundle.topic} (${bundle.chapter ?? "chapter?"}) · ${bundle.subject} — ${bundle.mistake_count} mistakes\n${qs}`;
+      return `### ${displayTopic(bundle.topic)} (${bundle.chapter ? displayChapter(bundle.chapter) : "chapter?"}) · ${bundle.subject} — ${bundle.mistake_count} mistakes\n${qs}`;
     })
     .join("\n\n");
 
@@ -123,7 +124,7 @@ export async function handleMistakeAnalyticsRequest(body: Record<string, unknown
     .slice(0, 28)
     .map(
       (m, i) =>
-        `${i + 1}. [${m.subject}${m.chapter ? ` · ${m.chapter}` : ""}${m.topic ? ` · ${m.topic}` : ""}]
+        `${i + 1}. [${m.subject}${m.chapter ? ` · ${displayChapter(m.chapter)}` : ""}${m.topic ? ` · ${displayTopic(m.topic)}` : ""}]
    Q: ${m.question}
    Options: ${formatOptions(m.options) || "—"}
    Student picked: "${m.student_pick}"

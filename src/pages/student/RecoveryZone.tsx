@@ -14,6 +14,7 @@ import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import { useAcademicBrain } from "@/hooks/useAcademicBrain";
 import { StudentDashboardSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { toast } from "sonner";
+import { displayConcept } from "@/lib/academicDisplay";
 
 function masteryLevel(score: number): HeatMapItem["level"] {
   if (score >= 75) return "strong";
@@ -116,7 +117,7 @@ export default function RecoveryZone() {
       displayWeak.length > 0
         ? displayWeak.slice(0, 3).map((w, i) => ({
             rank: i + 1,
-            concept: w.concept,
+            concept: displayConcept(w.concept),
             subject: w.subject,
             accuracy: Math.max(0, Math.round(100 - (w.mastery_score ?? 50))),
             mastery: Math.round(w.mastery_score ?? 0),
@@ -126,7 +127,7 @@ export default function RecoveryZone() {
 
     const tasks: RecoveryTask[] = assignments.map((a) => ({
       id: a.id,
-      concept: a.concept,
+      concept: displayConcept(a.concept),
       subject: a.subject,
       currentMastery: Math.round((a.questions_completed / Math.max(1, a.question_count)) * 40 + 30),
       targetMastery: 80,
@@ -139,7 +140,7 @@ export default function RecoveryZone() {
       .filter((m) => m.mastery_score >= 75)
       .slice(0, 3)
       .map((m) => ({
-        concept: m.concept,
+        concept: displayConcept(m.concept),
         subject: m.subject,
         improvement: `${Math.round(m.mastery_score)}% mastery`,
       }));
@@ -148,13 +149,13 @@ export default function RecoveryZone() {
       displayWeak.length > 0 || mastery.length > 0
         ? [
             ...mastery.slice(0, 3).map((m) => ({
-              concept: m.concept,
+              concept: displayConcept(m.concept),
               subject: m.subject,
               level: masteryLevel(m.mastery_score),
               mastery: Math.round(m.mastery_score),
             })),
             ...displayWeak.slice(0, 4).map((w) => ({
-              concept: w.concept,
+              concept: displayConcept(w.concept),
               subject: w.subject,
               level: masteryLevel(w.mastery_score ?? 40) as HeatMapItem["level"],
               mastery: Math.round(w.mastery_score ?? 40),
@@ -170,10 +171,11 @@ export default function RecoveryZone() {
     ];
 
     const topWeak = displayWeak[0]?.concept;
-    const coachTitle = topWeak ? `Focus on ${topWeak} today` : "No recovery focus yet";
+    const topWeakLabel = topWeak ? displayConcept(topWeak) : null;
+    const coachTitle = topWeakLabel ? `Focus on ${topWeakLabel} today` : "No recovery focus yet";
     const coachBody =
       displayWeak.length > 0
-        ? `You frequently struggle with ${topWeak!.toLowerCase()}-related questions. Completing today's recovery plan can improve your ${displayWeak[0]?.subject ?? "subject"} performance.`
+        ? `You frequently struggle with ${topWeakLabel!.toLowerCase()}-related questions. Completing today's recovery plan can improve your ${displayWeak[0]?.subject ?? "subject"} performance.`
         : "Complete practice sessions to surface weak concepts and recovery tasks.";
 
     const masteryScores = [

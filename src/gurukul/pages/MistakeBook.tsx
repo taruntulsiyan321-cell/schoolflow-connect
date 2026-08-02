@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { PracticeService, useAcademicContext } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
+import { displayChapter, displayTopic } from "@/lib/academicDisplay";
 import { GlassCard, SubjectBadge, DifficultyBadge, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Filter, Bookmark, BookmarkCheck,
@@ -85,8 +86,8 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     correct: answerIndex(row.correct_answer, 0),
     chosen: studentIndex(row.student_answer, 0),
     subject: row.subject,
-    chapter: row.chapter ?? "—",
-    topic: row.concept ?? row.topic ?? "—",
+    chapter: displayChapter(row.chapter) || "—",
+    topic: displayTopic(row.concept ?? row.topic) || "—",
     difficulty: "medium",
     source: row.source,
     sourceLabel: sourceLabel(row.source),
@@ -156,7 +157,7 @@ function MistakeCard({
               )}
             </div>
             <p className="text-sm font-semibold text-white leading-snug">{mistake.question}</p>
-            <div className="text-[11px] text-[#78788c] mt-1">{mistake.chapter} · {mistake.topic} · {mistake.date}</div>
+            <div className="text-[11px] text-[#78788c] mt-1">{displayChapter(mistake.chapter)} · {displayTopic(mistake.topic)} · {mistake.date}</div>
           </div>
           <button onClick={() => onToggleBookmark(mistake.id)} className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 transition-all">
             {mistake.bookmarked

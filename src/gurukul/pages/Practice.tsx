@@ -7,6 +7,8 @@ import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { toast } from "sonner";
+import { displayChapter, presentAcademicLabel } from "@/lib/academicPresentation";
+import type { AcademicTermRef } from "@/academic/services/practiceService";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
   BookOpen, Clock, Target, ClipboardList,
@@ -396,8 +398,8 @@ function ConfigView({
   const [selDifficulty, setSelDifficulty] = useState<string>("mixed");
   const [qCount,        setQCount]        = useState(20);
   const [timeLimitMin,  setTimeLimitMin]  = useState(15);
-  const [chapters,      setChapters]      = useState<string[]>([]);
-  const [topics,        setTopics]        = useState<string[]>([]);
+  const [chapters,      setChapters]      = useState<AcademicTermRef[]>([]);
+  const [topics,        setTopics]        = useState<AcademicTermRef[]>([]);
   const [metaLoading,   setMetaLoading]   = useState(false);
   const [teacherSets,   setTeacherSets]   = useState<StudentHomeworkRow[]>([]);
   const [teacherLoading, setTeacherLoading] = useState(false);
@@ -734,7 +736,7 @@ function OptionChips({
   label, options, selected, onSelect, empty, allowClear,
 }: {
   label: string;
-  options: string[];
+  options: AcademicTermRef[];
   selected: string | null;
   onSelect: (v: string | null) => void;
   empty?: string;
@@ -754,13 +756,18 @@ function OptionChips({
                 selected === null ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
               )}>Any</button>
           )}
-          {options.map(opt => (
-            <button key={opt} type="button" onClick={() => onSelect(opt)}
+          {options.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onSelect(opt.id)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all max-w-full truncate",
-                selected === opt ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
-              )}>
-              {opt}
+                selected === opt.id ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+              )}
+              title={opt.displayName}
+            >
+              {opt.displayName || presentAcademicLabel(opt.id)}
             </button>
           ))}
         </div>
@@ -1312,7 +1319,7 @@ function Session({
           <div className="flex items-center gap-2 flex-wrap">
             {subj && <SubjectBadge subject={subj.name} color={subj.color}/>}
             <DifficultyBadge level={q.difficulty}/>
-            <span className="text-[10px] text-[#78788c]">{q.chapter}</span>
+            <span className="text-[10px] text-[#78788c]">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={toggleBookmark} title="Bookmark"
@@ -1508,7 +1515,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
             return {
               id: row.id,
               date: formatSessionDate(row.finished_at!),
-              mode: row.chapter ? String(row.chapter) : "Practice",
+              mode: row.chapter ? displayChapter(String(row.chapter)) : "Practice",
               subject: row.subject || "Mixed",
               qs: row.question_count,
               attempted: row.question_count,

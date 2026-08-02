@@ -12,6 +12,7 @@ import {
   type MistakeTopicAggregate,
 } from "@/lib/analyticsInsights";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
+import { displayTopic, displaySubject, displayConcept, displayChapter } from "@/lib/academicDisplay";
 
 export function useAcademicCoach(snapshot: AcademicSnapshot | null, enabled = true) {
   const { items: mastery, loading: masteryLoading } = useConceptMastery(enabled);
@@ -100,20 +101,20 @@ function mergeCoachIntoInsights(
     next_steps: coach.next_steps?.length ? coach.next_steps : fallback.next_steps,
     error_patterns: patterns?.patterns?.map((p) => p.label) ?? fallback.error_patterns,
     weekly_plan: revision?.today_plan?.map((p, i) => ({
-      topic: p.topic,
-      chapter: p.chapter ?? "",
-      subject: p.subject,
+      topic: displayTopic(p.topic),
+      chapter: displayChapter(p.chapter) || "",
+      subject: displaySubject(p.subject) || p.subject,
       time_minutes: p.time_minutes,
       action: p.action,
       priority: p.priority ?? i + 1,
     })) ?? fallback.weekly_plan,
     study_priority: revision?.today_plan?.map(
-      (p, i) => `${i + 1}. ${p.topic} (${p.subject}) — ~${p.time_minutes} min`,
+      (p, i) => `${i + 1}. ${displayTopic(p.topic)} (${displaySubject(p.subject) || p.subject}) — ~${p.time_minutes} min`,
     ) ?? fallback.study_priority,
     weak_topics: recovery?.plan?.map((p) => ({
-      topic: p.concept,
-      chapter: p.chapter ?? "",
-      subject: p.subject,
+      topic: displayConcept(p.concept),
+      chapter: displayChapter(p.chapter) || "",
+      subject: displaySubject(p.subject) || p.subject,
       severity: p.priority >= 80 ? "critical" as const : p.priority >= 60 ? "moderate" as const : "mild" as const,
       why_weak: p.rationale,
       root_cause: p.rationale,
@@ -121,9 +122,9 @@ function mergeCoachIntoInsights(
       mistake_count: p.question_count,
     })) ?? fallback.weak_topics,
     weak_concepts: recovery?.plan?.map((p) => ({
-      topic: p.concept,
-      chapter: p.chapter ?? "",
-      subject: p.subject,
+      topic: displayConcept(p.concept),
+      chapter: displayChapter(p.chapter) || "",
+      subject: displaySubject(p.subject) || p.subject,
       severity: p.priority >= 80 ? "critical" as const : "moderate" as const,
       why_weak: p.rationale,
       root_cause: p.rationale,

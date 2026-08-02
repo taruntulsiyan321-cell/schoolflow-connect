@@ -16,6 +16,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { MathText } from "@/components/MathText";
 import "@/components/student/analytics/wisdom/wisdom-analytics.css";
+import { displayChapter, displayTopic, displaySubject } from "@/lib/academicDisplay";
 
 export type BattleReportPayload = {
   id: string;
@@ -185,7 +186,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
           </div>
           <h1 className="font-['Sora'] text-3xl sm:text-4xl font-semibold tracking-tight text-white">{b.title ?? "Battle report"}</h1>
           <p className="text-sm text-white/75 mt-1">
-            {b.subject}{b.chapter ? ` · ${b.chapter}` : ""}{b.topic ? ` · ${b.topic}` : ""}
+            {displaySubject(b.subject)}{b.chapter ? ` · ${displayChapter(b.chapter)}` : ""}{b.topic ? ` · ${displayTopic(b.topic)}` : ""}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
             <MiniStat label="Score" value={s.score} />
