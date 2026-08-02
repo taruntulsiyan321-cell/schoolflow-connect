@@ -79,7 +79,7 @@ export default function PrincipalClasses() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {rows.map((r) => (
-            <Link key={r.id} to={`/principal/classes/${r.id}`} className="group">
+            <Link key={r.id} to="/principal/students" className="group">
               <Card className="p-5 shadow-card hover:shadow-elevated transition-all border hover:border-primary/40">
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-11 h-11 rounded-xl bg-gradient-primary text-primary-foreground flex items-center justify-center shadow-elevated">

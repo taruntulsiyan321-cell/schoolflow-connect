@@ -6,6 +6,7 @@ import {
   AiSummaryService,
   HomeworkService,
   MarksService,
+  ProgressionService,
   TestService,
   WORK_KIND_LABELS,
   normalizeWorkKind,
@@ -217,6 +218,13 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
   const [analytics, setAnalytics] = useState<Awaited<
     ReturnType<typeof AnalyticsService.forStudent>
   > | null>(null);
+  const [progression, setProgression] = useState<{
+    xp: number;
+    level: number;
+    league: string;
+    studyStreak: number;
+    badges: number;
+  } | null>(null);
   const [ai, setAi] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -231,9 +239,10 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
           AcademicProfileService.get(ctx, studentId),
           AnalyticsService.forStudent(ctx, studentId),
           AiSummaryService.student(ctx, studentId),
+          ProgressionService.getForStudent(ctx, studentId),
         ]);
         if (cancelled) return;
-        if (settled.every((s) => s.status === "rejected")) {
+        if (settled.slice(0, 3).every((s) => s.status === "rejected")) {
           const first = settled[0] as PromiseRejectedResult;
           setError(first.reason instanceof Error ? first.reason.message : "Failed to load performance");
           return;
@@ -241,8 +250,20 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
         const p = settled[0].status === "fulfilled" ? settled[0].value : null;
         const a = settled[1].status === "fulfilled" ? settled[1].value : null;
         const summary = settled[2].status === "fulfilled" ? settled[2].value : null;
+        const prog = settled[3].status === "fulfilled" ? settled[3].value : null;
         setProfile(p);
         setAnalytics(a);
+        setProgression(
+          prog
+            ? {
+                xp: prog.xp ?? 0,
+                level: prog.level ?? 1,
+                league: prog.league?.label ?? prog.league?.code ?? "—",
+                studyStreak: prog.study_streak ?? 0,
+                badges: prog.badges?.length ?? 0,
+              }
+            : { xp: 0, level: 1, league: "—", studyStreak: 0, badges: 0 },
+        );
         setAi(
           summary
             ? `Attendance ${Math.round(summary.attendancePct)}% · Homework ${Math.round(summary.homeworkCompletionPct)}% · Exams ${Math.round(summary.examsAvgPct)}% · Tests ${Math.round(summary.testsAvgPct)}%`
@@ -282,6 +303,21 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
           </div>
         ))}
       </div>
+      {progression && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: "XP", value: String(progression.xp) },
+            { label: "Level", value: String(progression.level) },
+            { label: "League", value: progression.league },
+            { label: "Streak / Badges", value: `${progression.studyStreak} / ${progression.badges}` },
+          ].map((s) => (
+            <div key={s.label} className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+              <div className="text-sm font-black text-white truncate">{s.value}</div>
+              <div className="text-[10px] text-[#78788c]">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
       {ai && (
         <div className="p-4 rounded-2xl bg-white/3 text-xs text-[#78788c] leading-relaxed">
           <div className="text-[10px] font-bold text-white mb-2">AI Summary (engine)</div>
@@ -289,7 +325,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
         </div>
       )}
       <p className="text-[9px] text-[#46465a]">
-        AcademicProfileService · AnalyticsService · AiSummaryService
+        AcademicProfileService · AnalyticsService · AiSummaryService · ProgressionService
       </p>
     </div>
   );

@@ -1,27 +1,34 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
+import { useNotifications } from '@/hooks/useNotifications'
 import {
   type PrincipalPageKey,
   PRINCIPAL_PAGE_PATH,
   PRINCIPAL_NAV_LABEL,
   principalPathToPage,
 } from './nav'
-import { PrincipalSchoolOverview, PrincipalClassRollups, PrincipalStudentRankings, PrincipalAttendanceLive, PrincipalTeachersLive, PrincipalHomeworkLive } from './PrincipalLiveAcademic'
 import {
-  AreaChart, Area, BarChart, Bar, LineChart, Line, ComposedChart,
-  PieChart, Pie, Legend,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell,
-} from 'recharts'
+  PrincipalSchoolOverview,
+  PrincipalClassRollups,
+  PrincipalStudentRankings,
+  PrincipalAttendanceLive,
+  PrincipalTeachersLive,
+  PrincipalHomeworkLive,
+} from './PrincipalLiveAcademic'
 import {
-  Search, Bell, TrendingUp, TrendingDown, Users, GraduationCap,
-  BookOpen, UserCheck, CalendarDays, ClipboardList, Award, AlertTriangle,
-  Activity, Zap, LayoutDashboard, BarChart2, Settings, LogOut,
-  CheckCircle, Clock, ArrowRight, Star, Target, Brain, FileText, MessageSquare,
-  Megaphone, UserX, Layers, ChevronRight, MoreHorizontal, Sparkles,
-  School, FlaskConical, Send, Paperclip, Phone, Video, Search as SearchIcon,
-  Plus, Edit3, Trash2, Eye, Download, Filter, Mail, ChevronDown,
-  ToggleLeft, ToggleRight, Globe, Lock, Shield, Bell as BellIcon, Palette,
+  AnnouncementService,
+  useAcademicLive,
+  type TeacherAnnouncementRow,
+  type AnnouncementStatus,
+} from '@/academic'
+import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
+import PrincipalClasses from '@/pages/principal/PrincipalClasses'
+import PrincipalClassDetail from '@/pages/principal/PrincipalClassDetail'
+import {
+  Search, Bell, Users, GraduationCap, UserCheck, CalendarDays,
+  LayoutDashboard, BarChart2, Settings, LogOut, CheckCircle, Clock,
+  MessageSquare, Megaphone, School, Layers, ToggleLeft, ToggleRight, Lock, Loader2,
 } from 'lucide-react'
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -32,14 +39,6 @@ function Chip({ color, children }: { color: string; children: React.ReactNode })
       fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
       background: color + '18', color, borderRadius: 5, padding: '2px 7px',
     }}>{children}</span>
-  )
-}
-
-function ProgressBar({ value, color = '#3b5bdb' }: { value: number; color?: string }) {
-  return (
-    <div style={{ height: 5, background: '#f0f1f3', borderRadius: 3, overflow: 'hidden', flex: 1 }}>
-      <div style={{ height: '100%', width: `${value}%`, background: color, borderRadius: 3 }} />
-    </div>
   )
 }
 
@@ -78,29 +77,18 @@ function StatTile({ label, value, color, icon: Icon }: { label: string; value: s
   )
 }
 
-// ── Data ──────────────────────────────────────────────────────────────────────
-// Academic mocks (attendance trends, class/subject scores, rankings, exam schedules)
-// have been removed — those pages now render live Academic Engine data instead.
-// Announcements / messages stay empty until their services are product-mounted.
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return '?'
+  return parts.map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+}
 
-const announcements: {
-  title: string;
-  audience: string;
-  date: string;
-  status: string;
-  author: string;
-}[] = [];
-
-const messages: {
-  name: string;
-  preview: string;
-  time: string;
-  unread: number;
-  avatar: string;
-  online: boolean;
-}[] = [];
-
-const convMessages: { from: string; text: string; time: string }[] = [];
+function greetingForNow(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
 
 // ── Nav items ─────────────────────────────────────────────────────────────────
 
@@ -109,6 +97,7 @@ const navItems: { icon: React.ElementType; key: PrincipalPageKey }[] = [
   { icon: BarChart2, key: 'analytics' },
   { icon: Users, key: 'teachers' },
   { icon: GraduationCap, key: 'students' },
+  { icon: Layers, key: 'classes' },
   { icon: CalendarDays, key: 'examinations' },
   { icon: UserCheck, key: 'attendance' },
   { icon: Megaphone, key: 'announcements' },
@@ -129,7 +118,6 @@ function DashboardPage() {
   )
 }
 
-
 function AnalyticsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -145,7 +133,6 @@ function AnalyticsPage() {
   )
 }
 
-
 function TeachersPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -155,8 +142,6 @@ function TeachersPage() {
   )
 }
 
-// ── PAGE: Students ────────────────────────────────────────────────────────────
-
 function StudentsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -165,7 +150,6 @@ function StudentsPage() {
     </div>
   )
 }
-
 
 function ExaminationsPage() {
   return (
@@ -178,7 +162,6 @@ function ExaminationsPage() {
   )
 }
 
-
 function AttendancePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -188,36 +171,109 @@ function AttendancePage() {
   )
 }
 
-
 function AnnouncementsPage() {
-  const [tab, setTab] = useState<'all' | 'published' | 'pending' | 'scheduled'>('all')
-  const filtered = announcements.filter(a => tab === 'all' || a.status === tab)
+  const { ctx, ready } = useAcademicContext()
+  const liveVersion = useAcademicLive(['profile'])
+  const [rows, setRows] = useState<TeacherAnnouncementRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [tab, setTab] = useState<'all' | AnnouncementStatus>('all')
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  const reload = async () => {
+    if (!ready || !ctx) return
+    setLoading(true)
+    try {
+      const list = await AnnouncementService.listForSchool(ctx)
+      setRows(list)
+      setError(null)
+    } catch (e) {
+      setRows([])
+      setError(e instanceof Error ? e.message : 'Failed to load announcements')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void reload()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, ctx, liveVersion])
+
+  const filtered = rows.filter((a) => tab === 'all' || a.status === tab)
+
+  async function publish(row: TeacherAnnouncementRow) {
+    if (!ctx || !row.classId) return
+    setBusyId(row.id)
+    try {
+      await AnnouncementService.update(ctx, row.id, {
+        title: row.title,
+        body: row.body,
+        classId: row.classId,
+        priority: row.priority,
+        status: 'published',
+      })
+      await reload()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Publish failed')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <SectionTitle sub="Manage school announcements and communications">Announcements</SectionTitle>
-        <button style={{ fontSize: 12, color: '#fff', background: 'var(--indigo)', border: 'none', borderRadius: 9, padding: '8px 16px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Plus size={13} /> New Announcement
-        </button>
-      </div>
+      <SectionTitle sub="AnnouncementService.listForSchool — live notices only">Announcements</SectionTitle>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
-        {[{ label: 'Total', value: String(announcements.length), color: '#3b5bdb', icon: Megaphone }, { label: 'Published', value: String(announcements.filter(a => a.status === 'published').length), color: '#10b981', icon: CheckCircle }, { label: 'Pending Review', value: String(announcements.filter(a => a.status === 'pending').length), color: '#f59e0b', icon: Clock }, { label: 'Scheduled', value: String(announcements.filter(a => a.status === 'scheduled').length), color: '#6882e8', icon: CalendarDays }].map(m => (
+        {[
+          { label: 'Total', value: String(rows.length), color: '#3b5bdb', icon: Megaphone },
+          { label: 'Published', value: String(rows.filter((a) => a.status === 'published').length), color: '#10b981', icon: CheckCircle },
+          { label: 'Draft', value: String(rows.filter((a) => a.status === 'draft').length), color: '#f59e0b', icon: Clock },
+          { label: 'Scheduled', value: String(rows.filter((a) => a.status === 'scheduled').length), color: '#6882e8', icon: CalendarDays },
+        ].map((m) => (
           <StatTile key={m.label} label={m.label} value={m.value} color={m.color} icon={m.icon} />
         ))}
       </div>
 
       <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', border: '1px solid var(--border-subtle)', borderRadius: 10, padding: 4, alignSelf: 'flex-start' }}>
-        {(['all', 'published', 'pending', 'scheduled'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ fontSize: 12, fontWeight: 600, padding: '6px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', textTransform: 'capitalize', background: tab === t ? 'var(--indigo)' : 'transparent', color: tab === t ? '#fff' : 'var(--text-muted)', transition: 'all 0.15s' }}>{t}</button>
+        {(['all', 'published', 'draft', 'scheduled'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            style={{
+              fontSize: 12, fontWeight: 600, padding: '6px 16px', borderRadius: 7, border: 'none', cursor: 'pointer',
+              textTransform: 'capitalize',
+              background: tab === t ? 'var(--indigo)' : 'transparent',
+              color: tab === t ? '#fff' : 'var(--text-muted)',
+            }}
+          >
+            {t}
+          </button>
         ))}
       </div>
 
+      {loading && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 40, color: 'var(--text-muted)', fontSize: 12 }}>
+          <Loader2 className="animate-spin" size={16} /> Loading announcements…
+        </div>
+      )}
+      {error && <div style={{ textAlign: 'center', color: 'var(--rose)', fontSize: 12, padding: 16 }}>{error}</div>}
+      {!loading && !error && filtered.length === 0 && (
+        <Card>
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: 24 }}>
+            No announcements yet. Teachers and admins publish class notices via AnnouncementService.
+          </div>
+        </Card>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {filtered.map(ann => {
-          const statusColor = ann.status === 'published' ? '#10b981' : ann.status === 'pending' ? '#f59e0b' : '#6882e8'
+        {filtered.map((ann) => {
+          const statusColor = ann.status === 'published' ? '#10b981' : ann.status === 'draft' ? '#f59e0b' : '#6882e8'
+          const classLabel = [ann.targetClass, ann.targetSection].filter(Boolean).join(' ') || '—'
           return (
-            <Card key={ann.title} style={{ padding: '18px 24px' }}>
+            <Card key={ann.id} style={{ padding: '18px 24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: statusColor + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Megaphone size={18} color={statusColor} />
@@ -227,15 +283,21 @@ function AnnouncementsPage() {
                     <span style={{ fontSize: 14, fontWeight: 700 }}>{ann.title}</span>
                     <Chip color={statusColor}>{ann.status}</Chip>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>By {ann.author} &nbsp;·&nbsp; For: {ann.audience} &nbsp;·&nbsp; {ann.date}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                    Class: {classLabel} &nbsp;·&nbsp; {ann.publishedAt ?? ann.scheduledFor ?? '—'}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.45 }}>{ann.body}</div>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button style={{ width: 32, height: 32, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Eye size={13} color="var(--text-muted)" /></button>
-                  <button style={{ width: 32, height: 32, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Edit3 size={13} color="var(--text-muted)" /></button>
-                  {ann.status === 'pending' && (
-                    <button style={{ fontSize: 11, fontWeight: 600, color: '#fff', background: 'var(--indigo)', border: 'none', borderRadius: 7, padding: '0 12px', cursor: 'pointer' }}>Publish</button>
-                  )}
-                </div>
+                {ann.status !== 'published' && ann.classId && (
+                  <button
+                    type="button"
+                    disabled={busyId === ann.id}
+                    onClick={() => void publish(ann)}
+                    style={{ fontSize: 11, fontWeight: 600, color: '#fff', background: 'var(--indigo)', border: 'none', borderRadius: 7, padding: '8px 12px', cursor: 'pointer', opacity: busyId === ann.id ? 0.5 : 1 }}
+                  >
+                    Publish
+                  </button>
+                )}
               </div>
             </Card>
           )
@@ -245,160 +307,110 @@ function AnnouncementsPage() {
   )
 }
 
-// ── PAGE: Messages ────────────────────────────────────────────────────────────
-
 function MessagesPage() {
-  const [selected, setSelected] = useState(messages[0])
-  const [input, setInput] = useState('')
   return (
-    <div style={{ display: 'flex', gap: 0, background: 'var(--surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden', height: 'calc(100vh - 180px)', minHeight: 500 }}>
-
-      {/* Conversation list */}
-      <div style={{ width: 280, borderRight: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-        <div style={{ padding: '18px 16px', borderBottom: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Messages</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px' }}>
-            <Search size={12} color="var(--text-muted)" />
-            <input placeholder="Search..." style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 12, width: '100%' }} />
-          </div>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {messages.map(m => (
-            <div key={m.name} onClick={() => setSelected(m)} style={{
-              padding: '14px 16px', cursor: 'pointer', transition: 'background 0.1s',
-              background: selected.name === m.name ? 'var(--indigo-light)' : 'transparent',
-              borderLeft: selected.name === m.name ? '3px solid var(--indigo)' : '3px solid transparent',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ position: 'relative', flexShrink: 0 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{m.avatar}</div>
-                  {m.online && <div style={{ position: 'absolute', bottom: 1, right: 1, width: 8, height: 8, borderRadius: '50%', background: '#10b981', border: '1.5px solid var(--surface)' }} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, fontWeight: m.unread ? 700 : 500, color: 'var(--text-primary)' }}>{m.name}</span>
-                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{m.time}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 2 }}>{m.preview}</div>
-                </div>
-                {m.unread > 0 && <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff', flexShrink: 0 }}>{m.unread}</div>}
-              </div>
-            </div>
-          ))}
-        </div>
+    <Card style={{ minHeight: 420, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, textAlign: 'center' }}>
+      <MessageSquare size={28} color="var(--text-muted)" />
+      <div style={{ fontSize: 15, fontWeight: 700 }}>No conversations</div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 360 }}>
+        Direct messaging is not connected yet. School notices appear under Announcements; academic alerts under Notifications.
       </div>
-
-      {/* Chat area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>{selected.avatar}</div>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700 }}>{selected.name}</div>
-            <div style={{ fontSize: 11, color: selected.online ? '#10b981' : 'var(--text-muted)' }}>{selected.online ? 'Online' : 'Offline'}</div>
-          </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <button style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Phone size={13} color="var(--text-muted)" /></button>
-            <button style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Video size={13} color="var(--text-muted)" /></button>
-          </div>
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {convMessages.map((msg, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: msg.from === 'me' ? 'flex-end' : 'flex-start' }}>
-              <div style={{
-                maxWidth: '65%', padding: '10px 14px', borderRadius: msg.from === 'me' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-                background: msg.from === 'me' ? 'var(--indigo)' : 'var(--bg)',
-                color: msg.from === 'me' ? '#fff' : 'var(--text-primary)',
-                fontSize: 13, lineHeight: 1.5,
-              }}>
-                {msg.text}
-                <div style={{ fontSize: 10, marginTop: 4, opacity: 0.6, textAlign: 'right' }}>{msg.time}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-          <div style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input value={input} onChange={e => setInput(e.target.value)} placeholder="Type a message..." style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13 }} onKeyDown={e => { if (e.key === 'Enter') setInput('') }} />
-            <Paperclip size={15} color="var(--text-muted)" style={{ cursor: 'pointer' }} />
-          </div>
-          <button onClick={() => setInput('')} style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--indigo)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-            <Send size={16} color="#fff" />
-          </button>
-        </div>
-      </div>
-    </div>
+    </Card>
   )
 }
 
-// ── PAGE: Settings ────────────────────────────────────────────────────────────
-
 function SettingsPage() {
-  const [notifs, setNotifs] = useState(true)
+  const { profile, school, user, updatePassword } = useAuth()
   const [twoFa, setTwoFa] = useState(false)
-  const [emailDigest, setEmailDigest] = useState(true)
+  const [pwdOpen, setPwdOpen] = useState(false)
+  const [pwd, setPwd] = useState({ next: '', confirm: '' })
+  const [pwdBusy, setPwdBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  const name = profile?.fullName?.trim() || 'Principal'
+  const email = profile?.email || user?.email || '—'
+  const schoolName = school?.name || '—'
+  const initials = initialsFromName(name)
+
+  async function savePassword() {
+    if (!pwd.next || pwd.next !== pwd.confirm) return
+    setPwdBusy(true)
+    const { error } = await updatePassword(pwd.next)
+    setPwdBusy(false)
+    if (error) {
+      setErr(error)
+      setMsg(null)
+      return
+    }
+    setPwdOpen(false)
+    setPwd({ next: '', confirm: '' })
+    setErr(null)
+    setMsg('Password updated')
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 760 }}>
-      <SectionTitle sub="Principal account and system preferences">Settings</SectionTitle>
+      <SectionTitle sub="Signed-in principal account">Settings</SectionTitle>
+      {msg && <div style={{ fontSize: 12, color: '#10b981' }}>{msg}</div>}
+      {err && <div style={{ fontSize: 12, color: '#f43f5e' }}>{err}</div>}
 
-      {/* Profile */}
       <Card>
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>Profile Information</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 16, background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#fff' }}>DR</div>
+          <div style={{ width: 64, height: 64, borderRadius: 16, background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#fff' }}>{initials}</div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>Dr. Rajesh Sharma</div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Principal, Gurukul School</div>
-            <button style={{ fontSize: 11, color: 'var(--indigo)', background: 'var(--indigo-light)', border: 'none', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontWeight: 600, marginTop: 8 }}>Change Photo</button>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{name}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Principal · {schoolName}</div>
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          {[{ label: 'Full Name', value: 'Dr. Rajesh Sharma' }, { label: 'Employee ID', value: 'GRK-PRI-001' }, { label: 'Email', value: 'principal@gurukul.edu.in' }, { label: 'Phone', value: '+91 98765 43210' }, { label: 'Academic Year', value: '2025–26' }, { label: 'Role', value: 'Principal' }].map(f => (
+          {[
+            { label: 'Full Name', value: name },
+            { label: 'Email', value: email },
+            { label: 'School', value: schoolName },
+            { label: 'Role', value: 'Principal' },
+          ].map((f) => (
             <div key={f.label}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{f.label}</div>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 12px', fontSize: 13, color: 'var(--text-primary)' }}>{f.value}</div>
             </div>
           ))}
         </div>
-        <button style={{ marginTop: 16, fontSize: 13, fontWeight: 600, color: '#fff', background: 'var(--indigo)', border: 'none', borderRadius: 9, padding: '10px 20px', cursor: 'pointer' }}>Save Changes</button>
       </Card>
 
-      {/* Notifications */}
-      <Card>
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>Notifications</div>
-        {[
-          { label: 'Push Notifications', sub: 'Receive alerts for leave requests, attendance, and approvals', state: notifs, set: setNotifs },
-          { label: 'Daily Email Digest', sub: 'Get a morning summary of school activity via email', state: emailDigest, set: setEmailDigest },
-        ].map(n => (
-          <div key={n.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid var(--border-subtle)' }}>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600 }}>{n.label}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{n.sub}</div>
-            </div>
-            <button onClick={() => n.set(!n.state)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-              {n.state ? <ToggleRight size={28} color="var(--indigo)" /> : <ToggleLeft size={28} color="var(--text-muted)" />}
-            </button>
-          </div>
-        ))}
-      </Card>
-
-      {/* Security */}
       <Card>
         <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>Security</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid var(--border-subtle)' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600 }}>Two-Factor Authentication</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Add an extra layer of security to your account</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>UI preference only — not persisted yet</div>
           </div>
-          <button onClick={() => setTwoFa(!twoFa)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+          <button type="button" onClick={() => setTwoFa(!twoFa)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             {twoFa ? <ToggleRight size={28} color="var(--indigo)" /> : <ToggleLeft size={28} color="var(--text-muted)" />}
           </button>
         </div>
         <div style={{ padding: '14px 0' }}>
-          <button style={{ fontSize: 13, fontWeight: 600, color: '#f43f5e', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 9, padding: '9px 18px', cursor: 'pointer' }}>
-            Change Password
-          </button>
+          {!pwdOpen ? (
+            <button
+              type="button"
+              onClick={() => setPwdOpen(true)}
+              style={{ fontSize: 13, fontWeight: 600, color: '#f43f5e', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: 9, padding: '9px 18px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Lock size={14} /> Change Password
+            </button>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxWidth: 320 }}>
+              <input type="password" placeholder="New password" value={pwd.next} onChange={(e) => setPwd((p) => ({ ...p, next: e.target.value }))} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '9px 12px', fontSize: 13 }} />
+              <input type="password" placeholder="Confirm password" value={pwd.confirm} onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '9px 12px', fontSize: 13 }} />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" onClick={() => setPwdOpen(false)} style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', cursor: 'pointer' }}>Cancel</button>
+                <button type="button" disabled={pwdBusy || !pwd.next || pwd.next !== pwd.confirm} onClick={() => void savePassword()} style={{ fontSize: 12, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'var(--indigo)', color: '#fff', cursor: 'pointer', opacity: pwdBusy || !pwd.next || pwd.next !== pwd.confirm ? 0.5 : 1 }}>
+                  {pwdBusy ? 'Saving…' : 'Update password'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </Card>
     </div>
@@ -410,12 +422,17 @@ function SettingsPage() {
 export default function PrincipalApp() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { signOut } = useAuth()
+  const { signOut, profile, school } = useAuth()
+  const { items: notifItems, unread: unreadNotif, loading: notifLoading } = useNotifications()
   const page = useMemo(() => principalPathToPage(location.pathname), [location.pathname])
   const setPage = (p: PrincipalPageKey) => navigate(PRINCIPAL_PAGE_PATH[p])
   const [notifOpen, setNotifOpen] = useState(false)
 
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const displayName = profile?.fullName?.trim() || 'Principal'
+  const firstName = displayName.split(/\s+/)[0] || 'Principal'
+  const initials = initialsFromName(displayName)
+  const schoolName = school?.name?.trim() || ''
 
   const handleSignOut = async () => {
     await signOut()
@@ -424,8 +441,6 @@ export default function PrincipalApp() {
 
   return (
     <div className="gurukul-principal" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
-
-      {/* Sidebar */}
       <aside style={{ width: 228, flexShrink: 0, background: 'var(--navy)', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -445,30 +460,32 @@ export default function PrincipalApp() {
             const label = PRINCIPAL_NAV_LABEL[key]
             const active = page === key
             return (
-            <button key={key} onClick={() => setPage(key)} style={{
-              display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px',
-              borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 2,
-              background: active ? 'rgba(59,91,219,0.25)' : 'transparent',
-              color: active ? '#fff' : 'rgba(255,255,255,0.5)',
-              fontSize: 13, fontWeight: active ? 600 : 400, textAlign: 'left',
-              transition: 'all 0.15s',
-              borderLeft: active ? '2px solid var(--indigo)' : '2px solid transparent',
-            }}
-              onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.75)' } }}
-              onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)' } }}
-            >
-              <Icon size={15} />
-              {label}
-            </button>
+              <button
+                key={key}
+                type="button"
+                onClick={() => setPage(key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px',
+                  borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 2,
+                  background: active ? 'rgba(59,91,219,0.25)' : 'transparent',
+                  color: active ? '#fff' : 'rgba(255,255,255,0.5)',
+                  fontSize: 13, fontWeight: active ? 600 : 400, textAlign: 'left',
+                  transition: 'all 0.15s',
+                  borderLeft: active ? '2px solid var(--indigo)' : '2px solid transparent',
+                }}
+              >
+                <Icon size={15} />
+                {label}
+              </button>
             )
           })}
         </nav>
 
         <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>DR</div>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>{initials}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Dr. Rajesh Sharma</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Principal</div>
             </div>
             <button type="button" onClick={handleSignOut} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}>
@@ -478,30 +495,44 @@ export default function PrincipalApp() {
         </div>
       </aside>
 
-      {/* Main */}
       <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        {/* Header */}
         <header style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(244,245,247,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '14px 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ flex: 1 }}>
-            <div className="font-display" style={{ fontSize: 20, fontWeight: 400, color: 'var(--text-primary)', lineHeight: 1 }}>Good morning, Dr. Sharma</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{today} &nbsp;·&nbsp; Academic Year 2025–26</div>
+            <div className="font-display" style={{ fontSize: 20, fontWeight: 400, color: 'var(--text-primary)', lineHeight: 1 }}>
+              {greetingForNow()}, {firstName}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+              {today}{schoolName ? ` · ${schoolName}` : ''}
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 14px', width: 240 }}>
             <Search size={14} color="var(--text-muted)" />
             <input placeholder="Search students, teachers..." style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--text-primary)', width: '100%' }} />
           </div>
           <div style={{ position: 'relative' }}>
-            <button onClick={() => setNotifOpen(o => !o)} style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <button
+              type="button"
+              onClick={() => setNotifOpen((o) => !o)}
+              style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}
+            >
               <Bell size={16} color="var(--text-secondary)" />
-              <span style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: '#f43f5e', border: '1.5px solid var(--bg)' }} />
+              {unreadNotif > 0 && (
+                <span style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: '#f43f5e', border: '1.5px solid var(--bg)' }} />
+              )}
             </button>
             {notifOpen && (
               <div style={{ position: 'absolute', right: 0, top: 48, width: 300, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)', padding: 16, zIndex: 100 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>Notifications</div>
-                {[{ text: '4 leave requests pending your approval', time: 'Just now' }, { text: 'Mid-term examination schedule published', time: '1h ago' }, { text: 'Class 10B attendance below threshold', time: '2h ago' }].map((n, i) => (
-                  <div key={i} style={{ padding: '8px 0', borderBottom: i < 2 ? '1px solid var(--border-subtle)' : 'none' }}>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{n.text}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{n.time}</div>
+                {notifLoading && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</div>}
+                {!notifLoading && notifItems.length === 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No notifications</div>
+                )}
+                {notifItems.slice(0, 8).map((n, i, arr) => (
+                  <div key={n.id} style={{ padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{n.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {new Date(n.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -509,19 +540,19 @@ export default function PrincipalApp() {
           </div>
         </header>
 
-        {/* Page content */}
         <div style={{ padding: page === 'messages' ? '28px 32px 0' : '28px 32px' }}>
           <Routes>
             <Route index element={<DashboardPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="teachers" element={<TeachersPage />} />
             <Route path="students" element={<StudentsPage />} />
+            <Route path="classes" element={<PrincipalClasses />} />
+            <Route path="classes/:classId" element={<PrincipalClassDetail />} />
             <Route path="exams" element={<ExaminationsPage />} />
             <Route path="attendance" element={<AttendancePage />} />
             <Route path="announcements" element={<AnnouncementsPage />} />
             <Route path="messages" element={<MessagesPage />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route path="classes/*" element={<Navigate to="/principal/students" replace />} />
             <Route path="present" element={<Navigate to="/principal/attendance" replace />} />
             <Route path="reports" element={<Navigate to="/principal/analytics" replace />} />
             <Route path="performance" element={<Navigate to="/principal/analytics" replace />} />

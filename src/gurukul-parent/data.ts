@@ -132,25 +132,7 @@ export const children: Child[] = [];
 
 // ── Attendance ────────────────────────────────────────────────────────────────
 
-function buildAttendanceMonth(year: number, month: number): AttendanceDayStatus[] {
-  const days: AttendanceDayStatus[] = [];
-  const daysInMonth = new Date(year, month, 0).getDate();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    const dow = new Date(date).getDay();
-    if (dow === 0 || dow === 6) {
-      days.push({ date, status: "weekend" });
-    } else if ([3, 12].includes(d)) {
-      days.push({ date, status: "holiday" });
-    } else if ([5, 18].includes(d)) {
-      days.push({ date, status: "absent" });
-    } else {
-      days.push({ date, status: "present" });
-    }
-  }
-  return days;
-}
-
+/** @deprecated Empty stub — use ParentLiveAttendance / AttendanceService. */
 export const attendanceByChild: Record<string, AttendanceDayStatus[]> = {};
 
 // ── Homework ──────────────────────────────────────────────────────────────────

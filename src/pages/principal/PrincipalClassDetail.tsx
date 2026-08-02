@@ -41,7 +41,7 @@ type Student = { id: string; full_name: string; roll_number: string | null; admi
 export default function PrincipalClassDetail() {
   const { classId } = useParams<{ classId: string }>();
   const { ctx, ready } = useAcademicContext();
-  if (!classId) return <Navigate to="/principal/classes" replace />;
+  if (!classId) return <Navigate to="/principal/students" replace />;
 
   const [klass, setKlass] = useState<Klass | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
@@ -144,16 +144,16 @@ export default function PrincipalClassDetail() {
   }, [avgAttendancePct]);
 
   if (loading) return <p className="text-muted-foreground text-center py-12">Loading class…</p>;
-  if (!klass) return <Navigate to="/principal/classes" replace />;
+  if (!klass) return <Navigate to="/principal/students" replace />;
 
   return (
     <>
       <div className="mb-3">
         <Link
-          to="/principal/classes"
+          to="/principal/students"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
         >
-          <ChevronLeft className="w-4 h-4 mr-1" /> Back to all classes
+          <ChevronLeft className="w-4 h-4 mr-1" /> Back to students
         </Link>
       </div>
 
