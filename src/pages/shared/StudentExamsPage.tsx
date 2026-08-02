@@ -1,66 +1,90 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useEffect, useMemo, useState } from "react";
+import { EXAM_TYPE_LABELS, MarksService, useAcademicContext } from "@/academic";
+import type { ExamRecord } from "@/academic/repository/marksRepository";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { FileText, Calendar, Clock, BookOpen } from "lucide-react";
+import { displaySubject } from "@/lib/academicPresentation";
+import { StudentErrorState } from "@/components/student/StudentPanelStates";
 
 const typeColors: Record<string, string> = {
   class_test: "bg-blue-500/10 text-blue-600 border-blue-500/30",
   unit_test: "bg-violet-500/10 text-violet-600 border-violet-500/30",
+  monthly_test: "bg-sky-500/10 text-sky-600 border-sky-500/30",
+  mid_term: "bg-indigo-500/10 text-indigo-600 border-indigo-500/30",
   half_yearly: "bg-amber-500/10 text-amber-600 border-amber-500/30",
+  annual: "bg-red-500/10 text-red-600 border-red-500/30",
   final: "bg-red-500/10 text-red-600 border-red-500/30",
   other: "bg-muted text-muted-foreground",
 };
 
-const typeLabels: Record<string, string> = {
-  class_test: "Class Test",
-  unit_test: "Unit Test",
-  half_yearly: "Half Yearly",
-  final: "Final",
-  other: "Other",
-};
+function examTypeLabel(type: string | null | undefined) {
+  if (!type) return "Exam";
+  return EXAM_TYPE_LABELS[type] ?? type;
+}
 
+/**
+ * Student exam schedule — MarksService only (legacy surface; prefer Tests / Exams & Results).
+ */
 export default function StudentExamsPage() {
-  const { user } = useAuth();
-  const [exams, setExams] = useState<any[]>([]);
+  const { ctx, ready, classId, studentId } = useAcademicContext();
+  const [exams, setExams] = useState<ExamRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      // Find the student's class
-      const { data: s } = await supabase
-        .from("students")
-        .select("class_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!s?.class_id) {
-        setLoading(false);
+  const load = async () => {
+    if (!ready || !ctx) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      if (!classId) {
+        setExams([]);
         return;
       }
-
-      // Fetch exams for this class
-      const { data: examList } = await supabase
-        .from("exams")
-        .select("*")
-        .eq("class_id", s.class_id)
-        .order("exam_date", { ascending: false });
-
-      setExams(examList ?? []);
+      const rows = await MarksService.listExamsForClass(ctx, classId, { limit: 100 });
+      setExams(rows);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load exams");
+      setExams([]);
+    } finally {
       setLoading(false);
-    })();
-  }, [user]);
+    }
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, ctx, classId]);
+
+  const today = new Date().toISOString().split("T")[0];
+  const upcoming = useMemo(
+    () => exams.filter((e) => e.examDate && e.examDate >= today),
+    [exams, today],
+  );
+  const past = useMemo(
+    () => exams.filter((e) => !e.examDate || e.examDate < today),
+    [exams, today],
+  );
 
   if (loading) {
     return <p className="text-muted-foreground text-center py-8">Loading…</p>;
   }
 
-  const today = new Date().toISOString().split("T")[0];
-  const upcoming = exams.filter((e) => e.exam_date && e.exam_date >= today);
-  const past = exams.filter((e) => !e.exam_date || e.exam_date < today);
+  if (!studentId) {
+    return (
+      <p className="text-muted-foreground text-center py-8">
+        No student profile linked to this account.
+      </p>
+    );
+  }
+
+  if (error) {
+    return <StudentErrorState title="Could not load exams" message={error} onRetry={load} />;
+  }
 
   return (
     <>
@@ -81,13 +105,13 @@ export default function StudentExamsPage() {
         />
       </div>
 
-      {/* Upcoming exams */}
       {upcoming.length > 0 && (
         <>
-          <h3 className="font-semibold mb-3">📅 Upcoming Exams</h3>
+          <h3 className="font-semibold mb-3">Upcoming Exams</h3>
           <div className="space-y-2 mb-6">
             {upcoming
-              .sort((a, b) => (a.exam_date > b.exam_date ? 1 : -1))
+              .slice()
+              .sort((a, b) => String(a.examDate).localeCompare(String(b.examDate)))
               .map((e) => (
                 <ExamCard key={e.id} exam={e} isUpcoming />
               ))}
@@ -95,10 +119,9 @@ export default function StudentExamsPage() {
         </>
       )}
 
-      {/* Past exams */}
       {past.length > 0 && (
         <>
-          <h3 className="font-semibold mb-3">✅ Past Exams</h3>
+          <h3 className="font-semibold mb-3">Past Exams</h3>
           <div className="space-y-2">
             {past.map((e) => (
               <ExamCard key={e.id} exam={e} />
@@ -117,9 +140,9 @@ export default function StudentExamsPage() {
   );
 }
 
-function ExamCard({ exam, isUpcoming }: { exam: any; isUpcoming?: boolean }) {
-  const dateStr = exam.exam_date
-    ? new Date(exam.exam_date).toLocaleDateString("en-IN", {
+function ExamCard({ exam, isUpcoming }: { exam: ExamRecord; isUpcoming?: boolean }) {
+  const dateStr = exam.examDate
+    ? new Date(exam.examDate).toLocaleDateString("en-IN", {
         weekday: "short",
         day: "numeric",
         month: "short",
@@ -127,8 +150,8 @@ function ExamCard({ exam, isUpcoming }: { exam: any; isUpcoming?: boolean }) {
       })
     : "Date TBD";
 
-  const daysUntil = exam.exam_date
-    ? Math.ceil((new Date(exam.exam_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+  const daysUntil = exam.examDate
+    ? Math.ceil((new Date(exam.examDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
 
   return (
@@ -138,7 +161,7 @@ function ExamCard({ exam, isUpcoming }: { exam: any; isUpcoming?: boolean }) {
           <div className="font-semibold">{exam.name}</div>
           <div className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
             <BookOpen className="w-3.5 h-3.5 shrink-0" />
-            {exam.subject}
+            {displaySubject(exam.subject) || "—"}
           </div>
           <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -151,10 +174,10 @@ function ExamCard({ exam, isUpcoming }: { exam: any; isUpcoming?: boolean }) {
           </div>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
-          <Badge variant="outline" className={typeColors[exam.exam_type] || typeColors.other}>
-            {typeLabels[exam.exam_type] || exam.exam_type}
+          <Badge variant="outline" className={typeColors[exam.examType] || typeColors.other}>
+            {examTypeLabel(exam.examType)}
           </Badge>
-          <span className="text-xs text-muted-foreground">Max: {exam.max_marks}</span>
+          <span className="text-xs text-muted-foreground">Max: {exam.maxMarks}</span>
         </div>
       </div>
     </Card>

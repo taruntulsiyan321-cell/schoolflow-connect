@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { HomeworkService, MarksService, TestService } from "@/academic";
+import { HomeworkService, MarksService, TestService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toast } from "@/hooks/use-toast";
+import { displaySubject } from "@/lib/academicPresentation";
 import { GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { ChevronLeft, ChevronRight, CalendarDays, BookOpen, ClipboardList, AlertCircle, Star, Loader2 } from "lucide-react";
 
@@ -34,13 +36,15 @@ function toDateKey(iso: string | null | undefined): string | null {
 
 function colorForSubject(subject: string, type: EventType): string {
   if (type === "exam") return "#cc5069";
-  if (type === "deadline") return subjectColor[subject] ?? "#c08a3a";
-  return subjectColor[subject] ?? "#3b5bdb";
+  const key = displaySubject(subject) || subject;
+  if (type === "deadline") return subjectColor[key] ?? subjectColor[subject] ?? "#c08a3a";
+  return subjectColor[key] ?? subjectColor[subject] ?? "#3b5bdb";
 }
 
 export default function Calendar() {
   const now = new Date();
   const { ctx, ready, studentId, classId } = useAcademicContext();
+  const liveVersion = useAcademicLive(["homework", "test", "examination", "marks"]);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -49,6 +53,7 @@ export default function Calendar() {
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
+      setCalendarEvents([]);
       setLoading(false);
       return;
     }
@@ -111,6 +116,22 @@ export default function Calendar() {
         }
 
         setCalendarEvents(events);
+        if (settled.every((s) => s.status === "rejected")) {
+          toast({
+            title: "Could not load calendar",
+            description: "Showing an empty calendar until Academic Engine responds.",
+            variant: "destructive",
+          });
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setCalendarEvents([]);
+          toast({
+            title: "Could not load calendar",
+            description: e instanceof Error ? e.message : "Unknown error",
+            variant: "destructive",
+          });
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -118,7 +139,7 @@ export default function Calendar() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId, classId]);
+  }, [ready, ctx, studentId, classId, liveVersion]);
 
   function prevMonth() {
     if (month === 0) {
@@ -166,6 +187,14 @@ export default function Calendar() {
       <div className="flex items-center justify-center py-16 text-[#78788c]">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />
         Loading calendar…
+      </div>
+    );
+  }
+
+  if (ready && !studentId) {
+    return (
+      <div className="text-center text-sm text-[#78788c] py-16">
+        No student profile linked to this account.
       </div>
     );
   }
@@ -290,7 +319,7 @@ export default function Calendar() {
                     <span style={{ color: e.color }}>{meta.icon}</span>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">{e.title}</div>
-                      {e.subject && <div className="text-[11px] text-[#78788c]">{e.subject}</div>}
+                      {e.subject && <div className="text-[11px] text-[#78788c]">{displaySubject(e.subject) || e.subject}</div>}
                     </div>
                     <span
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
@@ -336,7 +365,7 @@ export default function Calendar() {
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span style={{ color: meta.color }}>{meta.icon}</span>
                           <span className="text-[10px] text-[#78788c]">{dayStr}</span>
-                          {e.subject && <span className="text-[10px] text-[#78788c]">· {e.subject}</span>}
+                          {e.subject && <span className="text-[10px] text-[#78788c]">· {displaySubject(e.subject) || e.subject}</span>}
                         </div>
                       </div>
                     </div>

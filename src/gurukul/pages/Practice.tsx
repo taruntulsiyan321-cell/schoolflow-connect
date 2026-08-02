@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicContext, PracticeService, HomeworkService, type CurriculumScope } from "@/academic";
+import { useAcademicContext, PracticeService, HomeworkService, TestService, TEST_KIND_LABELS, type CurriculumScope } from "@/academic";
 import type { PracticeSessionRow } from "@/academic";
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
@@ -11,8 +11,10 @@ import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { buildPracticeAnalysisSnapshot } from "@/lib/practiceAnalysisSnapshot";
 import { toast } from "sonner";
 import { displayChapter, displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
+import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
 import type { AcademicTermRef } from "@/academic/services/practiceService";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
+import { MathText } from "@/components/MathText";
 import {
   BookOpen, Clock, Target, ClipboardList,
   Trophy, BarChart2, Search,
@@ -95,6 +97,8 @@ type HistoryRow = {
   pct: number;
   time: string;
   xp: number;
+  /** Display string — em dash when XP not yet credited by Progression Engine. */
+  xpLabel: string;
   status: string;
   finishedAt: string | null;
   practiceMode: string | null;
@@ -186,19 +190,18 @@ function practiceTypeLabel(mode: string | null | undefined): string {
 }
 
 function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
-  const snap = row.analysis_snapshot as { difficulty?: string; practiceTypeLabel?: string } | null;
-  const qs = row.question_count ?? 0;
-  const correct = row.correct_count ?? 0;
-  const pct =
-    typeof row.accuracy === "number"
-      ? Math.round(Number(row.accuracy))
-      : qs > 0
-        ? Math.round((100 * correct) / qs)
-        : 0;
-  const xp =
-    typeof row.xp_earned === "number" && row.xp_earned > 0
-      ? row.xp_earned
-      : correct * 10;
+  const snap = row.analysis_snapshot as {
+    difficulty?: string;
+    practiceTypeLabel?: string;
+    questionCount?: number;
+    correctCount?: number;
+    wrongCount?: number;
+    skippedCount?: number;
+    accuracy?: number;
+    xpEarned?: number;
+    totalTimeMs?: number | null;
+  } | null;
+  const stats = resolvePracticeSessionStats(row, snap);
   const difficultyRaw = row.difficulty || snap?.difficulty || "mixed";
   return {
     id: row.id,
@@ -208,20 +211,19 @@ function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
     subject: displaySubject(row.subject || "Mixed"),
     chapter: row.chapter ? displayChapter(String(row.chapter)) : "—",
     difficulty: presentAcademicLabel(String(difficultyRaw)) || String(difficultyRaw),
-    qs,
-    attempted: qs,
-    score: correct,
-    pct,
+    qs: stats.questionCount,
+    attempted: stats.questionCount,
+    score: stats.correctCount,
+    pct: stats.accuracy,
     time: formatDurationMs(row.total_time_ms, row.created_at, row.finished_at ?? undefined),
-    xp,
+    xp: stats.xpEarned,
+    xpLabel: formatSessionXp(stats.xpEarned, stats.xpFromDb),
     status: row.finished_at ? "completed" : "incomplete",
     finishedAt: row.finished_at,
     practiceMode: row.practice_mode ?? null,
     saved: Boolean(row.saved_at),
   };
 }
-
-const MOCK_TESTS: { id: number; title: string; qs: number; dur: string; subject: string }[] = [];
 
 const DIFFICULTIES = [
   { key:"easy",   label:"Easy",   color:"#4aa87a", desc:"Foundation level — build confidence" },
@@ -256,8 +258,10 @@ function Hub({
   onMode,
   history,
   saved,
+  incomplete,
   streak,
   onOpenSession,
+  onResumeSession,
   onSaveLatest,
   savingLatest,
   historyFilters,
@@ -267,8 +271,10 @@ function Hub({
   onMode: (key: ModeKey) => void;
   history: HistoryRow[];
   saved: HistoryRow[];
+  incomplete: HistoryRow[];
   streak: number;
   onOpenSession: (id: string) => void;
+  onResumeSession: (id: string) => void;
   onSaveLatest: () => void;
   savingLatest: boolean;
   historyFilters: { search: string; subject: string; practiceType: string; date: string };
@@ -320,6 +326,38 @@ function Hub({
           </div>
         )}
       </div>
+
+      {incomplete.length > 0 && (
+        <GlassCard className="p-4 border-[#c08a3a]/25">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-4 rounded-full bg-[#c08a3a]"/>
+            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Resume session</span>
+          </div>
+          <div className="space-y-2">
+            {incomplete.slice(0, 3).map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => onResumeSession(s.id)}
+                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-white/7 hover:border-[#c08a3a]/35 hover:bg-white/[0.03] transition-all text-left"
+              >
+                <div className="w-8 h-8 rounded-lg bg-[#c08a3a]/15 flex items-center justify-center shrink-0 text-[#c08a3a]">
+                  <RotateCcw className="w-3.5 h-3.5"/>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-white truncate">{s.subject} · {s.chapter !== "—" ? s.chapter : s.practiceType}</div>
+                  <div className="text-[10px] text-[#78788c] mt-0.5">
+                    {s.practiceType} · {s.attempted}/{s.qs || "?"} answered · {s.date}
+                  </div>
+                </div>
+                <span className="text-[11px] font-semibold text-[#c08a3a] flex items-center gap-1 shrink-0">
+                  Continue <ChevronRight className="w-3 h-3"/>
+                </span>
+              </button>
+            ))}
+          </div>
+        </GlassCard>
+      )}
 
       {hot.length > 0 && (
         <div>
@@ -438,7 +476,7 @@ function Hub({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-bold text-white truncate">{s.subject} · {s.chapter}</div>
-                  <div className="text-[10px] text-[#78788c] truncate mt-0.5">{s.practiceType} · {s.pct}% · {s.attempted} Qs · {s.xp} XP</div>
+                  <div className="text-[10px] text-[#78788c] truncate mt-0.5">{s.practiceType} · {s.pct}% · {s.attempted} Qs · {s.xpLabel} XP</div>
                   <div className="text-[10px] text-[#78788c]/60 mt-0.5">{s.date}</div>
                 </div>
                 <Play className="w-3.5 h-3.5 text-[#78788c] group-hover:text-[#4b9fd4] transition-colors shrink-0 mt-1"/>
@@ -538,7 +576,7 @@ function Hub({
                     <span className="text-[10px] text-[#78788c]/40">·</span>
                     <span className="text-[10px] text-[#78788c]">{h.time}</span>
                     <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#c08a3a]">{h.xp} XP</span>
+                    <span className="text-[10px] text-[#c08a3a]">{h.xpLabel} XP</span>
                   </div>
                 </div>
                 <div className="text-[10px] text-[#78788c] shrink-0 text-right hidden sm:block">{h.date}</div>
@@ -564,7 +602,8 @@ function ConfigView({
   classUnresolved?: boolean;
 }) {
   const mode = MODES.find(m => m.key === modeKey)!;
-  const { ctx, ready: academicReady, studentId } = useAcademicContext();
+  const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
+  const navigate = useNavigate();
 
   const [selSubject,    setSelSubject]    = useState<string | null>(null);
   const [selChapter,    setSelChapter]    = useState<string | null>(null);
@@ -577,6 +616,10 @@ function ConfigView({
   const [metaLoading,   setMetaLoading]   = useState(false);
   const [teacherSets,   setTeacherSets]   = useState<StudentHomeworkRow[]>([]);
   const [teacherLoading, setTeacherLoading] = useState(false);
+  const [mockTests, setMockTests] = useState<
+    { id: string; title: string; subject: string; questionCount: number; durationSec: number; testKind: string }[]
+  >([]);
+  const [mockLoading, setMockLoading] = useState(false);
 
   useEffect(() => {
     setSelChapter(null);
@@ -619,6 +662,51 @@ function ConfigView({
     })();
     return () => { cancelled = true; };
   }, [modeKey, ctx, academicReady, studentId]);
+
+  useEffect(() => {
+    if (modeKey !== "mock" || !ctx || !academicReady || !classId) {
+      setMockTests([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setMockLoading(true);
+      try {
+        const rows = (await TestService.listForClass(ctx, classId)) as {
+          id: string;
+          title?: string;
+          subject?: string;
+          question_count?: number;
+          duration_sec?: number;
+          test_kind?: string;
+        }[];
+        // Prefer longer / exam-like kinds for mock simulation; fall back to all published.
+        const examLike = rows.filter((r) => {
+          const kind = String(r.test_kind ?? "class_test");
+          const dur = Number(r.duration_sec ?? 0);
+          return kind === "unit_test" || kind === "monthly_test" || dur >= 1800;
+        });
+        const pool = examLike.length > 0 ? examLike : rows;
+        if (!cancelled) {
+          setMockTests(
+            pool.map((r) => ({
+              id: r.id,
+              title: r.title ?? "Test",
+              subject: r.subject ?? "",
+              questionCount: Number(r.question_count ?? 0),
+              durationSec: Number(r.duration_sec ?? 0),
+              testKind: String(r.test_kind ?? "class_test"),
+            })),
+          );
+        }
+      } catch {
+        if (!cancelled) setMockTests([]);
+      } finally {
+        if (!cancelled) setMockLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [modeKey, ctx, academicReady, classId]);
 
   useEffect(() => {
     setSelTopic(null);
@@ -707,13 +795,44 @@ function ConfigView({
   if (modeKey === "mock") {
     return (
       <ConfigShell mode={mode} onBack={onBack}>
-        {MOCK_TESTS.length === 0 ? (
+        {mockLoading ? (
+          <div className="text-xs text-[#78788c] py-8 text-center">Loading published tests…</div>
+        ) : mockTests.length === 0 ? (
           <EmptyConfig
             title="No mock tests available"
-            body="Full-length mocks will show here once your school publishes them. Try Timed Practice for a timed bank session."
+            body="Full-length mocks will show here once your school publishes unit/monthly or timed class tests. Try Timed Practice for a timed bank session."
           />
         ) : (
-          <StartButton color={mode.color} disabled onStart={handleStart} label="Start Mock Test"/>
+          <div className="space-y-3">
+            {mockTests.map((t) => {
+              const mins = t.durationSec > 0 ? Math.round(t.durationSec / 60) : null;
+              const kindLabel =
+                TEST_KIND_LABELS[t.testKind as keyof typeof TEST_KIND_LABELS] ?? t.testKind;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => navigate(`/student/dpp/${t.id}/attempt`)}
+                  className="w-full text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 transition-colors"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-white truncate">{t.title}</div>
+                      <div className="text-[11px] text-[#78788c] mt-1">
+                        {displaySubject(t.subject) || "—"}
+                        {kindLabel ? ` · ${kindLabel}` : ""}
+                        {t.questionCount > 0 ? ` · ${t.questionCount} Qs` : ""}
+                        {mins != null ? ` · ${mins} min` : ""}
+                      </div>
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#818cf8] shrink-0">
+                      <Play className="w-3 h-3" /> Start
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         )}
       </ConfigShell>
     );
@@ -1083,6 +1202,8 @@ interface SessionConfig {
   mode: ModeKey; label: string; subject: string;
   chapter?: string | null; topic?: string | null;
   difficulty: string; qCount: number; timeLimitSec: number | null;
+  /** When set, continue an unfinished practice_sessions row instead of starting new. */
+  resumeSessionId?: string | null;
 }
 
 // ── Session (question-solving) ───────────────────────────────────────────────
@@ -1114,6 +1235,16 @@ function Session({
   const questionStartRef = useRef<number>(Date.now());
   const attemptNumberRef = useRef(0);
   const hintUsedRef = useRef(false);
+  const startedAtRef = useRef<string | undefined>(undefined);
+  const serverStatsRef = useRef<{
+    questionCount?: number;
+    correctCount?: number;
+    wrongCount?: number;
+    skippedCount?: number;
+    accuracy?: number;
+    xpEarned?: number;
+    totalTimeMs?: number | null;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1131,23 +1262,117 @@ function Session({
           config.topic ||
           (config.mode === "daily" ? "Daily" : config.mode);
 
-        const sid = await PracticeService.start(ctx, {
-          _subject: config.subject === "Mixed" ? "General" : config.subject,
-          _chapter: chapterForStart,
-          _count: config.qCount,
-          _practice_mode: config.mode,
-        });
-        if (cancelled) return;
-        sessionIdRef.current = sid as string;
+        let excludeIds: string[] = [];
+        let remainingCount = config.qCount;
+
+        if (config.resumeSessionId) {
+          sessionIdRef.current = config.resumeSessionId;
+          const existing = await PracticeService.getSession(ctx, config.resumeSessionId);
+          if (!existing || existing.finished_at) {
+            setLoadError("That session is already finished or no longer available.");
+            return;
+          }
+          startedAtRef.current = existing.created_at;
+          const prior = await PracticeService.listSessionAttempts(ctx, config.resumeSessionId);
+          if (cancelled) return;
+
+          let priorCorrect = 0;
+          let priorAttempted = 0;
+          const priorSkipped: number[] = [];
+          const priorLog: PracticeAttemptSnapshot[] = [];
+
+          prior.forEach((row: Record<string, unknown>, i: number) => {
+            const gq = (row.generated_question ?? {}) as Record<string, unknown>;
+            const opts = parseBankOptions(gq.options);
+            const bankId =
+              (typeof row.bank_question_id === "string" && row.bank_question_id) ||
+              (typeof gq.bank_question_id === "string" ? gq.bank_question_id : null);
+            if (bankId) excludeIds.push(bankId);
+            const skipped = Boolean(row.skipped);
+            const isCorrect = Boolean(row.is_correct) && !skipped;
+            if (skipped) priorSkipped.push(i);
+            else priorAttempted += 1;
+            if (isCorrect) priorCorrect += 1;
+            const selected = (row.selected_answer ?? {}) as { index?: number; selected_index?: number };
+            const correctAns = (row.correct_answer ?? {}) as { index?: number; correct_index?: number };
+            priorLog.push({
+              question: String(gq.question ?? ""),
+              options: opts,
+              correctIndex:
+                typeof correctAns.correct_index === "number"
+                  ? correctAns.correct_index
+                  : typeof correctAns.index === "number"
+                    ? correctAns.index
+                    : 0,
+              selectedIndex:
+                typeof selected.selected_index === "number"
+                  ? selected.selected_index
+                  : typeof selected.index === "number"
+                    ? selected.index
+                    : -1,
+              isCorrect,
+              skipped,
+              explanation: typeof gq.explanation === "string" ? gq.explanation : undefined,
+              bankQuestionId: bankId,
+              subject: String(row.subject ?? gq.subject ?? existing.subject ?? "General"),
+              chapter: String(row.chapter ?? gq.chapter ?? existing.chapter ?? ""),
+              difficulty: typeof gq.difficulty === "string" ? gq.difficulty : "medium",
+              source: "practice",
+              practiceMode: config.mode,
+              sourceId: config.resumeSessionId,
+              timeTakenMs: typeof row.time_taken_ms === "number" ? row.time_taken_ms : null,
+              hintUsed: Boolean(row.hint_used),
+              attemptNumber: i + 1,
+              schoolId: ctx.schoolId ?? null,
+            });
+          });
+
+          attemptLog.current = priorLog;
+          correctRef.current = priorCorrect;
+          attemptedRef.current = priorAttempted;
+          skippedRef.current = priorSkipped;
+          setCorrect(priorCorrect);
+          setAttempted(priorAttempted);
+          setSkipped(priorSkipped);
+          attemptNumberRef.current = priorLog.length;
+          const target = existing.question_count || config.qCount;
+          remainingCount = Math.max(0, target - priorLog.length);
+          if (remainingCount === 0) {
+            // Nothing left — finish the incomplete session with prior attempts.
+            setQs([]);
+            return;
+          }
+        } else {
+          const sid = await PracticeService.start(ctx, {
+            _subject: config.subject === "Mixed" ? "General" : config.subject,
+            _chapter: chapterForStart,
+            _count: config.qCount,
+            _practice_mode: config.mode,
+          });
+          if (cancelled) return;
+          sessionIdRef.current = sid as string;
+          startedAtRef.current = new Date().toISOString();
+          questionStartRef.current = Date.now();
+          attemptNumberRef.current = 0;
+        }
+
         questionStartRef.current = Date.now();
-        attemptNumberRef.current = 0;
 
         let rows: Awaited<ReturnType<typeof PracticeService.listBankQuestions>> = [];
+        const bankOpts = { excludeIds: excludeIds.length ? excludeIds : undefined };
 
         if (config.mode === "incorrect") {
-          rows = await PracticeService.listMistakeQuestions(ctx, { limit: config.qCount });
+          rows = await PracticeService.listMistakeQuestions(ctx, { limit: remainingCount });
+          if (excludeIds.length) {
+            const skip = new Set(excludeIds);
+            rows = rows.filter((r) => !skip.has(r.id));
+          }
         } else if (config.mode === "skipped") {
-          rows = await PracticeService.listSkippedBankQuestions(ctx, { limit: config.qCount });
+          rows = await PracticeService.listSkippedBankQuestions(ctx, { limit: remainingCount });
+          if (excludeIds.length) {
+            const skip = new Set(excludeIds);
+            rows = rows.filter((r) => !skip.has(r.id));
+          }
         } else if (config.mode === "weak") {
           const weak = await PracticeService.listWeakConcepts(ctx, { threshold: 70, limit: 12 });
           if (weak.length === 0) {
@@ -1155,20 +1380,22 @@ function Session({
           } else {
             rows = await PracticeService.listBankQuestions(ctx, {
               difficulty: config.difficulty,
-              limit: config.qCount,
+              limit: remainingCount,
               weakTargets: weak.map((w) => ({
                 subject: w.subject,
                 chapter: w.chapter,
                 concept: w.concept,
               })),
+              ...bankOpts,
             });
           }
         } else if (config.mode === "pyq") {
           rows = await PracticeService.listBankQuestions(ctx, {
             subject: config.subject,
             difficulty: config.difficulty,
-            limit: config.qCount,
+            limit: remainingCount,
             pyqOnly: true,
+            ...bankOpts,
           });
         } else {
           rows = await PracticeService.listBankQuestions(ctx, {
@@ -1176,7 +1403,8 @@ function Session({
             chapter: config.chapter,
             topic: config.topic,
             difficulty: config.difficulty,
-            limit: config.qCount,
+            limit: remainingCount,
+            ...bankOpts,
           });
         }
 
@@ -1205,7 +1433,18 @@ function Session({
       }
     })();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx, academicReady, config]);
+
+  // Resume with prior attempts but no remaining bank questions → finish via SSOT RPC.
+  useEffect(() => {
+    if (loadingQs || loadError || finishedRef.current) return;
+    if (!config.resumeSessionId) return;
+    if (qs.length > 0) return;
+    if (attemptLog.current.length === 0) return;
+    void finish();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingQs, loadError, qs.length, config.resumeSessionId]);
 
   // Timer
   useEffect(() => {
@@ -1268,21 +1507,37 @@ function Session({
     const sid = sessionIdRef.current;
     const results: SessionResults = {
       correct: correctRef.current,
-      total: attemptedRef.current,
+      total: Math.max(attemptedRef.current, attemptLog.current.length),
       skipped: skippedRef.current.length,
       bookmarked: bookmarkedRef.current.length,
       config,
       sessionId: sid,
       attempts: [...attemptLog.current],
-      startedAt: undefined,
+      startedAt: startedAtRef.current,
+      serverStats: null,
     };
 
     if (sid && ctx) {
       try {
-        await PracticeService.finish(ctx, {
+        const finishRaw = await PracticeService.finish(ctx, {
           _session_id: sid,
           _attempts: attemptsToFinishPayload(attemptLog.current),
         });
+        const fin = (finishRaw ?? {}) as Record<string, unknown>;
+        const serverStats = {
+          questionCount: typeof fin.total === "number" ? fin.total : attemptLog.current.length,
+          correctCount: typeof fin.correct_count === "number" ? fin.correct_count : correctRef.current,
+          wrongCount: typeof fin.wrong_count === "number" ? fin.wrong_count : undefined,
+          skippedCount: typeof fin.skipped_count === "number" ? fin.skipped_count : skippedRef.current.length,
+          accuracy: typeof fin.accuracy === "number" ? Number(fin.accuracy) : undefined,
+          xpEarned: typeof fin.xp_earned === "number" ? fin.xp_earned : undefined,
+          totalTimeMs: typeof fin.total_time_ms === "number" ? fin.total_time_ms : null,
+        };
+        serverStatsRef.current = serverStats;
+        results.serverStats = serverStats;
+        if (typeof serverStats.correctCount === "number") results.correct = serverStats.correctCount;
+        if (typeof serverStats.questionCount === "number") results.total = serverStats.questionCount;
+        if (typeof serverStats.skippedCount === "number") results.skipped = serverStats.skippedCount;
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Could not save practice session");
       }
@@ -1552,7 +1807,9 @@ function Session({
             </button>
           </div>
         </div>
-        <div className="text-base font-semibold text-white leading-relaxed">{q.question}</div>
+        <div className="text-base font-semibold text-white leading-relaxed">
+          <MathText block text={q.question} />
+        </div>
       </GlassCard>
 
       {/* Options */}
@@ -1572,7 +1829,7 @@ function Session({
               <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 bg-white/8">
                 {String.fromCharCode(65+i)}
               </span>
-              <span className="flex-1">{opt}</span>
+              <span className="flex-1"><MathText text={opt} /></span>
               {phase === "fb" && isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0"/>}
               {phase === "fb" && isChosen && !isRight && <XCircle className="w-4 h-4 text-rose-400 shrink-0"/>}
             </button>
@@ -1586,7 +1843,8 @@ function Session({
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-[#c08a3a] shrink-0 mt-0.5"/>
             <div className="text-sm text-[#a0a0b0] leading-relaxed">
-              <span className="font-semibold text-white">Hint: </span>{hintPreview(q.explanation)}
+              <span className="font-semibold text-white">Hint: </span>
+              <MathText text={hintPreview(q.explanation)} />
             </div>
           </div>
         </GlassCard>
@@ -1598,7 +1856,8 @@ function Session({
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-[#c08a3a] shrink-0 mt-0.5"/>
             <div className="text-sm text-[#a0a0b0] leading-relaxed">
-              <span className="font-semibold text-white">Explanation: </span>{q.explanation}
+              <span className="font-semibold text-white">Explanation: </span>
+              <MathText text={q.explanation} />
             </div>
           </div>
         </GlassCard>
@@ -1643,13 +1902,28 @@ interface SessionResults {
   sessionId: string | null;
   attempts: PracticeAttemptSnapshot[];
   startedAt?: string;
+  serverStats?: {
+    questionCount?: number;
+    correctCount?: number;
+    wrongCount?: number;
+    skippedCount?: number;
+    accuracy?: number;
+    xpEarned?: number;
+    totalTimeMs?: number | null;
+  } | null;
 }
 
 function Summary({ results, onRetry, onHub }: {
   results: SessionResults; onRetry: ()=>void; onHub: ()=>void;
 }) {
-  const { correct, total, skipped, bookmarked, config } = results;
-  const pct = total > 0 ? Math.round((correct/total)*100) : 0;
+  const { correct, total, skipped, bookmarked, config, serverStats } = results;
+  const wrong = serverStats?.wrongCount ?? Math.max(0, total - correct - skipped);
+  const pct =
+    typeof serverStats?.accuracy === "number"
+      ? Math.round(serverStats.accuracy)
+      : total > 0
+        ? Math.round((correct / total) * 100)
+        : 0;
   const color = pct >= 80 ? "#4aa87a" : pct >= 60 ? "#c08a3a" : "#cc5069";
   const emoji = pct >= 90 ? "🏆" : pct >= 75 ? "🎯" : pct >= 60 ? "📈" : "💪";
 
@@ -1660,11 +1934,16 @@ function Summary({ results, onRetry, onHub }: {
         <div className="text-[10px] uppercase tracking-widest text-[#78788c] mb-1">{config.label} · Complete</div>
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
         <div className="text-[#78788c] text-sm mb-6">{correct} correct out of {total} attempted</div>
+        {typeof serverStats?.xpEarned === "number" && (
+          <div className="text-sm font-bold text-[#c08a3a] mb-4 tabular-nums">
+            +{serverStats.xpEarned} XP
+          </div>
+        )}
 
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
             { label:"Correct",    value:correct,    color:"#4aa87a" },
-            { label:"Wrong",      value:total-correct, color:"#cc5069" },
+            { label:"Wrong",      value:wrong, color:"#cc5069" },
             { label:"Skipped",    value:skipped,    color:"#c08a3a" },
             { label:"Bookmarked", value:bookmarked, color:"#4b9fd4" },
           ].map(s => (
@@ -1681,10 +1960,10 @@ function Summary({ results, onRetry, onHub }: {
             style={{ background:`linear-gradient(135deg,#3b5bdb,#4b9fd4)`, boxShadow:"0 8px 24px rgba(59,130,246,0.3)" }}>
             <RotateCcw className="w-4 h-4"/> Retry Same Mode
           </button>
-          {total - correct > 0 && (
+          {wrong > 0 && (
             <button onClick={onHub}
               className="w-full py-3 rounded-2xl border border-rose-400/30 text-rose-400 font-semibold text-sm hover:bg-rose-400/8 transition-all flex items-center justify-center gap-2">
-              <XCircle className="w-4 h-4"/> Practice {total-correct} incorrect question{total-correct!==1?"s":""}
+              <XCircle className="w-4 h-4"/> Practice {wrong} incorrect question{wrong!==1?"s":""}
             </button>
           )}
           <button onClick={onHub}
@@ -1705,6 +1984,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const { ctx, ready: academicReady } = useAcademicContext();
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [saved, setSaved] = useState<HistoryRow[]>([]);
+  const [incomplete, setIncomplete] = useState<HistoryRow[]>([]);
   const [historyTick, setHistoryTick] = useState(0);
   const [subjects, setSubjects] = useState<PracticeSubject[]>([]);
   const [curriculumScope, setCurriculumScope] = useState<CurriculumScope | null>(null);
@@ -1758,29 +2038,67 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       if (!user) {
         setHistory([]);
         setSaved([]);
+        setIncomplete([]);
       }
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const [hist, savedRows] = await Promise.all([
-          PracticeService.listRecentFinished(ctx, 50),
-          PracticeService.listSavedSessions(ctx, 30),
+        const [hist, savedRows, openRows] = await Promise.all([
+          PracticeService.listHistory(ctx, {
+            limit: 100,
+            subject: historyFilters.subject || null,
+            practiceMode: historyFilters.practiceType || null,
+            dateFrom: historyFilters.date ? `${historyFilters.date}T00:00:00.000Z` : null,
+            dateTo: historyFilters.date ? `${historyFilters.date}T23:59:59.999Z` : null,
+            // Search stays client-side over this window (ilike OR across columns needs RPC).
+            search: null,
+          }),
+          PracticeService.listSavedSessions(ctx, 40),
+          PracticeService.listIncompleteSessions(ctx, 8),
         ]);
         if (cancelled) return;
         setHistory((hist ?? []).map(mapSessionToHistoryRow));
         setSaved((savedRows ?? []).map(mapSessionToHistoryRow));
+        const openMapped = await Promise.all(
+          (openRows ?? []).map(async (row) => {
+            const mapped = mapSessionToHistoryRow(row);
+            try {
+              const attempts = await PracticeService.listSessionAttempts(ctx, row.id);
+              const answered = attempts.length;
+              return {
+                ...mapped,
+                attempted: answered,
+                qs: row.question_count || answered,
+                status: "incomplete" as const,
+              };
+            } catch {
+              return { ...mapped, status: "incomplete" as const };
+            }
+          }),
+        );
+        setIncomplete(openMapped);
       } catch (e) {
         if (!cancelled) {
           setHistory([]);
           setSaved([]);
+          setIncomplete([]);
           toast.error(e instanceof Error ? e.message : "Could not load practice history");
         }
       }
     })();
     return () => { cancelled = true; };
-  }, [user, ctx, academicReady, historyTick]);
+  }, [
+    user,
+    ctx,
+    academicReady,
+    historyTick,
+    historyFilters.subject,
+    historyFilters.practiceType,
+    historyFilters.date,
+    historyFilters.search,
+  ]);
 
   const streak = student.streak;
   const [phase,   setPhase]   = useState<Phase>("hub");
@@ -1821,6 +2139,39 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   function openSessionAnalysis(sessionId: string) {
     navigate(`/student/practice/session/${sessionId}/result`);
+  }
+
+  async function resumeSession(sessionId: string) {
+    if (!ctx) return;
+    try {
+      const row = await PracticeService.getSession(ctx, sessionId);
+      if (!row || row.finished_at) {
+        toast.message("Session already finished — opening analysis");
+        openSessionAnalysis(sessionId);
+        return;
+      }
+      const modeKeyResume = (MODES.some((m) => m.key === row.practice_mode)
+        ? row.practice_mode
+        : "subject") as ModeKey;
+      const mode = MODES.find((m) => m.key === modeKeyResume) ?? MODES[1];
+      setModeKey(modeKeyResume);
+      setConfig({
+        mode: modeKeyResume,
+        label: mode.label,
+        subject: row.subject || "Mixed",
+        chapter: row.chapter && !["Daily", "daily", "weak", "incorrect", "skipped"].includes(row.chapter)
+          ? row.chapter
+          : null,
+        topic: null,
+        difficulty: row.difficulty || "mixed",
+        qCount: row.question_count || 20,
+        timeLimitSec: modeKeyResume === "timed" || modeKeyResume === "mock" ? 15 * 60 : null,
+        resumeSessionId: sessionId,
+      });
+      setPhase("session");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not resume session");
+    }
   }
 
   async function saveLatestSession() {
@@ -1868,6 +2219,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         chapter: String(chapter),
         attempts: res.attempts,
         startedAt: res.startedAt,
+        serverStats: res.serverStats ?? null,
       });
       return;
     }
@@ -1892,8 +2244,10 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           onMode={handleMode}
           history={history}
           saved={saved}
+          incomplete={incomplete}
           streak={streak}
           onOpenSession={openSessionAnalysis}
+          onResumeSession={(id) => void resumeSession(id)}
           onSaveLatest={() => void saveLatestSession()}
           savingLatest={savingLatest}
           historyFilters={historyFilters}

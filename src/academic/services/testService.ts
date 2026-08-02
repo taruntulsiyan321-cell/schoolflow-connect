@@ -479,6 +479,27 @@ export const TestService = {
     }[];
   },
 
+  /** Latest attempt for the current user on a DPP/test (submitted preferred). */
+  async getMyAttempt(ctx: ServiceContext, dppId: string) {
+    assertCanConsume(ctx, "student_test_attempt");
+    const client = getClient(toRepoContext(ctx));
+    let q = client
+      .from("dpp_attempts")
+      .select("*")
+      .eq("dpp_id", dppId)
+      .order("started_at", { ascending: false })
+      .limit(5);
+    if (ctx.userId) q = q.eq("user_id", ctx.userId);
+    const { data, error } = await q;
+    throwIfError(error, "Failed to load test attempt");
+    const rows = (data ?? []) as Record<string, unknown>[];
+    if (rows.length === 0) return null;
+    const submitted = rows.find(
+      (r) => r.submitted_at != null || String(r.status ?? "") === "submitted",
+    );
+    return (submitted ?? rows[0]) as Record<string, unknown>;
+  },
+
   async startAttempt(ctx: ServiceContext, dppId: string) {
     assertCanOwn(ctx, "student_test_attempt");
     const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_dpp_start", {

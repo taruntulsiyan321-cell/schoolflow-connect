@@ -3,23 +3,28 @@ import { Link } from "react-router-dom";
 import { Loader2, Trophy, BarChart2, Play } from "lucide-react";
 import {
   AnalyticsService,
+  EXAM_TYPE_LABELS,
   MarksService,
+  TEST_KIND_LABELS,
   TestService,
   useAcademicLive,
 } from "@/academic";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { displaySubject } from "@/lib/academicPresentation";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/gurukul/components/shared";
 
 /**
- * Student Tests — MarksService + TestService + AnalyticsService (no mock tests / ranks).
+ * Student Tests — MarksService + TestService + AnalyticsService (no mock catalogs).
  */
 export default function Tests() {
   const { ctx, ready, studentId, classId } = useAcademicContext();
   const liveVersion = useAcademicLive(["test", "marks"]);
   const [marks, setMarks] = useState<MarksRecord[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
-  const [upcoming, setUpcoming] = useState<{ id: string; title: string; subject: string; published: boolean }[]>([]);
+  const [upcoming, setUpcoming] = useState<
+    { id: string; title: string; subject: string; testKind: string; published: boolean }[]
+  >([]);
   const [avgPct, setAvgPct] = useState(0);
   const [testsAvg, setTestsAvg] = useState(0);
   const [filter, setFilter] = useState<"all" | "graded" | "upcoming">("all");
@@ -51,10 +56,20 @@ export default function Tests() {
         setAvgPct(Math.round(analytics?.exams.averagePct ?? 0));
         setTestsAvg(Math.round(analytics?.tests.averagePct ?? 0));
         setUpcoming(
-          (tests as { id: string; title: string; subject?: string; is_published?: boolean; status?: string }[]).map((t) => ({
+          (
+            tests as {
+              id: string;
+              title: string;
+              subject?: string;
+              test_kind?: string;
+              is_published?: boolean;
+              status?: string;
+            }[]
+          ).map((t) => ({
             id: t.id,
             title: t.title,
-            subject: t.subject ?? "—",
+            subject: t.subject ?? "",
+            testKind: t.test_kind ?? "class_test",
             published: t.is_published === true || t.status === "published",
           })),
         );
@@ -116,7 +131,7 @@ export default function Tests() {
       <div className="grid grid-cols-3 gap-3">
         <GlassCard className="p-4 text-center">
           <div className="text-2xl font-black text-white">{avgPct}%</div>
-          <div className="text-[10px] text-[#78788c]">Exam avg (AnalyticsService)</div>
+          <div className="text-[10px] text-[#78788c]">Exam avg</div>
         </GlassCard>
         <GlassCard className="p-4 text-center">
           <div className="text-2xl font-black text-[#6882e8]">{testsAvg}%</div>
@@ -147,7 +162,7 @@ export default function Tests() {
 
       {showGraded && (
         <GlassCard className="p-5">
-          <SectionLabel>Exam marks · MarksService</SectionLabel>
+          <SectionLabel>Exam marks</SectionLabel>
           <div className="space-y-3">
             {marks.length === 0 && (
               <div className="text-xs text-[#46465a] py-6 text-center">No marks published yet.</div>
@@ -156,14 +171,20 @@ export default function Tests() {
               const exam = examById.get(m.examId);
               const max = exam?.maxMarks ?? 100;
               const pct = max ? Math.round((m.marksObtained / max) * 100) : 0;
-              const col = subjectColor[exam?.subject ?? ""] ?? "#78788c";
+              const subj = exam?.subject ?? "";
+              const col = subjectColor[displaySubject(subj) || subj] ?? subjectColor[subj] ?? "#78788c";
+              const typeLabel =
+                EXAM_TYPE_LABELS[exam?.examType ?? ""] ?? exam?.examType ?? null;
               return (
                 <div key={m.id} className="p-4 rounded-xl border border-white/7 bg-white/2">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-white">{exam?.name ?? "Exam"}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <SubjectBadge subject={exam?.subject || "—"} color={col} />
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <SubjectBadge subject={subj || "—"} color={col} />
+                        {typeLabel && (
+                          <span className="text-[10px] text-[#78788c]">{typeLabel}</span>
+                        )}
                         <span className="text-[11px] text-[#78788c]">{exam?.examDate ?? ""}</span>
                       </div>
                     </div>
@@ -183,30 +204,40 @@ export default function Tests() {
 
       {showUpcoming && (
         <GlassCard className="p-5">
-          <SectionLabel>Class tests · TestService</SectionLabel>
+          <SectionLabel>Class tests</SectionLabel>
           <div className="space-y-3">
             {upcoming.length === 0 && (
               <div className="text-xs text-[#46465a] py-6 text-center">No class tests scheduled.</div>
             )}
-            {upcoming.map((t) => (
-              <div key={t.id} className="p-4 rounded-xl border border-white/7 bg-white/2 flex items-center gap-3">
-                <Trophy className="w-4 h-4 text-[#c08a3a] shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white truncate">{t.title}</div>
-                  <div className="text-[11px] text-[#78788c]">{t.subject}</div>
+            {upcoming.map((t) => {
+              const kindLabel =
+                TEST_KIND_LABELS[t.testKind as keyof typeof TEST_KIND_LABELS] ?? t.testKind;
+              return (
+                <div
+                  key={t.id}
+                  className="p-4 rounded-xl border border-white/7 bg-white/2 flex items-center gap-3"
+                >
+                  <Trophy className="w-4 h-4 text-[#c08a3a] shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-white truncate">{t.title}</div>
+                    <div className="text-[11px] text-[#78788c]">
+                      {displaySubject(t.subject) || "—"}
+                      {kindLabel ? ` · ${kindLabel}` : ""}
+                    </div>
+                  </div>
+                  {t.published ? (
+                    <Link
+                      to={`/student/dpp/${t.id}/attempt`}
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#3b5bdb]/15 text-[#818cf8] border border-[#3b5bdb]/25 hover:bg-[#3b5bdb]/25 transition-colors shrink-0"
+                    >
+                      <Play className="w-3 h-3" /> Attempt
+                    </Link>
+                  ) : (
+                    <span className="text-[10px] text-[#46465a] shrink-0">Not published</span>
+                  )}
                 </div>
-                {t.published ? (
-                  <Link
-                    to={`/student/dpp/${t.id}/attempt`}
-                    className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#3b5bdb]/15 text-[#818cf8] border border-[#3b5bdb]/25 hover:bg-[#3b5bdb]/25 transition-colors shrink-0"
-                  >
-                    <Play className="w-3 h-3" /> Attempt
-                  </Link>
-                ) : (
-                  <span className="text-[10px] text-[#46465a] shrink-0">Not published</span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </GlassCard>
       )}
@@ -215,13 +246,13 @@ export default function Tests() {
         <GlassCard className="p-5">
           <SectionLabel>
             <span className="inline-flex items-center gap-2">
-              <BarChart2 className="w-3.5 h-3.5" /> Subject averages (from MarksService)
+              <BarChart2 className="w-3.5 h-3.5" /> Subject averages
             </span>
           </SectionLabel>
           <div className="space-y-2">
             {bySubject.map((s) => (
               <div key={s.subject} className="flex items-center justify-between text-sm">
-                <span className="text-[#a0aec0]">{s.subject}</span>
+                <span className="text-[#a0aec0]">{displaySubject(s.subject) || s.subject}</span>
                 <span className="font-black text-white">{s.score}%</span>
               </div>
             ))}

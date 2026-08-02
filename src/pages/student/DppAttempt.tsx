@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Send, Timer } from "lucide-react";
 import { QuestionRenderer, DppQuestion, Response } from "@/components/dpp/QuestionRenderer";
 import { toast } from "sonner";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
+import { displaySubject } from "@/lib/academicPresentation";
 
 export default function DppAttempt() {
   const { id } = useParams<{ id: string }>();
@@ -152,7 +153,10 @@ export default function DppAttempt() {
       </div>
 
       <div className="mb-3">
-        <div className="text-xs text-muted-foreground mb-1">{String(dpp?.title ?? "Test")}</div>
+        <div className="text-xs text-muted-foreground mb-1">
+          {String(dpp?.title ?? "Test")}
+          {dpp?.subject ? ` · ${displaySubject(String(dpp.subject))}` : ""}
+        </div>
         <div className="flex gap-1 flex-wrap">
           {questions.map((qq, i) => {
             const ans = responses[qq.id] && Object.keys(responses[qq.id]).length > 0;

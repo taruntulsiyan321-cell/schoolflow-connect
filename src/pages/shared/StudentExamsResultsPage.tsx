@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import {
+  EXAM_TYPE_LABELS,
+  MarksService,
+  useAcademicContext,
+} from "@/academic";
+import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { displaySubject } from "@/lib/academicPresentation";
 import {
   Calendar,
   CalendarClock,
@@ -16,23 +21,18 @@ import {
   TrendingUp,
   Award,
 } from "lucide-react";
-import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
+import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import "@/components/student/dashboard/student-dashboard.css";
 
 const typeColors: Record<string, string> = {
   class_test: "bg-blue-500/10 text-blue-700 border-blue-500/25",
   unit_test: "bg-violet-500/10 text-violet-700 border-violet-500/25",
+  monthly_test: "bg-sky-500/10 text-sky-700 border-sky-500/25",
+  mid_term: "bg-indigo-500/10 text-indigo-700 border-indigo-500/25",
   half_yearly: "bg-amber-500/10 text-amber-800 border-amber-500/25",
+  annual: "bg-red-500/10 text-red-700 border-red-500/25",
   final: "bg-red-500/10 text-red-700 border-red-500/25",
   other: "bg-muted text-muted-foreground border-border",
-};
-
-const typeLabels: Record<string, string> = {
-  class_test: "Class Test",
-  unit_test: "Unit Test",
-  half_yearly: "Half Yearly",
-  final: "Final",
-  other: "Other",
 };
 
 function scoreTone(pct: number) {
@@ -41,71 +41,88 @@ function scoreTone(pct: number) {
   return { text: "text-red-700", bar: "bg-red-500", bg: "from-red-50 to-white border-red-200/60" };
 }
 
+function examTypeLabel(type: string | null | undefined) {
+  if (!type) return "Exam";
+  return EXAM_TYPE_LABELS[type] ?? type;
+}
+
 export default function StudentExamsResultsPage() {
-  const { user } = useAuth();
+  const { ctx, ready, studentId, classId } = useAcademicContext();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get("tab") === "results" ? "results" : "schedule";
 
-  const [exams, setExams] = useState<any[]>([]);
-  const [marks, setMarks] = useState<any[]>([]);
+  const [exams, setExams] = useState<ExamRecord[]>([]);
+  const [marks, setMarks] = useState<MarksRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    if (!ready || !ctx || !studentId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const settled = await Promise.allSettled([
+        classId
+          ? MarksService.listExamsForClass(ctx, classId, { limit: 100 })
+          : Promise.resolve([] as ExamRecord[]),
+        MarksService.listForStudent(ctx, studentId, { limit: 100 }),
+      ]);
+      setExams(settled[0].status === "fulfilled" ? settled[0].value : []);
+      setMarks(settled[1].status === "fulfilled" ? settled[1].value : []);
+      if (settled[0].status === "rejected" && settled[1].status === "rejected") {
+        setError("Could not load exams");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load exams");
+      setExams([]);
+      setMarks([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      setLoading(true);
-      const { data: s } = await supabase
-        .from("students")
-        .select("id, class_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      const examPromise = s?.class_id
-        ? supabase
-            .from("exams")
-            .select("*")
-            .eq("class_id", s.class_id)
-            .order("exam_date", { ascending: false })
-        : Promise.resolve({ data: [] as any[] });
-
-      const marksPromise = s?.id
-        ? supabase
-            .from("marks")
-            .select("*, exams(name, subject, max_marks, exam_date, exam_type)")
-            .eq("student_id", s.id)
-            .order("created_at", { ascending: false })
-        : Promise.resolve({ data: [] as any[] });
-
-      const [{ data: examList }, { data: markList }] = await Promise.all([examPromise, marksPromise]);
-      setExams(examList ?? []);
-      setMarks(markList ?? []);
-      setLoading(false);
-    })();
-  }, [user]);
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, ctx, studentId, classId]);
 
   const today = new Date().toISOString().split("T")[0];
   const upcoming = useMemo(
-    () => exams.filter((e) => e.exam_date && e.exam_date >= today).sort((a, b) => (a.exam_date > b.exam_date ? 1 : -1)),
+    () =>
+      exams
+        .filter((e) => e.examDate && e.examDate >= today)
+        .sort((a, b) => String(a.examDate).localeCompare(String(b.examDate))),
     [exams, today],
   );
-  const past = useMemo(() => exams.filter((e) => !e.exam_date || e.exam_date < today), [exams, today]);
+  const past = useMemo(
+    () => exams.filter((e) => !e.examDate || e.examDate < today),
+    [exams, today],
+  );
+
+  const examById = useMemo(() => new Map(exams.map((e) => [e.id, e])), [exams]);
 
   const avgPct = useMemo(() => {
-    const scored = marks.filter((m) => m.exams?.max_marks);
+    const scored = marks
+      .map((m) => {
+        const exam = examById.get(m.examId);
+        const max = exam?.maxMarks ?? 0;
+        if (!max) return null;
+        return (m.marksObtained / max) * 100;
+      })
+      .filter((v): v is number => v != null);
     if (!scored.length) return null;
-    const sum = scored.reduce(
-      (acc, m) => acc + (Number(m.marks_obtained) / Number(m.exams.max_marks)) * 100,
-      0,
-    );
-    return Math.round(sum / scored.length);
-  }, [marks]);
+    return Math.round(scored.reduce((a, b) => a + b, 0) / scored.length);
+  }, [marks, examById]);
 
   const setTab = (value: string) => {
     if (value === "results") setSearchParams({ tab: "results" });
     else setSearchParams({});
   };
 
-  if (loading) {
+  if (!ready || loading) {
     return (
       <div className="sd-dashboard max-w-4xl mx-auto">
         <StudentListSkeleton rows={6} />
@@ -113,9 +130,24 @@ export default function StudentExamsResultsPage() {
     );
   }
 
+  if (!studentId) {
+    return (
+      <div className="sd-dashboard max-w-4xl mx-auto py-12 text-center text-sm text-muted-foreground">
+        No student profile linked to this account.
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="sd-dashboard max-w-4xl mx-auto">
+        <StudentErrorState title="Could not load exams" message={error} onRetry={load} />
+      </div>
+    );
+  }
+
   return (
     <div className="sd-dashboard student-premium max-w-4xl mx-auto space-y-6 pb-8">
-      {/* Hero */}
       <section className="sd-hero rounded-[1.75rem] overflow-hidden relative text-primary-foreground p-6 sm:p-8">
         <div className="sd-hero-glow absolute inset-0 pointer-events-none" />
         <div className="relative z-10">
@@ -213,12 +245,13 @@ export default function StudentExamsResultsPage() {
         <TabsContent value="results" className="mt-5 space-y-3">
           {marks.length > 0 ? (
             marks.map((r) => {
-              const max = Number(r.exams?.max_marks) || 0;
-              const obtained = Number(r.marks_obtained);
+              const exam = examById.get(r.examId);
+              const max = exam?.maxMarks ?? 0;
+              const obtained = Number(r.marksObtained);
               const pct = max ? (obtained / max) * 100 : 0;
               const tone = scoreTone(pct);
-              const dateStr = r.exams?.exam_date
-                ? new Date(r.exams.exam_date).toLocaleDateString("en-IN", {
+              const dateStr = exam?.examDate
+                ? new Date(exam.examDate).toLocaleDateString("en-IN", {
                     day: "numeric",
                     month: "short",
                     year: "numeric",
@@ -228,10 +261,7 @@ export default function StudentExamsResultsPage() {
               return (
                 <div
                   key={r.id}
-                  className={cn(
-                    "sd-card rounded-2xl p-5 border bg-gradient-to-br",
-                    tone.bg,
-                  )}
+                  className={cn("sd-card rounded-2xl p-5 border bg-gradient-to-br", tone.bg)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4 min-w-0">
@@ -239,10 +269,12 @@ export default function StudentExamsResultsPage() {
                         <Trophy className="w-5 h-5" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-foreground truncate">{r.exams?.name ?? "Exam"}</p>
+                        <p className="font-semibold text-foreground truncate">
+                          {exam?.name ?? "Exam"}
+                        </p>
                         <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
                           <BookOpen className="w-3.5 h-3.5 shrink-0" />
-                          {r.exams?.subject ?? "Subject"}
+                          {displaySubject(exam?.subject ?? "") || "—"}
                           {dateStr && (
                             <>
                               <span className="text-border">·</span>
@@ -251,12 +283,15 @@ export default function StudentExamsResultsPage() {
                             </>
                           )}
                         </p>
-                        {r.exams?.exam_type && (
+                        {exam?.examType && (
                           <Badge
                             variant="outline"
-                            className={cn("mt-2 text-[10px]", typeColors[r.exams.exam_type] || typeColors.other)}
+                            className={cn(
+                              "mt-2 text-[10px]",
+                              typeColors[exam.examType] || typeColors.other,
+                            )}
                           >
-                            {typeLabels[r.exams.exam_type] || r.exams.exam_type}
+                            {examTypeLabel(exam.examType)}
                           </Badge>
                         )}
                       </div>
@@ -264,22 +299,26 @@ export default function StudentExamsResultsPage() {
                     <div className="text-right shrink-0">
                       <p className={cn("text-2xl font-bold tabular-nums", tone.text)}>
                         {obtained}
-                        <span className="text-base font-medium text-muted-foreground">/{max}</span>
+                        <span className="text-base font-medium text-muted-foreground">/{max || "—"}</span>
                       </p>
-                      <p className={cn("text-sm font-semibold tabular-nums", tone.text)}>{pct.toFixed(0)}%</p>
+                      <p className={cn("text-sm font-semibold tabular-nums", tone.text)}>
+                        {max ? `${pct.toFixed(0)}%` : "—"}
+                      </p>
                     </div>
                   </div>
-                  <div className="mt-4">
-                    <Progress
-                      value={pct}
-                      className={cn(
-                        "h-2 bg-black/5",
-                        pct >= 75 && "[&>div]:bg-emerald-500",
-                        pct >= 40 && pct < 75 && "[&>div]:bg-amber-500",
-                        pct < 40 && "[&>div]:bg-red-500",
-                      )}
-                    />
-                  </div>
+                  {max > 0 && (
+                    <div className="mt-4">
+                      <Progress
+                        value={pct}
+                        className={cn(
+                          "h-2 bg-black/5",
+                          pct >= 75 && "[&>div]:bg-emerald-500",
+                          pct >= 40 && pct < 75 && "[&>div]:bg-amber-500",
+                          pct < 40 && "[&>div]:bg-red-500",
+                        )}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -298,9 +337,9 @@ export default function StudentExamsResultsPage() {
   );
 }
 
-function ExamCard({ exam, isUpcoming }: { exam: any; isUpcoming?: boolean }) {
-  const dateStr = exam.exam_date
-    ? new Date(exam.exam_date).toLocaleDateString("en-IN", {
+function ExamCard({ exam, isUpcoming }: { exam: ExamRecord; isUpcoming?: boolean }) {
+  const dateStr = exam.examDate
+    ? new Date(exam.examDate).toLocaleDateString("en-IN", {
         weekday: "short",
         day: "numeric",
         month: "short",
@@ -308,8 +347,8 @@ function ExamCard({ exam, isUpcoming }: { exam: any; isUpcoming?: boolean }) {
       })
     : "Date TBD";
 
-  const daysUntil = exam.exam_date
-    ? Math.ceil((new Date(exam.exam_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  const daysUntil = exam.examDate
+    ? Math.ceil((new Date(exam.examDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
 
   return (
@@ -333,7 +372,7 @@ function ExamCard({ exam, isUpcoming }: { exam: any; isUpcoming?: boolean }) {
             <p className="font-semibold text-foreground">{exam.name}</p>
             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5 shrink-0" />
-              {exam.subject}
+              {displaySubject(exam.subject) || "—"}
             </p>
             <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1.5 flex-wrap">
               <Calendar className="w-3.5 h-3.5 shrink-0" />
@@ -347,11 +386,11 @@ function ExamCard({ exam, isUpcoming }: { exam: any; isUpcoming?: boolean }) {
           </div>
         </div>
         <div className="flex flex-col items-end gap-2 shrink-0">
-          <Badge variant="outline" className={typeColors[exam.exam_type] || typeColors.other}>
-            {typeLabels[exam.exam_type] || exam.exam_type}
+          <Badge variant="outline" className={typeColors[exam.examType] || typeColors.other}>
+            {examTypeLabel(exam.examType)}
           </Badge>
           <span className="text-xs font-medium text-muted-foreground tabular-nums">
-            Max {exam.max_marks} marks
+            Max {exam.maxMarks} marks
           </span>
         </div>
       </div>
