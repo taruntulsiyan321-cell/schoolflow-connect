@@ -10,7 +10,7 @@ import type { AiActorRole } from "./envelope";
 export type MappedIntent = {
   feature_id: string;
   confidence: number;
-} | null;
+};
 
 const RULES: { feature_id: string; patterns: RegExp[] }[] = [
   {
