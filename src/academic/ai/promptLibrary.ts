@@ -87,6 +87,36 @@ export const BUILTIN_PROMPTS: PromptRecord[] = [
     caching_eligible: true,
     metadata: { source: "builtin" },
   },
+  {
+    capability_id: "student.image_doubt.solve",
+    version: "v1",
+    status: "production",
+    audience: "student",
+    system_template:
+      "You tutor from reconstructed question text and approved retrieval snippets only. Never invent mastery, attendance, or marks percentages. Prefer stepwise guidance over answer dumping. Keep under 180 words.",
+    user_template:
+      "Grounding facts JSON:\n{{facts}}\n\nStudent question: {{question}}\n\nExplain briefly using only these facts.",
+    output_schema: { type: "plain_text", max_words: 180 },
+    max_output_tokens: 400,
+    temperature: 0.15,
+    caching_eligible: true,
+    metadata: { source: "builtin" },
+  },
+  {
+    capability_id: "teacher.question_paper.marking_scheme",
+    version: "v1",
+    status: "production",
+    audience: "teacher",
+    system_template:
+      "You draft a short marking scheme from the provided paper outline only. Never invent chapter lists or change total marks. Do not write a full paper body. Keep under 220 words. Use the facts JSON as the only source of totals.",
+    user_template:
+      "Outline/facts JSON:\n{{facts}}\n\nTeacher notes: {{question}}\n\nWrite a brief marking scheme aligned to the outline.",
+    output_schema: { type: "plain_text", max_words: 220 },
+    max_output_tokens: 500,
+    temperature: 0.2,
+    caching_eligible: true,
+    metadata: { source: "builtin" },
+  },
 ];
 
 export function getBuiltinPrompt(capabilityId: string): PromptRecord | null {
@@ -121,6 +151,19 @@ export function resolveProductionPrompt(
 }
 
 /**
+ * Resolve shadow prompt when status is shadow (never auto-promotes).
+ */
+export function resolveShadowPrompt(
+  capabilityId: string,
+  dbRow?: PromptRecord | null,
+): PromptRecord | null {
+  if (dbRow && dbRow.status === "shadow" && dbRow.capability_id === capabilityId) {
+    return dbRow;
+  }
+  return null;
+}
+
+/**
  * Load production prompt via RPC `ai_prompt_load_production`, else builtin.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -139,4 +182,25 @@ export async function loadProductionPrompt(
     // offline / migration not applied
   }
   return getBuiltinPrompt(capabilityId);
+}
+
+/**
+ * Load shadow prompt via RPC `ai_prompt_load_shadow` when present.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function loadShadowPrompt(
+  client: any,
+  capabilityId: string,
+): Promise<PromptRecord | null> {
+  try {
+    const rpc = await client.rpc("ai_prompt_load_shadow", {
+      p_capability_id: capabilityId,
+    });
+    if (!rpc.error && rpc.data && typeof rpc.data === "object") {
+      return resolveShadowPrompt(capabilityId, rpc.data as PromptRecord);
+    }
+  } catch {
+    // offline / migration not applied
+  }
+  return null;
 }

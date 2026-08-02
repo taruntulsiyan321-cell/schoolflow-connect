@@ -14,6 +14,10 @@ export type SchoolHealthAggregateInput = {
   avg_exams_pct?: number | null;
   avg_mastery?: number | null;
   attendance_risk_band?: string | null;
+  homework_consistency_band?: string | null;
+  attendance_band_counts?: Record<string, number> | null;
+  homework_band_counts?: Record<string, number> | null;
+  at_risk_class_count?: number | null;
   weak_concept_count?: number | null;
   revision_queue_depth?: number | null;
   source_as_of?: string | null;
@@ -39,6 +43,10 @@ export type SchoolHealthBrief = {
     avg_exams_pct: number | null;
     avg_mastery: number | null;
     attendance_risk_band: string | null;
+    homework_consistency_band: string | null;
+    attendance_band_counts: Record<string, number> | null;
+    homework_band_counts: Record<string, number> | null;
+    at_risk_class_count: number | null;
     weak_concept_count: number | null;
     revision_queue_depth: number | null;
   };
@@ -74,6 +82,10 @@ export function buildSchoolHealthBrief(input: SchoolHealthAggregateInput): Schoo
     avg_exams_pct: finiteOrNull(input.avg_exams_pct),
     avg_mastery: finiteOrNull(input.avg_mastery),
     attendance_risk_band: input.attendance_risk_band?.trim() || null,
+    homework_consistency_band: input.homework_consistency_band?.trim() || null,
+    attendance_band_counts: input.attendance_band_counts ?? null,
+    homework_band_counts: input.homework_band_counts ?? null,
+    at_risk_class_count: finiteOrNull(input.at_risk_class_count),
     weak_concept_count: finiteOrNull(input.weak_concept_count),
     revision_queue_depth: finiteOrNull(input.revision_queue_depth),
   };
@@ -114,6 +126,20 @@ export function buildSchoolHealthBrief(input: SchoolHealthAggregateInput): Schoo
   }
   if (metrics.attendance_risk_band) {
     bullets.push(`Attendance risk band (EIE): ${metrics.attendance_risk_band}.`);
+  }
+  if (metrics.homework_consistency_band) {
+    bullets.push(`Homework consistency band (EIE): ${metrics.homework_consistency_band}.`);
+  }
+  if (metrics.attendance_band_counts) {
+    const elev =
+      (metrics.attendance_band_counts.elevated ?? 0) +
+      (metrics.attendance_band_counts.high ?? 0);
+    if (elev > 0) {
+      bullets.push(`Students in elevated/high attendance risk: ${elev}.`);
+    }
+  }
+  if (metrics.at_risk_class_count != null && metrics.at_risk_class_count > 0) {
+    bullets.push(`Classes with elevated academic risk signals: ${metrics.at_risk_class_count}.`);
   }
   if (metrics.weak_concept_count != null && metrics.weak_concept_count > 0) {
     bullets.push(`Weak concepts tracked: ${metrics.weak_concept_count}.`);

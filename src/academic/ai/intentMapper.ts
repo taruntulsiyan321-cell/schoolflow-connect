@@ -112,6 +112,30 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
     ],
   },
   {
+    feature_id: "student.image_doubt.solve",
+    patterns: [
+      /\b(solve|explain|tutor)\b.+\b(image|photo|ocr|reconstructed)\b.+\b(doubt|question|problem)\b/i,
+      /\breconstructed\b.+\bquestion\b/i,
+      /\bafter\b.+\bocr\b.+\b(explain|solve|tutor)\b/i,
+    ],
+  },
+  {
+    feature_id: "student.voice_doubt.submit",
+    patterns: [
+      /\b(upload|submit|send|record)\b.+\b(voice|audio|recording)\b.+\b(doubt|question)\b/i,
+      /\bvoice\s*doubt\b/i,
+      /\bspeak\b.+\b(my question|doubt)\b/i,
+    ],
+  },
+  {
+    feature_id: "teacher.question_paper.marking_scheme",
+    patterns: [
+      /\bmarking\s*scheme\b/i,
+      /\b(answer\s*key|mark\s*scheme)\b.+\b(paper|outline)\b/i,
+      /\bgenerate\b.+\bmarking\b/i,
+    ],
+  },
+  {
     feature_id: "student.recommendation.next",
     patterns: [
       /\bwhat should I (practi[sc]e|study|do next)\b/i,

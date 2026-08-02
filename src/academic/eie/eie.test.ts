@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bandFromScore,
   buildStudentEducationalIntelligence,
+  buildSchoolRiskRollups,
   EIE_ALGORITHM_ID,
   isStrongBand,
   isWeakBand,
@@ -78,5 +79,16 @@ describe("EIE mastery thresholds", () => {
     });
     expect(a).toEqual(b);
     expect(a.weak_concepts[0]?.band).toBe("weak");
+  });
+
+  it("builds school risk rollups from academic profiles only", () => {
+    const rollup = buildSchoolRiskRollups([
+      { class_id: "c1", attendance_pct: 60, homework_completion_pct: 40 },
+      { class_id: "c1", attendance_pct: 95, homework_completion_pct: 90 },
+    ]);
+    expect(rollup.algorithm_id).toBe("eie.school_rollup.v1");
+    expect(rollup.class_count).toBe(1);
+    expect(rollup.student_count).toBe(2);
+    expect(rollup.attendance_risk_band).not.toBe("unknown");
   });
 });

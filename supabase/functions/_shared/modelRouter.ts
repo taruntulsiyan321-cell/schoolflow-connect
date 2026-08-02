@@ -12,6 +12,7 @@ import {
 } from "./reasoningBudget.ts";
 import {
   loadProductionPrompt,
+  loadShadowPrompt,
   renderPromptTemplate,
   type PromptRecord,
 } from "./promptLibrary.ts";
@@ -20,6 +21,7 @@ import {
   planFailureRecovery,
   DEFAULT_PROVIDER_RETRY,
 } from "./failureRecovery.ts";
+import { selectPromptWithShadow } from "./promptEvaluation.ts";
 
 const DEFAULT_MODEL = "qwen/qwen-2.5-72b-instruct";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -207,7 +209,7 @@ export async function completeWithQwen(input: {
 }
 
 /**
- * Complete using Prompt Library production contract for a capability.
+ * Complete using Prompt Library production (or shadow % traffic) contract.
  * Falls back to builtin templates when DB row is missing.
  */
 export async function completeWithPromptLibrary(input: {
@@ -218,8 +220,39 @@ export async function completeWithPromptLibrary(input: {
   budget_tier?: ReasoningTier;
   max_tokens?: number;
   temperature?: number;
-}): Promise<ModelRouterResult & { prompt?: PromptRecord }> {
-  const prompt = await loadProductionPrompt(input.admin, input.capability_id);
+  request_id?: string | null;
+  /** 0–100 from ai.prompt.shadow_traffic feature flag metadata. */
+  shadow_percent?: number;
+}): Promise<
+  ModelRouterResult & {
+    prompt?: PromptRecord;
+    prompt_selected_status?: "production" | "shadow" | "builtin";
+    shadow_sampled?: boolean;
+  }
+> {
+  const production = await loadProductionPrompt(input.admin, input.capability_id);
+  let shadow: PromptRecord | null = null;
+  const shadowPct = input.shadow_percent ?? 0;
+  if (shadowPct > 0) {
+    shadow = await loadShadowPrompt(input.admin, input.capability_id);
+  }
+  const selected = selectPromptWithShadow({
+    production,
+    shadow,
+    request_id: input.request_id,
+    shadow_percent: shadowPct,
+  });
+  const prompt = selected.prompt;
+  if (!prompt) {
+    return {
+      ok: false,
+      error: "prompt_missing",
+      degraded: true,
+      budget_tier: input.budget_tier,
+      prompt_selected_status: selected.selected_status,
+      shadow_sampled: selected.shadow_sampled,
+    };
+  }
   const system = renderPromptTemplate(prompt.system_template, input.vars);
   const user = renderPromptTemplate(prompt.user_template, input.vars);
   const result = await completeWithQwen({
@@ -229,5 +262,10 @@ export async function completeWithPromptLibrary(input: {
     max_tokens: input.max_tokens ?? prompt.max_output_tokens,
     temperature: input.temperature ?? prompt.temperature,
   });
-  return { ...result, prompt };
+  return {
+    ...result,
+    prompt,
+    prompt_selected_status: selected.selected_status,
+    shadow_sampled: selected.shadow_sampled,
+  };
 }

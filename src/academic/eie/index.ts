@@ -24,3 +24,12 @@ export {
   type HomeworkConsistencyProduct,
   type RiskBand,
 } from "./riskProducts";
+
+export {
+  buildSchoolRiskRollups,
+  EIE_SCHOOL_ROLLUP_ALGORITHM_ID,
+  type ProfileRollupRow,
+  type ClassRiskRollup,
+  type SchoolRiskRollup,
+  type BandHistogram,
+} from "./schoolRollups";

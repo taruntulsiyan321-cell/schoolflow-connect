@@ -109,8 +109,10 @@ export {
   BUILTIN_PROMPTS,
   getBuiltinPrompt,
   loadProductionPrompt,
+  loadShadowPrompt,
   renderPromptTemplate,
   resolveProductionPrompt,
+  resolveShadowPrompt,
   type PromptRecord,
   type PromptStatus,
 } from "./promptLibrary";
@@ -218,6 +220,13 @@ export {
 } from "./questionPaperOutline";
 
 export {
+  buildQuestionPaperMarkingScheme,
+  renderMarkingSchemePrompt,
+  type QuestionPaperMarkingScheme,
+  type MarkingSchemeInput,
+} from "./questionPaperMarkingScheme";
+
+export {
   buildSchoolHealthBrief,
   type SchoolHealthBrief,
   type SchoolHealthAggregateInput,
@@ -232,6 +241,23 @@ export {
   type OcrPipelineResult,
   type ImageDoubtSubmitResult,
 } from "./multimodalPipeline";
+
+export {
+  runImageDoubtSolve,
+  gateImageDoubtSolveConfidence,
+  renderImageDoubtSolvePrompt,
+  IMAGE_DOUBT_CONFIDENCE_THRESHOLD,
+  type ImageDoubtSolveResult,
+  type ImageDoubtSolveInput,
+} from "./imageDoubtSolve";
+
+export {
+  validateVoiceMetadata,
+  runVoiceDoubtSubmit,
+  isSttProviderConfigured,
+  type VoiceDoubtSubmitResult,
+  type VoiceMediaMetadata,
+} from "./voiceDoubtSubmit";
 
 export {
   BUILTIN_BENCHMARK_SUITES,
@@ -251,7 +277,12 @@ export {
   feedbackMayTriggerReevaluation,
   promotePromptVersion,
   normalizePromptEvalStatus,
+  shouldUseShadowPrompt,
+  parseShadowPromptFlag,
+  selectPromptWithShadow,
   type PromptEvalStatus,
+  type ShadowPromptFlag,
+  type ResolvedPromptSelection,
 } from "./promptEvaluation";
 
 export {

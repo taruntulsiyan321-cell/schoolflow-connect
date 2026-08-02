@@ -126,6 +126,24 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     description:
       "Submit image doubt media; run validate→safety→OCR until clarify/OCR-missing — never invent problem text",
   },
+  "student.image_doubt.solve": {
+    feature_id: "student.image_doubt.solve",
+    route_class: "multimodal",
+    model_policy: "optional_explain",
+    allowed_roles: ["student", "teacher", "admin"],
+    requires_student_target: true,
+    description:
+      "Gated post-OCR tutoring: requires reconstructed_question + extraction_confidence; cache→KMS→model with Validator/Confidence",
+  },
+  "student.voice_doubt.submit": {
+    feature_id: "student.voice_doubt.submit",
+    route_class: "multimodal",
+    model_policy: "never",
+    allowed_roles: ["student", "teacher", "admin"],
+    requires_student_target: true,
+    description:
+      "Submit voice doubt audio; run validate→safety→STT until clarify/STT-missing — never invent transcript",
+  },
   "teacher.question_paper.plan": {
     feature_id: "teacher.question_paper.plan",
     route_class: "content_generation",
@@ -143,6 +161,15 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     requires_student_target: false,
     description:
       "Step-1 paper outline from plan + Context Builder + Prompt Library + Qwen + Validator (no marking scheme)",
+  },
+  "teacher.question_paper.marking_scheme": {
+    feature_id: "teacher.question_paper.marking_scheme",
+    route_class: "content_generation",
+    model_policy: "required_when_budget",
+    allowed_roles: ["teacher", "admin"],
+    requires_student_target: false,
+    description:
+      "Step-2 marking scheme after outline exists in session memory; Qwen + Validator; kill-switch safe",
   },
   "principal.school.health_brief": {
     feature_id: "principal.school.health_brief",

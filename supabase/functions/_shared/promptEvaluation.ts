@@ -3,7 +3,7 @@
  * Feedback can trigger re-eval candidates; never auto-promotes.
  */
 
-import type { PromptStatus } from "./promptLibrary";
+import type { PromptStatus } from "./promptLibrary.ts";
 
 export type PromptEvalStatus =
   | "draft"

@@ -38,13 +38,26 @@ import {
   buildQuestionPaperOutline,
   renderOutlinePrompt,
 } from "./questionPaperOutline.ts";
+import {
+  buildQuestionPaperMarkingScheme,
+  renderMarkingSchemePrompt,
+} from "./questionPaperMarkingScheme.ts";
 import { runImageDoubtSubmit } from "./multimodalPipeline.ts";
+import {
+  runImageDoubtSolve,
+  renderImageDoubtSolvePrompt,
+} from "./imageDoubtSolve.ts";
+import { runVoiceDoubtSubmit } from "./voiceDoubtSubmit.ts";
 import { buildSchoolHealthBrief } from "./schoolHealthBrief.ts";
+import { buildSchoolRiskRollups } from "./schoolRollups.ts";
+import { parseShadowPromptFlag } from "./promptEvaluation.ts";
 
 export type KillSwitches = {
   gatewayEnabled: boolean;
   deterministicEnabled: boolean;
   generativeEnabled: boolean;
+  /** Prompt Evaluation shadow traffic % (0–100). */
+  shadowPromptPercent: number;
 };
 
 export type RouterActor = {
@@ -106,8 +119,13 @@ export async function loadKillSwitches(
 ): Promise<KillSwitches> {
   const { data } = await admin
     .from("ai_feature_flags")
-    .select("flag_key, enabled, school_id")
-    .in("flag_key", ["ai.gateway.enabled", "ai.deterministic.enabled", "ai.generative.enabled"]);
+    .select("flag_key, enabled, school_id, metadata")
+    .in("flag_key", [
+      "ai.gateway.enabled",
+      "ai.deterministic.enabled",
+      "ai.generative.enabled",
+      "ai.prompt.shadow_traffic",
+    ]);
 
   const flags = data ?? [];
   const read = (key: string, fallback: boolean): boolean => {
@@ -119,10 +137,22 @@ export async function loadKillSwitches(
     return global ? !!global.enabled : fallback;
   };
 
+  const shadowRow =
+    (schoolId
+      ? flags.find((f) => f.flag_key === "ai.prompt.shadow_traffic" && f.school_id === schoolId)
+      : null) ??
+    flags.find((f) => f.flag_key === "ai.prompt.shadow_traffic" && f.school_id == null);
+
+  const shadowParsed = parseShadowPromptFlag(
+    !!shadowRow?.enabled,
+    (shadowRow?.metadata as Record<string, unknown> | null) ?? null,
+  );
+
   return {
     gatewayEnabled: read("ai.gateway.enabled", true),
     deterministicEnabled: read("ai.deterministic.enabled", true),
     generativeEnabled: read("ai.generative.enabled", true),
+    shadowPromptPercent: shadowParsed.percent,
   };
 }
 
@@ -1168,6 +1198,8 @@ export async function routeAiRequest(
           capability_id: cap.feature_id,
           vars: { facts: factsJson, question: req.input_text ?? "" },
           budget_tier,
+          request_id: req.request_id,
+          shadow_percent: flags.shadowPromptPercent,
         });
 
         if (!modelResult.ok) {
@@ -1446,6 +1478,8 @@ export async function routeAiRequest(
               question: planInput.teacher_notes?.trim() || "Generate a section outline only.",
             },
             budget_tier: "medium",
+            request_id: req.request_id,
+            shadow_percent: flags.shadowPromptPercent,
           });
           if (modelResult.ok) {
             modelText = modelResult.text;
@@ -1470,6 +1504,17 @@ export async function routeAiRequest(
           ...outline,
           session_memory: sessionForContext,
           workflow_id: "teacher.question_paper.outline.v1",
+          session_patch: buildSessionSummaryPatch({
+            last_feature_id: cap.feature_id,
+            last_decision:
+              outline.mode === "outline_with_model" ? "answered_model" : "answered_facts_only",
+            plan_hash: outline.plan_hash,
+            flags: {
+              outline_ready: Boolean(outline.outline_text || outline.mode === "plan_only"),
+              outline_text: outline.outline_text,
+              plan_hash: outline.plan_hash,
+            },
+          }),
         };
         used_model = outlineUsedModel;
         model_id = outlineModelId;
@@ -1534,6 +1579,283 @@ export async function routeAiRequest(
         };
         break;
       }
+      case "student.image_doubt.solve": {
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied",
+            error_code: "student_required",
+            message: "Student target required",
+            route_class: cap.route_class,
+          });
+        }
+        const structured = req.input_structured ?? {};
+        const reconstructed =
+          structured.reconstructed_question != null
+            ? String(structured.reconstructed_question)
+            : req.input_text;
+        const extractionConfidence =
+          structured.extraction_confidence != null
+            ? Number(structured.extraction_confidence)
+            : null;
+
+        const cacheKeySolve = `${cap.feature_id}:${studentId}:${String(reconstructed ?? "").slice(0, 80)}`;
+        let cachedExplanation: string | null = null;
+        const cachedPayload = await readL2Cache(admin, req.actor.schoolId, cacheKeySolve);
+        if (cachedPayload && typeof cachedPayload === "object") {
+          const exp = (cachedPayload as { explanation?: unknown }).explanation;
+          if (typeof exp === "string" && exp.trim()) {
+            cachedExplanation = exp.trim();
+            cache_hit = true;
+          }
+        }
+
+        let snippets: string[] = [];
+        const retrieveQuery = String(reconstructed ?? "").trim();
+        if (retrieveQuery && !cachedExplanation) {
+          const retrievalPack = await retrieveKmsChunks(admin, {
+            school_id: req.actor.schoolId,
+            query: retrieveQuery,
+            role:
+              req.actor.role === "super_admin"
+                ? "admin"
+                : (req.actor.role as "admin" | "teacher" | "student" | "parent" | "principal"),
+            limit: 5,
+          });
+          snippets = (retrievalPack?.hits ?? [])
+            .map((h) => String(h.chunk_text ?? "").trim())
+            .filter(Boolean);
+        }
+
+        let modelText: string | null = null;
+        let modelError: string | null = null;
+        if (mayCallModel && !cachedExplanation) {
+          const rendered = renderImageDoubtSolvePrompt({
+            question: String(reconstructed ?? ""),
+            retrieval_snippets: snippets,
+          });
+          const modelResult = await completeWithPromptLibrary({
+            admin,
+            capability_id: "student.image_doubt.solve",
+            vars: {
+              facts: rendered.facts_json,
+              question: String(reconstructed ?? ""),
+            },
+            budget_tier: "medium",
+            request_id: req.request_id,
+            shadow_percent: flags.shadowPromptPercent,
+          });
+          if (modelResult.ok) {
+            modelText = modelResult.text;
+            used_model = true;
+            model_id = modelResult.model_id;
+          } else {
+            modelError = modelResult.error;
+          }
+        } else if (!mayCallModel) {
+          modelError = !flags.generativeEnabled
+            ? "generative_kill_switch"
+            : "openrouter_not_configured";
+        }
+
+        const solve = runImageDoubtSolve({
+          reconstructed_question: reconstructed,
+          extraction_confidence: extractionConfidence,
+          cached_explanation: cachedExplanation,
+          retrieval_snippets: snippets,
+          model_text: modelText,
+          may_call_model: mayCallModel,
+          model_error: modelError,
+        });
+        if (solve.status === "model" && solve.explanation) {
+          await writeL2Cache(admin, {
+            schoolId: req.actor.schoolId,
+            cacheKey: cacheKeySolve,
+            featureId: cap.feature_id,
+            studentId,
+            dataVersion: `img_solve:${solve.extraction_confidence}`,
+            payload: { explanation: solve.explanation },
+          });
+        }
+        data = {
+          ...solve,
+          session_memory: sessionForContext,
+        };
+        used_model = solve.used_model;
+        decision =
+          solve.status === "clarify"
+            ? "degraded"
+            : solve.status === "cache_hit"
+              ? "answered_cache"
+              : solve.status === "model"
+                ? "answered_model"
+                : solve.status === "retrieval"
+                  ? "answered_retrieval"
+                  : "answered_facts_only";
+        provenance = {
+          invented_problem_text: false,
+          stop_reason: solve.stop_reason,
+          workflow_id: solve.workflow_id,
+          completeness: solve.status === "clarify" ? 0.2 : 0.75,
+          data_version: `image_solve:${solve.stop_reason}`,
+          needs_clarification: solve.status === "clarify",
+          confidence: solve.confidence,
+        };
+        break;
+      }
+      case "student.voice_doubt.submit": {
+        const structured = req.input_structured ?? {};
+        const audioRaw =
+          structured.audio && typeof structured.audio === "object"
+            ? (structured.audio as Record<string, unknown>)
+            : structured;
+        const meta = {
+          mime: String(audioRaw.mime ?? audioRaw.content_type ?? ""),
+          bytes: Number(audioRaw.bytes ?? audioRaw.size ?? 0),
+          duration_ms: audioRaw.duration_ms != null ? Number(audioRaw.duration_ms) : null,
+          sha256: audioRaw.sha256 != null ? String(audioRaw.sha256) : null,
+          media_ref: audioRaw.media_ref != null ? String(audioRaw.media_ref) : null,
+          malware_scan_status:
+            audioRaw.malware_scan_status === "stub_flagged" ||
+            audioRaw.malware_scan_status === "stub_pass" ||
+            audioRaw.malware_scan_status === "unchecked"
+              ? audioRaw.malware_scan_status
+              : null,
+          filename: audioRaw.filename != null ? String(audioRaw.filename) : null,
+        };
+        const submit = runVoiceDoubtSubmit(meta, {
+          env: {
+            STT_PROVIDER_API_KEY: Deno.env.get("STT_PROVIDER_API_KEY") ?? undefined,
+            GURUKUL_STT_API_KEY: Deno.env.get("GURUKUL_STT_API_KEY") ?? undefined,
+          },
+        });
+        data = {
+          ...submit,
+          session_memory: sessionForContext,
+        };
+        decision =
+          submit.status === "rejected"
+            ? "rejected"
+            : submit.status === "clarify"
+              ? "degraded"
+              : "answered_deterministic";
+        provenance = {
+          invented_transcript: false,
+          stop_reason: submit.stop_reason,
+          workflow_id: submit.workflow_id,
+          completeness: submit.status === "stt_ready" ? 0.6 : 0.2,
+          data_version: `voice_submit:${submit.stop_reason}`,
+          needs_clarification: submit.status === "clarify",
+        };
+        break;
+      }
+      case "teacher.question_paper.marking_scheme": {
+        const structured = req.input_structured ?? {};
+        const sessionSummary =
+          sessionForContext && typeof sessionForContext === "object"
+            ? (sessionForContext as Record<string, unknown>)
+            : {};
+        const flagsObj =
+          sessionSummary.flags && typeof sessionSummary.flags === "object"
+            ? (sessionSummary.flags as Record<string, unknown>)
+            : {};
+        const outlineFromSession =
+          (typeof flagsObj.outline_text === "string" && flagsObj.outline_text.trim()
+            ? flagsObj.outline_text
+            : null) ??
+          (typeof structured.outline_text === "string" ? structured.outline_text : null) ??
+          (typeof sessionSummary.outline_text === "string" ? sessionSummary.outline_text : null);
+        const planHash =
+          (typeof flagsObj.plan_hash === "string" ? flagsObj.plan_hash : null) ??
+          (typeof sessionSummary.plan_hash === "string" ? sessionSummary.plan_hash : null) ??
+          (typeof structured.plan_hash === "string" ? structured.plan_hash : null);
+        const outlineInSession = Boolean(
+          flagsObj.outline_ready === true ||
+            (outlineFromSession && outlineFromSession.trim().length > 0),
+        );
+
+        let modelText: string | null = null;
+        let modelError: string | null = null;
+        let schemeUsedModel = false;
+        let schemeModelId: string | undefined;
+
+        if (mayCallModel && outlineInSession && outlineFromSession) {
+          const rendered = renderMarkingSchemePrompt({
+            outline_text: outlineFromSession,
+            plan_hash: planHash,
+            subject: structured.subject != null ? String(structured.subject) : null,
+            total_marks:
+              structured.total_marks != null ? Number(structured.total_marks) : null,
+            teacher_notes:
+              structured.teacher_notes != null
+                ? String(structured.teacher_notes)
+                : req.input_text ?? null,
+          });
+          const modelResult = await completeWithPromptLibrary({
+            admin,
+            capability_id: "teacher.question_paper.marking_scheme",
+            vars: {
+              facts: rendered.facts_json,
+              question:
+                structured.teacher_notes != null
+                  ? String(structured.teacher_notes)
+                  : req.input_text?.trim() || "Draft marking scheme for this outline.",
+            },
+            budget_tier: "medium",
+            request_id: req.request_id,
+            shadow_percent: flags.shadowPromptPercent,
+          });
+          if (modelResult.ok) {
+            modelText = modelResult.text;
+            schemeUsedModel = true;
+            schemeModelId = modelResult.model_id;
+          } else {
+            modelError = modelResult.error;
+          }
+        } else if (!mayCallModel) {
+          modelError = !flags.generativeEnabled
+            ? "generative_kill_switch"
+            : "openrouter_not_configured";
+        }
+
+        const scheme = buildQuestionPaperMarkingScheme({
+          outline_in_session: outlineInSession,
+          plan_hash: planHash,
+          outline_text: outlineFromSession,
+          subject: structured.subject != null ? String(structured.subject) : null,
+          total_marks: structured.total_marks != null ? Number(structured.total_marks) : null,
+          may_call_model: mayCallModel,
+          model_text: modelText,
+          model_error: modelError,
+          teacher_notes:
+            structured.teacher_notes != null
+              ? String(structured.teacher_notes)
+              : req.input_text ?? null,
+        });
+        data = {
+          ...scheme,
+          session_memory: sessionForContext,
+          workflow_id: "teacher.question_paper.marking_scheme.v1",
+        };
+        used_model = schemeUsedModel;
+        model_id = schemeModelId;
+        decision =
+          scheme.mode === "scheme_with_model"
+            ? "answered_model"
+            : scheme.mode === "outline_required"
+              ? "degraded"
+              : "answered_facts_only";
+        provenance = {
+          dry_run: false,
+          generates_full_paper: false,
+          generates_marking_scheme: true,
+          plan_hash: scheme.plan_hash,
+          mode: scheme.mode,
+          completeness: scheme.mode === "scheme_with_model" ? 0.85 : 0.4,
+          data_version: scheme.plan_hash ?? "marking_scheme:empty",
+          degraded_reason: scheme.degraded_reason,
+        };
+        break;
+      }
       case "principal.school.health_brief": {
         const schoolId = req.actor.schoolId;
         const [classes, students, teachers, profiles] = await Promise.all([
@@ -1552,7 +1874,7 @@ export async function routeAiRequest(
           admin
             .from("student_academic_profiles")
             .select(
-              "attendance_pct, exams_avg_pct, homework_completion_pct, tests_avg_pct, refreshed_at",
+              "student_id, attendance_pct, exams_avg_pct, homework_completion_pct, tests_avg_pct, refreshed_at",
             )
             .eq("school_id", schoolId)
             .limit(5000),
@@ -1571,10 +1893,13 @@ export async function routeAiRequest(
         let weakConceptCount: number | null = null;
         const { data: schoolStudents } = await admin
           .from("students")
-          .select("id")
+          .select("id, class_id")
           .eq("school_id", schoolId)
           .limit(2000);
         const studentIds = (schoolStudents ?? []).map((s) => String(s.id));
+        const classByStudent = new Map(
+          (schoolStudents ?? []).map((s) => [String(s.id), s.class_id ? String(s.class_id) : null]),
+        );
         if (studentIds.length) {
           const { data: masteryAgg } = await admin
             .from("concept_mastery")
@@ -1593,6 +1918,19 @@ export async function routeAiRequest(
           .sort()
           .at(-1) as string | undefined;
 
+        const rollupRows = rows.map((r) => {
+          const sid = String((r as { student_id?: string }).student_id ?? "");
+          return {
+            student_id: sid || null,
+            class_id: classByStudent.get(sid) ?? null,
+            attendance_pct: Number((r as { attendance_pct?: number }).attendance_pct ?? 0),
+            homework_completion_pct: Number(
+              (r as { homework_completion_pct?: number }).homework_completion_pct ?? 0,
+            ),
+          };
+        });
+        const riskRollup = buildSchoolRiskRollups(rollupRows);
+
         const brief = buildSchoolHealthBrief({
           school_id: schoolId,
           class_count: classes.count ?? 0,
@@ -1603,13 +1941,24 @@ export async function routeAiRequest(
           avg_tests_pct: avg("tests_avg_pct"),
           avg_exams_pct: avg("exams_avg_pct"),
           avg_mastery: avgMastery,
+          attendance_risk_band: riskRollup.attendance_risk_band,
+          homework_consistency_band: riskRollup.homework_consistency_band,
+          attendance_band_counts: riskRollup.attendance_band_counts,
+          homework_band_counts: riskRollup.homework_band_counts,
+          at_risk_class_count: riskRollup.at_risk_class_ids.length,
           weak_concept_count: weakConceptCount,
           source_as_of: latestRefresh ?? null,
-          data_version: `school_health:${n}:${avgMastery ?? "na"}`,
-          eie_algorithm_id: avgMastery != null ? "eie.mastery.v1" : null,
+          data_version: `school_health:${n}:${avgMastery ?? "na"}:${riskRollup.data_version}`,
+          eie_algorithm_id:
+            riskRollup.student_count > 0
+              ? riskRollup.algorithm_id
+              : avgMastery != null
+                ? "eie.mastery.v1"
+                : null,
         });
         data = {
           ...brief,
+          eie_school_rollups: riskRollup,
           session_memory: sessionForContext,
           workflow_id: "principal.school.health_brief.v1",
         };
@@ -1619,6 +1968,8 @@ export async function routeAiRequest(
           completeness: brief.completeness,
           data_version: brief.data_version,
           status: brief.status,
+          attendance_risk_band: riskRollup.attendance_risk_band,
+          homework_consistency_band: riskRollup.homework_consistency_band,
         };
         break;
       }
@@ -1909,6 +2260,8 @@ export async function routeAiRequest(
             question: req.input_text ?? `Explain ${concept.name}`,
           },
           budget_tier,
+          request_id: req.request_id,
+          shadow_percent: flags.shadowPromptPercent,
         });
 
         if (!modelResult.ok) {

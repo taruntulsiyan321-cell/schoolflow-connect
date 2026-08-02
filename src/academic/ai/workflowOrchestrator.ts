@@ -150,7 +150,7 @@ export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
     failure_policy: "safe_fail",
     session_memory_scope: "workflow",
     notes:
-      "Full image-doubt tutoring deferred — use student.image_doubt.submit for OCR gate.",
+      "Full OCR→tutor pipeline reserved. Post-OCR tutoring uses enabled student.image_doubt.solve.v1 after clarify-free text.",
     steps: [
       {
         step_id: "validate_media",
@@ -175,11 +175,21 @@ export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
         description: "Extraction confidence policy → clarify or continue",
       },
       {
+        step_id: "cache_lookup",
+        kind: "cache_lookup",
+        description: "Permission-safe solution cache before model",
+      },
+      {
+        step_id: "retrieve_kms",
+        kind: "context_assemble",
+        description: "Retrieve approved KMS chunks for reconstructed question",
+      },
+      {
         step_id: "router_doubt",
         kind: "router_invoke",
-        feature_id: "student.concept.explain",
+        feature_id: "student.image_doubt.solve",
         budget_ceiling: "medium",
-        description: "Route normalised text through standard doubt / concept path",
+        description: "Gated solve: model explain with Validator/Confidence",
       },
       {
         step_id: "validate_answer",
@@ -228,6 +238,80 @@ export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
       },
     ],
   },
+  "student.image_doubt.solve.v1": {
+    workflow_id: "student.image_doubt.solve.v1",
+    version: "v1",
+    capability_id: "student.image_doubt.solve",
+    allowed_audiences: ["student", "teacher", "admin"],
+    enabled: true,
+    failure_policy: "safe_fail",
+    session_memory_scope: "workflow",
+    notes:
+      "Gated post-OCR tutoring — requires reconstructed_question + extraction_confidence ≥ threshold.",
+    steps: [
+      {
+        step_id: "confidence_gate",
+        kind: "validate",
+        description: "Refuse low OCR / missing reconstructed question",
+      },
+      {
+        step_id: "cache_lookup",
+        kind: "cache_lookup",
+        description: "Permission-safe solution cache",
+      },
+      {
+        step_id: "retrieve_kms",
+        kind: "context_assemble",
+        description: "Retrieve approved KMS chunks",
+      },
+      {
+        step_id: "model_explain",
+        kind: "router_invoke",
+        feature_id: "student.image_doubt.solve",
+        budget_ceiling: "medium",
+        description: "Bounded Qwen explain when cache miss",
+      },
+      {
+        step_id: "validate_answer",
+        kind: "validate",
+        description: "Response Validator + Confidence Engine",
+      },
+    ],
+  },
+  "student.voice_doubt.submit.v1": {
+    workflow_id: "student.voice_doubt.submit.v1",
+    version: "v1",
+    capability_id: "student.voice_doubt.submit",
+    allowed_audiences: ["student", "teacher", "admin"],
+    enabled: true,
+    failure_policy: "safe_fail",
+    session_memory_scope: "workflow",
+    notes: "STT stub — clarifies when provider unset; never invents transcript.",
+    steps: [
+      {
+        step_id: "validate_media",
+        kind: "media_validate",
+        description: "Validate audio mime/size/duration",
+      },
+      {
+        step_id: "safety_screen",
+        kind: "stub",
+        description: "Safety & malware stub screen",
+      },
+      {
+        step_id: "stt_extract",
+        kind: "stub",
+        feature_id: "student.voice_doubt.submit",
+        budget_ceiling: "simple",
+        description: "STT extract or clarify when provider unset",
+      },
+      {
+        step_id: "confidence_gate",
+        kind: "validate",
+        description: "Stop at clarify when transcript missing/low",
+      },
+    ],
+  },
   "teacher.question_paper.outline.v1": {
     workflow_id: "teacher.question_paper.outline.v1",
     version: "v1",
@@ -268,6 +352,40 @@ export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
       },
     ],
   },
+  "teacher.question_paper.marking_scheme.v1": {
+    workflow_id: "teacher.question_paper.marking_scheme.v1",
+    version: "v1",
+    capability_id: "teacher.question_paper.marking_scheme",
+    allowed_audiences: ["teacher", "admin"],
+    enabled: true,
+    failure_policy: "safe_fail",
+    session_memory_scope: "workflow",
+    notes: "Requires outline in paper_gen session; Qwen + Validator; kill-switch safe.",
+    steps: [
+      {
+        step_id: "permission_purpose",
+        kind: "permission_check",
+        description: "Verify teacher assignment + purpose",
+      },
+      {
+        step_id: "session_outline_gate",
+        kind: "validate",
+        description: "Require prior outline artifact in session memory",
+      },
+      {
+        step_id: "generate_scheme",
+        kind: "router_invoke",
+        feature_id: "teacher.question_paper.marking_scheme",
+        budget_ceiling: "medium",
+        description: "Prompt Library + Qwen marking scheme",
+      },
+      {
+        step_id: "validate_scheme",
+        kind: "validate",
+        description: "Response Validator — drop scheme on material failure",
+      },
+    ],
+  },
   "principal.school.health_brief.v1": {
     workflow_id: "principal.school.health_brief.v1",
     version: "v1",
@@ -286,7 +404,7 @@ export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
       {
         step_id: "assemble_aggregates",
         kind: "context_assemble",
-        description: "Load AE/EIE school aggregates",
+        description: "Load AE/EIE school aggregates + risk rollups",
       },
       {
         step_id: "emit_brief",
