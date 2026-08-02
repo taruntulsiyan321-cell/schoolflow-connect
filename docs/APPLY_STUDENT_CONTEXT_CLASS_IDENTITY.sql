@@ -1,4 +1,4 @@
-﻿-- APPLY: Student context / Practice class identity SSOT
+-- APPLY: Student context / Practice class identity SSOT
 -- Paste into Supabase SQL Editor (production). Idempotent CREATE OR REPLACE + policy drop/create.
 -- Source migration: supabase/migrations/20260802570000_student_context_class_identity.sql
 
@@ -7,13 +7,13 @@
 -- ============================================================================
 -- Root causes addressed:
 --   1. profiles.school_id can stick on signup default while students.school_id is the
---      real tenant â†’ same_school(classes.school_id) fails â†’ class join null â†’ Practice
+--      real tenant -> same_school(classes.school_id) fails -> class join null -> Practice
 --      "Couldn't determine your class".
 --   2. get_my_role() LIMIT 1 without priority can disagree with Auth pickRole.
 --   3. Students must always be able to read their own class row for curriculum scope.
 -- ============================================================================
 
--- â”€â”€ 1. School id: prefer portal school (students / teachers) over stale profile â”€
+-- 1. School id: prefer portal school (students / teachers) over stale profile
 CREATE OR REPLACE FUNCTION public.get_my_school_id()
 RETURNS uuid
 LANGUAGE sql
@@ -41,7 +41,7 @@ GRANT EXECUTE ON FUNCTION public.get_my_school_id() TO authenticated;
 COMMENT ON FUNCTION public.get_my_school_id() IS
   'Authenticated tenant school_id. Prefers students/teachers.school_id over profiles so Practice class RLS matches the portal row.';
 
--- â”€â”€ 2. Role: same priority as client Auth (session.ts ROLE_PRIORITY) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+-- 2. Role: same priority as client Auth (session.ts ROLE_PRIORITY)
 CREATE OR REPLACE FUNCTION public.get_my_role()
 RETURNS public.app_role
 LANGUAGE sql
@@ -66,7 +66,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.get_my_role() TO authenticated;
 
--- â”€â”€ 3. Backfill mismatched profile school from linked student / teacher â”€â”€â”€â”€â”€â”€
+-- 3. Backfill mismatched profile school from linked student / teacher
 UPDATE public.profiles p
 SET school_id = s.school_id
 FROM public.students s
@@ -84,7 +84,7 @@ WHERE t.user_id = p.id
     SELECT 1 FROM public.students s WHERE s.user_id = p.id AND s.school_id IS NOT NULL
   );
 
--- â”€â”€ 4. Classes SELECT: always allow own class (and taught / child class) â”€â”€â”€â”€â”€â”€
+-- 4. Classes SELECT: always allow own class (and taught / child class)
 DROP POLICY IF EXISTS classes_school_read ON public.classes;
 CREATE POLICY classes_school_read ON public.classes
   FOR SELECT TO authenticated
@@ -109,11 +109,12 @@ CREATE POLICY classes_school_read ON public.classes
     )
   );
 
--- â”€â”€ 5. Identity RPC â€” single source for Home + Practice + resolveStudentContext â”€
+-- 5. Identity RPC - single source for Home + Practice + resolveStudentContext
 CREATE OR REPLACE FUNCTION public.rpc_get_my_student_identity()
 RETURNS TABLE (
   user_id uuid,
   role public.app_role,
+  has_student_role boolean,
   student_id uuid,
   school_id uuid,
   class_id uuid,
@@ -130,6 +131,7 @@ AS $$
 DECLARE
   _uid uuid := auth.uid();
   _role public.app_role;
+  _has_student_role boolean := false;
 BEGIN
   IF _uid IS NULL THEN
     RETURN;
@@ -147,7 +149,22 @@ BEGIN
     NULL;
   END;
 
-  _role := public.get_my_role();
+  -- Portal-scoped role: users who are both teachers/admins and students must
+  -- retain explicit student access in the student portal despite global priority.
+  _role := CASE
+    WHEN EXISTS (SELECT 1 FROM public.students s WHERE s.user_id = _uid)
+     AND EXISTS (
+       SELECT 1
+       FROM public.user_roles ur
+       WHERE ur.user_id = _uid AND ur.role = 'student'::public.app_role
+     )
+    THEN 'student'::public.app_role
+    ELSE public.get_my_role()
+  END;
+  _has_student_role := EXISTS (
+    SELECT 1 FROM public.user_roles ur
+    WHERE ur.user_id = _uid AND ur.role = 'student'::public.app_role
+  );
 
   -- Prefer student school; keep profile in sync when linked
   UPDATE public.profiles p
@@ -158,10 +175,19 @@ BEGIN
     AND s.school_id IS NOT NULL
     AND p.school_id IS DISTINCT FROM s.school_id;
 
+  -- When a linked students row + student role grant exist, expose role=student
+  -- for the student portal even if global priority prefers teacher/admin.
+  IF _has_student_role AND EXISTS (
+    SELECT 1 FROM public.students s WHERE s.user_id = _uid
+  ) THEN
+    _role := 'student'::public.app_role;
+  END IF;
+
   RETURN QUERY
   SELECT
     _uid,
     _role,
+    _has_student_role,
     s.id,
     COALESCE(s.school_id, public.get_my_school_id()),
     s.class_id,
@@ -179,4 +205,3 @@ GRANT EXECUTE ON FUNCTION public.rpc_get_my_student_identity() TO authenticated;
 
 COMMENT ON FUNCTION public.rpc_get_my_student_identity() IS
   'SSOT student academic identity for client: role, student_id, school_id, class metadata. Bypasses classes RLS for own row via SECURITY DEFINER.';
-

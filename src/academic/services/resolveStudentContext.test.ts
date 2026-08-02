@@ -5,6 +5,7 @@ import { MissingSchoolContextError } from "../tenant";
 const identity: StudentAcademicIdentity = {
   userId: "user-1",
   role: "student",
+  hasStudentRole: true,
   studentId: "stu-1",
   schoolId: "school-1",
   classId: "class-1",
@@ -25,10 +26,17 @@ describe("identityToServiceContext", () => {
     expect(ctx.schoolId).toBe("school-1");
   });
 
-  it("rejects non-student roles", () => {
-    expect(() => identityToServiceContext({ ...identity, role: "teacher" })).toThrow(
+  it("rejects a global non-student role without student portal capability", () => {
+    expect(() => identityToServiceContext({ ...identity, role: "teacher", hasStudentRole: false })).toThrow(
       /Student role required/,
     );
+  });
+
+  it("accepts a teacher identity with an explicit linked student portal role", () => {
+    // Global role priority may select teacher; student portal access additionally
+    // requires both the linked student row and user_roles.student capability.
+    const ctx = identityToServiceContext({ ...identity, role: "teacher", hasStudentRole: true });
+    expect(ctx.role).toBe("student");
   });
 
   it("rejects missing school", () => {

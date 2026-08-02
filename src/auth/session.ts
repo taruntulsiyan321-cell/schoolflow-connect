@@ -92,10 +92,11 @@ export async function loadAuthContext(userId: string): Promise<AuthContextData |
   const { data: rpcData, error: rpcError } = await (supabase.rpc as any)("get_auth_context");
   if (!rpcError && Array.isArray(rpcData) && rpcData.length > 0) {
     const row = rpcData[0] as AuthContextRow;
-    // Prefer RPC profile/school, but never trust a null role over user_roles
+    // Prefer user_roles pickRole (priority) over RPC's arbitrary multi-role row.
+    // RPC may still enrich profile/school; role must stay aligned with get_my_role.
     return mapRow({
       ...row,
-      role: row.role ?? role,
+      role: role ?? row.role,
     });
   }
 

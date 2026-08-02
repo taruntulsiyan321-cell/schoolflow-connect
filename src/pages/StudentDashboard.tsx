@@ -77,11 +77,19 @@ export default function StudentDashboard() {
     sessionsThisWeek?: number;
     totalStudents?: number;
   }>({});
-  const { ready: academicReady, studentId, schoolId, classId, classLabel } = useAcademicContext();
+  // One AcademicContext for Home + Practice — never re-resolve identity for XP alone.
+  const {
+    ready: academicReady,
+    ctx,
+    studentId,
+    schoolId,
+    classId,
+    classLabel,
+  } = useAcademicContext();
   const [progressionLoaded, setProgressionLoaded] = useState(false);
 
   const loadProfile = useCallback(async () => {
-    if (!user) return;
+    if (!user || !academicReady || !ctx) return;
     setProgressionLoaded(false);
     const { data: s, error: studentErr } = await supabase
       .from("students")
@@ -105,11 +113,9 @@ export default function StudentDashboard() {
     let rank: number | undefined;
     let totalStudents = 0;
     try {
-      const { ProgressionService, resolveStudentServiceContext } = await import("@/academic");
+      const { ProgressionService } = await import("@/academic");
       const { progressionLevelProgress } = await import("@/academic/services/progressionMath");
-      const ctx = await resolveStudentServiceContext();
       prog = await ProgressionService.getSnapshot(ctx, user.id);
-      // Ensure level bar fields exist even if RPC omits them
       if (prog) {
         const derived = progressionLevelProgress(prog.xp, prog.level);
         prog = {
@@ -143,21 +149,39 @@ export default function StudentDashboard() {
 
     type Snap = {
       exam_readiness?: { accuracy_pct?: number; attendance_pct?: number };
+      self_practice?: { sessions_completed?: number };
       activity_heatmap?: { date: string; dpp: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
     };
-    type ChartRow = { subjects?: { accuracy: number }[]; weekly_activity?: { date: string; total: number }[] };
+    type ChartRow = {
+      subjects?: { accuracy: number; attempts?: number }[];
+      weekly_activity?: { date: string; total: number }[];
+    };
 
     const snapshot = snap as Snap | null;
     const chartData = charts as ChartRow | null;
 
     const chartSubjects = chartData?.subjects ?? [];
-    const accuracyFromCharts = chartSubjects.length
-      ? Math.round(chartSubjects.reduce((a, sub) => a + sub.accuracy, 0) / chartSubjects.length)
+    let chartAttempts = 0;
+    let chartWeighted = 0;
+    for (const sub of chartSubjects) {
+      const attempts = Math.max(0, Number(sub.attempts) || 0);
+      const acc = Number(sub.accuracy) || 0;
+      if (attempts <= 0) continue;
+      chartAttempts += attempts;
+      chartWeighted += acc * attempts;
+    }
+    const accuracyFromCharts =
+      chartAttempts > 0 ? Math.round(chartWeighted / chartAttempts) : 0;
+
+    const practiceSessions = snapshot?.self_practice?.sessions_completed ?? 0;
+    const readinessAcc = snapshot?.exam_readiness?.accuracy_pct;
+    // Accuracy must not contradict empty progression (XP 0 / no attempts → show 0).
+    const hasPracticeEvidence = practiceSessions > 0 || chartAttempts > 0;
+    const accuracy = hasPracticeEvidence
+      ? readinessAcc != null && readinessAcc > 0
+        ? Math.round(readinessAcc)
+        : accuracyFromCharts
       : 0;
-    const accuracy =
-      snapshot?.exam_readiness?.accuracy_pct != null && snapshot.exam_readiness.accuracy_pct > 0
-        ? Math.round(snapshot.exam_readiness.accuracy_pct)
-        : accuracyFromCharts;
 
     const attendance =
       snapshot?.exam_readiness?.attendance_pct != null
@@ -197,7 +221,7 @@ export default function StudentDashboard() {
     setProfile({
       name: fullName,
       firstName: parts[0] || fullName,
-      // Class label comes from AcademicContext identity (shared with Practice) — set in merge below.
+      // Class label comes from AcademicContext identity (shared with Practice).
       avatar: initials.toUpperCase(),
       xp,
       level,
@@ -214,11 +238,15 @@ export default function StudentDashboard() {
       totalStudents,
     });
     setProgressionLoaded(true);
-  }, [user]);
+  }, [user, academicReady, ctx]);
 
   useEffect(() => {
+    if (!academicReady || !ctx) {
+      setProgressionLoaded(false);
+      return;
+    }
     void loadProfile();
-  }, [loadProfile, liveVersion]);
+  }, [loadProfile, liveVersion, academicReady, ctx]);
 
   useEffect(() => {
     const onXp = () => { void loadProfile(); };

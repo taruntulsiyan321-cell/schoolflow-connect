@@ -1,7 +1,8 @@
 /**
  * Honest empty student shape for Gurukul chrome.
  * Never use mock Arjun / invented XP as a fallback.
- * XP/level/streak come from ProgressionService (rpc_get_student_progression).
+ * XP / level / study streak: ProgressionService (rpc_get_student_progression).
+ * Accuracy: academic snapshot exam_readiness.accuracy_pct only (no charts/mastery dual path).
  */
 export type GurukulStudentProfile = {
   name: string;

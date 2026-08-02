@@ -34,13 +34,6 @@ export function useAcademicContext(): {
         }
         return;
       }
-      if (role !== "student") {
-        if (!cancelled) {
-          setIdentity(null);
-          setIdentityReady(true);
-        }
-        return;
-      }
       try {
         const loaded = await loadStudentAcademicIdentity(user.id);
         if (!cancelled) {
@@ -62,21 +55,32 @@ export function useAcademicContext(): {
   const studentId = identity?.studentId ?? null;
   const classId = identity?.classId ?? null;
   const classLabel = identity?.classLabel ?? null;
+  const classCategory = identity?.classCategory ?? null;
+  // Student portal access is distinct from global Auth role priority: a user can
+  // legitimately be both teacher and student. The identity RPC verifies the
+  // linked student row plus user_roles.student before this becomes "student".
+  const studentPortalRole =
+    identity?.studentId &&
+    (identity.role === "student" || identity.hasStudentRole)
+      ? "student"
+      : null;
+  const effectiveRole = studentPortalRole ?? role;
   // Prefer portal-bound school (students.school_id) over profile fallback — never invent a tenant.
   const schoolId =
-    (role === "student" ? identity?.schoolId : null) || authSchoolId || null;
+    (studentPortalRole ? identity?.schoolId : null) || authSchoolId || null;
 
   const ctx = useMemo<ServiceContext | null>(() => {
-    if (!user?.id || !role || !schoolId) return null;
+    if (!user?.id || !effectiveRole || !schoolId) return null;
     return {
       schoolId,
       userId: user.id,
-      role,
+      role: effectiveRole,
       studentId,
       classId,
       classLabel,
+      classCategory,
     };
-  }, [user?.id, role, schoolId, studentId, classId, classLabel]);
+  }, [user?.id, effectiveRole, schoolId, studentId, classId, classLabel, classCategory]);
 
   return {
     ctx,

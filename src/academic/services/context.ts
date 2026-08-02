@@ -24,6 +24,8 @@ export interface ServiceContext {
   classId?: string | null;
   /** Optional class display label e.g. "10-A" */
   classLabel?: string | null;
+  /** Optional class category (commerce/science/…) for curriculum stream */
+  classCategory?: string | null;
 }
 
 export function toRepoContext(ctx: ServiceContext): RepoContext {

@@ -25,6 +25,7 @@ import { ResourceService } from "./resourceService";
 import { resolveStudentServiceContext } from "./resolveStudentContext";
 import {
   assertStudentContext,
+  assertStudentClassContext,
   evaluateStudentContext,
   studentShellReady,
 } from "./assertStudentContext";
@@ -84,6 +85,7 @@ export {
   ResourceService,
   resolveStudentServiceContext,
   assertStudentContext,
+  assertStudentClassContext,
   evaluateStudentContext,
   studentShellReady,
   assertCanOwn,

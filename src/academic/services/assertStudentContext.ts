@@ -67,6 +67,8 @@ export function evaluateStudentContext(
       reason: "Student profile not linked",
     };
   }
+  // `requireClass` is for operations that must scope reads/writes to the
+  // student's assigned class (for example question-bank subject discovery).
   if (opts?.requireClass && !ctx.classId) {
     return {
       ready: false,
@@ -85,6 +87,15 @@ export function evaluateStudentContext(
     classId: ctx.classId ?? null,
     reason: null,
   };
+}
+
+/** Assert a student context is bound to a concrete student class. */
+export function assertStudentClassContext(
+  ctx: ServiceContext | null | undefined,
+): asserts ctx is ServiceContext & { studentId: string; classId: string } {
+  assertStudentContext(ctx);
+  if (!ctx.studentId) throw new Error("Student profile not linked");
+  if (!ctx.classId) throw new Error("Student class is not assigned");
 }
 
 export function studentShellReady(input: {

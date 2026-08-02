@@ -84,6 +84,7 @@ export {
   ResourceService,
   resolveStudentServiceContext,
   assertStudentContext,
+  assertStudentClassContext,
   evaluateStudentContext,
   studentShellReady,
   assertCanOwn,

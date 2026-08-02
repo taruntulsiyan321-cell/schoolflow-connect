@@ -7,6 +7,8 @@ import type { AppRole } from "@/auth/types";
 export type StudentAcademicIdentity = {
   userId: string;
   role: AppRole | null;
+  /** True when user_roles grants student portal access, independent of global role priority. */
+  hasStudentRole: boolean;
   studentId: string | null;
   schoolId: string | null;
   classId: string | null;
@@ -21,6 +23,7 @@ export type StudentAcademicIdentity = {
 type IdentityRpcRow = {
   user_id: string;
   role: AppRole | null;
+  has_student_role?: boolean | null;
   student_id: string | null;
   school_id: string | null;
   class_id: string | null;
@@ -79,6 +82,7 @@ export async function loadStudentAcademicIdentity(
     return {
       userId: row.user_id ?? user.id,
       role: row.role ?? null,
+      hasStudentRole: row.has_student_role ?? row.role === "student",
       studentId: row.student_id ?? null,
       schoolId: row.school_id ?? null,
       classId: row.class_id ?? null,
@@ -105,8 +109,9 @@ export async function loadStudentAcademicIdentity(
   let role: AppRole | null = null;
   const { data: roleRaw } = await supabase.rpc("get_my_role");
   role = (roleRaw as AppRole | null) ?? null;
+  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+  const hasStudentRole = (roles ?? []).some((entry) => entry.role === "student");
   if (!role) {
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
     role = pickRole(roles);
   }
 
@@ -131,6 +136,12 @@ export async function loadStudentAcademicIdentity(
     schoolId = (sid as string | null) ?? null;
   }
 
+  // A student portal identity must not inherit the global teacher/admin role.
+  // The row and explicit user_roles grant are both required to prevent privilege inference.
+  if (stu?.id && hasStudentRole) {
+    role = "student";
+  }
+
   // If embed was blocked by RLS, fetch class by id (own-class policy after migration).
   let className = cls?.name ?? null;
   let classSection = cls?.section ?? null;
@@ -153,6 +164,7 @@ export async function loadStudentAcademicIdentity(
   return {
     userId: user.id,
     role,
+    hasStudentRole,
     studentId: stu?.id ?? null,
     schoolId,
     classId: stu?.class_id ?? null,
@@ -174,7 +186,12 @@ export function identityToServiceContext(identity: StudentAcademicIdentity): Ser
       "Student school is not bound. Sign in again or contact your school admin.",
     );
   }
-  if (identity.role !== "student") {
+  // A globally teacher/admin user may enter the student portal only when the
+  // student row is bound to their user and user_roles explicitly grants student.
+  const hasStudentPortalCapability =
+    Boolean(identity.studentId) &&
+    (identity.role === "student" || identity.hasStudentRole === true);
+  if (!hasStudentPortalCapability) {
     throw new Error("Student role required for this action");
   }
   return {
@@ -184,6 +201,7 @@ export function identityToServiceContext(identity: StudentAcademicIdentity): Ser
     studentId: identity.studentId,
     classId: identity.classId,
     classLabel: identity.classLabel,
+    classCategory: identity.classCategory,
   };
 }
 
