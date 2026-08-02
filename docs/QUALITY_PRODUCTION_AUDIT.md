@@ -99,8 +99,13 @@ Readiness, practice SSOT, progression tests, battleground integrity, revision du
 
 ```bash
 npm run quality:scan
+npm run quality:student-context
+npm run quality:flow
+npm run quality:guardrails
 npm run quality
 ```
+
+Detects: missing student context / shell readiness, analytics placeholder labels (`Subject|Topic|Daily|General`), duplicate subjects (via `dedupeSubjectChartPoints`), XP invent fingerprints, `PRESENTATION_MODE === false`.
 
 ---
 
@@ -111,6 +116,17 @@ npm run quality
 - Draws folded into non-wins
 - Messaging honest-empty
 - DESIGN-ONLY fixtures remain unmounted
+
+### Supervisor note (Issues 9 / 11 / 12 / 13) — 2026-08-02
+
+| Issue | Status | Evidence |
+|-------|--------|----------|
+| **9** Doubt attachments | **Done** | `src/lib/productFeatureFlags.ts` + Doubt/Nova UI; Coming Soon / hide via config + `VITE_FF_*` |
+| **11** Placeholder purge | **Partial** | Doubt purged hardcoded CHAPTERS / "General" / "not available"; scan+guardrails ban regression. Analysis/Practice generic labels still owned by other supervisors |
+| **12** E2E student flow | **Gate** | Static contract spine: `npm run quality:flow` (`scripts/student-flow-validate.mjs`) |
+| **13** Engineering guardrails | **Done** | `npm run quality:guardrails` + CI steps; complements `quality:scan` |
+
+**Lead:** Flip attachment flags live only after storage/upload RPCs ship. Keep `UNAVAILABLE_FEATURE_MODE=coming_soon` until product wants hide. Run `npm run quality` before release.
 
 ---
 

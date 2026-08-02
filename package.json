@@ -26,7 +26,10 @@
     "ai:set-gemini-secret": "powershell -ExecutionPolicy Bypass -File scripts/set-gemini-secret.ps1",
     "ai:ping": "node scripts/ai-ping.mjs",
     "quality:scan": "node scripts/quality-scan.mjs",
-    "quality": "npm run quality:scan && npm run test -- src/lib/practiceSessionStats.test.ts src/lib/utf8MojibakeRepair.test.ts src/academic/services/progressionMath.test.ts src/academic/services/assertStudentContext.test.ts"
+    "quality:student-context": "node scripts/quality-student-context.mjs",
+    "quality:flow": "node scripts/student-flow-validate.mjs",
+    "quality:guardrails": "node scripts/quality-guardrails.mjs",
+    "quality": "npm run quality:scan && npm run quality:student-context && npm run quality:flow && npm run quality:guardrails && npm run test -- src/lib/practiceSessionStats.test.ts src/lib/utf8MojibakeRepair.test.ts src/lib/qualityGuards.test.ts src/academic/services/progressionMath.test.ts src/academic/services/assertStudentContext.test.ts src/academic/services/resolveStudentContext.test.ts src/lib/productFeatureFlags.test.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.3.1",
