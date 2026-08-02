@@ -719,10 +719,10 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx, onOpenDoubt }: {
   const student = useGurukulStudent();
   const { role } = useAuth();
   const { studentId } = useAcademicContext();
-  const { subjects: subjectOptions } = useScopedSubjects();
+  const { subjects: subjectOptions, classLevel } = useScopedSubjects();
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [subject, setSubject] = useState(subjectOptions[0] ?? "Mathematics");
+  const [subject, setSubject] = useState(subjectOptions[0] ?? "");
   const [chapter, setChapter] = useState("");
   const [topic, setTopic] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -736,17 +736,10 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx, onOpenDoubt }: {
     }
   }, [subjectOptions, subject]);
 
-  const CHAPTERS: Record<string,string[]> = {
-    Mathematics:["Integration","Differential Equations","Matrices","Probability","Vectors"],
-    Physics:["Optics","Electrostatics","Mechanics","Waves","Thermodynamics"],
-    Chemistry:["Organic Chemistry","Electrochemistry","Thermodynamics","Polymers","Coordination"],
-    Biology:["Genetics","Cell Biology","Ecology","Evolution","Plant Physiology"],
-    English:["Grammar","Comprehension","Essay","Poetry","Drama"],
-    Accountancy:["Accounting Principles","Journal","Ledger","Trial Balance","Final Accounts"],
-    "Business Studies":["Nature of Management","Principles of Management","Business Environment","Marketing"],
-    Economics:["Demand","Supply","National Income","Money and Banking"],
-    Hindi:["Grammar","Comprehension","Essay","Poetry"],
-  };
+  const chapterOptions = useMemo(
+    () => (subject ? getNcertChapters(classLevel, subject) : []),
+    [classLevel, subject],
+  );
 
   async function getAIAnswer() {
     if (!title.trim()) return;

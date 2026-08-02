@@ -6,9 +6,18 @@ import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/gurukul/components/shared";
 import { displayConcept } from "@/lib/academicDisplay";
+import {
+  COMING_SOON_LABEL,
+  comingSoonToast,
+  resolveNovaPresentation,
+} from "@/lib/productFeatureFlags";
 import { toast } from "sonner";
 import { askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } from "@/academic/ai/gatewayClient";
+import { buildNovaUiChips, dedupeSubjects, isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
+import { WEAK_CONCEPT_THRESHOLD } from "@/academic/eie/masteryBands";
 import { useAuth } from "@/auth";
+import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import {
   Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3,
   MoreHorizontal, ChevronLeft, Paperclip, Copy, Bookmark,
@@ -184,68 +193,33 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
 }
 
 // ── Context pill ──────────────────────────────────────────────────────────────
-function ContextPill({
-  studentClass,
-  subjectNames,
-  xp,
-  level,
-  streak,
-  weakConcepts,
-}: {
-  studentClass: string;
-  subjectNames: string[];
-  xp: number;
-  level: number;
-  streak: number;
-  weakConcepts: string[];
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const subjectPreview = subjectNames.length > 0
-    ? subjectNames.slice(0, 3).join(", ") + (subjectNames.length > 3 ? "…" : "")
-    : "No subjects yet";
-  const progressionBits = [
-    xp > 0 ? `${xp.toLocaleString()} XP` : null,
-    level > 1 || xp > 0 ? `Lv ${level}` : null,
-    streak > 0 ? `${streak}d streak` : null,
-  ].filter(Boolean);
-  const weakPreview = weakConcepts.length
-    ? `Weak: ${weakConcepts.slice(0, 2).join(", ")}${weakConcepts.length > 2 ? "…" : ""}`
-    : null;
-  const contextLine = [
-    studentClass || null,
-    progressionBits.length ? progressionBits.join(" · ") : null,
-    weakPreview,
-    subjectPreview,
-  ].filter(Boolean).join(" · ");
+function ContextPill({ contextLine }: { contextLine: string }) {
   return (
     <div className="flex justify-center py-3">
-      <button onClick={() => setExpanded(e => !e)}
-        className="group flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/7 bg-white/3 hover:border-white/12 hover:bg-white/5 transition-all">
+      <div
+        className="group flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/7 bg-white/3"
+      >
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
-        <span className="text-[11px] text-[#78788c] group-hover:text-[#a0a0b0] transition-colors">
+        <span className="text-[11px] text-[#78788c]">
           Nova knows your context{contextLine ? ` · ${contextLine}` : ""}
         </span>
         <Brain className="w-3 h-3 text-[#78788c]"/>
-      </button>
-      {expanded && (
-        <div className="sr-only">{weakConcepts.join(", ")}</div>
-      )}
+      </div>
     </div>
   );
 }
 
 // ── Suggestions (empty state) ─────────────────────────────────────────────────
-function SuggestionGrid({ onSelect, onNavigate, firstName, studentClass, goal, chartSubjects, xp, level, streak, weakConcepts }: {
+function SuggestionGrid({
+  onSelect,
+  onNavigate,
+  firstName,
+  chips,
+}: {
   onSelect: (text: string) => void;
   onNavigate?: (page: PageKey) => void;
   firstName: string;
-  studentClass: string;
-  goal: string;
-  chartSubjects: { name: string; color: string }[];
-  xp: number;
-  level: number;
-  streak: number;
-  weakConcepts: string[];
+  chips: { id: string; label: string; color: string }[];
 }) {
   const jumpLinks: { page: PageKey; label: string; color: string }[] = [
     { page: "practice", label: "Practice", color: "#3b5bdb" },
@@ -262,28 +236,23 @@ function SuggestionGrid({ onSelect, onNavigate, firstName, studentClass, goal, c
         <Brain className="w-9 h-9 text-white"/>
       </div>
       <h2 className="text-2xl font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
-        Hi {firstName} 👋
+        Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"} 👋
       </h2>
       <p className="text-[#78788c] text-sm mb-8 text-center max-w-xs">
         I'm Nova — your personal academic tutor. Ask about attendance, homework, marks, timetable, or revision.
       </p>
 
-      {/* Academic context mini-card */}
-      <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-        {[
-          ...(studentClass ? [{ label: studentClass, color:"#3b5bdb" }] : []),
-          ...(xp > 0 || level > 1 ? [{ label: `Lv ${level} · ${xp.toLocaleString()} XP`, color:"#6882e8" }] : []),
-          ...(streak > 0 ? [{ label: `${streak}d streak`, color:"#c08a3a" }] : []),
-          ...(weakConcepts[0] ? [{ label: `Weak: ${weakConcepts[0]}`, color:"#cc5069" }] : []),
-          ...(goal ? [{ label: goal, color:"#4aa87a" }] : []),
-          ...chartSubjects.slice(0, 3).map(s => ({ label: s.name, color: s.color })),
-        ].map(item => (
-          <span key={item.label} className="text-[11px] px-2.5 py-1 rounded-full border font-medium"
-            style={{ color:item.color, borderColor:`${item.color}25`, background:`${item.color}10` }}>
-            {item.label}
-          </span>
-        ))}
-      </div>
+      {/* Academic context mini-card — live chips only, no placeholders / duplicates */}
+      {chips.length > 0 && (
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+          {chips.map((item) => (
+            <span key={item.id} className="text-[11px] px-2.5 py-1 rounded-full border font-medium"
+              style={{ color:item.color, borderColor:`${item.color}25`, background:`${item.color}10` }}>
+              {item.label}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Suggestions */}
       <div className="w-full max-w-lg grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -458,6 +427,8 @@ function InputBar({
 }) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const attachPresentation = resolveNovaPresentation("attachment");
+  const voicePresentation = resolveNovaPresentation("voice");
 
   function submit() {
     if (!text.trim()) return;
@@ -479,14 +450,20 @@ function InputBar({
   return (
     <div className="relative">
       <div className="flex items-end gap-2 bg-[#131316] border border-white/10 rounded-2xl p-2 focus-within:border-[#3b5bdb]/30 transition-all">
-        <button
-          type="button"
-          onClick={onAttachUnavailable}
-          title="Attachments coming soon"
-          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5 text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4"
-        >
-          <Paperclip className="w-4 h-4"/>
-        </button>
+        {attachPresentation !== "hidden" && (
+          <button
+            type="button"
+            onClick={onAttachUnavailable}
+            title={
+              attachPresentation === "coming_soon"
+                ? `Attachments — ${COMING_SOON_LABEL}`
+                : "Attachments"
+            }
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5 text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4"
+          >
+            <Paperclip className="w-4 h-4"/>
+          </button>
+        )}
 
         <textarea
           ref={textareaRef}
@@ -497,14 +474,20 @@ function InputBar({
           style={{ maxHeight:120 }}
         />
 
-        <button
-          type="button"
-          onClick={onVoiceUnavailable}
-          title="Voice coming soon"
-          className="w-8 h-8 rounded-xl flex items-center justify-center text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4 transition-all shrink-0 mb-0.5"
-        >
-          <Mic className="w-4 h-4"/>
-        </button>
+        {voicePresentation !== "hidden" && (
+          <button
+            type="button"
+            onClick={onVoiceUnavailable}
+            title={
+              voicePresentation === "coming_soon"
+                ? `Voice — ${COMING_SOON_LABEL}`
+                : "Voice"
+            }
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4 transition-all shrink-0 mb-0.5"
+          >
+            <Mic className="w-4 h-4"/>
+          </button>
+        )}
 
         <button type="button" onClick={submit} disabled={!text.trim()}
           className={cn(
@@ -530,18 +513,76 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const { studentId, schoolId } = useAcademicContext();
   const { data: charts } = useStudentPerformanceCharts();
   const { items: masteryItems } = useConceptMastery();
-  const chartSubjects = (charts?.subjects ?? []).map((s, i) => ({
-    name: s.name,
-    color: ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"][i % 5],
-  }));
+  const { data: snapshot } = useStudentAcademicSnapshot();
+  const { data: recoveryZone } = useRecoveryZone();
+
+  const subjectNames = useMemo(
+    () =>
+      dedupeSubjects([
+        ...(charts?.subjects ?? []).map((s) => s.name),
+        ...(snapshot?.weak_topics ?? []).map((t) => t.subject),
+        ...(snapshot?.strong_topics ?? []).map((t) => t.subject),
+        ...(masteryItems ?? []).map((m) => m.subject),
+      ]),
+    [charts?.subjects, snapshot?.weak_topics, snapshot?.strong_topics, masteryItems],
+  );
+
   const weakConceptLabels = useMemo(
     () =>
-      [...masteryItems]
-        .filter((m) => m.mastery_score < 60 || m.mistake_count >= 2)
-        .sort((a, b) => a.mastery_score - b.mastery_score || b.mistake_count - a.mistake_count)
-        .slice(0, 3)
-        .map((m) => displayConcept(m.concept)),
+      dedupeSubjects(
+        [...masteryItems]
+          .filter((m) => m.mastery_score < WEAK_CONCEPT_THRESHOLD || m.mistake_count >= 2)
+          .sort((a, b) => a.mastery_score - b.mastery_score || b.mistake_count - a.mistake_count)
+          .map((m) => displayConcept(m.concept))
+          .filter((c) => !isPlaceholderLabel(c)),
+        3,
+      ),
     [masteryItems],
+  );
+
+  const novaChips = useMemo(
+    () =>
+      buildNovaUiChips({
+        classLabel: student.class || null,
+        section: student.section || null,
+        subjects: subjectNames,
+        homeworkPending: snapshot?.homework?.pending ?? null,
+        attendancePct:
+          student.attendance > 0
+            ? student.attendance
+            : snapshot?.exam_readiness?.attendance_pct ?? null,
+        practiceSessions:
+          snapshot?.self_practice?.sessions_completed ??
+          student.sessionsThisWeek ??
+          null,
+        mistakeCount: snapshot?.mistake_count ?? null,
+        recoveryPending:
+          snapshot?.recovery_pending ?? recoveryZone?.pending_count ?? null,
+        xp: student.xp,
+        level: student.level,
+        studyStreak: student.streak,
+        weakConcepts: weakConceptLabels,
+        goal: student.goal || null,
+      }),
+    [
+      student.class,
+      student.section,
+      student.attendance,
+      student.sessionsThisWeek,
+      student.xp,
+      student.level,
+      student.streak,
+      student.goal,
+      subjectNames,
+      snapshot,
+      recoveryZone?.pending_count,
+      weakConceptLabels,
+    ],
+  );
+
+  const contextLine = useMemo(
+    () => novaChips.map((c) => c.label).join(" · "),
+    [novaChips],
   );
 
   const [convos,     setConvos]     = useState<Conversation[]>(() => loadStoredConvos());
@@ -859,24 +900,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
               onSelect={handleSuggestion}
               onNavigate={setPage}
               firstName={student.firstName}
-              studentClass={student.class ? `Class ${student.class}` : ""}
-              goal={student.goal}
-              chartSubjects={chartSubjects}
-              xp={student.xp}
-              level={student.level}
-              streak={student.streak}
-              weakConcepts={weakConceptLabels}
+              chips={novaChips}
             />
           ) : (
             <div className="px-4 py-4 space-y-5 max-w-3xl mx-auto w-full">
-              <ContextPill
-                studentClass={student.class ? `Class ${student.class}` : ""}
-                subjectNames={chartSubjects.map(s => s.name)}
-                xp={student.xp}
-                level={student.level}
-                streak={student.streak}
-                weakConcepts={weakConceptLabels}
-              />
+              <ContextPill contextLine={contextLine} />
               {msgs.map((m, i) => (
                 <MessageBubble key={m.id} msg={m}
                   onBookmark={bookmarkMsg}
@@ -909,10 +937,10 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           <InputBar
             onSend={sendMessage}
             onVoiceUnavailable={() => {
-              toast.message("Voice input is not connected yet — type your question instead.");
+              toast.message(comingSoonToast("Voice input"));
             }}
             onAttachUnavailable={() => {
-              toast.message("Attachments are not available yet — describe the problem in text.");
+              toast.message(comingSoonToast("Attachments"));
             }}
             disabled={isTyping}
           />
