@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   canonicalizeConceptId,
   formatTaxonomyBreadcrumb,
+  isPlaceholderAcademicLabel,
   mergeDuplicateLabels,
   normalizeIncomingAcademicTerm,
   presentAcademicLabel,
@@ -96,6 +97,40 @@ describe("hierarchy resolve", () => {
     });
     expect(crumb).toContain("Cash Book");
     expect(crumb).not.toMatch(/cash_book/);
+  });
+});
+
+describe("placeholder academic labels", () => {
+  it("flags Subject/Topic/Daily/General and practice-mode keys", () => {
+    for (const label of [
+      "Subject",
+      "Topic",
+      "Daily",
+      "General",
+      "subject",
+      "weak",
+      "incorrect",
+      "skipped",
+      "timed",
+      "",
+    ]) {
+      expect(isPlaceholderAcademicLabel(label)).toBe(true);
+    }
+    expect(isPlaceholderAcademicLabel("Mathematics")).toBe(false);
+    expect(isPlaceholderAcademicLabel("Integration")).toBe(false);
+  });
+
+  it("suppresses bare placeholders in presentation", () => {
+    expect(presentAcademicLabel("Subject")).toBe("");
+    expect(presentAcademicLabel("Topic")).toBe("");
+    expect(presentAcademicLabel("Daily")).toBe("");
+    expect(presentAcademicLabel("General")).toBe("");
+    expect(presentAcademicLabel("subject")).toBe("");
+  });
+
+  it("keeps real titles that contain those words", () => {
+    expect(presentAcademicLabel("Subject-Verb Agreement").length).toBeGreaterThan(0);
+    expect(presentAcademicLabel("General Term").length).toBeGreaterThan(0);
   });
 });
 

@@ -42,7 +42,8 @@ export const QuestionBankService = {
     throwIfError(error, "Failed to load question bank summary");
     const map: Record<string, number> = {};
     for (const r of data ?? []) {
-      const s = String((r as { subject?: string }).subject ?? "General");
+      const s = String((r as { subject?: string }).subject ?? "").trim();
+      if (!s) continue;
       map[s] = (map[s] ?? 0) + 1;
     }
     return Object.entries(map)

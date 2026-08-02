@@ -126,7 +126,7 @@ export default function ImprovementPlans() {
                 <div>
                   <div className="font-semibold">{p.subject}</div>
                   <div className="text-sm text-muted-foreground">
-                    {[p.chapter, p.topic].filter(Boolean).join(" · ") || "General"}
+                    {[p.chapter, p.topic].filter(Boolean).join(" · ") || "—"}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

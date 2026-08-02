@@ -11,8 +11,25 @@ import type {
   WeeklyActivityPoint,
   SubjectChartPoint,
 } from "@/hooks/useStudentPerformanceCharts";
+import { normalizeSubjectName } from "@/lib/curriculumScope";
+import { displaySubject } from "@/lib/academicDisplay";
+import {
+  buildSubjectRadarPoints,
+  dedupeSubjectChartPoints,
+  isGenericAcademicLabel,
+  preferRealAcademicLabel,
+} from "@/lib/qualityGuards";
+
+export { buildSubjectRadarPoints, dedupeSubjectChartPoints };
 
 export const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+function subjectSessionKey(raw: string | null | undefined): string {
+  if (!raw || isGenericAcademicLabel(raw)) return "";
+  const canon = normalizeSubjectName(raw) || raw.trim();
+  const presented = displaySubject(canon) || canon;
+  return presented ? presented.toLowerCase() : "";
+}
 
 export function weekdayLabel(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, { weekday: "short" });
@@ -92,18 +109,21 @@ export function deriveSubjectRows(
   subjects: SubjectChartPoint[],
   sessions: PracticeSessionSummary[],
 ): DerivedSubjectRow[] {
+  const deduped = dedupeSubjectChartPoints(subjects);
   const bySubject = new Map<string, PracticeSessionSummary[]>();
   for (const s of [...sessions].sort(
     (a, b) => new Date(a.finished_at).getTime() - new Date(b.finished_at).getTime(),
   )) {
-    const list = bySubject.get(s.subject) ?? [];
+    const key = subjectSessionKey(s.subject);
+    if (!key) continue;
+    const list = bySubject.get(key) ?? [];
     list.push(s);
-    bySubject.set(s.subject, list);
+    bySubject.set(key, list);
   }
 
-  return subjects.map((s) => {
+  return deduped.map((s) => {
     const accuracy = Math.round(s.accuracy);
-    const sess = bySubject.get(s.name) ?? [];
+    const sess = bySubject.get(s.name.toLowerCase()) ?? [];
     const timeMins = sess.reduce((sum, x) => sum + x.duration_minutes, 0);
     const trend = halfWindowTrend(sess.map(accuracyOf));
     return {
@@ -143,41 +163,55 @@ export function deriveChapterRows(
     byChapter.set(key, list);
   }
 
-  const fromMastery = mastery.slice(0, 12).map((m) => {
-    const attempts = m.total_attempts ?? 0;
-    const accuracy =
-      attempts > 0
-        ? Math.round((100 * (m.correct_attempts ?? 0)) / attempts)
-        : Math.round(m.mastery_score);
-    const key = `${m.subject}::${m.chapter || m.concept}`;
-    const sess = byChapter.get(key) ?? [];
-    const trend = halfWindowTrend(sess.map(accuracyOf));
-    return {
-      chapter: m.chapter || m.concept,
-      subject: m.subject,
-      practiceDepth: Math.min(100, Math.round((attempts / 5) * 100)),
-      accuracy,
-      questions: attempts,
-      trend,
-      status: (accuracy >= 75 ? "ready" : accuracy >= 55 ? "practice-more" : "needs-work") as DerivedChapterRow["status"],
-    };
-  });
+  const fromMastery = mastery
+    .map((m) => {
+      const chapter = preferRealAcademicLabel(m.chapter, m.concept);
+      const subjectRaw = preferRealAcademicLabel(m.subject);
+      if (!chapter || !subjectRaw) return null;
+      const subject = displaySubject(normalizeSubjectName(subjectRaw) || subjectRaw) || subjectRaw;
+      const attempts = m.total_attempts ?? 0;
+      const accuracy =
+        attempts > 0
+          ? Math.round((100 * (m.correct_attempts ?? 0)) / attempts)
+          : Math.round(m.mastery_score);
+      const key = `${subject}::${chapter}`;
+      const sess = byChapter.get(key) ?? byChapter.get(`${m.subject}::${m.chapter || m.concept}`) ?? [];
+      const trend = halfWindowTrend(sess.map(accuracyOf));
+      return {
+        chapter,
+        subject,
+        practiceDepth: Math.min(100, Math.round((attempts / 5) * 100)),
+        accuracy,
+        questions: attempts,
+        trend,
+        status: (accuracy >= 75 ? "ready" : accuracy >= 55 ? "practice-more" : "needs-work") as DerivedChapterRow["status"],
+      };
+    })
+    .filter((row): row is DerivedChapterRow => row != null)
+    .slice(0, 12);
   if (fromMastery.length > 0) return fromMastery;
 
   const weak = snapshot?.weak_topics ?? [];
   const strong = snapshot?.strong_topics ?? [];
-  return [...strong, ...weak].slice(0, 12).map((t) => {
-    const acc = Math.round(t.accuracy);
-    return {
-      chapter: t.topic || t.chapter || "Topic",
-      subject: t.subject,
-      practiceDepth: 0,
-      accuracy: acc,
-      questions: 0,
-      trend: null as number | null,
-      status: (acc >= 75 ? "ready" : acc >= 55 ? "practice-more" : "needs-work") as DerivedChapterRow["status"],
-    };
-  });
+  return [...strong, ...weak]
+    .map((t) => {
+      const chapter = preferRealAcademicLabel(t.topic, t.chapter);
+      const subjectRaw = preferRealAcademicLabel(t.subject);
+      if (!chapter || !subjectRaw) return null;
+      const subject = displaySubject(normalizeSubjectName(subjectRaw) || subjectRaw) || subjectRaw;
+      const acc = Math.round(t.accuracy);
+      return {
+        chapter,
+        subject,
+        practiceDepth: 0,
+        accuracy: acc,
+        questions: 0,
+        trend: null as number | null,
+        status: (acc >= 75 ? "ready" : acc >= 55 ? "practice-more" : "needs-work") as DerivedChapterRow["status"],
+      };
+    })
+    .filter((row): row is DerivedChapterRow => row != null)
+    .slice(0, 12);
 }
 
 export function deriveImprovingTopics(
@@ -190,7 +224,7 @@ export function deriveImprovingTopics(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
   );
   for (const p of orderedTrend) {
-    const topic = (p.chapter || "").trim();
+    const topic = preferRealAcademicLabel(p.chapter);
     if (!topic) continue;
     const key = topic.toLowerCase();
     const entry = byKey.get(key) ?? { subject: "", scores: [] };
@@ -200,10 +234,13 @@ export function deriveImprovingTopics(
 
   // Fill subject from sessions when trend rows lack it.
   for (const s of sessions) {
-    const key = (s.chapter || "").trim().toLowerCase();
+    const key = preferRealAcademicLabel(s.chapter).toLowerCase();
     if (!key) continue;
     const entry = byKey.get(key);
-    if (entry && !entry.subject) entry.subject = s.subject;
+    if (entry && !entry.subject) {
+      const subj = preferRealAcademicLabel(s.subject);
+      if (subj) entry.subject = subj;
+    }
   }
 
   // Session-only chapters not in trend.
@@ -211,13 +248,14 @@ export function deriveImprovingTopics(
   for (const s of [...sessions].sort(
     (a, b) => new Date(a.finished_at).getTime() - new Date(b.finished_at).getTime(),
   )) {
-    const topic = (s.chapter || "").trim();
-    if (!topic) continue;
+    const topic = preferRealAcademicLabel(s.chapter);
+    const subject = preferRealAcademicLabel(s.subject);
+    if (!topic || !subject) continue;
     const key = topic.toLowerCase();
     if (byKey.has(key)) continue;
-    const entry = byChapterSessions.get(key) ?? { subject: s.subject, scores: [] };
+    const entry = byChapterSessions.get(key) ?? { subject, scores: [] };
     entry.scores.push(accuracyOf(s));
-    entry.subject = s.subject;
+    entry.subject = subject;
     byChapterSessions.set(key, entry);
   }
 
@@ -226,11 +264,16 @@ export function deriveImprovingTopics(
   for (const [key, { subject, scores }] of merged) {
     const trend = halfWindowTrend(scores);
     if (trend == null || trend < 5) continue;
+    const realSubject = preferRealAcademicLabel(subject);
+    if (!realSubject) continue;
     const topic =
-      practiceTrend.find((p) => (p.chapter || "").trim().toLowerCase() === key)?.chapter ||
-      sessions.find((s) => (s.chapter || "").trim().toLowerCase() === key)?.chapter ||
-      key;
-    out.push({ topic, subject: subject || "—", improvement: Math.round(trend) });
+      preferRealAcademicLabel(
+        practiceTrend.find((p) => preferRealAcademicLabel(p.chapter).toLowerCase() === key)?.chapter,
+        sessions.find((s) => preferRealAcademicLabel(s.chapter).toLowerCase() === key)?.chapter,
+        key,
+      );
+    if (!topic) continue;
+    out.push({ topic, subject: realSubject, improvement: Math.round(trend) });
   }
   return out.sort((a, b) => b.improvement - a.improvement).slice(0, 8);
 }
@@ -269,14 +312,19 @@ export function deriveSpeedStats(sessions: PracticeSessionSummary[]): {
 
   const subjectMap = new Map<string, { secSum: number; q: number }>();
   for (const s of withTiming) {
+    const key = subjectSessionKey(s.subject);
+    if (!key) continue;
     const sec = sessionSecPerQuestion(s)!;
-    const cur = subjectMap.get(s.subject) ?? { secSum: 0, q: 0 };
+    const cur = subjectMap.get(key) ?? { secSum: 0, q: 0 };
     cur.secSum += sec * s.question_count;
     cur.q += s.question_count;
-    subjectMap.set(s.subject, cur);
+    subjectMap.set(key, cur);
   }
   const bySubject = [...subjectMap.entries()]
-    .map(([name, v]) => ({ name, avgSec: Math.round(v.secSum / v.q) }))
+    .map(([key, v]) => ({
+      name: displaySubject(key) || normalizeSubjectName(key) || key,
+      avgSec: Math.round(v.secSum / v.q),
+    }))
     .sort((a, b) => a.avgSec - b.avgSec);
 
   const ordered = [...withTiming].sort(
@@ -386,39 +434,45 @@ export function deriveRecoveryTopics(
   attempts: number;
   improvement: number;
 }[] {
-  return (weakTopics ?? []).slice(0, 6).map((t) => {
-    const topic = t.topic || t.chapter || "Topic";
-    const match = mastery.find(
-      (m) =>
-        m.subject === t.subject &&
-        (m.concept === t.topic ||
-          m.chapter === t.chapter ||
-          m.concept === t.chapter ||
-          m.chapter === t.topic),
-    );
-    const attempts = match?.total_attempts ?? match?.recovery_attempts ?? 0;
-    const completed =
-      (match?.recovery_attempts ?? 0) > 0 && (match?.mastery_score ?? 0) >= 65;
-    let improvement = 0;
-    if (completed && match && match.total_attempts > 0) {
-      const acc = Math.round((100 * match.correct_attempts) / match.total_attempts);
-      improvement = Math.max(0, Math.round(acc - t.accuracy));
-    }
-    return {
-      topic,
-      subject: t.subject,
-      status: completed ? ("completed" as const) : ("pending" as const),
-      attempts,
-      improvement,
-    };
-  });
+  return (weakTopics ?? [])
+    .map((t) => {
+      const topic = preferRealAcademicLabel(t.topic, t.chapter);
+      const subject = preferRealAcademicLabel(t.subject);
+      if (!topic || !subject) return null;
+      const match = mastery.find(
+        (m) =>
+          preferRealAcademicLabel(m.subject) === subject &&
+          (preferRealAcademicLabel(m.concept) === topic ||
+            preferRealAcademicLabel(m.chapter) === topic ||
+            m.concept === t.topic ||
+            m.chapter === t.chapter),
+      );
+      const attempts = match?.total_attempts ?? match?.recovery_attempts ?? 0;
+      const completed =
+        (match?.recovery_attempts ?? 0) > 0 && (match?.mastery_score ?? 0) >= 65;
+      let improvement = 0;
+      if (completed && match && match.total_attempts > 0) {
+        const acc = Math.round((100 * match.correct_attempts) / match.total_attempts);
+        improvement = Math.max(0, Math.round(acc - t.accuracy));
+      }
+      return {
+        topic,
+        subject,
+        status: completed ? ("completed" as const) : ("pending" as const),
+        attempts,
+        improvement,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row != null)
+    .slice(0, 6);
 }
 
 export function deriveRevisionData(queue: AcademicSnapshot["revision_queue"]) {
   const items = queue ?? [];
   const dueToday = items
     .filter((r) => new Date(r.due_date).toDateString() === new Date().toDateString())
-    .map((r) => r.topic || r.chapter || r.subject);
+    .map((r) => preferRealAcademicLabel(r.topic, r.chapter, r.subject))
+    .filter((label): label is string => Boolean(label));
   // Queue only contains open items — completed revisions leave the queue.
   return {
     totalRevised: items.length,

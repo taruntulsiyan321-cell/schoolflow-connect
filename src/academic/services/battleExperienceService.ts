@@ -469,7 +469,7 @@ export const BattleExperienceService = {
       .from("battles")
       .insert({
         title,
-        subject: opts.subject.trim() || "General",
+        subject: opts.subject.trim() || "",
         topic: opts.topic?.trim() || null,
         type: "mcq",
         status: "live",

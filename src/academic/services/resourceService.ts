@@ -58,7 +58,7 @@ function mapRow(row: DbResourceRow): LearningResourceRow {
   return {
     id: row.id,
     title: row.title,
-    subject: row.subject?.trim() || "General",
+    subject: row.subject?.trim() || "",
     type: mapType(row.resource_type),
     description: row.description,
     url: row.url,

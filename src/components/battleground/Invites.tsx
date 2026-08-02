@@ -247,10 +247,14 @@ export function MyInvites() {
                 {i.battles?.title || "Battle challenge"}
               </div>
               <div className="text-[11px] text-muted-foreground">
-                {displaySubject(i.battles?.subject) || "Subject"}
-                {i.battles?.chapter ? ` · ${displayChapter(i.battles.chapter)}` : ""}
-                {i.battles?.topic ? ` · ${displayTopic(i.battles.topic)}` : ""}
-                {i.battles?.question_count != null ? ` · ${i.battles.question_count}Q` : ""}
+                {[
+                  displaySubject(i.battles?.subject),
+                  i.battles?.chapter ? displayChapter(i.battles.chapter) : "",
+                  i.battles?.topic ? displayTopic(i.battles.topic) : "",
+                  i.battles?.question_count != null ? `${i.battles.question_count}Q` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </div>
             </div>
             <Button size="sm" variant="outline" disabled={accepting !== null} onClick={() => decline(i.id)}>

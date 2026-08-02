@@ -26,6 +26,7 @@ import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisp
 import {
   DAY_LABELS,
   buildWeekComparison,
+  buildSubjectRadarPoints,
   deriveSubjectRows,
   deriveChapterRows,
   deriveImprovingTopics,
@@ -37,6 +38,7 @@ import {
   practiceCountForTopic,
   scoreAxisDomain,
 } from "@/lib/studentAnalysisMetrics";
+import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "#3b5bdb",
@@ -99,10 +101,10 @@ export default function Analysis() {
   const student = useGurukulStudent();
   const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
   const liveVersion = useAcademicLive(["marks", "examination", "profile"]);
-  const { data: analysis, loading: analysisLoading, error: analysisError } = useAnalysisPageData();
-  const { data: charts, loading: chartsLoading } = useStudentPerformanceCharts();
-  const { data: snapshot, loading: snapshotLoading } = useStudentAcademicSnapshot();
-  const { items: mastery, loading: masteryLoading } = useConceptMastery();
+  const { data: analysis, loading: analysisLoading, error: analysisError } = useAnalysisPageData(academicReady);
+  const { data: charts, loading: chartsLoading } = useStudentPerformanceCharts(academicReady);
+  const { data: snapshot, loading: snapshotLoading } = useStudentAcademicSnapshot(academicReady);
+  const { items: mastery, loading: masteryLoading } = useConceptMastery(academicReady);
   const [marks, setMarks] = useState<MarksRecord[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
 
@@ -167,21 +169,23 @@ export default function Analysis() {
     const totalQuestions = correct + incorrect;
     const heatmap = snapshot?.activity_heatmap ?? [];
     const studyMinutes = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
+    // Accuracy + study streak: same shell SSOT as Home (Progression + snapshot) — not mastery recompute.
+    const accuracy = Math.round(student.accuracy);
     return {
-      accuracy: analysis?.totals.accuracy_pct ?? 0,
+      accuracy,
       totalQuestions,
       correct,
       incorrect,
       practiceCompleted: snapshot?.self_practice?.sessions_completed ?? analysis?.recent_sessions.length ?? 0,
       testsCompleted: testResults.length,
-      avgScore: analysis?.totals.accuracy_pct ?? 0,
+      avgScore: accuracy,
       studyHours: Math.round(studyMinutes / 60),
-      streak: snapshot?.xp?.study_streak ?? student.streak ?? 0,
-      rank: analysis?.class_rank ?? 0,
-      totalStudents: analysis?.class_size ?? 0,
+      streak: student.streak,
+      rank: analysis?.class_rank ?? student.rank ?? 0,
+      totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
       examReadiness: snapshot?.exam_readiness?.score ?? 0,
     };
-  }, [analysis, snapshot, testResults.length]);
+  }, [analysis, snapshot, testResults.length, student.accuracy, student.streak, student.rank, student.totalStudents]);
 
   const scoreTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];
@@ -219,7 +223,7 @@ export default function Analysis() {
   }, [charts?.subjects, analysis?.recent_sessions]);
 
   const radarData = useMemo(
-    () => subjectData.map((s) => ({ subject: s.name.slice(0, 4), score: s.score })),
+    () => buildSubjectRadarPoints(subjectData.map((s) => ({ name: s.name, score: s.score }))),
     [subjectData],
   );
 
@@ -238,29 +242,26 @@ export default function Analysis() {
   }, [mastery, analysis?.recent_sessions, snapshot]);
 
   const topicGroups = useMemo(() => {
-    const realTopic = (t: { topic?: string | null; chapter?: string | null }) => {
-      const raw = (t.topic || t.chapter || "").trim();
-      return displayTopic(raw) ? raw : "";
-    };
+    const realTopic = (t: { topic?: string | null; chapter?: string | null }) =>
+      preferRealAcademicLabel(t.topic, t.chapter);
+    const realSubject = (s: string | null | undefined) => preferRealAcademicLabel(s);
     return {
       doing_well: (snapshot?.strong_topics ?? [])
         .map((t) => {
           const topic = realTopic(t);
-          if (!topic) return null;
-          return {
-            topic,
-            subject: t.subject,
-            score: Math.round(t.accuracy),
-          };
+          const subject = realSubject(t.subject);
+          if (!topic || !subject) return null;
+          return { topic, subject, score: Math.round(t.accuracy) };
         })
         .filter((t): t is NonNullable<typeof t> => t != null),
       needs_attention: (snapshot?.weak_topics ?? [])
         .map((t) => {
           const topic = realTopic(t);
-          if (!topic) return null;
+          const subject = realSubject(t.subject);
+          if (!topic || !subject) return null;
           return {
             topic,
-            subject: t.subject,
+            subject,
             score: Math.round(t.accuracy),
             practiceCount: practiceCountForTopic(
               analysis?.recent_sessions ?? [],
@@ -273,11 +274,23 @@ export default function Analysis() {
       improving: deriveImprovingTopics(
         charts?.practice_trend ?? [],
         analysis?.recent_sessions ?? [],
+      ).filter(
+        (t) =>
+          preferRealAcademicLabel(t.topic) &&
+          (t.subject === "—" || preferRealAcademicLabel(t.subject)),
       ),
       not_started: mastery
-        .filter((m) => m.total_attempts === 0 && displayTopic(m.concept))
+        .filter(
+          (m) =>
+            m.total_attempts === 0 &&
+            preferRealAcademicLabel(m.concept) &&
+            preferRealAcademicLabel(m.subject),
+        )
         .slice(0, 8)
-        .map((m) => ({ topic: m.concept, subject: m.subject })),
+        .map((m) => ({
+          topic: preferRealAcademicLabel(m.concept),
+          subject: preferRealAcademicLabel(m.subject),
+        })),
     };
   }, [snapshot?.strong_topics, snapshot?.weak_topics, mastery, charts?.practice_trend, analysis?.recent_sessions]);
 
@@ -286,7 +299,7 @@ export default function Analysis() {
     const weekDone = weekly.reduce((s, d) => s + d.total, 0);
     const todayKey = new Date().toDateString();
     const todayDone = weekly.find((d) => new Date(d.date).toDateString() === todayKey)?.total ?? 0;
-    const streakDays = snapshot?.xp?.study_streak ?? student.streak ?? 0;
+    const streakDays = student.streak;
     const activeDays = (snapshot?.activity_heatmap ?? []).filter(
       (d) => (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0,
     ).length;
@@ -742,7 +755,7 @@ export default function Analysis() {
                   <div className="w-2 h-10 rounded-full shrink-0" style={{ background: s.color }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white">{s.name}</span>
+                      <span className="text-sm font-semibold text-white">{displaySubject(s.name) || s.name}</span>
                       {s.status === "best" && <span className="text-[9px] uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">Best subject</span>}
                       {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
@@ -786,7 +799,7 @@ export default function Analysis() {
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
                         <div className="text-sm font-semibold text-white">{displayChapter(c.chapter)}</div>
-                        <div className="text-[11px] mt-0.5" style={{ color: c.color }}>{c.subject}</div>
+                        <div className="text-[11px] mt-0.5" style={{ color: c.color }}>{displaySubject(c.subject)}</div>
                       </div>
                       <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: `${st.color}12` }}>
                         {st.text}
@@ -898,7 +911,7 @@ export default function Analysis() {
                     <TrendingUp className="w-4 h-4 text-[#3b5bdb] shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{t.subject}</div>
+                      <div className="text-[11px] text-[#78788c]">{displaySubject(t.subject)}</div>
                     </div>
                     <span className="text-sm font-black text-emerald-400 shrink-0">+{t.improvement}%</span>
                   </div>
@@ -917,7 +930,7 @@ export default function Analysis() {
                     <Minus className="w-4 h-4 text-[#78788c] shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-[#a0a0b0] truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{t.subject}</div>
+                      <div className="text-[11px] text-[#78788c]">{displaySubject(t.subject)}</div>
                     </div>
                     <span className="text-[10px] text-[#78788c]">Not started</span>
                   </div>
@@ -951,7 +964,7 @@ export default function Analysis() {
                     }
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-white truncate">{displayTopic(r.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{r.subject}</div>
+                      <div className="text-[11px] text-[#78788c]">{displaySubject(r.subject)}</div>
                     </div>
                     {r.status === "completed"
                       ? <span className="text-xs font-semibold text-emerald-400">+{r.improvement}%</span>

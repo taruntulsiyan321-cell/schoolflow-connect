@@ -56,6 +56,7 @@ export {
   displayTopic,
   fixMojibake,
   humanizeAcademicLabel,
+  isPlaceholderAcademicLabel,
   looksLikeAcademicSlug,
   presentAcademicLabel,
   toPresentedTerm,

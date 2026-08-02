@@ -93,7 +93,8 @@ export default function Tests() {
     const map = new Map<string, number[]>();
     for (const m of marks) {
       const exam = examById.get(m.examId);
-      const key = exam?.subject || "General";
+      const key = (exam?.subject ?? "").trim();
+      if (!key || !displaySubject(key)) continue;
       const max = exam?.maxMarks ?? 100;
       const pct = max ? (m.marksObtained / max) * 100 : 0;
       if (!map.has(key)) map.set(key, []);
@@ -183,7 +184,7 @@ export default function Tests() {
                     <div>
                       <div className="text-sm font-semibold text-white">{exam?.name ?? "Exam"}</div>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <SubjectBadge subject={subj || "—"} color={col} />
+                        {displaySubject(subj) ? <SubjectBadge subject={subj} color={col} /> : null}
                         {typeLabel && (
                           <span className="text-[10px] text-[#78788c]">{typeLabel}</span>
                         )}
@@ -223,8 +224,7 @@ export default function Tests() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-white truncate">{t.title}</div>
                     <div className="text-[11px] text-[#78788c]">
-                      {displaySubject(t.subject) || "—"}
-                      {kindLabel ? ` · ${kindLabel}` : ""}
+                      {[displaySubject(t.subject), kindLabel].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                   {t.published ? (

@@ -6,6 +6,33 @@ import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
 
 const SMALL_WORDS = new Set(["a", "an", "the", "and", "or", "of", "in", "on", "to", "for", "vs", "via"]);
 
+/**
+ * Bare demo/placeholder tokens that must never appear as academic metadata in product UI.
+ * Exact match only (case-insensitive) — does not affect real titles like "Subject-Verb Agreement".
+ */
+const PLACEHOLDER_ACADEMIC_LABELS = new Set([
+  "subject",
+  "topic",
+  "daily",
+  "general",
+  "concept",
+  "chapter",
+  "mixed",
+  // Practice mode keys sometimes stored as chapter/concept by mistake
+  "weak",
+  "incorrect",
+  "skipped",
+  "timed",
+]);
+
+/** True when raw is empty or a banned placeholder label. */
+export function isPlaceholderAcademicLabel(raw: string | null | undefined): boolean {
+  if (raw == null) return true;
+  const s = String(raw).trim().toLowerCase();
+  if (!s) return true;
+  return PLACEHOLDER_ACADEMIC_LABELS.has(s);
+}
+
 /** Leftover UTF-8-as-Windows-1252 / Latin-1 sequences after structural repair (labels). */
 const MOJIBAKE_MAP: Array<[RegExp, string]> = [
   [/â€”/g, "\u2014"],
@@ -139,6 +166,8 @@ export function presentAcademicLabel(
   if (raw == null) return "";
   const cleaned = fixMojibake(String(raw));
   if (!cleaned) return "";
+  // Never surface bare Subject / Topic / Daily / General as if they were real metadata.
+  if (isPlaceholderAcademicLabel(cleaned)) return "";
 
   const fromRegistry = lookupDisplayName(cleaned, kind);
   if (fromRegistry) return fromRegistry;
@@ -202,10 +231,12 @@ export function toPresentedTerm(
   raw: string | null | undefined,
   kind?: AcademicLabelKind,
 ): { id: string; displayName: string } | null {
-  if (raw == null || !String(raw).trim()) return null;
+  if (isPlaceholderAcademicLabel(raw)) return null;
+  const displayName = presentAcademicLabel(raw, kind);
+  if (!displayName) return null;
   const id =
     kind === "concept" || kind === "topic"
       ? canonicalizeConceptId(raw) || slugifyAcademicId(raw)
       : String(raw).trim();
-  return { id, displayName: presentAcademicLabel(raw, kind) };
+  return { id, displayName };
 }

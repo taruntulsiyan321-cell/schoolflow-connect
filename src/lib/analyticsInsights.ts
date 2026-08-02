@@ -8,7 +8,7 @@ import {
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
-import { displayChapter, displayTopic, displayConcept } from "@/lib/academicDisplay";
+import { displayChapter, displayTopic, displayConcept, displaySubject } from "@/lib/academicDisplay";
 
 export type TopicGapInsight = {
   topic: string;
@@ -175,9 +175,13 @@ export function aggregateMistakesByTopic(mistakes: MistakeRecord[]): MistakeTopi
   const map = new Map<string, MistakeTopicAggregate>();
 
   for (const m of mistakes) {
-    const topic = (m.topic || m.concept || "Specific skills in this chapter").trim();
-    const chapter = m.chapter?.trim() || null;
-    const key = normalizeTopicKey(topic, chapter, m.subject);
+    const topicRaw = (m.topic || m.concept || "").trim();
+    const topic = displayTopic(topicRaw);
+    const subject = displaySubject(m.subject);
+    if (!topic || !subject) continue;
+    const chapterRaw = m.chapter?.trim() || null;
+    const chapter = chapterRaw && displayChapter(chapterRaw) ? chapterRaw : null;
+    const key = normalizeTopicKey(topic, chapter, subject);
     const seenAt = m.last_wrong_at ?? null;
     const existing = map.get(key);
 
@@ -191,8 +195,8 @@ export function aggregateMistakesByTopic(mistakes: MistakeRecord[]): MistakeTopi
       map.set(key, {
         topic,
         chapter,
-        subject: m.subject,
-        concept: m.concept,
+        subject,
+        concept: m.concept && displayConcept(m.concept) ? m.concept : undefined,
         mistake_count: 1,
         total_wrong: m.times_wrong,
         sample_question: m.question_text.slice(0, 200),
@@ -212,29 +216,35 @@ export function aggregateMistakesByTopic(mistakes: MistakeRecord[]): MistakeTopi
 export const aggregateWeakConceptsFromMistakes = aggregateMistakesByTopic;
 
 export function aggregatesToTopicGaps(aggregates: MistakeTopicAggregate[]): TopicGapInsight[] {
-  return aggregates.map((a) => {
-    const misconception = inferMisconception(a.sample_wrong, a.sample_correct);
-    return {
-      topic: displayTopic(a.topic),
-      chapter: displayChapter(a.chapter) || "General",
-      subject: a.subject,
-      concept: a.concept ? displayConcept(a.concept) : undefined,
-      severity: severityFromWrong(a.total_wrong, a.mistake_count),
-      misconception,
-      why_weak: `You missed ${a.mistake_count} question${a.mistake_count === 1 ? "" : "s"} on "${displayTopic(a.topic)}"${a.chapter ? ` in ${displayChapter(a.chapter)}` : ""}. On a recent one you chose "${a.sample_wrong ?? "?"}" instead of "${a.sample_correct ?? "?"}".`,
-      root_cause:
-        a.mistake_count >= 2
-          ? "This keeps coming up — likely a conceptual gap, not a one-off slip."
-          : "Walk through where your working diverged from the correct approach.",
-      error_pattern: a.mistake_count >= 2 ? `Repeated errors on ${displayTopic(a.topic)}` : undefined,
-      fix_hint: `Open NCERT on "${displayTopic(a.topic)}"${a.chapter ? ` (${displayChapter(a.chapter)})` : ""}, do the quick checks below, then fix matching mistakes in Recovery.`,
-      micro_drills: buildMicroDrills(displayTopic(a.topic), a.chapter ? displayChapter(a.chapter) : a.chapter),
-      evidence: a.sample_question ? `Recent question: "${a.sample_question.slice(0, 120)}…"` : undefined,
-      mistake_count: a.mistake_count,
-      total_wrong: a.total_wrong,
-      last_seen: a.last_seen,
-    };
-  });
+  return aggregates
+    .map((a) => {
+      const topic = displayTopic(a.topic);
+      const subject = displaySubject(a.subject);
+      if (!topic || !subject) return null;
+      const chapter = displayChapter(a.chapter) || "";
+      const misconception = inferMisconception(a.sample_wrong, a.sample_correct);
+      return {
+        topic,
+        chapter,
+        subject,
+        concept: a.concept ? displayConcept(a.concept) : undefined,
+        severity: severityFromWrong(a.total_wrong, a.mistake_count),
+        misconception,
+        why_weak: `You missed ${a.mistake_count} question${a.mistake_count === 1 ? "" : "s"} on "${topic}"${chapter ? ` in ${chapter}` : ""}. On a recent one you chose "${a.sample_wrong ?? "?"}" instead of "${a.sample_correct ?? "?"}".`,
+        root_cause:
+          a.mistake_count >= 2
+            ? "This keeps coming up — likely a conceptual gap, not a one-off slip."
+            : "Walk through where your working diverged from the correct approach.",
+        error_pattern: a.mistake_count >= 2 ? `Repeated errors on ${topic}` : undefined,
+        fix_hint: `Open NCERT on "${topic}"${chapter ? ` (${chapter})` : ""}, do the quick checks below, then fix matching mistakes in Recovery.`,
+        micro_drills: buildMicroDrills(topic, chapter || null),
+        evidence: a.sample_question ? `Recent question: "${a.sample_question.slice(0, 120)}…"` : undefined,
+        mistake_count: a.mistake_count,
+        total_wrong: a.total_wrong,
+        last_seen: a.last_seen,
+      };
+    })
+    .filter((row): row is TopicGapInsight => row != null);
 }
 
 /** @deprecated */
@@ -407,8 +417,8 @@ function mergeTopicsWithAggregates(
     const rule = ruleTopics[i] ?? ruleTopics.find((r) => r.topic === w.topic) ?? ruleTopics[0];
     return {
       ...w,
-      chapter: w.chapter || agg?.chapter || rule?.chapter || "General",
-      subject: w.subject || agg?.subject || rule?.subject || "General",
+      chapter: w.chapter || agg?.chapter || rule?.chapter || "",
+      subject: w.subject || agg?.subject || rule?.subject || "",
       severity: w.severity || (agg ? severityFromWrong(agg.total_wrong, agg.mistake_count) : rule?.severity ?? "moderate"),
       mistake_count: agg?.mistake_count ?? w.mistake_count ?? rule?.mistake_count ?? 1,
       total_wrong: agg?.total_wrong ?? w.total_wrong ?? rule?.total_wrong,
@@ -481,7 +491,7 @@ function planResponseToTopicGap(agg: MistakeTopicAggregate, plan: ImprovementPla
   const headlineCore = plan.headline.replace(/^[^:]{0,50}:\s*/, "").trim() || plan.headline;
   return {
     topic: agg.topic,
-    chapter: agg.chapter ?? "General",
+    chapter: agg.chapter ?? "",
     subject: agg.subject,
     concept: agg.concept ?? undefined,
     severity: severityFromWrong(agg.total_wrong, agg.mistake_count),
@@ -831,28 +841,34 @@ function normalizeGeminiInsights(
   ruleFallback: AnalyticsInsights,
   aggregates: MistakeTopicAggregate[],
 ): AnalyticsInsights {
-  const rawTopics: TopicGapInsight[] = ((data.weak_topics as TopicGapInsight[]) ?? []).map((w, i) => {
-    const fallback = ruleFallback.weak_topics[i] ?? ruleFallback.weak_topics[0];
-    return {
-      topic: w.topic || fallback?.topic || "Topic",
-      chapter: w.chapter || fallback?.chapter || "General",
-      subject: w.subject || fallback?.subject || "General",
-      concept: w.concept ?? fallback?.concept,
-      severity: normalizeSeverity(w.severity),
-      misconception: w.misconception || fallback?.misconception,
-      why_weak: w.why_weak || fallback?.why_weak || "",
-      root_cause: w.root_cause || fallback?.root_cause || "Conceptual or procedural gap from your wrong answers.",
-      error_pattern: w.error_pattern ?? fallback?.error_pattern,
-      fix_hint: w.fix_hint || fallback?.fix_hint || "",
-      micro_drills:
-        (w.micro_drills as string[])?.length ? (w.micro_drills as string[]) : fallback?.micro_drills,
-      evidence: w.evidence ?? fallback?.evidence,
-      ncert_ref: w.ncert_ref ?? fallback?.ncert_ref,
-      mistake_count: Math.max(1, w.mistake_count ?? fallback?.mistake_count ?? 1),
-      total_wrong: w.total_wrong ?? fallback?.total_wrong,
-      last_seen: w.last_seen ?? fallback?.last_seen,
-    };
-  });
+  const rawTopics: TopicGapInsight[] = ((data.weak_topics as TopicGapInsight[]) ?? [])
+    .map((w, i) => {
+      const fallback = ruleFallback.weak_topics[i] ?? ruleFallback.weak_topics[0];
+      const topic = displayTopic(w.topic || fallback?.topic || "");
+      const subject = displaySubject(w.subject || fallback?.subject || "");
+      if (!topic || !subject) return null;
+      const chapter = displayChapter(w.chapter || fallback?.chapter || "");
+      return {
+        topic,
+        chapter,
+        subject,
+        concept: w.concept ?? fallback?.concept,
+        severity: normalizeSeverity(w.severity),
+        misconception: w.misconception || fallback?.misconception,
+        why_weak: w.why_weak || fallback?.why_weak || "",
+        root_cause: w.root_cause || fallback?.root_cause || "Conceptual or procedural gap from your wrong answers.",
+        error_pattern: w.error_pattern ?? fallback?.error_pattern,
+        fix_hint: w.fix_hint || fallback?.fix_hint || "",
+        micro_drills:
+          (w.micro_drills as string[])?.length ? (w.micro_drills as string[]) : fallback?.micro_drills,
+        evidence: w.evidence ?? fallback?.evidence,
+        ncert_ref: w.ncert_ref ?? fallback?.ncert_ref,
+        mistake_count: Math.max(1, w.mistake_count ?? fallback?.mistake_count ?? 1),
+        total_wrong: w.total_wrong ?? fallback?.total_wrong,
+        last_seen: w.last_seen ?? fallback?.last_seen,
+      };
+    })
+    .filter((row): row is TopicGapInsight => row != null);
 
   const weak_topics = mergeTopicsWithAggregates(rawTopics, aggregates, ruleFallback.weak_topics);
 

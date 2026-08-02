@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { useGurukulStudent } from "@/gurukul/StudentContext";
+import { useGurukulAcademicIdentity, useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService, HomeworkService, TestService, TEST_KIND_LABELS, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
 import type { PracticeSessionRow } from "@/academic";
@@ -10,7 +10,12 @@ import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/pra
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { buildPracticeAnalysisSnapshot } from "@/lib/practiceAnalysisSnapshot";
 import { toast } from "sonner";
-import { displayChapter, displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
+import {
+  displayChapter,
+  displaySubject,
+  isPlaceholderAcademicLabel,
+  presentAcademicLabel,
+} from "@/lib/academicPresentation";
 import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
 import type { AcademicTermRef } from "@/academic/services/practiceService";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
@@ -26,6 +31,8 @@ import {
 
 const CLASS_UNRESOLVED_MSG =
   "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
+const CLASS_LEVEL_UNRESOLVED_MSG =
+  "Your class is assigned, but its name or category does not identify a class level. Ask your school admin to use a label such as Class 10, Std 9, XI, or 12-A.";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Phase   = "hub" | "config" | "session" | "feedback" | "summary";
@@ -592,7 +599,7 @@ function Hub({
 
 // ── Config views ─────────────────────────────────────────────────────────────
 function ConfigView({
-  modeKey, onStart, onBack, subjects, onNavigate, classUnresolved,
+  modeKey, onStart, onBack, subjects, onNavigate, classUnresolved, classUnresolvedMessage,
 }: {
   modeKey: ModeKey;
   onStart: (cfg: SessionConfig) => void;
@@ -600,6 +607,7 @@ function ConfigView({
   subjects: PracticeSubject[];
   onNavigate?: (page: PageKey) => void;
   classUnresolved?: boolean;
+  classUnresolvedMessage?: string;
 }) {
   const mode = MODES.find(m => m.key === modeKey)!;
   const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
@@ -751,7 +759,7 @@ function ConfigView({
   }
 
   const subjectEmptyMsg = classUnresolved
-    ? CLASS_UNRESOLVED_MSG
+    ? classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG
     : "No subjects in the question bank yet for your class and board.";
 
   if (modeKey === "teacher") {
@@ -1221,7 +1229,7 @@ interface SessionConfig {
 
 // ── Session (question-solving) ───────────────────────────────────────────────
 function Session({
-  config, onFinish, onBack, onNavigate, subjects, classUnresolved,
+  config, onFinish, onBack, onNavigate, subjects, classUnresolved, classUnresolvedMessage,
 }: {
   config: SessionConfig;
   onFinish: (results: SessionResults) => void;
@@ -1229,6 +1237,7 @@ function Session({
   onNavigate?: (p: PageKey) => void;
   subjects: PracticeSubject[];
   classUnresolved?: boolean;
+  classUnresolvedMessage?: string;
 }) {
   const { ctx, ready: academicReady } = useAcademicContext();
   const [qs, setQs] = useState<BankQuestion[]>([]);
@@ -1809,7 +1818,7 @@ function Session({
         <div className="text-lg font-bold text-white">No questions available</div>
         <p className="text-sm text-[#78788c]">
           {classUnresolved
-            ? CLASS_UNRESOLVED_MSG
+            ? classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG
             : emptyByMode[config.mode] ??
               "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions."}
         </p>
@@ -2053,6 +2062,7 @@ return (
 // ── Root component ────────────────────────────────────────────────────────────
 export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
+  const academicIdentity = useGurukulAcademicIdentity();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { ctx, ready: academicReady } = useAcademicContext();
@@ -2069,7 +2079,12 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     practiceType: "",
     date: "",
   });
-  const classUnresolved = !!curriculumScope && curriculumScope.classLevel == null;
+  const classIdMissing = !!curriculumScope && !academicIdentity.classId;
+  const classLevelUnresolved = !!curriculumScope && curriculumScope.classLevel == null;
+  const classUnresolved = classIdMissing || classLevelUnresolved;
+  const classUnresolvedMessage = classIdMissing
+    ? CLASS_UNRESOLVED_MSG
+    : CLASS_LEVEL_UNRESOLVED_MSG;
 
   useEffect(() => {
     if (!ctx || !academicReady) {
@@ -2241,9 +2256,8 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         mode: modeKeyResume,
         label: mode.label,
         subject: row.subject || "Mixed",
-        chapter: row.chapter && !["Daily", "daily", "weak", "incorrect", "skipped"].includes(row.chapter)
-          ? row.chapter
-          : null,
+        chapter:
+          row.chapter && !isPlaceholderAcademicLabel(row.chapter) ? row.chapter : null,
         topic: null,
         difficulty: row.difficulty || "mixed",
         qCount: row.question_count || 20,
@@ -2325,7 +2339,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     <>
       {classUnresolved && (
         <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100/90">
-          {CLASS_UNRESOLVED_MSG}
+          {classUnresolvedMessage}
         </div>
       )}
       {phase === "hub" && (
@@ -2352,6 +2366,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           subjects={subjects}
           onNavigate={setPage}
           classUnresolved={classUnresolved}
+          classUnresolvedMessage={classUnresolvedMessage}
         />
       )}
       {phase === "session" && config && (
@@ -2362,6 +2377,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           onNavigate={setPage}
           subjects={subjects}
           classUnresolved={classUnresolved}
+          classUnresolvedMessage={classUnresolvedMessage}
         />
       )}
       {phase === "summary" && results && (

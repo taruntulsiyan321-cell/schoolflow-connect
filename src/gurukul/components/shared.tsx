@@ -48,7 +48,8 @@ const SUBJECT_COLORS: Record<string,string> = {
 };
 
 export function SubjectBadge({ subject, color }: { subject: string; color?: string }) {
-  const label = displaySubject(subject) || subject;
+  const label = displaySubject(subject);
+  if (!label) return null;
   const c = color ?? SUBJECT_COLORS[label] ?? SUBJECT_COLORS[subject] ?? "#78788c";
   return (
     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"

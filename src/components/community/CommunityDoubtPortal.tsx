@@ -94,7 +94,7 @@ interface TeacherDashboardData {
 
 type FeedFilter = "recent" | "trending" | "unanswered" | "teacher" | "mine";
 
-const FALLBACK_SUBJECTS = ["Mathematics", "English", "General"];
+const FALLBACK_SUBJECTS = ["Mathematics", "English", "Hindi"];
 
 const FILTERS: { id: FeedFilter; label: string; icon: typeof MessageCircle }[] = [
   { id: "recent", label: "Recent Doubts", icon: MessageCircle },
@@ -193,7 +193,7 @@ function DoubtCard({
         <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{doubt.body}</p>
 
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">{doubt.subject || "Subject"}</span>
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">{doubt.subject || "—"}</span>
           <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">{doubt.chapter || "Chapter"}</span>
           {doubt.concept && <span className="rounded-full bg-accent/10 px-2.5 py-1 font-semibold text-accent">{doubt.concept}</span>}
         </div>
@@ -269,8 +269,7 @@ function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [classLevel, setClassLevel] = useState<number | null>(null);
   const subjects = useMemo(() => {
-    const scoped = subjectsForStreamPicker(stream, classLevel, getNcertSubjects(classLevel) || FALLBACK_SUBJECTS);
-    return scoped.includes("General") ? scoped : [...scoped, "General"];
+    return subjectsForStreamPicker(stream, classLevel, getNcertSubjects(classLevel) || FALLBACK_SUBJECTS);
   }, [stream, classLevel]);
   const [subject, setSubject] = useState(subjects[0] ?? "Mathematics");
   const [chapter, setChapter] = useState("");
@@ -472,7 +471,7 @@ function DoubtDetail({
         <div className="bg-gradient-to-br from-primary/15 via-accent/10 to-background p-5">
           <div className="flex flex-wrap items-center gap-2">
             {statusBadge(selected.status)}
-            <Badge variant="outline" className="rounded-full bg-background/70">{selected.subject || "Subject"}</Badge>
+            <Badge variant="outline" className="rounded-full bg-background/70">{selected.subject || "—"}</Badge>
             {selected.chapter && <Badge variant="outline" className="rounded-full bg-background/70">{selected.chapter}</Badge>}
           </div>
           <h2 className="mt-4 text-xl font-black leading-tight">{selected.title}</h2>

@@ -189,7 +189,7 @@ export async function projectMarksSummary(
     if (!error) {
       for (const e of exams ?? []) {
         examMap.set(String(e.id), {
-          subject: String(e.subject ?? "Subject"),
+          subject: String(e.subject ?? ""),
           maxMarks: Number(e.max_marks) || 100,
         });
       }

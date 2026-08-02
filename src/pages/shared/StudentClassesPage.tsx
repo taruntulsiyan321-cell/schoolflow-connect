@@ -227,7 +227,7 @@ export default function StudentClassesPage() {
               <div className="text-xs opacity-80">Class Teacher</div>
               <div className="font-bold">{classTeacher.full_name}</div>
               <div className="text-xs opacity-80">
-                {classTeacher.subject || "General"} · {classTeacher.mobile || "No contact"}
+                {[classTeacher.subject, classTeacher.mobile || "No contact"].filter(Boolean).join(" · ")}
               </div>
             </div>
           </div>
@@ -242,7 +242,7 @@ export default function StudentClassesPage() {
             <Card key={i} className="p-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="font-semibold">{s.subject || "Subject"}</div>
+                  <div className="font-semibold">{s.subject || "—"}</div>
                   <div className="text-sm text-muted-foreground mt-1">
                     <GraduationCap className="w-3.5 h-3.5 inline mr-1" />
                     {s.teacherName}
