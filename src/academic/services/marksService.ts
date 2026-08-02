@@ -23,6 +23,18 @@ import { assertMayAccessStudent } from "./parentAccess";
 import { emitEvent } from "../repository/eventsRepository";
 import { assertTeacherMayManageAcademicWork } from "./workLifecycle";
 import { ValidationFailedError } from "../repository/errors";
+import { broadcastAcademicWrite } from "../live";
+
+function afterMarksWrite(
+  ctx: ServiceContext,
+  meta?: { classId?: string | null; studentId?: string | null; source?: string },
+) {
+  broadcastAcademicWrite(ctx.schoolId, ["marks", "examination", "profile"], {
+    classId: meta?.classId,
+    studentId: meta?.studentId,
+    source: meta?.source ?? "MarksService",
+  });
+}
 
 /**
  * MarksService — Teacher publishes marks for assigned subjects only.
@@ -123,6 +135,13 @@ export const MarksService = {
     return publishMarks(toRepoContext(ctx), {
       ...input,
       teacherAssignedToSubject: true,
+    }).then((row) => {
+      afterMarksWrite(ctx, {
+        classId: exam.classId,
+        studentId: input.studentId,
+        source: "MarksService.publish",
+      });
+      return row;
     });
   },
 
@@ -157,6 +176,7 @@ export const MarksService = {
         payload: { name: exam.name, subject: exam.subject, examType: exam.examType },
       }).catch(() => undefined);
     }
+    afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.upsertExam" });
     return exam;
   },
 
@@ -188,7 +208,9 @@ export const MarksService = {
       throw new ForbiddenError("You can only enter marks for your assigned subject");
     }
     const { publishMarksBatch } = await import("../repository/examRepository");
-    return publishMarksBatch(toRepoContext(ctx), examId, rows, true);
+    const count = await publishMarksBatch(toRepoContext(ctx), examId, rows, true);
+    afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.publishBatch" });
+    return count;
   },
 
   /**
@@ -236,6 +258,7 @@ export const MarksService = {
         subjectCount: rows.length,
       },
     }).catch(() => undefined);
+    afterMarksWrite(ctx, { classId: input.classId, source: "MarksService.createClassExam" });
     return rows;
   },
 
@@ -338,13 +361,9 @@ export const MarksService = {
       },
     }).catch(() => undefined);
 
+    afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.finalizeMarks" });
     return getExam(repo, examId);
   },
-
-  /**
-   * Publish results — class teacher; publishes whole group.
-   * Students/parents notified only here.
-   */
   async publishResults(ctx: ServiceContext, examId: string): Promise<ExamRecord> {
     assertCanOwn(ctx, "examination");
     const repo = toRepoContext(ctx);
@@ -396,6 +415,7 @@ export const MarksService = {
       payload: { classId: exam.classId, name: exam.name, examGroupId: exam.examGroupId },
     }).catch(() => undefined);
 
+    afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.publishResults" });
     return getExam(repo, examId);
   },
 };

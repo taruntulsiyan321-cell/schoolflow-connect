@@ -866,4 +866,82 @@ export const PracticeService = {
       explanation: r.explanation,
     }));
   },
+
+  /**
+   * Recovery answer — mirrors into question_attempts via RPC.
+   * UI must not call rpc_submit_recovery_answer directly.
+   */
+  async submitRecoveryAnswer(
+    ctx: ServiceContext,
+    args: {
+      questionId: string;
+      studentAnswer: Record<string, unknown>;
+      isCorrect: boolean;
+    },
+  ) {
+    assertCanOwn(ctx, "practice_attempt");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_submit_recovery_answer",
+      {
+        _question_id: args.questionId,
+        _student_answer: args.studentAnswer,
+        _is_correct: args.isCorrect,
+      } as never,
+    );
+    throwIfError(error, "Failed to submit recovery answer");
+    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
+      studentId: ctx.studentId,
+      source: "PracticeService.submitRecoveryAnswer",
+    });
+    return data;
+  },
+
+  /** Queue recovery work when a concept is weak (idempotent per concept). */
+  async assignRecovery(
+    ctx: ServiceContext,
+    args: {
+      subject: string;
+      chapter?: string | null;
+      concept?: string | null;
+      sourceType: string;
+      sourceId: string;
+      accuracy?: number;
+    },
+  ): Promise<void> {
+    assertCanOwn(ctx, "practice");
+    const { error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_assign_concept_recovery",
+      {
+        _subject: args.subject,
+        _chapter: args.chapter ?? null,
+        _concept: args.concept ?? args.chapter ?? null,
+        _subconcept: null,
+        _accuracy: args.accuracy ?? 35,
+        _source_type: args.sourceType,
+        _source_id: args.sourceId,
+      } as never,
+    );
+    if (error) {
+      console.warn("recovery assign:", error.message);
+      return;
+    }
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      studentId: ctx.studentId,
+      source: "PracticeService.assignRecovery",
+    });
+  },
+
+  /** Mark a revision-queue item complete. */
+  async completeRevision(ctx: ServiceContext, revisionId: string): Promise<void> {
+    assertCanOwn(ctx, "practice");
+    const { error } = await getClient(toRepoContext(ctx)).rpc("rpc_complete_revision", {
+      _id: revisionId,
+    } as never);
+    throwIfError(error, "Failed to complete revision");
+    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
+      studentId: ctx.studentId,
+      source: "PracticeService.completeRevision",
+    });
+    notifyStudentXpUpdated();
+  },
 };

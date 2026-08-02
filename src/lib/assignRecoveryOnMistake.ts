@@ -1,5 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
-
 /** Queue recovery work when a student gets a concept wrong (idempotent per concept). */
 export async function assignRecoveryOnMistake(opts: {
   subject: string;
@@ -9,14 +7,18 @@ export async function assignRecoveryOnMistake(opts: {
   sourceId: string;
   accuracy?: number;
 }) {
-  const { error } = await (supabase as any).rpc("rpc_assign_concept_recovery", {
-    _subject: opts.subject,
-    _chapter: opts.chapter ?? null,
-    _concept: opts.concept ?? opts.chapter ?? null,
-    _subconcept: null,
-    _accuracy: opts.accuracy ?? 35,
-    _source_type: opts.sourceType,
-    _source_id: opts.sourceId,
-  });
-  if (error) console.warn("recovery assign:", error.message);
+  try {
+    const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+    const ctx = await resolveStudentServiceContext();
+    await PracticeService.assignRecovery(ctx, {
+      subject: opts.subject,
+      chapter: opts.chapter,
+      concept: opts.concept,
+      sourceType: opts.sourceType,
+      sourceId: opts.sourceId,
+      accuracy: opts.accuracy,
+    });
+  } catch (e) {
+    console.warn("recovery assign:", e instanceof Error ? e.message : e);
+  }
 }

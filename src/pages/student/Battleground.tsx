@@ -302,33 +302,25 @@ export function BattleRoom() {
       setTimeout(() => setPointsFlash(null), 900);
     }
     try {
-      const { error: ansErr } = await supabase.from("battle_answers").upsert(
-        {
-          participant_id: participantId,
-          question_id: currentQ.id,
-          selected_index: idx,
-          is_correct: correct,
-          time_ms: elapsed,
-        },
-        { onConflict: "participant_id,question_id", ignoreDuplicates: false },
-      );
-      if (ansErr && !ansErr.message.includes("duplicate key")) {
+      try {
+        const answerCtx = ctx && academicReady ? ctx : await resolveStudentServiceContext();
+        await BattleExperienceService.recordAnswer(answerCtx, {
+          participantId,
+          questionId: currentQ.id,
+          selectedIndex: idx,
+          isCorrect: correct,
+          timeMs: elapsed,
+          score: newMe.score,
+          correctCount: newMe.correct_count,
+          answeredCount: newMe.answered_count,
+          totalTimeMs: newMe.total_time_ms,
+        });
+      } catch (writeErr) {
+        const msg = writeErr instanceof Error ? writeErr.message : "Network sync had a problem";
         toast({
           title: "Answer saved locally for this round",
-          description: "Network sync had a problem, but you can continue to the next question.",
+          description: msg,
         });
-      } else {
-        // Live Practice Intelligence capture (finish path still bulk-mirrors)
-        try {
-          const mirrorCtx = ctx && academicReady ? ctx : await resolveStudentServiceContext();
-          await BattleExperienceService.mirrorAnswer(mirrorCtx, participantId, currentQ.id);
-        } catch {
-          /* finish still captures */
-        }
-      }
-      const { error: partErr } = await supabase.from("battle_participants").update(newMe).eq("id", participantId);
-      if (partErr) {
-        toast({ title: "Score update failed", description: partErr.message, variant: "destructive" });
       }
     } finally {
       setSavingAnswer(false);

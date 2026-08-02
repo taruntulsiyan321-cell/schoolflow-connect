@@ -36,6 +36,18 @@ import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
 import { assertMayAccessStudent } from "./parentAccess";
 import { emitEvent } from "../repository/eventsRepository";
+import { broadcastAcademicWrite } from "../live";
+
+function afterHomeworkWrite(
+  ctx: ServiceContext,
+  meta?: { classId?: string | null; studentId?: string | null; source?: string },
+) {
+  broadcastAcademicWrite(ctx.schoolId, ["homework", "profile"], {
+    classId: meta?.classId,
+    studentId: meta?.studentId ?? ctx.studentId,
+    source: meta?.source ?? "HomeworkService",
+  });
+}
 
 export interface StudentHomeworkRow {
   homework: HomeworkRecord;
@@ -336,10 +348,12 @@ export const HomeworkService = {
   async assign(ctx: ServiceContext, input: CreateHomeworkInput): Promise<HomeworkRecord> {
     assertCanOwn(ctx, "homework");
     await assertTeacherMayManageClass(ctx, input.classId, input.subject);
-    return createHomework(toRepoContext(ctx), {
+    const row = await createHomework(toRepoContext(ctx), {
       ...input,
       status: input.status ?? "published",
     });
+    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.assign" });
+    return row;
   },
 
   async createDraft(ctx: ServiceContext, input: CreateHomeworkInput): Promise<HomeworkRecord> {
@@ -359,14 +373,18 @@ export const HomeworkService = {
     if (input.classId && input.classId !== existing.classId) {
       await assertTeacherMayManageClass(ctx, input.classId, input.subject ?? existing.subject);
     }
-    return updateHomework(toRepoContext(ctx), homeworkId, input);
+    const row = await updateHomework(toRepoContext(ctx), homeworkId, input);
+    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.update" });
+    return row;
   },
 
   async publish(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
     assertCanOwn(ctx, "homework");
     const existing = await getHomework(toRepoContext(ctx), homeworkId);
     await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    return publishHomework(toRepoContext(ctx), homeworkId);
+    const row = await publishHomework(toRepoContext(ctx), homeworkId);
+    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.publish" });
+    return row;
   },
 
   /**
@@ -396,6 +414,7 @@ export const HomeworkService = {
         scheduledPublishAt: at,
       },
     }).catch(() => undefined);
+    afterHomeworkWrite(ctx, { classId: existing.classId, source: "HomeworkService.schedule" });
     return updated;
   },
 
@@ -446,14 +465,18 @@ export const HomeworkService = {
     assertCanOwn(ctx, "homework");
     const existing = await getHomework(toRepoContext(ctx), homeworkId);
     await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    return unpublishHomework(toRepoContext(ctx), homeworkId);
+    const row = await unpublishHomework(toRepoContext(ctx), homeworkId);
+    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.unpublish" });
+    return row;
   },
 
   async archive(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
     assertCanOwn(ctx, "homework");
     const existing = await getHomework(toRepoContext(ctx), homeworkId);
     await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    return archiveHomework(toRepoContext(ctx), homeworkId);
+    const row = await archiveHomework(toRepoContext(ctx), homeworkId);
+    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.archive" });
+    return row;
   },
 
   async duplicate(ctx: ServiceContext, homeworkId: string): Promise<HomeworkRecord> {
@@ -496,7 +519,12 @@ export const HomeworkService = {
       throw new ForbiddenError("Not authorized to submit homework");
     }
     await assertStudentInHomeworkClass(ctx, input.homeworkId, input.studentId);
-    return upsertHomeworkSubmission(toRepoContext(ctx), input);
+    const row = await upsertHomeworkSubmission(toRepoContext(ctx), input);
+    afterHomeworkWrite(ctx, {
+      studentId: input.studentId,
+      source: "HomeworkService.submit",
+    });
+    return row;
   },
 
   async remove(ctx: ServiceContext, homeworkId: string): Promise<void> {
@@ -504,6 +532,7 @@ export const HomeworkService = {
     const existing = await getHomework(toRepoContext(ctx), homeworkId);
     await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
     await deleteHomework(toRepoContext(ctx), homeworkId);
+    afterHomeworkWrite(ctx, { classId: existing.classId, source: "HomeworkService.remove" });
   },
 
   async grade(
@@ -512,7 +541,12 @@ export const HomeworkService = {
   ): Promise<HomeworkSubmissionRecord> {
     assertCanOwn(ctx, "homework");
     await assertTeacherMayManageSubmission(ctx, input.submissionId);
-    return gradeHomeworkSubmission(toRepoContext(ctx), input);
+    const row = await gradeHomeworkSubmission(toRepoContext(ctx), input);
+    afterHomeworkWrite(ctx, {
+      studentId: row.studentId,
+      source: "HomeworkService.grade",
+    });
+    return row;
   },
 
   async review(
@@ -521,7 +555,12 @@ export const HomeworkService = {
   ): Promise<HomeworkSubmissionRecord> {
     assertCanOwn(ctx, "homework");
     await assertTeacherMayManageSubmission(ctx, input.submissionId);
-    return reviewHomeworkSubmission(toRepoContext(ctx), input);
+    const row = await reviewHomeworkSubmission(toRepoContext(ctx), input);
+    afterHomeworkWrite(ctx, {
+      studentId: row.studentId,
+      source: "HomeworkService.review",
+    });
+    return row;
   },
 
   /**

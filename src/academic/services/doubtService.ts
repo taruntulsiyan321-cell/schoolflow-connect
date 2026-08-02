@@ -2,10 +2,12 @@ import {
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
+  ForbiddenError,
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
 import { emitEvent } from "../repository/eventsRepository";
+import { broadcastAcademicWrite } from "../live";
 
 /**
  * DoubtService — wraps community doubt RPCs behind academic ownership.
@@ -40,11 +42,22 @@ export const DoubtService = {
       studentId: ctx.studentId ?? null,
       payload: args,
     }).catch(() => undefined);
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      studentId: ctx.studentId,
+      source: "DoubtService.create",
+    });
     return data;
   },
 
   async reply(ctx: ServiceContext, args: Record<string, unknown>) {
-    assertCanOwn(ctx, "teacher_reply");
+    // Community portal allows peer (student) answers and teacher replies via the same RPC.
+    if (ctx.role === "teacher") {
+      assertCanOwn(ctx, "teacher_reply");
+    } else if (ctx.role === "student") {
+      assertCanOwn(ctx, "student_doubt");
+    } else {
+      throw new ForbiddenError("Only students and teachers may reply to community doubts");
+    }
     const { data, error } = await getClient(toRepoContext(ctx)).rpc(
       "rpc_add_community_answer",
       args as never,
@@ -56,6 +69,9 @@ export const DoubtService = {
       entityId: typeof data === "string" ? data : (data as { id?: string })?.id ?? null,
       payload: args,
     }).catch(() => undefined);
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      source: "DoubtService.reply",
+    });
     return data;
   },
 };

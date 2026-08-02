@@ -17,7 +17,17 @@ Live product bank for Gurukul practice / battles. No demo fallbacks — empty ba
 | Schema | `20260802220000_rbse_question_bank_board_schema.sql` |
 | Starter migration | `20260802220100_rbse_commerce_11_12_question_seed.sql` |
 | Full migrations | `20260802230000_rbse_commerce_full_accountancy_bst.sql` · `20260802230100_rbse_commerce_full_economics_math.sql` · `20260802230200_rbse_commerce_full_english_hindi.sql` |
+| Display / taxonomy | `src/academic/taxonomy` + `src/lib/academicPresentation.ts` (`presentAcademicLabel`) · DB `academic_taxonomy_terms` via `20260802270000_academic_taxonomy_terms.sql` · mojibake cleanup `20260802260000_fix_academic_display_text.sql` |
 | One-shot apply | [`docs/APPLY_RBSE_COMMERCE_FULL.sql`](./APPLY_RBSE_COMMERCE_FULL.sql) (full_v1 only; apply schema + starter first) |
+
+### Academic taxonomy & presentation
+
+- **SSOT:** `src/academic/taxonomy/` (types, dictionary, commerce RBSE seeds, science placeholders, `canonicalizeConceptId`, `mergeDuplicateLabels`).
+- **UI labels:** always `presentAcademicLabel(raw, kind)` / `displayChapter` / `displayConcept` — never show snake_case or mojibake to users.
+- **Storage:** chapters stay human titles; concepts/topics prefer slug ids; display resolved at presentation (or via `academic_taxonomy_terms`).
+- **Import path:** `normalizeIncomingAcademicTerm(raw, kind)` when teachers/AI seed questions.
+- **AI:** context packs keep `concept_id` slugs; Nova / coach fact strings use display names.
+- Apply taxonomy migration: [`docs/APPLY_ACADEMIC_TAXONOMY.sql`](./APPLY_ACADEMIC_TAXONOMY.sql) (or `20260802270000_*` after mojibake fix).
 
 ### Per subject × class (full_v1)
 

@@ -488,6 +488,39 @@ export const TestService = {
     return data;
   },
 
+  /** Persist one mid-attempt answer — UI must not raw-upsert `dpp_answers`. */
+  async saveAnswer(
+    ctx: ServiceContext,
+    args: {
+      attemptId: string;
+      questionId: string;
+      response: Record<string, unknown>;
+    },
+  ): Promise<void> {
+    assertCanOwn(ctx, "student_test_attempt");
+    const { error } = await getClient(toRepoContext(ctx))
+      .from("dpp_answers")
+      .upsert(
+        {
+          attempt_id: args.attemptId,
+          question_id: args.questionId,
+          response: args.response as never,
+        },
+        { onConflict: "attempt_id,question_id" },
+      );
+    throwIfError(error, "Failed to save test answer");
+  },
+
+  async listAnswers(ctx: ServiceContext, attemptId: string) {
+    assertCanConsume(ctx, "student_test_attempt");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("dpp_answers")
+      .select("*")
+      .eq("attempt_id", attemptId);
+    throwIfError(error, "Failed to list test answers");
+    return data ?? [];
+  },
+
   async submitAttempt(ctx: ServiceContext, attemptId: string, answers?: unknown) {
     assertCanOwn(ctx, "student_test_attempt");
     const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_dpp_submit", {

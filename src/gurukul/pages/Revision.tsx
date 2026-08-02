@@ -367,7 +367,17 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   }
 
   if (view === "flashcards") return <FlashcardView cards={FLASHCARDS} onDone={() => setView("overview")}/>;
-  if (view === "session" && activeItem) return <RevisionSession item={activeItem} onDone={s => { setScore(s); setView("results"); }}
+  if (view === "session" && activeItem) return <RevisionSession item={activeItem} onDone={async (s) => {
+    setScore(s);
+    setView("results");
+    try {
+      const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+      const ctx = await resolveStudentServiceContext();
+      await PracticeService.completeRevision(ctx, activeItem.id);
+    } catch {
+      /* session score still shown; queue refresh on remount */
+    }
+  }}
     onBack={() => { setView("overview"); setActiveItem(null); }}/>;
   if (view === "results" && activeItem) return <RevResults item={activeItem} score={score} setPage={setPage} onBack={() => { setView("overview"); setActiveItem(null); }}/>;
 

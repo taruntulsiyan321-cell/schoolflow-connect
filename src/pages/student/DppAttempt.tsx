@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, TestService, resolveStudentServiceContext } from "@/academic";
 import { Card } from "@/components/ui/card";
@@ -52,9 +51,11 @@ export default function DppAttempt() {
       setAttemptId(aid as string);
       startRef.current = Date.now();
 
-      const { data: existing } = await supabase.from("dpp_answers").select("*").eq("attempt_id", aid as string);
+      const existing = await TestService.listAnswers(serviceCtx, aid as string);
       const m: Record<string, Response> = {};
-      (existing ?? []).forEach((a) => { m[a.question_id] = (a.response as Response) ?? {}; });
+      (existing ?? []).forEach((a) => {
+        m[a.question_id as string] = ((a.response as Response) ?? {}) as Response;
+      });
       setResponses(m);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Could not start test");
@@ -86,9 +87,16 @@ export default function DppAttempt() {
   const persist = async (qid: string, r: Response) => {
     if (!attemptId) return;
     setResponses((prev) => ({ ...prev, [qid]: r }));
-    await supabase.from("dpp_answers").upsert({
-      attempt_id: attemptId, question_id: qid, response: r as never,
-    }, { onConflict: "attempt_id,question_id" });
+    try {
+      const serviceCtx = await resolveCtx();
+      await TestService.saveAnswer(serviceCtx, {
+        attemptId,
+        questionId: qid,
+        response: r as Record<string, unknown>,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save answer");
+    }
   };
 
   const submit = async () => {

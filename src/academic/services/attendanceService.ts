@@ -25,6 +25,18 @@ import {
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
 import { assertMayAccessStudent } from "./parentAccess";
+import { broadcastAcademicWrite } from "../live";
+
+function afterAttendanceWrite(
+  ctx: ServiceContext,
+  meta?: { classId?: string | null; studentId?: string | null; source?: string },
+) {
+  broadcastAcademicWrite(ctx.schoolId, ["attendance", "profile"], {
+    classId: meta?.classId,
+    studentId: meta?.studentId,
+    source: meta?.source ?? "AttendanceService",
+  });
+}
 
 export interface ClassDateAttendanceSummary {
   classId: string;
@@ -110,7 +122,13 @@ export const AttendanceService = {
   ): Promise<AttendanceRecord> {
     assertCanOwn(ctx, "attendance");
     await assertTeacherMayMarkClass(ctx, input.classId);
-    return upsertAttendance(toRepoContext(ctx), input);
+    const row = await upsertAttendance(toRepoContext(ctx), input);
+    afterAttendanceWrite(ctx, {
+      classId: input.classId,
+      studentId: input.studentId,
+      source: "AttendanceService.mark",
+    });
+    return row;
   },
 
   async markBulk(
@@ -122,7 +140,12 @@ export const AttendanceService = {
     for (const classId of classIds) {
       await assertTeacherMayMarkClass(ctx, classId);
     }
-    return bulkUpsertAttendance(toRepoContext(ctx), rows);
+    const saved = await bulkUpsertAttendance(toRepoContext(ctx), rows);
+    afterAttendanceWrite(ctx, {
+      classId: classIds[0] ?? null,
+      source: "AttendanceService.markBulk",
+    });
+    return saved;
   },
 
   async markPresent(

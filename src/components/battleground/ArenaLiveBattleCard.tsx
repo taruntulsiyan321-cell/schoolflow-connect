@@ -1,6 +1,7 @@
 import { Award, Clock, Target, UserPlus, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Countdown } from "@/components/battleground/bg-bits";
+import { displaySubject, displayTopic } from "@/lib/academicPresentation";
 
 type Participant = { display_name: string; user_id?: string };
 
@@ -49,7 +50,7 @@ export function ArenaLiveBattleCard({
     <div className="ba-card p-4 group">
       <div className="flex justify-between items-center mb-3">
         <span className={cn("ba-label text-[10px] px-2 py-0.5 rounded-full", subjectTone)}>
-          {battle.subject}
+          {displaySubject(battle.subject)}
         </span>
         {live ? (
           <div className="flex items-center gap-1.5">
@@ -66,7 +67,7 @@ export function ArenaLiveBattleCard({
 
       <p className="text-sm font-semibold text-[var(--ba-on-surface)] mb-1 truncate">{battle.title}</p>
       {battle.topic && (
-        <p className="text-xs text-[var(--ba-on-surface-variant)] mb-3">{battle.topic}</p>
+        <p className="text-xs text-[var(--ba-on-surface-variant)] mb-3">{displayTopic(battle.topic)}</p>
       )}
 
       <div className="flex items-center justify-around py-3">

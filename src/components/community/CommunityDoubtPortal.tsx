@@ -36,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
-import { PracticeService, useAcademicContext } from "@/academic";
+import { PracticeService, DoubtService, useAcademicContext, resolveStudentServiceContext } from "@/academic";
 
 type DoubtStatus = "unsolved" | "teacher_answered" | "community_solved" | "solved";
 
@@ -311,7 +311,8 @@ function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
     setPosting(true);
     try {
       const imageUrl = await uploadDoubtImage(file, user?.id);
-      const { data, error } = await db.rpc("rpc_create_community_doubt", {
+      const serviceCtx = ctx && academicReady ? ctx : await resolveStudentServiceContext();
+      const data = await DoubtService.create(serviceCtx, {
         _subject: subject,
         _chapter: chapter,
         _concept: concept,
@@ -319,24 +320,17 @@ function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
         _body: body,
         _image_url: imageUrl,
       });
-      if (error) throw error;
-      await db.rpc("emit_academic_event", {
-        _event_type: "doubt.created",
-        _entity_type: "student_doubt",
-        _entity_id: typeof data === "string" ? data : (data as { id?: string })?.id ?? null,
-        _school_id: null,
-        _student_id: null,
-        _class_id: null,
-        _teacher_id: null,
-        _payload: { subject, chapter, concept, title },
-      }).catch(() => undefined);
       toast.success("Doubt posted to the community.");
       setChapter("");
       setConcept("");
       setTitle("");
       setBody("");
       setFile(null);
-      onCreated(data);
+      const id =
+        typeof data === "string"
+          ? data
+          : String((data as { id?: string } | null)?.id ?? "");
+      if (id) onCreated(id);
     } catch (error: any) {
       toast.error(error?.message ?? "Could not post doubt.");
     } finally {
@@ -388,6 +382,7 @@ function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
 
 function AnswerComposer({ selected, onAnswered }: { selected: CommunityDoubt | null; onAnswered: () => void }) {
   const { user } = useAuth();
+  const { ctx, ready: academicReady } = useAcademicContext();
   const [body, setBody] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [posting, setPosting] = useState(false);
@@ -397,22 +392,12 @@ function AnswerComposer({ selected, onAnswered }: { selected: CommunityDoubt | n
     setPosting(true);
     try {
       const imageUrl = await uploadDoubtImage(file, user?.id);
-      const { error } = await db.rpc("rpc_add_community_answer", {
+      const serviceCtx = ctx && academicReady ? ctx : await resolveStudentServiceContext();
+      await DoubtService.reply(serviceCtx, {
         _doubt_id: selected.id,
         _body: body,
         _image_url: imageUrl,
       });
-      if (error) throw error;
-      await db.rpc("emit_academic_event", {
-        _event_type: "doubt.replied",
-        _entity_type: "teacher_reply",
-        _entity_id: selected.id,
-        _school_id: null,
-        _student_id: null,
-        _class_id: null,
-        _teacher_id: null,
-        _payload: { doubt_id: selected.id },
-      }).catch(() => undefined);
       toast.success("Answer added.");
       setBody("");
       setFile(null);

@@ -11,6 +11,7 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { acceptBattleInvite } from "@/gurukul/hooks/useBattlegroundData";
 import { displayChapter, displayTopic } from "@/lib/academicDisplay";
+import { BattleExperienceService, resolveStudentServiceContext } from "@/academic";
 
 type InviteBattle = {
   id: string;
@@ -66,18 +67,19 @@ export function InviteFriends({ battleId, classId }: { battleId: string; classId
       .map(([k]) => k);
     if (!ids.length) return toast({ title: "Pick at least one classmate" });
     setSending(true);
-    const rows = ids.map((uid) => ({
-      battle_id: battleId,
-      invited_user_id: uid,
-      inviter_user_id: user.id,
-    }));
-    const { error } = await supabase
-      .from("battle_invites")
-      .upsert(rows, { onConflict: "battle_id,invited_user_id" });
-    setSending(false);
-    if (error) return toast({ title: error.message, variant: "destructive" });
-    toast({ title: `Sent ${ids.length} invite${ids.length === 1 ? "" : "s"}` });
-    setPicked({});
+    try {
+      const ctx = await resolveStudentServiceContext();
+      await BattleExperienceService.sendInvites(ctx, battleId, ids);
+      toast({ title: `Sent ${ids.length} invite${ids.length === 1 ? "" : "s"}` });
+      setPicked({});
+    } catch (e) {
+      toast({
+        title: e instanceof Error ? e.message : "Could not send invites",
+        variant: "destructive",
+      });
+    } finally {
+      setSending(false);
+    }
   };
 
   const filtered = classmates.filter((c) =>
@@ -207,13 +209,18 @@ export function MyInvites() {
   };
 
   const decline = async (id: string) => {
-    const { error } = await supabase.from("battle_invites").update({ status: "declined" }).eq("id", id);
-    if (error) {
-      toast({ title: "Could not decline challenge", description: error.message, variant: "destructive" });
-      return;
+    try {
+      const ctx = await resolveStudentServiceContext();
+      await BattleExperienceService.declineInvite(ctx, id);
+      toast({ title: "Challenge declined" });
+      void refresh();
+    } catch (e) {
+      toast({
+        title: "Could not decline challenge",
+        description: e instanceof Error ? e.message : "Try again",
+        variant: "destructive",
+      });
     }
-    toast({ title: "Challenge declined" });
-    void refresh();
   };
 
   if (!invites.length) return null;

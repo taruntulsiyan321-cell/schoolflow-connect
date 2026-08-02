@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Database, Upload, Check, Trash2, Library, Target, Brain, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { normalizeIncomingAcademicTerm, presentAcademicLabel } from "@/lib/academicPresentation";
 import "@/pages/teacher/teacher-premium.css";
 
 const SUBJECTS = ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "Social Studies", "General Knowledge", "Computer Science", "Economics", "Accountancy", "Business Studies"];
@@ -96,7 +97,10 @@ export default function QuestionBankPage() {
     setSaving(true);
     const rows = chosen.map((d) => ({
       class_level: classLevel ? Number(classLevel) : null,
-      subject, chapter: chapter.trim() || null, topic: topic.trim() || null,
+      subject: presentAcademicLabel(subject, "subject") || subject,
+      chapter: chapter.trim() ? normalizeIncomingAcademicTerm(chapter, "chapter") : null,
+      topic: topic.trim() ? normalizeIncomingAcademicTerm(topic, "topic") : null,
+      concept: topic.trim() ? normalizeIncomingAcademicTerm(topic, "concept") : null,
       difficulty, question: d.question.trim(), options: d.options as any,
       correct_index: d.correct_index, explanation: d.explanation?.trim() || null,
       source: "ai", created_by: user?.id ?? null,
@@ -358,8 +362,10 @@ function parseCsv(
     if (!q?.trim() || options.filter(Boolean).length < 2) continue;
     rows.push({
       class_level: meta.classLevel ? Number(meta.classLevel) : null,
-      subject: meta.subject,
-      chapter: meta.chapter.trim() || null,
+      subject: presentAcademicLabel(meta.subject, "subject") || meta.subject,
+      chapter: meta.chapter.trim()
+        ? normalizeIncomingAcademicTerm(meta.chapter, "chapter")
+        : null,
       difficulty: meta.difficulty,
       question: q.trim(),
       options,

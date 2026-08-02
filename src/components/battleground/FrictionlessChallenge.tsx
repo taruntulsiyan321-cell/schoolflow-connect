@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { displayChapter, displayTopic } from "@/lib/academicPresentation";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
@@ -327,7 +328,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
             <SelectTrigger className="mt-1"><SelectValue placeholder={curriculumLoading ? "Loading…" : "Any"} /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ANY}>Any chapter</SelectItem>
-              {chapters.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {chapters.map((c) => <SelectItem key={c} value={c}>{displayChapter(c)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -337,7 +338,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
             <SelectTrigger className="mt-1"><SelectValue placeholder="Any" /></SelectTrigger>
             <SelectContent>
               <SelectItem value={ANY}>Any topic</SelectItem>
-              {topics.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              {topics.map((t) => <SelectItem key={t} value={t}>{displayTopic(t)}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>

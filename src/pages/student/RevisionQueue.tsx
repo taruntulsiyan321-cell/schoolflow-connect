@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { fetchRevisionPlan } from "@/lib/academicBrain";
 import { runRevisionAgent } from "@/lib/academicAgents";
 import { useAcademicBrain } from "@/hooks/useAcademicBrain";
@@ -88,15 +87,17 @@ export default function RevisionQueue() {
   const complete = async (id: string) => {
     if (completingId) return;
     setCompletingId(id);
-    const { error } = await supabase.rpc("rpc_complete_revision", { _id: id });
-    if (error) {
-      toast.error(error.message);
+    try {
+      const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+      const ctx = await resolveStudentServiceContext();
+      await PracticeService.completeRevision(ctx, id);
+      setRows((prev) => prev.filter((r) => r.id !== id));
+      toast.success("Revision done!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not complete revision");
+    } finally {
       setCompletingId(null);
-      return;
     }
-    setRows((prev) => prev.filter((r) => r.id !== id));
-    toast.success("Revision done!");
-    setCompletingId(null);
   };
 
   const priorityTone = (label?: string) => {

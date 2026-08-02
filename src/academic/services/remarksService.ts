@@ -14,6 +14,7 @@ import type { TeacherRemark } from "../types";
 import type { PageParams } from "../repository/base";
 import { ForbiddenError, isSchoolOperator } from "./context";
 import { ValidationFailedError } from "../repository/errors";
+import { broadcastAcademicWrite } from "../live";
 
 /**
  * RemarksService — Teacher creates remarks; Student/Parent/Principal consume.
@@ -60,9 +61,15 @@ export const RemarksService = {
       ]);
     }
 
-    return createTeacherRemark(toRepoContext(ctx), {
+    const row = await createTeacherRemark(toRepoContext(ctx), {
       ...input,
       teacherId,
     });
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      studentId: input.studentId,
+      classId: input.classId ?? null,
+      source: "RemarksService.create",
+    });
+    return row;
   },
 };

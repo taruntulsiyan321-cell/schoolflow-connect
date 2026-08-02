@@ -516,17 +516,13 @@ export default function RecoverySession() {
     if (current.ai_generated) {
 
       try {
-
-        await (supabase as any).rpc("rpc_submit_recovery_answer", {
-
-          _question_id: current.id,
-
-          _student_answer: { selected_index: optionIndex, text: current.options[optionIndex] },
-
-          _is_correct: ok,
-
+        const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+        const ctx = await resolveStudentServiceContext();
+        await PracticeService.submitRecoveryAnswer(ctx, {
+          questionId: current.id,
+          studentAnswer: { selected_index: optionIndex, text: current.options[optionIndex] },
+          isCorrect: ok,
         });
-
       } catch {
 
         /* best-effort for AI questions */
@@ -535,17 +531,17 @@ export default function RecoverySession() {
 
     } else if (!current.id.startsWith("recovery-tpl-")) {
 
-      const { data, error } = await (supabase as any).rpc("rpc_submit_recovery_answer", {
-
-        _question_id: current.id,
-
-        _student_answer: { selected_index: optionIndex, text: current.options[optionIndex] },
-
-        _is_correct: ok,
-
-      });
-
-      if (error) toast.error(error.message);
+      try {
+        const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+        const ctx = await resolveStudentServiceContext();
+        await PracticeService.submitRecoveryAnswer(ctx, {
+          questionId: current.id,
+          studentAnswer: { selected_index: optionIndex, text: current.options[optionIndex] },
+          isCorrect: ok,
+        });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not save recovery answer");
+      }
 
     }
 

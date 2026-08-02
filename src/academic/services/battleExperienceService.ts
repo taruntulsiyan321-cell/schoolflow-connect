@@ -96,6 +96,84 @@ export const BattleExperienceService = {
     }
   },
 
+  /**
+   * Persist one battle answer + participant score, then mirror into question_attempts.
+   * UI must not raw-upsert `battle_answers` when this succeeds.
+   */
+  async recordAnswer(
+    ctx: ServiceContext,
+    args: {
+      participantId: string;
+      questionId: string;
+      selectedIndex: number;
+      isCorrect: boolean;
+      timeMs: number;
+      score: number;
+      correctCount: number;
+      answeredCount: number;
+      totalTimeMs: number;
+    },
+  ): Promise<void> {
+    assertCanOwn(ctx, "battle");
+    const client = getClient(toRepoContext(ctx));
+    const { error: ansErr } = await client.from("battle_answers").upsert(
+      {
+        participant_id: args.participantId,
+        question_id: args.questionId,
+        selected_index: args.selectedIndex,
+        is_correct: args.isCorrect,
+        time_ms: args.timeMs,
+      },
+      { onConflict: "participant_id,question_id", ignoreDuplicates: false },
+    );
+    if (ansErr && !ansErr.message.includes("duplicate key")) {
+      throwIfError(ansErr, "Failed to save battle answer");
+    }
+
+    const { error: partErr } = await client
+      .from("battle_participants")
+      .update({
+        score: args.score,
+        correct_count: args.correctCount,
+        answered_count: args.answeredCount,
+        total_time_ms: args.totalTimeMs,
+      })
+      .eq("id", args.participantId);
+    throwIfError(partErr, "Failed to update battle score");
+
+    await this.mirrorAnswer(ctx, args.participantId, args.questionId);
+  },
+
+  async sendInvites(
+    ctx: ServiceContext,
+    battleId: string,
+    invitedUserIds: string[],
+  ): Promise<void> {
+    assertCanOwn(ctx, "battle");
+    if (!invitedUserIds.length) return;
+    const rows = invitedUserIds.map((uid) => ({
+      battle_id: battleId,
+      invited_user_id: uid,
+      inviter_user_id: ctx.userId,
+    }));
+    const { error } = await getClient(toRepoContext(ctx))
+      .from("battle_invites")
+      .upsert(rows, { onConflict: "battle_id,invited_user_id" });
+    throwIfError(error, "Failed to send battle invites");
+    afterExperienceWrite(ctx, ["battle"]);
+  },
+
+  async declineInvite(ctx: ServiceContext, inviteId: string): Promise<void> {
+    assertCanOwn(ctx, "battle");
+    const { error } = await getClient(toRepoContext(ctx))
+      .from("battle_invites")
+      .update({ status: "declined" })
+      .eq("id", inviteId)
+      .eq("invited_user_id", ctx.userId);
+    throwIfError(error, "Failed to decline battle invite");
+    afterExperienceWrite(ctx, ["battle"]);
+  },
+
   async createFromDesign(
     ctx: ServiceContext,
     opts: BattleCreateOpts,
