@@ -14,12 +14,25 @@ export type BattleCreateOpts = {
   type: "1v1" | "team" | "class";
   subject: string;
   chapter?: string;
+  topic?: string;
   difficulty: string;
   questions: number;
   timeLimitMin: number;
+  /** When set, overrides per-question seconds derived from timeLimitMin. */
+  perQuestionSec?: number;
   opponentUserId?: string;
   classId?: string | null;
   isPublic?: boolean;
+};
+
+export type QuickBattleOpts = {
+  subject: string;
+  difficulty?: string;
+  questions?: number;
+  perQuestionSec?: number;
+  chapter?: string | null;
+  topic?: string | null;
+  classId?: string | null;
 };
 
 function afterExperienceWrite(ctx: ServiceContext, domains: ("battle" | "xp" | "achievements" | "profile")[]) {
@@ -279,20 +292,76 @@ export const BattleExperienceService = {
     afterExperienceWrite(ctx, ["battle"]);
   },
 
+  /**
+   * Instant solo/open quick battle — UI must not call rpc_create_quick_battle directly.
+   */
+  async createQuickBattle(
+    ctx: ServiceContext,
+    opts: QuickBattleOpts,
+  ): Promise<{ id: string; battleCode: string | null }> {
+    assertCanOwn(ctx, "battle");
+    const client = getClient(toRepoContext(ctx));
+    const difficulty = opts.difficulty === "mixed" ? "medium" : (opts.difficulty ?? "medium");
+    const { data, error } = await client.rpc("rpc_create_quick_battle", {
+      _subject: opts.subject,
+      _difficulty: difficulty,
+      _count: opts.questions ?? 5,
+      _per_q: opts.perQuestionSec ?? 20,
+      _chapter: opts.chapter ?? null,
+      _class_id: opts.classId ?? null,
+      _topic: opts.topic ?? null,
+    });
+    if (error) {
+      const msg = error.message || "Could not start quick battle";
+      if (isEmptyQuestionBankError(msg)) {
+        throw new Error(NO_BANK_MSG + " — ask a teacher to add questions, or try another subject/chapter.");
+      }
+      throw error instanceof Error ? error : new Error(msg);
+    }
+    if (!data) throw new Error("Quick battle could not be created");
+    const id = data as string;
+
+    const { data: row } = await client
+      .from("battles")
+      .select("battle_code")
+      .eq("id", id)
+      .maybeSingle();
+
+    await emitEvent(toRepoContext(ctx), {
+      eventType: "battle.created",
+      entityType: "battle",
+      entityId: id,
+      studentId: ctx.studentId ?? null,
+      classId: opts.classId ?? null,
+      payload: {
+        type: "quick",
+        subject: opts.subject,
+        battle_code: row?.battle_code ?? null,
+      },
+    }).catch(() => undefined);
+
+    afterExperienceWrite(ctx, ["battle"]);
+    return { id, battleCode: row?.battle_code ?? null };
+  },
+
   async createFromDesign(
     ctx: ServiceContext,
     opts: BattleCreateOpts,
   ): Promise<{ id: string; battleCode: string | null }> {
     assertCanOwn(ctx, "battle");
     const client = getClient(toRepoContext(ctx));
-    const perQ = Math.max(10, Math.floor((opts.timeLimitMin * 60) / Math.max(1, opts.questions)));
+    const perQ =
+      opts.perQuestionSec ??
+      Math.max(10, Math.floor((opts.timeLimitMin * 60) / Math.max(1, opts.questions)));
     const chap = opts.chapter && opts.chapter !== "All" ? opts.chapter : undefined;
+    const topic = opts.topic && opts.topic !== "All" ? opts.topic : undefined;
     const base = {
       _subject: opts.subject,
       _difficulty: opts.difficulty === "mixed" ? "medium" : opts.difficulty,
       _count: opts.questions,
       _per_q: perQ,
       _chapter: chap,
+      _topic: topic,
       _class_id: opts.classId ?? undefined,
     };
 
@@ -314,6 +383,7 @@ export const BattleExperienceService = {
         _count: base._count,
         _per_q: base._per_q,
         _chapter: chap,
+        _topic: topic,
       });
       throwCreateErr(res.error, "Challenge could not be created");
       if (!res.data) throw new Error("Challenge could not be created");

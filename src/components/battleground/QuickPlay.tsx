@@ -3,14 +3,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Sword, Zap, Sparkles, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
-import { PracticeService, useAcademicContext } from "@/academic";
+import { BattleExperienceService, PracticeService, useAcademicContext } from "@/academic";
 import { displaySubject } from "@/lib/academicDisplay";
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
@@ -55,14 +54,23 @@ export function QuickPlay({ defaultClassId }: { defaultClassId?: string | null }
   }, [subjects, subject]);
 
   const launch = async () => {
+    if (!ctx || !academicReady) {
+      toast({ title: "Academic context not ready — try again", variant: "destructive" });
+      return;
+    }
     setLoading(true);
-    const { data, error } = await supabase.rpc("rpc_create_quick_battle", {
-      _subject: subject, _difficulty: difficulty, _count: count, _per_q: perQ,
-      _chapter: null, _class_id: defaultClassId ?? null, _topic: null,
-    });
-    setLoading(false);
-    if (error) {
-      const msg = error.message || "Could not start battle";
+    try {
+      const { id } = await BattleExperienceService.createQuickBattle(ctx, {
+        subject,
+        difficulty,
+        questions: count,
+        perQuestionSec: perQ,
+        classId: defaultClassId ?? null,
+      });
+      toast({ title: "Quick battle ready!" });
+      nav(`/student/battleground/battle/${id}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Could not start battle";
       toast({
         title: isEmptyQuestionBankError(msg) ? NO_BANK_MSG : msg,
         description: isEmptyQuestionBankError(msg)
@@ -70,10 +78,9 @@ export function QuickPlay({ defaultClassId }: { defaultClassId?: string | null }
           : undefined,
         variant: "destructive",
       });
-      return;
+    } finally {
+      setLoading(false);
     }
-    toast({ title: "Quick battle ready!" });
-    nav(`/student/battleground/battle/${data}`);
   };
 
   return (

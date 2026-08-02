@@ -23,7 +23,7 @@ import { StudentDashboardSkeleton } from "@/components/student/StudentPanelState
 import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { getNcertSubjects, parseClassGrade } from "@/lib/ncertSyllabus";
-import { PracticeService, useAcademicContext } from "@/academic";
+import { PracticeService, BattleExperienceService, resolveStudentServiceContext, useAcademicContext } from "@/academic";
 import "./battle-arena.css";
 
 const BG_BASE = "/student/battleground";
@@ -211,22 +211,28 @@ export function ArenaHub() {
   const launchQuickBattle = async () => {
     setQuickLoading(true);
     const subject = quickSubjects[0] || "Mathematics";
-    const { data, error } = await supabase.rpc("rpc_create_quick_battle", {
-      _subject: subject,
-      _difficulty: "medium",
-      _count: 5,
-      _per_q: 20,
-      _chapter: null,
-      _class_id: student?.class_id ?? null,
-      _topic: null,
-    });
-    setQuickLoading(false);
-    if (error) {
-      toast({ title: error.message, variant: "destructive" });
-      return;
+    try {
+      let svcCtx = ctx && academicReady ? ctx : null;
+      if (!svcCtx) {
+        svcCtx = await resolveStudentServiceContext();
+      }
+      const { id } = await BattleExperienceService.createQuickBattle(svcCtx, {
+        subject,
+        difficulty: "medium",
+        questions: 5,
+        perQuestionSec: 20,
+        classId: student?.class_id ?? null,
+      });
+      notifyStudentXpUpdated();
+      nav(`${BG_BASE}/battle/${id}`);
+    } catch (e: unknown) {
+      toast({
+        title: e instanceof Error ? e.message : "Could not start battle",
+        variant: "destructive",
+      });
+    } finally {
+      setQuickLoading(false);
     }
-    notifyStudentXpUpdated();
-    nav(`${BG_BASE}/battle/${data}`);
   };
 
   if (loading) return <StudentDashboardSkeleton />;
@@ -281,7 +287,7 @@ export function ArenaHub() {
                 </h3>
               </div>
               <Link
-                to={`${BG_BASE}/create`}
+                to="/student/battleground"
                 className="ba-label text-[var(--ba-secondary)] font-bold hover:underline"
               >
                 Start a match
@@ -304,7 +310,7 @@ export function ArenaHub() {
                     {quickLoading ? <Loader2 className="w-4 h-4 animate-spin inline" /> : "Quick match"}
                   </button>
                   <Link
-                    to={`${BG_BASE}/create`}
+                    to="/student/battleground"
                     className="px-4 py-2 rounded-lg border border-[var(--ba-outline-variant)] text-sm font-semibold"
                   >
                     Challenge
@@ -338,7 +344,7 @@ export function ArenaHub() {
                 <h3 className="ba-headline text-sm">Quick actions</h3>
               </div>
               <Link
-                to={`${BG_BASE}/create`}
+                to="/student/battleground"
                 className="flex items-center gap-3 p-3 rounded-lg bg-[var(--ba-surface-low)] hover:bg-[var(--ba-surface-high)] transition-colors"
               >
                 <Users className="w-5 h-5 text-[var(--ba-primary-container)]" />

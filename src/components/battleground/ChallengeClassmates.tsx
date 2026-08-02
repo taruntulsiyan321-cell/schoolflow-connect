@@ -13,7 +13,7 @@ import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
-import { PracticeService, useAcademicContext } from "@/academic";
+import { BattleExperienceService, PracticeService, useAcademicContext } from "@/academic";
 import { displaySubject } from "@/lib/academicDisplay";
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
@@ -75,18 +75,26 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
   }, [classId, user]);
 
   const challenge = async (opponent: Classmate) => {
+    if (!ctx || !academicReady) {
+      toast({ title: "Academic context not ready — try again", variant: "destructive" });
+      return;
+    }
     setChallenging(opponent.user_id);
-    const { data, error } = await supabase.rpc("rpc_challenge_student", {
-      _opponent_user_id: opponent.user_id,
-      _subject: subject,
-      _difficulty: difficulty,
-      _count: count,
-      _per_q: perQ,
-      _chapter: undefined,
-    });
-    setChallenging(null);
-    if (error) {
-      const msg = error.message || "Could not send challenge";
+    try {
+      const { id } = await BattleExperienceService.createFromDesign(ctx, {
+        type: "1v1",
+        opponentUserId: opponent.user_id,
+        subject,
+        difficulty,
+        questions: count,
+        timeLimitMin: Math.max(1, Math.ceil((count * perQ) / 60)),
+        perQuestionSec: perQ,
+        classId: classId ?? null,
+      });
+      toast({ title: `Challenge sent to ${opponent.full_name.split(" ")[0]}!`, description: "Jump in — your battle is live." });
+      nav(`/student/battleground/battle/${id}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Could not send challenge";
       toast({
         title: isEmptyQuestionBankError(msg) ? NO_BANK_MSG : msg,
         description: isEmptyQuestionBankError(msg)
@@ -94,10 +102,9 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
           : undefined,
         variant: "destructive",
       });
-      return;
+    } finally {
+      setChallenging(null);
     }
-    toast({ title: `Challenge sent to ${opponent.full_name.split(" ")[0]}!`, description: "Jump in — your battle is live." });
-    nav(`/student/battleground/battle/${data}`);
   };
 
   const filtered = classmates.filter((c) => c.full_name?.toLowerCase().includes(filter.toLowerCase()));

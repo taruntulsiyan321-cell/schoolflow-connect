@@ -565,22 +565,8 @@ export const HomeworkService = {
           });
         }
       }
-      // Count only the first real turn-in (resubmits keep progression idempotent but must not inflate counters).
-      if (targetUserId && row.version <= 1) {
-        const { data: xpRow } = await client
-          .from("student_xp")
-          .select("homework_submitted_count")
-          .eq("user_id", targetUserId)
-          .maybeSingle();
-        if (xpRow) {
-          await client
-            .from("student_xp")
-            .update({
-              homework_submitted_count: (Number(xpRow.homework_submitted_count) || 0) + 1,
-            })
-            .eq("user_id", targetUserId);
-        }
-      }
+      // homework_submitted_count is bumped by Progression SSOT
+      // (trg_progression_homework_count on homework.submit history insert).
     } catch {
       /* progression optional if migration not applied yet */
     }

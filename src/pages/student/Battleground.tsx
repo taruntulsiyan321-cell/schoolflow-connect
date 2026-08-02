@@ -149,9 +149,6 @@ export function BattleRoom() {
           toast({ title: "Could not load questions", description: qsErr.message, variant: "destructive" });
         }
         setQuestions(qs ?? []);
-        const { data: prof } = await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle();
-        const name = prof?.full_name || prof?.email?.split("@")[0] || "Student";
-        const { data: stu } = await supabase.from("students").select("id").eq("user_id", user.id).maybeSingle();
         const { data: existing } = await supabase.from("battle_participants").select("*").eq("battle_id", id).eq("user_id", user.id).maybeSingle();
         let pid = existing?.id;
         if (!pid) {
@@ -168,21 +165,9 @@ export function BattleRoom() {
           try {
             let joinCtx: ServiceContext | null = ctx && academicReady ? ctx : null;
             if (!joinCtx) {
-              try {
-                joinCtx = await resolveStudentServiceContext();
-              } catch {
-                joinCtx = null;
-              }
+              joinCtx = await resolveStudentServiceContext();
             }
-            if (joinCtx) {
-              pid = await BattleExperienceService.joinById(joinCtx, id);
-            } else {
-              const { data: p, error } = await supabase.from("battle_participants").insert({
-                battle_id: id, user_id: user.id, student_id: stu?.id ?? null, display_name: name,
-              }).select().single();
-              if (error) throw error;
-              pid = p.id;
-            }
+            pid = await BattleExperienceService.joinById(joinCtx, id);
           } catch (joinErr) {
             toast({
               title: joinErr instanceof Error ? joinErr.message : "Could not join battle",
@@ -210,20 +195,9 @@ export function BattleRoom() {
             try {
               let finishCtx: ServiceContext | null = ctx && academicReady ? ctx : null;
               if (!finishCtx) {
-                try {
-                  finishCtx = await resolveStudentServiceContext();
-                } catch {
-                  finishCtx = null;
-                }
+                finishCtx = await resolveStudentServiceContext();
               }
-              if (finishCtx) {
-                await BattleExperienceService.finish(finishCtx, pid);
-              } else {
-                // Last resort — raw RPC only when no academic context could be resolved at all.
-                const { error: finishErr } = await supabase.rpc("rpc_finish_battle", { _participant_id: pid });
-                if (finishErr) throw finishErr;
-                notifyStudentXpUpdated();
-              }
+              await BattleExperienceService.finish(finishCtx, pid);
               setFinished(true);
               didAutoFinish = true;
             } catch (autoFinishErr) {
@@ -420,22 +394,9 @@ export function BattleRoom() {
         try {
           let finishCtx: ServiceContext | null = ctx && academicReady ? ctx : null;
           if (!finishCtx) {
-            try {
-              finishCtx = await resolveStudentServiceContext();
-            } catch {
-              finishCtx = null;
-            }
+            finishCtx = await resolveStudentServiceContext();
           }
-          if (finishCtx) {
-            await BattleExperienceService.finish(finishCtx, participantId);
-          } else {
-            // Last resort — raw RPC only when no academic context could be resolved at all.
-            const { error: finishErr } = await supabase.rpc("rpc_finish_battle", {
-              _participant_id: participantId,
-            });
-            if (finishErr) throw finishErr;
-            notifyStudentXpUpdated();
-          }
+          await BattleExperienceService.finish(finishCtx, participantId);
         } catch (finishErr) {
           const { data: fresh } = await supabase
             .from("battle_participants")

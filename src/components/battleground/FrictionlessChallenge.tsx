@@ -16,7 +16,7 @@ import {
   parseClassGrade,
 } from "@/lib/ncertSyllabus";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
-import { PracticeService, useAcademicContext } from "@/academic";
+import { BattleExperienceService, PracticeService, resolveStudentServiceContext, useAcademicContext } from "@/academic";
 import { isEmptyQuestionBankError, NO_BANK_MSG, canUseMath12TemplateSolo } from "@/lib/battleTemplateSolo";
 import { Globe, Loader2, Search, User, Users, UsersRound, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -201,53 +201,26 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
     setBankEmptyHint(false);
     const chap = chapter === ANY ? undefined : chapter;
     const top = topic === ANY ? undefined : topic;
-    const base = {
-      _subject: subject,
-      _difficulty: difficulty,
-      _count: 5,
-      _per_q: 20,
-      _chapter: chap,
-      _topic: top,
-      _class_id: classId ?? undefined,
-    };
 
     try {
-      let battleId: string | null = null;
-      let error: { message: string } | null = null;
-
-      if (mode === "duel") {
-        let res = await supabase.rpc("rpc_challenge_student", {
-          _opponent_user_id: opponent!.user_id,
-          _subject: subject,
-          _difficulty: difficulty,
-          _count: 5,
-          _per_q: 20,
-          _chapter: chap,
-          _topic: top,
-        });
-        if (res.error?.code === "PGRST202" || res.error?.message?.includes("_topic") || res.error?.message?.includes("schema cache")) {
-          res = await supabase.rpc("rpc_challenge_student", {
-            _opponent_user_id: opponent!.user_id,
-            _subject: subject,
-            _difficulty: difficulty,
-            _count: 5,
-            _per_q: 20,
-            _chapter: chap,
-          });
-        }
-        battleId = res.data as string;
-        error = res.error;
-      } else if (mode === "class") {
-        const res = await supabase.rpc("rpc_create_class_battle", base);
-        battleId = res.data as string;
-        error = res.error;
-      } else {
-        const res = await supabase.rpc("rpc_create_open_battle", base);
-        battleId = res.data as string;
-        error = res.error;
+      let svcCtx = ctx && academicReady ? ctx : null;
+      if (!svcCtx) {
+        svcCtx = await resolveStudentServiceContext();
       }
-
-      if (error) throw error;
+      const type =
+        mode === "duel" ? "1v1" : mode === "class" ? "class" : "team";
+      const { id: battleId } = await BattleExperienceService.createFromDesign(svcCtx, {
+        type,
+        opponentUserId: mode === "duel" ? opponent!.user_id : undefined,
+        subject,
+        difficulty,
+        questions: 5,
+        timeLimitMin: 2,
+        perQuestionSec: 20,
+        chapter: chap,
+        topic: top,
+        classId: classId ?? null,
+      });
       if (!battleId) {
         throw new Error("Battle could not be created. Try Class 12 Math practice or another subject.");
       }

@@ -50,12 +50,65 @@ export function completePracticeSession(
   void syncPracticeSessionToServer(sessionId, state);
 }
 
-async function syncPracticeSessionToServer(sessionId: string, state: PracticeSessionResultState) {
+async function afterPracticeFinishFallback(sessionId: string, state: PracticeSessionResultState) {
   const correct = state.attempts.filter((a) => a.isCorrect).length;
   const skipped = state.attempts.filter((a) => a.skipped || a.timedOut).length;
   const wrong = state.attempts.filter((a) => !a.isCorrect && !a.skipped && !a.timedOut).length;
   const totalTimeMs = state.attempts.reduce((sum, a) => sum + (a.timeTakenMs ?? 0), 0);
 
+  let schoolId: string | null = null;
+  let studentId: string | null = null;
+  try {
+    const { data: auth } = await supabase.auth.getUser();
+    const uid = auth.user?.id;
+    if (uid) {
+      const { data: stu } = await supabase
+        .from("students")
+        .select("id, school_id")
+        .eq("user_id", uid)
+        .maybeSingle();
+      schoolId = stu?.school_id ?? null;
+      studentId = stu?.id ?? null;
+    }
+  } catch {
+    /* best-effort identity for emit + bus */
+  }
+
+  await (supabase.rpc("emit_academic_event", {
+    _event_type: "practice.session.completed",
+    _entity_type: "practice",
+    _entity_id: sessionId,
+    _school_id: schoolId,
+    _student_id: studentId,
+    _class_id: null,
+    _teacher_id: null,
+    _payload: {
+      session_id: sessionId,
+      correct,
+      skipped,
+      wrong,
+      total_time_ms: totalTimeMs,
+      accuracy: state.attempts.length
+        ? Math.round((correct / state.attempts.length) * 100)
+        : 0,
+      via: "practiceSessionPersistence.fallback",
+    },
+  } as never) as unknown as Promise<unknown>).catch(() => undefined);
+
+  try {
+    const { broadcastAcademicWrite } = await import("@/academic/live");
+    const { notifyStudentXpUpdated } = await import("@/lib/studentXpNotify");
+    broadcastAcademicWrite(schoolId, ["xp", "profile"], {
+      studentId,
+      source: "practiceSessionPersistence.fallback",
+    });
+    notifyStudentXpUpdated();
+  } catch {
+    /* live bus optional in non-browser contexts */
+  }
+}
+
+async function syncPracticeSessionToServer(sessionId: string, state: PracticeSessionResultState) {
   try {
     const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
     const ctx = await resolveStudentServiceContext();
@@ -73,26 +126,10 @@ async function syncPracticeSessionToServer(sessionId: string, state: PracticeSes
     });
     if (finErr) {
       console.error("practice finish failed", finErr.message ?? finErr);
+    } else {
+      // RPC awarded progression; still emit + broadcast so panels refresh.
+      await afterPracticeFinishFallback(sessionId, state);
     }
-    await (supabase.rpc("emit_academic_event", {
-      _event_type: "practice.session.completed",
-      _entity_type: "practice",
-      _entity_id: sessionId,
-      _school_id: null,
-      _student_id: null,
-      _class_id: null,
-      _teacher_id: null,
-      _payload: {
-        session_id: sessionId,
-        correct,
-        skipped,
-        wrong,
-        total_time_ms: totalTimeMs,
-        accuracy: state.attempts.length
-          ? Math.round((correct / state.attempts.length) * 100)
-          : 0,
-      },
-    } as any) as unknown as Promise<unknown>).catch(() => undefined);
   }
 
   await (

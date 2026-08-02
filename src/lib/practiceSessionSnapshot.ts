@@ -208,8 +208,21 @@ export async function finishPracticeSessionWithAttempts(
   sessionId: string,
   attempts: PracticeAttemptSnapshot[],
 ) {
-  return supabase.rpc("rpc_finish_practice_session", {
-    _session_id: sessionId,
-    _attempts: attemptsToFinishPayload(attempts),
-  });
+  try {
+    const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+    const ctx = await resolveStudentServiceContext();
+    return {
+      data: await PracticeService.finish(ctx, {
+        _session_id: sessionId,
+        _attempts: attemptsToFinishPayload(attempts),
+      }),
+      error: null,
+    };
+  } catch {
+    // Last-resort RPC — PracticeService path is preferred (emit + live bus).
+    return supabase.rpc("rpc_finish_practice_session", {
+      _session_id: sessionId,
+      _attempts: attemptsToFinishPayload(attempts),
+    });
+  }
 }
