@@ -219,7 +219,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
 
   const goalLine = student.goal ? ` · Goal: ${student.goal}` : "";
   const levelLabel = shellReady ? `Lv.${student.level}` : "—";
-  const streakLabel = shellReady ? `${student.streak}-day streak` : "�";
+  const streakLabel = shellReady ? `${student.streak}-day streak` : "...";
 
   return (
     <div className="space-y-6">
