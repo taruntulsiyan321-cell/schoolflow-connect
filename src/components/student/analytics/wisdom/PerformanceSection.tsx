@@ -5,8 +5,6 @@ import {
   buildPersonalBests,
   peerBenchmarkSubjects,
 } from "@/components/student/analytics/wisdom/analyticsDerived";
-import { PRESENTATION_MODE } from "@/lib/presentationMode";
-import { demoPracticeTrend } from "@/lib/presentationAnalytics";
 import {
   Line,
   LineChart,
@@ -37,34 +35,16 @@ export function PerformanceSection({
   improvement,
 }: Props) {
   const rawTrend = charts?.practice_trend ?? [];
-  const trendSource = rawTrend.length >= 2 ? rawTrend : PRESENTATION_MODE ? demoPracticeTrend() : [];
+  const trendSource = rawTrend.length >= 2 ? rawTrend : [];
   const trendData = trendSource.slice(-14).map((p) => ({
     label: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
     accuracy: p.score_pct,
   }));
 
   const benchmarks = peerBenchmarkSubjects(charts?.subjects ?? [], rank, classSize);
-  const displayBenchmarks =
-    benchmarks.length > 0
-      ? benchmarks
-      : PRESENTATION_MODE
-        ? [
-            { name: "Mathematics", pct: 74, label: "Above average" },
-            { name: "Physics", pct: 68, label: "On track" },
-            { name: "Chemistry", pct: 61, label: "Needs focus" },
-          ]
-        : [];
+  const displayBenchmarks = benchmarks;
   const bests = buildPersonalBests(data, sessions, accuracy);
-  const displayBests =
-    bests.length > 0
-      ? bests
-      : PRESENTATION_MODE
-        ? [
-            { kind: "RECORD", title: "82% in Differentiation", icon: "target" as const },
-            { kind: "PACE", title: "Fastest session: 14 min (6/8)", icon: "timer" as const },
-            { kind: "STREAK", title: "5-day practice streak", icon: "flame" as const },
-          ]
-        : [];
+  const displayBests = bests;
   const activityRows = data.activity_heatmap ?? [];
   const recentActivity = activityRows.slice(-14);
   const activeDays = recentActivity.filter((d) => (d.dpp ?? 0) + (d.homework ?? 0) + (d.battles ?? 0) + (d.self_practice ?? 0) > 0).length;
@@ -80,14 +60,14 @@ export function PerformanceSection({
     { date: "", total: 0 },
   );
   const rhythmStats =
-    recentActivity.length > 0 || PRESENTATION_MODE
+    recentActivity.length > 0
       ? [
-          { label: "Active days", value: activeDays || 9, sub: "last 14 days" },
-          { label: "Learning actions", value: totalActivity || 42, sub: "practice, DPP & battles" },
+          { label: "Active days", value: activeDays, sub: "last 14 days" },
+          { label: "Learning actions", value: totalActivity, sub: "practice, DPP & battles" },
           {
             label: "Best day",
-            value: bestDay.total || 8,
-            sub: bestDay.date ? new Date(bestDay.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "this week",
+            value: bestDay.total,
+            sub: bestDay.date ? new Date(bestDay.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—",
           },
         ]
       : [];
@@ -99,130 +79,92 @@ export function PerformanceSection({
         <p className="wa-body mt-1">Tracking your momentum across the learning arena.</p>
       </header>
 
-      <section className="wa-card">
-        <div className="flex flex-wrap justify-between items-start gap-3 mb-4">
-          <div>
-            <h3 className="wa-headline flex items-center gap-2 text-[var(--wa-primary)]">
-              <TrendingUp className="w-4 h-4" />
-              Growth velocity
-            </h3>
-            <p className="wa-body text-sm mt-1">Practice accuracy over recent sessions</p>
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="wa-card">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="w-4 h-4 text-[var(--wa-primary)]" />
+            <h3 className="wa-headline">Practice accuracy</h3>
           </div>
+          {trendData.length >= 2 ? (
+            <div className="h-52">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData}>
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="accuracy" stroke="#003324" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <p className="wa-body py-10 text-center">Complete more practice sessions to unlock this trend.</p>
+          )}
           {improvement != null && (
-            <span
-              className={`text-xs font-semibold px-2 py-1 rounded ${
-                improvement >= 0 ? "bg-[var(--wa-primary-fixed)] text-[var(--wa-primary)]" : "bg-[var(--wa-error-container)] text-[var(--wa-error)]"
-              }`}
-            >
-              {improvement >= 0 ? "+" : ""}
-              {improvement}% vs last session
-            </span>
+            <p className="text-xs text-[var(--wa-on-surface-variant)] mt-2">
+              Period change: {improvement > 0 ? "+" : ""}{improvement}% · Overall accuracy {accuracy}%
+            </p>
           )}
         </div>
-        {trendData.length >= 2 ? (
-          <div className="h-52 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#707974" }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#707974" }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    background: "#fff",
-                    border: "1px solid #bfc9c2",
-                    borderRadius: 8,
-                    fontSize: 12,
-                  }}
-                />
-                <Line type="monotone" dataKey="accuracy" stroke="#003324" strokeWidth={2} dot={{ r: 3, fill: "#003324" }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <p className="wa-body py-8 text-center">Finish two or more sessions to see your trend line.</p>
-        )}
-      </section>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <section className="wa-card">
-          <h3 className="wa-headline flex items-center gap-2 text-[var(--wa-primary)] mb-4">
-            <Users className="w-4 h-4 text-[var(--wa-secondary)]" />
-            Peer benchmarking
-          </h3>
-          <div className="space-y-5">
-            {displayBenchmarks.length > 0 ? (
-              displayBenchmarks.map((b) => (
-                <div key={b.name}>
-                  <div className="flex justify-between text-sm font-medium mb-1">
-                    <span>{b.name}</span>
-                    <span className="text-[var(--wa-primary)] font-bold">{b.label}</span>
-                  </div>
-                  <div className="h-2.5 w-full bg-[var(--wa-surface-variant)] rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[var(--wa-primary)] rounded-full"
-                      style={{ width: `${b.pct}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-[var(--wa-on-surface-variant)] mt-1 tabular-nums">{b.pct}% accuracy</p>
-                </div>
-              ))
-            ) : (
-              <p className="wa-body">Subject benchmarks appear after multi-subject practice.</p>
-            )}
+        <div className="wa-card">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="w-4 h-4 text-[var(--wa-primary)]" />
+            <h3 className="wa-headline">Subject standing</h3>
           </div>
-        </section>
-
-        <section className="wa-card bg-[var(--wa-surface-low)] relative overflow-hidden">
-          <h3 className="wa-headline flex items-center gap-2 text-[var(--wa-primary)] mb-4">
-            <Award className="w-4 h-4 text-[var(--wa-secondary)]" />
-            Personal bests
-          </h3>
-          <div className="space-y-3">
-            {displayBests.length > 0 ? (
-              displayBests.map((b, i) => (
-                <div key={i} className="flex items-center gap-3 bg-white p-3 rounded-lg border border-[var(--wa-outline-variant)]/50">
-                  <div className="w-10 h-10 rounded-full bg-[var(--wa-secondary-container)]/30 flex items-center justify-center text-[var(--wa-secondary)]">
-                    {b.icon === "timer" ? <Timer className="w-5 h-5" /> : b.icon === "flame" ? <Flame className="w-5 h-5" /> : <Target className="w-5 h-5" />}
-                  </div>
-                  <div>
-                    <span className="wa-label block">{b.kind}</span>
-                    <span className="text-sm font-semibold text-[var(--wa-on-surface)]">{b.title}</span>
-                  </div>
+          {displayBenchmarks.length > 0 ? (
+            <div className="space-y-3">
+              {displayBenchmarks.map((b) => (
+                <div key={b.name} className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">{b.name}</span>
+                  <span className="text-xs text-[var(--wa-on-surface-variant)]">{b.label}</span>
+                  <strong className="tabular-nums text-sm">{b.pct}%</strong>
                 </div>
-              ))
-            ) : (
-              <p className="wa-body">Records unlock as you complete sessions.</p>
-            )}
-          </div>
-        </section>
+              ))}
+            </div>
+          ) : (
+            <p className="wa-body py-6 text-center">Subject standing appears after practice attempts.</p>
+          )}
+          {rank != null && classSize > 0 && (
+            <p className="text-xs text-[var(--wa-on-surface-variant)] mt-4">
+              Class rank #{rank} of {classSize}
+            </p>
+          )}
+        </div>
       </div>
 
-      <section className="wa-card wa-rhythm-card">
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-          <div>
-            <h3 className="wa-headline flex items-center gap-2 text-[var(--wa-primary)]">
-              <CalendarCheck className="w-4 h-4" />
-              Learning rhythm
-            </h3>
-            <p className="wa-body text-sm mt-1">A simple consistency summary without the heat map.</p>
-          </div>
-          <span className="wa-label rounded-full bg-white/70 px-3 py-1 border border-[var(--wa-outline-variant)]">
-            Last 14 days
-          </span>
-        </div>
-        {rhythmStats.length > 0 ? (
-          <div className="grid sm:grid-cols-3 gap-3">
-            {rhythmStats.map((stat) => (
-              <div key={stat.label} className="rounded-2xl bg-white/80 border border-[var(--wa-outline-variant)]/60 p-4">
-                <p className="wa-label text-[10px]">{stat.label}</p>
-                <p className="text-3xl font-bold tabular-nums text-[var(--wa-primary)] mt-1">{stat.value}</p>
-                <p className="text-xs text-[var(--wa-on-surface-variant)] mt-1">{stat.sub}</p>
+      <div className="grid md:grid-cols-3 gap-4">
+        {displayBests.length > 0 ? displayBests.map((b) => {
+          const Icon = b.icon === "timer" ? Timer : b.icon === "flame" ? Flame : Target;
+          return (
+            <div key={b.title} className="wa-card flex items-start gap-3">
+              <Award className="w-4 h-4 mt-0.5 text-[var(--wa-primary)]" />
+              <div>
+                <p className="wa-label">{b.kind}</p>
+                <p className="text-sm font-semibold mt-1 flex items-center gap-1">
+                  <Icon className="w-3.5 h-3.5" /> {b.title}
+                </p>
               </div>
-            ))}
-          </div>
-        ) : (
-          <p className="wa-body">Consistency insights appear when you use DPP, practice, or battles.</p>
+            </div>
+          );
+        }) : (
+          <p className="wa-body md:col-span-3 text-center py-4">Personal bests unlock as you practise.</p>
         )}
-      </section>
+      </div>
+
+      {rhythmStats.length > 0 && (
+        <div className="grid sm:grid-cols-3 gap-4">
+          {rhythmStats.map((s) => (
+            <div key={s.label} className="wa-card">
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarCheck className="w-4 h-4 text-[var(--wa-primary)]" />
+                <p className="wa-label">{s.label}</p>
+              </div>
+              <p className="text-2xl font-bold tabular-nums">{s.value}</p>
+              <p className="text-xs text-[var(--wa-on-surface-variant)] mt-1">{s.sub}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

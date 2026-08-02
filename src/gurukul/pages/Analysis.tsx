@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -19,6 +19,9 @@ import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
+import { MarksService } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "#3b5bdb",
@@ -85,12 +88,67 @@ const TABS: { key: Tab; label: string }[] = [
 export default function Analysis() {
   const [tab, setTab] = useState<Tab>("overview");
   const student = useGurukulStudent();
+  const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
   const { data: analysis, loading: analysisLoading } = useAnalysisPageData();
   const { data: charts, loading: chartsLoading } = useStudentPerformanceCharts();
   const { data: snapshot, loading: snapshotLoading } = useStudentAcademicSnapshot();
   const { items: mastery, loading: masteryLoading } = useConceptMastery();
+  const [marks, setMarks] = useState<MarksRecord[]>([]);
+  const [exams, setExams] = useState<ExamRecord[]>([]);
+
+  useEffect(() => {
+    if (!academicReady || !ctx || !studentId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [markRows, examRows] = await Promise.all([
+          MarksService.listForStudent(ctx, studentId, { limit: 50 }),
+          classId ? MarksService.listExamsForClass(ctx, classId, { limit: 50 }) : Promise.resolve([]),
+        ]);
+        if (!cancelled) {
+          setMarks(markRows);
+          setExams(examRows);
+        }
+      } catch {
+        if (!cancelled) {
+          setMarks([]);
+          setExams([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [academicReady, ctx, studentId, classId]);
 
   const loading = analysisLoading || chartsLoading || snapshotLoading || masteryLoading;
+
+  const testResults = useMemo(() => {
+    const examById = new Map(exams.map((e) => [e.id, e]));
+    return marks
+      .map((m) => {
+        const exam = examById.get(m.examId);
+        if (!exam) return null;
+        const maxScore = exam.maxMarks || 100;
+        const score = Math.round((m.marksObtained / maxScore) * 100);
+        return {
+          name: exam.name,
+          date: exam.examDate
+            ? new Date(exam.examDate).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+            : "—",
+          subject: exam.subject || "—",
+          score,
+          maxScore: 100,
+          marksObtained: m.marksObtained,
+          rawMax: maxScore,
+          rank: 0,
+          total: 0,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row != null)
+      .slice(0, 12);
+  }, [marks, exams]);
+  const testTrend = testResults.map((t) => ({ name: t.date, score: t.score }));
 
   const overview = useMemo(() => {
     const correct = analysis?.totals.correct ?? 0;
@@ -104,7 +162,7 @@ export default function Analysis() {
       correct,
       incorrect,
       practiceCompleted: snapshot?.self_practice?.sessions_completed ?? analysis?.recent_sessions.length ?? 0,
-      testsCompleted: 0,
+      testsCompleted: testResults.length,
       avgScore: analysis?.totals.accuracy_pct ?? 0,
       studyHours: Math.round(studyMinutes / 60),
       streak: snapshot?.xp?.current_streak ?? student.streak ?? 0,
@@ -112,7 +170,7 @@ export default function Analysis() {
       totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
       examReadiness: snapshot?.exam_readiness?.score ?? 0,
     };
-  }, [analysis, snapshot, student]);
+  }, [analysis, snapshot, student, testResults.length]);
 
   const scoreTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];
@@ -257,24 +315,25 @@ export default function Analysis() {
     return [...byMonth.entries()].map(([month, done]) => ({ month, done }));
   }, [charts?.weekly_activity]);
 
-  const testResults: { name: string; date: string; subject: string; score: number; maxScore: number; rank: number; total: number }[] = [];
-  const testTrend = testResults.map((t) => ({ name: t.date, score: t.score }));
-
   const speedStats = useMemo(() => {
     const avgSec = analysis?.totals.avg_sec_per_question ?? 0;
     return {
       avgSec,
-      fastestSubject: subjectData[0]?.name ?? "—",
-      fastestSec: avgSec,
-      slowestSubject: subjectData[subjectData.length - 1]?.name ?? "—",
-      slowestSec: avgSec,
+      // Per-subject timing is not in the analysis RPC yet — show overall only.
+      fastestSubject: "—",
+      fastestSec: 0,
+      slowestSubject: "—",
+      slowestSec: 0,
       improvementSec: 0,
     };
-  }, [analysis, subjectData]);
+  }, [analysis]);
 
   const speedBySubject = useMemo(
-    () => subjectData.map((s) => ({ name: s.name, color: s.color, avgSec: speedStats.avgSec })),
-    [subjectData, speedStats.avgSec],
+    () =>
+      speedStats.avgSec > 0
+        ? [{ name: "Overall", color: "#3b5bdb", avgSec: speedStats.avgSec }]
+        : [],
+    [speedStats.avgSec],
   );
 
   const studyActivity = useMemo(() => {
@@ -1005,8 +1064,8 @@ export default function Analysis() {
                       <div className="text-[11px] text-[#78788c]">{t.subject} · {t.date}</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-sm font-black tabular-nums" style={{ color: col }}>{t.score}/{t.maxScore}</div>
-                      <div className="text-[11px] text-[#78788c]">Rank #{t.rank} of {t.total}</div>
+                      <div className="text-sm font-black tabular-nums" style={{ color: col }}>{t.marksObtained}/{t.rawMax}</div>
+                      <div className="text-[11px] text-[#78788c]">{t.score}%</div>
                     </div>
                   </div>
                 );

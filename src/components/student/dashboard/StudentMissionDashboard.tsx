@@ -32,8 +32,11 @@ import {
 import "./student-dashboard.css";
 import "../flow/student-panel-premium.css";
 
-/* ── Placeholder data (visual pass) ───────────────────────────── */
-
+/**
+ * DESIGN-ONLY — not mounted under StudentDashboard `/student/*`.
+ * Fixture PLACEHOLDER values are layout review only. Live home: `gurukul/pages/Dashboard.tsx`.
+ * Do not remount until wired to Academic Engine snapshot / XP / practice aggregates.
+ */
 const PLACEHOLDER = {
   practiceAccuracy: 78,
   todayGoal: "Complete 12 Recovery Questions",

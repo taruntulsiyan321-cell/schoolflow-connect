@@ -4,8 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchRevisionPlan } from "@/lib/academicBrain";
 import { runRevisionAgent } from "@/lib/academicAgents";
 import { useAcademicBrain } from "@/hooks/useAcademicBrain";
-import { PRESENTATION_MODE } from "@/lib/presentationMode";
-import { DEMO_WEEKLY_PLAN } from "@/lib/presentationAnalytics";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -50,29 +48,6 @@ type TodayPlanItem = {
   reason?: string;
 };
 
-const DEMO_REVISION_ROWS: RevisionItem[] = [
-  {
-    id: "demo-rev-1",
-    subject: "Mathematics",
-    chapter: "Integrals",
-    topic: "Substitution",
-    reason: "Limit mismatch after u-sub — 3 mistakes logged",
-    priority: 1,
-    due_date: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
-    priority_label: "High",
-  },
-  {
-    id: "demo-rev-2",
-    subject: "Physics",
-    chapter: "Current Electricity",
-    topic: "Kirchhoff",
-    reason: "Sign convention slips on junction problems",
-    priority: 2,
-    due_date: new Date(Date.now() + 172800000).toISOString().slice(0, 10),
-    priority_label: "Medium",
-  },
-];
-
 export default function RevisionQueue() {
   const { brain } = useAcademicBrain();
   const [rows, setRows] = useState<RevisionItem[]>([]);
@@ -110,7 +85,7 @@ export default function RevisionQueue() {
   }, [brain?.updated_at]);
 
   const complete = async (id: string) => {
-    if (completingId || id.startsWith("demo-")) return;
+    if (completingId) return;
     setCompletingId(id);
     const { error } = await supabase.rpc("rpc_complete_revision", { _id: id });
     if (error) {
@@ -129,29 +104,9 @@ export default function RevisionQueue() {
     return "secondary";
   };
 
-  const displayTodayPlan =
-    todayPlan.length > 0
-      ? todayPlan
-      : PRESENTATION_MODE
-        ? DEMO_WEEKLY_PLAN.map((p) => ({
-            topic: p.topic,
-            subject: p.subject,
-            chapter: p.chapter,
-            time_minutes: p.time_minutes,
-            action: p.action,
-            priority: p.priority,
-            reason: "Prioritised from mistake patterns",
-          }))
-        : [];
-
-  const displayRows =
-    rows.length > 0 ? rows : PRESENTATION_MODE ? DEMO_REVISION_ROWS : [];
-
-  const displayCoachHeadline =
-    coachHeadline ||
-    (PRESENTATION_MODE
-      ? "Chain rule and substitution are your top revision targets this week"
-      : "");
+  const displayTodayPlan = todayPlan;
+  const displayRows = rows;
+  const displayCoachHeadline = coachHeadline;
 
   const hasContent =
     displayRows.length > 0 || brainPriorities.length > 0 || displayTodayPlan.length > 0;

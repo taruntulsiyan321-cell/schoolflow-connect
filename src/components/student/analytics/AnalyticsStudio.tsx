@@ -14,18 +14,12 @@ import {
   type MistakeTopicAggregate,
 } from "@/lib/analyticsInsights";
 import { classifyMistakes } from "@/components/student/analytics/wisdom/analyticsDerived";
-import { presentationValue, withPresentationFallback } from "@/lib/presentationMode";
+import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import {
   averageConceptMastery,
   practiceAccuracyFromSnapshot,
   studyActiveDaysFromSnapshot,
 } from "@/lib/learningMetrics";
-import {
-  DEMO_AGGREGATES,
-  DEMO_INSIGHTS,
-  DEMO_MASTERY,
-  DEMO_TOPIC_GAPS,
-} from "@/lib/presentationAnalytics";
 import {
   Area,
   AreaChart,
@@ -58,14 +52,6 @@ type Props = {
   charts: StudentPerformanceCharts | null;
   chartsLoading?: boolean;
 };
-
-const SUBJECT_FALLBACK = [
-  { name: "Mathematics", accuracy: 78, attempts: 42 },
-  { name: "Physics", accuracy: 68, attempts: 21 },
-  { name: "Chemistry", accuracy: 61, attempts: 18 },
-  { name: "Biology", accuracy: 72, attempts: 15 },
-  { name: "English", accuracy: 85, attempts: 12 },
-];
 
 function clamp(n: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, Math.round(n)));
@@ -108,13 +94,13 @@ function ProgressBar({ value, tone = "emerald" }: { value: number; tone?: "emera
   );
 }
 
-function miniTrendValue(values: number[], fallback: number) {
-  if (values.length < 2) return fallback;
+function miniTrendValue(values: number[]) {
+  if (values.length < 2) return 0;
   return clamp(values[values.length - 1] - values[0], -40, 40);
 }
 
-function groupMasteryBySubject(mastery: typeof DEMO_MASTERY) {
-  const grouped = new Map<string, Map<string, typeof DEMO_MASTERY>>();
+function groupMasteryBySubject(mastery: ConceptMasteryItem[]) {
+  const grouped = new Map<string, Map<string, ConceptMasteryItem[]>>();
   for (const item of mastery) {
     const subject = item.subject || "Subject";
     const chapter = item.chapter || "General";
@@ -146,22 +132,15 @@ export function AnalyticsStudio({ data, charts }: Props) {
 
   const ruleFallback =
     liveAggregates.length > 0 ? buildRuleAnalyticsInsights(liveAggregates, mastery, data) : null;
-  const displayInsights = insights ?? ruleFallback ?? DEMO_INSIGHTS;
+  const displayInsights = insights ?? ruleFallback;
 
-  const aggregates = withPresentationFallback(liveAggregates, DEMO_AGGREGATES, 1);
-  const topicGaps = withPresentationFallback(
-    resolveTopicGaps(displayInsights, aggregates),
-    DEMO_TOPIC_GAPS,
-    1,
-  );
-  const displayMastery = withPresentationFallback(mastery, DEMO_MASTERY, 4);
+  const aggregates = liveAggregates;
+  const topicGaps = resolveTopicGaps(displayInsights, aggregates);
+  const displayMastery = mastery;
 
   const totals = pageData?.totals;
-  const accuracy = presentationValue(
-    totals?.accuracy_pct ?? practiceAccuracyFromSnapshot(data),
-    74,
-  );
-  const conceptMastery = presentationValue(averageConceptMastery(displayMastery), 72);
+  const accuracy = totals?.accuracy_pct ?? practiceAccuracyFromSnapshot(data) ?? 0;
+  const conceptMastery = averageConceptMastery(displayMastery) ?? 0;
   const weakConceptCount = topicGaps.length;
 
   const trend = pageData?.trend;
@@ -171,7 +150,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
     (() => {
       const prev = trend?.previous_accuracy ?? practiceTrend.at(-2)?.score_pct;
       const curr = trend?.current_accuracy ?? practiceTrend.at(-1)?.score_pct;
-      return prev != null && curr != null ? Math.round((curr - prev) * 10) / 10 : presentationValue(null, 8.5);
+      return prev != null && curr != null ? Math.round((curr - prev) * 10) / 10 : null;
     })();
 
   const topGap = topicGaps[0];
@@ -181,18 +160,17 @@ export function AnalyticsStudio({ data, charts }: Props) {
     displayInsights?.today_focus ??
     "Complete practice — your coach builds a drill from each wrong answer in Recovery.";
 
-  const recoveryCount = presentationValue(
-    recovery?.pending_count ?? data.recovery_pending ?? data.mistake_count,
-    12,
-  );
-  const recoveryCompletion = clamp(100 - recoveryCount * 4, 40, 94);
+  const recoveryCount = recovery?.pending_count ?? data.recovery_pending ?? data.mistake_count ?? 0;
+  const recoveryPending = Math.max(0, recoveryCount);
+  const recoveryCompletion =
+    recoveryPending === 0 ? (data.recovery_pending === 0 && (data.mistake_count ?? 0) === 0 ? 0 : 100) : clamp(100 - recoveryPending * 4, 0, 100);
   const activeDays = studyActiveDaysFromSnapshot(data);
-  const consistencyScore = presentationValue(clamp((activeDays / 14) * 100), 64);
+  const consistencyScore = clamp((activeDays / 14) * 100);
   const academicHealth = clamp((accuracy + conceptMastery + recoveryCompletion + consistencyScore) / 4);
-  const weeklyImprovement = improvement != null ? Math.max(0, Math.round(improvement)) : 11;
+  const weeklyImprovement = improvement != null ? Math.round(improvement) : 0;
 
-  const firstName = data.student?.full_name?.split(" ")[0] ?? "Scholar";
-  const studentClass = pageData?.student_class ?? "Class 12 · Section A";
+  const firstName = data.student?.full_name?.split(" ")[0] ?? "Student";
+  const studentClass = pageData?.student_class ?? "—";
   const strongConcepts = displayMastery
     .filter((m) => m.mastery_score >= 75)
     .sort((a, b) => b.mastery_score - a.mastery_score)
@@ -200,29 +178,27 @@ export function AnalyticsStudio({ data, charts }: Props) {
   const weakConcepts = topicGaps.slice(0, 5);
   const mistakeBuckets = classifyMistakes(aggregates);
   const mostRepeated = repeatedMistake(aggregates);
-  const conceptErrors = mistakeBuckets.find((b) => b.key === "concept")?.count ?? Math.max(weakConceptCount, 1);
-  const calculationErrors = mistakeBuckets.find((b) => b.key === "calc")?.count ?? Math.max(0, Math.round(conceptErrors * 0.4));
-  const carelessMistakes = mistakeBuckets.find((b) => b.key === "careless")?.count ?? Math.max(0, Math.round(conceptErrors * 0.25));
-  const timePressureMistakes = mistakeBuckets.find((b) => b.key === "time")?.count ?? Math.max(0, Math.round(conceptErrors * 0.2));
-  const misinterpretationMistakes = displayInsights.error_patterns.filter((p) => /read|interpret|misread|word/i.test(p)).length || 1;
-  const recoveryBeforeAccuracy = clamp((topGap?.mistake_count ?? 4) > 0 ? accuracy - 23 : accuracy - 10, 35, 72);
-  const recoveryAfterAccuracy = clamp(Math.max(accuracy, recoveryBeforeAccuracy + 18), recoveryBeforeAccuracy + 8, 94);
-  const recoveryBeforeMastery = clamp(conceptMastery - 25, 32, 70);
-  const recoveryAfterMastery = clamp(Math.max(conceptMastery, recoveryBeforeMastery + 18), recoveryBeforeMastery + 8, 94);
-  const subjectRows = charts?.subjects?.length ? charts.subjects : SUBJECT_FALLBACK;
+  const conceptErrors = mistakeBuckets.find((b) => b.key === "concept")?.count ?? 0;
+  const calculationErrors = mistakeBuckets.find((b) => b.key === "calc")?.count ?? 0;
+  const carelessMistakes = mistakeBuckets.find((b) => b.key === "careless")?.count ?? 0;
+  const timePressureMistakes = mistakeBuckets.find((b) => b.key === "time")?.count ?? 0;
+  const misinterpretationMistakes =
+    displayInsights?.error_patterns.filter((p) => /read|interpret|misread|word/i.test(p)).length ?? 0;
+  const hasRecoveryImpact = recoveryPending > 0 || weakConceptCount > 0;
+  const subjectRows = charts?.subjects ?? [];
   const trendValues = practiceTrend.slice(-7).map((p) => p.score_pct);
   const thirtyDayValues = practiceTrend.slice(-30).map((p) => p.score_pct);
   const focusTopics = [
     ...(topGap ? [topGap] : []),
     ...topicGaps.filter((g) => g.topic !== topGap?.topic),
   ].slice(0, 3);
-  const expectedGain = Math.max(4, Math.min(12, weakConceptCount * 2 + 4));
+  const expectedGain = weakConceptCount > 0 ? Math.min(12, weakConceptCount * 2 + 2) : 0;
   const strength =
     strongConcepts[0]?.concept ??
     data.strong_topics?.[0]?.topic ??
     data.strong_topics?.[0]?.chapter ??
-    "practice consistency";
-  const weakness = topGap?.topic ?? displayMastery.find((m) => m.mastery_score < 60)?.concept ?? "mixed weak concepts";
+    "—";
+  const weakness = topGap?.topic ?? displayMastery.find((m) => m.mastery_score < 60)?.concept ?? "—";
   const skillGroups = groupMasteryBySubject(displayMastery);
   const trendData = (practiceTrend.length ? practiceTrend : []).slice(-14).map((p) => ({
     label: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
@@ -264,7 +240,9 @@ export function AnalyticsStudio({ data, charts }: Props) {
               </div>
               <div className="rounded-2xl bg-[#ffdf97] text-[#251a00] px-4 py-3 shadow-lg">
                 <p className="text-[10px] uppercase tracking-wider font-bold">Weekly improvement</p>
-                <p className="text-2xl font-bold tabular-nums">+{weeklyImprovement} pts</p>
+                <p className="text-2xl font-bold tabular-nums">
+                  {weeklyImprovement > 0 ? "+" : ""}{weeklyImprovement} pts
+                </p>
               </div>
             </div>
             <p className="text-sm text-white/72 mt-5 max-w-xl">
@@ -322,17 +300,21 @@ export function AnalyticsStudio({ data, charts }: Props) {
           </div>
           <div className="rounded-2xl bg-[var(--wa-primary)] text-white px-4 py-3">
             <p className="wa-label text-white/65">Estimated gain</p>
-            <p className="text-3xl font-bold tabular-nums">+{expectedGain}%</p>
+            <p className="text-3xl font-bold tabular-nums">
+              {expectedGain > 0 ? `+${expectedGain}%` : "—"}
+            </p>
           </div>
         </div>
         <div className="grid md:grid-cols-3 gap-3 mt-5">
-          {focusTopics.map((topic, i) => (
+          {focusTopics.length > 0 ? focusTopics.map((topic, i) => (
             <div key={`${topic.topic}-${i}`} className="wa-priority-card">
               <p className="wa-label text-[10px]">Priority {i + 1}</p>
               <p className="font-semibold text-[var(--wa-on-surface)] mt-1">{topic.topic}</p>
               <p className="text-xs text-[var(--wa-on-surface-variant)] mt-1">{topic.chapter}</p>
             </div>
-          ))}
+          )) : (
+            <p className="wa-body md:col-span-3">No priority topics yet — keep practising to surface gaps.</p>
+          )}
         </div>
       </section>
 
@@ -405,35 +387,42 @@ export function AnalyticsStudio({ data, charts }: Props) {
       <section className="wa-card wa-recovery-impact">
         <div>
           <p className="wa-label text-[var(--wa-primary)]">Recovery impact</p>
-          <h2 className="wa-display text-2xl mt-1">Recovery is moving the numbers</h2>
-          <p className="wa-body mt-1">Before and after view based on current recovery and weak-concept signals.</p>
+          <h2 className="wa-display text-2xl mt-1">Recovery progress</h2>
+          <p className="wa-body mt-1">Live recovery load from your weak concepts and pending drills.</p>
         </div>
-        <div className="grid md:grid-cols-2 gap-4 mt-5">
-          <div className="wa-before-after before">
-            <p className="wa-label">Before recovery</p>
-            <div className="mt-3 space-y-3">
-              <div><span>Accuracy</span><strong>{recoveryBeforeAccuracy}%</strong></div>
-              <div><span>Mastery</span><strong>{recoveryBeforeMastery}%</strong></div>
+        {hasRecoveryImpact ? (
+          <div className="grid md:grid-cols-2 gap-4 mt-5">
+            <div className="wa-before-after before">
+              <p className="wa-label">Pending recovery</p>
+              <div className="mt-3 space-y-3">
+                <div><span>Questions / tasks</span><strong>{recoveryPending}</strong></div>
+                <div><span>Weak concepts</span><strong>{weakConceptCount}</strong></div>
+              </div>
+            </div>
+            <div className="wa-before-after after">
+              <p className="wa-label text-emerald-800">Current position</p>
+              <div className="mt-3 space-y-3">
+                <div><span>Accuracy</span><strong>{accuracy}%</strong></div>
+                <div><span>Mastery</span><strong>{conceptMastery}%</strong></div>
+              </div>
             </div>
           </div>
-          <div className="wa-before-after after">
-            <p className="wa-label text-emerald-800">After recovery</p>
-            <div className="mt-3 space-y-3">
-              <div><span>Accuracy</span><strong>{recoveryAfterAccuracy}%</strong></div>
-              <div><span>Mastery</span><strong>{recoveryAfterMastery}%</strong></div>
-            </div>
-          </div>
-        </div>
+        ) : (
+          <p className="wa-body mt-5">No recovery impact yet — complete practice and recovery sessions to track progress.</p>
+        )}
       </section>
 
       <section>
         <h2 className="wa-display text-2xl md:text-3xl mb-4">Subject performance</h2>
+        {subjectRows.length === 0 ? (
+          <p className="wa-body">Subject performance appears after you attempt practice questions.</p>
+        ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-4">
           {subjectRows.slice(0, 5).map((s) => {
             const subjectMastery = displayMastery.filter((m) => m.subject === s.name);
             const subjectMasteryAvg = subjectMastery.length
               ? Math.round(subjectMastery.reduce((sum, m) => sum + m.mastery_score, 0) / subjectMastery.length)
-              : clamp(s.accuracy - 5, 35, 95);
+              : 0;
             const trendLabel = s.accuracy >= 75 ? "Strong" : s.accuracy >= 60 ? "Stable" : "Needs focus";
             return (
               <div key={s.name} className="wa-subject-card">
@@ -450,11 +439,15 @@ export function AnalyticsStudio({ data, charts }: Props) {
             );
           })}
         </div>
+        )}
       </section>
 
       <section className="wa-card">
         <h2 className="wa-display text-2xl md:text-3xl mb-2">Skill tree</h2>
         <p className="wa-body mb-5">Subject → chapter → concept mastery map.</p>
+        {skillGroups.size === 0 ? (
+          <p className="wa-body">Concept mastery will appear here after practice attempts sync.</p>
+        ) : (
         <div className="space-y-5">
           {[...skillGroups.entries()].slice(0, 4).map(([subject, chapters]) => (
             <div key={subject} className="wa-skill-map-subject">
@@ -477,6 +470,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
             </div>
           ))}
         </div>
+        )}
       </section>
 
       <section className="wa-card wa-ai-coach">
@@ -488,8 +482,8 @@ export function AnalyticsStudio({ data, charts }: Props) {
             <div className="grid md:grid-cols-4 gap-3 mt-5">
               <div className="wa-coach-cell"><p>Strength</p><strong>{strength}</strong></div>
               <div className="wa-coach-cell"><p>Weakness</p><strong>{weakness}</strong></div>
-              <div className="wa-coach-cell"><p>Recommendation</p><strong>{clipInsightText(topGap?.fix_hint ?? displayInsights.today_focus, 70)}</strong></div>
-              <div className="wa-coach-cell"><p>Expected gain</p><strong>+{expectedGain}% accuracy</strong></div>
+              <div className="wa-coach-cell"><p>Recommendation</p><strong>{clipInsightText(topGap?.fix_hint ?? displayInsights?.today_focus ?? "Practice your weak topics", 70)}</strong></div>
+              <div className="wa-coach-cell"><p>Expected gain</p><strong>{expectedGain > 0 ? `+${expectedGain}% accuracy` : "—"}</strong></div>
             </div>
           </div>
         </div>
@@ -505,7 +499,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
                 <p className="wa-body text-sm mt-1">Recent practice sessions</p>
               </div>
               <span className="rounded-full bg-[var(--wa-primary-fixed)] px-3 py-1 text-xs font-semibold text-[var(--wa-primary)]">
-                {miniTrendValue(trendValues, weeklyImprovement) >= 0 ? "+" : ""}{miniTrendValue(trendValues, weeklyImprovement)}% 7 day
+                {miniTrendValue(trendValues) >= 0 ? "+" : ""}{miniTrendValue(trendValues)}% 7 day
               </span>
             </div>
             {trendData.length >= 2 ? (
@@ -524,9 +518,9 @@ export function AnalyticsStudio({ data, charts }: Props) {
             )}
           </div>
           <div className="grid gap-4">
-            <MetricCard label="30 day trend" value={`${miniTrendValue(thirtyDayValues, weeklyImprovement) >= 0 ? "+" : ""}${miniTrendValue(thirtyDayValues, weeklyImprovement)}%`} sub="accuracy movement" icon={TrendingUp} tone="gold" />
-            <MetricCard label="Mastery trend" value={`+${Math.max(3, Math.round(conceptMastery / 12))}%`} sub="tracked concepts" icon={ShieldCheck} />
-            <MetricCard label="Recovery trend" value={`${recoveryCompletion}%`} sub="completion strength" icon={Wrench} tone="blue" />
+            <MetricCard label="30 day trend" value={`${miniTrendValue(thirtyDayValues) >= 0 ? "+" : ""}${miniTrendValue(thirtyDayValues)}%`} sub="accuracy movement" icon={TrendingUp} tone="gold" />
+            <MetricCard label="Mastery" value={`${conceptMastery}%`} sub="tracked concepts" icon={ShieldCheck} />
+            <MetricCard label="Recovery" value={`${recoveryCompletion}%`} sub="completion strength" icon={Wrench} tone="blue" />
           </div>
         </div>
       </section>

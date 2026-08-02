@@ -1,6 +1,7 @@
 /**
- * Static demo enrichments for student Analysis — used only when PRESENTATION_MODE is on
- * and live hooks return sparse data. Realistic Class 12 scholastic content.
+ * DESIGN-ONLY / DISABLED — static demo enrichments.
+ * PRESENTATION_MODE is false in product builds. Do not import these into
+ * mounted student routes as fallbacks for sparse live data.
  */
 import type { ConceptMasteryItem } from "@/hooks/useConceptMastery";
 import type { PracticeSessionSummary, LeaderboardEntry } from "@/hooks/useAnalysisPageData";

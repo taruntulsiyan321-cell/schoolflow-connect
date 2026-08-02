@@ -1,10 +1,10 @@
 /**
- * Presentation mode — demo-ready student panel visuals.
- * Set to `false` before production to hide static enrichments.
+ * Presentation mode — static demo enrichments for student panel.
+ * Must stay `false` in product builds. Never invent academic stats when live data is sparse.
  */
-export const PRESENTATION_MODE = true;
+export const PRESENTATION_MODE = false;
 
-/** Prefer live data; use demo fallback only when presentation mode is on and live is sparse. */
+/** Prefer live data only. Demo fallbacks are disabled while PRESENTATION_MODE is false. */
 export function withPresentationFallback<T>(
   live: T[],
   demo: T[],
@@ -15,9 +15,12 @@ export function withPresentationFallback<T>(
   return demo;
 }
 
-/** Single-value fallback for nullable presentation fields. */
-export function presentationValue<T>(live: T | null | undefined, demo: T): T {
-  if (!PRESENTATION_MODE) return live ?? demo;
+/**
+ * Single-value fallback. When presentation mode is off, returns live as-is
+ * (including null / 0 / "") — never substitutes demo values.
+ */
+export function presentationValue<T>(live: T | null | undefined, demo: T): T | null | undefined {
+  if (!PRESENTATION_MODE) return live;
   if (live == null || live === 0 || live === "") return demo;
   return live;
 }

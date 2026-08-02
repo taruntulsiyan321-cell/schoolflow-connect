@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicContext, PracticeService, type CurriculumScope } from "@/academic";
+import { useAcademicContext, PracticeService, HomeworkService, type CurriculumScope } from "@/academic";
+import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { toast } from "sonner";
@@ -105,7 +106,7 @@ function formatDuration(startIso: string, endIso: string) {
 
 // ── Static data ──────────────────────────────────────────────────────────────
 const MODES: Mode[] = [
-  { key:"daily",      label:"Daily Practice",         desc:"Today's personalised question set — auto-generated every morning",
+  { key:"daily",      label:"Daily Practice",         desc:"A fresh practice set drawn from your class question bank",
     icon:<Flame className="w-5 h-5"/>,      color:"#c08a3a", cat:"source",   badge:"Daily", instant:true, hot:true },
   { key:"subject",    label:"Subject Practice",       desc:"Practice questions from a subject of your choice",
     icon:<BookOpen className="w-5 h-5"/>,   color:"#3b5bdb", cat:"content",  badge:"Subject" },
@@ -144,7 +145,6 @@ const CATS: { key: Cat; label: string }[] = [
 ];
 
 const SAVED: { id: number; label: string; config: string; lastUsed: string }[] = [];
-const TEACHER_SETS: { id: number; title: string; subject: string; teacher: string; due: string; qs: number; done: number; status: string }[] = [];
 const MOCK_TESTS: { id: number; title: string; qs: number; dur: string; subject: string }[] = [];
 
 const DIFFICULTIES = [
@@ -388,7 +388,7 @@ function ConfigView({
   classUnresolved?: boolean;
 }) {
   const mode = MODES.find(m => m.key === modeKey)!;
-  const { ctx, ready: academicReady } = useAcademicContext();
+  const { ctx, ready: academicReady, studentId } = useAcademicContext();
 
   const [selSubject,    setSelSubject]    = useState<string | null>(null);
   const [selChapter,    setSelChapter]    = useState<string | null>(null);
@@ -399,6 +399,8 @@ function ConfigView({
   const [chapters,      setChapters]      = useState<string[]>([]);
   const [topics,        setTopics]        = useState<string[]>([]);
   const [metaLoading,   setMetaLoading]   = useState(false);
+  const [teacherSets,   setTeacherSets]   = useState<StudentHomeworkRow[]>([]);
+  const [teacherLoading, setTeacherLoading] = useState(false);
 
   useEffect(() => {
     setSelChapter(null);
@@ -421,6 +423,26 @@ function ConfigView({
     })();
     return () => { cancelled = true; };
   }, [selSubject, ctx, academicReady, modeKey]);
+
+  useEffect(() => {
+    if (modeKey !== "teacher" || !ctx || !academicReady || !studentId) {
+      setTeacherSets([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setTeacherLoading(true);
+      try {
+        const rows = await HomeworkService.listForStudent(ctx, studentId);
+        if (!cancelled) setTeacherSets(rows);
+      } catch {
+        if (!cancelled) setTeacherSets([]);
+      } finally {
+        if (!cancelled) setTeacherLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [modeKey, ctx, academicReady, studentId]);
 
   useEffect(() => {
     setSelTopic(null);
@@ -462,27 +484,44 @@ function ConfigView({
   if (modeKey === "teacher") {
     return (
       <ConfigShell mode={mode} onBack={onBack}>
-        {TEACHER_SETS.length === 0 ? (
+        {teacherLoading ? (
+          <p className="text-sm text-[#78788c] py-8 text-center">Loading teacher assignments…</p>
+        ) : teacherSets.length === 0 ? (
           <EmptyConfig
             title="No teacher assignments yet"
-            body="When your teacher assigns a practice set, it will appear here."
+            body="When your teacher assigns homework or practice, it will appear here."
             actionLabel="Open Homework"
             onAction={() => onNavigate?.("assignments")}
           />
         ) : (
           <>
             <div className="space-y-3">
-              {TEACHER_SETS.map(t => {
-                const subj = subjects.find(s => s.name === t.subject);
+              {teacherSets.map((row) => {
+                const hw = row.homework;
+                const subj = subjects.find(s => s.name === hw.subject);
                 return (
-                  <button key={t.id} type="button" className="w-full text-left p-4 rounded-2xl border border-white/7">
-                    <div className="text-sm font-bold text-white">{t.title}</div>
-                    {subj && <SubjectBadge subject={t.subject} color={subj.color}/>}
+                  <button
+                    key={hw.id}
+                    type="button"
+                    onClick={() => onNavigate?.("assignments")}
+                    className="w-full text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-white truncate">{hw.title}</div>
+                        <div className="text-[11px] text-[#78788c] mt-1">
+                          {hw.dueDate ? `Due ${new Date(hw.dueDate).toLocaleDateString()}` : "No due date"}
+                          {" · "}{row.displayStatus}
+                        </div>
+                      </div>
+                      <StatusTag status={row.displayStatus === "graded" || row.displayStatus === "submitted" ? "completed" : row.displayStatus === "in_progress" ? "in-progress" : "not-started"} />
+                    </div>
+                    {subj && <div className="mt-2"><SubjectBadge subject={hw.subject} color={subj.color}/></div>}
                   </button>
                 );
               })}
             </div>
-            <StartButton color={mode.color} disabled onStart={handleStart}/>
+            <StartButton color={mode.color} label="Open in Homework" onStart={() => onNavigate?.("assignments")}/>
           </>
         )}
       </ConfigShell>
