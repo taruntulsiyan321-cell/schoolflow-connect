@@ -72,6 +72,22 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
     ],
   },
   {
+    feature_id: "student.knowledge.retrieve",
+    patterns: [
+      /\b(from|in)\b.+\b(notes|textbook|syllabus|policy)\b/i,
+      /\bfind\b.+\b(in|from)\b.+\b(notes|curriculum|knowledge)\b/i,
+      /\bretrieve\b.+\b(knowledge|notes|chunk)\b/i,
+    ],
+  },
+  {
+    feature_id: "teacher.question_paper.plan",
+    patterns: [
+      /\b(plan|blueprint)\b.+\b(question\s*paper|test paper|exam paper)\b/i,
+      /\bquestion\s*paper\b.+\b(plan|weights|blueprint)\b/i,
+      /\bcurriculum\s*weights?\b.+\b(paper|test|exam)\b/i,
+    ],
+  },
+  {
     feature_id: "student.recommendation.next",
     patterns: [
       /\bwhat should I (practi[sc]e|study|do next)\b/i,

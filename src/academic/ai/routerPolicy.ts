@@ -93,6 +93,28 @@ export function planRoute(
     };
   }
 
+  if (capability.route_class === "grounded_retrieval") {
+    return {
+      feature_id: featureId,
+      route_class: capability.route_class,
+      capability,
+      may_call_model: false,
+      decision_if_ready: "answered_retrieval",
+      reason: "kms_vector_retrieval",
+    };
+  }
+
+  if (capability.route_class === "content_generation" && capability.model_policy === "never") {
+    return {
+      feature_id: featureId,
+      route_class: capability.route_class,
+      capability,
+      may_call_model: false,
+      decision_if_ready: "answered_deterministic",
+      reason: "deterministic_content_plan",
+    };
+  }
+
   if (
     capability.route_class === "deterministic_record" ||
     capability.route_class === "deterministic_insight"

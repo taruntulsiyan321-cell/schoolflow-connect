@@ -88,7 +88,17 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     model_policy: "optional_explain",
     allowed_roles: ["student", "parent", "teacher", "principal", "admin"],
     requires_student_target: true,
-    description: "Cache-first concept explanation grounded in AE/EIE mastery facts",
+    description:
+      "Cache-first concept explanation; retrieve-before-model from KMS-approved chunks when present, else AE/EIE",
+  },
+  "student.knowledge.retrieve": {
+    feature_id: "student.knowledge.retrieve",
+    route_class: "grounded_retrieval",
+    model_policy: "never",
+    allowed_roles: ["student", "parent", "teacher", "principal", "admin"],
+    requires_student_target: false,
+    description:
+      "Vector/lexical retrieval over KMS-published chunks only (approved docs); no model call",
   },
   "student.recommendation.next": {
     feature_id: "student.recommendation.next",
@@ -106,6 +116,15 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     requires_student_target: true,
     description:
       "Image doubt via OCR/multimodal pipeline then grounded tutoring (OCR vendor deferred — clarify)",
+  },
+  "teacher.question_paper.plan": {
+    feature_id: "teacher.question_paper.plan",
+    route_class: "content_generation",
+    model_policy: "never",
+    allowed_roles: ["teacher", "admin"],
+    requires_student_target: false,
+    description:
+      "Dry-run question-paper plan with deterministic curriculum weights — does not generate full paper",
   },
 };
 

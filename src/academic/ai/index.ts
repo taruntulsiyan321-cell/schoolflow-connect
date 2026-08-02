@@ -151,13 +151,52 @@ export {
   chunkPedagogicalText,
   buildEmbeddingStub,
   isPublishedForRetrieval,
+  isEmbeddingProviderConfigured,
+  planEmbeddingJobAction,
   registerKmsDocument,
   submitKmsVersion,
   approveKmsVersion,
   rejectKmsVersion,
+  enqueueKmsEmbeddingJobs,
+  deferUnsetEmbeddings,
+  completeKmsChunkEmbed,
   type KmsDocumentStatus,
   type KmsContentType,
+  type KmsChunkEmbedStatus,
 } from "./knowledgeManagement";
+
+export {
+  lexicalOverlap,
+  cosineSimilarity,
+  isEvidenceSufficient,
+  buildEvidenceCitations,
+  rankApprovedChunksLocally,
+  parseRetrievalRpcPayload,
+  retrieveKmsChunks,
+  type RetrievalPack,
+  type RetrievalHit,
+} from "./vectorRetrieval";
+
+export {
+  SESSION_MEMORY_CAPABILITIES,
+  sessionScopeForCapability,
+  isSessionMemoryAllowed,
+  buildSessionSummaryPatch,
+  redactSessionForContext,
+  openSessionMemory,
+  readSessionMemory,
+  appendSessionMemory,
+  closeSessionMemory,
+  type SessionWorkflowScope,
+  type SessionMemoryRecord,
+} from "./sessionMemory";
+
+export {
+  planQuestionPaper,
+  runPaperPlanDryRun,
+  type QuestionPaperPlan,
+  type PaperPlanInput,
+} from "./questionPaperPlan";
 
 export {
   validateImageMetadata,

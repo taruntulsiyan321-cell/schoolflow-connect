@@ -79,6 +79,7 @@ export type AiDecisionKind =
   | "answered_deterministic"
   | "answered_eie"
   | "answered_cache"
+  | "answered_retrieval"
   | "answered_model"
   | "answered_facts_only"
   | "rejected"

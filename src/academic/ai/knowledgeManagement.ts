@@ -18,7 +18,16 @@ export type KmsDocumentStatus =
   | "rejected"
   | "retired";
 
-export type KmsEmbeddingStatus = "pending" | "stub" | "ready" | "failed";
+export type KmsEmbeddingStatus =
+  | "pending"
+  | "stub"
+  | "ready"
+  | "failed"
+  | "pending_embed"
+  | "embedded"
+  | "deferred";
+
+export type KmsChunkEmbedStatus = "pending_embed" | "embedded" | "deferred" | "failed";
 
 export type KmsChunkMetadata = {
   grade?: string | null;
@@ -58,6 +67,37 @@ export function chunkPedagogicalText(raw: string, maxChunks = 40): string[] {
 
 export function buildEmbeddingStub(): { status: "deferred"; dims: 0 } {
   return { status: "deferred", dims: 0 };
+}
+
+/** True when OPENAI/OpenRouter embedding env is present (edge/worker). */
+export function isEmbeddingProviderConfigured(env: Record<string, string | undefined> = {}): boolean {
+  const openrouter = (env.OPENROUTER_API_KEY ?? "").trim();
+  const openai = (env.OPENAI_API_KEY ?? "").trim();
+  const emb = (env.EMBEDDING_API_KEY ?? "").trim();
+  return openrouter.length > 0 || openai.length > 0 || emb.length > 0;
+}
+
+/**
+ * Embedding job stub — enqueue pending_embed; if provider unset, defer safely.
+ * No external HTTP call is made here.
+ */
+export function planEmbeddingJobAction(providerConfigured: boolean): {
+  action: "embed" | "defer";
+  embed_status: KmsChunkEmbedStatus;
+  reason: string;
+} {
+  if (!providerConfigured) {
+    return {
+      action: "defer",
+      embed_status: "deferred",
+      reason: "embedding_provider_unset",
+    };
+  }
+  return {
+    action: "embed",
+    embed_status: "pending_embed",
+    reason: "provider_configured",
+  };
 }
 
 export function isPublishedForRetrieval(status: KmsDocumentStatus, published: boolean): boolean {
@@ -117,6 +157,54 @@ export async function rejectKmsVersion(
     p_document_id: documentId,
     p_version: version,
     p_reason: reason ?? null,
+  });
+  if (error) return { ok: false as const, error: String(error.message ?? error) };
+  return { ok: true as const, data };
+}
+
+/** Enqueue embedding jobs for published chunks (no provider call). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function enqueueKmsEmbeddingJobs(
+  client: any,
+  documentId: string,
+  version?: number | null,
+) {
+  const { data, error } = await client.rpc("ai_kms_enqueue_embedding_jobs", {
+    p_document_id: documentId,
+    p_version: version ?? null,
+  });
+  if (error) return { ok: false as const, error: String(error.message ?? error) };
+  return { ok: true as const, data };
+}
+
+/** Safe-degrade pending jobs when embedding provider is unset. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function deferUnsetEmbeddings(client: any, limit = 100) {
+  const { data, error } = await client.rpc("ai_kms_defer_unset_embeddings", {
+    p_limit: limit,
+  });
+  if (error) return { ok: false as const, error: String(error.message ?? error) };
+  return { ok: true as const, data };
+}
+
+/** Complete or defer a single chunk embed (worker / service). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function completeKmsChunkEmbed(
+  client: any,
+  input: {
+    chunk_id: string;
+    embedding?: number[] | null;
+    model_version?: string | null;
+    failed?: boolean;
+    error?: string | null;
+  },
+) {
+  const { data, error } = await client.rpc("ai_kms_complete_chunk_embed", {
+    p_chunk_id: input.chunk_id,
+    p_embedding: input.embedding ?? null,
+    p_model_version: input.model_version ?? null,
+    p_failed: input.failed ?? false,
+    p_error: input.error ?? null,
   });
   if (error) return { ok: false as const, error: String(error.message ?? error) };
   return { ok: true as const, data };

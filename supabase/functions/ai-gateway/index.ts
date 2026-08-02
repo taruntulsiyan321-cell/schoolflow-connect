@@ -12,6 +12,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { routeAiRequest, type RouterActor } from "../_shared/aiRouter.ts";
 import type { AiActorRole } from "../_shared/capabilityCatalog.ts";
+import {
+  isSessionMemoryAllowed,
+  sessionScopeForCapability,
+  buildSessionSummaryPatch,
+} from "../_shared/sessionMemory.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,7 +35,8 @@ async function resolveActor(
   admin: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<RouterActor | null> {
-  const roles = ["admin", "principal", "teacher", "student", "parent", "super_admin"] as const;
+  // Valid app_role only — never super_admin
+  const roles = ["admin", "principal", "teacher", "student", "parent"] as const;
   let role: AiActorRole | null = null;
   for (const r of roles) {
     const { data } = await admin.rpc("has_role", { _user_id: userId, _role: r });
@@ -100,7 +106,7 @@ async function resolveActor(
     };
   }
 
-  // admin / principal / super_admin — school from profiles or first school membership
+  // admin / principal — school from profiles or first school membership
   const { data: profile } = await admin
     .from("profiles")
     .select("school_id")
@@ -177,14 +183,71 @@ Deno.serve(async (req) => {
       body.student_id ??
       undefined;
 
+    let session_id =
+      typeof body.session_id === "string" && body.session_id.trim()
+        ? String(body.session_id).trim()
+        : undefined;
+
+    // Multi-turn: open short workflow session when requested and capability allows
+    const want_session =
+      body.open_session === true ||
+      body.input?.structured?.open_session === true ||
+      (typeof body.session_scope === "string" && body.session_scope.length > 0);
+
+    if (!session_id && want_session && isSessionMemoryAllowed(feature_id)) {
+      const scope =
+        (typeof body.session_scope === "string" && body.session_scope) ||
+        sessionScopeForCapability(feature_id);
+      if (scope) {
+        const { data: opened } = await admin.rpc("ai_session_memory_open", {
+          p_school_id: actor.schoolId,
+          p_workflow_scope: scope,
+          p_capability_id: feature_id,
+          p_workflow_id: body.workflow_id ? String(body.workflow_id) : null,
+          p_target_student_id: target_student_id ? String(target_student_id) : null,
+          p_ttl_minutes: 120,
+          p_summary: {},
+        });
+        if (opened?.session_id) session_id = String(opened.session_id);
+      }
+    }
+
+    const input_structured =
+      body.input?.structured && typeof body.input.structured === "object"
+        ? (body.input.structured as Record<string, unknown>)
+        : undefined;
+
     const result = await routeAiRequest(userClient, admin, {
       request_id,
       feature_id,
       intent_hint: body.intent_hint ? String(body.intent_hint) : undefined,
       input_text: body.input?.text ? String(body.input.text) : undefined,
+      input_structured,
       target_student_id: target_student_id ? String(target_student_id) : undefined,
+      session_id,
       actor,
     });
+
+    // Append compact session summary after multi-turn intents (never raw chat)
+    if (session_id && isSessionMemoryAllowed(feature_id) && result.decision !== "permission_denied") {
+      const patch = buildSessionSummaryPatch({
+        last_feature_id: feature_id,
+        last_decision: result.decision,
+        plan_hash:
+          result.data &&
+          typeof result.data === "object" &&
+          "plan_hash" in (result.data as object)
+            ? String((result.data as { plan_hash?: string }).plan_hash)
+            : undefined,
+      });
+      await admin
+        .rpc("ai_session_memory_append", {
+          p_session_id: session_id,
+          p_summary_patch: patch,
+          p_increment_turn: true,
+        })
+        .catch(() => undefined);
+    }
 
     const status =
       result.decision === "permission_denied"
@@ -195,7 +258,10 @@ Deno.serve(async (req) => {
             ? 503
             : 200;
 
-    return json(result, status);
+    return json(
+      session_id ? { ...result, session_id } : result,
+      status,
+    );
   } catch (e) {
     return json(
       {

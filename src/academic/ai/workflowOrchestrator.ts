@@ -50,6 +50,47 @@ export type WorkflowRunState = {
 
 /** Canonical registered pipelines (control-plane). */
 export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
+  "teacher.question_paper.plan.v1": {
+    workflow_id: "teacher.question_paper.plan.v1",
+    version: "v1",
+    capability_id: "teacher.question_paper.plan",
+    allowed_audiences: ["teacher", "admin"],
+    enabled: true,
+    failure_policy: "safe_fail",
+    session_memory_scope: "workflow",
+    notes: "Dry-run planner — deterministic curriculum weights; no full paper generation.",
+    steps: [
+      {
+        step_id: "permission_purpose",
+        kind: "permission_check",
+        description: "Verify teacher assignment + purpose for paper planning",
+      },
+      {
+        step_id: "assemble_spec",
+        kind: "context_assemble",
+        description: "Build ContentGenerationSpecification from curriculum inputs",
+      },
+      {
+        step_id: "compute_weights",
+        kind: "stub",
+        feature_id: "teacher.question_paper.plan",
+        budget_ceiling: "simple",
+        description: "Deterministic chapter marks + difficulty slot allocation",
+      },
+      {
+        step_id: "emit_plan",
+        kind: "router_invoke",
+        feature_id: "teacher.question_paper.plan",
+        budget_ceiling: "simple",
+        description: "Return dry-run plan artifact (no Qwen)",
+      },
+      {
+        step_id: "session_checkpoint",
+        kind: "stub",
+        description: "Store plan_hash in paper_gen session memory",
+      },
+    ],
+  },
   "teacher.question_paper.v1": {
     workflow_id: "teacher.question_paper.v1",
     version: "v1",

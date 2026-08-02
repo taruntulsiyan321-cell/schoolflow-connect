@@ -288,6 +288,11 @@ describe("Image doubt workflow + capability", () => {
     expect(cap?.allowed_roles).toContain("student");
     expect(cap?.allowed_roles).not.toContain("super_admin");
   });
+
+  it("lists at least three registered workflows including paper plan", () => {
+    expect(listWorkflowDefinitions().length).toBeGreaterThanOrEqual(3);
+    expect(getWorkflowDefinition("teacher.question_paper.plan.v1")?.enabled).toBe(true);
+  });
 });
 
 describe("No super_admin in Phase 3 surfaces", () => {

@@ -22,6 +22,18 @@ import { estimateUnitsForTier, type BudgetCheckResult } from "./budgetQuotas.ts"
 import { buildParentScheduledNarrative } from "./parentNarrative.ts";
 import { buildRecommendationPackage } from "./recommendationEngine.ts";
 import type { ReasoningTier } from "./reasoningBudget.ts";
+import {
+  retrieveKmsChunks,
+  buildEvidenceCitations,
+  type RetrievalPack,
+} from "./vectorRetrieval.ts";
+import {
+  isSessionMemoryAllowed,
+  redactSessionForContext,
+  buildSessionSummaryPatch,
+  type SessionMemoryRecord,
+} from "./sessionMemory.ts";
+import { planQuestionPaper } from "./questionPaperPlan.ts";
 
 export type KillSwitches = {
   gatewayEnabled: boolean;
@@ -41,7 +53,11 @@ export type RouterRequest = {
   feature_id: string;
   intent_hint?: string;
   input_text?: string;
+  /** Structured client input (e.g. paper plan chapters). */
+  input_structured?: Record<string, unknown>;
   target_student_id?: string;
+  /** Optional workflow-scoped session memory id. */
+  session_id?: string;
   actor: RouterActor;
 };
 
@@ -756,25 +772,63 @@ export async function routeAiRequest(
     });
   }
 
-  let studentId: string;
-  try {
-    studentId = resolveStudentTarget(req.actor, req.target_student_id);
-    await assertMayAccessStudent(userClient, admin, req.actor, studentId);
-  } catch (e) {
-    const code = e instanceof Error ? e.message : "permission_denied";
+  // Never treat super_admin as a valid runtime role (app_role enum excludes it).
+  if ((req.actor.role as string) === "super_admin") {
     return fail({
       decision: "permission_denied",
-      error_code: code,
-      message: "Not authorised for this student",
+      error_code: "invalid_role",
+      message: "super_admin is not a valid AI actor role",
       route_class: cap.route_class,
     });
   }
+
+  let studentId: string | null = null;
+  if (cap.requires_student_target) {
+    try {
+      studentId = resolveStudentTarget(req.actor, req.target_student_id);
+      await assertMayAccessStudent(userClient, admin, req.actor, studentId);
+    } catch (e) {
+      const code = e instanceof Error ? e.message : "permission_denied";
+      return fail({
+        decision: "permission_denied",
+        error_code: code,
+        message: "Not authorised for this student",
+        route_class: cap.route_class,
+      });
+    }
+  } else if (req.target_student_id) {
+    try {
+      studentId = resolveStudentTarget(req.actor, req.target_student_id);
+      await assertMayAccessStudent(userClient, admin, req.actor, studentId);
+    } catch (e) {
+      const code = e instanceof Error ? e.message : "permission_denied";
+      return fail({
+        decision: "permission_denied",
+        error_code: code,
+        message: "Not authorised for this student",
+        route_class: cap.route_class,
+      });
+    }
+  }
+
+  let sessionMemory: SessionMemoryRecord | null = null;
+  if (req.session_id && isSessionMemoryAllowed(cap.feature_id)) {
+    const { data: sess } = await admin.rpc("ai_session_memory_read", {
+      p_session_id: req.session_id,
+    });
+    if (sess && typeof sess === "object") {
+      sessionMemory = sess as SessionMemoryRecord;
+    }
+  }
+  const sessionForContext = redactSessionForContext(sessionMemory);
 
   const isDeterministic =
     cap.route_class === "deterministic_record" ||
     cap.route_class === "deterministic_insight" ||
     cap.route_class === "eie_insight" ||
-    cap.route_class === "recommendation";
+    cap.route_class === "recommendation" ||
+    cap.route_class === "grounded_retrieval" ||
+    (cap.route_class === "content_generation" && !isModelAllowed(cap));
 
   if (isDeterministic && !flags.deterministicEnabled) {
     return fail({
@@ -798,7 +852,7 @@ export async function routeAiRequest(
     let model_id: string | undefined;
     let provenance: Record<string, unknown> | undefined;
 
-    const cacheKeyBase = `${cap.feature_id}:${studentId}`;
+    const cacheKeyBase = `${cap.feature_id}:${studentId ?? "school"}`;
 
     const withCache = async (dataVersion: string, loader: () => Promise<unknown>) => {
       const l1Key = `l1:${req.actor.schoolId}:${cacheKeyBase}:${dataVersion}`;
@@ -825,7 +879,7 @@ export async function routeAiRequest(
         schoolId: req.actor.schoolId,
         cacheKey: l2Key,
         featureId: cap.feature_id,
-        studentId,
+        studentId: studentId ?? "school",
         dataVersion: ver,
         payload: fresh,
       }).catch(() => undefined);
@@ -834,7 +888,7 @@ export async function routeAiRequest(
           schoolId: req.actor.schoolId,
           cacheKey: `${cacheKeyBase}:${ver}`,
           featureId: cap.feature_id,
-          studentId,
+          studentId: studentId ?? "school",
           dataVersion: ver,
           payload: fresh,
         }).catch(() => undefined);
@@ -1224,6 +1278,14 @@ export async function routeAiRequest(
         };
       }
       case "student.recommendation.next": {
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied",
+            error_code: "student_required",
+            message: "Student target required",
+            route_class: cap.route_class,
+          });
+        }
         const eie = (await withCache("pending", () =>
           fetchEie(admin, req.actor.schoolId, studentId),
         )) as Awaited<ReturnType<typeof fetchEie>>;
@@ -1248,11 +1310,129 @@ export async function routeAiRequest(
         };
         break;
       }
+      case "student.knowledge.retrieve": {
+        const query = (req.input_text ?? req.intent_hint ?? "").trim();
+        if (!query) {
+          return fail({
+            decision: "rejected",
+            error_code: "query_required",
+            message: "Retrieval requires input.text query",
+            route_class: cap.route_class,
+          });
+        }
+        const role =
+          req.actor.role === "super_admin"
+            ? "admin"
+            : (req.actor.role as "admin" | "teacher" | "student" | "parent" | "principal");
+        const pack: RetrievalPack = await retrieveKmsChunks(admin, {
+          school_id: req.actor.schoolId,
+          query,
+          role,
+          limit: 5,
+          min_score: 0.12,
+          subject:
+            typeof req.input_structured?.subject === "string"
+              ? req.input_structured.subject
+              : null,
+          grade:
+            typeof req.input_structured?.grade === "string" ? req.input_structured.grade : null,
+        });
+        const citations = buildEvidenceCitations(pack.hits);
+        data = {
+          ...pack,
+          citations,
+          session_memory: sessionForContext,
+          evidence_sufficient: pack.sufficient,
+        };
+        decision = pack.sufficient ? "answered_retrieval" : "answered_facts_only";
+        provenance = {
+          retrieval_mode: pack.mode,
+          hit_count: pack.hit_count,
+          approved_only: true,
+          completeness: pack.sufficient ? 0.7 : 0.15,
+          data_version: `kms:${pack.mode}:${pack.hit_count}`,
+        };
+        break;
+      }
+      case "teacher.question_paper.plan": {
+        const structured = req.input_structured ?? {};
+        const chaptersRaw = Array.isArray(structured.chapters) ? structured.chapters : [];
+        const chapters = chaptersRaw.map((c) => {
+          if (typeof c === "string") return { name: c };
+          const row = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+          return {
+            name: String(row.name ?? row.chapter ?? ""),
+            weight_hint: typeof row.weight_hint === "number" ? row.weight_hint : undefined,
+          };
+        });
+        const plan = planQuestionPaper({
+          subject: String(structured.subject ?? req.input_text ?? "General"),
+          grade: structured.grade != null ? String(structured.grade) : null,
+          board: structured.board != null ? String(structured.board) : null,
+          total_marks: Number(structured.total_marks ?? 100),
+          chapters,
+          difficulty_mix:
+            structured.difficulty_mix && typeof structured.difficulty_mix === "object"
+              ? (structured.difficulty_mix as { easy?: number; medium?: number; hard?: number })
+              : undefined,
+          duration_minutes:
+            structured.duration_minutes != null ? Number(structured.duration_minutes) : null,
+        });
+        data = {
+          ...plan,
+          session_memory: sessionForContext,
+          workflow_id: "teacher.question_paper.plan.v1",
+        };
+        decision = "answered_deterministic";
+        provenance = {
+          dry_run: true,
+          generates_questions: false,
+          plan_hash: plan.plan_hash,
+          completeness: plan.chapters.length ? 0.9 : 0.3,
+          data_version: plan.plan_hash,
+        };
+        break;
+      }
       case "student.concept.explain": {
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied",
+            error_code: "student_required",
+            message: "Student target required",
+            route_class: cap.route_class,
+          });
+        }
         const eie = (await withCache("pending", () =>
           fetchEie(admin, req.actor.schoolId, studentId),
         )) as Awaited<ReturnType<typeof fetchEie>>;
         const concept = pickConceptFromEie(eie, req.input_text);
+
+        // Retrieve-before-model: KMS-approved chunks when present
+        const retrieveQuery = (req.input_text ?? concept?.name ?? "").trim();
+        let retrievalPack: RetrievalPack | null = null;
+        if (retrieveQuery) {
+          retrievalPack = await retrieveKmsChunks(admin, {
+            school_id: req.actor.schoolId,
+            query: retrieveQuery,
+            role:
+              req.actor.role === "super_admin"
+                ? "admin"
+                : (req.actor.role as "admin" | "teacher" | "student" | "parent" | "principal"),
+            limit: 4,
+            min_score: 0.15,
+            subject: concept?.subject ?? null,
+          });
+        }
+        const retrievalEvidence =
+          retrievalPack && retrievalPack.sufficient
+            ? {
+                mode: retrievalPack.mode,
+                hit_count: retrievalPack.hit_count,
+                citations: buildEvidenceCitations(retrievalPack.hits),
+                approved_only: true,
+              }
+            : null;
+
         const conceptFacts = {
           concept: concept
             ? {
@@ -1267,10 +1447,78 @@ export async function routeAiRequest(
           attendance_risk: eie.attendance_risk,
           homework_consistency: eie.homework_consistency,
           avg_mastery: eie.avg_mastery,
-          data_version: `concept:${eie.data_version}:${concept?.name ?? "none"}`,
+          data_version: `concept:${eie.data_version}:${concept?.name ?? "none"}:${retrievalPack?.mode ?? "no_kms"}`,
           source_as_of: eie.computed_at,
-          completeness: concept ? Math.max(0.4, eie.completeness) : 0.1,
+          completeness: concept
+            ? Math.max(0.4, eie.completeness)
+            : retrievalPack?.sufficient
+              ? 0.55
+              : 0.1,
+          retrieval_hit_count: retrievalPack?.hit_count ?? 0,
         };
+
+        // If KMS evidence is sufficient and no generative path needed, answer from retrieval + EIE facts
+        if (retrievalPack?.sufficient && (!mayCallModel || !concept)) {
+          const conf = scoreConfidence({
+            used_model: false,
+            cache_hit,
+            completeness: Math.max(conceptFacts.completeness, 0.55),
+            source_as_of: conceptFacts.source_as_of,
+            route_class: "grounded_retrieval",
+            budget_tier: "simple",
+          });
+          data = {
+            explanation: null,
+            grounded_excerpts: buildEvidenceCitations(retrievalPack.hits),
+            concept: conceptFacts.concept,
+            facts: conceptFacts,
+            retrieval: retrievalEvidence,
+            session_memory: sessionForContext,
+            confidence: conf.confidence,
+            confidence_action: conf.action,
+            source: "kms_retrieval",
+          };
+          decision = "answered_retrieval";
+          provenance = {
+            algorithm_id: eie.algorithm_id,
+            completeness: conceptFacts.completeness,
+            data_version: conceptFacts.data_version,
+            retrieval_mode: retrievalPack.mode,
+            budget_tier: "simple",
+          };
+          await writeDecision(admin, {
+            request_id: req.request_id,
+            school_id: req.actor.schoolId,
+            actor_user_id: req.actor.userId,
+            actor_role: req.actor.role,
+            feature_id: cap.feature_id,
+            route_class: cap.route_class,
+            decision,
+            used_model: false,
+            cache_hit,
+            latency_ms: Date.now() - started,
+            confidence: conf.confidence,
+            budget_tier: "simple",
+            estimated_cost_units: 0,
+            evidence: {
+              student_id: studentId,
+              concept: concept?.name ?? null,
+              retrieval_hits: retrievalPack.hit_count,
+            },
+          });
+          return {
+            request_id: req.request_id,
+            feature_id: cap.feature_id,
+            decision,
+            route_class: cap.route_class,
+            used_model: false,
+            cache_hit,
+            data,
+            provenance,
+            confidence: conf.confidence,
+            budget_tier: "simple",
+          };
+        }
 
         const pack = buildContextPack({
           capability: cap.feature_id,
@@ -1286,7 +1534,12 @@ export async function routeAiRequest(
             algorithm_id: eie.algorithm_id,
             source_as_of: eie.computed_at,
           },
-          tier_signals: { facts_complete: !!concept, budget_pressure: false },
+          retrieval: retrievalEvidence,
+          session_memory: sessionForContext,
+          tier_signals: {
+            facts_complete: !!concept || !!retrievalPack?.sufficient,
+            budget_pressure: false,
+          },
         });
 
         let budget_tier: ReasoningTier = pack.tier;
@@ -1308,21 +1561,29 @@ export async function routeAiRequest(
             explanation: null,
             concept: conceptFacts.concept,
             facts: conceptFacts,
+            retrieval: retrievalEvidence,
+            session_memory: sessionForContext,
             context_provenance: pack.provenance,
             confidence: conf.confidence,
             confidence_action: conf.action,
             degraded_reason: !concept
-              ? "no_concept_seed"
+              ? retrievalPack?.sufficient
+                ? null
+                : "no_concept_seed"
               : !flags.generativeEnabled
                 ? "generative_kill_switch"
                 : "openrouter_not_configured",
+            grounded_excerpts: retrievalPack?.sufficient
+              ? buildEvidenceCitations(retrievalPack.hits)
+              : [],
           };
-          decision = "answered_facts_only";
+          decision = retrievalPack?.sufficient ? "answered_retrieval" : "answered_facts_only";
           provenance = {
             algorithm_id: eie.algorithm_id,
             completeness: conceptFacts.completeness,
             data_version: conceptFacts.data_version,
             budget_tier,
+            retrieval_mode: retrievalPack?.mode ?? null,
           };
           await writeDecision(admin, {
             request_id: req.request_id,
@@ -1338,7 +1599,11 @@ export async function routeAiRequest(
             confidence: confidence_score,
             budget_tier,
             estimated_cost_units: 0,
-            evidence: { student_id: studentId, concept: concept?.name ?? null },
+            evidence: {
+              student_id: studentId,
+              concept: concept?.name ?? null,
+              retrieval_hits: retrievalPack?.hit_count ?? 0,
+            },
           });
           return {
             request_id: req.request_id,
@@ -1365,6 +1630,7 @@ export async function routeAiRequest(
             explanation: null,
             concept: conceptFacts.concept,
             facts: conceptFacts,
+            retrieval: retrievalEvidence,
             degraded_reason: "budget_exhausted",
           };
           decision = "answered_facts_only";
@@ -1406,7 +1672,11 @@ export async function routeAiRequest(
           admin,
           capability_id: cap.feature_id,
           vars: {
-            facts: JSON.stringify(conceptFacts),
+            facts: JSON.stringify({
+              ...conceptFacts,
+              retrieval: retrievalEvidence,
+              session: sessionForContext,
+            }),
             question: req.input_text ?? `Explain ${concept.name}`,
           },
           budget_tier,
@@ -1417,9 +1687,10 @@ export async function routeAiRequest(
             explanation: null,
             concept: conceptFacts.concept,
             facts: conceptFacts,
+            retrieval: retrievalEvidence,
             degraded_reason: modelResult.error,
           };
-          decision = "answered_facts_only";
+          decision = retrievalPack?.sufficient ? "answered_retrieval" : "answered_facts_only";
         } else {
           const evidence = {
             avg_mastery: concept.mastery_score,
@@ -1444,6 +1715,8 @@ export async function routeAiRequest(
               explanation: validation.material_failure ? null : modelResult.text,
               concept: conceptFacts.concept,
               facts: conceptFacts,
+              retrieval: retrievalEvidence,
+              session_memory: sessionForContext,
               validation_codes: validation.codes,
             },
             conf,
@@ -1452,11 +1725,14 @@ export async function routeAiRequest(
             data = {
               ...payload,
               explanation: null,
+              grounded_excerpts: retrievalPack?.sufficient
+                ? buildEvidenceCitations(retrievalPack.hits)
+                : [],
               degraded_reason: validation.material_failure
                 ? "validation_failed"
                 : "low_confidence_or_validation",
             };
-            decision = "answered_facts_only";
+            decision = retrievalPack?.sufficient ? "answered_retrieval" : "answered_facts_only";
             used_model = true;
             model_id = modelResult.model_id;
           } else {
@@ -1473,6 +1749,7 @@ export async function routeAiRequest(
           data_version: conceptFacts.data_version,
           budget_tier,
           prompt_version: modelResult.prompt?.version,
+          retrieval_mode: retrievalPack?.mode ?? null,
         };
 
         await writeDecision(admin, {
@@ -1495,7 +1772,13 @@ export async function routeAiRequest(
             student_id: studentId,
             concept: concept.name,
             prompt_version: modelResult.prompt?.version ?? null,
+            retrieval_hits: retrievalPack?.hit_count ?? 0,
             cost_units: used_model ? cost_units : 0,
+            session_patch: buildSessionSummaryPatch({
+              last_feature_id: cap.feature_id,
+              last_decision: decision,
+              concepts_touched: concept?.name ? [concept.name] : [],
+            }),
           },
         });
 
