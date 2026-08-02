@@ -299,7 +299,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
             <p className="wa-body mt-1 max-w-2xl">{clipInsightText(focusBody, 120)}</p>
           </div>
           <div className="rounded-2xl bg-[var(--wa-primary)] text-white px-4 py-3">
-            <p className="wa-label text-white/65">Estimated gain</p>
+            <p className="wa-label text-white/65">Measured gain</p>
             <p className="text-3xl font-bold tabular-nums">
               {measuredGain > 0 ? `+${measuredGain}%` : "—"}
             </p>
@@ -480,8 +480,8 @@ export function AnalyticsStudio({ data, charts }: Props) {
             <div className="grid md:grid-cols-4 gap-3 mt-5">
               <div className="wa-coach-cell"><p>Strength</p><strong>{strength}</strong></div>
               <div className="wa-coach-cell"><p>Weakness</p><strong>{weakness}</strong></div>
-              <div className="wa-coach-cell"><p>Recommendation</p><strong>{clipInsightText(topGap?.fix_hint ?? displayInsights?.today_focus ?? "Practice your weak topics", 70)}</strong></div>
-              <div className="wa-coach-cell"><p>Expected gain</p><strong>{expectedGain > 0 ? `+${expectedGain}% accuracy` : "—"}</strong></div>
+              <div className="wa-coach-cell"><p>Recommendation</p><strong>{clipInsightText(topGap?.fix_hint ?? displayInsights?.today_focus ?? "Complete practice to unlock topic recommendations", 70)}</strong></div>
+              <div className="wa-coach-cell"><p>Measured gain</p><strong>{measuredGain > 0 ? `+${measuredGain}% accuracy` : "—"}</strong></div>
             </div>
           </div>
         </div>

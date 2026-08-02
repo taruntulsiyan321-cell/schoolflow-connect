@@ -16,7 +16,7 @@ export default function AcademicAnalytics() {
       <FlowTopBar
         action={
           <Button size="sm" variant="ghost" asChild className="text-muted-foreground h-9">
-            <Link to="/student/report">
+            <Link to="/student/analysis">
               <FileText className="w-4 h-4 mr-1" /> Report
             </Link>
           </Button>
