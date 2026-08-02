@@ -51,8 +51,10 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
   const { user } = useAuth();
   const nav = useNavigate();
   const { ctx, ready: academicReady } = useAcademicContext();
-  const grade = useMemo(() => parseClassGrade(className), [className]);
+  const gradeFromLabel = useMemo(() => parseClassGrade(className), [className]);
   const [stream, setStream] = useState<AcademicStream | null>(null);
+  const [scopeClassLevel, setScopeClassLevel] = useState<number | null>(null);
+  const grade = scopeClassLevel ?? gradeFromLabel;
 
   useEffect(() => {
     if (!ctx || !academicReady) return;
@@ -60,9 +62,15 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
     (async () => {
       try {
         const scope = await PracticeService.resolveCurriculumScope(ctx);
-        if (!cancelled) setStream(scope.stream);
+        if (!cancelled) {
+          setStream(scope.stream);
+          setScopeClassLevel(scope.classLevel);
+        }
       } catch {
-        if (!cancelled) setStream(null);
+        if (!cancelled) {
+          setStream(null);
+          setScopeClassLevel(null);
+        }
       }
     })();
     return () => { cancelled = true; };

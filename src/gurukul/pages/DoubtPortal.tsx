@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
-import { DoubtService, type ServiceContext, useAcademicLive } from "@/academic";
+import { DoubtService, PracticeService, type ServiceContext, useAcademicLive } from "@/academic";
 import { askAiCoach, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } from "@/academic/ai/gatewayClient";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { GlassCard, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
+import { getNcertSubjects } from "@/lib/ncertSyllabus";
 import { toast } from "sonner";
 import {
   MessageCircle, Plus, Search, Filter, ThumbsUp, Bookmark, BookmarkCheck,
@@ -14,10 +16,48 @@ import {
   AlertCircle, Eye, Hash, User, Sparkles, MoreHorizontal,
 } from "lucide-react";
 
+const FALLBACK_SUBJECTS = ["Mathematics", "English", "Hindi"];
+
+function useScopedSubjects() {
+  const { ctx, ready } = useAcademicContext();
+  const [stream, setStream] = useState<AcademicStream | null>(null);
+  const [classLevel, setClassLevel] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const scope = await PracticeService.resolveCurriculumScope(ctx);
+        if (cancelled) return;
+        setStream(scope.stream);
+        setClassLevel(scope.classLevel);
+      } catch {
+        if (!cancelled) {
+          setStream(null);
+          setClassLevel(null);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ready, ctx]);
+
+  const subjects = useMemo(
+    () => subjectsForStreamPicker(stream, classLevel, getNcertSubjects(classLevel) || FALLBACK_SUBJECTS),
+    [stream, classLevel],
+  );
+
+  return { subjects, classLevel, stream };
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 type DoubtStatus = "pending" | "answered" | "closed";
 type DView = "feed" | "detail" | "ask" | "mydoubts";
 
+const STATUS_OPTS: { label: string; val: DoubtStatus | "all" }[] = [
+  { label:"All", val:"all" }, { label:"Pending", val:"pending" },
+  { label:"Answered", val:"answered" }, { label:"Closed", val:"closed" },
+];
 interface Reply {
   id: string; author: string; avatar: string; authorColor: string;
   text: string; time: string; likes: number; likedByMe: boolean;
@@ -146,12 +186,6 @@ async function loadAnswersForDoubt(doubtId: string): Promise<Reply[]> {
   if (error) throw error;
   return ((data ?? []) as DbAnswerRow[]).map(mapAnswerRow);
 }
-
-const SUBJECTS = ["All", "Mathematics", "Physics", "Chemistry", "Biology", "English"];
-const STATUS_OPTS: { label: string; val: DoubtStatus | "all" }[] = [
-  { label:"All", val:"all" }, { label:"Pending", val:"pending" },
-  { label:"Answered", val:"answered" }, { label:"Closed", val:"closed" },
-];
 
 // ── Helper components ──────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: DoubtStatus }) {
@@ -474,15 +508,23 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx }: {
 }) {
   const student = useGurukulStudent();
   const { studentId } = useAcademicContext();
+  const { subjects: subjectOptions } = useScopedSubjects();
   const [step, setStep] = useState<"ai"|"form">("form");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
-  const [subject, setSubject] = useState("Mathematics");
+  const [subject, setSubject] = useState(subjectOptions[0] ?? "Mathematics");
   const [chapter, setChapter] = useState("");
   const [topic, setTopic] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiReply, setAiReply] = useState<string|null>(null);
   const [attachType, setAttachType] = useState<string|null>(null);
+
+  useEffect(() => {
+    if (subjectOptions.length && !subjectOptions.includes(subject)) {
+      setSubject(subjectOptions[0]);
+      setChapter("");
+    }
+  }, [subjectOptions, subject]);
 
   const CHAPTERS: Record<string,string[]> = {
     Mathematics:["Integration","Differential Equations","Matrices","Probability","Vectors"],
@@ -490,6 +532,10 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx }: {
     Chemistry:["Organic Chemistry","Electrochemistry","Thermodynamics","Polymers","Coordination"],
     Biology:["Genetics","Cell Biology","Ecology","Evolution","Plant Physiology"],
     English:["Grammar","Comprehension","Essay","Poetry","Drama"],
+    Accountancy:["Accounting Principles","Journal","Ledger","Trial Balance","Final Accounts"],
+    "Business Studies":["Nature of Management","Principles of Management","Business Environment","Marketing"],
+    Economics:["Demand","Supply","National Income","Money and Banking"],
+    Hindi:["Grammar","Comprehension","Essay","Poetry"],
   };
 
   async function getAIAnswer() {
@@ -598,7 +644,7 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx }: {
             <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Subject *</label>
             <select value={subject} onChange={e => setSubject(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/30 appearance-none">
-              {SUBJECTS.filter(s => s !== "All").map(s => <option key={s} value={s} className="bg-[#131316]">{s}</option>)}
+              {subjectOptions.map(s => <option key={s} value={s} className="bg-[#131316]">{s}</option>)}
             </select>
           </div>
           <div>
@@ -736,6 +782,8 @@ export default function DoubtPortal() {
   const liveVersion = useAcademicLive(["doubt"] as any);
   const { user } = useAuth();
   const student = useGurukulStudent();
+  const { subjects: scopedSubjects } = useScopedSubjects();
+  const subjectFilterOptions = useMemo(() => ["All", ...scopedSubjects], [scopedSubjects]);
   const [doubts, setDoubts] = useState<Doubt[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<DView>("feed");
@@ -745,6 +793,12 @@ export default function DoubtPortal() {
   const [statusFilter, setStatusFilter] = useState<DoubtStatus|"all">("all");
   const [sort, setSort] = useState<"latest"|"popular"|"unanswered">("latest");
   const [listTick, setListTick] = useState(0);
+
+  useEffect(() => {
+    if (subjectFilter !== "All" && !scopedSubjects.includes(subjectFilter)) {
+      setSubjectFilter("All");
+    }
+  }, [scopedSubjects, subjectFilter]);
 
   const classLabel = student.class
     ? student.section
@@ -866,7 +920,7 @@ export default function DoubtPortal() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex gap-1.5">
-                {SUBJECTS.map(s => (
+                {subjectFilterOptions.map(s => (
                   <button key={s} onClick={() => setSubjectFilter(s)}
                     className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
                       subjectFilter === s ? "bg-white/15 border border-white/25 text-white" : "bg-white/5 border border-white/8 text-[#78788c] hover:bg-white/10")}>

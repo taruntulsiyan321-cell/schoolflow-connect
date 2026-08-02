@@ -9,6 +9,9 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
+import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
+import { getNcertSubjects } from "@/lib/ncertSyllabus";
+import { PracticeService, useAcademicContext } from "@/academic";
 
 type Scope = "class" | "school";
 type Category =
@@ -25,7 +28,7 @@ type RankRow = {
   label: string;
 };
 
-const SUBJECTS = ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "Social Studies", "General Knowledge", "Computer Science", "Economics", "Accountancy", "Business Studies"];
+const FALLBACK_SUBJECTS = ["Mathematics", "English"];
 
 const CATS: { key: Category; label: string; icon: React.ReactNode; mode: "rpc" | "client"; classOnly?: boolean }[] = [
   { key: "xp", label: "XP", icon: <Zap className="w-3.5 h-3.5" />, mode: "rpc" },
@@ -44,14 +47,44 @@ type Props = { embedded?: boolean };
 
 export function LeaderboardPanel({ embedded = false }: Props) {
   const { user } = useAuth();
+  const { ctx, ready: academicReady } = useAcademicContext();
   const [scope, setScope] = useState<Scope>("class");
   const [category, setCategory] = useState<Category>("xp");
-  const [subject, setSubject] = useState("Mathematics");
+  const [stream, setStream] = useState<AcademicStream | null>(null);
+  const [classLevel, setClassLevel] = useState<number | null>(null);
+  const subjects = useMemo(
+    () => subjectsForStreamPicker(stream, classLevel, getNcertSubjects(classLevel) || FALLBACK_SUBJECTS),
+    [stream, classLevel],
+  );
+  const [subject, setSubject] = useState(subjects[0] ?? "Mathematics");
   const [classLabel, setClassLabel] = useState("");
   const [classId, setClassId] = useState<string | null>(null);
   const [rows, setRows] = useState<RankRow[]>([]);
   const [badgeMap, setBadgeMap] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!ctx || !academicReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const cur = await PracticeService.resolveCurriculumScope(ctx);
+        if (cancelled) return;
+        setStream(cur.stream);
+        setClassLevel(cur.classLevel);
+      } catch {
+        if (!cancelled) {
+          setStream(null);
+          setClassLevel(null);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, academicReady]);
+
+  useEffect(() => {
+    if (subjects.length && !subjects.includes(subject)) setSubject(subjects[0]);
+  }, [subjects, subject]);
 
   useEffect(() => {
     if (!user) return;
@@ -177,7 +210,7 @@ export function LeaderboardPanel({ embedded = false }: Props) {
         <div className="mb-3 max-w-xs">
           <Select value={subject} onValueChange={setSubject}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{SUBJECTS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            <SelectContent>{subjects.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
           </Select>
         </div>
       )}

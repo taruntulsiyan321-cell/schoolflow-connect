@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 const CLASS_UNRESOLVED_MSG =
-  "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 11-A) so practice can show the right subjects.";
+  "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type Phase   = "hub" | "config" | "session" | "feedback" | "summary";

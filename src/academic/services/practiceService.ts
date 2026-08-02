@@ -9,7 +9,6 @@ import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 import {
-  appliesCommerceSubjectAllowlist,
   filterSubjectsForStream,
   inferStreamFromText,
   isSubjectAllowedForScope,
@@ -158,7 +157,8 @@ export const PracticeService = {
 
   /**
    * Resolve student's class_level + school board/stream for bank filtering.
-   * class_level comes from students → classes name/display (e.g. "11-A" → 11).
+   * class_level comes from students → classes name/display (e.g. "10-A" → 10, "12-C" → 12).
+   * Used for EVERY class — never dump other class levels.
    * stream from schools.stream, else class category/label (commerce/science/…).
    */
   async resolveCurriculumScope(ctx: ServiceContext): Promise<CurriculumScope> {
@@ -378,12 +378,17 @@ export const PracticeService = {
       .order("mastery_score", { ascending: true })
       .limit(limit);
     throwIfError(error, "Failed to load weak concepts");
+    const scope = await this.resolveCurriculumScope(ctx);
     return (data ?? []).map((r) => ({
       subject: String((r as { subject: string }).subject ?? ""),
       chapter: (r as { chapter?: string | null }).chapter ?? null,
       concept: String((r as { concept: string }).concept ?? ""),
       mastery_score: Number((r as { mastery_score: number }).mastery_score) || 0,
-    })).filter((r) => r.subject && r.concept);
+    })).filter((r) =>
+      r.subject &&
+      r.concept &&
+      isSubjectAllowedForScope(r.subject, scope.stream, scope.classLevel),
+    );
   },
 
   /** Unmastered mistakes as practice-ready questions (honest empty if none). */
@@ -411,6 +416,7 @@ export const PracticeService = {
       .order("last_wrong_at", { ascending: false })
       .limit(limit);
     throwIfError(error, "Failed to load incorrect questions");
+    const scope = await this.resolveCurriculumScope(ctx);
 
     const out: Array<{
       id: string;
@@ -434,6 +440,7 @@ export const PracticeService = {
         explanation: string | null;
         question_id: string | null;
       };
+      if (!isSubjectAllowedForScope(r.subject || "", scope.stream, scope.classLevel)) continue;
       const optsRaw = Array.isArray(r.options) ? r.options : [];
       if (!r.question_text || optsRaw.length < 2) continue;
       let correctIndex = 0;
@@ -585,10 +592,8 @@ export const PracticeService = {
       stream: string | null;
     }>;
 
-    // Hard allowlist for commerce (covers null-stream legacy science rows).
-    if (appliesCommerceSubjectAllowlist(scope.stream, classLevel)) {
-      rows = rows.filter((r) => isSubjectAllowedForScope(r.subject, scope.stream, classLevel));
-    }
+    // Senior stream allowlists (commerce / science 11–12) — covers null-stream legacy rows.
+    rows = rows.filter((r) => isSubjectAllowedForScope(r.subject, scope.stream, classLevel));
 
     if (opts.topic) {
       const t = opts.topic.toLowerCase();

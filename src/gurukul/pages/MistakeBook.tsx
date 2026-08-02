@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { PracticeService, useAcademicContext } from "@/academic";
+import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
-import { toast } from "sonner";
 import { GlassCard, SubjectBadge, DifficultyBadge, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Filter, Bookmark, BookmarkCheck,
@@ -333,6 +334,7 @@ function MistakePractice({ ids, mistakes, onDone }: { ids: string[]; mistakes: M
 
 export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => void }) {
   const { user } = useAuth();
+  const { ctx, ready: academicReady } = useAcademicContext();
   const [view, setView] = useState<MBView>("list");
   const [practiceIds, setPracticeIds] = useState<string[]>([]);
   const [practiceScore, setPracticeScore] = useState(0);
@@ -345,7 +347,28 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [filterResolved, setFilterResolved] = useState<"all"|"unresolved"|"resolved"|"bookmarked">("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
-  const [toast, setToast] = useState<string|null>(null);
+  const [toastMsg, setToast] = useState<string|null>(null);
+  const [stream, setStream] = useState<AcademicStream | null>(null);
+  const [classLevel, setClassLevel] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!ctx || !academicReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const scope = await PracticeService.resolveCurriculumScope(ctx);
+        if (cancelled) return;
+        setStream(scope.stream);
+        setClassLevel(scope.classLevel);
+      } catch {
+        if (!cancelled) {
+          setStream(null);
+          setClassLevel(null);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, academicReady]);
 
   useEffect(() => {
     if (!user) {
@@ -375,8 +398,11 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   }, [user]);
 
   const mistakes = useMemo(
-    () => rows.map((r) => mapRowToMistake(r, bookmarks.has(r.id))),
-    [rows, bookmarks],
+    () =>
+      rows
+        .filter((r) => isSubjectAllowedForScope(r.subject, stream, classLevel))
+        .map((r) => mapRowToMistake(r, bookmarks.has(r.id))),
+    [rows, bookmarks, stream, classLevel],
   );
 
   function showToast(msg: string) {
@@ -504,10 +530,10 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   return (
     <div className="space-y-6 relative">
       {/* Toast */}
-      {toast && (
+      {toastMsg && (
         <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-[#131316] border border-rose-500/30 text-rose-300 text-sm font-semibold shadow-2xl animate-in slide-in-from-right">
           <RefreshCw className="w-4 h-4"/>
-          {toast}
+          {toastMsg}
         </div>
       )}
 

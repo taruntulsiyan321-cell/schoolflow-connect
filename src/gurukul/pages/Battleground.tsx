@@ -1617,8 +1617,10 @@ function CreateBattleWizard({
   classLabel?: string;
 }) {
   const { ctx, ready: academicReady } = useAcademicContext();
-  const grade = useMemo(() => parseClassGrade(classLabel), [classLabel]);
+  const gradeFromLabel = useMemo(() => parseClassGrade(classLabel), [classLabel]);
   const [stream, setStream] = useState<AcademicStream | null>(null);
+  const [scopeClassLevel, setScopeClassLevel] = useState<number | null>(null);
+  const grade = scopeClassLevel ?? gradeFromLabel;
 
   useEffect(() => {
     if (!ctx || !academicReady) return;
@@ -1626,9 +1628,15 @@ function CreateBattleWizard({
     (async () => {
       try {
         const scope = await PracticeService.resolveCurriculumScope(ctx);
-        if (!cancelled) setStream(scope.stream);
+        if (!cancelled) {
+          setStream(scope.stream);
+          setScopeClassLevel(scope.classLevel);
+        }
       } catch {
-        if (!cancelled) setStream(null);
+        if (!cancelled) {
+          setStream(null);
+          setScopeClassLevel(null);
+        }
       }
     })();
     return () => { cancelled = true; };

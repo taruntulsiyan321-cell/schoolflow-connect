@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useRecoveryZone, type RecoveryZoneData, type WeakConcept } from "@/hooks/useRecoveryZone";
+import { PracticeService, useAcademicContext } from "@/academic";
+import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { GlassCard, SubjectBadge, ProgressBar, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2, XCircle,
@@ -354,6 +356,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
 export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }) {
   const navigate = useNavigate();
   const { data, loading, error } = useRecoveryZone();
+  const { ctx, ready: academicReady } = useAcademicContext();
   const [view, setView] = useState<RecoveryView>("overview");
   const [activeTopic, setActiveTopic] = useState<RecoveryTopic | null>(null);
   const [sessionScore, setSessionScore] = useState(0);
@@ -361,8 +364,35 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
   const [priority, setPriority] = useState<Priority | "all">("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [showHistory, setShowHistory] = useState(false);
+  const [stream, setStream] = useState<AcademicStream | null>(null);
+  const [classLevel, setClassLevel] = useState<number | null>(null);
 
-  const TOPICS = useMemo(() => (data ? mapRecoveryZoneToTopics(data) : []), [data]);
+  useEffect(() => {
+    if (!ctx || !academicReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const scope = await PracticeService.resolveCurriculumScope(ctx);
+        if (cancelled) return;
+        setStream(scope.stream);
+        setClassLevel(scope.classLevel);
+      } catch {
+        if (!cancelled) {
+          setStream(null);
+          setClassLevel(null);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, academicReady]);
+
+  const TOPICS = useMemo(
+    () =>
+      (data ? mapRecoveryZoneToTopics(data) : []).filter((t) =>
+        isSubjectAllowedForScope(t.subject, stream, classLevel),
+      ),
+    [data, stream, classLevel],
+  );
   const TEACHER_TASKS: { id: string; title: string; teacher: string; due: string; qs: number; subject: string }[] = [];
   const AI_PLAN = useMemo(
     () =>

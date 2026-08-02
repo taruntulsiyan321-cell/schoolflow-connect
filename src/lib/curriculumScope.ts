@@ -1,13 +1,24 @@
 /**
  * Student curriculum scope helpers — class level + stream subject allowlists.
- * Used by PracticeService and Battleground pickers so commerce students never
- * see science subjects (and vice versa when stream is known).
+ * Applies for EVERY class level: bank queries always filter by the student's
+ * class_level (10 → 10, 11 → 11, 12 → 12). Senior stream allowlists (commerce /
+ * science) apply only for Class 11–12 so lower classes keep age-appropriate subjects.
  */
 
 export const COMMERCE_SUBJECT_ALLOWLIST = [
   "Accountancy",
   "Business Studies",
   "Economics",
+  "Mathematics",
+  "English",
+  "Hindi",
+] as const;
+
+/** Senior science stream (Class 11–12) — symmetric with commerce. */
+export const SCIENCE_SUBJECT_ALLOWLIST = [
+  "Physics",
+  "Chemistry",
+  "Biology",
   "Mathematics",
   "English",
   "Hindi",
@@ -107,9 +118,16 @@ export function isCommerceAllowedSubject(subject: string): boolean {
   return COMMERCE_SUBJECT_ALLOWLIST.some((s) => s.toLowerCase() === canonical.toLowerCase());
 }
 
+export function isScienceAllowedSubject(subject: string): boolean {
+  if (!subject?.trim()) return false;
+  const canonical = normalizeSubjectName(subject);
+  return SCIENCE_SUBJECT_ALLOWLIST.some((s) => s.toLowerCase() === canonical.toLowerCase());
+}
+
 /**
  * Commerce allowlist applies for commerce stream at Class 11–12.
  * Lower classes keep general secondary subjects even if the school is commerce-tagged.
+ * When class is unresolved, apply allowlist conservatively (never dump science).
  */
 export function appliesCommerceSubjectAllowlist(
   stream: AcademicStream | null | undefined,
@@ -120,29 +138,57 @@ export function appliesCommerceSubjectAllowlist(
   return classLevel >= 11;
 }
 
+/**
+ * Science allowlist applies for science stream at Class 11–12 only.
+ * Class ≤10 keeps general subjects (e.g. Science) even if school is science-tagged.
+ */
+export function appliesScienceSubjectAllowlist(
+  stream: AcademicStream | null | undefined,
+  classLevel: number | null | undefined,
+): boolean {
+  if (stream !== "science") return false;
+  if (classLevel == null) return true;
+  return classLevel >= 11;
+}
+
+function orderAllowlist(
+  seen: Map<string, string>,
+  allowlist: readonly string[],
+): string[] {
+  return allowlist.filter((s) => seen.has(s.toLowerCase())).map((s) => seen.get(s.toLowerCase())!);
+}
+
 /** Filter subject names for the student's stream (preserve display casing from bank). */
 export function filterSubjectsForStream(
   subjects: string[],
   stream: AcademicStream | null | undefined,
   classLevel?: number | null,
 ): string[] {
-  if (!appliesCommerceSubjectAllowlist(stream, classLevel ?? null)) {
-    return subjects.filter((s) => s.trim().length > 0);
+  const level = classLevel ?? null;
+  if (appliesCommerceSubjectAllowlist(stream, level)) {
+    const seen = new Map<string, string>();
+    for (const raw of subjects) {
+      if (!isCommerceAllowedSubject(raw)) continue;
+      const canonical = normalizeSubjectName(raw);
+      const key = canonical.toLowerCase();
+      if (!seen.has(key)) seen.set(key, canonical);
+    }
+    return orderAllowlist(seen, COMMERCE_SUBJECT_ALLOWLIST);
   }
-  const seen = new Map<string, string>();
-  for (const raw of subjects) {
-    if (!isCommerceAllowedSubject(raw)) continue;
-    const canonical = normalizeSubjectName(raw);
-    const key = canonical.toLowerCase();
-    if (!seen.has(key)) seen.set(key, canonical);
+  if (appliesScienceSubjectAllowlist(stream, level)) {
+    const seen = new Map<string, string>();
+    for (const raw of subjects) {
+      if (!isScienceAllowedSubject(raw)) continue;
+      const canonical = normalizeSubjectName(raw);
+      const key = canonical.toLowerCase();
+      if (!seen.has(key)) seen.set(key, canonical);
+    }
+    return orderAllowlist(seen, SCIENCE_SUBJECT_ALLOWLIST);
   }
-  // Prefer allowlist order
-  return COMMERCE_SUBJECT_ALLOWLIST.filter((s) => seen.has(s.toLowerCase())).map(
-    (s) => seen.get(s.toLowerCase())!,
-  );
+  return subjects.filter((s) => s.trim().length > 0);
 }
 
-/** Subject chips for create-battle / challenge pickers. */
+/** Subject chips for create-battle / challenge / doubt pickers. */
 export function subjectsForStreamPicker(
   stream: AcademicStream | null | undefined,
   classLevel: number | null | undefined,
@@ -151,8 +197,8 @@ export function subjectsForStreamPicker(
   if (appliesCommerceSubjectAllowlist(stream, classLevel)) {
     return [...COMMERCE_SUBJECT_ALLOWLIST];
   }
-  if (stream === "science" && classLevel != null && classLevel >= 11) {
-    return ["Physics", "Chemistry", "Biology", "Mathematics", "English", "Hindi"];
+  if (appliesScienceSubjectAllowlist(stream, classLevel)) {
+    return [...SCIENCE_SUBJECT_ALLOWLIST];
   }
   return fallback.length ? fallback : ["Mathematics"];
 }
@@ -163,6 +209,12 @@ export function isSubjectAllowedForScope(
   classLevel?: number | null,
 ): boolean {
   if (!subject || subject === "Mixed" || subject === "General") return true;
-  if (!appliesCommerceSubjectAllowlist(stream, classLevel ?? null)) return true;
-  return isCommerceAllowedSubject(subject);
+  const level = classLevel ?? null;
+  if (appliesCommerceSubjectAllowlist(stream, level)) {
+    return isCommerceAllowedSubject(subject);
+  }
+  if (appliesScienceSubjectAllowlist(stream, level)) {
+    return isScienceAllowedSubject(subject);
+  }
+  return true;
 }

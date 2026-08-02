@@ -34,6 +34,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
+import { getNcertSubjects } from "@/lib/ncertSyllabus";
+import { PracticeService, useAcademicContext } from "@/academic";
 
 type DoubtStatus = "unsolved" | "teacher_answered" | "community_solved" | "solved";
 
@@ -91,7 +94,7 @@ interface TeacherDashboardData {
 
 type FeedFilter = "recent" | "trending" | "unanswered" | "teacher" | "mine";
 
-const SUBJECTS = ["Mathematics", "Physics", "Chemistry", "Biology", "English", "Computer Science", "General"];
+const FALLBACK_SUBJECTS = ["Mathematics", "English", "General"];
 
 const FILTERS: { id: FeedFilter; label: string; icon: typeof MessageCircle }[] = [
   { id: "recent", label: "Recent Doubts", icon: MessageCircle },
@@ -262,13 +265,43 @@ function ReputationCard({ reputation }: { reputation: Reputation | null }) {
 
 function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
   const { user } = useAuth();
-  const [subject, setSubject] = useState("Mathematics");
+  const { ctx, ready: academicReady } = useAcademicContext();
+  const [stream, setStream] = useState<AcademicStream | null>(null);
+  const [classLevel, setClassLevel] = useState<number | null>(null);
+  const subjects = useMemo(() => {
+    const scoped = subjectsForStreamPicker(stream, classLevel, getNcertSubjects(classLevel) || FALLBACK_SUBJECTS);
+    return scoped.includes("General") ? scoped : [...scoped, "General"];
+  }, [stream, classLevel]);
+  const [subject, setSubject] = useState(subjects[0] ?? "Mathematics");
   const [chapter, setChapter] = useState("");
   const [concept, setConcept] = useState("");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [posting, setPosting] = useState(false);
+
+  useEffect(() => {
+    if (!ctx || !academicReady) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const scope = await PracticeService.resolveCurriculumScope(ctx);
+        if (cancelled) return;
+        setStream(scope.stream);
+        setClassLevel(scope.classLevel);
+      } catch {
+        if (!cancelled) {
+          setStream(null);
+          setClassLevel(null);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, academicReady]);
+
+  useEffect(() => {
+    if (subjects.length && !subjects.includes(subject)) setSubject(subjects[0]);
+  }, [subjects, subject]);
 
   const submit = async () => {
     if (!title.trim() || !body.trim()) {
@@ -326,7 +359,7 @@ function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <Select value={subject} onValueChange={setSubject}>
           <SelectTrigger><SelectValue placeholder="Subject" /></SelectTrigger>
-          <SelectContent>{SUBJECTS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+          <SelectContent>{subjects.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
         </Select>
         <Input value={chapter} onChange={(e) => setChapter(e.target.value)} placeholder="Chapter, e.g. Determinants" />
         <Input value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Concept, e.g. Row operations" />
