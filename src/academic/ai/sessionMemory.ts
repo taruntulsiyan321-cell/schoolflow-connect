@@ -15,6 +15,7 @@ export type SessionMemoryStatus = "active" | "closed" | "expired";
 export type SessionMemoryRecord = {
   session_id: string;
   school_id?: string;
+  actor_user_id?: string;
   workflow_scope: SessionWorkflowScope | string;
   capability_id?: string | null;
   workflow_id?: string | null;

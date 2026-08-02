@@ -31,16 +31,19 @@ function envMap(): Record<string, string | undefined> {
 export async function processEmbeddingJobsBatch(
   admin: SupabaseClient,
   limit = 10,
+  opts?: { schoolId?: string | null },
 ): Promise<{
   provider_configured: boolean;
   claimed: number;
   embedded: number;
   deferred: number;
   failed: number;
+  skipped_other_tenant: number;
   details: unknown;
 }> {
   const env = envMap();
   const configured = isEmbeddingProviderConfigured(env);
+  const schoolFilter = opts?.schoolId ? String(opts.schoolId) : null;
 
   const { data: batch, error } = await admin.rpc("ai_embedding_jobs_process_batch", {
     p_limit: limit,
@@ -54,6 +57,7 @@ export async function processEmbeddingJobsBatch(
       embedded: 0,
       deferred: 0,
       failed: 0,
+      skipped_other_tenant: 0,
       details: { error: String(error.message ?? error) },
     };
   }
@@ -66,6 +70,7 @@ export async function processEmbeddingJobsBatch(
       embedded: 0,
       deferred: Number(payload.deferred_count ?? 0),
       failed: 0,
+      skipped_other_tenant: 0,
       details: payload,
     };
   }
@@ -74,6 +79,7 @@ export async function processEmbeddingJobsBatch(
   let embedded = 0;
   let deferred = 0;
   let failed = 0;
+  let skipped_other_tenant = 0;
   const results: unknown[] = [];
 
   for (const row of jobsRaw) {
@@ -87,6 +93,17 @@ export async function processEmbeddingJobsBatch(
       chunk_text: String(j.chunk_text ?? ""),
     };
     if (!job.job_id || !job.chunk_id) continue;
+
+    if (schoolFilter && job.school_id !== schoolFilter) {
+      // Release claim so another tenant/cron can pick it up.
+      await admin
+        .from("ai_embedding_jobs")
+        .update({ status: "pending_embed", updated_at: new Date().toISOString() })
+        .eq("id", job.job_id)
+        .eq("status", "processing");
+      skipped_other_tenant += 1;
+      continue;
+    }
 
     const result = await processOneEmbeddingJob(job, { env });
     if (result.ok) {
@@ -107,7 +124,6 @@ export async function processEmbeddingJobsBatch(
         p_failed: true,
         p_error: result.error,
       });
-      // Prefer defer semantics when provider race
       deferred += 1;
       results.push({ chunk_id: job.chunk_id, status: "deferred", error: result.error });
     } else {
@@ -129,6 +145,7 @@ export async function processEmbeddingJobsBatch(
     embedded,
     deferred,
     failed,
+    skipped_other_tenant,
     details: { rpc: payload, results },
   };
 }

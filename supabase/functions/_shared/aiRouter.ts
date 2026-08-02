@@ -139,6 +139,20 @@ export async function loadKillSwitches(
   }
 
   const flags = data ?? [];
+  // Fail-closed when master gateway seed row is missing (mis-migrated / empty DB).
+  const gatewaySeed = flags.find(
+    (f) => f.flag_key === "ai.gateway.enabled" && f.school_id == null,
+  );
+  if (!gatewaySeed) {
+    console.error("ai.gateway.enabled global seed missing — fail-closed");
+    return {
+      gatewayEnabled: false,
+      deterministicEnabled: false,
+      generativeEnabled: false,
+      shadowPromptPercent: 0,
+    };
+  }
+
   const read = (key: string, fallback: boolean): boolean => {
     const schoolRow = schoolId
       ? flags.find((f) => f.flag_key === key && f.school_id === schoolId)
@@ -700,15 +714,21 @@ async function fetchParentSummary(admin: SupabaseClient, schoolId: string, stude
   const weak = Array.isArray(metrics.weakTopics) ? metrics.weakTopics.map(String) : [];
   const strong = Array.isArray(metrics.strongTopics) ? metrics.strongTopics.map(String) : [];
 
+  const pctOrNull = (v: unknown): number | null => {
+    if (v == null) return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
   return {
     projection: "ParentChildSummary",
     version: 1,
     studentId,
     schoolId,
-    attendance_pct: Number(profile?.attendance_pct ?? 0),
-    homework_completion_pct: Number(profile?.homework_completion_pct ?? 0),
-    tests_avg_pct: Number(profile?.tests_avg_pct ?? 0),
-    exams_avg_pct: Number(profile?.exams_avg_pct ?? 0),
+    attendance_pct: pctOrNull(profile?.attendance_pct),
+    homework_completion_pct: pctOrNull(profile?.homework_completion_pct),
+    tests_avg_pct: pctOrNull(profile?.tests_avg_pct),
+    exams_avg_pct: pctOrNull(profile?.exams_avg_pct),
     weak_topics: weak,
     strong_topics: strong,
     source_as_of: profile?.refreshed_at ? String(profile.refreshed_at) : null,
@@ -867,7 +887,26 @@ export async function routeAiRequest(
       p_session_id: req.session_id,
     });
     if (sess && typeof sess === "object") {
-      sessionMemory = sess as SessionMemoryRecord;
+      const raw = sess as SessionMemoryRecord & {
+        school_id?: string;
+        actor_user_id?: string;
+      };
+      const sessSchool = raw.school_id ? String(raw.school_id) : null;
+      const sessActor = raw.actor_user_id ? String(raw.actor_user_id) : null;
+      const staff =
+        req.actor.role === "admin" || req.actor.role === "principal";
+      const schoolOk = !sessSchool || sessSchool === req.actor.schoolId;
+      const actorOk =
+        !sessActor || sessActor === req.actor.userId || staff;
+      if (!schoolOk || !actorOk) {
+        return fail({
+          decision: "permission_denied",
+          error_code: "session_forbidden",
+          message: "Session does not belong to this actor/school",
+          route_class: cap.route_class,
+        });
+      }
+      sessionMemory = raw;
     }
   }
   const sessionForContext = redactSessionForContext(sessionMemory);
@@ -1793,23 +1832,25 @@ export async function routeAiRequest(
       }
       case "teacher.question_paper.marking_scheme": {
         const structured = req.input_structured ?? {};
-        const sessionSummary =
-          sessionForContext && typeof sessionForContext === "object"
-            ? (sessionForContext as Record<string, unknown>)
+        // Use raw session summary for control-plane (outline_text is stripped from
+        // sessionForContext before model packs — must not use redacted view here).
+        const rawSummary =
+          sessionMemory?.summary && typeof sessionMemory.summary === "object"
+            ? sessionMemory.summary
             : {};
         const flagsObj =
-          sessionSummary.flags && typeof sessionSummary.flags === "object"
-            ? (sessionSummary.flags as Record<string, unknown>)
+          rawSummary.flags && typeof rawSummary.flags === "object"
+            ? (rawSummary.flags as Record<string, unknown>)
             : {};
         const outlineFromSession =
           (typeof flagsObj.outline_text === "string" && flagsObj.outline_text.trim()
             ? flagsObj.outline_text
             : null) ??
           (typeof structured.outline_text === "string" ? structured.outline_text : null) ??
-          (typeof sessionSummary.outline_text === "string" ? sessionSummary.outline_text : null);
+          (typeof rawSummary.outline_text === "string" ? rawSummary.outline_text : null);
         const planHash =
           (typeof flagsObj.plan_hash === "string" ? flagsObj.plan_hash : null) ??
-          (typeof sessionSummary.plan_hash === "string" ? sessionSummary.plan_hash : null) ??
+          (typeof rawSummary.plan_hash === "string" ? rawSummary.plan_hash : null) ??
           (typeof structured.plan_hash === "string" ? structured.plan_hash : null);
         const outlineInSession = Boolean(
           flagsObj.outline_ready === true ||
@@ -1971,14 +2012,19 @@ export async function routeAiRequest(
           .sort()
           .at(-1) as string | undefined;
 
+        const pctOrNull = (v: unknown): number | null => {
+          if (v == null) return null;
+          const n = Number(v);
+          return Number.isFinite(n) ? n : null;
+        };
         const rollupRows = rows.map((r) => {
           const sid = String((r as { student_id?: string }).student_id ?? "");
           return {
             student_id: sid || null,
             class_id: classByStudent.get(sid) ?? null,
-            attendance_pct: Number((r as { attendance_pct?: number }).attendance_pct ?? 0),
-            homework_completion_pct: Number(
-              (r as { homework_completion_pct?: number }).homework_completion_pct ?? 0,
+            attendance_pct: pctOrNull((r as { attendance_pct?: number | null }).attendance_pct),
+            homework_completion_pct: pctOrNull(
+              (r as { homework_completion_pct?: number | null }).homework_completion_pct,
             ),
           };
         });

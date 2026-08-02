@@ -8,6 +8,7 @@ import { planRoute, wouldCallModel } from "./routerPolicy";
 import {
   redactSessionForContext,
   SESSION_MEMORY_CAPABILITIES,
+  buildSessionSummaryPatch,
 } from "./sessionMemory";
 
 const VALID_ROLES: AiActorRole[] = [
@@ -110,5 +111,38 @@ describe("AI audit hardening", () => {
       ],
     );
     expect(v.startsWith("eie:1:1:")).toBe(true);
+  });
+
+  it("redaction strips outline but raw summary retains it for marking scheme", () => {
+    const session = {
+      session_id: "s1",
+      workflow_scope: "paper_gen" as const,
+      status: "active" as const,
+      turn_count: 2,
+      summary: {
+        flags: {
+          outline_ready: true,
+          outline_text: "Section A — 20 marks",
+          plan_hash: "ph1",
+        },
+      },
+    };
+    const redacted = redactSessionForContext(session);
+    expect((redacted?.flags as Record<string, unknown>)?.outline_text).toBeUndefined();
+    expect(session.summary.flags.outline_text).toBe("Section A — 20 marks");
+  });
+
+  it("session_patch from outline includes outline_text for persistence", () => {
+    const patch = buildSessionSummaryPatch({
+      last_feature_id: "teacher.question_paper.generate_outline",
+      last_decision: "answered_model",
+      plan_hash: "abc",
+      flags: {
+        outline_ready: true,
+        outline_text: "Q1 short answer",
+        plan_hash: "abc",
+      },
+    });
+    expect((patch.flags as Record<string, unknown>).outline_text).toBe("Q1 short answer");
   });
 });

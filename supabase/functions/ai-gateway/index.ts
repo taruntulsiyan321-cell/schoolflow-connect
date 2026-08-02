@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
       return json({ error: "feature_id is required", error_code: "invalid_envelope" }, 400);
     }
 
-    // Cron / admin: process embedding jobs (never invents vectors when key unset)
+    // Embedding batch: honor gateway kill switch; tenant-scoped via worker filter.
     if (feature_id === "system.embedding.process_batch") {
       if (actor.role !== "admin" && actor.role !== "principal") {
         return json(
@@ -163,8 +163,26 @@ Deno.serve(async (req) => {
           403,
         );
       }
+      const { data: gwFlag, error: gwFlagErr } = await admin
+        .from("ai_feature_flags")
+        .select("enabled")
+        .eq("flag_key", "ai.gateway.enabled")
+        .is("school_id", null)
+        .maybeSingle();
+      if (gwFlagErr || !gwFlag || gwFlag.enabled !== true) {
+        return json(
+          {
+            error: "AI Gateway is temporarily disabled",
+            error_code: "gateway_disabled",
+            decision: "kill_switch",
+          },
+          503,
+        );
+      }
       const limit = Math.min(50, Math.max(1, Number(body.limit ?? body.input?.structured?.limit ?? 10)));
-      const batch = await processEmbeddingJobsBatch(admin, limit);
+      const batch = await processEmbeddingJobsBatch(admin, limit, {
+        schoolId: actor.schoolId,
+      });
       return json({
         request_id: crypto.randomUUID(),
         feature_id,
@@ -211,16 +229,24 @@ Deno.serve(async (req) => {
         (typeof body.session_scope === "string" && body.session_scope) ||
         sessionScopeForCapability(feature_id);
       if (scope) {
-        const { data: opened } = await admin.rpc("ai_session_memory_open", {
-          p_school_id: actor.schoolId,
-          p_workflow_scope: scope,
-          p_capability_id: feature_id,
-          p_workflow_id: body.workflow_id ? String(body.workflow_id) : null,
-          p_target_student_id: target_student_id ? String(target_student_id) : null,
-          p_ttl_minutes: 120,
-          p_summary: {},
-        });
-        if (opened?.session_id) session_id = String(opened.session_id);
+        // User JWT — never open as bare service_role (shared synthetic actor).
+        const { data: opened, error: openErr } = await userClient.rpc(
+          "ai_session_memory_open",
+          {
+            p_school_id: actor.schoolId,
+            p_workflow_scope: scope,
+            p_capability_id: feature_id,
+            p_workflow_id: body.workflow_id ? String(body.workflow_id) : null,
+            p_target_student_id: target_student_id ? String(target_student_id) : null,
+            p_ttl_minutes: 120,
+            p_summary: {},
+          },
+        );
+        if (openErr) {
+          console.error("ai_session_memory_open failed", openErr.message ?? openErr);
+        } else if (opened?.session_id) {
+          session_id = String(opened.session_id);
+        }
       }
     }
 
@@ -240,25 +266,37 @@ Deno.serve(async (req) => {
       actor,
     });
 
-    // Append compact session summary after multi-turn intents (never raw chat)
+    // Prefer router session_patch (outline/marking flags); fall back to compact patch.
+    let sessionPersistFailed = false;
     if (session_id && isSessionMemoryAllowed(feature_id) && result.decision !== "permission_denied") {
-      const patch = buildSessionSummaryPatch({
-        last_feature_id: feature_id,
-        last_decision: result.decision,
-        plan_hash:
-          result.data &&
-          typeof result.data === "object" &&
-          "plan_hash" in (result.data as object)
-            ? String((result.data as { plan_hash?: string }).plan_hash)
-            : undefined,
+      const fromRouter =
+        result.data &&
+        typeof result.data === "object" &&
+        "session_patch" in (result.data as object) &&
+        typeof (result.data as { session_patch?: unknown }).session_patch === "object"
+          ? ((result.data as { session_patch: Record<string, unknown> }).session_patch)
+          : null;
+      const patch =
+        fromRouter ??
+        buildSessionSummaryPatch({
+          last_feature_id: feature_id,
+          last_decision: result.decision,
+          plan_hash:
+            result.data &&
+            typeof result.data === "object" &&
+            "plan_hash" in (result.data as object)
+              ? String((result.data as { plan_hash?: string }).plan_hash)
+              : undefined,
+        });
+      const { error: appendErr } = await userClient.rpc("ai_session_memory_append", {
+        p_session_id: session_id,
+        p_summary_patch: patch,
+        p_increment_turn: true,
       });
-      await admin
-        .rpc("ai_session_memory_append", {
-          p_session_id: session_id,
-          p_summary_patch: patch,
-          p_increment_turn: true,
-        })
-        .catch(() => undefined);
+      if (appendErr) {
+        sessionPersistFailed = true;
+        console.error("ai_session_memory_append failed", appendErr.message ?? appendErr);
+      }
     }
 
     const status =
@@ -270,10 +308,16 @@ Deno.serve(async (req) => {
             ? 503
             : 200;
 
-    return json(
-      session_id ? { ...result, session_id } : result,
-      status,
-    );
+    const payload =
+      session_id || sessionPersistFailed
+        ? {
+            ...result,
+            ...(session_id ? { session_id } : {}),
+            ...(sessionPersistFailed ? { session_persist_failed: true } : {}),
+          }
+        : result;
+
+    return json(payload, status);
   } catch (e) {
     return json(
       {
