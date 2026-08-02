@@ -2464,6 +2464,7 @@ export type Database = {
       }
       question_bank: {
         Row: {
+          board: string | null
           chapter: string | null
           class_level: number | null
           concept: string | null
@@ -2471,17 +2472,23 @@ export type Database = {
           created_at: string
           created_by: string | null
           difficulty: string
+          exam_year: number | null
           explanation: string | null
           id: string
           is_approved: boolean
           options: Json
           question: string
+          question_format: string | null
+          school_id: string | null
           source: string | null
+          source_type: string | null
+          stream: string | null
           subconcept: string | null
           subject: string
           topic: string | null
         }
         Insert: {
+          board?: string | null
           chapter?: string | null
           class_level?: number | null
           concept?: string | null
@@ -2489,17 +2496,23 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           difficulty?: string
+          exam_year?: number | null
           explanation?: string | null
           id?: string
           is_approved?: boolean
           options: Json
           question: string
+          question_format?: string | null
+          school_id?: string | null
           source?: string | null
+          source_type?: string | null
+          stream?: string | null
           subconcept?: string | null
           subject: string
           topic?: string | null
         }
         Update: {
+          board?: string | null
           chapter?: string | null
           class_level?: number | null
           concept?: string | null
@@ -2507,17 +2520,30 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           difficulty?: string
+          exam_year?: number | null
           explanation?: string | null
           id?: string
           is_approved?: boolean
           options?: Json
           question?: string
+          question_format?: string | null
+          school_id?: string | null
           source?: string | null
+          source_type?: string | null
+          stream?: string | null
           subconcept?: string | null
           subject?: string
           topic?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "question_bank_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       question_templates: {
         Row: {
@@ -2887,6 +2913,7 @@ export type Database = {
       }
       schools: {
         Row: {
+          board: string | null
           created_at: string
           id: string
           is_active: boolean
@@ -2896,6 +2923,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          board?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
@@ -2905,6 +2933,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          board?: string | null
           created_at?: string
           id?: string
           is_active?: boolean

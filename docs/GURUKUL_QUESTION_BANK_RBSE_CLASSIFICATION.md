@@ -1,25 +1,31 @@
 ﻿# Gurukul Question Bank — RBSE Classification RESULT (v1)
 
-**Status:** Taxonomy for user review — **no mass question insert** in this turn  
-**Scope:** Class **11** and **12**, board **`rbse`**, NCERT-aligned chapter taxonomy  
+**Status:** **APPROVED v1 seed scope** — Commerce Class **11–12** only (Science deferred)  
+**Approved seed:** `source = seed_rbse_commerce_v1` · **240 MCQs** (20 × 6 subjects × 2 classes)  
+**Migrations:** `20260802220000_rbse_question_bank_board_schema.sql`, `20260802220100_rbse_commerce_11_12_question_seed.sql`  
+**Scope (live):** Class **11** and **12**, stream **Commerce**, board **`rbse`**, NCERT-aligned chapters  
+**Subjects (APPROVED):** English, Hindi, Accountancy, Mathematics, Business Studies (BST), Economics  
+**Deferred:** Science (Physics, Chemistry, Biology) chapter-depth seeding; Arts; Agriculture; CS/IP  
 **Date:** 2026-08-02  
-**Companion:** `GURUKUL_MASTER_APP_DOCUMENT.md`  
+**Companion:** `GURUKUL_MASTER_APP_DOCUMENT.md` · `docs/QUESTION_BANK.md`  
 **Repo path:** `docs/GURUKUL_QUESTION_BANK_RBSE_CLASSIFICATION.md`
 
 ---
 
-## Executive summary (what you are approving)
+## Executive summary
 
 | Metric | Count |
 |--------|------:|
-| Classes in v1 scope | 2 (11, 12) |
-| Priority subjects (depth tables below) | **9** × 2 classes = **18** subject–class rows |
-| Total chapters catalogued (NCERT post-rationalisation baseline) | **~236** |
-| Deferred streams / subjects | Arts electives, Agriculture, CS/IP (listed, not chapter-deep) |
-| Question types for RBSE v1 | MCQ, short, concept — **not** assertion–reason / case-based |
-| Content strategy | Original NCERT-**aligned** items; do **not** scrape/redistribute NCERT full text |
+| **APPROVED v1 classes** | 2 (11, 12) |
+| **APPROVED v1 stream** | Commerce only |
+| **APPROVED subjects** | **6** × 2 = **12** subject–class buckets |
+| Seeded MCQs (Batch Commerce v1) | **240** (20 per bucket) |
+| Taxonomy chapters catalogued (full 9-subject tables below) | **~236** (Science kept as taxonomy reference only) |
+| Deferred streams / subjects | Science seed, Arts electives, Agriculture, CS/IP |
+| Question types for RBSE v1 | MCQ — **not** assertion–reason / case-based |
+| Content strategy | Original NCERT-**aligned** items; `source_type=ncert_aligned` |
 
-**Approve this taxonomy → then seed Batch 1 (Section F).**
+**User approved Commerce 11–12 → Phase 0 schema + Commerce seed shipped in repo (apply SQL on Supabase).**
 
 ---
 
@@ -110,21 +116,21 @@ Rationale: RBSE senior-secondary papers emphasize NCERT-style objective/short/lo
 | **Arts / Humanities** | Hindi, English + electives (History, Pol. Science, Geography, Sociology, Psychology, Public Admin, …) | Economics, Maths, languages | Mostly NCERT where subject exists; **out of v1 chapter depth** |
 | **Agriculture** (RBSE-specific path) | Agriculture subjects + science mix | — | **Out of v1** |
 
-### B.3 Subjects in **this** classification (v1 depth)
+### B.3 Subjects — APPROVED seed vs taxonomy-only
 
-| Subject | Class 11 | Class 12 | Streams | Notes |
-|---------|:--------:|:--------:|---------|-------|
-| Accountancy | ✅ | ✅ | Commerce | Priority |
-| Business Studies | ✅ | ✅ | Commerce | Priority |
-| Economics | ✅ | ✅ | Commerce (+ Arts elective) | Priority |
-| Mathematics | ✅ | ✅ | Science + Commerce optional | Priority |
-| Physics | ✅ | ✅ | Science | Priority |
-| Chemistry | ✅ | ✅ | Science | Priority |
-| Biology | ✅ | ✅ | Science (PCB) | Priority |
-| English (Compulsory / Core) | ✅ | ✅ | All | Priority |
-| Hindi (Compulsory / Core) | ✅ | ✅ | All | Priority |
+| Subject | Class 11 | Class 12 | Streams | v1 seed status |
+|---------|:--------:|:--------:|---------|----------------|
+| Accountancy | ✅ | ✅ | Commerce | **APPROVED — seeded** |
+| Business Studies | ✅ | ✅ | Commerce | **APPROVED — seeded** |
+| Economics | ✅ | ✅ | Commerce (+ Arts elective) | **APPROVED — seeded** |
+| Mathematics | ✅ | ✅ | Science + Commerce optional | **APPROVED — seeded** (commerce path) |
+| English (Compulsory / Core) | ✅ | ✅ | All | **APPROVED — seeded** |
+| Hindi (Compulsory / Core) | ✅ | ✅ | All | **APPROVED — seeded** |
+| Physics | ✅ | ✅ | Science | Taxonomy only — **Science deferred** |
+| Chemistry | ✅ | ✅ | Science | Taxonomy only — **Science deferred** |
+| Biology | ✅ | ✅ | Science (PCB) | Taxonomy only — **Science deferred** |
 
-**Listed but not chapter-deep in v1:** Computer Science, Informatics Practices, Physical Education, Arts electives, Agriculture.
+**Listed but not chapter-deep:** Computer Science, Informatics Practices, Physical Education, Arts electives, Agriculture.
 
 ---
 
@@ -286,63 +292,50 @@ Rationale: RBSE senior-secondary papers emphasize NCERT-style objective/short/lo
 
 | Phase | Work | Done when |
 |-------|------|-----------|
-| **0** | Schema: `schools.board`; `question_bank.board`, `source_type`, `concept`, `question_format` (+ indexes). Filter RPCs by board. | Migration applied; no large seeds |
-| **1** | Class 11–12 RBSE taxonomy (**this doc**) | **User approves RESULT** ← you are here |
-| **2** | Seed Batch 1 (2–3 subjects) so questions **visible in app** | Student/teacher can filter and attempt |
-| **3** | Remaining 11–12 priority subjects | Coverage ≥1 MCQ set per chapter (target) |
+| **0** | Schema: `schools.board`; `question_bank.board`, `source_type`, `concept`, `question_format`, `school_id`, `stream`, `exam_year` (+ indexes + RLS). `PracticeService` board filter. | **Shipped** — apply `20260802220000_*` |
+| **1** | Class 11–12 RBSE taxonomy (**this doc**) | **Done** |
+| **2** | Seed **Commerce** 11–12 (6 subjects × 20 MCQs) | **Shipped** — apply `20260802220100_*` (240 rows) |
+| **3** | Deepen commerce coverage (≥1 set per chapter); then **Science** subjects | Coverage target |
 | **4** | Teacher add + AI generate → save to bank with approval | Workflow live |
 | **5** | CBSE-specific formats (A/R, case-based) tagged `board=cbse` | CBSE tenants only |
 
-**This turn:** doc only (prefer). Tiny board-column migration is optional and **not** required to approve taxonomy.
+---
+
+## F. APPROVED seed batch — Commerce 11–12
+
+**Goal:** RBSE Commerce practice bank live end-to-end (MCQ only).
+
+| Subject | Class 11 | Class 12 | Format | source_type | board |
+|---------|--------:|--------:|--------|-------------|-------|
+| Accountancy | 20 | 20 | mcq | ncert_aligned | rbse |
+| Business Studies | 20 | 20 | mcq | ncert_aligned | rbse |
+| Economics | 20 | 20 | mcq | ncert_aligned | rbse |
+| Mathematics | 20 | 20 | mcq | ncert_aligned | rbse |
+| English | 20 | 20 | mcq | ncert_aligned | rbse |
+| Hindi | 20 | 20 | mcq | ncert_aligned | rbse |
+| **Total** | **120** | **120** | | | **240** |
+
+**Tags:** `stream=commerce`, `school_id=NULL` (platform), `source=seed_rbse_commerce_v1`, chapter titles aligned to §C.5–C.9.
+
+**Not in this batch:** Physics, Chemistry, Biology (Science deferred).
 
 ---
 
-## F. Recommended first seed batch (for approval)
+## G. Schema (repo)
 
-**Goal:** Prove end-to-end UX with real taxonomy keys — not fill the whole bank.
-
-### Batch 1 proposal
-
-| # | Subject | Class | Chapters | Items | Format | source_type |
-|---|---------|------:|----------|------:|--------|-------------|
-| 1 | **Mathematics** | 12 | Ch 1–3 (Relations & Functions; Inverse Trigonometric Functions; Matrices) | **20 MCQs each** (60) | mcq | ncert_aligned |
-| 2 | **Accountancy** | 12 | Ch 1–2 Partnership basics + Admission | **15 MCQs + 5 numerical-MCQ each** (40) | mcq / numerical | ncert_aligned |
-| 3 | **Physics** | 12 | Ch 1–3 (Charges & Fields; Potential & Capacitance; Current Electricity) | **20 MCQs each** (60) | mcq | ncert_aligned |
-
-**Batch 1 total: ~160 questions**  
-**Tags:** `board=rbse` (or `both` if intentionally shared), `class_level=12`, chapter string **exactly** matching §C titles.
-
-### Why this batch
-
-- Covers **Science + Commerce** so both streams see content.  
-- Chapters 1–3 are early-year teaching material → teachers can use immediately.  
-- Maths + Physics stress numerical MCQs; Accountancy shows commerce formats.  
-- Small enough to review quality before Phase 3.
-
-### Batch 1.1 (optional immediate follow-on)
-
-- Class 12 BST Ch 1–3 (30 MCQs)  
-- Class 12 Chemistry Ch 1–2 (40 MCQs)
-
----
-
-## G. Existing schema gap (repo note)
-
-Current `public.question_bank` has `class_level`, `subject`, `chapter`, `topic`, `difficulty`, … but **no `board` / `source_type` / `question_format`**.  
-`public.schools` has branding fields but **no `board`** yet.
-
-Phase 0 should add those columns before Batch 1 insert. Do **not** mass-seed until taxonomy + columns are approved.
+Migrations add `schools.board` (default `rbse`) and `question_bank` columns `board`, `source_type`, `exam_year`, `school_id`, `stream`, `question_format` (plus existing `concept`).  
+RLS: approved rows where `(school_id IS NULL OR same school)` and `board IN (school.board, 'both')` or `board IS NULL` (legacy). Never via `super_admin`.
 
 ---
 
 ## H. Approval checklist
 
-- [ ] School.board model + filter rule (§A) accepted  
-- [ ] RBSE subject list for 11–12 (§B) accepted (Arts deferred OK)  
-- [ ] Chapter tables for 9 priority subjects (§C) accepted as v1 keys  
-- [ ] Content honesty (§D) accepted — original aligned items only  
-- [ ] Batch 1 composition (§F) accepted or amended  
-- [ ] Proceed to Phase 0 migration + Phase 2 seed
+- [x] School.board model + filter rule (§A) accepted  
+- [x] **Commerce** RBSE 11–12 subjects accepted (Science deferred)  
+- [x] Chapter tables for commerce subjects (§C.5–C.9) used as v1 keys  
+- [x] Content honesty (§D) — original aligned MCQs only  
+- [x] Commerce batch (§F) approved and seeded in migration  
+- [ ] User applies migrations on Supabase (**DONE** when applied)
 
 ---
 
@@ -353,12 +346,12 @@ Use slug keys in code even if display titles are localised:
 ```text
 math.12.ch03.matrices
 accountancy.12.ch01.partnership_basic_concepts
-physics.12.ch03.current_electricity
 bst.12.ch01.nature_significance_management
+economics.12.ch08.national_income_accounting
 ```
 
 Hindi/English keys should be lesson-slug based, medium-agnostic.
 
 ---
 
-*End of RESULT — awaiting user approval before SQL seeds.*
+*Commerce 11–12 APPROVED v1 — Science seed deferred.*

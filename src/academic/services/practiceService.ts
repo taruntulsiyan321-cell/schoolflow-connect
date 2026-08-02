@@ -146,15 +146,32 @@ export const PracticeService = {
       subject?: string | null;
       chapter?: string | null;
       difficulty?: string | null;
+      classLevel?: number | null;
       limit?: number;
     } = {},
   ) {
     assertCanConsume(ctx, "practice");
+    const client = getClient(toRepoContext(ctx));
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
-    let query = getClient(toRepoContext(ctx))
+
+    // School board filter: rbse students see rbse + both (+ legacy null board).
+    let schoolBoard = "rbse";
+    const { data: schoolRow } = await client
+      .from("schools")
+      .select("board")
+      .eq("id", ctx.schoolId)
+      .maybeSingle();
+    const rawBoard = (schoolRow as { board?: string | null } | null)?.board;
+    if (rawBoard && typeof rawBoard === "string" && rawBoard.trim()) {
+      schoolBoard = rawBoard.trim().toLowerCase();
+    }
+
+    let query = client
       .from("question_bank")
       .select("id, subject, chapter, difficulty, question, options, correct_index, explanation")
       .eq("is_approved", true)
+      .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
+      .or(`board.eq.${schoolBoard},board.eq.both,board.is.null`)
       .limit(Math.min(200, limit * 4));
 
     if (opts.subject && opts.subject !== "Mixed") {
@@ -165,6 +182,9 @@ export const PracticeService = {
     }
     if (opts.difficulty && opts.difficulty !== "mixed") {
       query = query.eq("difficulty", opts.difficulty);
+    }
+    if (opts.classLevel != null && Number.isFinite(opts.classLevel)) {
+      query = query.eq("class_level", opts.classLevel);
     }
 
     const { data, error } = await query;
