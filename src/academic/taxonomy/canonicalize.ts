@@ -9,9 +9,24 @@ export function slugifyAcademicId(raw: string | null | undefined): string {
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "_")
+    // Keep Devanagari so Hindi chapter/concept ids stay unique and human-matchable
+    .replace(/[^a-z0-9\u0900-\u097f]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .replace(/_+/g, "_");
+}
+
+/**
+ * Stable chapter term id — unique across subject + class when titles repeat
+ * (e.g. Introduction 11/12, Thermodynamics physics/chemistry).
+ */
+export function chapterTermId(
+  displayName: string,
+  subjectId: string,
+  classLevel: number,
+): string {
+  const base = slugifyAcademicId(displayName);
+  const subject = slugifyAcademicId(subjectId) || "subject";
+  return `${base || "chapter"}_${subject}_c${classLevel}`;
 }
 
 /** Alias / synonym → canonical concept (or chapter) slug. */

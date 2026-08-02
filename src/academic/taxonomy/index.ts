@@ -23,6 +23,7 @@ export type {
 
 export {
   canonicalizeConceptId,
+  chapterTermId,
   kindFromColumn,
   mergeDuplicateLabels,
   normalizeIncomingAcademicTerm,

@@ -1,5 +1,5 @@
 import type { BoardId, Chapter, ClassLevel, Subject, TaxonomyTerm } from "../types";
-import { slugifyAcademicId } from "../canonicalize";
+import { chapterTermId, slugifyAcademicId } from "../canonicalize";
 
 const BOARD: BoardId = "rbse";
 
@@ -8,10 +8,11 @@ function subject(id: string, displayName: string, aliases: string[] = []): Subje
 }
 
 function chapter(displayName: string, subjectId: string, classLevel: ClassLevel, aliases: string[] = []): Chapter {
+  const base = slugifyAcademicId(displayName);
   return {
-    id: slugifyAcademicId(displayName),
+    id: chapterTermId(displayName, subjectId, classLevel),
     displayName,
-    aliases,
+    aliases: [...new Set([base, ...aliases].filter(Boolean))],
     kind: "chapter",
     board: BOARD,
     classLevel,

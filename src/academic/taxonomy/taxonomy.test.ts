@@ -45,6 +45,17 @@ describe("taxonomy seeds", () => {
       ]),
     );
   });
+
+  it("assigns unique chapter ids across repeated titles / subjects", async () => {
+    const { COMMERCE_CHAPTERS } = await import("./seeds/commerceRbse");
+    const { SCIENCE_CHAPTER_PLACEHOLDERS } = await import("./seeds/sciencePlaceholders");
+    const ids = [...COMMERCE_CHAPTERS, ...SCIENCE_CHAPTER_PLACEHOLDERS].map((c) => c.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(COMMERCE_CHAPTERS.filter((c) => c.displayName === "Introduction").map((c) => c.id).sort()).toEqual([
+      "introduction_economics_c11",
+      "introduction_economics_c12",
+    ]);
+  });
 });
 
 describe("canonicalize + normalize", () => {

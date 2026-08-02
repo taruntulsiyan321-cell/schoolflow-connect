@@ -1,5 +1,5 @@
 import type { BoardId, Chapter, ClassLevel, Concept, Subject, TaxonomyTerm } from "../types";
-import { slugifyAcademicId } from "../canonicalize";
+import { chapterTermId, slugifyAcademicId } from "../canonicalize";
 import { CONCEPT_DISPLAY_DICTIONARY } from "../dictionary";
 import { BANK_CONCEPT_DISPLAY } from "./bankConcepts";
 
@@ -15,11 +15,13 @@ function chapter(
   classLevel: ClassLevel,
   aliases: string[] = [],
 ): Chapter {
-  const id = slugifyAcademicId(displayName);
+  const base = slugifyAcademicId(displayName);
+  const id = chapterTermId(displayName, subjectId, classLevel);
   return {
     id,
     displayName,
-    aliases,
+    // Bare title slug stays resolvable via alias (id is subject+class-qualified)
+    aliases: [...new Set([base, ...aliases].filter(Boolean))],
     kind: "chapter",
     board: BOARD,
     classLevel,
