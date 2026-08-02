@@ -7,6 +7,7 @@ import {
   scoreAxisDomain,
   deriveImprovingTopics,
   deriveChapterRows,
+  deriveSubjectRows,
 } from "@/lib/studentAnalysisMetrics";
 import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import { classifyMistakes, buildMilestones, peerBenchmarkSubjects } from "@/components/student/analytics/wisdom/analyticsDerived";
@@ -56,7 +57,7 @@ describe("studentAnalysisMetrics", () => {
     ];
     const { stats, bySubject } = deriveSpeedStats(sessions);
     expect(bySubject).toHaveLength(2);
-    expect(stats.fastestSubject).toBe("Math");
+    expect(stats.fastestSubject).toBe("Mathematics");
     expect(stats.fastestSec).toBe(60);
     expect(stats.slowestSubject).toBe("Physics");
   });
@@ -119,6 +120,57 @@ describe("studentAnalysisMetrics", () => {
     );
     expect(rows[0].accuracy).toBe(50);
     expect(rows[0].practiceDepth).toBe(100);
+    expect(rows[0].subject).toBe("Mathematics");
+  });
+
+  it("deriveSubjectRows collapses Maths aliases and drops Subject/Daily", () => {
+    const rows = deriveSubjectRows(
+      [
+        { name: "Maths", accuracy: 80, attempts: 10 },
+        { name: "Mathematics", accuracy: 40, attempts: 10 },
+        { name: "Subject", accuracy: 99, attempts: 50 },
+        { name: "Daily", accuracy: 10, attempts: 10 },
+      ],
+      [
+        session({ id: "1", subject: "Math", accuracy_pct: 50, finished_at: "2026-07-01T10:00:00Z" }),
+        session({ id: "2", subject: "Mathematics", accuracy_pct: 90, finished_at: "2026-07-15T10:00:00Z" }),
+      ],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe("Mathematics");
+    expect(rows[0].questions).toBe(20);
+    expect(rows[0].trend).toBe(40);
+  });
+
+  it("deriveChapterRows omits generic Topic/Daily/Subject cards", () => {
+    const rows = deriveChapterRows(
+      [
+        {
+          subject: "Subject",
+          chapter: "Topic",
+          concept: "Daily",
+          mastery_score: 10,
+          total_attempts: 4,
+          correct_attempts: 1,
+          recovery_attempts: 0,
+          mistake_count: 3,
+        },
+        {
+          subject: "Accountancy",
+          chapter: "Cash Book",
+          concept: "Cash Book",
+          mastery_score: 70,
+          total_attempts: 5,
+          correct_attempts: 4,
+          recovery_attempts: 0,
+          mistake_count: 1,
+        },
+      ],
+      [],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0].chapter).toMatch(/Cash Book/i);
+    expect(rows[0].subject).toBe("Accountancy");
   });
 });
 

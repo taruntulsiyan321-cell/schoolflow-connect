@@ -36,6 +36,9 @@ describe("qualityGuards — duplicate subjects", () => {
       { name: "Mathematics", accuracy: 60, attempts: 10 },
       { name: "Math", accuracy: 70, attempts: 5 },
       { name: "Subject", accuracy: 99, attempts: 99 },
+      { name: " topic ", accuracy: 99, attempts: 99 },
+      { name: "DAILY", accuracy: 99, attempts: 99 },
+      { name: "General", accuracy: 99, attempts: 99 },
     ]);
     expect(rows).toHaveLength(1);
     expect(rows[0].name).toBe("Mathematics");

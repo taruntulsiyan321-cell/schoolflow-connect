@@ -49,6 +49,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { studentShellReady } from "@/academic/services/assertStudentContext";
+import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -142,46 +144,19 @@ export default function StudentDashboard() {
       console.warn("progression snapshot:", e instanceof Error ? e.message : e);
     }
 
+    // Accuracy SSOT: rpc_student_academic_snapshot.exam_readiness only.
+    // Never average chart subjects (dual path that showed 100% with XP 0).
     const [{ data: snap }, { data: charts }] = await Promise.all([
       supabase.rpc("rpc_student_academic_snapshot"),
       supabase.rpc("rpc_student_performance_charts"),
     ]);
 
-    type Snap = {
-      exam_readiness?: { accuracy_pct?: number; attendance_pct?: number };
-      self_practice?: { sessions_completed?: number };
-      activity_heatmap?: { date: string; dpp: number; homework: number; battles: number; self_practice?: number; minutes: number }[];
-    };
-    type ChartRow = {
-      subjects?: { accuracy: number; attempts?: number }[];
-      weekly_activity?: { date: string; total: number }[];
-    };
+    type ChartRow = { weekly_activity?: { date: string; total: number }[] };
 
-    const snapshot = snap as Snap | null;
+    const snapshot = snap as AcademicSnapshot | null;
     const chartData = charts as ChartRow | null;
 
-    const chartSubjects = chartData?.subjects ?? [];
-    let chartAttempts = 0;
-    let chartWeighted = 0;
-    for (const sub of chartSubjects) {
-      const attempts = Math.max(0, Number(sub.attempts) || 0);
-      const acc = Number(sub.accuracy) || 0;
-      if (attempts <= 0) continue;
-      chartAttempts += attempts;
-      chartWeighted += acc * attempts;
-    }
-    const accuracyFromCharts =
-      chartAttempts > 0 ? Math.round(chartWeighted / chartAttempts) : 0;
-
-    const practiceSessions = snapshot?.self_practice?.sessions_completed ?? 0;
-    const readinessAcc = snapshot?.exam_readiness?.accuracy_pct;
-    // Accuracy must not contradict empty progression (XP 0 / no attempts → show 0).
-    const hasPracticeEvidence = practiceSessions > 0 || chartAttempts > 0;
-    const accuracy = hasPracticeEvidence
-      ? readinessAcc != null && readinessAcc > 0
-        ? Math.round(readinessAcc)
-        : accuracyFromCharts
-      : 0;
+    const accuracy = practiceAccuracyFromSnapshot(snapshot);
 
     const attendance =
       snapshot?.exam_readiness?.attendance_pct != null

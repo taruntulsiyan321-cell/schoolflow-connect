@@ -42,15 +42,8 @@ export default function LearningHub({ setPage }: Props) {
   const unresolvedErrors = snapshot?.mistake_count ?? 0;
 
   const chartSubjects = charts?.subjects ?? [];
-  const overallAccuracy = useMemo(() => {
-    if (student.accuracy > 0) return Math.round(student.accuracy);
-    const fromSnap = snapshot?.exam_readiness?.accuracy_pct;
-    if (fromSnap != null && fromSnap > 0) return Math.round(fromSnap);
-    if (chartSubjects.length > 0) {
-      return Math.round(chartSubjects.reduce((a, s) => a + s.accuracy, 0) / chartSubjects.length);
-    }
-    return 0;
-  }, [student.accuracy, snapshot?.exam_readiness?.accuracy_pct, chartSubjects]);
+  // Same SSOT as Home/Practice/Analysis/Nova/Battleground — shell profile (snapshot accuracy).
+  const overallAccuracy = Math.round(student.accuracy);
 
   const accuracyTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];

@@ -12,7 +12,7 @@ import type {
   SubjectChartPoint,
 } from "@/hooks/useStudentPerformanceCharts";
 import { normalizeSubjectName } from "@/lib/curriculumScope";
-import { displaySubject } from "@/lib/academicDisplay";
+import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   buildSubjectRadarPoints,
   dedupeSubjectChartPoints,
@@ -154,29 +154,37 @@ export function deriveChapterRows(
   snapshot?: AcademicSnapshot | null,
 ): DerivedChapterRow[] {
   const byChapter = new Map<string, PracticeSessionSummary[]>();
-  for (const s of [...sessions].sort(
+  for (const sess of [...sessions].sort(
     (a, b) => new Date(a.finished_at).getTime() - new Date(b.finished_at).getTime(),
   )) {
-    const key = `${s.subject}::${s.chapter}`;
+    const subjKey = subjectSessionKey(sess.subject);
+    const chapterLabel = preferRealAcademicLabel(sess.chapter);
+    if (!subjKey || !chapterLabel) continue;
+    const key = `${subjKey}::${chapterLabel.toLowerCase()}`;
     const list = byChapter.get(key) ?? [];
-    list.push(s);
+    list.push(sess);
     byChapter.set(key, list);
   }
 
   const fromMastery = mastery
     .map((m) => {
-      const chapter = preferRealAcademicLabel(m.chapter, m.concept);
+      const chapterRaw = preferRealAcademicLabel(m.chapter, m.concept);
       const subjectRaw = preferRealAcademicLabel(m.subject);
-      if (!chapter || !subjectRaw) return null;
-      const subject = displaySubject(normalizeSubjectName(subjectRaw) || subjectRaw) || subjectRaw;
+      if (!chapterRaw || !subjectRaw) return null;
+      const chapter = displayChapter(chapterRaw) || chapterRaw;
+      const subjectCanon = normalizeSubjectName(subjectRaw) || subjectRaw;
+      const subject = displaySubject(subjectCanon) || subjectCanon;
+      if (!chapter || !subject || isGenericAcademicLabel(chapter) || isGenericAcademicLabel(subject)) {
+        return null;
+      }
       const attempts = m.total_attempts ?? 0;
       const accuracy =
         attempts > 0
           ? Math.round((100 * (m.correct_attempts ?? 0)) / attempts)
           : Math.round(m.mastery_score);
-      const key = `${subject}::${chapter}`;
-      const sess = byChapter.get(key) ?? byChapter.get(`${m.subject}::${m.chapter || m.concept}`) ?? [];
-      const trend = halfWindowTrend(sess.map(accuracyOf));
+      const key = `${subject.toLowerCase()}::${chapter.toLowerCase()}`;
+      const sessList = byChapter.get(key) ?? [];
+      const trend = halfWindowTrend(sessList.map(accuracyOf));
       return {
         chapter,
         subject,
@@ -187,7 +195,7 @@ export function deriveChapterRows(
         status: (accuracy >= 75 ? "ready" : accuracy >= 55 ? "practice-more" : "needs-work") as DerivedChapterRow["status"],
       };
     })
-    .filter((row): row is DerivedChapterRow => row != null)
+    .filter((r): r is DerivedChapterRow => r != null)
     .slice(0, 12);
   if (fromMastery.length > 0) return fromMastery;
 
@@ -195,10 +203,15 @@ export function deriveChapterRows(
   const strong = snapshot?.strong_topics ?? [];
   return [...strong, ...weak]
     .map((t) => {
-      const chapter = preferRealAcademicLabel(t.topic, t.chapter);
+      const chapterRaw = preferRealAcademicLabel(t.topic, t.chapter);
       const subjectRaw = preferRealAcademicLabel(t.subject);
-      if (!chapter || !subjectRaw) return null;
-      const subject = displaySubject(normalizeSubjectName(subjectRaw) || subjectRaw) || subjectRaw;
+      if (!chapterRaw || !subjectRaw) return null;
+      const chapter = displayChapter(chapterRaw) || displayTopic(chapterRaw) || chapterRaw;
+      const subjectCanon = normalizeSubjectName(subjectRaw) || subjectRaw;
+      const subject = displaySubject(subjectCanon) || subjectCanon;
+      if (!chapter || !subject || isGenericAcademicLabel(chapter) || isGenericAcademicLabel(subject)) {
+        return null;
+      }
       const acc = Math.round(t.accuracy);
       return {
         chapter,
@@ -210,7 +223,7 @@ export function deriveChapterRows(
         status: (acc >= 75 ? "ready" : acc >= 55 ? "practice-more" : "needs-work") as DerivedChapterRow["status"],
       };
     })
-    .filter((row): row is DerivedChapterRow => row != null)
+    .filter((r): r is DerivedChapterRow => r != null)
     .slice(0, 12);
 }
 

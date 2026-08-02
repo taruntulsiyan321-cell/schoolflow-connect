@@ -57,8 +57,11 @@ export function classifyMistakes(aggregates: MistakeTopicAggregate[]): MistakeBu
 export function subjectVulnerability(aggregates: MistakeTopicAggregate[]): { subject: string; count: number; pct: number }[] {
   const bySubject = new Map<string, number>();
   for (const a of aggregates) {
-    bySubject.set(a.subject, (bySubject.get(a.subject) ?? 0) + a.mistake_count);
+    const label = (a.subject ?? "").trim();
+    if (!label || /^(subject|topic|daily|general|mixed|concept|chapter)$/i.test(label)) continue;
+    bySubject.set(label, (bySubject.get(label) ?? 0) + a.mistake_count);
   }
+  if (bySubject.size === 0) return [];
   const max = Math.max(1, ...bySubject.values());
   return [...bySubject.entries()]
     .map(([subject, count]) => ({ subject, count, pct: Math.round((100 * count) / max) }))

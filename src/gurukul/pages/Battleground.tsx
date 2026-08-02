@@ -9,7 +9,7 @@ import type { PageKey } from "@/gurukul/nav";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
 import { BADGES } from "@/lib/badges";
-import { useGurukulStudent } from "@/gurukul/StudentContext";
+import { useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
 import { toast } from "@/hooks/use-toast";
 import {
   useBattlegroundData,
@@ -358,9 +358,13 @@ type MeInfo = {
   league: LeagueName;
   xp: number;
   xpNext: number;
+  levelProgressPct: number;
+  xpIntoLevel: number;
+  xpToNextLevel: number;
   rating: number;
   schoolRank: number | null;
   classRank: number | null;
+  studyStreak: number;
   streak: number;
   bestStreak: number;
   totalBattles: number;
@@ -384,7 +388,8 @@ function HeroSection({
   onPlayDaily: () => void;
   busy: boolean;
 }) {
-  const xpPct = me.xpNext > 0 ? Math.min(100, Math.round((me.xp / me.xpNext) * 100)) : 100;
+  // Level progress SSOT from Progression (not absolute XP / next-league min).
+  const xpPct = Math.min(100, Math.max(0, Math.round(me.levelProgressPct)));
   const [animated, setAnimated] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setAnimated(true), 300);
@@ -497,8 +502,8 @@ function HeroSection({
             <div style={{ marginTop: "1rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
                 <span style={{ color: C.text2, fontSize: "0.72rem", fontFamily: "Inter, sans-serif" }}>
-                  XP Progress — <span style={{ color: C.purple }}>{me.xp.toLocaleString()}</span> /{" "}
-                  {me.xpNext.toLocaleString()}
+                  Level progress — <span style={{ color: C.purple }}>{me.xpIntoLevel.toLocaleString()}</span> /{" "}
+                  {(me.xpIntoLevel + me.xpToNextLevel).toLocaleString()} XP
                 </span>
                 <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.72rem", color: C.purple }}>{xpPct}%</span>
               </div>
@@ -1630,9 +1635,9 @@ function StatisticsPanel({ me }: { me: MeInfo }) {
   const stats = [
     { label: "Battles Played", value: String(me.totalBattles), icon: "⚔️", color: C.blue, sub: "Lifetime" },
     { label: "Battles Won", value: String(me.wins), icon: "🏆", color: C.green, sub: `${winRate}% win rate` },
-    { label: "Current Streak", value: String(me.streak), icon: "🔥", color: C.orange, sub: `Personal best: ${me.bestStreak}` },
+    { label: "Study Streak", value: String(me.studyStreak), icon: "🔥", color: C.orange, sub: `Win streak: ${me.streak} (best ${me.bestStreak})` },
     { label: "XP", value: me.xp.toLocaleString(), icon: "⚡", color: C.purple, sub: me.league },
-    { label: "Avg. Accuracy", value: `${me.accuracy}%`, icon: "🎯", color: C.gold, sub: "From finished battles" },
+    { label: "Practice Accuracy", value: `${me.accuracy}%`, icon: "🎯", color: C.gold, sub: "Same as Home" },
     {
       label: "Battles Lost",
       value: String(me.losses),
@@ -2214,7 +2219,9 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   const navigate = useNavigate();
   const { user } = useAuth();
   const profile = useGurukulStudent();
-  const data = useBattlegroundData();
+  const shellReady = useGurukulShellReady();
+  const { ready: academicReady } = useAcademicContext();
+  const data = useBattlegroundData(academicReady);
   const [phase, setPhase] = useState<Phase>("home");
   const [busy, setBusy] = useState(false);
   const [showJoin, setShowJoin] = useState(false);
@@ -2237,7 +2244,8 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   );
 
   const me: MeInfo = useMemo(() => {
-    const xp = data.stats.xp;
+    // Shared chrome SSOT: shell profile (Progression + snapshot) when ready.
+    const xp = shellReady ? profile.xp : data.stats.xp;
     const wins = data.stats.wins;
     const total = data.stats.totalBattles;
     const league = toLeagueName(leagueFromCodeOrXp(data.stats.leagueCode, xp));
@@ -2258,31 +2266,41 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
           : null;
       })();
     const xpNext = next ? next.nextMin : xp;
+    const levelProgressPct = shellReady
+      ? profile.levelProgressPct
+      : data.stats.levelProgressPct || 0;
+    const xpIntoLevel = shellReady ? profile.xpIntoLevel : data.stats.xpIntoLevel || 0;
+    const xpToNextLevel = shellReady ? profile.xpToNext : data.stats.xpToNextLevel || 100;
     return {
       name: displayName,
       initials: ini,
       league,
       xp,
       xpNext: Math.max(xpNext, xp || 1),
+      levelProgressPct,
+      xpIntoLevel,
+      xpToNextLevel,
       rating: data.stats.rating,
       schoolRank: data.schoolRank,
       classRank: data.classRank,
+      studyStreak: shellReady ? profile.streak : data.stats.studyStreak || 0,
       streak: data.stats.streak,
       bestStreak: data.stats.bestStreak,
       totalBattles: total,
       wins,
       losses: data.stats.losses,
       draws: data.stats.draws,
-      accuracy: data.stats.accuracy,
+      accuracy: shellReady ? profile.accuracy : data.stats.accuracy || 0,
       motivationTitle: data.motivation.title,
       motivationMessage: data.motivation.message,
       xpRemaining: next?.remaining ?? 0,
       nextLeague: next?.nextName || "Champion",
       dailyXpLabel: dailyLive?.xpReward ? `+${dailyLive.xpReward} pts` : "Earn pts",
     };
-  }, [data, displayName, ini, dailyLive]);
+  }, [data, displayName, ini, dailyLive, profile, shellReady]);
 
   useEffect(() => {
+    if (!academicReady) return;
     let cancelled = false;
     (async () => {
       try {
@@ -2306,7 +2324,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
     return () => {
       cancelled = true;
     };
-  }, [user?.id, data.xp?.xp]);
+  }, [academicReady, user?.id, data.xp?.xp]);
 
   const myBattles = useMemo(
     () =>
@@ -2329,6 +2347,10 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   }
 
   async function handleJoinCode(code: string) {
+    if (!academicReady) {
+      toast({ title: "Academic context is still loading", variant: "destructive" });
+      return;
+    }
     setBusy(true);
     try {
       const id = await joinBattleByCode(code);
@@ -2345,6 +2367,10 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   }
 
   async function handleCreate(cfg: BattleConfig & { opponentUserId?: string }) {
+    if (!academicReady) {
+      toast({ title: "Academic context is still loading", variant: "destructive" });
+      throw new Error("Academic context not ready");
+    }
     setBusy(true);
     try {
       const { id, battleCode } = await createBattleFromDesign({
@@ -2388,6 +2414,10 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   }
 
   async function handleOpenBattle(id: string) {
+    if (!academicReady) {
+      toast({ title: "Academic context is still loading", variant: "destructive" });
+      return;
+    }
     const card = data.battles.find((b) => b.id === id);
     if (card?.status === "pending" && card.inviteId) {
       setBusy(true);
@@ -2429,6 +2459,10 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   }
 
   async function handleFeatured(kind: FeaturedKind, battleId?: string) {
+    if (!academicReady) {
+      toast({ title: "Academic context is still loading", variant: "destructive" });
+      return;
+    }
     setBusy(true);
     try {
       if (battleId && data.battles.find((b) => b.id === battleId)?.participantId) {
@@ -2501,7 +2535,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
               🔥
             </span>
             <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.82rem", fontWeight: 500, color: C.orange }}>
-              {me.streak} streak
+              {me.studyStreak} study streak
             </span>
           </div>
           <div

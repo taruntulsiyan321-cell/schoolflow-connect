@@ -7,7 +7,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { useAcademicLive } from "@/academic";
+import { useAcademicContext, useAcademicLive } from "@/academic";
+import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import {
   accuracyFromXp,
   battleRatingFromXp,
@@ -168,12 +170,20 @@ function unwrapBattle(b: PartRow["battles"]): BattleRow | null {
   return Array.isArray(b) ? b[0] ?? null : b;
 }
 
-export function useBattlegroundData() {
+export function useBattlegroundData(enabled = true) {
   const { user } = useAuth();
+  const {
+    ctx: academicCtx,
+    ready: academicReady,
+    classId: academicClassId,
+  } = useAcademicContext();
   const [loading, setLoading] = useState(true);
   const [xp, setXp] = useState<{
     xp: number;
     level: number;
+    xp_into_level: number;
+    xp_to_next_level: number;
+    level_progress_pct: number;
     wins: number;
     total_battles: number;
     study_streak: number;
@@ -186,6 +196,7 @@ export function useBattlegroundData() {
     next_league_remaining: number | null;
     next_league_label: string | null;
   } | null>(null);
+  const [productAccuracy, setProductAccuracy] = useState(0);
   const [classRank, setClassRank] = useState<number | null>(null);
   const [schoolRank, setSchoolRank] = useState<number | null>(null);
   const [battles, setBattles] = useState<DesignBattleCard[]>([]);
@@ -195,18 +206,22 @@ export function useBattlegroundData() {
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
-    if (!user) return;
+    if (!enabled || !user || !academicReady || !academicCtx) return;
     setLoading(true);
     setError(null);
     try {
-      const [stuRes, matesRes] = await Promise.all([
+      const [stuRes, matesRes, snapRes] = await Promise.all([
         supabase.from("students").select("id, class_id, full_name").eq("user_id", user.id).maybeSingle(),
         supabase.rpc("rpc_classmates"),
+        supabase.rpc("rpc_student_academic_snapshot"),
       ]);
 
       let xpData: {
         xp: number;
         level: number;
+        xp_into_level: number;
+        xp_to_next_level: number;
+        level_progress_pct: number;
         wins: number;
         total_battles: number;
         study_streak: number;
@@ -222,12 +237,14 @@ export function useBattlegroundData() {
       let classRankFromProg: number | null = null;
       let schoolRankFromProg: number | null = null;
       try {
-        const { ProgressionService, resolveStudentServiceContext } = await import("@/academic");
-        const ctx = await resolveStudentServiceContext();
-        const snap = await ProgressionService.getSnapshot(ctx, user.id);
+        const { ProgressionService } = await import("@/academic");
+        const snap = await ProgressionService.getSnapshot(academicCtx, user.id);
         xpData = {
           xp: snap.xp,
           level: snap.level,
+          xp_into_level: snap.xp_into_level,
+          xp_to_next_level: snap.xp_to_next_level,
+          level_progress_pct: snap.level_progress_pct,
           wins: snap.battleground.wins,
           total_battles: snap.battleground.total_battles,
           study_streak: snap.study_streak,
@@ -242,13 +259,13 @@ export function useBattlegroundData() {
         };
         try {
           const [classLb, schoolLb] = await Promise.all([
-            ProgressionService.leaderboard(ctx, {
+            ProgressionService.leaderboard(academicCtx, {
               scope: "class",
               period: "lifetime",
               metric: "xp",
               limit: 200,
             }),
-            ProgressionService.leaderboard(ctx, {
+            ProgressionService.leaderboard(academicCtx, {
               scope: "school",
               period: "lifetime",
               metric: "xp",
@@ -267,6 +284,9 @@ export function useBattlegroundData() {
         xpData = {
           xp: 0,
           level: 1,
+          xp_into_level: 0,
+          xp_to_next_level: 100,
+          level_progress_pct: 0,
           wins: 0,
           total_battles: 0,
           study_streak: 0,
@@ -292,11 +312,21 @@ export function useBattlegroundData() {
       const x = xpData;
       const mates = matesRes.data;
 
-      setClassId(s?.class_id ?? null);
+      setProductAccuracy(
+        practiceAccuracyFromSnapshot(
+          (snapRes.error ? null : snapRes.data) as AcademicSnapshot | null,
+        ),
+      );
+
+      // Class scope comes from the shared Academic identity, the same source as Home.
+      setClassId(academicClassId);
       // Always zeros when no row — never leave prior session demo values
       setXp({
         xp: x?.xp ?? 0,
         level: x?.level ?? 1,
+        xp_into_level: x?.xp_into_level ?? 0,
+        xp_to_next_level: x?.xp_to_next_level ?? 100,
+        level_progress_pct: x?.level_progress_pct ?? 0,
         wins: x?.wins ?? 0,
         total_battles: x?.total_battles ?? 0,
         study_streak: x?.study_streak ?? 0,
@@ -447,8 +477,8 @@ export function useBattlegroundData() {
         .in("status", ["live", "scheduled"])
         .order("starts_at", { ascending: false })
         .limit(20);
-      if (s?.class_id) {
-        openQ = openQ.or(`mode.eq.open,and(mode.eq.lobby,class_id.eq.${s.class_id})`);
+      if (academicClassId) {
+        openQ = openQ.or(`mode.eq.open,and(mode.eq.lobby,class_id.eq.${academicClassId})`);
       } else {
         openQ = openQ.eq("mode", "open");
       }
@@ -731,24 +761,26 @@ export function useBattlegroundData() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [enabled, user, academicReady, academicCtx, academicClassId]);
 
   useEffect(() => {
+    if (!enabled) return;
     void reload();
-  }, [reload]);
+  }, [enabled, reload]);
 
   // Reload after any battle/xp write — covers BattleExperienceService writes (bus + realtime)
   // and the raw-RPC last-resort finish path (student-xp-updated + battle_participants realtime).
   const liveVersion = useAcademicLive(["battle", "xp"]);
   useEffect(() => {
-    if (liveVersion > 0) void reload();
-  }, [liveVersion, reload]);
+    if (enabled && liveVersion > 0) void reload();
+  }, [enabled, liveVersion, reload]);
 
   useEffect(() => {
+    if (!enabled) return;
     const handler = () => void reload();
     window.addEventListener("student-xp-updated", handler);
     return () => window.removeEventListener("student-xp-updated", handler);
-  }, [reload]);
+  }, [enabled, reload]);
 
   const heroStats = useMemo(() => {
     const wins = xp?.wins ?? 0;
@@ -775,7 +807,9 @@ export function useBattlegroundData() {
     [xp, classRank, schoolRank],
   );
 
-  const accuracy = useMemo(() => accuracyFromXp(xp || {}), [xp]);
+  const battleAccuracy = useMemo(() => accuracyFromXp(xp || {}), [xp]);
+  /** Product overall accuracy — same snapshot SSOT as Home (not battle Q&A). */
+  const accuracy = productAccuracy;
 
   /** Wins from student_xp lifetime; losses = non-wins (SSOT). Draws remain history-window only. */
   const record = useMemo(() => {
@@ -790,9 +824,14 @@ export function useBattlegroundData() {
       losses,
       draws,
       accuracy,
+      battleAccuracy,
       rating: battleRatingFromXp(xp?.xp ?? 0, wins, totalBattles),
       xp: xp?.xp ?? 0,
       level: xp?.level ?? 1,
+      xpIntoLevel: xp?.xp_into_level ?? 0,
+      xpToNextLevel: xp?.xp_to_next_level ?? 100,
+      levelProgressPct: xp?.level_progress_pct ?? 0,
+      studyStreak: xp?.study_streak ?? 0,
       streak: xp?.win_streak ?? 0,
       bestStreak: xp?.best_win_streak ?? 0,
       classRank,
@@ -802,7 +841,7 @@ export function useBattlegroundData() {
       nextLeagueRemaining: xp?.next_league_remaining ?? null,
       nextLeagueLabel: xp?.next_league_label ?? null,
     };
-  }, [xp, history, accuracy, classRank, schoolRank]);
+  }, [xp, history, accuracy, battleAccuracy, classRank, schoolRank]);
 
   return {
     loading,
