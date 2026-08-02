@@ -3237,6 +3237,7 @@ export type Database = {
           stream: string | null
           student_id: string | null
           subject: string
+          time_limit_sec: number | null
           total_time_ms: number | null
           user_id: string
           wrong_count: number
@@ -3262,6 +3263,7 @@ export type Database = {
           stream?: string | null
           student_id?: string | null
           subject: string
+          time_limit_sec?: number | null
           total_time_ms?: number | null
           user_id: string
           wrong_count?: number
@@ -3287,6 +3289,7 @@ export type Database = {
           stream?: string | null
           student_id?: string | null
           subject?: string
+          time_limit_sec?: number | null
           total_time_ms?: number | null
           user_id?: string
           wrong_count?: number
@@ -3315,6 +3318,7 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          is_active: boolean
           phone: string | null
           photo_url: string | null
           school_id: string | null
@@ -3325,6 +3329,7 @@ export type Database = {
           email?: string | null
           full_name?: string
           id: string
+          is_active?: boolean
           phone?: string | null
           photo_url?: string | null
           school_id?: string | null
@@ -3335,6 +3340,7 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          is_active?: boolean
           phone?: string | null
           photo_url?: string | null
           school_id?: string | null
@@ -5526,6 +5532,7 @@ export type Database = {
           _difficulty?: string
           _practice_mode?: string
           _subject: string
+          _time_limit_sec?: number
         }
         Returns: string
       }

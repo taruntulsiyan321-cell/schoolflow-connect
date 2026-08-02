@@ -21,7 +21,7 @@ export const ROLE_HOME: Record<PortalRole, string> = {
 
 /** Which roles may enter which route prefixes */
 export const ROUTE_ALLOW: Record<string, AppRole[]> = {
-  "/admin": ["admin"],
+  "/admin": ["admin", "super_admin"],
   "/principal": ["principal"],
   "/teacher": ["teacher"],
   "/student": ["student"],

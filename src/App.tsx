@@ -46,7 +46,7 @@ const App = () => (
                 <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/unauthorized" element={<ProtectedRoute><Unauthorized /></ProtectedRoute>} />
-                <Route path="/admin/*" element={<ProtectedRoute allow={["admin"]}><AdminDashboard /></ProtectedRoute>} />
+                <Route path="/admin/*" element={<ProtectedRoute allow={["admin", "super_admin"]}><AdminDashboard /></ProtectedRoute>} />
                 <Route path="/principal/*" element={<ProtectedRoute allow={["principal"]}><PrincipalDashboard /></ProtectedRoute>} />
                 <Route path="/teacher/*" element={<ProtectedRoute allow={["teacher"]}><TeacherDashboard /></ProtectedRoute>} />
                 <Route path="/student/*" element={<ProtectedRoute allow={["student"]}><StudentDashboard /></ProtectedRoute>} />

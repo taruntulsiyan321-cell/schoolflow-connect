@@ -35,14 +35,26 @@ export const PAGE_PATH: Record<PageKey, string> = {
 const LEGACY_CLASSES_HASH: Record<string, PageKey> = {
   attendance: "attendance",
   timetable: "timetable",
+  calendar: "calendar",
   leaderboard: "leaderboard",
   homework: "assignments",
   exams: "tests",
   doubts: "doubtportal",
+  resources: "resources",
+  achievements: "achievements",
+  class: "classhub",
+};
+
+/** Absolute paths for hashes that are not PAGE_PATH keys. */
+const LEGACY_CLASSES_ABS: Record<string, string> = {
+  fees: "/student/fees",
+  chat: "/student/chat",
+  notices: "/student/notices",
 };
 
 export function legacyClassesRedirectPath(hash?: string): string {
-  const key = (hash ?? "").replace(/^#/, "").trim();
+  const key = (hash ?? "").replace(/^#/, "").trim().toLowerCase();
+  if (key && LEGACY_CLASSES_ABS[key]) return LEGACY_CLASSES_ABS[key];
   const page = LEGACY_CLASSES_HASH[key];
   return page ? PAGE_PATH[page] : PAGE_PATH.classhub;
 }
