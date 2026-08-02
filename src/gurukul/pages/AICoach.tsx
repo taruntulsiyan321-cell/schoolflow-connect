@@ -5,13 +5,15 @@ import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/gurukul/components/shared";
 import { toast } from "sonner";
-import { askAiCoach } from "@/academic/ai/gatewayClient";
+import { askAiCoach, recordAiFeedback } from "@/academic/ai/gatewayClient";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Mic, MicOff, Send, Plus, Search, Pin, Star, Trash2, Edit3,
   MoreHorizontal, ChevronLeft, Paperclip, Copy, Bookmark,
   RotateCcw, X, Camera, FileText, Image, Presentation,
   Volume2, VolumeX, BookOpen, HelpCircle, Brain, Sparkles,
   MessageSquare, Clock, Check, AlertCircle, Globe, Layers,
+  ThumbsUp, ThumbsDown,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -26,6 +28,9 @@ interface Attachment {
 interface Message {
   id: string; role: Role; text: string; time: string;
   bookmarked?: boolean; attachments?: Attachment[];
+  requestId?: string;
+  featureId?: string;
+  feedback?: "like" | "dislike" | null;
 }
 
 interface Conversation {
@@ -172,8 +177,12 @@ function VoiceOrb({ state, onStop }: { state: VoiceState; onStop: () => void }) 
 }
 
 // ── Message bubble ────────────────────────────────────────────────────────────
-function MessageBubble({ msg, onBookmark, onRegen, isLast }: {
-  msg: Message; onBookmark: (id:string)=>void; onRegen?: ()=>void; isLast?: boolean;
+function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
+  msg: Message;
+  onBookmark: (id: string) => void;
+  onRegen?: () => void;
+  onFeedback?: (id: string, signal: "like" | "dislike") => void;
+  isLast?: boolean;
 }) {
   const isNova   = msg.role === "nova";
   const [copied, setCopied] = useState(false);
@@ -229,7 +238,10 @@ function MessageBubble({ msg, onBookmark, onRegen, isLast }: {
         {/* Timestamp + actions */}
         <div className={cn("flex items-center gap-2 px-1", isNova ? "flex-row" : "flex-row-reverse")}>
           <span className="text-[10px] text-[#78788c]">{msg.time}</span>
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className={cn(
+            "flex items-center gap-0.5 transition-opacity",
+            isNova ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          )}>
             <button onClick={copy} title="Copy"
               className="w-6 h-6 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/6 transition-all">
               {copied ? <Check className="w-3 h-3 text-emerald-400"/> : <Copy className="w-3 h-3"/>}
@@ -240,6 +252,34 @@ function MessageBubble({ msg, onBookmark, onRegen, isLast }: {
               )}>
               <Bookmark className="w-3 h-3"/>
             </button>
+            {isNova && onFeedback && (
+              <>
+                <button
+                  onClick={() => onFeedback(msg.id, "like")}
+                  title="Helpful"
+                  className={cn(
+                    "w-6 h-6 rounded-lg flex items-center justify-center transition-all",
+                    msg.feedback === "like"
+                      ? "text-emerald-400 bg-emerald-400/10"
+                      : "text-[#78788c] hover:text-white hover:bg-white/6"
+                  )}
+                >
+                  <ThumbsUp className="w-3 h-3"/>
+                </button>
+                <button
+                  onClick={() => onFeedback(msg.id, "dislike")}
+                  title="Not helpful"
+                  className={cn(
+                    "w-6 h-6 rounded-lg flex items-center justify-center transition-all",
+                    msg.feedback === "dislike"
+                      ? "text-rose-400 bg-rose-400/10"
+                      : "text-[#78788c] hover:text-white hover:bg-white/6"
+                  )}
+                >
+                  <ThumbsDown className="w-3 h-3"/>
+                </button>
+              </>
+            )}
             {isNova && isLast && onRegen && (
               <button onClick={onRegen} title="Regenerate"
                 className="w-6 h-6 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/6 transition-all">
@@ -573,7 +613,8 @@ function InputBar({
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
-  const { studentId } = useAcademicContext();
+  const { user } = useAuth();
+  const { studentId, schoolId } = useAcademicContext();
   const { data: charts } = useStudentPerformanceCharts();
   const chartSubjects = (charts?.subjects ?? []).map((s, i) => ({
     name: s.name,
@@ -609,7 +650,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   async function replyViaGateway(convoId: string, text: string) {
     setIsTyping(true);
     try {
-      const { text: reply } = await askAiCoach({
+      const { text: reply, response } = await askAiCoach({
         text,
         studentId: studentId || undefined,
         channel: "student_app",
@@ -621,7 +662,15 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
                 ...c,
                 messages: [
                   ...c.messages,
-                  { id: `m${Date.now()}`, role: "nova", text: reply, time: now() },
+                  {
+                    id: `m${Date.now()}`,
+                    role: "nova",
+                    text: reply,
+                    time: now(),
+                    requestId: response.request_id,
+                    featureId: response.feature_id,
+                    feedback: null,
+                  },
                 ],
                 preview: reply.slice(0, 60) + (reply.length > 60 ? "…" : ""),
               }
@@ -734,12 +783,57 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     if (!lastQ) return;
     const last = c.messages[c.messages.length - 1];
     if (last?.role === "nova") {
+      if (user?.id) {
+        void recordAiFeedback({
+          request_id: last.requestId ?? null,
+          school_id: schoolId ?? null,
+          actor_user_id: user.id,
+          actor_role: "student",
+          feature_id: last.featureId ?? null,
+          signal_type: "retry",
+        });
+      }
       setConvos(cs => cs.map(x => x.id === activeId
         ? { ...x, messages: x.messages.filter(m => m.id !== last.id) }
         : x
       ));
     }
     void replyViaGateway(activeId, lastQ.text);
+  }
+
+  async function sendFeedback(msgId: string, signal: "like" | "dislike") {
+    if (!activeId || !user?.id) {
+      toast.message("Sign in to send feedback");
+      return;
+    }
+    const c = convos.find((x) => x.id === activeId);
+    const msg = c?.messages.find((m) => m.id === msgId);
+    if (!msg || msg.role !== "nova") return;
+
+    setConvos((cs) =>
+      cs.map((convo) =>
+        convo.id === activeId
+          ? {
+              ...convo,
+              messages: convo.messages.map((m) =>
+                m.id === msgId ? { ...m, feedback: signal } : m,
+              ),
+            }
+          : convo,
+      ),
+    );
+
+    const result = await recordAiFeedback({
+      request_id: msg.requestId ?? null,
+      school_id: schoolId ?? null,
+      actor_user_id: user.id,
+      actor_role: "student",
+      feature_id: msg.featureId ?? null,
+      signal_type: signal,
+    });
+    if (!result.ok) {
+      toast.error("Could not save feedback");
+    }
   }
 
   return (
@@ -847,6 +941,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
               {msgs.map((m, i) => (
                 <MessageBubble key={m.id} msg={m}
                   onBookmark={bookmarkMsg}
+                  onFeedback={m.role === "nova" ? sendFeedback : undefined}
                   onRegen={m.role==="nova" && i===msgs.length-1 ? regenerateLast : undefined}
                   isLast={i===msgs.length-1}
                 />

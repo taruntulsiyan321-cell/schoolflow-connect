@@ -146,3 +146,52 @@ export {
   type FeedbackSignalInput,
   type FeedbackSignalType,
 } from "./feedbackLoop";
+
+export {
+  chunkPedagogicalText,
+  buildEmbeddingStub,
+  isPublishedForRetrieval,
+  registerKmsDocument,
+  submitKmsVersion,
+  approveKmsVersion,
+  rejectKmsVersion,
+  type KmsDocumentStatus,
+  type KmsContentType,
+} from "./knowledgeManagement";
+
+export {
+  validateImageMetadata,
+  runOcrPipelineStub,
+  isOcrProviderConfigured,
+  type MultimodalExtractionV1,
+  type OcrPipelineResult,
+} from "./multimodalPipeline";
+
+export {
+  BUILTIN_BENCHMARK_SUITES,
+  BUILTIN_BENCHMARK_FIXTURES,
+  criticalSuiteIds,
+  evaluateBenchmarkGate,
+  fetchBenchmarkGate,
+  type BenchmarkGateResult,
+} from "./benchmarkSuite";
+
+export {
+  canTransitionPromptStatus,
+  assertPromotionAllowed,
+  feedbackMayTriggerReevaluation,
+  promotePromptVersion,
+  normalizePromptEvalStatus,
+  type PromptEvalStatus,
+} from "./promptEvaluation";
+
+export {
+  classifyProviderError,
+  shouldRetryFailure,
+  computeBackoffMs,
+  planFailureRecovery,
+  withRetry,
+  DEFAULT_PROVIDER_RETRY,
+  type FailureClass,
+  type RecoveryPlan,
+} from "./failureRecovery";

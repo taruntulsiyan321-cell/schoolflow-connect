@@ -11,6 +11,8 @@ export type WorkflowStepKind =
   | "validate"
   | "human_review"
   | "feedback_capture"
+  | "ocr_extract"
+  | "media_validate"
   | "stub";
 
 export type WorkflowStepDef = {
@@ -95,6 +97,58 @@ export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
         step_id: "capture_feedback",
         kind: "feedback_capture",
         description: "Record accept/edit/reject into Feedback Loop",
+      },
+    ],
+  },
+  "student.image_doubt.v1": {
+    workflow_id: "student.image_doubt.v1",
+    version: "v1",
+    capability_id: "student.image_doubt",
+    allowed_audiences: ["student"],
+    enabled: false,
+    failure_policy: "safe_fail",
+    session_memory_scope: "workflow",
+    notes:
+      "OCR / multimodal stub — clarify when provider unset; live OCR vendor deferred.",
+    steps: [
+      {
+        step_id: "validate_media",
+        kind: "media_validate",
+        description: "Validate image mime/size/dimensions before OCR",
+      },
+      {
+        step_id: "safety_screen",
+        kind: "stub",
+        description: "Content safety & PII screen (stub)",
+      },
+      {
+        step_id: "ocr_extract",
+        kind: "ocr_extract",
+        feature_id: "student.image_doubt",
+        budget_ceiling: "simple",
+        description: "Vision/OCR capability via Model Router — stub clarifies if unset",
+      },
+      {
+        step_id: "confidence_gate",
+        kind: "validate",
+        description: "Extraction confidence policy → clarify or continue",
+      },
+      {
+        step_id: "router_doubt",
+        kind: "router_invoke",
+        feature_id: "student.concept.explain",
+        budget_ceiling: "medium",
+        description: "Route normalised text through standard doubt / concept path",
+      },
+      {
+        step_id: "validate_answer",
+        kind: "validate",
+        description: "Response Validator + Confidence Engine on final answer",
+      },
+      {
+        step_id: "capture_feedback",
+        kind: "feedback_capture",
+        description: "Record like/retry into Feedback Loop",
       },
     ],
   },

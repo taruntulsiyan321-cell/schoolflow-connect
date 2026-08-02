@@ -3,6 +3,7 @@
  * Credentials live exclusively here (edge secrets). Never expose to clients.
  * Adaptive Reasoning Budget ceilings applied via max_tokens / temperature.
  * Prompt Library v1 supplies versioned system/user contracts when available.
+ * Enterprise Failure Recovery wraps transient provider calls.
  */
 
 import {
@@ -14,6 +15,11 @@ import {
   renderPromptTemplate,
   type PromptRecord,
 } from "./promptLibrary.ts";
+import {
+  withRetry,
+  planFailureRecovery,
+  DEFAULT_PROVIDER_RETRY,
+} from "./failureRecovery.ts";
 
 const DEFAULT_MODEL = "qwen/qwen-2.5-72b-instruct";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -26,8 +32,16 @@ export type ModelRouterResult =
       source: "openrouter_qwen";
       budget_tier?: ReasoningTier;
       usage?: { prompt_tokens?: number; completion_tokens?: number };
+      recovery_attempts?: number;
     }
-  | { ok: false; error: string; degraded: true; budget_tier?: ReasoningTier };
+  | {
+      ok: false;
+      error: string;
+      degraded: true;
+      budget_tier?: ReasoningTier;
+      recovery_stage?: string;
+      recovery_attempts?: number;
+    };
 
 export function isOpenRouterConfigured(): boolean {
   const key = Deno.env.get("OPENROUTER_API_KEY") ?? "";
@@ -38,15 +52,11 @@ export function getConfiguredModelId(): string {
   return Deno.env.get("OPENROUTER_MODEL")?.trim() || DEFAULT_MODEL;
 }
 
-/**
- * Bounded chat completion. Returns degraded error when key missing — callers must fail safe.
- */
-export async function completeWithQwen(input: {
+async function invokeOpenRouterOnce(input: {
   system: string;
   user: string;
-  max_tokens?: number;
-  temperature?: number;
-  /** Adaptive Reasoning Budget tier — caps tokens/temperature when set. */
+  max_tokens: number;
+  temperature: number;
   budget_tier?: ReasoningTier;
 }): Promise<ModelRouterResult> {
   const apiKey = Deno.env.get("OPENROUTER_API_KEY")?.trim();
@@ -56,12 +66,9 @@ export async function completeWithQwen(input: {
       error: "OPENROUTER_API_KEY not configured — generative path degraded",
       degraded: true,
       budget_tier: input.budget_tier,
+      recovery_stage: "safe_fail",
     };
   }
-
-  const tierOpts = input.budget_tier ? modelCallOptionsForTier(input.budget_tier) : null;
-  const max_tokens = input.max_tokens ?? tierOpts?.max_tokens ?? 500;
-  const temperature = input.temperature ?? tierOpts?.temperature ?? 0.2;
 
   const model = getConfiguredModelId();
   try {
@@ -75,8 +82,8 @@ export async function completeWithQwen(input: {
       },
       body: JSON.stringify({
         model,
-        temperature,
-        max_tokens,
+        temperature: input.temperature,
+        max_tokens: input.max_tokens,
         messages: [
           { role: "system", content: input.system },
           { role: "user", content: input.user },
@@ -126,6 +133,77 @@ export async function completeWithQwen(input: {
       budget_tier: input.budget_tier,
     };
   }
+}
+
+/**
+ * Bounded chat completion. Returns degraded error when key missing — callers must fail safe.
+ * Transient provider errors retry with jitter via Failure Recovery.
+ */
+export async function completeWithQwen(input: {
+  system: string;
+  user: string;
+  max_tokens?: number;
+  temperature?: number;
+  /** Adaptive Reasoning Budget tier — caps tokens/temperature when set. */
+  budget_tier?: ReasoningTier;
+}): Promise<ModelRouterResult> {
+  const apiKey = Deno.env.get("OPENROUTER_API_KEY")?.trim();
+  if (!apiKey) {
+    return {
+      ok: false,
+      error: "OPENROUTER_API_KEY not configured — generative path degraded",
+      degraded: true,
+      budget_tier: input.budget_tier,
+      recovery_stage: "safe_fail",
+    };
+  }
+
+  const tierOpts = input.budget_tier ? modelCallOptionsForTier(input.budget_tier) : null;
+  const max_tokens = input.max_tokens ?? tierOpts?.max_tokens ?? 500;
+  const temperature = input.temperature ?? tierOpts?.temperature ?? 0.2;
+
+  const retried = await withRetry(
+    () =>
+      invokeOpenRouterOnce({
+        system: input.system,
+        user: input.user,
+        max_tokens,
+        temperature,
+        budget_tier: input.budget_tier,
+      }),
+    {
+      policy: DEFAULT_PROVIDER_RETRY,
+      isSuccess: (r) => r.ok === true,
+      mapError: (r) => (r.ok ? "ok" : r.error),
+      // Permanent config / auth errors should not burn retries
+      has_approved_fallback: false,
+      queue_eligible: false,
+    },
+  );
+
+  if (retried.ok) {
+    return { ...retried.value, recovery_attempts: retried.attempts };
+  }
+
+  const plan = retried.plan ?? planFailureRecovery({
+    error: retried.error,
+    attempt: retried.attempts,
+  });
+  const errMsg =
+    typeof retried.error === "string"
+      ? retried.error
+      : retried.error instanceof Error
+      ? retried.error.message
+      : "Model router failure";
+
+  return {
+    ok: false,
+    error: errMsg,
+    degraded: true,
+    budget_tier: input.budget_tier,
+    recovery_stage: plan.next_stage,
+    recovery_attempts: retried.attempts,
+  };
 }
 
 /**

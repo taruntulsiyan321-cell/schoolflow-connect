@@ -3,7 +3,13 @@
  * Runtime prefers DB production rows; built-in fallbacks keep edge/tests offline-safe.
  */
 
-export type PromptStatus = "draft" | "shadow" | "production" | "retired";
+export type PromptStatus =
+  | "draft"
+  | "offline_benchmark"
+  | "shadow"
+  | "ab_test"
+  | "production"
+  | "retired";
 
 export type PromptRecord = {
   capability_id: string;

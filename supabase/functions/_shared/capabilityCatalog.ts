@@ -109,6 +109,15 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     requires_student_target: true,
     description: "Deterministic next-concept / revision package from EIE seeds",
   },
+  "student.image_doubt": {
+    feature_id: "student.image_doubt",
+    route_class: "multimodal",
+    model_policy: "optional_explain",
+    allowed_roles: ["student", "teacher", "admin"],
+    requires_student_target: true,
+    description:
+      "Image doubt via OCR/multimodal pipeline then grounded tutoring (OCR vendor deferred — clarify)",
+  },
 };
 
 export function getCapability(featureId: string): CapabilityDefinition | null {
