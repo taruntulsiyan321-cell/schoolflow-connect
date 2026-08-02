@@ -113,7 +113,7 @@ export function InquiriesReport() {
 }
 
 export function ComplaintsReport({ allowSubmit = false }: { allowSubmit?: boolean }) {
-  const { user } = useAuth();
+  const { user, schoolId } = useAuth();
   const [rows, setRows] = useState<ComplaintRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ subject: "", body: "", category: "general", complainant_name: "" });
@@ -141,12 +141,17 @@ export function ComplaintsReport({ allowSubmit = false }: { allowSubmit?: boolea
 
   const submit = async () => {
     if (!user || !form.subject.trim() || !form.body.trim()) return;
+    if (!schoolId) {
+      toast.error("Missing school context. Sign in again.");
+      return;
+    }
     const { error } = await db.from("school_complaints").insert({
       subject: form.subject.trim(),
       body: form.body.trim(),
       category: form.category,
       complainant_name: form.complainant_name.trim() || "Parent",
       submitted_by: user.id,
+      school_id: schoolId,
       status: "open",
     });
     if (error) toast.error(error.message);
