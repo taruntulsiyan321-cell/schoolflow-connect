@@ -22,6 +22,7 @@
     "functions:deploy-analytics": "npm run functions:sync && npx --yes supabase@latest functions deploy ai-analytics-insights --project-ref kdmjipeksjdyojjdokbi --use-api",
     "functions:deploy-coach": "npm run functions:sync && npx --yes supabase@latest functions deploy ai-improvement-plan ai-analytics-insights --project-ref kdmjipeksjdyojjdokbi --use-api",
     "functions:deploy-intelligence": "npm run functions:sync && npx --yes supabase@latest functions deploy ai-learning-pattern-agent ai-recovery-agent ai-revision-agent ai-academic-coach-agent --project-ref kdmjipeksjdyojjdokbi --use-api",
+    "functions:deploy-gateway": "npx --yes supabase@latest functions deploy ai-gateway --project-ref kdmjipeksjdyojjdokbi --use-api",
     "ai:set-gemini-secret": "powershell -ExecutionPolicy Bypass -File scripts/set-gemini-secret.ps1",
     "ai:ping": "node scripts/ai-ping.mjs"
   },

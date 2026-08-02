@@ -4,15 +4,15 @@ import { askAiCoach, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } fro
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/auth";
 import { GlassCard, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
 import { toast } from "sonner";
 import {
   MessageCircle, Plus, Search, Filter, ThumbsUp, Bookmark, BookmarkCheck,
-  CheckCircle2, Clock, ChevronDown, ChevronRight, Brain, Send, Mic,
-  Image, FileText, Camera, X, Bell, Star, ArrowRight, SortAsc,
+  CheckCircle2, Clock, ChevronDown, ChevronRight, Brain, Send,
+  X, Bell, Star, ArrowRight, SortAsc,
   AlertCircle, Eye, Hash, User, Sparkles, MoreHorizontal,
 } from "lucide-react";
 
@@ -607,11 +607,7 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
             placeholder="Share what you know, ask a follow-up, or add a helpful explanation..."
             rows={3}
             className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#3b5bdb]/30 resize-none leading-relaxed"/>
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center gap-1.5 text-[#78788c]">
-              <button className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-all"><Image className="w-3.5 h-3.5"/></button>
-              <button className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-all"><Mic className="w-3.5 h-3.5"/></button>
-            </div>
+          <div className="flex items-center justify-end mt-2">
             <button onClick={() => void sendReply()} disabled={!replyText.trim() || replying || !ready}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all">
               <Send className="w-3.5 h-3.5"/>{replying ? "Posting…" : "Reply"}
@@ -635,7 +631,6 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx, onOpenDoubt }: {
   const { role } = useAuth();
   const { studentId } = useAcademicContext();
   const { subjects: subjectOptions } = useScopedSubjects();
-  const [step, setStep] = useState<"ai"|"form">("form");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [subject, setSubject] = useState(subjectOptions[0] ?? "Mathematics");
@@ -643,7 +638,6 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx, onOpenDoubt }: {
   const [topic, setTopic] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiReply, setAiReply] = useState<string|null>(null);
-  const [attachType, setAttachType] = useState<string|null>(null);
 
   useEffect(() => {
     if (subjectOptions.length && !subjectOptions.includes(subject)) {
@@ -813,29 +807,9 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx, onOpenDoubt }: {
             className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#3b5bdb]/30 resize-none leading-relaxed"/>
         </div>
 
-        {/* Attachment strip */}
-        <div>
-          <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Attach (optional)</label>
-          <div className="flex gap-2">
-            {[
-              { type:"image", icon:<Image className="w-4 h-4"/>, label:"Image" },
-              { type:"camera", icon:<Camera className="w-4 h-4"/>, label:"Camera" },
-              { type:"pdf", icon:<FileText className="w-4 h-4"/>, label:"PDF" },
-              { type:"voice", icon:<Mic className="w-4 h-4"/>, label:"Voice" },
-            ].map(a => (
-              <button key={a.type} onClick={() => setAttachType(t => t === a.type ? null : a.type)}
-                className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all",
-                  attachType === a.type ? "bg-[#3b5bdb]/15 border-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/5 border-white/10 text-[#78788c] hover:text-white hover:bg-white/10")}>
-                {a.icon} {a.label}
-              </button>
-            ))}
-          </div>
-          {attachType && (
-            <div className="mt-2 p-3 rounded-xl bg-white/3 border border-white/8 text-xs text-[#78788c] text-center">
-              {attachType === "voice" ? "Tap to record your voice question..." : `Tap to attach ${attachType}...`}
-            </div>
-          )}
-        </div>
+        <p className="text-[11px] text-[#78788c]">
+          Image, camera, PDF, and voice attachments are not available yet — describe the problem in text, or ask Nova first.
+        </p>
       </GlassCard>
 
       {/* AI Option */}

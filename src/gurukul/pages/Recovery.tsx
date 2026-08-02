@@ -517,15 +517,15 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         ))}
       </div>
 
-      {/* AI Recovery Plan */}
+      {/* Recovery Plan (from live weak concepts — not an LLM call) */}
       <GlassCard className="p-5">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-7 h-7 rounded-lg bg-violet-500/15 flex items-center justify-center">
             <Brain className="w-4 h-4 text-violet-400"/>
           </div>
           <div>
-            <div className="text-sm font-bold text-white">Nova's Recovery Plan</div>
-            <div className="text-[11px] text-[#78788c]">Based on your highest-priority weak concepts</div>
+            <div className="text-sm font-bold text-white">Recovery Plan</div>
+            <div className="text-[11px] text-[#78788c]">Based on your highest-priority weak concepts from practice</div>
           </div>
         </div>
         <div className="grid sm:grid-cols-3 gap-3">

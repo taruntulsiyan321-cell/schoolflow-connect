@@ -51,6 +51,10 @@ export interface AiClientRequest {
   client_context_version?: string;
   /** Optional client-supplied id; Gateway may replace */
   request_id?: string;
+  /** Existing multi-turn session from a prior gateway response */
+  session_id?: string;
+  /** Ask gateway to open a short workflow session (Nova chat) */
+  open_session?: boolean;
 }
 
 /** Immutable envelope after Gateway binding — clients must not forge these. */
@@ -104,6 +108,8 @@ export interface AiGatewayResponse<T = unknown> {
     algorithm_id?: string;
   };
   error_code?: string;
+  /** Present when multi-turn session memory is active */
+  session_id?: string;
 }
 
 export class EnvelopeValidationError extends Error {
