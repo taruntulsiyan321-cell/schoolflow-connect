@@ -410,7 +410,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               <p className="text-sm text-[#78788c] text-center py-4">No badges earned yet - keep practicing!</p>
             )}
             <button onClick={() => setPage("achievements")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors">
-              View all achievements ->
+              View all achievements {"->"}
             </button>
           </div>
         </GlassCard>
@@ -434,7 +434,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             )}
           </div>
           <button onClick={() => setPage("leaderboard")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors mt-2">
-            See full leaderboard ->
+            See full leaderboard {"->"}
           </button>
         </GlassCard>
       </div>
