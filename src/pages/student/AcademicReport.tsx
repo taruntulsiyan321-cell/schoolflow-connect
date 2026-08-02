@@ -62,7 +62,7 @@ export default function AcademicReport() {
     <>
       <div className="print:hidden mb-2 flex flex-wrap gap-2">
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/student/analytics"><ArrowLeft className="w-4 h-4" /> Analytics</Link>
+          <Link to="/student/analysis"><ArrowLeft className="w-4 h-4" /> Analysis</Link>
         </Button>
         <Button size="sm" onClick={handlePrint} disabled={loading}>
           <Printer className="w-4 h-4 mr-1" /> Print / Save PDF
@@ -103,7 +103,7 @@ export default function AcademicReport() {
               <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <h2 className="font-semibold text-lg">Concept mastery</h2>
                 <Button variant="link" size="sm" className="h-auto p-0 text-xs" asChild>
-                  <Link to="/student/analytics#mastery">View full skill tree</Link>
+                  <Link to="/student/analysis#mastery">View full skill tree</Link>
                 </Button>
               </div>
               <ConceptMastery />

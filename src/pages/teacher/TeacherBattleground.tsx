@@ -101,7 +101,7 @@ export default function TeacherBattleground() {
       return;
     }
     toast({ title: "Live battle published from question bank" });
-    nav(`/teacher/battleground/monitor/${data}`);
+    nav(`/teacher`);
   };
 
   const create = async () => {
@@ -149,7 +149,7 @@ export default function TeacherBattleground() {
       return;
     }
     toast({ title: "Battle published — monitoring live" });
-    nav(`/teacher/battleground/monitor/${b.id}`);
+    nav(`/teacher`);
   };
 
   return (
@@ -344,7 +344,7 @@ export default function TeacherBattleground() {
                   <BattleCard
                     key={String(b.id)}
                     battle={b}
-                    onJoin={() => nav(`/teacher/battleground/monitor/${String(b.id)}`)}
+                    onJoin={() => nav(`/teacher`)}
                   />
                 ))}
               </div>

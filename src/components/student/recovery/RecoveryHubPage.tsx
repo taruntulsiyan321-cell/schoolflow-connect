@@ -191,7 +191,7 @@ export function RecoveryHubPage({
           <Link to="/student/revision">Revision center</Link>
         </Button>
         <Button variant="outline" size="sm" className="rounded-full" asChild>
-          <Link to="/student/analytics">View insights</Link>
+          <Link to="/student/analysis">View insights</Link>
         </Button>
         <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground" asChild>
           <Link to="/student/mistakes">Mistake book</Link>

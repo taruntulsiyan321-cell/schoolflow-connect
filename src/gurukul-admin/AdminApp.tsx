@@ -261,14 +261,16 @@ export default function AdminApp() {
               <Route path="fees" element={<Navigate to="/admin/reports" replace />} />
               <Route path="examinations/*" element={<ExaminationManagement />} />
               <Route path="homework/*" element={<HomeworkAdmin />} />
+              <Route path="exams" element={<Navigate to="/admin/examinations" replace />} />
               <Route path="exams/*" element={<Navigate to="/admin/examinations" replace />} />
               <Route path="leave-requests/*" element={<LeaveRequests />} />
+              <Route path="leave" element={<Navigate to="/admin/leave-requests" replace />} />
               <Route path="ai-analytics" element={<AiAnalyticsPanel />} />
               <Route path="settings/*" element={<SettingsPage />} />
               <Route path="roles" element={<Navigate to="/admin/settings" replace />} />
               <Route path="users" element={<Navigate to="/admin/settings" replace />} />
               <Route path="profile" element={<Navigate to="/admin/settings" replace />} />
-              <Route path="attendance" element={<Navigate to="/admin" replace />} />
+              <Route path="attendance" element={<Navigate to="/admin/classes" replace />} />
               <Route path="timetable" element={<Navigate to="/admin/classes" replace />} />
               <Route path="question-bank" element={<Navigate to="/admin/examinations" replace />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />

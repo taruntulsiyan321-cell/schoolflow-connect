@@ -62,6 +62,7 @@ export function adminPathToPage(pathname: string): AdminPageKey {
   ) {
     return "settings";
   }
+  if (p.startsWith("/admin/attendance") || p.startsWith("/admin/timetable")) return "classes";
   if (p === "/admin") return "dashboard";
   const hit = (Object.entries(ADMIN_PAGE_PATH) as [AdminPageKey, string][]).find(
     ([, path]) => path === p,

@@ -90,7 +90,7 @@ export default function DppAnalytics() {
     return (
       <div className="space-y-3">
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+          <Link to="/teacher/classes"><ArrowLeft className="w-4 h-4" /> All tests</Link>
         </Button>
         <Card className="tp-card p-6">
           <p className="text-sm text-destructive font-medium">Unable to load analytics.</p>
@@ -104,7 +104,7 @@ export default function DppAnalytics() {
     return (
       <div className="space-y-3">
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+          <Link to="/teacher/classes"><ArrowLeft className="w-4 h-4" /> All tests</Link>
         </Button>
         <Card className="tp-card p-6">
           <p className="text-sm text-muted-foreground">This DPP is not available.</p>
@@ -115,7 +115,7 @@ export default function DppAnalytics() {
 
   return (
     <div className="teacher-premium tp-shell space-y-5">
-      <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link></Button>
+      <Button variant="ghost" size="sm" asChild className="mb-2"><Link to="/teacher/classes"><ArrowLeft className="w-4 h-4" /> All tests</Link></Button>
       <section className="tp-hero">
         <div className="relative z-10 grid lg:grid-cols-[1.1fr_0.9fr] gap-5">
           <div>

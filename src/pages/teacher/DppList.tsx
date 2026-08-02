@@ -51,7 +51,7 @@ export default function DppList() {
         difficulty: "medium",
         duration_sec: 1800,
       });
-      nav(`/teacher/dpp/${(data as { id: string }).id}`);
+      nav(`/teacher/classes`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create DPP");
     }
@@ -144,10 +144,10 @@ export default function DppList() {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" asChild>
-                    <Link to={`/teacher/dpp/${d.id}/analytics`}><BarChart3 className="w-4 h-4" /></Link>
+                    <Link to="/teacher/classes"><BarChart3 className="w-4 h-4" /></Link>
                   </Button>
                   <Button variant="outline" size="sm" asChild>
-                    <Link to={`/teacher/dpp/${d.id}`}>Edit</Link>
+                    <Link to="/teacher/classes">Open workspace</Link>
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => remove(d)}>
                     <Trash2 className="w-4 h-4 text-destructive" />

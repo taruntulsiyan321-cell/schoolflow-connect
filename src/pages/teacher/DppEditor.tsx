@@ -200,7 +200,7 @@ export default function DppEditor() {
     const { error } = await supabase.from("dpps").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("DPP deleted");
-    nav("/teacher/dpp");
+    nav("/teacher/classes");
   };
 
   if (loading) {
@@ -211,7 +211,7 @@ export default function DppEditor() {
     return (
       <div className="space-y-3">
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+          <Link to="/teacher/classes"><ArrowLeft className="w-4 h-4" /> All tests</Link>
         </Button>
         <Card className="p-6">
           <p className="text-sm text-destructive font-medium">Unable to open this DPP.</p>
@@ -225,7 +225,7 @@ export default function DppEditor() {
     return (
       <div className="space-y-3">
         <Button variant="ghost" size="sm" asChild className="mb-2">
-          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+          <Link to="/teacher/classes"><ArrowLeft className="w-4 h-4" /> All tests</Link>
         </Button>
         <Card className="p-6">
           <p className="text-sm text-muted-foreground">This DPP is not available.</p>
@@ -238,7 +238,7 @@ export default function DppEditor() {
     <>
       <div className="flex items-center justify-between mb-2 gap-2">
         <Button variant="ghost" size="sm" asChild>
-          <Link to="/teacher/dpp"><ArrowLeft className="w-4 h-4" /> All DPPs</Link>
+          <Link to="/teacher/classes"><ArrowLeft className="w-4 h-4" /> All tests</Link>
         </Button>
         <Button variant="outline" size="sm" onClick={deleteDpp}>
           <Trash2 className="w-4 h-4 mr-1 text-destructive" /> Delete

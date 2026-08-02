@@ -28,8 +28,8 @@ const BG_BASE = "/student/battleground";
 
 const BG_TABS = [
   { to: BG_BASE, label: "Arena", end: true, icon: Sword },
-  { to: `${BG_BASE}/create`, label: "Challenge", end: true, icon: Users },
-  { to: `${BG_BASE}/progress`, label: "Progress", end: true, icon: TrendingUp },
+  { to: BG_BASE, label: "Challenge", end: false, icon: Users },
+  { to: `${BG_BASE}`, label: "Progress", end: false, icon: TrendingUp },
 ] as const;
 
 function BattlegroundLayout() {
@@ -1008,11 +1008,12 @@ export default function Battleground() {
     <Routes>
       <Route element={<BattlegroundLayout />}>
         <Route index element={<Arena />} />
-        <Route path="create" element={<CreateBattle />} />
-        <Route path="progress" element={<BattlegroundProgress />} />
-        <Route path="stats" element={<Navigate to="../progress" replace />} />
-        <Route path="achievements" element={<Navigate to="../progress" replace />} />
-        <Route path="leaderboard" element={<Navigate to="../progress" replace />} />
+        {/* Nested tabs redirect — design Battleground at /student/battleground is canonical. */}
+        <Route path="create" element={<Navigate to="/student/battleground" replace />} />
+        <Route path="progress" element={<Navigate to="/student/battleground" replace />} />
+        <Route path="stats" element={<Navigate to="/student/battleground" replace />} />
+        <Route path="achievements" element={<Navigate to="/student/achievements" replace />} />
+        <Route path="leaderboard" element={<Navigate to="/student/leaderboard" replace />} />
       </Route>
       <Route path="battle/:id" element={<BattleRoom />} />
       <Route path="report/:participantId" element={<BattleReportPage />} />

@@ -97,7 +97,7 @@ export default function ClassDetail() {
             <GraduationCap className="w-3.5 h-3.5" /> Class teacher
           </div>
           {classTeacher ? (
-            <Link to={`/admin/teachers/${classTeacher.id}`} className="block hover:underline">
+            <Link to={`/admin/teachers`} className="block hover:underline">
               <div className="font-semibold">{classTeacher.full_name}</div>
               <div className="text-xs text-muted-foreground">{classTeacher.subject || "—"}</div>
             </Link>
@@ -109,13 +109,13 @@ export default function ClassDetail() {
 
       {/* Quick actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
-        <Link to="/admin/attendance" className="flex items-center justify-center gap-1.5 text-xs font-medium p-3 rounded-lg border hover:border-primary/40 hover:bg-primary/[0.02]">
+        <Link to="/admin/classes" className="flex items-center justify-center gap-1.5 text-xs font-medium p-3 rounded-lg border hover:border-primary/40 hover:bg-primary/[0.02]">
           <ClipboardCheck className="w-3.5 h-3.5 text-primary" /> Mark Attendance
         </Link>
-        <Link to="/admin/exams" className="flex items-center justify-center gap-1.5 text-xs font-medium p-3 rounded-lg border hover:border-primary/40 hover:bg-primary/[0.02]">
+        <Link to="/admin/examinations" className="flex items-center justify-center gap-1.5 text-xs font-medium p-3 rounded-lg border hover:border-primary/40 hover:bg-primary/[0.02]">
           <FilePlus className="w-3.5 h-3.5 text-accent" /> Create Exam
         </Link>
-        <Link to="/admin/notices" className="flex items-center justify-center gap-1.5 text-xs font-medium p-3 rounded-lg border hover:border-primary/40 hover:bg-primary/[0.02]">
+        <Link to="/admin/announcements" className="flex items-center justify-center gap-1.5 text-xs font-medium p-3 rounded-lg border hover:border-primary/40 hover:bg-primary/[0.02]">
           <Send className="w-3.5 h-3.5 text-warning" /> Send Notice
         </Link>
         <Link to="/admin/students" className="flex items-center justify-center gap-1.5 text-xs font-medium p-3 rounded-lg border hover:border-primary/40 hover:bg-primary/[0.02]">
@@ -165,7 +165,7 @@ export default function ClassDetail() {
       <Card className="p-0 shadow-card overflow-hidden">
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <h3 className="font-semibold text-sm">Recent exams</h3>
-          <Link to="/admin/exams" className="text-xs text-primary hover:underline">View all</Link>
+          <Link to="/admin/examinations" className="text-xs text-primary hover:underline">View all</Link>
         </div>
         {exams.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-8">No exams scheduled.</p>

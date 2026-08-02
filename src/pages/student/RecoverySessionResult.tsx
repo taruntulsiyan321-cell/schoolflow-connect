@@ -261,7 +261,7 @@ export default function RecoverySessionResult() {
           <Link to="/student/mistakes">Mistake book</Link>
         </Button>
         <Button asChild variant="ghost" size="sm">
-          <Link to="/student/analytics">View analysis</Link>
+          <Link to="/student/analysis">View analysis</Link>
         </Button>
       </div>
 

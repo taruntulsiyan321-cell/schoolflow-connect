@@ -53,6 +53,14 @@ export function teacherPathToPage(pathname: string): TeacherPageKey {
     return "announcements";
   if (p.startsWith("/teacher/leave") || p.startsWith("/teacher/leaves")) return "leave";
   if (p.startsWith("/teacher/profile")) return "profile";
+  if (
+    p.startsWith("/teacher/dpp") ||
+    p.startsWith("/teacher/question-bank") ||
+    p.startsWith("/teacher/insights") ||
+    p.startsWith("/teacher/practice") ||
+    p.startsWith("/teacher/reports")
+  )
+    return "myclasses";
   if (p === "/teacher") return "dashboard";
 
   const hit = (Object.entries(TEACHER_PAGE_PATH) as [TeacherPageKey, string][]).find(([, path]) => path === p);
