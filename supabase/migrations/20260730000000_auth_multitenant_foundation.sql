@@ -31,8 +31,10 @@ FROM public.app_settings a
 WHERE s.id = '00000000-0000-4000-8000-000000000001';
 
 -- ── 3. Profile multi-tenant + active status ──────────────────────────────────
+-- Separate ALTERs so a pre-existing school_id cannot skip is_active on older applies.
 ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS school_id uuid REFERENCES public.schools(id),
+  ADD COLUMN IF NOT EXISTS school_id uuid REFERENCES public.schools(id);
+ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
 
 UPDATE public.profiles

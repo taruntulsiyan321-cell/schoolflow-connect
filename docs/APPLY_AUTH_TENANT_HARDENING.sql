@@ -11,6 +11,12 @@
 --   7. Tenant-bind admin SECURITY DEFINER RPCs + link_portal_on_auth
 -- ============================================================================
 
+-- ── 0a. Ensure profiles.is_active exists ─────────────────────────────────────
+-- Live DBs may have school_id from a partial/earlier apply without is_active
+-- (generated types show school_id only). Keep disable-account security intact.
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+
 -- ── 0. Active-session helper (defense in depth for DEFINER RPCs) ─────────────
 CREATE OR REPLACE FUNCTION public.require_active_profile()
 RETURNS uuid
