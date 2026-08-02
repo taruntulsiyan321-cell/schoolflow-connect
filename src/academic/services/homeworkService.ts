@@ -359,7 +359,9 @@ export const HomeworkService = {
   async createDraft(ctx: ServiceContext, input: CreateHomeworkInput): Promise<HomeworkRecord> {
     assertCanOwn(ctx, "homework");
     await assertTeacherMayManageClass(ctx, input.classId, input.subject);
-    return createHomework(toRepoContext(ctx), { ...input, status: "draft" });
+    const row = await createHomework(toRepoContext(ctx), { ...input, status: "draft" });
+    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.createDraft" });
+    return row;
   },
 
   async update(
@@ -488,7 +490,9 @@ export const HomeworkService = {
     assertCanOwn(ctx, "homework");
     const existing = await getHomework(toRepoContext(ctx), homeworkId);
     await assertTeacherMayManageClass(ctx, existing.classId, existing.subject);
-    return duplicateHomework(toRepoContext(ctx), homeworkId);
+    const row = await duplicateHomework(toRepoContext(ctx), homeworkId);
+    afterHomeworkWrite(ctx, { classId: row.classId, source: "HomeworkService.duplicate" });
+    return row;
   },
 
   async listSubmissions(

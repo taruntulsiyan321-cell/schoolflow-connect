@@ -29,6 +29,7 @@ import {
   TestService,
   ProgressionService,
   TEST_KIND_LABELS,
+  useAcademicLive,
   type ClassStudentRow,
   type StudentAcademicProfile,
   type StudentHomeworkRow,
@@ -105,6 +106,15 @@ function resolveTestStatus(t: TestRow): string {
 /** Live roster + AcademicProfileService metrics + student detail panels. */
 export function LiveStudentsTab({ classId }: { classId: string }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive([
+    "attendance",
+    "homework",
+    "marks",
+    "examination",
+    "test",
+    "profile",
+    "xp",
+  ]);
   const [rows, setRows] = useState<LiveStudent[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<LiveStudent | null>(null);
@@ -161,7 +171,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, classId]);
+  }, [ready, ctx, classId, liveVersion]);
 
   useEffect(() => {
     if (!ready || !ctx || !selected) {
@@ -689,6 +699,7 @@ const LIBRARY_FILTER_KEYS = [
 
 export function LiveTestsTab({ classId, subject }: { classId: string; subject: string }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["test", "profile"]);
   const [tests, setTests] = useState<TestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -736,7 +747,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     if (!ready || !ctx) return;
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, classId]);
+  }, [ready, ctx, classId, liveVersion]);
 
   useEffect(() => {
     if (!ready || !ctx || step !== "library") return;
@@ -1690,6 +1701,7 @@ export function LiveExamsMarksTab({
   isClassTeacher?: boolean;
 }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["marks", "examination", "profile"]);
   type ExamGroup = Awaited<ReturnType<typeof MarksService.listExamGroupsForClass>>[number];
 
   const [groups, setGroups] = useState<ExamGroup[]>([]);
@@ -1736,7 +1748,7 @@ export function LiveExamsMarksTab({
     if (!ready || !ctx) return;
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, classId]);
+  }, [ready, ctx, classId, liveVersion]);
 
   const showFlash = (msg: string) => {
     setFlash(msg);
@@ -2256,6 +2268,15 @@ function DecisionSection({
 
 export function LiveInsightsTab({ classId }: { classId: string }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive([
+    "attendance",
+    "homework",
+    "marks",
+    "examination",
+    "test",
+    "profile",
+    "xp",
+  ]);
   const [analytics, setAnalytics] = useState<Awaited<
     ReturnType<typeof AnalyticsService.forClass>
   > | null>(null);
@@ -2331,7 +2352,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, classId]);
+  }, [ready, ctx, classId, liveVersion]);
 
   const displayName = (studentId: string) =>
     nameById.get(studentId) ?? "Unknown student";

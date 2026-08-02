@@ -17,6 +17,7 @@ import {
   type AttendanceStatus,
   type ClassStudentRow,
 } from "@/academic/services/attendanceService";
+import { useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 const STATUS_OPTIONS: {
@@ -51,6 +52,7 @@ export function TeacherAttendanceWorkspace({
 }: TeacherAttendanceWorkspaceProps) {
   const navigate = useNavigate();
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["attendance", "profile"]);
 
   const [classes, setClasses] = useState<AssignedClass[]>([]);
   const [classId, setClassId] = useState<string | null>(fixedClassId ?? null);
@@ -130,7 +132,7 @@ export function TeacherAttendanceWorkspace({
     } finally {
       setLoading(false);
     }
-  }, [ctx, classId, date]);
+  }, [ctx, classId, date, liveVersion]);
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -140,7 +142,7 @@ export function TeacherAttendanceWorkspace({
   useEffect(() => {
     if (!ready || !ctx || !classId) return;
     void loadRoster();
-  }, [ready, ctx, classId, date, loadRoster]);
+  }, [ready, ctx, classId, date, loadRoster, liveVersion]);
 
   const dirty = useMemo(
     () => students.some((s) => marks[s.id] !== savedMarks[s.id]),

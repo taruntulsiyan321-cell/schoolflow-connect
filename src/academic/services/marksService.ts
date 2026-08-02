@@ -186,6 +186,7 @@ export const MarksService = {
     await assertTeacherMayManageAcademicWork(ctx, exam.classId, exam.subject);
     const { deleteExam } = await import("../repository/examRepository");
     await deleteExam(toRepoContext(ctx), examId);
+    afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.removeExam" });
   },
 
   async publishBatch(
