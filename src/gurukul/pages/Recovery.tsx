@@ -6,6 +6,7 @@ import { PracticeService, useAcademicContext } from "@/academic";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
+import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { GlassCard, SubjectBadge, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   RefreshCw, AlertCircle, ChevronRight, ChevronDown, CheckCircle2,
@@ -45,6 +46,7 @@ function formatRelativeDate(iso: string): string {
 function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
   const weakMap = new Map<string, WeakConcept>();
   for (const w of data.weak_concepts ?? []) {
+    if (isPlaceholderAcademicLabel(w.subject) || isPlaceholderAcademicLabel(w.concept)) continue;
     weakMap.set(`${w.subject}:${w.concept}`, w);
   }
 
@@ -52,15 +54,18 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
   const seen = new Set<string>();
 
   for (const a of data.open_assignments ?? []) {
+    if (isPlaceholderAcademicLabel(a.subject) || isPlaceholderAcademicLabel(a.concept)) continue;
     const key = `${a.subject}:${a.concept}`;
     seen.add(key);
     const weak = weakMap.get(key);
+    const chapter =
+      a.chapter && !isPlaceholderAcademicLabel(a.chapter) ? a.chapter : "—";
     topics.push({
       id: a.id,
       assignmentId: a.id,
       concept: a.concept,
       subject: a.subject,
-      chapter: a.chapter ?? "—",
+      chapter,
       priority: severityToPriority(a.severity),
       mastery: Math.round(weak?.mastery_score ?? 0),
       attempts: weak?.mistake_count ?? 0,
@@ -75,13 +80,16 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
   }
 
   for (const w of data.weak_concepts ?? []) {
+    if (isPlaceholderAcademicLabel(w.subject) || isPlaceholderAcademicLabel(w.concept)) continue;
     const key = `${w.subject}:${w.concept}`;
     if (seen.has(key)) continue;
+    const chapter =
+      w.chapter && !isPlaceholderAcademicLabel(w.chapter) ? w.chapter : "—";
     topics.push({
       id: key,
       concept: w.concept,
       subject: w.subject,
-      chapter: w.chapter ?? "—",
+      chapter,
       priority: w.mastery_score < 40 ? "high" : w.mastery_score < 55 ? "medium" : "low",
       mastery: Math.round(w.mastery_score),
       attempts: w.mistake_count ?? 0,
@@ -313,8 +321,8 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
 export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data, loading, error, reload } = useRecoveryZone();
   const { ctx, ready: academicReady } = useAcademicContext();
+  const { data, loading, error, reload } = useRecoveryZone(academicReady);
   const [view, setView] = useState<RecoveryView>("overview");
   const [activeTopic, setActiveTopic] = useState<RecoveryTopic | null>(null);
   const [sessionScore, setSessionScore] = useState(0);
@@ -368,20 +376,26 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     [TOPICS],
   );
   const HISTORY = useMemo(() => {
-    return (data?.recent_completed ?? []).map((h) => ({
-      id: h.id,
-      concept: h.concept,
-      subject: h.subject,
-      date: formatRelativeDate(h.date),
-      score: h.score,
-      improved: h.improved,
-    }));
+    return (data?.recent_completed ?? [])
+      .filter(
+        (h) =>
+          !isPlaceholderAcademicLabel(h.subject) &&
+          !isPlaceholderAcademicLabel(h.concept),
+      )
+      .map((h) => ({
+        id: h.id,
+        concept: h.concept,
+        subject: h.subject,
+        date: formatRelativeDate(h.date),
+        score: h.score,
+        improved: h.improved,
+      }));
   }, [data?.recent_completed]);
   const sessionsDone = data?.completed_count ?? HISTORY.length;
 
   // Deep-link ?fix=1&subject=&chapter=&concept= (legacy RevisionQueue / analytics)
   useEffect(() => {
-    if (fixHandledRef.current || loading || !data) return;
+    if (!academicReady || !ctx || fixHandledRef.current || loading || !data) return;
     const fix = searchParams.get("fix");
     if (fix !== "1") return;
     fixHandledRef.current = true;
@@ -415,9 +429,10 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
       if (assignmentId) navigate(`/student/recovery/${assignmentId}`);
       else navigate(`/student/practice?chapter=${encodeURIComponent(chapter || concept)}`);
     })();
-  }, [loading, data, TOPICS, searchParams, navigate, setSearchParams]);
+  }, [academicReady, ctx, loading, data, TOPICS, searchParams, navigate, setSearchParams]);
 
   async function startSession(topic: RecoveryTopic) {
+    if (!academicReady || !ctx) return;
     if (topic.assignmentId) {
       navigate(`/student/recovery/${topic.assignmentId}`);
       return;
