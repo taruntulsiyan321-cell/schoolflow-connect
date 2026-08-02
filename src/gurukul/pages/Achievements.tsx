@@ -4,7 +4,7 @@ import { Lock, Loader2, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
 import { BADGES, getBadge, TIER_CLASS } from "@/lib/badges";
-import { ProgressionService, type ProgressionSnapshot } from "@/academic";
+import { ProgressionService, type ProgressionSnapshot, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";

@@ -145,13 +145,13 @@ function formatDuration(startIso: string, endIso: string) {
 // ── Static data ──────────────────────────────────────────────────────────────
 const MODES: Mode[] = [
   { key:"daily",      label:"Daily Practice",         desc:"A fresh practice set drawn from your class question bank",
-    icon:<Flame className="w-5 h-5"/>,      color:"#c08a3a", cat:"source",   badge:"Daily", instant:true, hot:true },
+    icon:<Flame className="w-5 h-5"/>,      color:"#c08a3a", cat:"source",   badge:"Fresh set", instant:true, hot:true },
   { key:"subject",    label:"Subject Practice",       desc:"Practice questions from a subject of your choice",
-    icon:<BookOpen className="w-5 h-5"/>,   color:"#3b5bdb", cat:"content",  badge:"Subject" },
+    icon:<BookOpen className="w-5 h-5"/>,   color:"#3b5bdb", cat:"content",  badge:"By subject" },
   { key:"chapter",    label:"Chapter Practice",       desc:"Focus on a specific chapter to reinforce concepts",
     icon:<Layers className="w-5 h-5"/>,     color:"#4b9fd4", cat:"content",  badge:"Chapter" },
   { key:"topic",      label:"Topic Practice",         desc:"Drill down to a precise concept or sub-topic",
-    icon:<Target className="w-5 h-5"/>,     color:"#6882e8", cat:"content",  badge:"Topic" },
+    icon:<Target className="w-5 h-5"/>,     color:"#6882e8", cat:"content",  badge:"By topic" },
   { key:"teacher",    label:"Teacher Assigned",       desc:"Practice sets assigned by your teachers with due dates",
     icon:<ClipboardList className="w-5 h-5"/>, color:"#c08a3a", cat:"source", badge:"Assigned" },
   { key:"pyq",        label:"Previous Year Questions",desc:"Board and competitive exam questions from past years",

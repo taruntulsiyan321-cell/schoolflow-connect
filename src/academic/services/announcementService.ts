@@ -2,13 +2,24 @@ import {
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
+  ForbiddenError,
+  isSchoolOperator,
   type ServiceContext,
 } from "./context";
-import { getClient, throwIfError } from "../repository/base";
+import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import { broadcastAcademicWrite } from "../live";
+import { NotFoundError, ValidationFailedError } from "../repository/errors";
+import { validateAnnouncementContent } from "../validation/rules";
+import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
+import { assertMayAccessStudent } from "./parentAccess";
+
+export { ForbiddenError, isSchoolOperator } from "./context";
+export { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
+export { assertMayAccessStudent } from "./parentAccess";
 
 export type AnnouncementPriority = "normal" | "important" | "urgent";
 export type AnnouncementStatus = "draft" | "published" | "scheduled";
+export type NoticeAudience = "all" | "students" | "parents" | "class" | "section";
 
 export type TeacherAnnouncementRow = {
   id: string;
@@ -17,6 +28,7 @@ export type TeacherAnnouncementRow = {
   targetClass: string;
   targetSection: string;
   classId: string | null;
+  audience: NoticeAudience;
   status: AnnouncementStatus;
   scheduledFor?: string;
   publishedAt?: string;
@@ -30,6 +42,7 @@ type NoticeRow = {
   title: string;
   body: string;
   class_id: string | null;
+  audience: string;
   status: string;
   priority: string | null;
   published_at?: string | null;
@@ -56,6 +69,13 @@ function uiStatus(db: string): AnnouncementStatus {
   return "published";
 }
 
+function uiAudience(db: string | null | undefined): NoticeAudience {
+  if (db === "all" || db === "students" || db === "parents" || db === "section") {
+    return db;
+  }
+  return "class";
+}
+
 function mapNotice(row: NoticeRow): TeacherAnnouncementRow {
   const status = uiStatus(row.status);
   const publishedAt =
@@ -73,6 +93,7 @@ function mapNotice(row: NoticeRow): TeacherAnnouncementRow {
     targetClass: row.classes?.name ?? "",
     targetSection: row.classes?.section ?? "",
     classId: row.class_id,
+    audience: uiAudience(row.audience),
     status,
     scheduledFor,
     publishedAt,
@@ -89,7 +110,138 @@ export type UpsertAnnouncementInput = {
   priority?: AnnouncementPriority;
   status?: AnnouncementStatus;
   scheduledFor?: string | null;
+  audience?: NoticeAudience;
 };
+
+/** Teachers must own the target class; school operators bypass. */
+export async function assertTeacherMayAnnounce(
+  ctx: ServiceContext,
+  classId: string,
+): Promise<void> {
+  if (isSchoolOperator(ctx.role)) return;
+  if (ctx.role !== "teacher") {
+    throw new ForbiddenError("Only teachers may publish class announcements");
+  }
+  await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, classId);
+}
+
+async function loadNoticeForMutation(
+  ctx: ServiceContext,
+  id: string,
+): Promise<NoticeRow> {
+  const repo = toRepoContext(ctx);
+  const { data, error } = await getClient(repo)
+    .from("notices")
+    .select("*, classes(name, section)")
+    .eq("id", id)
+    .eq("school_id", ctx.schoolId)
+    .is("revoked_at", null)
+    .maybeSingle();
+  throwIfError(error, "Failed to load announcement");
+  if (!data) throw new NotFoundError("announcement", id);
+  return data as NoticeRow;
+}
+
+async function resolveStudentClassId(ctx: ServiceContext): Promise<string | null> {
+  const repo = toRepoContext(ctx);
+  const schoolId = schoolIdOf(repo);
+  if (ctx.studentId) {
+    const { data, error } = await getClient(repo)
+      .from("students")
+      .select("class_id")
+      .eq("id", ctx.studentId)
+      .eq("school_id", schoolId)
+      .maybeSingle();
+    throwIfError(error, "Failed to resolve student class");
+    return data?.class_id ?? null;
+  }
+  const { data, error } = await getClient(repo)
+    .from("students")
+    .select("class_id")
+    .eq("user_id", ctx.userId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  throwIfError(error, "Failed to resolve student class");
+  return data?.class_id ?? null;
+}
+
+async function resolveParentClassIds(ctx: ServiceContext): Promise<string[]> {
+  const repo = toRepoContext(ctx);
+  const schoolId = schoolIdOf(repo);
+  const classIds = new Set<string>();
+
+  const { data: direct, error: dErr } = await getClient(repo)
+    .from("students")
+    .select("class_id")
+    .eq("school_id", schoolId)
+    .eq("parent_user_id", ctx.userId);
+  throwIfError(dErr, "Failed to list parent-linked students");
+  for (const row of direct ?? []) {
+    if (row.class_id) classIds.add(String(row.class_id));
+  }
+
+  const { data: parentRow, error: pErr } = await getClient(repo)
+    .from("parents")
+    .select("id")
+    .eq("school_id", schoolId)
+    .eq("user_id", ctx.userId)
+    .maybeSingle();
+  throwIfError(pErr, "Failed to resolve parent row");
+  if (parentRow?.id) {
+    const { data: links, error: lErr } = await getClient(repo)
+      .from("parent_students")
+      .select("student_id")
+      .eq("school_id", schoolId)
+      .eq("parent_id", parentRow.id);
+    throwIfError(lErr, "Failed to list parent_students");
+    const studentIds = (links ?? []).map((l) => String(l.student_id));
+    if (studentIds.length) {
+      const { data: children, error: cErr } = await getClient(repo)
+        .from("students")
+        .select("class_id")
+        .eq("school_id", schoolId)
+        .in("id", studentIds);
+      throwIfError(cErr, "Failed to load linked student classes");
+      for (const row of children ?? []) {
+        if (row.class_id) classIds.add(String(row.class_id));
+      }
+    }
+  }
+
+  return [...classIds];
+}
+
+function noticeVisibleToStudentRow(
+  row: TeacherAnnouncementRow,
+  classId: string | null,
+): boolean {
+  if (row.audience === "all" || row.audience === "students") return true;
+  if (
+    (row.audience === "class" || row.audience === "section") &&
+    classId &&
+    row.classId === classId
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function noticeVisibleToParentRow(
+  row: TeacherAnnouncementRow,
+  classIds: string[],
+): boolean {
+  if (row.audience === "all" || row.audience === "parents") return true;
+  if (
+    row.classId &&
+    classIds.includes(row.classId) &&
+    (row.audience === "class" ||
+      row.audience === "section" ||
+      row.audience === "students")
+  ) {
+    return true;
+  }
+  return false;
+}
 
 /**
  * AnnouncementService — teacher class notices via `notices` (entity: announcement).
@@ -115,7 +267,66 @@ export const AnnouncementService = {
     return (data ?? []).map((r) => mapNotice(r as NoticeRow));
   },
 
-  /** Published school/class notices for parent/student consumers. */
+  /** Published notices scoped to one class (class/section audience + school-wide). */
+  async listPublishedForClassScope(
+    ctx: ServiceContext,
+    classId: string,
+  ): Promise<TeacherAnnouncementRow[]> {
+    assertCanConsume(ctx, "announcement");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("notices")
+      .select("*, classes(name, section)")
+      .eq("school_id", ctx.schoolId)
+      .eq("status", "published")
+      .is("revoked_at", null)
+      .order("published_at", { ascending: false })
+      .limit(100);
+    throwIfError(error, "Failed to list published class announcements");
+    return (data ?? [])
+      .map((r) => mapNotice(r as NoticeRow))
+      .filter((row) => noticeVisibleToStudentRow(row, classId));
+  },
+
+  /** Published notices for the signed-in student (school-wide + class). */
+  async listPublishedForStudent(ctx: ServiceContext): Promise<TeacherAnnouncementRow[]> {
+    assertCanConsume(ctx, "announcement");
+    if (ctx.role === "student" && ctx.studentId) {
+      await assertMayAccessStudent(ctx, ctx.studentId);
+    }
+    const classId = await resolveStudentClassId(ctx);
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("notices")
+      .select("*, classes(name, section)")
+      .eq("school_id", ctx.schoolId)
+      .eq("status", "published")
+      .is("revoked_at", null)
+      .order("published_at", { ascending: false })
+      .limit(100);
+    throwIfError(error, "Failed to list published announcements for student");
+    return (data ?? [])
+      .map((r) => mapNotice(r as NoticeRow))
+      .filter((row) => noticeVisibleToStudentRow(row, classId));
+  },
+
+  /** Published notices for parent — school-wide + linked children's classes. */
+  async listPublishedForParent(ctx: ServiceContext): Promise<TeacherAnnouncementRow[]> {
+    assertCanConsume(ctx, "announcement");
+    const classIds = await resolveParentClassIds(ctx);
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("notices")
+      .select("*, classes(name, section)")
+      .eq("school_id", ctx.schoolId)
+      .eq("status", "published")
+      .is("revoked_at", null)
+      .order("published_at", { ascending: false })
+      .limit(100);
+    throwIfError(error, "Failed to list published announcements for parent");
+    return (data ?? [])
+      .map((r) => mapNotice(r as NoticeRow))
+      .filter((row) => noticeVisibleToParentRow(row, classIds));
+  },
+
+  /** Published school notices for any consumer role. */
   async listPublishedForSchool(
     ctx: ServiceContext,
   ): Promise<TeacherAnnouncementRow[]> {
@@ -135,6 +346,9 @@ export const AnnouncementService = {
   /** All school notices (draft / scheduled / published) for principal/admin. */
   async listForSchool(ctx: ServiceContext): Promise<TeacherAnnouncementRow[]> {
     assertCanConsume(ctx, "announcement");
+    if (!isSchoolOperator(ctx.role)) {
+      throw new ForbiddenError("School announcement list is admin/principal-only");
+    }
     const { data, error } = await getClient(toRepoContext(ctx))
       .from("notices")
       .select("*, classes(name, section)")
@@ -151,6 +365,12 @@ export const AnnouncementService = {
     input: UpsertAnnouncementInput,
   ): Promise<TeacherAnnouncementRow> {
     assertCanOwn(ctx, "announcement");
+    await assertTeacherMayAnnounce(ctx, input.classId);
+    const validation = validateAnnouncementContent(input.title, input.body);
+    if (!validation.ok) {
+      throw new ValidationFailedError(validation.issues);
+    }
+
     const status = input.status ?? "draft";
     const publishedAt =
       status === "published"
@@ -162,7 +382,7 @@ export const AnnouncementService = {
     const payload = {
       title: input.title.trim(),
       body: input.body.trim(),
-      audience: "class" as const,
+      audience: (input.audience ?? "class") as NoticeAudience,
       class_id: input.classId,
       school_id: ctx.schoolId,
       posted_by: ctx.userId,
@@ -191,7 +411,20 @@ export const AnnouncementService = {
     input: UpsertAnnouncementInput,
   ): Promise<TeacherAnnouncementRow> {
     assertCanOwn(ctx, "announcement");
-    const status = input.status ?? "draft";
+    const existing = await loadNoticeForMutation(ctx, id);
+    const classId = input.classId ?? existing.class_id;
+    if (!classId) {
+      throw new ValidationFailedError([
+        { field: "classId", code: "required", message: "Class is required" },
+      ]);
+    }
+    await assertTeacherMayAnnounce(ctx, classId);
+    const validation = validateAnnouncementContent(input.title, input.body);
+    if (!validation.ok) {
+      throw new ValidationFailedError(validation.issues);
+    }
+
+    const status = input.status ?? uiStatus(existing.status);
     const publishedAt =
       status === "published"
         ? new Date().toISOString()
@@ -204,18 +437,20 @@ export const AnnouncementService = {
       .update({
         title: input.title.trim(),
         body: input.body.trim(),
-        class_id: input.classId,
+        class_id: classId,
+        audience: (input.audience ?? uiAudience(existing.audience)) as NoticeAudience,
         status,
-        priority: dbPriority(input.priority ?? "normal"),
+        priority: dbPriority(input.priority ?? uiPriority(existing.priority)),
         published_at: publishedAt,
       } as never)
       .eq("id", id)
+      .eq("school_id", ctx.schoolId)
       .select("*, classes(name, section)")
       .single();
     throwIfError(error, "Failed to update announcement");
 
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {
-      classId: input.classId,
+      classId,
       source: "AnnouncementService.update",
     });
     return mapNotice(data as NoticeRow);
@@ -223,12 +458,21 @@ export const AnnouncementService = {
 
   async remove(ctx: ServiceContext, id: string): Promise<void> {
     assertCanOwn(ctx, "announcement");
+    const existing = await loadNoticeForMutation(ctx, id);
+    if (existing.class_id) {
+      await assertTeacherMayAnnounce(ctx, existing.class_id);
+    } else if (!isSchoolOperator(ctx.role)) {
+      throw new ForbiddenError("Only school operators may revoke school-wide notices");
+    }
+
     const { error } = await getClient(toRepoContext(ctx))
       .from("notices")
       .update({ revoked_at: new Date().toISOString() } as never)
-      .eq("id", id);
+      .eq("id", id)
+      .eq("school_id", ctx.schoolId);
     throwIfError(error, "Failed to delete announcement");
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      classId: existing.class_id ?? undefined,
       source: "AnnouncementService.remove",
     });
   },

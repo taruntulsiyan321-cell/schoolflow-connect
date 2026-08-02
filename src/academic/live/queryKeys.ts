@@ -14,6 +14,7 @@ export const academicQueryKeys = {
   battle: (schoolId?: string | null) => ["academic", "battle", schoolId ?? ""] as const,
   badges: (schoolId?: string | null, userId?: string | null) =>
     ["academic", "badges", schoolId ?? "", userId ?? ""] as const,
+  doubt: (schoolId?: string | null) => ["academic", "doubt", schoolId ?? ""] as const,
 };
 
 const DOMAIN_PREFIX: Record<Exclude<AcademicDomain, "all">, string> = {
@@ -26,6 +27,7 @@ const DOMAIN_PREFIX: Record<Exclude<AcademicDomain, "all">, string> = {
   xp: "xp",
   battle: "battle",
   achievements: "badges",
+  doubt: "doubt",
 };
 
 export async function invalidateAcademicQueries(

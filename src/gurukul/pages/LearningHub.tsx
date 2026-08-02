@@ -3,7 +3,7 @@ import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { GlassCard, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   BarChart2, RefreshCw, RotateCcw, AlertCircle,
-  ArrowRight, TrendingUp, CheckCircle2,
+  ArrowRight, TrendingUp, CheckCircle2, Loader2,
 } from "lucide-react";
 import { LineChart, Line, XAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { useMemo } from "react";
@@ -31,8 +31,11 @@ function subjectColor(name: string, index: number) {
 
 export default function LearningHub({ setPage }: Props) {
   const student = useGurukulStudent();
-  const { data: snapshot } = useStudentAcademicSnapshot();
-  const { data: charts } = useStudentPerformanceCharts();
+  const { data: snapshot, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
+  const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
+
+  const loading = snapLoading || chartsLoading;
+  const loadError = snapError || chartsError;
 
   const pendingRecovery = snapshot?.recovery_pending ?? 0;
   const dueRevision = snapshot?.revision_queue?.length ?? 0;
@@ -147,8 +150,29 @@ export default function LearningHub({ setPage }: Props) {
     ];
   }, [pendingRecovery, dueRevision, unresolvedErrors, snapshot?.self_practice?.sessions_completed]);
 
+  if (loading && !snapshot && !charts) {
+    return (
+      <div className="flex items-center justify-center py-24 text-[#78788c] text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading learning hub…
+      </div>
+    );
+  }
+
+  if (loadError && !snapshot && !charts) {
+    return (
+      <div className="rounded-2xl border border-[#cc5069]/25 bg-[#cc5069]/08 p-6 text-center space-y-3">
+        <p className="text-sm font-semibold text-white">Could not load learning data</p>
+        <p className="text-xs text-[#78788c]">{loadError}</p>
+        <button type="button" onClick={() => { void reloadSnap(); void reloadCharts(); }} className="text-xs font-bold text-[#3b5bdb] hover:underline">Try again</button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
+      {loadError && (
+        <div className="rounded-xl border border-[#c08a3a]/30 bg-[#c08a3a]/10 px-4 py-2 text-xs text-[#c08a3a]">Some live stats failed to refresh: {loadError}</div>
+      )}
       {/* Header */}
       <div>
         <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Student Panel</div>

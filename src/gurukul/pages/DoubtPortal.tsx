@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, type ReactNode } from "react";
 import { DoubtService, PracticeService, type ServiceContext, useAcademicLive } from "@/academic";
 import { askAiCoach, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } from "@/academic/ai/gatewayClient";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -7,16 +7,31 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/auth";
 import { GlassCard, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
-import { getNcertSubjects } from "@/lib/ncertSyllabus";
+import { getNcertChapters, getNcertSubjects } from "@/lib/ncertSyllabus";
+import {
+  COMING_SOON_LABEL,
+  comingSoonToast,
+  listDoubtAttachControls,
+  type DoubtAttachKind,
+} from "@/lib/productFeatureFlags";
 import { toast } from "sonner";
 import {
   MessageCircle, Plus, Search, Filter, ThumbsUp, Bookmark, BookmarkCheck,
-  CheckCircle2, Clock, ChevronDown, ChevronRight, Brain, Send,
-  X, Bell, Star, ArrowRight, SortAsc,
+  CheckCircle2, Clock, ChevronDown, ChevronRight, Brain, Send, Mic,
+  Image, FileText, Camera, X, Bell, Star, ArrowRight, SortAsc,
   AlertCircle, Eye, Hash, User, Sparkles, MoreHorizontal,
 } from "lucide-react";
 
-const FALLBACK_SUBJECTS = ["Mathematics", "English", "Hindi"];
+const DOUBT_ATTACH_ICONS: Record<DoubtAttachKind, ReactNode> = {
+  image: <Image className="w-4 h-4" />,
+  camera: <Camera className="w-4 h-4" />,
+  pdf: <FileText className="w-4 h-4" />,
+  voice: <Mic className="w-4 h-4" />,
+};
+
+function notifyDoubtAttachComingSoon(label: string) {
+  toast.message(comingSoonToast(label));
+}
 
 function useScopedSubjects() {
   const { ctx, ready } = useAcademicContext();
@@ -43,7 +58,7 @@ function useScopedSubjects() {
   }, [ready, ctx]);
 
   const subjects = useMemo(
-    () => subjectsForStreamPicker(stream, classLevel, getNcertSubjects(classLevel) || FALLBACK_SUBJECTS),
+    () => subjectsForStreamPicker(stream, classLevel, getNcertSubjects(classLevel) || []),
     [stream, classLevel],
   );
 
@@ -130,7 +145,7 @@ function mapDbStatus(status: string): DoubtStatus {
 
 function mapRowToDoubt(row: DbDoubtRow, userId: string | undefined, bookmarked = false): Doubt {
   const created = new Date(row.created_at);
-  const subj = row.subject ?? "General";
+  const subj = (row.subject ?? "").trim();
   return {
     id: row.id,
     title: row.title,
@@ -140,7 +155,7 @@ function mapRowToDoubt(row: DbDoubtRow, userId: string | undefined, bookmarked =
     topic: row.concept ?? "",
     authorName: row.student_name,
     authorAvatar: initialsFromName(row.student_name),
-    authorColor: subjectColor[subj] ?? "#3b5bdb",
+    authorColor: (subj && subjectColor[subj]) || "#3b5bdb",
     date: created.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
     time: created.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
     createdAt: row.created_at,
@@ -153,7 +168,9 @@ function mapRowToDoubt(row: DbDoubtRow, userId: string | undefined, bookmarked =
     bookmarked,
     attachments: row.image_url ? [row.image_url] : [],
     mine: row.user_id === userId,
-    tags: [row.subject, row.chapter, row.concept].filter(Boolean).map((t) => String(t).toLowerCase()),
+    tags: [row.subject, row.chapter, row.concept]
+      .filter((t): t is string => !!t && String(t).trim().length > 0)
+      .map((t) => String(t).toLowerCase()),
   };
 }
 
@@ -664,7 +681,22 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
             placeholder="Share what you know, ask a follow-up, or add a helpful explanation..."
             rows={3}
             className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#3b5bdb]/30 resize-none leading-relaxed"/>
-          <div className="flex items-center justify-end mt-2">
+          <div className="flex items-center justify-between mt-2 gap-2">
+            <div className="flex items-center gap-1.5 text-[#78788c]">
+              {listDoubtAttachControls(["image", "voice"]).map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  title={a.presentation === "coming_soon" ? `${a.label} — ${COMING_SOON_LABEL}` : a.label}
+                  onClick={() => {
+                    if (a.presentation === "coming_soon") notifyDoubtAttachComingSoon(a.label);
+                  }}
+                  className="p-1.5 rounded-lg hover:bg-white/10 hover:text-white transition-all"
+                >
+                  {DOUBT_ATTACH_ICONS[a.id]}
+                </button>
+              ))}
+            </div>
             <button onClick={() => void sendReply()} disabled={!replyText.trim() || replying || !ready}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-bold transition-all">
               <Send className="w-3.5 h-3.5"/>{replying ? "Posting…" : "Reply"}
@@ -695,6 +727,7 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx, onOpenDoubt }: {
   const [topic, setTopic] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiReply, setAiReply] = useState<string|null>(null);
+  const attachControls = useMemo(() => listDoubtAttachControls(), []);
 
   useEffect(() => {
     if (subjectOptions.length && !subjectOptions.includes(subject)) {
@@ -827,17 +860,25 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx, onOpenDoubt }: {
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Subject *</label>
-            <select value={subject} onChange={e => setSubject(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/30 appearance-none">
-              {subjectOptions.map(s => <option key={s} value={s} className="bg-[#131316]">{s}</option>)}
+            <select value={subject} onChange={e => { setSubject(e.target.value); setChapter(""); }}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/30 appearance-none"
+              disabled={subjectOptions.length === 0}>
+              {subjectOptions.length === 0 ? (
+                <option value="" className="bg-[#131316]">No subjects for your class yet</option>
+              ) : (
+                subjectOptions.map(s => <option key={s} value={s} className="bg-[#131316]">{s}</option>)
+              )}
             </select>
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Chapter</label>
             <select value={chapter} onChange={e => setChapter(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/30 appearance-none">
-              <option value="" className="bg-[#131316]">Select chapter...</option>
-              {(CHAPTERS[subject] || []).map(c => <option key={c} value={c} className="bg-[#131316]">{c}</option>)}
+              className="w-full px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/30 appearance-none"
+              disabled={!subject || chapterOptions.length === 0}>
+              <option value="" className="bg-[#131316]">
+                {!subject ? "Select a subject first" : chapterOptions.length ? "Select chapter..." : "No chapters listed"}
+              </option>
+              {chapterOptions.map(c => <option key={c} value={c} className="bg-[#131316]">{c}</option>)}
             </select>
           </div>
         </div>
@@ -864,9 +905,40 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx, onOpenDoubt }: {
             className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-[#3b5bdb]/30 resize-none leading-relaxed"/>
         </div>
 
-        <p className="text-[11px] text-[#78788c]">
-          Image, camera, PDF, and voice attachments are not available yet — describe the problem in text, or ask Nova first.
-        </p>
+        {attachControls.length > 0 && (
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-[#78788c] mb-1.5 block">Attach (optional)</label>
+            <div className="flex flex-wrap gap-2">
+              {attachControls.map((a) => {
+                const soon = a.presentation === "coming_soon";
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    title={soon ? `${a.label} — ${COMING_SOON_LABEL}` : a.label}
+                    onClick={() => {
+                      if (soon) notifyDoubtAttachComingSoon(a.label);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all",
+                      soon
+                        ? "bg-white/5 border-white/10 text-[#78788c] hover:bg-white/8"
+                        : "bg-white/5 border-white/10 text-[#78788c] hover:text-white hover:bg-white/10",
+                    )}
+                  >
+                    {DOUBT_ATTACH_ICONS[a.id]}
+                    {a.label}
+                    {soon && (
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-[#a5b4fc]/80">
+                        {COMING_SOON_LABEL}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </GlassCard>
 
       {/* AI Option */}

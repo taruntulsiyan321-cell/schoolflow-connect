@@ -22,7 +22,7 @@ import { buildMilestones, consistencyGrid } from "@/components/student/analytics
 import { MarksService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
-import { displayChapter, displayTopic } from "@/lib/academicDisplay";
+import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   DAY_LABELS,
   buildWeekComparison,
@@ -237,31 +237,49 @@ export default function Analysis() {
     }));
   }, [mastery, analysis?.recent_sessions, snapshot]);
 
-  const topicGroups = useMemo(() => ({
-    doing_well: (snapshot?.strong_topics ?? []).map((t) => ({
-      topic: t.topic || t.chapter || "Topic",
-      subject: t.subject,
-      score: Math.round(t.accuracy),
-    })),
-    needs_attention: (snapshot?.weak_topics ?? []).map((t) => ({
-      topic: t.topic || t.chapter || "Topic",
-      subject: t.subject,
-      score: Math.round(t.accuracy),
-      practiceCount: practiceCountForTopic(
+  const topicGroups = useMemo(() => {
+    const realTopic = (t: { topic?: string | null; chapter?: string | null }) => {
+      const raw = (t.topic || t.chapter || "").trim();
+      return displayTopic(raw) ? raw : "";
+    };
+    return {
+      doing_well: (snapshot?.strong_topics ?? [])
+        .map((t) => {
+          const topic = realTopic(t);
+          if (!topic) return null;
+          return {
+            topic,
+            subject: t.subject,
+            score: Math.round(t.accuracy),
+          };
+        })
+        .filter((t): t is NonNullable<typeof t> => t != null),
+      needs_attention: (snapshot?.weak_topics ?? [])
+        .map((t) => {
+          const topic = realTopic(t);
+          if (!topic) return null;
+          return {
+            topic,
+            subject: t.subject,
+            score: Math.round(t.accuracy),
+            practiceCount: practiceCountForTopic(
+              analysis?.recent_sessions ?? [],
+              t.subject,
+              topic,
+            ),
+          };
+        })
+        .filter((t): t is NonNullable<typeof t> => t != null),
+      improving: deriveImprovingTopics(
+        charts?.practice_trend ?? [],
         analysis?.recent_sessions ?? [],
-        t.subject,
-        t.topic || t.chapter || "",
       ),
-    })),
-    improving: deriveImprovingTopics(
-      charts?.practice_trend ?? [],
-      analysis?.recent_sessions ?? [],
-    ),
-    not_started: mastery
-      .filter((m) => m.total_attempts === 0)
-      .slice(0, 8)
-      .map((m) => ({ topic: m.concept, subject: m.subject })),
-  }), [snapshot?.strong_topics, snapshot?.weak_topics, mastery, charts?.practice_trend, analysis?.recent_sessions]);
+      not_started: mastery
+        .filter((m) => m.total_attempts === 0 && displayTopic(m.concept))
+        .slice(0, 8)
+        .map((m) => ({ topic: m.concept, subject: m.subject })),
+    };
+  }, [snapshot?.strong_topics, snapshot?.weak_topics, mastery, charts?.practice_trend, analysis?.recent_sessions]);
 
   const practiceStats = useMemo(() => {
     const weekly = charts?.weekly_activity ?? [];
@@ -837,7 +855,7 @@ export default function Analysis() {
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{t.subject}</div>
+                      <div className="text-[11px] text-[#78788c]">{displaySubject(t.subject)}</div>
                     </div>
                     <span className="text-sm font-black text-emerald-400 shrink-0">{t.score}%</span>
                   </div>
@@ -856,7 +874,7 @@ export default function Analysis() {
                     <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{t.subject}{t.practiceCount > 0 ? ` · ${t.practiceCount} questions done` : ""}</div>
+                      <div className="text-[11px] text-[#78788c]">{displaySubject(t.subject)}{t.practiceCount > 0 ? ` · ${t.practiceCount} questions done` : ""}</div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black text-amber-400">{t.score}%</div>

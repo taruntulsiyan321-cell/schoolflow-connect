@@ -3,10 +3,14 @@ import {
   assertCanConsume,
   toRepoContext,
   ForbiddenError,
+  isSchoolOperator,
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
+import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
+import { ValidationFailedError } from "../repository/errors";
+import { validateLeaveDateRange } from "../validation/rules";
 
 export type LeaveApplicantKind = "student" | "teacher";
 export type LeaveStatus = "pending" | "approved" | "rejected";
@@ -58,9 +62,6 @@ function mapRow(row: DbLeave): LeaveRequestRow {
   };
 }
 
-/**
- * LeaveService — teacher/student leave requests via `leave_requests`.
- */
 export const LeaveService = {
   async listMine(ctx: ServiceContext): Promise<LeaveRequestRow[]> {
     assertCanConsume(ctx, "leave_request");
@@ -70,6 +71,21 @@ export const LeaveService = {
       .eq("applicant_user_id", ctx.userId)
       .order("created_at", { ascending: false });
     throwIfError(error, "Failed to list leave requests");
+    return ((data ?? []) as DbLeave[]).map(mapRow);
+  },
+
+  async listPending(ctx: ServiceContext): Promise<LeaveRequestRow[]> {
+    assertCanConsume(ctx, "leave_request");
+    if (!isSchoolOperator(ctx.role)) {
+      throw new ForbiddenError("Only school operators may review leave requests");
+    }
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("leave_requests")
+      .select("*")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    throwIfError(error, "Failed to list pending leave requests");
     return ((data ?? []) as DbLeave[]).map(mapRow);
   },
 
@@ -92,15 +108,32 @@ export const LeaveService = {
     if (ctx.role !== "teacher" && ctx.role !== "student" && ctx.role !== "parent") {
       throw new ForbiddenError("Only applicants may submit leave requests");
     }
+    const dateCheck = validateLeaveDateRange(input.fromDate, input.toDate);
+    if (!dateCheck.ok) {
+      throw new ValidationFailedError((dateCheck as { ok: false; issues: never[] }).issues);
+    }
+    const reason = input.reason.trim();
+    if (reason.length < 3) {
+      throw new ValidationFailedError([
+        { field: "reason", code: "too_short", message: "Leave reason must be at least 3 characters" },
+      ]);
+    }
+    const leaveType = input.leaveType.trim();
+    if (!leaveType) {
+      throw new ValidationFailedError([
+        { field: "leaveType", code: "required", message: "Leave type is required" },
+      ]);
+    }
+
     const { data, error } = await getClient(toRepoContext(ctx))
       .from("leave_requests")
       .insert({
         applicant_user_id: ctx.userId,
         applicant_kind: kind,
-        leave_type: input.leaveType,
+        leave_type: leaveType,
         from_date: input.fromDate,
         to_date: input.toDate,
-        reason: input.reason,
+        reason,
         student_id: kind === "student" ? (input.studentId ?? ctx.studentId ?? null) : null,
         class_id: kind === "student" ? (input.classId ?? null) : null,
         status: "pending",
@@ -108,9 +141,81 @@ export const LeaveService = {
       .select("*")
       .single();
     throwIfError(error, "Failed to submit leave request");
+    const row = mapRow(data as DbLeave);
+
+    await emitEvent(toRepoContext(ctx), {
+      eventType: "leave.requested",
+      entityType: "leave_request",
+      entityId: row.id,
+      studentId: row.studentId,
+      classId: row.classId,
+      payload: {
+        leave_type: row.leaveType,
+        from_date: row.fromDate,
+        to_date: row.toDate,
+        applicant_kind: row.applicantKind,
+      },
+    }).catch(() => undefined);
+
     broadcastAcademicWrite(ctx.schoolId, ["profile"], {
       source: "LeaveService.submit",
     });
-    return mapRow(data as DbLeave);
+    return row;
+  },
+
+  async review(
+    ctx: ServiceContext,
+    leaveId: string,
+    decision: Exclude<LeaveStatus, "pending">,
+    adminRemarks?: string,
+  ): Promise<LeaveRequestRow> {
+    assertCanConsume(ctx, "leave_request");
+    if (!isSchoolOperator(ctx.role)) {
+      throw new ForbiddenError("Only school operators may review leave requests");
+    }
+    if (decision !== "approved" && decision !== "rejected") {
+      throw new ValidationFailedError([
+        { field: "decision", code: "invalid", message: "Decision must be approved or rejected" },
+      ]);
+    }
+
+    const patch: Record<string, unknown> = {
+      status: decision,
+      reviewed_at: new Date().toISOString(),
+      reviewed_by: ctx.userId,
+    };
+    if (adminRemarks?.trim()) patch.review_note = adminRemarks.trim();
+
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("leave_requests")
+      .update(patch as never)
+      .eq("id", leaveId)
+      .eq("status", "pending")
+      .select("*")
+      .maybeSingle();
+    throwIfError(error, "Failed to review leave request");
+    if (!data) {
+      throw new ValidationFailedError([
+        { field: "leaveId", code: "not_found", message: "Pending leave request not found" },
+      ]);
+    }
+    const row = mapRow(data as DbLeave);
+
+    await emitEvent(toRepoContext(ctx), {
+      eventType: "leave.reviewed",
+      entityType: "leave_request",
+      entityId: row.id,
+      studentId: row.studentId,
+      classId: row.classId,
+      payload: {
+        status: decision,
+        review_note: adminRemarks?.trim() || null,
+      },
+    }).catch(() => undefined);
+
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      source: "LeaveService.review",
+    });
+    return row;
   },
 };

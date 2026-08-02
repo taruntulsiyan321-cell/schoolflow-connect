@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { BattleExperienceService } from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -85,71 +87,63 @@ export default function TeacherBattleground() {
   const removeQ = (i: number) => setQuestions((qs) => qs.filter((_, idx) => idx !== i));
 
   const quickHost = async () => {
-    if (!user || !classId) return;
-    setQuickBusy(true);
-    const { data, error } = await supabase.rpc("rpc_create_quick_battle", {
-      _subject: subject,
-      _difficulty: quickDifficulty,
-      _count: 5,
-      _per_q: perQ,
-      _topic: topic.trim() || undefined,
-      _class_id: classId,
-    });
-    setQuickBusy(false);
-    if (error) {
-      toast({ title: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Live battle published from question bank" });
-    nav(`/teacher`);
-  };
-
-  const create = async () => {
-    if (!user || !classId) {
+    if (!ctx || !ready || !classId) {
       toast({ title: "Select a class first", variant: "destructive" });
       return;
     }
-    const valid = questions.every((q) => q.question.trim() && q.options.every((o) => o.trim()));
-    if (!valid) {
-      toast({ title: "Fill in every question and option", variant: "destructive" });
+    setQuickBusy(true);
+    try {
+      const created = await BattleExperienceService.createFromDesign(ctx, {
+        type: "class",
+        subject,
+        topic: topic.trim() || undefined,
+        difficulty: quickDifficulty,
+        questions: 5,
+        timeLimitMin: Math.max(1, Math.round((perQ * 5) / 60)),
+        perQuestionSec: perQ,
+        classId,
+      });
+      toast({ title: "Live battle published from question bank" });
+      nav(`/teacher/battleground/monitor/${created.id}`);
+    } catch (e) {
+      toast({
+        title: e instanceof Error ? e.message : "Could not publish battle",
+        variant: "destructive",
+      });
+    } finally {
+      setQuickBusy(false);
+    }
+  };
+
+  const create = async () => {
+    if (!ctx || !ready || !classId) {
+      toast({ title: "Select a class first", variant: "destructive" });
       return;
     }
-    const { data: b, error } = await supabase
-      .from("battles")
-      .insert({
+    setQuickBusy(true);
+    try {
+      const created = await BattleExperienceService.createTeacherCustom(ctx, {
         title,
         subject,
-        topic: topic || null,
-        type: "mcq",
-        status: "live",
-        class_id: classId,
-        creator_user_id: user.id,
-        per_question_sec: perQ,
-        question_count: questions.length,
-        duration_sec: perQ * questions.length,
-        is_public: true,
-      } as any)
-      .select()
-      .single();
-    if (error) {
-      toast({ title: error.message, variant: "destructive" });
-      return;
+        topic: topic.trim() || null,
+        classId,
+        perQuestionSec: perQ,
+        questions: questions.map((q) => ({
+          question: q.question,
+          options: q.options,
+          correctIndex: q.correct_index,
+        })),
+      });
+      toast({ title: "Battle published — monitoring live" });
+      nav(`/teacher/battleground/monitor/${created.id}`);
+    } catch (e) {
+      toast({
+        title: e instanceof Error ? e.message : "Could not publish battle",
+        variant: "destructive",
+      });
+    } finally {
+      setQuickBusy(false);
     }
-    const rows = questions.map((q, i) => ({
-      battle_id: b.id,
-      order_index: i,
-      question: q.question,
-      options: q.options,
-      correct_index: q.correct_index,
-      points: 10,
-    }));
-    const { error: e2 } = await supabase.from("battle_questions").insert(rows);
-    if (e2) {
-      toast({ title: e2.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Battle published — monitoring live" });
-    nav(`/teacher`);
   };
 
   return (

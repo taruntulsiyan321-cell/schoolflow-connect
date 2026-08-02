@@ -43,6 +43,8 @@ const ACADEMIC_NOTIF_TYPES = new Set([
   "battle",
   "badge",
   "xp",
+  "doubt",
+  "leave",
 ]);
 
 /**
@@ -190,6 +192,45 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         {
           event: "*",
           schema: "public",
+          table: "battles",
+          filter: `creator_user_id=eq.${user.id}`,
+        },
+        onTable(["battle"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "community_doubts",
+          filter: `school_id=eq.${schoolId}`,
+        },
+        onTable(["doubt", "profile"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "community_doubt_answers",
+        },
+        onTable(["doubt", "profile"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "leave_requests",
+          filter: `applicant_user_id=eq.${user.id}`,
+        },
+        onTable(["profile"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: "practice_sessions",
           filter: `user_id=eq.${user.id}`,
         },
@@ -247,8 +288,25 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
  * Shared live version. Put this in useEffect deps on academic panels so they
  * reload when teachers change attendance / homework / marks.
  */
-export function useAcademicLive(_filter?: AcademicDomain | AcademicDomain[]): number {
-  return useContext(AcademicLiveContext).version;
+export function useAcademicLive(filter?: AcademicDomain | AcademicDomain[]): number {
+  const { version, lastDomains } = useContext(AcademicLiveContext);
+  const filterKey = !filter
+    ? ""
+    : (Array.isArray(filter) ? filter : [filter]).slice().sort().join(",");
+  const [matchedVersion, setMatchedVersion] = useState(0);
+  const lastSeen = useRef(0);
+
+  useEffect(() => {
+    if (!filterKey) return;
+    if (version === lastSeen.current) return;
+    lastSeen.current = version;
+    const wanted = new Set(filterKey.split(",").filter(Boolean) as AcademicDomain[]);
+    if (lastDomains.includes("all") || lastDomains.some((d) => wanted.has(d))) {
+      setMatchedVersion((v) => v + 1);
+    }
+  }, [version, lastDomains, filterKey]);
+
+  return filterKey ? matchedVersion : version;
 }
 
 export function useAcademicLiveBump() {
