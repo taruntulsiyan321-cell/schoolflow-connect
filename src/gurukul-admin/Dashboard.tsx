@@ -157,12 +157,12 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         </div>
       </div>
 
-      {/* Stat Cards */}
+      {/* Stat Cards — zeros until live school rollups; attendance block below is live */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard label="Total Students" value={stats.totalStudents} icon={<GraduationCap className="w-5 h-5" />} color="#3b5bdb" delta={3} sub={`+${stats.newStudentsThisMonth} this month`} />
-        <StatCard label="Total Teachers" value={stats.totalTeachers} icon={<Users className="w-5 h-5" />} color="#4b9fd4" delta={1} sub={`+${stats.newTeachersThisMonth} this month`} />
+        <StatCard label="Total Students" value={stats.totalStudents} icon={<GraduationCap className="w-5 h-5" />} color="#3b5bdb" />
+        <StatCard label="Total Teachers" value={stats.totalTeachers} icon={<Users className="w-5 h-5" />} color="#4b9fd4" />
         <StatCard label="Total Parents" value={stats.totalParents} icon={<UserCheck className="w-5 h-5" />} color="#6882e8" />
-        <StatCard label="Classes" value={stats.totalClasses} icon={<Building2 className="w-5 h-5" />} color="#4aa87a" sub="4 sections each" />
+        <StatCard label="Classes" value={stats.totalClasses || classRows.length} icon={<Building2 className="w-5 h-5" />} color="#4aa87a" />
         <StatCard label="Active Today" value={stats.activeUsersToday} icon={<Activity className="w-5 h-5" />} color="#c08a3a" sub="students + teachers" />
         <StatCard label="Pending" value={stats.pendingRequests} icon={<AlertCircle className="w-5 h-5" />} color="#cc5069" sub={`${stats.pendingDoubts} doubts`} />
       </div>
@@ -238,6 +238,9 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             </button>
           </div>
           <div className="space-y-3">
+            {adminStudents.length === 0 && (
+              <div className="text-[10px] text-[#46465a]">No students loaded yet.</div>
+            )}
             {adminStudents.slice(0, 4).map((s) => (
               <div key={s.id} className="flex items-center gap-3">
                 <InitialsAvatar name={s.fullName} size="sm" />
@@ -263,6 +266,9 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             </button>
           </div>
           <div className="space-y-3">
+            {adminTeachers.length === 0 && (
+              <div className="text-[10px] text-[#46465a]">No teachers loaded yet.</div>
+            )}
             {adminTeachers.slice(0, 4).map((t) => (
               <div key={t.id} className="flex items-center gap-3">
                 <InitialsAvatar name={t.fullName} size="sm" />
@@ -285,6 +291,9 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         <div className="lg:col-span-1 bg-[#131316] border border-white/7 rounded-2xl p-5">
           <div className="text-sm font-bold text-white mb-4">Recent Activity</div>
           <div className="space-y-3">
+            {recentActivities.length === 0 && (
+              <div className="text-[10px] text-[#46465a]">No recent activity.</div>
+            )}
             {recentActivities.map((a) => (
               <div key={a.id} className="flex items-start gap-3">
                 <div
@@ -305,6 +314,9 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
           <div className="text-sm font-bold text-white mb-4">Pending Requests</div>
           <div className="space-y-3">
+            {pendingRequests.length === 0 && (
+              <div className="text-[10px] text-[#46465a]">No pending requests.</div>
+            )}
             {pendingRequests.map((r) => (
               <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/5 transition-all cursor-pointer">
                 <div
@@ -335,6 +347,9 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
               <div className="text-sm font-bold text-white">Announcements</div>
             </div>
             <div className="space-y-3">
+              {announcements.length === 0 && (
+                <div className="text-[10px] text-[#46465a]">No announcements yet.</div>
+              )}
               {announcements.map((a) => (
                 <div key={a.id} className="space-y-1">
                   <div className="flex items-center gap-2">
@@ -356,7 +371,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
               </div>
               <div className="text-left">
                 <div className="text-xs font-bold text-white">View Reports</div>
-                <div className="text-[10px] text-[#78788c]">16 reports across all categories</div>
+                <div className="text-[10px] text-[#78788c]">Academic Engine reports</div>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-[#46465a] ml-auto group-hover:translate-x-1 transition-transform" />
             </button>

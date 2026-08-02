@@ -5,7 +5,6 @@ import {
   CheckCircle2, XCircle, AlertTriangle, Clock, TrendingUp,
 } from "lucide-react";
 import { cn, exportCSV, printSection } from "./shared";
-import { adminTeachers, adminParents } from "./data";
 import {
   AcademicProfileService,
   AnalyticsService,
@@ -137,16 +136,9 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           ]);
           setRows(allRows.slice(0, 200));
         } else if (reportKey === "teacher-attendance") {
-          setSummary([
-            { label: "Teachers (directory)", value: adminTeachers.length, color: "#4aa87a" },
-          ]);
-          setRows(
-            adminTeachers.map((t) => ({
-              Name: t.fullName,
-              Status: t.status,
-              Note: "Teacher HR attendance is not an Academic Engine entity",
-            })),
-          );
+          // Teacher HR attendance is not an Academic Engine entity yet — honest empty.
+          setSummary([{ label: "Teachers (directory)", value: 0, color: "#4aa87a" }]);
+          setRows([]);
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load report");

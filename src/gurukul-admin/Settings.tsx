@@ -23,20 +23,21 @@ interface SchoolSettings {
   workingDays: string[];
 }
 
+/** Empty defaults — never invent school identity; load from school profile when wired. */
 const DEFAULT: SchoolSettings = {
-  schoolName: "Gurukul International School",
+  schoolName: "",
   logoUrl: "",
-  address: "Plot 12, Education Township, Andheri East",
-  city: "Mumbai",
-  state: "Maharashtra",
-  pincode: "400069",
-  contactNumber: "+91 22 4567 8900",
-  email: "info@gurukul.edu.in",
-  website: "https://gurukul.edu.in",
-  principalName: "Dr. Priya Krishnaswamy",
-  academicYear: "2026-27",
-  schoolStartTime: "07:45",
-  schoolEndTime: "14:30",
+  address: "",
+  city: "",
+  state: "",
+  pincode: "",
+  contactNumber: "",
+  email: "",
+  website: "",
+  principalName: "",
+  academicYear: "",
+  schoolStartTime: "",
+  schoolEndTime: "",
   workingDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
 };
 

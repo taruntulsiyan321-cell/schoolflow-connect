@@ -29,16 +29,8 @@ interface LeaveRequest {
   resolvedBy?: string;
 }
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
-
-const INITIAL: LeaveRequest[] = [
-  { id: "lr001", teacherId: "t006", teacherName: "Mr. Deepak Pandey", department: "Commerce", leaveType: "sick", fromDate: "2026-07-28", toDate: "2026-07-30", days: 3, reason: "Fever and viral infection. Medical certificate attached.", document: "medical_cert_pandey.pdf", status: "pending", requestedAt: "2026-07-26T08:30" },
-  { id: "lr002", teacherId: "t007", teacherName: "Ms. Lalitha Raghavan", department: "Languages", leaveType: "casual", fromDate: "2026-08-02", toDate: "2026-08-02", days: 1, reason: "Personal work — need to attend a family function.", status: "pending", requestedAt: "2026-07-25T11:00" },
-  { id: "lr003", teacherId: "t003", teacherName: "Ms. Anita Sharma", department: "Science", leaveType: "earned", fromDate: "2026-08-10", toDate: "2026-08-12", days: 3, reason: "Family vacation planned in advance. All classes will be covered.", status: "approved", requestedAt: "2026-07-20T09:15", remarks: "Approved. Please ensure substitute arrangements are made.", resolvedAt: "2026-07-21T10:00", resolvedBy: "Super Admin" },
-  { id: "lr004", teacherId: "t008", teacherName: "Mr. Aryan Bose", department: "Technology", leaveType: "emergency", fromDate: "2026-07-27", toDate: "2026-07-27", days: 1, reason: "Family emergency — hospitalization of parent.", status: "approved", requestedAt: "2026-07-26T07:00", remarks: "Emergency leave approved. Wishing speedy recovery.", resolvedAt: "2026-07-26T07:30", resolvedBy: "Super Admin" },
-  { id: "lr005", teacherId: "t004", teacherName: "Mr. Suresh Nambiar", department: "Science", leaveType: "casual", fromDate: "2026-07-15", toDate: "2026-07-15", days: 1, reason: "Personal work.", status: "rejected", requestedAt: "2026-07-14T16:00", remarks: "Cannot approve — practical exam scheduled on this date. Please reschedule.", resolvedAt: "2026-07-14T17:00", resolvedBy: "Super Admin" },
-  { id: "lr006", teacherId: "t005", teacherName: "Mrs. Pooja Verma", department: "Languages", leaveType: "sick", fromDate: "2026-07-10", toDate: "2026-07-11", days: 2, reason: "Migraine — cannot attend classes.", document: "prescription_verma.pdf", status: "approved", requestedAt: "2026-07-10T06:45", remarks: "Approved. Get well soon.", resolvedAt: "2026-07-10T08:00", resolvedBy: "Super Admin" },
-];
+/** Empty until leave-request service is wired — never seed fake requests. */
+const INITIAL: LeaveRequest[] = [];
 
 const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
   casual: "Casual Leave", sick: "Sick Leave", earned: "Earned Leave",

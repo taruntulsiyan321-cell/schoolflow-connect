@@ -41,16 +41,16 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
       { key: "reports", label: "Reports", icon: <BarChart2 className="w-4 h-4" /> },
-      { key: "announcements", label: "Announcements", icon: <Bell className="w-4 h-4" />, badge: 3 },
+      { key: "announcements", label: "Announcements", icon: <Bell className="w-4 h-4" /> },
     ],
   },
   {
     label: "Users",
     items: [
-      { key: "students", label: "Students", icon: <GraduationCap className="w-4 h-4" />, badge: 248 },
-      { key: "teachers", label: "Teachers", icon: <Users className="w-4 h-4" />, badge: 18 },
-      { key: "parents", label: "Parents", icon: <Users className="w-4 h-4" />, badge: 231 },
-      { key: "leave_requests", label: "Leave Requests", icon: <CalendarCheck className="w-4 h-4" />, badge: 3 },
+      { key: "students", label: "Students", icon: <GraduationCap className="w-4 h-4" /> },
+      { key: "teachers", label: "Teachers", icon: <Users className="w-4 h-4" /> },
+      { key: "parents", label: "Parents", icon: <Users className="w-4 h-4" /> },
+      { key: "leave_requests", label: "Leave Requests", icon: <CalendarCheck className="w-4 h-4" /> },
     ],
   },
   {

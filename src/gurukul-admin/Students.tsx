@@ -187,7 +187,7 @@ function StudentDetail({
                 <div className="text-4xl font-black text-[#3b5bdb]">{student.attendance}%</div>
                 <div className="text-xs text-[#78788c] mt-1">Overall Attendance</div>
               </div>
-              <div className="text-xs text-[#78788c] text-center">Monthly breakdown not available in demo mode.</div>
+              <div className="text-xs text-[#78788c] text-center">Monthly breakdown not available yet.</div>
             </div>
           )}
 
@@ -197,7 +197,7 @@ function StudentDetail({
                 <div className="text-4xl font-black text-[#4b9fd4]">{student.performanceScore}</div>
                 <div className="text-xs text-[#78788c] mt-1">Performance Score</div>
               </div>
-              <div className="text-xs text-[#78788c] text-center">Subject-wise breakdown not available in demo mode.</div>
+              <div className="text-xs text-[#78788c] text-center">Subject-wise breakdown not available yet.</div>
             </div>
           )}
 

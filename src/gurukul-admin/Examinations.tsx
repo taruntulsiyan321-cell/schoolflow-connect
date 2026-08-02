@@ -37,49 +37,8 @@ interface Examination {
   updatedAt: string;
 }
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
-
-const INITIAL: Examination[] = [
-  {
-    id: "ex001", name: "Unit Test 1 — July 2026", academicYear: "2026-27", type: "unit_test",
-    startDate: "2026-08-04", endDate: "2026-08-08", applicableClasses: ["11th", "12th"],
-    applicableSections: ["A", "B"],
-    subjects: [
-      { subject: "Mathematics", date: "2026-08-04", startTime: "09:00", endTime: "11:00", maxMarks: 50, passingMarks: 17 },
-      { subject: "Physics", date: "2026-08-05", startTime: "09:00", endTime: "11:00", maxMarks: 50, passingMarks: 17 },
-      { subject: "Chemistry", date: "2026-08-06", startTime: "09:00", endTime: "11:00", maxMarks: 50, passingMarks: 17 },
-      { subject: "English", date: "2026-08-07", startTime: "09:00", endTime: "11:00", maxMarks: 50, passingMarks: 17 },
-    ],
-    instructions: "Students must carry their hall tickets. No electronic devices permitted. Blue/black pens only.",
-    status: "published", createdAt: "2026-07-20T10:00", updatedAt: "2026-07-24T09:00",
-  },
-  {
-    id: "ex002", name: "Mid-Term Examination — 2026", academicYear: "2026-27", type: "mid_term",
-    startDate: "2026-09-15", endDate: "2026-09-22", applicableClasses: ["11th", "12th"],
-    applicableSections: ["A", "B"],
-    subjects: [
-      { subject: "Mathematics", date: "2026-09-15", startTime: "10:00", endTime: "13:00", maxMarks: 100, passingMarks: 35 },
-      { subject: "Physics", date: "2026-09-16", startTime: "10:00", endTime: "13:00", maxMarks: 100, passingMarks: 35 },
-      { subject: "Chemistry", date: "2026-09-17", startTime: "10:00", endTime: "13:00", maxMarks: 100, passingMarks: 35 },
-      { subject: "Biology", date: "2026-09-18", startTime: "10:00", endTime: "13:00", maxMarks: 100, passingMarks: 35 },
-      { subject: "English", date: "2026-09-19", startTime: "10:00", endTime: "13:00", maxMarks: 100, passingMarks: 35 },
-    ],
-    instructions: "Hall tickets mandatory. Late entry not permitted after 10:15 AM. Calculators not allowed.",
-    status: "draft", createdAt: "2026-07-25T14:00", updatedAt: "2026-07-25T14:00",
-  },
-  {
-    id: "ex003", name: "Pre-Board Examination — 2026", academicYear: "2026-27", type: "pre_board",
-    startDate: "2026-11-10", endDate: "2026-11-25", applicableClasses: ["12th"],
-    applicableSections: ["A", "B"],
-    subjects: [
-      { subject: "Mathematics", date: "2026-11-10", startTime: "10:00", endTime: "13:00", maxMarks: 100, passingMarks: 33 },
-      { subject: "Physics", date: "2026-11-12", startTime: "10:00", endTime: "13:00", maxMarks: 100, passingMarks: 33 },
-      { subject: "Chemistry", date: "2026-11-14", startTime: "10:00", endTime: "13:00", maxMarks: 100, passingMarks: 33 },
-    ],
-    instructions: "Strictly follow CBSE board exam guidelines. Students must report by 9:30 AM.",
-    status: "draft", createdAt: "2026-07-26T09:00", updatedAt: "2026-07-26T09:00",
-  },
-];
+/** Empty until examination schedule service is wired — never seed fake exams. */
+const INITIAL: Examination[] = [];
 
 const EXAM_TYPE_LABELS: Record<ExamType, string> = {
   unit_test: "Unit Test", mid_term: "Mid-Term", pre_board: "Pre-Board",
