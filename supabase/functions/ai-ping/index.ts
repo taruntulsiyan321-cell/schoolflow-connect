@@ -5,6 +5,7 @@
  * Secrets: OPENROUTER_API_KEY (required), OPENROUTER_MODEL (optional).
  */
 import { corsHeaders, jsonResponse } from "../_shared/gemini.ts";
+import { requireUserJwt } from "../_shared/requireAuth.ts";
 import {
   completeWithQwen,
   getConfiguredModelId,
@@ -17,6 +18,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const __auth = await requireUserJwt(req);
+  if (!__auth.ok) return __auth.response;
 
   if (req.method !== "POST" && req.method !== "GET") {
     return jsonResponse({ error: "method_not_allowed" }, 405);

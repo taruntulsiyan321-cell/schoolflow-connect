@@ -1,10 +1,11 @@
 import { supabase } from "@/integrations/supabase/client";
-import { DEFAULT_SCHOOL_ID } from "@/auth/constants";
+import { MissingSchoolContextError } from "../tenant";
 import type { ServiceContext } from "./context";
 
 /**
  * Build a student ServiceContext outside React (persistence helpers, battle wrappers).
  * Prefer `useAcademicContext()` in components when available.
+ * Never invent a default school_id — tenant must come from students / get_my_school_id.
  */
 export async function resolveStudentServiceContext(): Promise<ServiceContext> {
   const { data: auth, error: authErr } = await supabase.auth.getUser();
@@ -23,9 +24,14 @@ export async function resolveStudentServiceContext(): Promise<ServiceContext> {
     const { data: sid } = await supabase.rpc("get_my_school_id");
     schoolId = (sid as string | null) ?? null;
   }
+  if (!schoolId) {
+    throw new MissingSchoolContextError(
+      "Student school is not bound. Sign in again or contact your school admin.",
+    );
+  }
 
   return {
-    schoolId: schoolId ?? DEFAULT_SCHOOL_ID,
+    schoolId,
     userId: user.id,
     role: "student",
     studentId: stu?.id ?? null,

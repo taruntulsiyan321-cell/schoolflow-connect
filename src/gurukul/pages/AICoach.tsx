@@ -8,12 +8,12 @@ import { cn } from "@/gurukul/components/shared";
 import { displayConcept } from "@/lib/academicDisplay";
 import { toast } from "sonner";
 import { askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } from "@/academic/ai/gatewayClient";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/auth";
 import {
-  Mic, MicOff, Send, Plus, Search, Pin, Star, Trash2, Edit3,
+  Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3,
   MoreHorizontal, ChevronLeft, Paperclip, Copy, Bookmark,
-  RotateCcw, X, Camera, FileText, Image, Presentation,
-  Volume2, VolumeX, BookOpen, HelpCircle, Brain, Sparkles,
+  RotateCcw, X, Volume2,
+  BookOpen, HelpCircle, Brain, Sparkles,
   MessageSquare, Clock, Check, AlertCircle, Globe, Layers,
   ThumbsUp, ThumbsDown,
 } from "lucide-react";
@@ -22,14 +22,9 @@ import {
 type VoiceState = "idle" | "listening" | "processing" | "speaking";
 type Role = "nova" | "student";
 
-interface Attachment {
-  id: string; type: "image" | "pdf" | "doc" | "ppt" | "screenshot";
-  name: string; size?: string;
-}
-
 interface Message {
   id: string; role: Role; text: string; time: string;
-  bookmarked?: boolean; attachments?: Attachment[];
+  bookmarked?: boolean;
   requestId?: string;
   featureId?: string;
   feedback?: "like" | "dislike" | null;
@@ -38,7 +33,11 @@ interface Message {
 interface Conversation {
   id: string; title: string; preview: string; date: string;
   pinned?: boolean; starred?: boolean; messages: Message[];
+  /** Gateway multi-turn session id (when available) */
+  sessionId?: string;
 }
+
+const CONVO_STORAGE_KEY = "gurukul.nova.convos.v1";
 
 // ── Honest empty conversation list (never seed demo chats) ────────────────────
 const EMPTY_CONVOS: Conversation[] = [];
@@ -54,15 +53,16 @@ const SUGGESTIONS = [
   { icon:<AlertCircle className="w-4 h-4"/>,    text:"How am I doing in attendance and marks?",color:"#c08a3a" },
 ];
 
-const ATTACH_TYPES = [
-  { type:"image"      as const, icon:<Image className="w-4 h-4"/>,        label:"Image",        color:"#4b9fd4" },
-  { type:"screenshot" as const, icon:<Camera className="w-4 h-4"/>,       label:"Camera / Screenshot", color:"#3b5bdb" },
-  { type:"pdf"        as const, icon:<FileText className="w-4 h-4"/>,      label:"PDF",          color:"#cc5069" },
-  { type:"doc"        as const, icon:<FileText className="w-4 h-4"/>,      label:"Word Document",color:"#6882e8" },
-  { type:"ppt"        as const, icon:<Presentation className="w-4 h-4"/>,  label:"Presentation", color:"#c08a3a" },
-];
-
-const WAVEFORM_HEIGHTS = [6,12,20,14,28,18,10,24,16,30,22,12,26,8,20,18,14,24,10,16];
+function loadStoredConvos(): Conversation[] {
+  try {
+    const raw = localStorage.getItem(CONVO_STORAGE_KEY);
+    if (!raw) return EMPTY_CONVOS;
+    const parsed = JSON.parse(raw) as Conversation[];
+    return Array.isArray(parsed) ? parsed : EMPTY_CONVOS;
+  } catch {
+    return EMPTY_CONVOS;
+  }
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function now() {
@@ -653,7 +653,7 @@ function InputBar({
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const { studentId, schoolId } = useAcademicContext();
   const { data: charts } = useStudentPerformanceCharts();
   const { items: masteryItems } = useConceptMastery();
@@ -703,6 +703,9 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       const { text: reply, response } = await askAiCoach({
         text,
         studentId: studentId || undefined,
+        role: role === "student" || role === "parent" || role === "teacher" || role === "principal" || role === "admin"
+          ? role
+          : "student",
         channel: "student_app",
         locale: typeof navigator !== "undefined" ? navigator.language : undefined,
       });
@@ -842,7 +845,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           request_id: last.requestId ?? null,
           school_id: schoolId ?? null,
           actor_user_id: user.id,
-          actor_role: "student",
+          actor_role: role ?? "student",
           feature_id: last.featureId ?? null,
           signal_type: "retry",
         });
@@ -881,7 +884,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       request_id: msg.requestId ?? null,
       school_id: schoolId ?? null,
       actor_user_id: user.id,
-      actor_role: "student",
+      actor_role: role ?? "student",
       feature_id: msg.featureId ?? null,
       signal_type: signal,
     });
