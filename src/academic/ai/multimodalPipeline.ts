@@ -292,10 +292,11 @@ export function runImageDoubtSubmit(
 
   // Step 3: ocr_extract
   const ocr = runOcrPipelineStub(meta, opts);
+  const ocrFail = ocr as Extract<typeof ocr, { ok: false }>;
   checkpoints.push({
     step_id: "ocr_extract",
     ok: ocr.ok,
-    detail: ocr.ok ? "continue" : ocr.reason,
+    detail: ocr.ok ? "continue" : ocrFail.reason,
   });
 
   if (!ocr.ok) {
@@ -303,14 +304,14 @@ export function runImageDoubtSubmit(
     checkpoints.push({
       step_id: "confidence_gate",
       ok: false,
-      detail: ocr.reason,
+      detail: ocrFail.reason,
     });
     return {
       capability_id: "student.image_doubt.submit",
       workflow_id: "student.image_doubt.submit.v1",
       status,
-      stop_reason: ocr.reason,
-      message: ocr.message,
+      stop_reason: ocrFail.reason,
+      message: ocrFail.message,
       invented_problem_text: false,
       ocr_text: null,
       normalised_question_text: null,

@@ -224,19 +224,20 @@ export function evaluateFixture(fixture: BenchmarkFixture): FixtureEvalResult {
         const result = runOcrPipelineStub(image, { providerConfigured: false });
         const wantAction = String(expected.action ?? "clarify");
         const wantReason = String(expected.reason ?? "ocr_not_configured");
+        const failResult = result as Extract<typeof result, { ok: false }>;
         const passed =
           !result.ok &&
           result.action === wantAction &&
-          result.reason === wantReason &&
-          result.extraction?.ocr_text == null &&
-          result.extraction?.normalised_question_text == null;
+          failResult.reason === wantReason &&
+          failResult.extraction?.ocr_text == null &&
+          failResult.extraction?.normalised_question_text == null;
         return {
           suite_id,
           fixture_key,
           passed,
           detail: result.ok
             ? "unexpected_continue"
-            : `action=${result.action} reason=${result.reason}`,
+            : `action=${result.action} reason=${failResult.reason}`,
         };
       }
       case "routing_cost": {

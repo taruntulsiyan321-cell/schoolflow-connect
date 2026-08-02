@@ -179,10 +179,10 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
         ))}
       </div>
       <div className="flex gap-2">
-        <button type="button" onClick={() => exportCSV(rows, reportKey)} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-[#78788c] flex items-center gap-1">
+        <button type="button" onClick={() => exportCSV(reportKey, rows)} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-[#78788c] flex items-center gap-1">
           <Download className="w-3 h-3" /> CSV
         </button>
-        <button type="button" onClick={() => printSection("engine-report")} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-[#78788c] flex items-center gap-1">
+        <button type="button" onClick={() => printSection(reportKey, document.getElementById("engine-report")?.innerHTML ?? "")} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-[#78788c] flex items-center gap-1">
           <Printer className="w-3 h-3" /> Print
         </button>
       </div>

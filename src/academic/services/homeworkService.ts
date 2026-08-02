@@ -409,9 +409,9 @@ export const HomeworkService = {
     const schoolId = schoolIdOf(repo);
     const client = getClient(repo);
 
-    const { data: rpcData, error: rpcError } = await client.rpc(
+    const { data: rpcData, error: rpcError } = await (client.rpc as any)(
       "publish_due_scheduled_homework",
-      { _school_id: schoolId } as never,
+      { _school_id: schoolId },
     );
     if (!rpcError) {
       return typeof rpcData === "number" ? rpcData : Number(rpcData ?? 0);
@@ -540,7 +540,7 @@ export const HomeworkService = {
     const [{ data: classes, error: cErr }, { data: hw, error: hErr }, { data: subs, error: sErr }] =
       await Promise.all([
         client.from("classes").select("id, name, section").eq("school_id", schoolId),
-        client
+        (client as any)
           .from("homework")
           .select("id, class_id, status, created_by, work_kind")
           .eq("school_id", schoolId),

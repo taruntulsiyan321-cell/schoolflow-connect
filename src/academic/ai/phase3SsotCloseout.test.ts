@@ -124,7 +124,7 @@ describe("Embedding provider hook", () => {
       { env: {} },
     );
     expect(result.ok).toBe(false);
-    expect(result.deferred).toBe(true);
+    expect((result as Extract<typeof result, { ok: false }>).deferred).toBe(true);
   });
 
   it("processOneEmbeddingJob embeds via injected fetch", async () => {

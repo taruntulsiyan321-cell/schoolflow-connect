@@ -118,9 +118,8 @@ function TopicCard({ topic, onStart }: { topic: RecoveryTopic; onStart: () => vo
   const [expanded, setExpanded] = useState(false);
   const m = PRIORITY_META[topic.priority];
   return (
-    <GlassCard className={cn("overflow-hidden transition-all duration-200 hover:border-white/15")}
-      style={{borderLeft:`3px solid ${m.color}`}}>
-      <div className="p-4">
+    <GlassCard className={cn("overflow-hidden transition-all duration-200 hover:border-white/15")}>
+      <div className="p-4" style={{borderLeft:`3px solid ${m.color}`}}>
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">

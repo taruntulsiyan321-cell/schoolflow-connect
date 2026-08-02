@@ -251,7 +251,7 @@ describe("Budget quotas", () => {
       units: 1,
     });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.error_code).toBe("budget_exhausted");
+    if (!r.ok) expect((r as Extract<typeof r, { ok: false }>).error_code).toBe("budget_exhausted");
   });
 
   it("estimates tier units", () => {

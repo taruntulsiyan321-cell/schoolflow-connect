@@ -66,7 +66,7 @@ export async function emitEvent(
     _student_id: input.studentId ?? null,
     _class_id: input.classId ?? null,
     _teacher_id: input.teacherId ?? null,
-    _payload: input.payload ?? {},
+    _payload: (input.payload ?? {}) as never,
   });
 
   throwIfError(error, "Failed to emit academic event");
@@ -108,10 +108,10 @@ export async function writeAudit(
     _entity_type: input.entityType,
     _entity_id: input.entityId,
     _action: input.action,
-    _previous: input.previous ?? null,
-    _new: input.next ?? null,
+    _previous: (input.previous ?? null) as never,
+    _new: (input.next ?? null) as never,
     _school_id: schoolId,
-    _metadata: input.metadata ?? {},
+    _metadata: (input.metadata ?? {}) as never,
   });
 
   throwIfError(error, "Failed to write academic audit");

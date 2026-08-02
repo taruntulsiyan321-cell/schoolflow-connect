@@ -33,10 +33,10 @@ export function isAiBillingOrCreditsIssue(
 export async function invokeAiGateway<T = unknown>(
   body: AiClientRequest,
 ): Promise<AiGatewayResponse<T>> {
-  const result = await invokeEdgeFunction<AiGatewayResponse<T> & { error?: string }>(
+  const result = await invokeEdgeFunction<Record<string, unknown>>(
     "ai-gateway",
     body as unknown as Record<string, unknown>,
-  );
+  ) as unknown as { data: (AiGatewayResponse<T> & { error?: string }) | null; error?: string };
 
   if (result.error) {
     return {

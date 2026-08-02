@@ -80,12 +80,13 @@ export const MarksService = {
     if (marks.length === 0) return [];
 
     const examIds = [...new Set(marks.map((m) => m.examId))];
-    const { data: exams, error } = await getClient(repo)
+    const { data: examsRaw, error } = await getClient(repo)
       .from("exams")
       .select("id, results_published_at")
       .eq("school_id", schoolIdOf(repo))
       .in("id", examIds);
     throwIfError(error, "Failed to load exams for marks filter");
+    const exams = examsRaw as unknown as { id: string; results_published_at: string | null }[] | null;
 
     const published = new Set(
       (exams ?? [])

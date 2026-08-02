@@ -422,7 +422,7 @@ function mergeTopicsWithAggregates(
   for (const agg of aggregates.slice(0, 8)) {
     const k = normalizeTopicKey(agg.topic, agg.chapter, agg.subject);
     if (!covered.has(k) && merged.length < 10) {
-      merged.push(...aggregatesToTopicGaps([agg]));
+      merged.push(...(aggregatesToTopicGaps([agg]) as any));
     }
   }
 

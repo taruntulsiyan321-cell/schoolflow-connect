@@ -247,7 +247,7 @@ export const BattleExperienceService = {
   async acceptInvite(ctx: ServiceContext, inviteId: string, battleId: string): Promise<string> {
     assertCanOwn(ctx, "battle");
     const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client.rpc("rpc_accept_battle_invite", {
+    const { data, error } = await (client.rpc as any)("rpc_accept_battle_invite", {
       _invite_id: inviteId,
     });
     if (error) {

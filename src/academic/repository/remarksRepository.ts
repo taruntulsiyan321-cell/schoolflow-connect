@@ -79,7 +79,7 @@ export async function createTeacherRemark(
 ): Promise<TeacherRemark> {
   const schoolId = schoolIdOf(ctx);
   const bodyCheck = validateRemarkBody(input.body);
-  if (!bodyCheck.ok) throw new ValidationFailedError(bodyCheck.issues);
+  if (!bodyCheck.ok) throw new ValidationFailedError((bodyCheck as { ok: false; issues: unknown[] }).issues as never);
 
   const { data: student, error: sErr } = await getClient(ctx)
     .from("students")

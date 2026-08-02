@@ -81,10 +81,11 @@ describe("OCR / Multimodal pipeline v0", () => {
     );
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.action).toBe("clarify");
-      expect(result.reason).toBe("ocr_not_configured");
-      expect(result.extraction?.ocr_text).toBeNull();
-      expect(result.extraction?.normalised_question_text).toBeNull();
+      const fail = result as Extract<typeof result, { ok: false }>;
+      expect(fail.action).toBe("clarify");
+      expect(fail.reason).toBe("ocr_not_configured");
+      expect(fail.extraction?.ocr_text).toBeNull();
+      expect(fail.extraction?.normalised_question_text).toBeNull();
     }
   });
 
@@ -101,8 +102,9 @@ describe("OCR / Multimodal pipeline v0", () => {
     const result = runOcrPipelineStub(img, { providerConfigured: false });
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.action).toBe(fixture.expected.action);
-      expect(result.reason).toBe(fixture.expected.reason);
+      const fail = result as Extract<typeof result, { ok: false }>;
+      expect(fail.action).toBe(fixture.expected.action);
+      expect(fail.reason).toBe(fixture.expected.reason);
     }
   });
 });
@@ -260,7 +262,7 @@ describe("Enterprise Failure Recovery", () => {
     );
     expect(result.ok).toBe(false);
     expect(n).toBe(1);
-    if (!result.ok) expect(result.plan.next_stage).toBe("safe_fail");
+    if (!result.ok) expect((result as Extract<typeof result, { ok: false }>).plan.next_stage).toBe("safe_fail");
   });
 });
 

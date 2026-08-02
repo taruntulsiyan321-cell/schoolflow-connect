@@ -14,7 +14,7 @@ import {
   getNcertSubjects,
   parseClassGrade,
 } from "@/lib/ncertSyllabus";
-import { isEmptyQuestionBankError, NO_BANK_MSG } from "@/lib/battleTemplateSolo";
+import { isEmptyQuestionBankError, NO_BANK_MSG, canUseMath12TemplateSolo } from "@/lib/battleTemplateSolo";
 import { Globe, Loader2, Search, User, Users, UsersRound, Calculator } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
@@ -376,7 +376,7 @@ export function FrictionlessChallenge({ classId, className, variant = "card" }: 
         className="w-full btn-cta"
       >
         {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Users className="w-4 h-4 mr-2" />}
-        {mode === "solo" ? "Start solo practice" : mode === "duel" ? "Send challenge" : "Host battle"}
+        {(mode as string) === "solo" ? "Start solo practice" : mode === "duel" ? "Send challenge" : "Host battle"}
       </Button>
     </>
   );

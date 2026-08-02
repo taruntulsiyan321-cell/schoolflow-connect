@@ -704,7 +704,7 @@ function Session({
         });
         if (cancelled) return;
         const mapped: BankQuestion[] = rows
-          .map((r) => {
+          .map((r): BankQuestion | null => {
             const options = parseBankOptions(r.options);
             if (!r.id || !r.question || options.length < 2) return null;
             return {

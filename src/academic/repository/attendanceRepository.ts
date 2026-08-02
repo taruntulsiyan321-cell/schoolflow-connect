@@ -58,7 +58,7 @@ export async function listAttendanceForClassDate(
 ): Promise<AttendanceRecord[]> {
   const schoolId = schoolIdOf(ctx);
   const dateCheck = validateAttendanceDate(date);
-  if (!dateCheck.ok) throw new ValidationFailedError(dateCheck.issues);
+  if (!dateCheck.ok) throw new ValidationFailedError((dateCheck as { ok: false; issues: unknown[] }).issues as never);
 
   const { data, error } = await getClient(ctx)
     .from("attendance")
@@ -108,7 +108,7 @@ export async function upsertAttendance(
 ): Promise<AttendanceRecord> {
   const schoolId = schoolIdOf(ctx);
   const dateCheck = validateAttendanceDate(input.date);
-  if (!dateCheck.ok) throw new ValidationFailedError(dateCheck.issues);
+  if (!dateCheck.ok) throw new ValidationFailedError((dateCheck as { ok: false; issues: unknown[] }).issues as never);
 
   if (!ATTENDANCE_STATUSES.includes(input.status)) {
     throw new ValidationFailedError([
