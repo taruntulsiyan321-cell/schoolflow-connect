@@ -540,7 +540,7 @@ export const HomeworkService = {
     const [{ data: classes, error: cErr }, { data: hw, error: hErr }, { data: subs, error: sErr }] =
       await Promise.all([
         client.from("classes").select("id, name, section").eq("school_id", schoolId),
-        client
+        (client as any)
           .from("homework")
           .select("id, class_id, status, created_by, work_kind")
           .eq("school_id", schoolId),
