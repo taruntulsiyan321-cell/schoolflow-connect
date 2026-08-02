@@ -37,10 +37,8 @@ export const SESSION_MEMORY_CAPABILITIES: Record<string, SessionWorkflowScope> =
   "teacher.question_paper.plan": "paper_gen",
   "teacher.question_paper.generate_outline": "paper_gen",
   "teacher.question_paper.marking_scheme": "paper_gen",
-  "teacher.question_paper.generate": "paper_gen",
   "parent.child.summary": "parent_guidance",
   "parent.child.narrative": "parent_guidance",
-  "principal.analytics.brief": "principal_analytics",
   "principal.school.health_brief": "principal_analytics",
 };
 
@@ -82,13 +80,24 @@ export function redactSessionForContext(
 ): Record<string, unknown> | null {
   if (!session || session.status !== "active") return null;
   const summary = session.summary ?? {};
+  const rawFlags =
+    summary.flags && typeof summary.flags === "object"
+      ? (summary.flags as Record<string, unknown>)
+      : {};
+  // Never inject large outline/paper bodies into model context.
+  const {
+    outline_text: _outline,
+    marking_scheme_text: _marking,
+    full_paper: _paper,
+    ...safeFlags
+  } = rawFlags;
   return {
     workflow_scope: session.workflow_scope,
     turn_count: session.turn_count,
     misconceptions_addressed: summary.misconceptions_addressed ?? [],
     concepts_touched: summary.concepts_touched ?? [],
     last_decision: summary.last_decision ?? null,
-    flags: summary.flags ?? {},
+    flags: safeFlags,
   };
 }
 

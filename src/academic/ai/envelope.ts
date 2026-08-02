@@ -14,7 +14,8 @@ export type AiChannel =
 
 export type AiInteractionMode = "interactive" | "streaming" | "batch" | "asynchronous";
 
-export type AiActorRole = "student" | "teacher" | "parent" | "principal" | "admin" | "super_admin";
+/** Valid AI actor roles only — never super_admin (not a school portal role). */
+export type AiActorRole = "student" | "teacher" | "parent" | "principal" | "admin";
 
 export interface AiActor {
   userId: string;

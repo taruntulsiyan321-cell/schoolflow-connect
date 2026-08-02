@@ -107,27 +107,17 @@ async function resolveActor(
     };
   }
 
-  // admin / principal — school from profiles or first school membership
+  // admin / principal — require bound school_id (never fall back to an arbitrary school)
   const { data: profile } = await admin
     .from("profiles")
     .select("school_id")
     .eq("id", userId)
     .maybeSingle();
-  if (profile?.school_id) {
-    return {
-      userId,
-      role,
-      schoolId: String(profile.school_id),
-      studentId: null,
-    };
-  }
-
-  const { data: school } = await admin.from("schools").select("id").limit(1).maybeSingle();
-  if (!school?.id) return null;
+  if (!profile?.school_id) return null;
   return {
     userId,
     role,
-    schoolId: String(school.id),
+    schoolId: String(profile.school_id),
     studentId: null,
   };
 }

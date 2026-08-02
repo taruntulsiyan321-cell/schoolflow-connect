@@ -182,9 +182,11 @@ describe("Session Memory v1", () => {
     expect(sessionScopeForCapability("student.concept.explain")).toBe("tutoring");
     expect(sessionScopeForCapability("teacher.question_paper.plan")).toBe("paper_gen");
     expect(sessionScopeForCapability("parent.child.summary")).toBe("parent_guidance");
-    expect(SESSION_MEMORY_CAPABILITIES["principal.analytics.brief"]).toBe(
+    expect(SESSION_MEMORY_CAPABILITIES["principal.school.health_brief"]).toBe(
       "principal_analytics",
     );
+    expect(SESSION_MEMORY_CAPABILITIES["principal.analytics.brief"]).toBeUndefined();
+    expect(SESSION_MEMORY_CAPABILITIES["teacher.question_paper.generate"]).toBeUndefined();
     expect(isSessionMemoryAllowed("student.attendance.query")).toBe(false);
   });
 

@@ -173,14 +173,20 @@ export function buildEieProjection(input: {
     const t = Date.parse(r.updated_at ?? "") || 0;
     if (t > latest) latest = t;
   }
+  for (const r of input.revisionQueue) {
+    const t = Date.parse(r.due_date ?? "") || 0;
+    if (t > latest) latest = t;
+  }
+
+  const dataVersion = `eie:${concepts.length}:${openRevision.length}:${latest || 0}`;
 
   return {
     studentId: input.studentId,
     schoolId: input.schoolId,
     algorithm_id: EIE_ALGORITHM_ID,
     computed_at: new Date().toISOString(),
-    source_data_version: `eie:${concepts.length}:${openRevision.length}:${latest || 0}`,
-    data_version: `eie:${concepts.length}:${openRevision.length}:${latest || 0}`,
+    source_data_version: dataVersion,
+    data_version: dataVersion,
     completeness,
     avg_mastery,
     total_tracked: concepts.length,

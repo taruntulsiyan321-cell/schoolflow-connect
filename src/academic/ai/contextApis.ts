@@ -370,7 +370,7 @@ export async function projectParentChildSummary(
   studentId: string,
 ): Promise<ParentChildSummaryProjection> {
   await assertMayAccessStudent(ctx, studentId);
-  if (ctx.role !== "parent" && ctx.role !== "admin" && ctx.role !== "principal" && ctx.role !== "super_admin") {
+  if (ctx.role !== "parent" && ctx.role !== "admin" && ctx.role !== "principal") {
     const { ForbiddenError } = await import("../services/context");
     throw new ForbiddenError("Parent child summary is for linked parents");
   }

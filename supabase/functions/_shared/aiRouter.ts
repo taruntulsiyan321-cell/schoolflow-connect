@@ -117,7 +117,7 @@ export async function loadKillSwitches(
   admin: SupabaseClient,
   schoolId: string | null,
 ): Promise<KillSwitches> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from("ai_feature_flags")
     .select("flag_key, enabled, school_id, metadata")
     .in("flag_key", [
@@ -126,6 +126,17 @@ export async function loadKillSwitches(
       "ai.generative.enabled",
       "ai.prompt.shadow_traffic",
     ]);
+
+  // Fail-closed: if flags cannot be read, treat gateway as disabled.
+  if (error) {
+    console.error("ai_feature_flags read failed — fail-closed", error.message ?? error);
+    return {
+      gatewayEnabled: false,
+      deterministicEnabled: false,
+      generativeEnabled: false,
+      shadowPromptPercent: 0,
+    };
+  }
 
   const flags = data ?? [];
   const read = (key: string, fallback: boolean): boolean => {
@@ -216,13 +227,16 @@ async function reserveBudget(
     p_units: units,
   });
   if (error || !data) {
-    // Stub-safe: if migration not applied yet, allow with soft_breach false
+    // Fail-closed: never spend generative budget when reserve RPC is unavailable.
+    console.error("ai_budget_check_and_reserve failed — fail-closed", error?.message ?? error);
     return {
-      ok: true,
-      soft_breach: false,
+      ok: false,
+      soft_breach: true,
+      hard_breach: true,
       units_used: 0,
-      soft_limit: 200,
-      hard_limit: 400,
+      soft_limit: 0,
+      hard_limit: 0,
+      error_code: "budget_check_unavailable",
     };
   }
   const row = data as Record<string, unknown>;
@@ -252,7 +266,7 @@ async function assertMayAccessStudent(
   actor: RouterActor,
   studentId: string,
 ): Promise<void> {
-  if (actor.role === "admin" || actor.role === "principal" || actor.role === "super_admin") {
+  if (actor.role === "admin" || actor.role === "principal") {
     const { data } = await admin
       .from("students")
       .select("id")
@@ -696,7 +710,14 @@ async function fetchParentSummary(admin: SupabaseClient, schoolId: string, stude
     strong_topics: strong,
     source_as_of: profile?.refreshed_at ? String(profile.refreshed_at) : null,
     data_version: `parent:${studentId}:${profile?.refreshed_at ?? "none"}`,
-    completeness: profile ? 1 : 0.3,
+    completeness: profile
+      ? profile.attendance_pct != null ||
+        profile.homework_completion_pct != null ||
+        profile.tests_avg_pct != null ||
+        profile.exams_avg_pct != null
+        ? 1
+        : 0.4
+      : 0.3,
   };
 }
 
@@ -804,16 +825,6 @@ export async function routeAiRequest(
       decision: "permission_denied",
       error_code: "role_not_allowed",
       message: `Role '${req.actor.role}' cannot use ${cap.feature_id}`,
-      route_class: cap.route_class,
-    });
-  }
-
-  // Never treat super_admin as a valid runtime role (app_role enum excludes it).
-  if ((req.actor.role as string) === "super_admin") {
-    return fail({
-      decision: "permission_denied",
-      error_code: "invalid_role",
-      message: "super_admin is not a valid AI actor role",
       route_class: cap.route_class,
     });
   }
@@ -1359,10 +1370,12 @@ export async function routeAiRequest(
             route_class: cap.route_class,
           });
         }
-        const role =
-          req.actor.role === "super_admin"
-            ? "admin"
-            : (req.actor.role as "admin" | "teacher" | "student" | "parent" | "principal");
+        const role = req.actor.role as
+          | "admin"
+          | "teacher"
+          | "student"
+          | "parent"
+          | "principal";
         const pack: RetrievalPack = await retrieveKmsChunks(admin, {
           school_id: req.actor.schoolId,
           query,
@@ -1532,6 +1545,27 @@ export async function routeAiRequest(
         };
         break;
       }
+      case "student.image_doubt": {
+        // Full OCR→tutor reserved (workflow disabled). Route clients to submit → solve.
+        data = {
+          status: "clarify",
+          workflow_id: "student.image_doubt.v1",
+          workflow_enabled: false,
+          next_capabilities: ["student.image_doubt.submit", "student.image_doubt.solve"],
+          message:
+            "Full image-doubt pipeline is reserved. Submit media via student.image_doubt.submit, then tutor via student.image_doubt.solve after OCR text is available.",
+          session_memory: sessionForContext,
+        };
+        decision = "degraded";
+        provenance = {
+          invented_problem_text: false,
+          stop_reason: "workflow_disabled",
+          completeness: 0.1,
+          data_version: "image_doubt:reserved",
+          needs_clarification: true,
+        };
+        break;
+      }
       case "student.image_doubt.submit": {
         const structured = req.input_structured ?? {};
         const imageRaw =
@@ -1615,10 +1649,12 @@ export async function routeAiRequest(
           const retrievalPack = await retrieveKmsChunks(admin, {
             school_id: req.actor.schoolId,
             query: retrieveQuery,
-            role:
-              req.actor.role === "super_admin"
-                ? "admin"
-                : (req.actor.role as "admin" | "teacher" | "student" | "parent" | "principal"),
+            role: req.actor.role as
+              | "admin"
+              | "teacher"
+              | "student"
+              | "parent"
+              | "principal",
             limit: 5,
           });
           snippets = (retrievalPack?.hits ?? [])
@@ -1893,18 +1929,21 @@ export async function routeAiRequest(
         let weakConceptCount: number | null = null;
         const { data: schoolStudents } = await admin
           .from("students")
-          .select("id, class_id")
+          .select("id, class_id, user_id")
           .eq("school_id", schoolId)
           .limit(2000);
-        const studentIds = (schoolStudents ?? []).map((s) => String(s.id));
+        const userIds = (schoolStudents ?? [])
+          .map((s) => (s as { user_id?: string | null }).user_id)
+          .filter((u): u is string => !!u)
+          .map(String);
         const classByStudent = new Map(
           (schoolStudents ?? []).map((s) => [String(s.id), s.class_id ? String(s.class_id) : null]),
         );
-        if (studentIds.length) {
+        if (userIds.length) {
           const { data: masteryAgg } = await admin
             .from("concept_mastery")
             .select("mastery_score")
-            .in("student_id", studentIds.slice(0, 500))
+            .in("user_id", userIds.slice(0, 500))
             .limit(5000);
           if (masteryAgg && masteryAgg.length) {
             const scores = masteryAgg.map((r) => Number(r.mastery_score) || 0);
@@ -1994,10 +2033,12 @@ export async function routeAiRequest(
           retrievalPack = await retrieveKmsChunks(admin, {
             school_id: req.actor.schoolId,
             query: retrieveQuery,
-            role:
-              req.actor.role === "super_admin"
-                ? "admin"
-                : (req.actor.role as "admin" | "teacher" | "student" | "parent" | "principal"),
+            role: req.actor.role as
+              | "admin"
+              | "teacher"
+              | "student"
+              | "parent"
+              | "principal",
             limit: 4,
             min_score: 0.15,
             subject: concept?.subject ?? null,

@@ -59,7 +59,11 @@ export function planRoute(
   const isDeterministicPath =
     capability.route_class === "deterministic_record" ||
     capability.route_class === "deterministic_insight" ||
-    capability.route_class === "eie_insight";
+    capability.route_class === "eie_insight" ||
+    capability.route_class === "recommendation" ||
+    capability.route_class === "grounded_retrieval" ||
+    (capability.route_class === "content_generation" && !wantsModel) ||
+    (capability.route_class === "multimodal" && !wantsModel);
 
   if (isDeterministicPath && !flags.deterministicEnabled) {
     return {

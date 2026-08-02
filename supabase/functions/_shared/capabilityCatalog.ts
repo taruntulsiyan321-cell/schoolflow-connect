@@ -17,7 +17,8 @@ export type AiRouteClass =
   | "sensitive"
   | "unsupported";
 
-export type AiActorRole = "student" | "teacher" | "parent" | "principal" | "admin" | "super_admin";
+/** Valid AI actor roles only — never super_admin. */
+export type AiActorRole = "student" | "teacher" | "parent" | "principal" | "admin";
 
 export interface CapabilityDefinition {
   feature_id: string;
