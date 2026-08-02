@@ -52,7 +52,7 @@ export function MasterySection({
               const border =
                 levelKey === "mastered"
                   ? "border-[var(--wa-primary)]"
-                  : levelKey === "weak"
+                  : levelKey === "review"
                     ? "border-red-300"
                     : "border-[var(--wa-outline-variant)]";
               return (
@@ -91,7 +91,7 @@ export function MasterySection({
               {mastery.filter((m) => masteryLevel(m) === "mastered").length} strong
             </span>
             <span className="wa-label px-2 py-1 rounded-full bg-red-50 text-red-700">
-              {mastery.filter((m) => masteryLevel(m) === "weak").length} needs work
+              {mastery.filter((m) => masteryLevel(m) === "review").length} needs work
             </span>
           </div>
         </section>
