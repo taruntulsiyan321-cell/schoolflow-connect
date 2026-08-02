@@ -5,6 +5,7 @@ import {
 import {
   HomeworkService,
   AttendanceService,
+  useAcademicLive,
   WORK_KIND_LABELS,
   type WorkKind,
 } from "@/academic";
@@ -36,6 +37,7 @@ export function LiveAcademicWorkTab({
   subject: string;
 }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["homework", "profile"]);
   const [items, setItems] = useState<StatsRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,7 @@ export function LiveAcademicWorkTab({
     if (!ready || !ctx) return;
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, classId]);
+  }, [ready, ctx, classId, liveVersion]);
 
   const filtered = useMemo(() => {
     return items.filter((h) => {

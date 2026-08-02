@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import {
   AcademicProfileService,
   AttendanceService,
+  useAcademicLive,
   type AttendanceRecord,
   type ParentChildRow,
 } from "@/academic";
@@ -14,6 +15,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
  */
 export function ParentLiveAttendance({ studentId }: { studentId: string }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["attendance", "profile"]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [pct, setPct] = useState(0);
   const [present, setPresent] = useState(0);
@@ -48,7 +50,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId]);
+  }, [ready, ctx, studentId, liveVersion]);
 
   const statusColor: Record<string, string> = {
     present: "#3b5bdb",
@@ -132,6 +134,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
 /** Hook: live children for parent panel (engine). */
 export function useParentLiveChildren() {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["attendance", "profile"]);
   const [children, setChildren] = useState<ParentChildRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -153,7 +156,7 @@ export function useParentLiveChildren() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx]);
+  }, [ready, ctx, liveVersion]);
 
   return { children, loading, error, ready };
 }
@@ -161,6 +164,7 @@ export function useParentLiveChildren() {
 /** Attendance metrics from AcademicProfileService for dashboard widgets. */
 export function useChildAttendancePct(studentId: string | null) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["attendance", "profile"]);
   const [pct, setPct] = useState(0);
   const [present, setPresent] = useState(0);
   const [total, setTotal] = useState(0);
@@ -195,7 +199,7 @@ export function useChildAttendancePct(studentId: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId]);
+  }, [ready, ctx, studentId, liveVersion]);
 
   return { pct, present, total, todayStatus };
 }

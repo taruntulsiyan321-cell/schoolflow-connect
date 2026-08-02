@@ -630,13 +630,14 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
       battleground_wins: 0,
       practice_sessions: 0,
       total_battles: 0,
+      weak_concepts: [] as string[],
       source_as_of: null as string | null,
       data_version: `prog:${studentId}:none`,
       completeness: 0,
     };
   }
 
-  const [{ data: xp }, { count: practiceCount }] = await Promise.all([
+  const [{ data: xp }, { count: practiceCount }, { data: masteryRows }] = await Promise.all([
     admin
       .from("student_xp")
       .select(
@@ -648,6 +649,13 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
       .from("practice_sessions")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId),
+    // Same attempt/mastery SSOT as EIE + client Progression projection — never invent weak areas.
+    admin
+      .from("concept_mastery")
+      .select("subject, concept, mastery_score, mistake_count")
+      .eq("user_id", userId)
+      .order("mastery_score", { ascending: true })
+      .limit(40),
   ]);
 
   const hasRow = !!xp;
@@ -659,6 +667,10 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
   const practice = practiceCount ?? 0;
   const asOf = xp?.updated_at ? String(xp.updated_at) : null;
   const hasData = hasRow && (xpVal > 0 || practice > 0 || battles > 0 || streak > 0);
+  const weak_concepts = (masteryRows ?? [])
+    .filter((r) => Number(r.mastery_score ?? 100) < 60 || Number(r.mistake_count ?? 0) >= 2)
+    .slice(0, 8)
+    .map((r) => `${String(r.subject ?? "General")}: ${String(r.concept ?? "Topic")}`);
 
   return {
     projection: "StudentProgression",
@@ -671,9 +683,10 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
     battleground_wins: wins,
     practice_sessions: practice,
     total_battles: battles,
+    weak_concepts,
     source_as_of: asOf,
-    data_version: `prog:${studentId}:${xpVal}:${level}:${streak}`,
-    completeness: hasData ? 1 : hasRow ? 0.4 : 0,
+    data_version: `prog:${studentId}:${xpVal}:${level}:${streak}:${weak_concepts.length}`,
+    completeness: hasData ? 1 : hasRow || weak_concepts.length > 0 ? 0.4 : 0,
   };
 }
 
