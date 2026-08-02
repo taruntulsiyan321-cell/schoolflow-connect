@@ -1,9 +1,5 @@
--- ============================================================================
--- schools.stream + tag Wisdom Campus as RBSE Commerce
--- Enables Practice / Battleground to filter question_bank by stream.
--- Idempotent: do NOT insert classes that already exist under
--- (name, section, academic_year) — only UPDATE category/display when found.
--- ============================================================================
+-- Repair: apply stream/board without inserting duplicate classes.
+-- Safe if 20260802240000 partially failed on classes unique constraint.
 
 ALTER TABLE public.schools
   ADD COLUMN IF NOT EXISTS stream text;
@@ -25,7 +21,6 @@ BEGIN
   END IF;
 END $$;
 
--- Wisdom Campus / default demo tenant → RBSE Commerce
 UPDATE public.schools
 SET
   board = coalesce(nullif(trim(board), ''), 'rbse'),
@@ -35,8 +30,6 @@ WHERE id = '00000000-0000-4000-8000-000000000001'
    OR lower(coalesce(slug, '')) = 'wisdom-campus'
    OR lower(coalesce(name, '')) LIKE '%wisdom campus%';
 
--- Tag existing Class 11 / 12 rows as Commerce when they look like senior classes
--- (no INSERT — avoids duplicate (name, section, academic_year))
 UPDATE public.classes c
 SET
   category = coalesce(nullif(trim(c.category), ''), 'Commerce'),
@@ -45,9 +38,18 @@ SET
       THEN concat('Class ', coalesce(c.name, ''), coalesce('-' || nullif(c.section, ''), ''), ' Commerce')
     ELSE c.display_name
   END
-WHERE c.school_id = '00000000-0000-4000-8000-000000000001'
-  AND c.name IN ('11', '12', 'Class 11', 'Class 12')
-  AND (c.category IS NULL OR trim(c.category) = '' OR lower(c.category) LIKE '%commerce%');
+WHERE c.school_id IN (
+    SELECT id FROM public.schools
+    WHERE id = '00000000-0000-4000-8000-000000000001'
+       OR lower(coalesce(slug, '')) = 'wisdom-campus'
+       OR lower(coalesce(name, '')) LIKE '%wisdom campus%'
+  )
+  AND (
+    c.name ~ '^(11|12)$'
+    OR c.name ~* 'class\s*11'
+    OR c.name ~* 'class\s*12'
+    OR c.display_name ~* '\b(11|12)\b'
+  );
 
 CREATE INDEX IF NOT EXISTS idx_schools_stream ON public.schools (stream)
   WHERE stream IS NOT NULL;
