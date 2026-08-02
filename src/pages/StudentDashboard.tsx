@@ -41,7 +41,7 @@ import DppResult from "./student/DppResult";
 import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
 import BattleReportPage from "./student/BattleReportPage";
 import ChatPage from "./shared/ChatPage";
-import NoticesPage from "./shared/NoticesPage";
+import Notices from "@/gurukul/pages/Notices";
 import Notifications from "@/gurukul/pages/Notifications";
 import MyFeesPage from "./shared/MyFeesPage";
 
@@ -77,7 +77,7 @@ export default function StudentDashboard() {
     sessionsThisWeek?: number;
     totalStudents?: number;
   }>({});
-  const { ready: academicReady } = useAcademicContext();
+  const { ready: academicReady, studentId, schoolId, classId, classLabel } = useAcademicContext();
   const [progressionLoaded, setProgressionLoaded] = useState(false);
 
   const loadProfile = useCallback(async () => {
@@ -85,7 +85,7 @@ export default function StudentDashboard() {
     setProgressionLoaded(false);
     const { data: s, error: studentErr } = await supabase
       .from("students")
-      .select("full_name, roll_number, classes(name, section)")
+      .select("full_name, roll_number")
       .eq("user_id", user.id)
       .maybeSingle();
     if (studentErr) {
@@ -180,15 +180,6 @@ export default function StudentDashboard() {
     const fullName = s?.full_name?.trim() || user.email?.split("@")[0] || "Student";
     const parts = fullName.split(/\s+/);
     const initials = (parts[0]?.[0] || "S") + (parts[1]?.[0] || parts[0]?.[1] || "");
-    const rawClasses = s?.classes as
-      | { name?: string; section?: string }
-      | { name?: string; section?: string }[]
-      | null
-      | undefined;
-    const clsObj = Array.isArray(rawClasses) ? rawClasses[0] : rawClasses;
-    const cls = clsObj
-      ? `${clsObj.name ?? ""}-${clsObj.section ?? ""}`.replace(/^-|-$/g, "") || undefined
-      : undefined;
 
     const xp = prog?.xp ?? 0;
     const level = prog?.level ?? 1;
@@ -206,7 +197,7 @@ export default function StudentDashboard() {
     setProfile({
       name: fullName,
       firstName: parts[0] || fullName,
-      class: cls,
+      // Class label comes from AcademicContext identity (shared with Practice) — set in merge below.
       avatar: initials.toUpperCase(),
       xp,
       level,
@@ -237,18 +228,30 @@ export default function StudentDashboard() {
 
   const shellReady = studentShellReady({ academicReady, progressionLoaded });
 
+  const academicIdentity = useMemo(
+    () => ({
+      studentId,
+      schoolId,
+      classId,
+      classLabel,
+    }),
+    [studentId, schoolId, classId, classLabel],
+  );
+
   const mergedStudent = useMemo(
     () => ({
       ...EMPTY_STUDENT,
       ...Object.fromEntries(Object.entries(profile).filter(([, v]) => v !== undefined && v !== null && v !== "")),
+      // Class label SSOT from AcademicContext (same as Practice curriculum scope).
+      ...(classLabel ? { class: classLabel } : {}),
     }),
-    [profile],
+    [profile, classLabel],
   );
 
   return (
     <div className="gurukul-student dark min-h-screen">
-      <GurukulStudentProvider value={mergedStudent} shellReady={shellReady}>
-      <Layout page={page} setPage={setPage} profile={profile} progressionReady={shellReady}>
+      <GurukulStudentProvider value={mergedStudent} identity={academicIdentity} shellReady={shellReady}>
+      <Layout page={page} setPage={setPage} profile={{ ...profile, ...(classLabel ? { class: classLabel } : {}) }} progressionReady={shellReady}>
         <Routes>
           {/* Design student panel */}
           <Route index element={<Dashboard setPage={setPage} />} />
@@ -296,7 +299,7 @@ export default function StudentDashboard() {
           <Route path="dpp/:id/attempt" element={<DppAttempt />} />
           <Route path="dpp/:id/result" element={<DppResult />} />
           <Route path="chat" element={<ChatPage userRole="student" />} />
-          <Route path="notices" element={<NoticesPage viewerRole="student" />} />
+          <Route path="notices" element={<Notices />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="fees" element={<MyFeesPage />} />
           <Route

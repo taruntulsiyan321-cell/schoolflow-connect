@@ -10,8 +10,8 @@ import {
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 /**
- * Parent announcements — AnnouncementService.listPublishedForSchool only.
- * Empty when none published; never seed fake notices.
+ * Parent announcements — AnnouncementService.listPublishedForParent only.
+ * School-wide + linked children's classes; empty when none; never fake notices.
  */
 export default function ParentAnnouncements() {
   const { ctx, ready } = useAcademicContext();
@@ -29,7 +29,7 @@ export default function ParentAnnouncements() {
     (async () => {
       setLoading(true);
       try {
-        const rows = await AnnouncementService.listPublishedForSchool(ctx);
+        const rows = await AnnouncementService.listPublishedForParent(ctx);
         if (!cancelled) {
           setAnnouncements(rows);
           setError(null);

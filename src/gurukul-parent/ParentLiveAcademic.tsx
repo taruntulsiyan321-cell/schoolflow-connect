@@ -105,13 +105,14 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
   );
 }
 
-/** Parent exams + marks from MarksService; tests from TestService. */
+/** Parent exams + marks from MarksService; tests from TestService with attempt scores. */
 export function ParentLiveExams({ studentId, classId }: { studentId: string; classId: string | null }) {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["marks", "examination", "test", "profile"]);
   const [marks, setMarks] = useState<Awaited<ReturnType<typeof MarksService.listForStudent>>>([]);
   const [exams, setExams] = useState<Awaited<ReturnType<typeof MarksService.listExamsForClass>>>([]);
   const [tests, setTests] = useState<any[]>([]);
+  const [attemptsByDpp, setAttemptsByDpp] = useState<Record<string, Record<string, unknown>>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,6 +125,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
         const markRows = await MarksService.listForStudent(ctx, studentId, { limit: 100 });
         let examRows: Awaited<ReturnType<typeof MarksService.listExamsForClass>> = [];
         let testRows: any[] = [];
+        let attemptMap: Record<string, Record<string, unknown>> = {};
         if (classId) {
           const settled = await Promise.allSettled([
             MarksService.listExamsForClass(ctx, classId, { limit: 50 }),
@@ -131,11 +133,20 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
           ]);
           examRows = settled[0].status === "fulfilled" ? settled[0].value : [];
           testRows = settled[1].status === "fulfilled" ? settled[1].value : [];
+          const ids = testRows.map((t) => String(t.id)).filter(Boolean);
+          if (ids.length) {
+            try {
+              attemptMap = await TestService.listLatestAttemptsForStudent(ctx, studentId, ids);
+            } catch {
+              attemptMap = {};
+            }
+          }
         }
         if (cancelled) return;
         setMarks(markRows);
         setExams(examRows);
         setTests(testRows);
+        setAttemptsByDpp(attemptMap);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load exams");
       } finally {
@@ -161,8 +172,8 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
         <div className="space-y-2">
           {marks.map((m) => {
             const exam = examById.get(m.examId);
-            const max = exam?.maxMarks ?? 100;
-            const pct = max ? Math.round((m.marksObtained / max) * 100) : 0;
+            const max = exam?.maxMarks ?? null;
+            const pct = max ? Math.round((m.marksObtained / max) * 100) : null;
             return (
               <div key={m.id} className="p-3 bg-[#131316] border border-white/7 rounded-xl flex justify-between">
                 <div>
@@ -171,9 +182,9 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
                 </div>
                 <div className="text-right">
                   <div className="text-xs font-black text-white">
-                    {m.marksObtained}/{max}
+                    {max ? `${m.marksObtained}/${max}` : m.marksObtained}
                   </div>
-                  <div className="text-[10px] text-[#46465a]">{pct}%</div>
+                  <div className="text-[10px] text-[#46465a]">{pct !== null ? `${pct}%` : "—"}</div>
                 </div>
               </div>
             );
@@ -188,12 +199,33 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
           Class tests (TestService)
         </div>
         <div className="space-y-2">
-          {tests.map((t) => (
-            <div key={t.id} className="p-3 bg-[#131316] border border-white/7 rounded-xl">
-              <div className="text-xs font-bold text-white">{t.title}</div>
-              <div className="text-[10px] text-[#78788c]">{t.subject || "—"}</div>
-            </div>
-          ))}
+          {tests.map((t) => {
+            const att = attemptsByDpp[String(t.id)];
+            const score = att?.score != null ? Number(att.score) : null;
+            const correct = att?.correct_count != null ? Number(att.correct_count) : null;
+            const total = att?.total_count != null ? Number(att.total_count) : null;
+            const submitted = Boolean(att?._submitted);
+            let scoreLabel = "Not attempted";
+            if (att && submitted && score != null) {
+              scoreLabel =
+                total != null && total > 0
+                  ? `${correct ?? score}/${total}`
+                  : String(score);
+            } else if (att && !submitted) {
+              scoreLabel = "In progress";
+            }
+            return (
+              <div key={t.id} className="p-3 bg-[#131316] border border-white/7 rounded-xl flex justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold text-white">{t.title}</div>
+                  <div className="text-[10px] text-[#78788c]">{t.subject || "—"}</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xs font-black text-white">{scoreLabel}</div>
+                </div>
+              </div>
+            );
+          })}
           {tests.length === 0 && (
             <div className="text-xs text-[#46465a] py-4 text-center">No class tests scheduled.</div>
           )}
@@ -257,12 +289,12 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
           prog
             ? {
                 xp: prog.xp ?? 0,
-                level: prog.level ?? 1,
+                level: prog.level ?? 0,
                 league: prog.league?.label ?? prog.league?.code ?? "—",
                 studyStreak: prog.study_streak ?? 0,
                 badges: prog.badges?.length ?? 0,
               }
-            : { xp: 0, level: 1, league: "—", studyStreak: 0, badges: 0 },
+            : { xp: 0, level: 0, league: "—", studyStreak: 0, badges: 0 },
         );
         setAi(
           summary

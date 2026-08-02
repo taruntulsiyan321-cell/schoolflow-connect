@@ -571,6 +571,54 @@ export const TestService = {
     return (submitted ?? rows[0]) as Record<string, unknown>;
   },
 
+  /**
+   * Latest attempts for a student across DPPs (parent/teacher/operator read path).
+   */
+  async listLatestAttemptsForStudent(
+    ctx: ServiceContext,
+    studentId: string,
+    dppIds: string[],
+  ): Promise<Record<string, Record<string, unknown>>> {
+    assertCanConsume(ctx, "student_test_attempt");
+    const { assertMayAccessStudent } = await import("./parentAccess");
+    await assertMayAccessStudent(ctx, studentId);
+    if (!dppIds.length) return {};
+
+    const client = getClient(toRepoContext(ctx));
+    const { data: student, error: sErr } = await client
+      .from("students")
+      .select("id, user_id")
+      .eq("id", studentId)
+      .eq("school_id", ctx.schoolId)
+      .maybeSingle();
+    throwIfError(sErr, "Failed to load student for test attempts");
+    if (!student) return {};
+
+    let q = client
+      .from("dpp_attempts")
+      .select("*")
+      .in("dpp_id", dppIds)
+      .order("started_at", { ascending: false })
+      .limit(200);
+    if (student.user_id) {
+      q = q.or(`student_id.eq.${studentId},user_id.eq.${student.user_id}`);
+    } else {
+      q = q.eq("student_id", studentId);
+    }
+    const { data, error } = await q;
+    throwIfError(error, "Failed to list student test attempts");
+
+    const byDpp: Record<string, Record<string, unknown>> = {};
+    for (const row of (data ?? []) as Record<string, unknown>[]) {
+      const dppId = String(row.dpp_id ?? "");
+      if (!dppId || byDpp[dppId]) continue;
+      const submitted =
+        row.submitted_at != null || String(row.status ?? "") === "submitted";
+      byDpp[dppId] = { ...row, _submitted: submitted };
+    }
+    return byDpp;
+  },
+
   async startAttempt(ctx: ServiceContext, dppId: string) {
     assertCanOwn(ctx, "student_test_attempt");
     const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_dpp_start", {

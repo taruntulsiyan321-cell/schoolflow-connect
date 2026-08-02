@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { AnalyticsService, HomeworkService } from "@/academic";
+import { AnalyticsService, HomeworkService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 /**
  * Admin Homework monitor — HomeworkService + AnalyticsService only.
- * No mock data; no direct table writes.
+ * No mock data; no direct table writes. Live-refreshes with teacher HW writes.
  */
 export default function HomeworkAdmin() {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["homework", "profile"]);
   const [summary, setSummary] = useState<Awaited<
     ReturnType<typeof AnalyticsService.homeworkSchool>
   > | null>(null);
@@ -40,7 +41,7 @@ export default function HomeworkAdmin() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx]);
+  }, [ready, ctx, liveVersion]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();

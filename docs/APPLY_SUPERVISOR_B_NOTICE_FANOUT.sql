@@ -1,0 +1,9 @@
+-- APPLY: Supervisor B notice fan-out + publish-gated RLS
+-- Run in Supabase SQL editor after reviewing migrations:
+--   20260802542000_notices_published_status_rls.sql
+--   20260802560000_supervisor_b_notice_fanout.sql
+--
+-- Expected after apply:
+-- 1) Student/parent SELECT on notices requires status=published AND revoked_at IS NULL
+-- 2) announcement.published deep link = /student/notices
+-- 3) School-wide notices (class_id NULL) fan out to all school students + parents via circle
