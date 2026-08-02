@@ -8,6 +8,8 @@ import { getClient, throwIfError } from "../repository/base";
 import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import type { Json } from "@/integrations/supabase/types";
+import { fixUtf8Content } from "@/lib/utf8Text";
+import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
 
 export type QuestionBankInsertRow = {
   class_level?: number | null;
@@ -55,12 +57,27 @@ export const QuestionBankService = {
     assertCanOwn(ctx, "question");
     if (!rows.length) return { count: 0 };
 
-    const payload = rows.map((r) => ({
-      ...r,
-      school_id: r.school_id ?? ctx.schoolId,
-      created_by: r.created_by ?? ctx.userId,
-      is_approved: r.is_approved ?? true,
-    }));
+    const payload = rows.map((r) => {
+      const options = Array.isArray(r.options)
+        ? r.options.map((o) => (typeof o === "string" ? fixUtf8Content(o) : o))
+        : r.options;
+      return {
+        ...r,
+        subject: repairUtf8Mojibake(r.subject),
+        chapter: r.chapter != null ? repairUtf8Mojibake(r.chapter) : r.chapter,
+        topic: r.topic != null ? repairUtf8Mojibake(r.topic) : r.topic,
+        concept: r.concept != null ? repairUtf8Mojibake(r.concept) : r.concept,
+        question: fixUtf8Content(r.question),
+        options,
+        explanation:
+          r.explanation != null && String(r.explanation).trim()
+            ? fixUtf8Content(r.explanation)
+            : r.explanation ?? null,
+        school_id: r.school_id ?? ctx.schoolId,
+        created_by: r.created_by ?? ctx.userId,
+        is_approved: r.is_approved ?? true,
+      };
+    });
 
     const { data, error } = await getClient(toRepoContext(ctx))
       .from("question_bank")
