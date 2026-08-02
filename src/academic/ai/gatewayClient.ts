@@ -116,8 +116,15 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
 
   switch (featureId) {
     case "student.attendance.query": {
+      const total = Number(d.total_marked ?? 0);
+      if (total <= 0) {
+        return (
+          `**Attendance (school records)**\n` +
+          `No attendance days have been marked for you yet.\n` +
+          `_Source: Academic Engine · no estimates._`
+        );
+      }
       const pct = d.attendance_pct ?? 0;
-      const total = d.total_marked ?? 0;
       return (
         `**Attendance (school records)**\n` +
         `Marked days: **${total}** · Present: **${d.present ?? 0}** · Absent: **${d.absent ?? 0}** · Late: **${d.late ?? 0}**\n` +
@@ -242,15 +249,21 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       }
       const facts = d.facts as Record<string, unknown> | undefined;
       if (facts?.attendance && facts?.eie) {
-        const att = facts.attendance as { attendance_pct?: number };
-        const eie = facts.eie as { avg_mastery?: number; weak_concepts?: { concept?: string }[] };
+        const att = facts.attendance as { attendance_pct?: number; total_marked?: number };
+        const eie = facts.eie as { avg_mastery?: number; total_tracked?: number; weak_concepts?: { concept?: string }[] };
         const weak = (eie.weak_concepts ?? [])
           .slice(0, 3)
           .map((c) => presentAcademicLabel(c.concept, "concept"))
           .filter(Boolean);
+        const attMarked = Number(att.total_marked ?? 0);
+        const attBit = attMarked > 0 ? `Attendance **${att.attendance_pct ?? 0}%**` : `Attendance **not marked yet**`;
+        const masteryBit =
+          Number(eie.total_tracked ?? 0) > 0
+            ? `Avg mastery **${eie.avg_mastery ?? 0}%**`
+            : `Mastery **not tracked yet**`;
         return (
           `**Performance (facts only)**\n` +
-          `Attendance **${att.attendance_pct ?? 0}%** · Avg mastery **${eie.avg_mastery ?? 0}%**` +
+          `${attBit} · ${masteryBit}` +
           (weak.length ? `\nFocus concepts: ${weak.join(", ")}` : "") +
           `\n_Generative explanation unavailable — showing Academic Engine + EIE facts._`
         );
@@ -297,13 +310,25 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
           .filter(Boolean);
         const weakFromProg = (prog?.weak_concepts ?? []).slice(0, 3).filter(Boolean);
         const weakBits = weakFromEie.length ? weakFromEie : weakFromProg;
+        const attMarked = Number(att?.total_marked ?? 0);
+        const attLine =
+          attMarked > 0
+            ? `Attendance **${att?.attendance_pct ?? 0}%** (${attMarked} days marked)`
+            : `Attendance **not marked yet**`;
+        const marksLine =
+          Number(marks?.exams_count ?? 0) > 0
+            ? `Marks avg **${marks?.average_pct == null ? "—" : `${marks.average_pct}%`}**`
+            : `Marks **none published yet**`;
+        const masteryLine =
+          Number(eie?.total_tracked ?? 0) > 0
+            ? `Mastery **${eie?.avg_mastery ?? 0}%**`
+            : `Mastery **not tracked yet**`;
         return (
           `**Nova (facts only)**\n` +
-          `Attendance **${att?.attendance_pct ?? 0}%**` +
-          (att?.total_marked != null ? ` (${att.total_marked} days marked)` : "") +
+          `${attLine}` +
           ` · Homework pending **${hw?.pending_count ?? 0}**` +
-          ` · Marks avg **${marks?.average_pct == null ? "—" : `${marks.average_pct}%`}**` +
-          ` · Mastery **${eie?.avg_mastery ?? 0}%**` +
+          ` · ${marksLine}` +
+          ` · ${masteryLine}` +
           (progBits.length ? `\nProgression: ${progBits.join(" · ")}` : "") +
           (weakBits.length ? `\nWeak areas: ${weakBits.join(", ")}` : "") +
           `\n_Generative reply unavailable — showing Academic Engine + EIE + Progression facts._`
@@ -338,6 +363,10 @@ export async function askAiCoach(input: {
   locale?: string;
   /** Defaults to student for Gurukul student panel callers. */
   role?: AiActorRole;
+  /** Continue an existing Nova multi-turn session */
+  session_id?: string;
+  /** Open a new session when capability supports memory (default: true for nova chat) */
+  open_session?: boolean;
 }): Promise<{ text: string; response: AiGatewayResponse }> {
   const role = input.role ?? "student";
   const resolved = resolveCoachCapability({
@@ -362,6 +391,11 @@ export async function askAiCoach(input: {
     };
   }
 
+  const wantsSession =
+    resolved.feature_id === "student.nova.chat" ||
+    input.open_session === true ||
+    Boolean(input.session_id);
+
   const response = await invokeAiGateway({
     feature_id: resolved.feature_id,
     intent_hint: input.text,
@@ -370,6 +404,8 @@ export async function askAiCoach(input: {
     channel: input.channel ?? "student_app",
     locale: input.locale,
     client_context_version: "gurukul-aicoach/1",
+    session_id: input.session_id,
+    open_session: input.session_id ? false : wantsSession && input.open_session !== false,
   });
 
   if (isAiBillingOrCreditsIssue(response) && resolved.feature_id === "student.nova.chat") {

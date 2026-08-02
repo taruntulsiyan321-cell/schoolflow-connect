@@ -2,6 +2,48 @@
 import { corsHeaders, generateStructured, jsonResponse } from "./gemini.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
 
+/** Block SSRF via user-supplied source_url (private / link-local / metadata hosts). */
+function isSafePublicHttpUrl(raw: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (url.username || url.password) return false;
+
+  const host = url.hostname.toLowerCase();
+  if (
+    host === "localhost" ||
+    host === "metadata.google.internal" ||
+    host.endsWith(".local") ||
+    host.endsWith(".internal")
+  ) {
+    return false;
+  }
+
+  // IPv4 literals
+  const ipv4 = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const parts = ipv4.slice(1).map(Number);
+    if (parts.some((n) => n > 255)) return false;
+    const [a, b] = parts;
+    if (a === 10 || a === 127 || a === 0) return false;
+    if (a === 169 && b === 254) return false;
+    if (a === 172 && b >= 16 && b <= 31) return false;
+    if (a === 192 && b === 168) return false;
+    if (a === 100 && b >= 64 && b <= 127) return false; // CGNAT
+  }
+
+  // IPv6 / IPv4-mapped basics
+  if (host === "::1" || host === "[::1]" || host.startsWith("fc") || host.startsWith("fd") || host.startsWith("fe80")) {
+    return false;
+  }
+
+  return true;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -23,11 +65,12 @@ Deno.serve(async (req) => {
     const n = Math.max(1, Math.min(20, Number(count) || 5));
 
     let fetchedText = "";
-    if (source_url && /^https?:\/\//i.test(source_url)) {
+    if (source_url && isSafePublicHttpUrl(String(source_url))) {
       try {
-        const res = await fetch(source_url, {
+        const res = await fetch(String(source_url), {
           headers: { "User-Agent": "Mozilla/5.0 (SchoolFlow DPP Bot)" },
           signal: AbortSignal.timeout(15000),
+          redirect: "error",
         });
         if (res.ok) {
           const html = await res.text();
@@ -50,6 +93,8 @@ Deno.serve(async (req) => {
       } catch {
         /* ignore fetch errors */
       }
+    } else if (source_url) {
+      return jsonResponse({ error: "source_url is not allowed" }, 400);
     }
 
     const combined_source = [source_text, fetchedText].filter(Boolean).join("\n\n").slice(0, 9000);

@@ -2,7 +2,7 @@
 // Caches results into public.question_templates as template_type='ai_mcq'.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders, generateStructured, jsonResponse } from "./gemini.ts";
-import { requireUserJwt } from "../_shared/requireAuth.ts";
+import { requireAnyRole } from "../_shared/requireRole.ts";
 
 type GenQ = {
   question: string;
@@ -15,7 +15,8 @@ type GenQ = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const __auth = await requireUserJwt(req);
+  // Service-role writes must be staff-only (not every authenticated student).
+  const __auth = await requireAnyRole(req, ["admin", "principal", "teacher"]);
   if (!__auth.ok) return __auth.response;
 
   try {

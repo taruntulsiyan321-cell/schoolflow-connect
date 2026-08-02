@@ -36,6 +36,15 @@ Deno.serve(async (req) => {
     const { data: hasRole } = await admin.rpc("has_role", { _user_id: u.user.id, _role: "admin" });
     if (!hasRole) return json({ error: "Admin only" }, 403);
 
+    const { data: callerProfile } = await admin
+      .from("profiles")
+      .select("school_id, is_active")
+      .eq("id", u.user.id)
+      .maybeSingle();
+    if (!callerProfile?.school_id) return json({ error: "No school context" }, 403);
+    if (callerProfile.is_active === false) return json({ error: "Account disabled" }, 403);
+    const callerSchoolId = callerProfile.school_id as string;
+
     const body = await req.json().catch(() => ({}));
     const kind = String(body.kind || "");
     const target_id = String(body.target_id || "");
@@ -44,6 +53,27 @@ Deno.serve(async (req) => {
 
     if (!target_id || !identifier) return json({ error: "Missing fields" }, 400);
     if (!["student", "teacher"].includes(kind)) return json({ error: "Invalid kind" }, 400);
+
+    // Tenant isolation: target row must belong to caller's school
+    if (kind === "teacher") {
+      const { data: teacher } = await admin
+        .from("teachers")
+        .select("id, school_id")
+        .eq("id", target_id)
+        .maybeSingle();
+      if (!teacher || teacher.school_id !== callerSchoolId) {
+        return json({ error: "Teacher is outside your school" }, 403);
+      }
+    } else {
+      const { data: student } = await admin
+        .from("students")
+        .select("id, school_id")
+        .eq("id", target_id)
+        .maybeSingle();
+      if (!student || student.school_id !== callerSchoolId) {
+        return json({ error: "Student is outside your school" }, 403);
+      }
+    }
 
     // Resolve or create the auth user
     let userId: string | null = null;
@@ -89,16 +119,28 @@ Deno.serve(async (req) => {
       const { error } = await admin
         .from("teachers")
         .update({ user_id: userId, status: "active" })
-        .eq("id", target_id);
+        .eq("id", target_id)
+        .eq("school_id", callerSchoolId);
       if (error) return json({ error: error.message }, 400);
       await admin.from("user_roles").upsert({ user_id: userId, role: "teacher" }, { onConflict: "user_id,role" });
     } else {
       const patch: Record<string, string> = as === "parent" ? { parent_user_id: userId } : { user_id: userId };
-      const { error } = await admin.from("students").update(patch).eq("id", target_id);
+      const { error } = await admin
+        .from("students")
+        .update(patch)
+        .eq("id", target_id)
+        .eq("school_id", callerSchoolId);
       if (error) return json({ error: error.message }, 400);
       const role = as === "parent" ? "parent" : "student";
       await admin.from("user_roles").upsert({ user_id: userId, role }, { onConflict: "user_id,role" });
     }
+
+    // Bind linked auth user to this tenant when profile school is empty
+    await admin
+      .from("profiles")
+      .update({ school_id: callerSchoolId })
+      .eq("id", userId)
+      .is("school_id", null);
 
     return json({ ok: true, user_id: userId });
   } catch (e) {

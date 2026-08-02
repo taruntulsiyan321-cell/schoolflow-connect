@@ -48,6 +48,19 @@ Deno.serve(async (req) => {
     const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", userData.user.id).eq("role", "admin").maybeSingle();
     if (!roleRow) return new Response(JSON.stringify({ error: "Admin only" }), { status: 403, headers: corsHeaders });
 
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("school_id, is_active")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+    if (!callerProfile?.school_id) {
+      return new Response(JSON.stringify({ error: "No school context" }), { status: 403, headers: corsHeaders });
+    }
+    if (callerProfile.is_active === false) {
+      return new Response(JSON.stringify({ error: "Account disabled" }), { status: 403, headers: corsHeaders });
+    }
+    const schoolId = callerProfile.school_id as string;
+
     const { title, body, audience = "all", class_id } = await req.json();
     if (!title || !body) return new Response(JSON.stringify({ error: "title & body required" }), { status: 400, headers: corsHeaders });
 
@@ -55,17 +68,38 @@ Deno.serve(async (req) => {
     if (!saJson) throw new Error("FCM_SERVICE_ACCOUNT_JSON secret not configured");
     const sa = JSON.parse(saJson);
 
-    // Resolve target user_ids by audience
+    // Resolve target user_ids by audience — always scoped to caller's school
     let userIds: string[] = [];
     if (audience === "all") {
-      const { data } = await supabase.from("device_tokens").select("user_id");
-      userIds = (data ?? []).map(r => r.user_id);
+      const { data } = await supabase.from("profiles").select("id").eq("school_id", schoolId).eq("is_active", true);
+      userIds = (data ?? []).map((r) => r.id);
     } else if (["teacher", "student", "parent", "admin"].includes(audience)) {
-      const { data } = await supabase.from("user_roles").select("user_id").eq("role", audience);
-      userIds = (data ?? []).map(r => r.user_id);
+      const { data: roleRows } = await supabase.from("user_roles").select("user_id").eq("role", audience);
+      const roleIds = (roleRows ?? []).map((r) => r.user_id).filter(Boolean);
+      if (roleIds.length > 0) {
+        const { data: schoolUsers } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("school_id", schoolId)
+          .eq("is_active", true)
+          .in("id", roleIds);
+        userIds = (schoolUsers ?? []).map((r) => r.id);
+      }
     } else if (audience === "class" && class_id) {
-      const { data: studs } = await supabase.from("students").select("user_id, parent_user_id").eq("class_id", class_id);
-      userIds = (studs ?? []).flatMap(s => [s.user_id, s.parent_user_id].filter(Boolean));
+      const { data: cls } = await supabase
+        .from("classes")
+        .select("id, school_id")
+        .eq("id", class_id)
+        .maybeSingle();
+      if (!cls || cls.school_id !== schoolId) {
+        return new Response(JSON.stringify({ error: "Class is outside your school" }), { status: 403, headers: corsHeaders });
+      }
+      const { data: studs } = await supabase
+        .from("students")
+        .select("user_id, parent_user_id")
+        .eq("class_id", class_id)
+        .eq("school_id", schoolId);
+      userIds = (studs ?? []).flatMap((s) => [s.user_id, s.parent_user_id].filter(Boolean));
     }
     if (userIds.length === 0) return new Response(JSON.stringify({ success: true, sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 

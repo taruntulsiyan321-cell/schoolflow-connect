@@ -12,14 +12,13 @@ import { useAuth } from "@/auth";
 import {
   Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3,
   MoreHorizontal, ChevronLeft, Paperclip, Copy, Bookmark,
-  RotateCcw, X, Volume2,
+  RotateCcw, X,
   BookOpen, HelpCircle, Brain, Sparkles,
-  MessageSquare, Clock, Check, AlertCircle, Globe, Layers,
+  MessageSquare, Check, AlertCircle, Globe, Layers,
   ThumbsUp, ThumbsDown,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type VoiceState = "idle" | "listening" | "processing" | "speaking";
 type Role = "nova" | "student";
 
 interface Message {
@@ -77,107 +76,6 @@ function offlineFallback(): string {
   );
 }
 
-// ── Voice Orb ─────────────────────────────────────────────────────────────────
-function VoiceOrb({ state, onStop }: { state: VoiceState; onStop: () => void }) {
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-      style={{ background:"rgba(8,11,20,0.92)", backdropFilter:"blur(24px)" }}>
-
-      {/* Outer rings */}
-      {state === "listening" && <>
-        {[1,2,3].map(i => (
-          <div key={i} className="absolute rounded-full border border-blue-500/20 animate-ping"
-            style={{ width:160+i*80, height:160+i*80, animationDelay:`${i*0.3}s`, animationDuration:"2s" }}/>
-        ))}
-      </>}
-      {state === "speaking" && <>
-        {[1,2,3].map(i => (
-          <div key={i} className="absolute rounded-full border border-cyan-400/20 animate-ping"
-            style={{ width:160+i*80, height:160+i*80, animationDelay:`${i*0.4}s`, animationDuration:"2.5s" }}/>
-        ))}
-      </>}
-
-      {/* Core orb */}
-      <div className="relative w-36 h-36 rounded-full flex items-center justify-center"
-        style={{
-          background: state === "listening"
-            ? "radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb, #4338ca)"
-            : state === "speaking"
-            ? "radial-gradient(circle at 35% 35%, #67e8f9, #4b9fd4, #0891b2)"
-            : state === "processing"
-            ? "radial-gradient(circle at 35% 35%, #c4b5fd, #6882e8, #7c3aed)"
-            : "radial-gradient(circle at 35% 35%, #4b5563, #374151, #1f2937)",
-          boxShadow: state === "listening"
-            ? "0 0 60px rgba(59,130,246,0.6), 0 0 120px rgba(59,130,246,0.3)"
-            : state === "speaking"
-            ? "0 0 60px rgba(34,211,238,0.6), 0 0 120px rgba(34,211,238,0.3)"
-            : state === "processing"
-            ? "0 0 60px rgba(167,139,250,0.5)"
-            : "0 0 20px rgba(75,85,99,0.3)",
-          animation: state !== "idle" ? "pulse 2s ease-in-out infinite" : undefined,
-        }}>
-        {state === "listening"   && <Mic className="w-10 h-10 text-white"/>}
-        {state === "speaking"    && <Volume2 className="w-10 h-10 text-white"/>}
-        {state === "processing"  && <Brain className="w-10 h-10 text-white animate-pulse"/>}
-        {state === "idle"        && <Mic className="w-10 h-10 text-white/50"/>}
-      </div>
-
-      {/* Waveform (listening state) */}
-      {state === "listening" && (
-        <div className="flex items-center gap-0.5 mt-8 h-10">
-          {WAVEFORM_HEIGHTS.map((h, i) => (
-            <div key={i} className="w-1 rounded-full bg-blue-400 transition-all"
-              style={{ height:h, opacity:0.6+Math.random()*0.4,
-                animation:`waveBar 0.${4+i%4}s ease-in-out infinite alternate`,
-                animationDelay:`${i*0.05}s` }}/>
-          ))}
-        </div>
-      )}
-
-      {/* AI speaking bars */}
-      {state === "speaking" && (
-        <div className="flex items-center gap-1 mt-8 h-10">
-          {[8,16,24,12,20,28,16,10,22,14,26,18].map((h, i) => (
-            <div key={i} className="w-1.5 rounded-full bg-cyan-400"
-              style={{ height:h, opacity:0.7,
-                animation:`waveBar 0.${3+i%5}s ease-in-out infinite alternate`,
-                animationDelay:`${i*0.08}s` }}/>
-          ))}
-        </div>
-      )}
-
-      {/* Label */}
-      <div className="mt-8 text-center">
-        <div className="text-white font-semibold text-base">
-          {state === "listening"  && "Listening..."}
-          {state === "processing" && "Nova is thinking..."}
-          {state === "speaking"   && "Nova is speaking"}
-          {state === "idle"       && "Tap to speak"}
-        </div>
-        <div className="text-[#78788c] text-sm mt-1">
-          {state === "listening"  && "Speak naturally — I'll catch every word"}
-          {state === "speaking"   && "Tap anywhere to interrupt"}
-          {state === "processing" && "Hang tight..."}
-        </div>
-      </div>
-
-      {/* Stop / interrupt button */}
-      <button onClick={onStop}
-        className="mt-10 flex items-center gap-2 px-6 py-3 rounded-2xl border border-white/10 text-[#78788c] hover:text-white hover:border-white/20 transition-all">
-        <X className="w-4 h-4"/> {state === "speaking" ? "Interrupt" : "Cancel"}
-      </button>
-
-      {/* Wave animation keyframe via inline style tag */}
-      <style>{`
-        @keyframes waveBar {
-          from { transform: scaleY(0.4); }
-          to   { transform: scaleY(1.4); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
 // ── Message bubble ────────────────────────────────────────────────────────────
 function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
   msg: Message;
@@ -215,16 +113,6 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
       )}
 
       <div className={cn("flex flex-col gap-1 max-w-[78%]", isNova ? "items-start" : "items-end")}>
-        {/* Attachment pills */}
-        {msg.attachments && msg.attachments.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-1">
-            {msg.attachments.map(a => (
-              <div key={a.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/6 border border-white/8 text-[11px] text-[#a0a0b0]">
-                <FileText className="w-3 h-3"/>  {a.name}
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* Bubble */}
         <div className={cn(
@@ -369,7 +257,7 @@ function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects
         Hi {firstName} 👋
       </h2>
       <p className="text-[#78788c] text-sm mb-8 text-center max-w-xs">
-        I'm Nova — your personal academic tutor. Ask me anything, show me a problem, or just start talking.
+        I'm Nova — your personal academic tutor. Ask about attendance, homework, marks, timetable, or revision.
       </p>
 
       {/* Academic context mini-card */}
@@ -536,35 +424,26 @@ function Sidebar({
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
 function InputBar({
-  onSend, onVoiceStart, onAttach, disabled,
+  onSend, onVoiceUnavailable, onAttachUnavailable, disabled,
 }: {
-  onSend: (text:string, attachments:Attachment[])=>void;
-  onVoiceStart: ()=>void;
-  onAttach: (type: Attachment["type"])=>void;
+  onSend: (text: string) => void;
+  onVoiceUnavailable: () => void;
+  onAttachUnavailable: () => void;
   disabled?: boolean;
 }) {
-  const [text,        setText]        = useState("");
-  const [attachMenu,  setAttachMenu]  = useState(false);
-  const [pending,     setPending]     = useState<Attachment[]>([]);
+  const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  function addAttachment(type: Attachment["type"]) {
-    const names: Record<string,string> = { image:"photo.jpg", screenshot:"screenshot.png", pdf:"document.pdf", doc:"notes.docx", ppt:"slides.pptx" };
-    setPending(p => [...p, { id:Date.now().toString(), type, name:names[type] }]);
-    setAttachMenu(false);
-  }
-
   function submit() {
-    if (!text.trim() && pending.length === 0) return;
-    onSend(text.trim(), pending);
-    setText(""); setPending([]);
+    if (!text.trim()) return;
+    onSend(text.trim());
+    setText("");
   }
 
   function onKey(e: React.KeyboardEvent) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
   }
 
-  // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -574,48 +453,16 @@ function InputBar({
 
   return (
     <div className="relative">
-      {/* Attachment pills */}
-      {pending.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-2 px-1">
-          {pending.map(a => (
-            <div key={a.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#131316] border border-white/10 text-[11px] text-[#a0a0b0]">
-              <FileText className="w-3 h-3"/>  {a.name}
-              <button onClick={() => setPending(p => p.filter(x => x.id !== a.id))} className="ml-0.5 text-[#78788c] hover:text-white">
-                <X className="w-3 h-3"/>
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="flex items-end gap-2 bg-[#131316] border border-white/10 rounded-2xl p-2 focus-within:border-[#3b5bdb]/30 transition-all">
-        {/* Attach button */}
-        <div className="relative">
-          <button onClick={() => setAttachMenu(m => !m)} title="Attach"
-            className={cn(
-              "w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
-              attachMenu ? "text-[#3b5bdb] bg-[#3b5bdb]/12" : "text-[#78788c] hover:text-white hover:bg-white/6"
-            )}>
-            <Paperclip className="w-4 h-4"/>
-          </button>
+        <button
+          type="button"
+          onClick={onAttachUnavailable}
+          title="Attachments coming soon"
+          className="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5 text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4"
+        >
+          <Paperclip className="w-4 h-4"/>
+        </button>
 
-          {/* Attachment menu */}
-          {attachMenu && (
-            <div className="absolute bottom-11 left-0 bg-[#131316] border border-white/10 rounded-2xl shadow-2xl p-1.5 min-w-[180px] z-20">
-              {ATTACH_TYPES.map(t => (
-                <button key={t.type} onClick={() => addAttachment(t.type)}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/5 transition-all text-sm text-[#a0a0b0] hover:text-white">
-                  <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0" style={{background:`${t.color}15`,color:t.color}}>
-                    {t.icon}
-                  </div>
-                  {t.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Text area */}
         <textarea
           ref={textareaRef}
           value={text} onChange={e => setText(e.target.value)} onKeyDown={onKey}
@@ -625,18 +472,19 @@ function InputBar({
           style={{ maxHeight:120 }}
         />
 
-        {/* Voice button */}
-        <button onClick={onVoiceStart} title="Voice"
-          className="w-8 h-8 rounded-xl flex items-center justify-center text-[#78788c] hover:text-[#3b5bdb] hover:bg-[#3b5bdb]/10 transition-all shrink-0 mb-0.5"
-          style={{ boxShadow: "0 0 0 0 rgba(59,130,246,0)" }}>
+        <button
+          type="button"
+          onClick={onVoiceUnavailable}
+          title="Voice coming soon"
+          className="w-8 h-8 rounded-xl flex items-center justify-center text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4 transition-all shrink-0 mb-0.5"
+        >
           <Mic className="w-4 h-4"/>
         </button>
 
-        {/* Send button */}
-        <button onClick={submit} disabled={!text.trim() && pending.length === 0}
+        <button type="button" onClick={submit} disabled={!text.trim()}
           className={cn(
             "w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
-            (text.trim() || pending.length > 0)
+            text.trim()
               ? "bg-[#3b5bdb] text-white hover:bg-blue-500"
               : "text-[#78788c]/40 cursor-not-allowed"
           )}>
@@ -644,14 +492,14 @@ function InputBar({
         </button>
       </div>
       <div className="text-center mt-1.5">
-        <span className="text-[10px] text-[#78788c]/50">Press ⏎ to send · ⇧⏎ for new line · Hold 🎙 to speak</span>
+        <span className="text-[10px] text-[#78788c]/50">Press ⏎ to send · ⇧⏎ for new line · Answers use your live school records</span>
       </div>
     </div>
   );
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
+export default function AICoach({ setPage: _setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const { user, role } = useAuth();
   const { studentId, schoolId } = useAcademicContext();
@@ -671,19 +519,27 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     [masteryItems],
   );
 
-  const [convos,     setConvos]     = useState<Conversation[]>(EMPTY_CONVOS);
+  const [convos,     setConvos]     = useState<Conversation[]>(() => loadStoredConvos());
   const [activeId,   setActiveId]   = useState<string|null>(null);
-  const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [sidebarOpen,setSidebarOpen]= useState(false);
   const [renaming,   setRenaming]   = useState<string|null>(null);
   const [renameVal,  setRenameVal]  = useState("");
   const [isTyping,   setIsTyping]   = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const voiceTimer     = useRef<ReturnType<typeof setTimeout>|null>(null);
+  const convosRef = useRef(convos);
+  convosRef.current = convos;
 
   const active = activeId ? convos.find(c => c.id === activeId) ?? null : null;
   const msgs   = active?.messages ?? [];
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CONVO_STORAGE_KEY, JSON.stringify(convos.slice(0, 40)));
+    } catch {
+      /* ignore quota */
+    }
+  }, [convos]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior:"smooth" });
@@ -700,6 +556,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   async function replyViaGateway(convoId: string, text: string) {
     setIsTyping(true);
     try {
+      const existing = convosRef.current.find((c) => c.id === convoId);
       const { text: reply, response } = await askAiCoach({
         text,
         studentId: studentId || undefined,
@@ -708,15 +565,22 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           : "student",
         channel: "student_app",
         locale: typeof navigator !== "undefined" ? navigator.language : undefined,
+        session_id: existing?.sessionId,
+        open_session: !existing?.sessionId,
       });
       if (isAiBillingOrCreditsIssue(response)) {
         toast.message(AI_BILLING_UNAVAILABLE_MSG);
       }
+      const nextSessionId =
+        typeof response.session_id === "string" && response.session_id.trim()
+          ? response.session_id.trim()
+          : existing?.sessionId;
       setConvos((cs) =>
         cs.map((c) =>
           c.id === convoId
             ? {
                 ...c,
+                sessionId: nextSessionId,
                 messages: [
                   ...c.messages,
                   {
@@ -754,7 +618,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     }
   }
 
-  function sendMessage(text: string, attachments: Attachment[]) {
+  function sendMessage(text: string) {
     if (!activeId) {
       const id = `c${Date.now()}`;
       const newConvo: Conversation = {
@@ -764,34 +628,18 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       setConvos(cs => [newConvo, ...cs]);
       setActiveId(id);
       setTimeout(() => {
-        setConvos(cs => cs.map(c => c.id === id ? { ...c, messages:[{ id:"m1", role:"student", text, time:now(), attachments:attachments.length>0?attachments:undefined }] } : c));
+        setConvos(cs => cs.map(c => c.id === id ? { ...c, messages:[{ id:"m1", role:"student", text, time:now() }] } : c));
         void replyViaGateway(id, text);
       }, 100);
       return;
     }
 
-    addMessage(activeId, { role:"student", text, time:now(), attachments:attachments.length>0?attachments:undefined });
+    addMessage(activeId, { role:"student", text, time:now() });
     void replyViaGateway(activeId, text);
   }
 
-  function startVoice() {
-    setVoiceState("listening");
-    voiceTimer.current = setTimeout(() => {
-      setVoiceState("processing");
-      setTimeout(() => {
-        setVoiceState("idle");
-        toast.message("Voice transcript is not connected yet — type your question instead.");
-      }, 800);
-    }, 2000);
-  }
-
-  function stopVoice() {
-    if (voiceTimer.current) clearTimeout(voiceTimer.current);
-    setVoiceState("idle");
-  }
-
   function handleSuggestion(text: string) {
-    sendMessage(text, []);
+    sendMessage(text);
   }
 
   function newConversation() {
@@ -1034,18 +882,16 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         <div className="shrink-0 px-4 pb-4 pt-2 border-t border-white/5 max-w-3xl mx-auto w-full">
           <InputBar
             onSend={sendMessage}
-            onVoiceStart={startVoice}
-            onAttach={() => {
-              // Attachment upload not wired yet — keep control visible but honest.
-              toast.info("Attachments are not available yet.");
+            onVoiceUnavailable={() => {
+              toast.message("Voice input is not connected yet — type your question instead.");
+            }}
+            onAttachUnavailable={() => {
+              toast.message("Attachments are not available yet — describe the problem in text.");
             }}
             disabled={isTyping}
           />
         </div>
       </div>
-
-      {/* Voice overlay */}
-      {voiceState !== "idle" && <VoiceOrb state={voiceState} onStop={stopVoice}/>}
     </div>
   );
 }
