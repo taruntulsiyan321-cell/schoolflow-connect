@@ -895,7 +895,7 @@ function FeaturedBattles({
                 {live?.title || meta.title}
               </div>
               <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "0.72rem", marginTop: "1px", fontFamily: "Inter, sans-serif" }}>
-                {live?.chapter ? displayChapter(live.chapter) : humanizeAcademicLabel(meta.chapter)}
+                {live?.chapter ? displayChapter(live.chapter) : live ? "—" : "Open challenge"}
               </div>
             </div>
             <div style={{ padding: "0.85rem 1.1rem" }}>
@@ -910,9 +910,21 @@ function FeaturedBattles({
                     fontFamily: "Inter, sans-serif",
                   }}
                 >
-                  {displaySubject(live?.subject) || displaySubject(meta.subject) || "—"}
+                  {live?.subject ? displaySubject(live.subject) || "—" : "—"}
                 </span>
-                <DiffBadge level={meta.difficulty} />
+                {live ? (
+                  <DiffBadge
+                    level={
+                      String(live.difficulty || "").toLowerCase() === "easy"
+                        ? "Easy"
+                        : String(live.difficulty || "").toLowerCase() === "hard"
+                          ? "Hard"
+                          : "Medium"
+                    }
+                  />
+                ) : (
+                  <span style={{ color: C.text3, fontSize: "0.68rem", fontFamily: "Inter, sans-serif" }}>Tap to open</span>
+                )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem", marginBottom: "0.85rem" }}>
                 <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "6px", padding: "0.4rem 0.5rem" }}>
@@ -1117,8 +1129,18 @@ function MyBattlesPanel({
                     {displaySubject(b.subject) || "—"} · {b.type === "1v1" ? "1v1" : b.type} · {b.players}/{b.maxPlayers}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
-                    <DiffBadge level="Medium" />
-                    <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.68rem", color: C.gold }}>+{b.xpReward} XP</span>
+                    <DiffBadge
+                      level={
+                        String(b.difficulty || "").toLowerCase() === "easy"
+                          ? "Easy"
+                          : String(b.difficulty || "").toLowerCase() === "hard"
+                            ? "Hard"
+                            : "Medium"
+                      }
+                    />
+                    <span style={{ fontFamily: "DM Mono, monospace", fontSize: "0.68rem", color: C.gold }}>
+                      {b.xpReward > 0 ? `+${b.xpReward} pts` : "—"}
+                    </span>
                   </div>
                 </div>
                 <div style={{ textAlign: "right", flexShrink: 0 }}>

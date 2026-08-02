@@ -34,6 +34,7 @@ export type DesignBattleCard = {
   timeLeft?: string;
   startsIn?: string;
   date?: string;
+  /** Finished battle score points (not Progression XP). 0 when not finished. */
   xpReward: number;
   featured?: boolean;
   hot?: boolean;
@@ -42,6 +43,7 @@ export type DesignBattleCard = {
   /** DB battles.source — e.g. featured_daily (preserved after question gen). */
   source?: string | null;
   chapter?: string | null;
+  difficulty?: string | null;
   /** Pending battle_invites.id — Accept Challenge updates this row. */
   inviteId?: string;
 };
@@ -509,8 +511,7 @@ export function useBattlegroundData() {
         const type = modeToType(b.mode);
         const isFeatured = (b.source || "").startsWith("featured_");
         const isFinishedForXp = !!(p.finished_at || b.status === "finished");
-        // Real XP earned equals the battle score once finished (see rpc_finish_battle) —
-        // never estimate/invent a reward before the battle is actually played.
+        // Battle score points once finished — Progression XP comes from rules, not this score.
         const xpReward = isFinishedForXp && typeof p.score === "number" ? Math.max(0, p.score) : 0;
 
         let result: DesignBattleCard["result"];
@@ -543,6 +544,7 @@ export function useBattlegroundData() {
           battleCode: b.battle_code ?? null,
           source: b.source ?? null,
           chapter: b.chapter ?? null,
+          difficulty: b.difficulty ?? null,
         });
 
         if (isFinishedForXp) {
@@ -615,6 +617,7 @@ export function useBattlegroundData() {
           battleCode: b.battle_code ?? null,
           source: b.source ?? null,
           chapter: b.chapter ?? null,
+          difficulty: b.difficulty ?? null,
           inviteId: inv.id,
         });
       }
@@ -702,6 +705,7 @@ export function useBattlegroundData() {
           battleCode: b.battle_code ?? null,
           source: b.source ?? null,
           chapter: b.chapter ?? null,
+          difficulty: b.difficulty ?? null,
         });
       }
 
@@ -774,17 +778,14 @@ export function useBattlegroundData() {
 
   const accuracy = useMemo(() => accuracyFromXp(xp || {}), [xp]);
 
-  /** Wins/losses/draws — wins from student_xp; L/D from finished history (honest empty when none). */
+  /** Wins from student_xp; losses/draws from finished history only (never invent). */
   const record = useMemo(() => {
     const wins = xp?.wins ?? 0;
     const totalBattles = xp?.total_battles ?? 0;
-    const draws = history.filter((h) => h.result === "draw").length;
-    const histLosses = history.filter((h) => h.result === "lost").length;
-    // Prefer history losses when we have finished rows; else total − wins − draws
-    const losses =
-      history.length > 0
-        ? histLosses
-        : Math.max(0, totalBattles - wins - draws);
+    const finished = history.filter((h) => h.result === "won" || h.result === "lost" || h.result === "draw");
+    const draws = finished.filter((h) => h.result === "draw").length;
+    const histLosses = finished.filter((h) => h.result === "lost").length;
+    const losses = finished.length > 0 ? histLosses : Math.max(0, totalBattles - wins);
     return {
       totalBattles,
       wins,

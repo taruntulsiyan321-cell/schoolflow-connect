@@ -118,7 +118,7 @@ export function motivationCard(input: MotivationCardInput): MotivationCard {
   }
   if (streak >= 3) {
     return {
-      title: `${streak}-day streak`,
+      title: `${streak}-win streak`,
       message: "You're on fire! Keep battling today to protect your streak.",
       icon: "flame",
     };

@@ -67,15 +67,58 @@ function toOptions(kind: ManualQuestionKind, options?: string[]): unknown[] {
   return options ?? [];
 }
 
-function toCorrect(kind: ManualQuestionKind, correct?: ManualQuestionInput["correct"]): unknown {
+function toCorrect(
+  kind: ManualQuestionKind,
+  correct?: ManualQuestionInput["correct"],
+  options?: string[],
+): unknown {
+  // Grader (rpc_dpp_submit) expects: MCQ/TF → {indexes:[i]}, numerical → {value}, short → {text}
   if (kind === "true_false") {
-    if (correct === true || correct === "True" || correct === "true") return { answer: "True" };
-    return { answer: "False" };
+    const opts = toOptions(kind, options) as string[];
+    const isTrue = correct === true || correct === "True" || correct === "true" || correct === 0 || correct === "0";
+    const idx = isTrue ? 0 : 1;
+    // Prefer matching option text if provided
+    if (typeof correct === "string") {
+      const found = opts.findIndex((o) => o.toLowerCase() === correct.toLowerCase());
+      if (found >= 0) return { indexes: [found] };
+    }
+    return { indexes: [idx] };
   }
-  if (typeof correct === "number") return { answer: correct };
-  if (Array.isArray(correct)) return { answers: correct };
-  if (correct == null) return {};
-  return { answer: correct };
+  if (kind === "mcq") {
+    if (typeof correct === "number" && Number.isFinite(correct)) return { indexes: [correct] };
+    if (typeof correct === "boolean") return { indexes: [correct ? 0 : 1] };
+    if (typeof correct === "string" && options?.length) {
+      const found = options.findIndex((o) => o === correct || o.toLowerCase() === correct.toLowerCase());
+      if (found >= 0) return { indexes: [found] };
+      const asNum = Number(correct);
+      if (Number.isInteger(asNum) && asNum >= 0 && asNum < options.length) return { indexes: [asNum] };
+    }
+    if (Array.isArray(correct)) {
+      const idxs = correct
+        .map((c) => {
+          if (typeof c === "number") return c;
+          if (typeof c === "string" && options?.length) {
+            const found = options.findIndex((o) => o === c || o.toLowerCase() === c.toLowerCase());
+            return found >= 0 ? found : Number(c);
+          }
+          return NaN;
+        })
+        .filter((n) => Number.isInteger(n) && n >= 0);
+      if (idxs.length) return { indexes: idxs };
+    }
+    return { indexes: [] };
+  }
+  if (kind === "numerical") {
+    if (typeof correct === "number") return { value: correct };
+    if (typeof correct === "string" && correct.trim() !== "" && !Number.isNaN(Number(correct))) {
+      return { value: Number(correct) };
+    }
+    return { value: 0 };
+  }
+  // short / long / fill
+  if (Array.isArray(correct)) return { text: String(correct[0] ?? "") };
+  if (correct == null) return { text: "" };
+  return { text: String(correct) };
 }
 
 async function assertTeacherCanWriteTest(ctx: ServiceContext, classId: string) {
@@ -278,7 +321,7 @@ export const TestService = {
       kind: mapKindToDb(q.kind),
       question: q.question.trim(),
       options: toOptions(q.kind, q.options),
-      correct: toCorrect(q.kind, q.correct),
+      correct: toCorrect(q.kind, q.correct, q.options),
       marks: q.marks ?? 1,
       explanation: q.explanation ?? null,
     }));
@@ -519,16 +562,33 @@ export const TestService = {
     },
   ): Promise<void> {
     assertCanOwn(ctx, "student_test_attempt");
-    const { error } = await getClient(toRepoContext(ctx))
-      .from("dpp_answers")
-      .upsert(
+    const client = getClient(toRepoContext(ctx));
+    const { data: att, error: attErr } = await client
+      .from("dpp_attempts")
+      .select("status, submitted_at")
+      .eq("id", args.attemptId)
+      .maybeSingle();
+    throwIfError(attErr, "Failed to load attempt");
+    if (
+      att &&
+      (String(att.status ?? "") === "submitted" || att.submitted_at != null)
+    ) {
+      throw new ValidationFailedError([
         {
-          attempt_id: args.attemptId,
-          question_id: args.questionId,
-          response: args.response as never,
+          field: "attemptId",
+          code: "already_submitted",
+          message: "This test is already submitted — answers are locked.",
         },
-        { onConflict: "attempt_id,question_id" },
-      );
+      ]);
+    }
+    const { error } = await client.from("dpp_answers").upsert(
+      {
+        attempt_id: args.attemptId,
+        question_id: args.questionId,
+        response: args.response as never,
+      },
+      { onConflict: "attempt_id,question_id" },
+    );
     throwIfError(error, "Failed to save test answer");
   },
 
@@ -544,17 +604,48 @@ export const TestService = {
 
   async submitAttempt(ctx: ServiceContext, attemptId: string, answers?: unknown) {
     assertCanOwn(ctx, "student_test_attempt");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_dpp_submit", {
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_dpp_submit", {
       _attempt_id: attemptId,
       ...(answers != null ? { _answers: answers } : {}),
     } as never);
     throwIfError(error, "Failed to submit test attempt");
+
+    // Prefer RPC jsonb; fall back to re-reading attempt (older void RPC).
+    let result = data as {
+      score?: number;
+      total?: number;
+      total_count?: number;
+      correct_count?: number;
+      accuracy?: number;
+    } | null;
+    if (result == null || (result.accuracy == null && result.total_count == null && result.total == null)) {
+      const { data: att } = await client
+        .from("dpp_attempts")
+        .select("score, correct_count, total_count")
+        .eq("id", attemptId)
+        .maybeSingle();
+      if (att) {
+        const total = Number(att.total_count ?? 0);
+        const correct = Number(att.correct_count ?? 0);
+        result = {
+          score: Number(att.score ?? 0),
+          total_count: total,
+          correct_count: correct,
+          accuracy: total > 0 ? Math.round((1000 * correct) / total) / 10 : 0,
+        };
+      }
+    }
+
     await emitEvent(toRepoContext(ctx), {
       eventType: "test.attempt.completed",
       entityType: "student_test_attempt",
       entityId: attemptId,
       studentId: ctx.studentId ?? null,
-      payload: {},
+      payload: {
+        score: result?.score ?? null,
+        accuracy: result?.accuracy ?? null,
+      },
     }).catch(() => undefined);
     const { broadcastAcademicWrite } = await import("../live");
     const { notifyStudentXpUpdated } = await import("@/lib/studentXpNotify");
@@ -572,12 +663,14 @@ export const TestService = {
         sourceId: attemptId,
         idempotencyKey: `test.attempt:${attemptId}`,
       });
-      const result = data as { score?: number; total?: number; accuracy?: number } | null;
+      const total = Number(result?.total_count ?? result?.total ?? 0);
       const accuracy =
         typeof result?.accuracy === "number"
           ? result.accuracy
-          : result?.total
-            ? Math.round((Number(result.score ?? 0) / Number(result.total)) * 100)
+          : total > 0
+            ? Math.round(
+                (1000 * Number(result?.correct_count ?? result?.score ?? 0)) / total,
+              ) / 10
             : null;
       if (accuracy != null && accuracy >= 90) {
         await ProgressionService.awardSafe(ctx, {
@@ -588,10 +681,14 @@ export const TestService = {
           meta: { accuracy },
         });
       }
+      await ProgressionService.notifyExternalXpChange(ctx, {
+        source: "test.attempt.completed",
+        attempt_id: attemptId,
+      });
     } catch {
       /* optional until migration applied */
     }
 
-    return data;
+    return result ?? data;
   },
 };

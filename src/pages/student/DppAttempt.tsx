@@ -48,9 +48,32 @@ export default function DppAttempt() {
       const qs = await TestService.listQuestions(serviceCtx, id);
       setQuestions((qs ?? []) as DppQuestion[]);
 
+      const existingAttempt = await TestService.getMyAttempt(serviceCtx, id);
+      if (
+        existingAttempt &&
+        (String(existingAttempt.status ?? "") === "submitted" || existingAttempt.submitted_at != null)
+      ) {
+        nav(`/student/dpp/${id}/result`, { replace: true });
+        return;
+      }
+
       const aid = await TestService.startAttempt(serviceCtx, id);
       setAttemptId(aid as string);
-      startRef.current = Date.now();
+
+      // Prefer server started_at for timed tests (survives reload)
+      let startedMs = Date.now();
+      try {
+        const att = await TestService.getMyAttempt(serviceCtx, id);
+        const startedAt = att?.started_at ? String(att.started_at) : null;
+        if (startedAt) {
+          const parsed = Date.parse(startedAt);
+          if (!Number.isNaN(parsed)) startedMs = parsed;
+        }
+      } catch {
+        /* keep Date.now() */
+      }
+      startRef.current = startedMs;
+      setSeconds(Math.max(0, Math.floor((Date.now() - startedMs) / 1000)));
 
       const existing = await TestService.listAnswers(serviceCtx, aid as string);
       const m: Record<string, Response> = {};

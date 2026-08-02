@@ -38,6 +38,9 @@ function afterExperienceWrite(ctx: ServiceContext, domains: ("battle" | "xp" | "
  * battle answer into question_attempts with source='battle' (skipped when
  * selected_index < 0; wrong → student_mistakes + mastery) so Practice
  * Incorrect / Skipped modes and profile weak topics stay in sync.
+ *
+ * XP: Progression Engine owns student_xp.xp (battle.participate / win / top_finish).
+ * rpc_finish_battle updates battle counters only — never double-adds score into xp.
  */
 export const BattleExperienceService = {
   async finish(ctx: ServiceContext, participantId: string): Promise<void> {
@@ -51,10 +54,20 @@ export const BattleExperienceService = {
     let battleId: string | null = null;
     const { data: part } = await client
       .from("battle_participants")
-      .select("battle_id, score, correct_count, answered_count, rank")
+      .select("battle_id, score, correct_count, answered_count, rank, user_id")
       .eq("id", participantId)
       .maybeSingle();
     battleId = part?.battle_id ?? null;
+
+    let battleStatus: string | null = null;
+    if (battleId) {
+      const { data: battle } = await client
+        .from("battles")
+        .select("status")
+        .eq("id", battleId)
+        .maybeSingle();
+      battleStatus = (battle?.status as string) ?? null;
+    }
 
     await emitEvent(toRepoContext(ctx), {
       eventType: "battle.finished",
@@ -68,12 +81,14 @@ export const BattleExperienceService = {
         correct_count: part?.correct_count ?? null,
         answered_count: part?.answered_count ?? null,
         rank: part?.rank ?? null,
+        battle_status: battleStatus,
       },
     }).catch(() => undefined);
 
     afterExperienceWrite(ctx, ["battle", "xp", "achievements", "profile"]);
 
-    // Progression Engine — participation / win / top finish (battle score XP still from rpc_finish_battle)
+    // Progression Engine — participate always; win/top awarded in rpc_finish_battle
+    // when the battle closes (so early finishers still get win XP via idempotent keys).
     try {
       const { ProgressionService } = await import("./progressionService");
       await ProgressionService.awardSafe(ctx, {
@@ -82,22 +97,26 @@ export const BattleExperienceService = {
         sourceId: battleId ?? participantId,
         idempotencyKey: `battle.participate:${participantId}`,
       });
-      const rank = Number(part?.rank ?? 0);
-      if (rank === 1) {
-        await ProgressionService.awardSafe(ctx, {
-          ruleCode: "battle.win",
-          sourceType: "battle",
-          sourceId: battleId ?? participantId,
-          idempotencyKey: `battle.win:${participantId}`,
-        });
-      } else if (rank >= 1 && rank <= 3) {
-        await ProgressionService.awardSafe(ctx, {
-          ruleCode: "battle.top_finish",
-          sourceType: "battle",
-          sourceId: battleId ?? participantId,
-          idempotencyKey: `battle.top:${participantId}`,
-        });
+
+      if (battleStatus === "finished") {
+        const rank = Number(part?.rank ?? 0);
+        if (rank === 1) {
+          await ProgressionService.awardSafe(ctx, {
+            ruleCode: "battle.win",
+            sourceType: "battle",
+            sourceId: battleId ?? participantId,
+            idempotencyKey: `battle.win:${participantId}`,
+          });
+        } else if (rank >= 2 && rank <= 3) {
+          await ProgressionService.awardSafe(ctx, {
+            ruleCode: "battle.top_finish",
+            sourceType: "battle",
+            sourceId: battleId ?? participantId,
+            idempotencyKey: `battle.top:${participantId}`,
+          });
+        }
       }
+
       await ProgressionService.notifyExternalXpChange(ctx, {
         source: "battle.finished",
         participant_id: participantId,
@@ -131,8 +150,60 @@ export const BattleExperienceService = {
   },
 
   /**
+   * Server-graded answer submit. Prefer this over client-side correct_index checks.
+   * Falls back to legacy recordAnswer path when RPC is not yet applied.
+   */
+  async submitAnswer(
+    ctx: ServiceContext,
+    args: {
+      participantId: string;
+      questionId: string;
+      selectedIndex: number;
+      timeMs: number;
+    },
+  ): Promise<{
+    isCorrect: boolean;
+    points: number;
+    correctIndex: number | null;
+    score: number;
+    correctCount: number;
+    answeredCount: number;
+    totalTimeMs: number;
+  }> {
+    assertCanOwn(ctx, "battle");
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_submit_battle_answer" as never, {
+      _participant_id: args.participantId,
+      _question_id: args.questionId,
+      _selected_index: args.selectedIndex,
+      _time_ms: args.timeMs,
+    } as never);
+
+    if (error) {
+      const msg = error.message || "";
+      if (
+        /rpc_submit_battle_answer|schema cache|function .* does not exist/i.test(msg)
+      ) {
+        throw new Error("BATTLE_SUBMIT_RPC_MISSING");
+      }
+      throwIfError(error, "Failed to submit battle answer");
+    }
+
+    const row = (data ?? {}) as Record<string, unknown>;
+    return {
+      isCorrect: Boolean(row.is_correct),
+      points: Number(row.points ?? 0),
+      correctIndex: row.correct_index == null ? null : Number(row.correct_index),
+      score: Number(row.score ?? 0),
+      correctCount: Number(row.correct_count ?? 0),
+      answeredCount: Number(row.answered_count ?? 0),
+      totalTimeMs: Number(row.total_time_ms ?? 0),
+    };
+  },
+
+  /**
    * Persist one battle answer + participant score, then mirror into question_attempts.
-   * UI must not raw-upsert `battle_answers` when this succeeds.
+   * Prefer submitAnswer (server grade). Legacy path kept for pre-migration fallback.
    */
   async recordAnswer(
     ctx: ServiceContext,

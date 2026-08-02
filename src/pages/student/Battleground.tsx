@@ -122,6 +122,8 @@ export function BattleRoom() {
   const [readyCount, setReadyCount] = useState<number | null>(null);
   const [pointsFlash, setPointsFlash] = useState<number | null>(null);
   const [savingAnswer, setSavingAnswer] = useState(false);
+  const [answerSyncFailed, setAnswerSyncFailed] = useState(false);
+  const [revealedCorrectIndex, setRevealedCorrectIndex] = useState<number | null>(null);
   const [finishingBattle, setFinishingBattle] = useState(false);
   const answeringRef = useRef(false);
   const answeredQRef = useRef<Set<string>>(new Set());
@@ -138,7 +140,11 @@ export function BattleRoom() {
           toast({ title: "Could not load battle", description: battleErr.message, variant: "destructive" });
         }
         setBattle(b);
-        const { data: qs, error: qsErr } = await supabase.from("battle_questions").select("*").eq("battle_id", id).order("order_index");
+        const { data: qs, error: qsErr } = await supabase
+          .from("battle_questions")
+          .select("id, battle_id, order_index, question, options, points, explanation, concept, subconcept, bank_question_id")
+          .eq("battle_id", id)
+          .order("order_index");
         if (qsErr) {
           toast({ title: "Could not load questions", description: qsErr.message, variant: "destructive" });
         }
@@ -288,23 +294,43 @@ export function BattleRoom() {
     setSelected(idx);
     setShowResult(true);
     setSavingAnswer(true);
+    setAnswerSyncFailed(false);
+    setRevealedCorrectIndex(null);
     const elapsed = Date.now() - questionStart;
-    const correct = idx >= 0 && idx === currentQ.correct_index;
-    const pts = correct ? currentQ.points + Math.max(0, Math.floor((battle.per_question_sec * 1000 - elapsed) / 200)) : 0;
-    const newMe = {
-      score: me.score + pts,
-      correct_count: me.correct_count + (correct ? 1 : 0),
-      answered_count: me.answered_count + 1,
-      total_time_ms: me.total_time_ms + elapsed,
-    };
-    setMe(newMe);
-    if (pts > 0) {
-      setPointsFlash(pts);
-      setTimeout(() => setPointsFlash(null), 900);
-    }
+
     try {
+      const answerCtx = ctx && academicReady ? ctx : await resolveStudentServiceContext();
+      let graded: {
+        isCorrect: boolean;
+        points: number;
+        correctIndex: number | null;
+        score: number;
+        correctCount: number;
+        answeredCount: number;
+        totalTimeMs: number;
+      };
       try {
-        const answerCtx = ctx && academicReady ? ctx : await resolveStudentServiceContext();
+        graded = await BattleExperienceService.submitAnswer(answerCtx, {
+          participantId,
+          questionId: currentQ.id,
+          selectedIndex: idx,
+          timeMs: elapsed,
+        });
+      } catch (rpcErr) {
+        const msg = rpcErr instanceof Error ? rpcErr.message : "";
+        if (msg !== "BATTLE_SUBMIT_RPC_MISSING") throw rpcErr;
+        // Pre-migration fallback: client grade only when server RPC unavailable
+        const correctIdx = typeof currentQ.correct_index === "number" ? currentQ.correct_index : -1;
+        const correct = idx >= 0 && idx === correctIdx;
+        const pts = correct
+          ? (currentQ.points ?? 10) + Math.max(0, Math.floor((battle.per_question_sec * 1000 - elapsed) / 200))
+          : 0;
+        const newMe = {
+          score: me.score + pts,
+          correct_count: me.correct_count + (correct ? 1 : 0),
+          answered_count: me.answered_count + 1,
+          total_time_ms: me.total_time_ms + elapsed,
+        };
         await BattleExperienceService.recordAnswer(answerCtx, {
           participantId,
           questionId: currentQ.id,
@@ -316,13 +342,38 @@ export function BattleRoom() {
           answeredCount: newMe.answered_count,
           totalTimeMs: newMe.total_time_ms,
         });
-      } catch (writeErr) {
-        const msg = writeErr instanceof Error ? writeErr.message : "Network sync had a problem";
-        toast({
-          title: "Answer saved locally for this round",
-          description: msg,
-        });
+        graded = {
+          isCorrect: correct,
+          points: pts,
+          correctIndex: correctIdx >= 0 ? correctIdx : null,
+          score: newMe.score,
+          correctCount: newMe.correct_count,
+          answeredCount: newMe.answered_count,
+          totalTimeMs: newMe.total_time_ms,
+        };
       }
+
+      setMe({
+        score: graded.score,
+        correct_count: graded.correctCount,
+        answered_count: graded.answeredCount,
+        total_time_ms: graded.totalTimeMs,
+      });
+      if (graded.correctIndex != null) setRevealedCorrectIndex(graded.correctIndex);
+      if (graded.points > 0) {
+        setPointsFlash(graded.points);
+        setTimeout(() => setPointsFlash(null), 900);
+      }
+    } catch (writeErr) {
+      answeredQRef.current.delete(currentQ.id);
+      answeringRef.current = false;
+      setAnswerSyncFailed(true);
+      const msg = writeErr instanceof Error ? writeErr.message : "Network sync had a problem";
+      toast({
+        title: "Could not save answer — retry before continuing",
+        description: msg,
+        variant: "destructive",
+      });
     } finally {
       setSavingAnswer(false);
     }
@@ -358,7 +409,7 @@ export function BattleRoom() {
   }, [participants, user, finished, showResult]);
 
   const next = async () => {
-    if (savingAnswer || finishingBattle) return;
+    if (savingAnswer || finishingBattle || answerSyncFailed) return;
     if (qIdx + 1 >= questions.length) {
       if (!participantId) {
         toast({ title: "Could not finish battle — try rejoining the room", variant: "destructive" });
@@ -419,6 +470,8 @@ export function BattleRoom() {
     timerFiredRef.current = false;
     setShowResult(false);
     setSelected(null);
+    setRevealedCorrectIndex(null);
+    setAnswerSyncFailed(false);
     setQIdx(qIdx + 1);
     setTimeLeft(battle.per_question_sec);
     setQuestionStart(Date.now());
@@ -575,7 +628,8 @@ export function BattleRoom() {
 
       <div className="grid md:grid-cols-2 gap-3">
         {(Array.isArray(currentQ.options) ? currentQ.options : []).map((opt: string, i: number) => {
-          const isCorrect = i === currentQ.correct_index;
+          const correctIdx = revealedCorrectIndex ?? (typeof currentQ.correct_index === "number" ? currentQ.correct_index : -1);
+          const isCorrect = showResult && correctIdx >= 0 && i === correctIdx;
           const isSelected = i === selected;
           let style = "border-border hover:border-primary hover:shadow-card";
           if (showResult) {
@@ -584,7 +638,7 @@ export function BattleRoom() {
             else style = "border-border opacity-50";
           }
           return (
-            <button key={i} onClick={() => handleAnswer(i)} disabled={showResult}
+            <button key={i} onClick={() => handleAnswer(i)} disabled={showResult && !answerSyncFailed}
               className={cn("p-4 rounded-xl border-2 text-left font-medium transition-all flex items-center gap-3", style)}>
               <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center font-bold text-sm shrink-0">{String.fromCharCode(65 + i)}</div>
               <MathText className="flex-1" text={opt} />
@@ -595,15 +649,43 @@ export function BattleRoom() {
 
       {showResult && (
         <div className="flex items-center justify-between gap-3 animate-rise">
-          <div className={cn("font-bold", selected === currentQ.correct_index ? "text-accent" : "text-destructive")}>
-            {selected === currentQ.correct_index ? "✓ Correct! +" + (currentQ.points + Math.max(0, Math.floor((battle.per_question_sec * 1000 - (Date.now() - questionStart)) / 200))) + " XP" : selected === -1 ? "⏱ Time's up" : "✗ Wrong"}
+          <div className={cn(
+            "font-bold",
+            answerSyncFailed
+              ? "text-destructive"
+              : revealedCorrectIndex != null && selected === revealedCorrectIndex
+                ? "text-accent"
+                : "text-destructive",
+          )}>
+            {answerSyncFailed
+              ? "Save failed — tap an answer to retry"
+              : revealedCorrectIndex != null && selected === revealedCorrectIndex
+                ? "✓ Correct!"
+                : selected === -1
+                  ? "⏱ Time's up"
+                  : "✗ Wrong"}
           </div>
-          <Button onClick={next} className="btn-cta" disabled={savingAnswer || finishingBattle}>
-            {savingAnswer || finishingBattle ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : null}
-            {finishingBattle ? "Finishing" : savingAnswer ? "Saving" : qIdx + 1 >= questions.length ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
-          </Button>
+          {answerSyncFailed ? (
+            <Button
+              onClick={() => {
+                setShowResult(false);
+                setSelected(null);
+                setAnswerSyncFailed(false);
+                answeringRef.current = false;
+              }}
+              className="btn-cta"
+              variant="destructive"
+            >
+              Retry
+            </Button>
+          ) : (
+            <Button onClick={next} className="btn-cta" disabled={savingAnswer || finishingBattle}>
+              {savingAnswer || finishingBattle ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {finishingBattle ? "Finishing" : savingAnswer ? "Saving" : qIdx + 1 >= questions.length ? "Finish" : "Next"} <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          )}
         </div>
       )}
 
