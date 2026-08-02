@@ -172,19 +172,32 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
     [charts?.weekly_activity],
   );
 
-  const subjects = useMemo(
-    () =>
-      (charts?.subjects ?? []).map((s, i) => ({
-        id: s.name,
-        name: s.name,
-        color: subjectColor(s.name, i),
-        icon: s.name.charAt(0).toUpperCase(),
+  // Roll topic-level chart rows up to one tile per subject (defensive if SQL not yet applied).
+  const subjects = useMemo(() => {
+    const byName = new Map<string, { attempts: number; weighted: number }>();
+    for (const row of charts?.subjects ?? []) {
+      const name = (row.name ?? "").trim();
+      if (!name) continue;
+      const attempts = Math.max(0, Number(row.attempts) || 0);
+      const accuracy = Number(row.accuracy) || 0;
+      const prev = byName.get(name) ?? { attempts: 0, weighted: 0 };
+      byName.set(name, {
+        attempts: prev.attempts + attempts,
+        weighted: prev.weighted + accuracy * attempts,
+      });
+    }
+    return [...byName.entries()]
+      .map(([name, agg], i) => ({
+        id: name,
+        name,
+        color: subjectColor(name, i),
+        icon: name.charAt(0).toUpperCase(),
         trend: 0,
-        attempts: s.attempts,
-        accuracy: Math.round(s.accuracy),
-      })),
-    [charts?.subjects],
-  );
+        attempts: agg.attempts,
+        accuracy: agg.attempts > 0 ? Math.round(agg.weighted / agg.attempts) : 0,
+      }))
+      .sort((a, b) => b.accuracy - a.accuracy);
+  }, [charts?.subjects]);
 
   const recentAch = useMemo(
     () =>
