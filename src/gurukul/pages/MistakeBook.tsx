@@ -238,22 +238,24 @@ function MistakeCard({
             </div>
 
             {/* AI Explanation */}
-            <div className="p-3 rounded-xl bg-violet-500/8 border border-violet-500/20">
-              <div className="text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <Brain className="w-3 h-3"/> AI Explanation
+            {mistake.aiExplanation ? (
+              <div className="p-3 rounded-xl bg-violet-500/8 border border-violet-500/20">
+                <div className="text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <Brain className="w-3 h-3"/> AI Explanation
+                </div>
+                <p className="text-xs text-[#a0a0b0] leading-relaxed">{mistake.aiExplanation}</p>
               </div>
-              <p className="text-xs text-[#a0a0b0] leading-relaxed">{mistake.aiExplanation}</p>
-            </div>
+            ) : null}
 
-            {/* Why you got it wrong */}
-            <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
-              <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                <AlertCircle className="w-3 h-3"/> Why You Got It Wrong
+            {/* Why you got it wrong — only when stored */}
+            {mistake.studentReason ? (
+              <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
+                <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                  <AlertCircle className="w-3 h-3"/> Why You Got It Wrong
+                </div>
+                <p className="text-xs text-[#a0a0b0] leading-relaxed">{mistake.studentReason}</p>
               </div>
-              <p className="text-xs text-[#a0a0b0] leading-relaxed">
-                {mistake.studentReason || "No student reason recorded for this attempt yet."}
-              </p>
-            </div>
+            ) : null}
           </div>
         )}
       </div>

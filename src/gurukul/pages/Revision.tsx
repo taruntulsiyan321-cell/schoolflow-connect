@@ -76,7 +76,14 @@ function DueTag({ dueIn }: { dueIn: string }) {
   );
 }
 
-function RevItemCard({ item, onRevise, onComplete }: { item: RevItem; onRevise: () => void; onComplete: () => void }) {
+function RevItemCard({
+  item, onRevise, onComplete, completing,
+}: {
+  item: RevItem;
+  onRevise: () => void;
+  onComplete: () => void;
+  completing?: boolean;
+}) {
   return (
     <GlassCard className="p-4 hover:border-white/15 transition-all">
       <div className="flex items-start gap-3">
@@ -106,9 +113,9 @@ function RevItemCard({ item, onRevise, onComplete }: { item: RevItem; onRevise: 
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-semibold hover:bg-rose-500/20 transition-all">
           <RefreshCw className="w-3 h-3"/> Recovery
         </Link>
-        <button onClick={onComplete}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 transition-all">
-          <CheckCircle2 className="w-3 h-3"/> Mark done
+        <button onClick={onComplete} disabled={completing}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 transition-all disabled:opacity-50">
+          <CheckCircle2 className="w-3 h-3"/> {completing ? "Saving…" : "Mark done"}
         </button>
       </div>
     </GlassCard>
@@ -528,7 +535,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
             filtered.map(item => (
               <RevItemCard key={item.id} item={item}
                 onRevise={() => openPractice(item)}
-                onComplete={() => markComplete(item)}/>
+                onComplete={() => markComplete(item)}
+                completing={completingId === item.id}/>
             ))
           )}
         </div>

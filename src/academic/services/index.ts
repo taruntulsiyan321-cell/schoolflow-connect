@@ -24,6 +24,9 @@ import { resolveStudentServiceContext } from "./resolveStudentContext";
 import {
   progressionXpForLevel,
   progressionLevelProgress,
+  progressionLeagueFromXp,
+  progressionLeagueFromCodeOrXp,
+  PROGRESSION_LEAGUES,
 } from "./progressionMath";
 
 /**
@@ -74,6 +77,9 @@ export {
   toRepoContext,
   progressionXpForLevel,
   progressionLevelProgress,
+  progressionLeagueFromXp,
+  progressionLeagueFromCodeOrXp,
+  PROGRESSION_LEAGUES,
   type ServiceContext,
 };
 

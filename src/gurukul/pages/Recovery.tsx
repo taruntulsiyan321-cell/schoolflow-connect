@@ -446,6 +446,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     setSessionScore(score);
     setView("results");
   }
+  void onSessionDone;
 
   if (loading) {
     return (
