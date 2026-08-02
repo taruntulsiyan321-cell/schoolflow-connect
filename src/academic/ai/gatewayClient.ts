@@ -60,7 +60,7 @@ export function resolveCoachCapability(input: {
   return {
     unsupported: true,
     message:
-      "I can answer attendance, homework due, marks, today's timetable, mastery/revision, or a performance summary from your school records. Ask one of those, or use Practice / Doubts for learning help.",
+      "I can answer attendance, homework due, marks, today's timetable, mastery/revision, next practice recommendation, concept help, performance summary, or a parent progress narrative from school records. Ask one of those, or use Practice / Doubts for learning help.",
   };
 }
 
@@ -146,6 +146,52 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
         `_Linked-child records only._`
       );
     }
+    case "parent.child.narrative": {
+      if (typeof d.body === "string" && d.body.trim()) return d.body;
+      if (typeof d.narrative === "string" && d.narrative.trim()) return d.narrative;
+      const lines = Array.isArray(d.paragraphs) ? d.paragraphs.map(String) : [];
+      if (lines.length) return lines.join("\n\n");
+      return "Parent progress narrative is not available yet for this child.";
+    }
+    case "student.concept.explain": {
+      if (typeof d.explanation === "string" && d.explanation.trim()) {
+        return d.explanation;
+      }
+      const concept = d.concept as Record<string, unknown> | undefined;
+      if (concept?.name || concept?.concept) {
+        return (
+          `**Concept: ${concept.name ?? concept.concept}** (${concept.subject ?? "Subject"})\n` +
+          `Your mastery: **${concept.mastery_score ?? "—"}%**` +
+          (concept.band ? ` (${concept.band})` : "") +
+          `\n_Generative explanation unavailable — showing Educational Intelligence facts._`
+        );
+      }
+      return "No concept mastery facts are available yet for that topic.";
+    }
+    case "student.recommendation.next": {
+      const actions = Array.isArray(d.actions) ? d.actions : [];
+      if (actions.length === 0) {
+        return "**Next steps** — no recommendation seeds yet (practice a few concepts first).";
+      }
+      const lines = actions.slice(0, 5).map(
+        (a: {
+          title?: string;
+          kind?: string;
+          subject?: string | null;
+          priority?: number;
+          reason_codes?: string[];
+        }) =>
+          `• **${a.title ?? "Action"}**` +
+          (a.subject ? ` (${a.subject})` : "") +
+          ` — priority ${a.priority ?? 0}` +
+          (a.reason_codes?.length ? ` [${a.reason_codes[0]}]` : ""),
+      );
+      return (
+        `**Recommended next steps** (Educational Intelligence)\n` +
+        `${lines.join("\n")}\n` +
+        `_Deterministic package · LLM does not invent recommendations._`
+      );
+    }
     case "student.performance.explain": {
       if (typeof d.explanation === "string" && d.explanation.trim()) {
         return d.explanation;
@@ -216,4 +262,19 @@ export async function askAiCoach(input: {
     text: formatDeterministicReply(resolved.feature_id, response.data),
     response,
   };
+}
+
+/** Feedback Loop hook — like / accept / retry from Coach or parent surfaces. */
+export async function recordAiFeedback(input: {
+  request_id?: string | null;
+  school_id?: string | null;
+  actor_user_id: string;
+  actor_role?: string | null;
+  feature_id?: string | null;
+  signal_type: import("./feedbackLoop").FeedbackSignalType;
+  comment?: string | null;
+}) {
+  const { supabase } = await import("@/integrations/supabase/client");
+  const { captureFeedbackSignal } = await import("./feedbackLoop");
+  return captureFeedbackSignal(supabase, input);
 }

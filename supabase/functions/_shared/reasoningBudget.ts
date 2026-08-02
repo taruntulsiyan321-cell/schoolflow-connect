@@ -58,6 +58,8 @@ export type TierSignals = {
 
 const CAPABILITY_DEFAULTS: Record<string, ReasoningTier> = {
   "student.performance.explain": "simple",
+  "student.concept.explain": "simple",
+  "student.recommendation.explain": "simple",
   "parent.child.narrative": "simple",
   "student.doubt.solve": "medium",
   "student.mistake.analysis": "complex",

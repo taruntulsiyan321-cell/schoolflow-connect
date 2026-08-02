@@ -54,7 +54,7 @@ export {
 
 export { mapIntentToCapability } from "./intentMapper";
 
-export { invokeAiGateway, askAiCoach, resolveCoachCapability } from "./gatewayClient";
+export { invokeAiGateway, askAiCoach, resolveCoachCapability, recordAiFeedback } from "./gatewayClient";
 
 export {
   buildContextPack,
@@ -104,3 +104,45 @@ export {
   buildParentScheduledNarrative,
   type ParentNarrative,
 } from "./parentNarrative";
+
+export {
+  BUILTIN_PROMPTS,
+  getBuiltinPrompt,
+  loadProductionPrompt,
+  renderPromptTemplate,
+  resolveProductionPrompt,
+  type PromptRecord,
+  type PromptStatus,
+} from "./promptLibrary";
+
+export {
+  forecastBudget,
+  dailyUsageFromDecisions,
+  type BudgetForecast,
+  type BudgetForecastInput,
+  type DailyUsagePoint,
+} from "./budgetForecast";
+
+export {
+  buildRecommendationPackage,
+  pickNextConcept,
+  type RecommendationPackage,
+  type RecommendationAction,
+} from "./recommendationEngine";
+
+export {
+  WORKFLOW_REGISTRY,
+  getWorkflowDefinition,
+  listWorkflowDefinitions,
+  createWorkflowRun,
+  type WorkflowDefinition,
+  type WorkflowRunState,
+} from "./workflowOrchestrator";
+
+export {
+  captureFeedbackSignal,
+  buildFeedbackRow,
+  redactFeedbackComment,
+  type FeedbackSignalInput,
+  type FeedbackSignalType,
+} from "./feedbackLoop";

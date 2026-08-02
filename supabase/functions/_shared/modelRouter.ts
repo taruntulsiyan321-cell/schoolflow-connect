@@ -2,12 +2,18 @@
  * Model Router — OpenRouter → Qwen only.
  * Credentials live exclusively here (edge secrets). Never expose to clients.
  * Adaptive Reasoning Budget ceilings applied via max_tokens / temperature.
+ * Prompt Library v1 supplies versioned system/user contracts when available.
  */
 
 import {
   modelCallOptionsForTier,
   type ReasoningTier,
 } from "./reasoningBudget.ts";
+import {
+  loadProductionPrompt,
+  renderPromptTemplate,
+  type PromptRecord,
+} from "./promptLibrary.ts";
 
 const DEFAULT_MODEL = "qwen/qwen-2.5-72b-instruct";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
@@ -120,4 +126,30 @@ export async function completeWithQwen(input: {
       budget_tier: input.budget_tier,
     };
   }
+}
+
+/**
+ * Complete using Prompt Library production contract for a capability.
+ * Falls back to builtin templates when DB row is missing.
+ */
+export async function completeWithPromptLibrary(input: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> };
+  capability_id: string;
+  vars: Record<string, string>;
+  budget_tier?: ReasoningTier;
+  max_tokens?: number;
+  temperature?: number;
+}): Promise<ModelRouterResult & { prompt?: PromptRecord }> {
+  const prompt = await loadProductionPrompt(input.admin, input.capability_id);
+  const system = renderPromptTemplate(prompt.system_template, input.vars);
+  const user = renderPromptTemplate(prompt.user_template, input.vars);
+  const result = await completeWithQwen({
+    system,
+    user,
+    budget_tier: input.budget_tier,
+    max_tokens: input.max_tokens ?? prompt.max_output_tokens,
+    temperature: input.temperature ?? prompt.temperature,
+  });
+  return { ...result, prompt };
 }

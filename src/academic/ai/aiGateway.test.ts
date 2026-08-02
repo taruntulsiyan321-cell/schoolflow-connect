@@ -38,6 +38,8 @@ describe("capability catalog", () => {
       "student.timetable.today",
       "student.eie.mastery_summary",
       "student.performance.explain",
+      "student.concept.explain",
+      "student.recommendation.next",
       "parent.child.summary",
       "parent.child.narrative",
     ]) {

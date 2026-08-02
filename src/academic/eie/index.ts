@@ -16,3 +16,11 @@ export {
   type RevisionPriorityItem,
   type StudentEducationalIntelligence,
 } from "./studentIntelligence";
+
+export {
+  computeAttendanceRisk,
+  computeHomeworkConsistency,
+  type AttendanceRiskProduct,
+  type HomeworkConsistencyProduct,
+  type RiskBand,
+} from "./riskProducts";

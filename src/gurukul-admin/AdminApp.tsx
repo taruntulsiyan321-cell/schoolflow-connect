@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-
 import {
   LayoutDashboard, Users, GraduationCap, Building2,
   BarChart2, Bell, Settings, ChevronLeft, ChevronRight,
-  Shield, Menu, ClipboardList, CalendarCheck, LogOut, BookOpen,
+  Shield, Menu, ClipboardList, CalendarCheck, LogOut, BookOpen, Activity,
 } from "lucide-react";
 import { cn } from "./shared";
 import {
@@ -23,6 +23,7 @@ import ExaminationManagement from "./Examinations";
 import HomeworkAdmin from "./Homework";
 import LeaveRequests from "./LeaveRequests";
 import SettingsPage from "./Settings";
+import AiAnalyticsPanel from "./AiAnalytics";
 import { useAuth } from "@/hooks/useAuth";
 
 export type { AdminPageKey } from "./nav";
@@ -63,6 +64,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "System",
     items: [
+      { key: "ai_analytics", label: "AI Analytics", icon: <Activity className="w-4 h-4" /> },
       { key: "settings", label: "Settings", icon: <Settings className="w-4 h-4" /> },
     ],
   },
@@ -261,6 +263,7 @@ export default function AdminApp() {
               <Route path="homework/*" element={<HomeworkAdmin />} />
               <Route path="exams/*" element={<Navigate to="/admin/examinations" replace />} />
               <Route path="leave-requests/*" element={<LeaveRequests />} />
+              <Route path="ai-analytics" element={<AiAnalyticsPanel />} />
               <Route path="settings/*" element={<SettingsPage />} />
               <Route path="roles" element={<Navigate to="/admin/settings" replace />} />
               <Route path="users" element={<Navigate to="/admin/settings" replace />} />

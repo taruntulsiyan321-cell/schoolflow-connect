@@ -93,6 +93,22 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     requires_student_target: true,
     description: "Scheduled parent progress narrative from AE/EIE facts (no LLM)",
   },
+  "student.concept.explain": {
+    feature_id: "student.concept.explain",
+    route_class: "cached_explanation",
+    model_policy: "optional_explain",
+    allowed_roles: ["student", "parent", "teacher", "principal", "admin"],
+    requires_student_target: true,
+    description: "Cache-first concept explanation grounded in AE/EIE mastery facts",
+  },
+  "student.recommendation.next": {
+    feature_id: "student.recommendation.next",
+    route_class: "recommendation",
+    model_policy: "never",
+    allowed_roles: ["student", "parent", "teacher", "principal", "admin"],
+    requires_student_target: true,
+    description: "Deterministic next-concept / revision package from EIE seeds",
+  },
 };
 
 export function getCapability(featureId: string): CapabilityDefinition | null {

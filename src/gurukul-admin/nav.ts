@@ -9,6 +9,7 @@ export type AdminPageKey =
   | "examinations"
   | "homework"
   | "leave_requests"
+  | "ai_analytics"
   | "settings";
 
 export const ADMIN_PAGE_PATH: Record<AdminPageKey, string> = {
@@ -22,6 +23,7 @@ export const ADMIN_PAGE_PATH: Record<AdminPageKey, string> = {
   examinations: "/admin/examinations",
   homework: "/admin/homework",
   leave_requests: "/admin/leave-requests",
+  ai_analytics: "/admin/ai-analytics",
   settings: "/admin/settings",
 };
 
@@ -36,6 +38,7 @@ export const ADMIN_PAGE_TITLES: Record<AdminPageKey, string> = {
   examinations: "Examination Management",
   homework: "Homework",
   leave_requests: "Leave Requests",
+  ai_analytics: "AI Analytics",
   settings: "Settings",
 };
 
@@ -50,9 +53,18 @@ export function adminPathToPage(pathname: string): AdminPageKey {
   if (p.startsWith("/admin/examinations") || p.startsWith("/admin/exams")) return "examinations";
   if (p.startsWith("/admin/homework")) return "homework";
   if (p.startsWith("/admin/leave")) return "leave_requests";
-  if (p.startsWith("/admin/settings") || p.startsWith("/admin/roles") || p.startsWith("/admin/profile") || p.startsWith("/admin/users"))
+  if (p.startsWith("/admin/ai-analytics")) return "ai_analytics";
+  if (
+    p.startsWith("/admin/settings") ||
+    p.startsWith("/admin/roles") ||
+    p.startsWith("/admin/profile") ||
+    p.startsWith("/admin/users")
+  ) {
     return "settings";
+  }
   if (p === "/admin") return "dashboard";
-  const hit = (Object.entries(ADMIN_PAGE_PATH) as [AdminPageKey, string][]).find(([, path]) => path === p);
+  const hit = (Object.entries(ADMIN_PAGE_PATH) as [AdminPageKey, string][]).find(
+    ([, path]) => path === p,
+  );
   return hit?.[0] ?? "dashboard";
 }

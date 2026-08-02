@@ -10,6 +10,12 @@ import {
   isWeakBand,
   type MasteryBand,
 } from "./masteryBands";
+import {
+  computeAttendanceRisk,
+  computeHomeworkConsistency,
+  type AttendanceRiskProduct,
+  type HomeworkConsistencyProduct,
+} from "./riskProducts";
 
 export interface ConceptMasteryRow {
   subject: string;
@@ -62,6 +68,9 @@ export interface StudentEducationalIntelligence {
   strong_concepts: MasteryConceptView[];
   by_band: Record<MasteryBand, number>;
   revision_priority: RevisionPriorityItem[];
+  /** From AE academic profile when available — never LLM-invented. */
+  attendance_risk: AttendanceRiskProduct;
+  homework_consistency: HomeworkConsistencyProduct;
 }
 
 export function computeDataVersion(rows: ConceptMasteryRow[], revision: RevisionQueueRow[]): string {
@@ -83,6 +92,9 @@ export function buildStudentEducationalIntelligence(input: {
   mastery: ConceptMasteryRow[];
   revisionQueue: RevisionQueueRow[];
   computedAt?: string;
+  /** Academic Engine profile facts (optional). */
+  attendance_pct?: number | null;
+  homework_completion_pct?: number | null;
 }): StudentEducationalIntelligence {
   const computed_at = input.computedAt ?? new Date().toISOString();
   const concepts: MasteryConceptView[] = input.mastery.map((m) => ({
@@ -138,6 +150,9 @@ export function buildStudentEducationalIntelligence(input: {
   if (openRevision.length > 0 || concepts.length >= 10) completeness += 0.15;
   completeness = Math.min(1, Math.round(completeness * 100) / 100);
 
+  const attendance_risk = computeAttendanceRisk(input.attendance_pct);
+  const homework_consistency = computeHomeworkConsistency(input.homework_completion_pct);
+
   return {
     studentId: input.studentId,
     schoolId: input.schoolId,
@@ -151,5 +166,7 @@ export function buildStudentEducationalIntelligence(input: {
     strong_concepts,
     by_band,
     revision_priority,
+    attendance_risk,
+    homework_consistency,
   };
 }

@@ -63,10 +63,36 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
     ],
   },
   {
+    feature_id: "student.concept.explain",
+    patterns: [
+      /\bexplain\b.+\b(concept|topic|chapter|fractions|algebra|photosynthesis)\b/i,
+      /\bwhat (is|are|does)\b.+\b(mean|concept|topic)\b/i,
+      /\bhelp me (understand|learn)\b/i,
+      /\bteach me\b/i,
+    ],
+  },
+  {
+    feature_id: "student.recommendation.next",
+    patterns: [
+      /\bwhat should I (practi[sc]e|study|do next)\b/i,
+      /\bnext (concept|topic|step)\b/i,
+      /\brecommend(ation)?\b/i,
+      /\bwhat to revise\b/i,
+    ],
+  },
+  {
     feature_id: "parent.child.summary",
     patterns: [
       /\bmy child\b/i,
       /\bchild('s)?\b.+\b(progress|summary|attendance|homework)\b/i,
+    ],
+  },
+  {
+    feature_id: "parent.child.narrative",
+    patterns: [
+      /\bweekly\b.+\b(progress|summary|update)\b/i,
+      /\bnarrative\b.+\b(progress|child)\b/i,
+      /\bprogress (letter|narrative|brief)\b/i,
     ],
   },
 ];
