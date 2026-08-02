@@ -99,9 +99,7 @@ export const BattleExperienceService = {
     }).catch(() => undefined);
 
     afterExperienceWrite(ctx, ["battle", "xp", "achievements", "profile"]);
-
-    // Progression Engine — participate always; win/top awarded in rpc_finish_battle
-    // when the battle closes (so early finishers still get win XP via idempotent keys).
+    // Progression SSOT: client awards participate only; win/top via rpc_finish_battle.
     try {
       const { ProgressionService } = await import("./progressionService");
       await ProgressionService.awardSafe(ctx, {
@@ -110,25 +108,6 @@ export const BattleExperienceService = {
         sourceId: battleId ?? participantId,
         idempotencyKey: `battle.participate:${participantId}`,
       });
-
-      if (battleStatus === "finished") {
-        const rank = Number(part?.rank ?? 0);
-        if (rank === 1) {
-          await ProgressionService.awardSafe(ctx, {
-            ruleCode: "battle.win",
-            sourceType: "battle",
-            sourceId: battleId ?? participantId,
-            idempotencyKey: `battle.win:${participantId}`,
-          });
-        } else if (rank >= 2 && rank <= 3) {
-          await ProgressionService.awardSafe(ctx, {
-            ruleCode: "battle.top_finish",
-            sourceType: "battle",
-            sourceId: battleId ?? participantId,
-            idempotencyKey: `battle.top:${participantId}`,
-          });
-        }
-      }
 
       await ProgressionService.notifyExternalXpChange(ctx, {
         source: "battle.finished",

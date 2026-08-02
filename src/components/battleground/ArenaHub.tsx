@@ -23,7 +23,8 @@ import { StudentDashboardSkeleton } from "@/components/student/StudentPanelState
 import { notifyStudentXpUpdated } from "@/hooks/useStudentXp";
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { getNcertSubjects, parseClassGrade } from "@/lib/ncertSyllabus";
-import { PracticeService, BattleExperienceService, resolveStudentServiceContext, useAcademicContext } from "@/academic";
+import { PracticeService, BattleExperienceService, resolveStudentServiceContext, useAcademicContext, ProgressionService } from "@/academic";
+import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import "./battle-arena.css";
 
 const BG_BASE = "/student/battleground";
@@ -39,13 +40,14 @@ function levelTitle(level: number): string {
 }
 
 function ArenaHeroRing({ xp, level }: { xp: number; level: number }) {
-  const xpInLevel = xp % 100;
+  const { xpIntoLevel, xpToNextLevel, levelSpan, levelProgressPct } = progressionLevelProgress(xp, level);
   const size = 128;
   const stroke = 8;
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
-  const offset = c - (xpInLevel / 100) * c;
-  const nextLevelXp = 100 - xpInLevel;
+  const span = Math.max(levelSpan, 1);
+  const offset = c - (xpIntoLevel / span) * c;
+  
 
   return (
     <div className="ba-glass p-4 rounded-2xl flex flex-col items-center">
@@ -66,14 +68,14 @@ function ArenaHeroRing({ xp, level }: { xp: number; level: number }) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-          <span className="ba-display text-2xl">{Math.round((xpInLevel / 100) * 100)}%</span>
+          <span className="ba-display text-2xl">{levelProgressPct}%</span>
           <span className="ba-label text-[9px] text-[var(--ba-primary-fixed-dim)]">Progress</span>
         </div>
       </div>
       <div className="mt-2 text-center">
         <div className="ba-headline text-[var(--ba-secondary-fixed)]">{xp.toLocaleString()} XP</div>
         <div className="ba-label text-[10px] text-white/60">
-          {nextLevelXp} XP to level {level + 1}
+          {xpToNextLevel} XP to level {level + 1}
         </div>
       </div>
     </div>
@@ -132,9 +134,20 @@ export function ArenaHub() {
 
   const refreshXp = useCallback(async () => {
     if (!user) return;
-    const { data: x } = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
-    if (x) setXp(x);
-  }, [user]);
+    try {
+      let svcCtx = ctx && academicReady ? ctx : null;
+      if (!svcCtx) svcCtx = await resolveStudentServiceContext();
+      const snap = await ProgressionService.getSnapshot(svcCtx, user.id);
+      setXp({
+        xp: snap.xp, level: snap.level, study_streak: snap.study_streak,
+        win_streak: snap.battleground.win_streak, current_streak: snap.battleground.win_streak,
+        total_battles: snap.battleground.total_battles, wins: snap.battleground.wins,
+        equipped_badge: snap.equipped_badge,
+      });
+    } catch {
+      setXp({ xp: 0, level: 1, study_streak: 0, win_streak: 0, current_streak: 0, total_battles: 0, wins: 0 });
+    }
+  }, [user, ctx, academicReady]);
 
   const loadArena = useCallback(async () => {
     if (!user) return;
@@ -254,12 +267,12 @@ export function ArenaHub() {
             <p className="text-[var(--ba-primary-fixed-dim)] max-w-lg text-sm md:text-base">
               You are{" "}
               <span className="text-[var(--ba-secondary-fixed)] font-semibold">
-                {100 - (xp.xp % 100)} XP
+                {progressionLevelProgress(xp.xp, xp.level).xpToNextLevel} XP
               </span>{" "}
               from level {xp.level + 1}. Win battles to climb the class leaderboard.
             </p>
             <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-              <StreakFlame streak={xp.current_streak} />
+              <StreakFlame streak={xp.win_streak ?? xp.study_streak ?? xp.current_streak ?? 0} />
               <span className="text-xs px-2.5 py-1 rounded-full ba-glass text-white/90 font-medium">
                 {xp.wins} wins
               </span>
@@ -368,7 +381,7 @@ export function ArenaHub() {
         </div>
       </div>
 
-      <ArenaFocusCards streak={xp.current_streak} wins={xp.wins} recovery={recovery} />
+      <ArenaFocusCards streak={xp.win_streak ?? xp.study_streak ?? xp.current_streak ?? 0} wins={xp.wins} recovery={recovery} />
 
       {/* Quick match FAB */}
       <button

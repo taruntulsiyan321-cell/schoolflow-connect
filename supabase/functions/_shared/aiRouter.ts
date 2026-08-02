@@ -609,8 +609,29 @@ async function fetchTimetableToday(admin: SupabaseClient, schoolId: string, stud
   };
 }
 
-/** Progression Engine facts for Nova context (never invent XP/streak). */
+/**
+ * Progression Engine facts for Nova context (never invent XP/streak/league).
+ * SSOT: study_streak + practice_sessions_count + league_code (ProgressionService parity).
+ */
 async function fetchProgression(admin: SupabaseClient, schoolId: string, studentId: string) {
+  const empty = {
+    projection: "StudentProgression",
+    version: 1,
+    studentId,
+    schoolId,
+    xp: 0,
+    level: 1,
+    study_streak: 0,
+    battleground_wins: 0,
+    practice_sessions: 0,
+    total_battles: 0,
+    league: null as string | null,
+    league_label: null as string | null,
+    weak_concepts: [] as string[],
+    source_as_of: null as string | null,
+    data_version: `prog:${studentId}:none`,
+    completeness: 0,
+  };
   const { data: student } = await admin
     .from("students")
     .select("user_id")
@@ -618,53 +639,45 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
     .eq("school_id", schoolId)
     .maybeSingle();
   const userId = student?.user_id ? String(student.user_id) : null;
-  if (!userId) {
-    return {
-      projection: "StudentProgression",
-      version: 1,
-      studentId,
-      schoolId,
-      xp: 0,
-      level: 1,
-      study_streak: 0,
-      battleground_wins: 0,
-      practice_sessions: 0,
-      total_battles: 0,
-      weak_concepts: [] as string[],
-      source_as_of: null as string | null,
-      data_version: `prog:${studentId}:none`,
-      completeness: 0,
-    };
+  if (!userId) return empty;
+
+  let xp: {
+    xp?: number | null; level?: number | null; study_streak?: number | null;
+    current_streak?: number | null; wins?: number | null; total_battles?: number | null;
+    practice_sessions_count?: number | null; league_code?: string | null; updated_at?: string | null;
+  } | null = null;
+
+  const progressive = await admin
+    .from("student_xp")
+    .select("xp, level, study_streak, current_streak, wins, total_battles, practice_sessions_count, league_code, updated_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!progressive.error) {
+    xp = progressive.data;
+  } else {
+    const legacy = await admin
+      .from("student_xp")
+      .select("xp, level, current_streak, wins, total_battles, updated_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    xp = legacy.data;
   }
 
-  const [{ data: xp }, { count: practiceCount }, { data: masteryRows }] = await Promise.all([
-    admin
-      .from("student_xp")
-      .select(
-        "xp, level, current_streak, wins, total_battles, updated_at",
-      )
-      .eq("user_id", userId)
-      .maybeSingle(),
-    admin
-      .from("practice_sessions")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId),
-    // Same attempt/mastery SSOT as EIE + client Progression projection — never invent weak areas.
-    admin
-      .from("concept_mastery")
-      .select("subject, concept, mastery_score, mistake_count")
-      .eq("user_id", userId)
-      .order("mastery_score", { ascending: true })
-      .limit(40),
-  ]);
+  const { data: masteryRows } = await admin
+    .from("concept_mastery")
+    .select("subject, concept, mastery_score, mistake_count")
+    .eq("user_id", userId)
+    .order("mastery_score", { ascending: true })
+    .limit(40);
 
   const hasRow = !!xp;
   const xpVal = Number(xp?.xp ?? 0);
   const level = Number(xp?.level ?? 1);
-  const streak = Number(xp?.current_streak ?? 0);
+  const streak = Number(xp?.study_streak ?? xp?.current_streak ?? 0);
   const wins = Number(xp?.wins ?? 0);
   const battles = Number(xp?.total_battles ?? 0);
-  const practice = practiceCount ?? 0;
+  const practice = Number(xp?.practice_sessions_count ?? 0);
+  const leagueCode = typeof xp?.league_code === "string" && xp.league_code.trim() ? String(xp.league_code) : null;
   const asOf = xp?.updated_at ? String(xp.updated_at) : null;
   const hasData = hasRow && (xpVal > 0 || practice > 0 || battles > 0 || streak > 0);
   const weak_concepts = (masteryRows ?? [])
@@ -672,24 +685,25 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
     .slice(0, 8)
     .map((r) => `${String(r.subject ?? "General")}: ${String(r.concept ?? "Topic")}`);
 
+  let leagueLabel: string | null = null;
+  if (leagueCode) {
+    const { data: leagueRow, error: leagueErr } = await admin
+      .from("progression_leagues")
+      .select("label")
+      .eq("code", leagueCode)
+      .maybeSingle();
+    leagueLabel = !leagueErr && leagueRow?.label ? String(leagueRow.label) : leagueCode;
+  }
+
   return {
-    projection: "StudentProgression",
-    version: 1,
-    studentId,
-    schoolId,
-    xp: xpVal,
-    level,
-    study_streak: streak,
-    battleground_wins: wins,
-    practice_sessions: practice,
-    total_battles: battles,
-    weak_concepts,
-    source_as_of: asOf,
-    data_version: `prog:${studentId}:${xpVal}:${level}:${streak}:${weak_concepts.length}`,
+    projection: "StudentProgression", version: 1, studentId, schoolId,
+    xp: xpVal, level, study_streak: streak, battleground_wins: wins,
+    practice_sessions: practice, total_battles: battles, league: leagueCode, league_label: leagueLabel,
+    weak_concepts, source_as_of: asOf,
+    data_version: `prog:${studentId}:${xpVal}:${level}:${streak}:${leagueCode ?? "none"}:${weak_concepts.length}`,
     completeness: hasData ? 1 : hasRow || weak_concepts.length > 0 ? 0.4 : 0,
   };
 }
-
 async function fetchEie(admin: SupabaseClient, schoolId: string, studentId: string) {
   const { data: student } = await admin
     .from("students")

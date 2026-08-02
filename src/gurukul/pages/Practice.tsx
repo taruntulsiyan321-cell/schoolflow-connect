@@ -1710,8 +1710,8 @@ function Session({
         answeredAt: snap.answeredAt ?? null,
         schoolId: snap.schoolId ?? ctx.schoolId ?? null,
       });
-    } catch {
-      /* finish() batch-writes if live persist fails */
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save this answer — it will retry when you finish");
     }
   }
 
@@ -1981,27 +1981,29 @@ function Summary({ results, onRetry, onHub }: {
   results: SessionResults; onRetry: ()=>void; onHub: ()=>void;
 }) {
   const { correct, total, skipped, bookmarked, config, serverStats } = results;
-  const wrong = serverStats?.wrongCount ?? Math.max(0, total - correct - skipped);
-  const pct =
-    typeof serverStats?.accuracy === "number"
-      ? Math.round(serverStats.accuracy)
-      : total > 0
-        ? Math.round((correct / total) * 100)
-        : 0;
+  // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats — never invent XP.
+  const stats = resolvePracticeSessionStats(null, {
+    questionCount: serverStats?.questionCount ?? total,
+    correctCount: serverStats?.correctCount ?? correct,
+    wrongCount: serverStats?.wrongCount,
+    skippedCount: serverStats?.skippedCount ?? skipped,
+    accuracy: serverStats?.accuracy,
+    xpEarned: serverStats?.xpEarned,
+    totalTimeMs: serverStats?.totalTimeMs,
+  });
+  const wrong = stats.wrongCount;
+  const pct = stats.accuracy;
   const color = pct >= 80 ? "#4aa87a" : pct >= 60 ? "#c08a3a" : "#cc5069";
   const emoji = pct >= 90 ? "🏆" : pct >= 75 ? "🎯" : pct >= 60 ? "📈" : "💪";
-  const xpLabel =
-    typeof serverStats?.xpEarned === "number"
-      ? `+${serverStats.xpEarned} XP`
-      : null;
-
-  return (
+  const xpFormatted = formatSessionXp(stats.xpEarned, stats.xpFromDb);
+  const xpLabel = xpFormatted === "—" ? null : `+${xpFormatted} XP`;
+return (
     <div className="max-w-lg mx-auto space-y-5">
       <GlassCard className="p-8 text-center" glow={pct>=75?"green":pct>=55?"amber":"rose"}>
         <div className="text-5xl mb-3">{emoji}</div>
         <div className="text-[10px] uppercase tracking-widest text-[#78788c] mb-1">{config.label} · Complete</div>
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
-        <div className="text-[#78788c] text-sm mb-6">{correct} correct out of {total}</div>
+        <div className="text-[#78788c] text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
         {xpLabel && (
           <div className="text-sm font-bold text-[#c08a3a] mb-4 tabular-nums">
             {xpLabel}
@@ -2010,9 +2012,9 @@ function Summary({ results, onRetry, onHub }: {
 
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label:"Correct",    value:correct,    color:"#4aa87a" },
+            { label:"Correct",    value:stats.correctCount,    color:"#4aa87a" },
             { label:"Wrong",      value:wrong, color:"#cc5069" },
-            { label:"Skipped",    value:skipped,    color:"#c08a3a" },
+            { label:"Skipped",    value:stats.skippedCount,    color:"#c08a3a" },
             { label:"Flagged", value:bookmarked, color:"#4b9fd4" },
           ].map(s => (
             <div key={s.label} className="bg-white/4 rounded-xl p-2.5 border border-white/5">

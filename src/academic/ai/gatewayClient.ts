@@ -289,6 +289,8 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
           study_streak?: number;
           battleground_wins?: number;
           practice_sessions?: number;
+          league?: string | null;
+          league_label?: string | null;
           weak_concepts?: string[];
         } | undefined;
         if (d.facts_empty === true) {
@@ -297,9 +299,14 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
             "Ask about a study concept, or check attendance / homework / marks once your school data is synced."
           );
         }
+        const leagueBit =
+          prog?.league_label || prog?.league
+            ? `League **${prog.league_label ?? prog.league}**`
+            : null;
         const progBits = [
           prog?.xp != null ? `XP **${prog.xp}**` : null,
           prog?.level != null ? `Level **${prog.level}**` : null,
+          leagueBit,
           prog?.study_streak != null ? `Streak **${prog.study_streak}d**` : null,
           prog?.practice_sessions != null ? `Practice **${prog.practice_sessions}**` : null,
           prog?.battleground_wins != null ? `Battle wins **${prog.battleground_wins}**` : null,
