@@ -54,7 +54,7 @@ export {
 
 export { mapIntentToCapability } from "./intentMapper";
 
-export { invokeAiGateway, askAiCoach, resolveCoachCapability, recordAiFeedback } from "./gatewayClient";
+export { invokeAiGateway, askAiCoach, resolveCoachCapability, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } from "./gatewayClient";
 
 export {
   buildContextPack,

@@ -39,6 +39,7 @@ export const DEFAULT_SCHOOL_DAILY_SOFT = 200;
 export const DEFAULT_SCHOOL_MONTHLY_SOFT = 3000;
 export const DEFAULT_FEATURE_DAILY_SOFT: Record<string, number> = {
   "student.performance.explain": 80,
+  "student.nova.chat": 120,
   "parent.child.narrative": 40,
 };
 

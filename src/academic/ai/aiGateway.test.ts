@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertRegisteredCapability,
   getCapability,
+  isModelAllowed,
   UnknownCapabilityError,
 } from "./capabilityCatalog";
 import { bindEnvelope, EnvelopeValidationError } from "./envelope";
@@ -12,7 +13,11 @@ import {
   AiPermissionError,
   resolveStudentTarget,
 } from "./permissions";
-import { resolveCoachCapability } from "./gatewayClient";
+import {
+  resolveCoachCapability,
+  isAiBillingOrCreditsIssue,
+  AI_BILLING_UNAVAILABLE_MSG,
+} from "./gatewayClient";
 import { AeSnapshotL1Cache, buildL1CacheKey } from "./l1Cache";
 import { mapIntentToCapability } from "./intentMapper";
 
@@ -217,9 +222,45 @@ describe("intent mapping / golden routes", () => {
     );
   });
 
-  it("unsupported free text does not invent a capability", () => {
-    const r = resolveCoachCapability({ text: "Write me a love poem about calculus" });
-    expect("unsupported" in r).toBe(true);
+  it("free text maps to student.nova.chat (Gateway generative)", () => {
+    const r = resolveCoachCapability({ text: "Write me a study tip for calculus" });
+    expect("unsupported" in r).toBe(false);
+    if (!("unsupported" in r)) {
+      expect(r.feature_id).toBe("student.nova.chat");
+    }
+  });
+
+  it("keeps mapped intents ahead of nova.chat fallback", () => {
+    expect(resolveCoachCapability({ text: "What is my attendance this month?" })).toEqual({
+      feature_id: "student.attendance.query",
+    });
+  });
+
+  it("registers student.nova.chat with model policy", () => {
+    const cap = getCapability("student.nova.chat");
+    expect(cap?.route_class).toBe("personalised_intelligence");
+    expect(cap?.model_policy).toBe("required_when_budget");
+    expect(isModelAllowed(cap!)).toBe(true);
+  });
+});
+
+describe("billing / credits soft degradation helpers", () => {
+  it("detects OpenRouter billing and kill-switch codes", () => {
+    expect(
+      isAiBillingOrCreditsIssue({
+        error_code: "openrouter_billing",
+        message: "AI temporarily unavailable (billing/credits). Deterministic help still works.",
+        data: null,
+      }),
+    ).toBe(true);
+    expect(
+      isAiBillingOrCreditsIssue({
+        error_code: "gateway_invoke_failed",
+        message: "network",
+        data: null,
+      }),
+    ).toBe(false);
+    expect(AI_BILLING_UNAVAILABLE_MSG).toMatch(/billing\/credits/i);
   });
 });
 

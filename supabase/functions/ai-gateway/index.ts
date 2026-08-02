@@ -263,6 +263,7 @@ Deno.serve(async (req) => {
       input_structured,
       target_student_id: target_student_id ? String(target_student_id) : undefined,
       session_id,
+      locale: body.locale ? String(body.locale) : undefined,
       actor,
     });
 

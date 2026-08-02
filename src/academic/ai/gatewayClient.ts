@@ -8,6 +8,28 @@ import type { AiClientRequest, AiGatewayResponse } from "./envelope";
 import { mapIntentToCapability } from "./intentMapper";
 import { getCapability } from "./capabilityCatalog";
 
+/** Shown when generative path is down (402 / kill switch / missing key). */
+export const AI_BILLING_UNAVAILABLE_MSG =
+  "AI temporarily unavailable (billing/credits). Deterministic help still works.";
+
+export function isAiBillingOrCreditsIssue(
+  response: Pick<AiGatewayResponse, "error_code" | "message" | "data">,
+): boolean {
+  const code = response.error_code ?? "";
+  if (
+    code === "openrouter_billing" ||
+    code === "budget_exhausted" ||
+    code === "openrouter_not_configured" ||
+    code === "generative_disabled"
+  ) {
+    return true;
+  }
+  const blob = `${response.message ?? ""} ${JSON.stringify(response.data ?? {})}`;
+  return /openrouter_billing|402|credits|billing|generative_kill_switch|openrouter_not_configured/i.test(
+    blob,
+  );
+}
+
 export async function invokeAiGateway<T = unknown>(
   body: AiClientRequest,
 ): Promise<AiGatewayResponse<T>> {
@@ -57,10 +79,17 @@ export function resolveCoachCapability(input: {
   }
   const mapped = mapIntentToCapability(input.text ?? "");
   if (mapped) return { feature_id: mapped.feature_id };
+
+  const text = (input.text ?? "").trim();
+  // Free-form Nova chat — Gateway → Model Router (Qwen); never invent local pedagogy.
+  if (text && getCapability("student.nova.chat")) {
+    return { feature_id: "student.nova.chat" };
+  }
+
   return {
     unsupported: true,
     message:
-      "I can answer attendance, homework due, marks, today's timetable, mastery/revision, next practice recommendation, concept help, performance summary, or a parent progress narrative from school records. Ask one of those, or use Practice / Doubts for learning help.",
+      "I can answer attendance, homework due, marks, today's timetable, mastery/revision, next practice recommendation, concept help, performance summary, or a free chat with Nova. Ask one of those, or use Practice / Doubts for learning help.",
   };
 }
 
@@ -210,19 +239,36 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       }
       return "Performance facts are not available yet.";
     }
+    case "student.nova.chat": {
+      if (typeof d.reply === "string" && d.reply.trim()) return d.reply;
+      if (typeof d.explanation === "string" && d.explanation.trim()) return d.explanation;
+      return AI_BILLING_UNAVAILABLE_MSG;
+    }
+    case "student.knowledge.retrieve": {
+      const chunks = Array.isArray(d.chunks) ? d.chunks : Array.isArray(d.hits) ? d.hits : [];
+      if (chunks.length === 0) {
+        return "**Knowledge retrieve** — no approved notes matched that query yet.";
+      }
+      const lines = chunks.slice(0, 5).map((c: { title?: string; snippet?: string; text?: string }) =>
+        `• **${c.title ?? "Note"}**: ${(c.snippet ?? c.text ?? "").slice(0, 160)}`,
+      );
+      return `**From approved notes**\n${lines.join("\n")}`;
+    }
     default:
       return "Here is what your school records show.";
   }
 }
 
 /**
- * Ask the AI Coach a question via Gateway. Deterministic intents get live AE/EIE answers.
+ * Ask the AI Coach a question via Gateway. Deterministic intents get live AE/EIE answers;
+ * free-form maps to student.nova.chat (Qwen via OpenRouter).
  */
 export async function askAiCoach(input: {
   text: string;
   studentId?: string;
   feature_id?: string;
   channel?: AiClientRequest["channel"];
+  locale?: string;
 }): Promise<{ text: string; response: AiGatewayResponse }> {
   const resolved = resolveCoachCapability({ feature_id: input.feature_id, text: input.text });
   if ("unsupported" in resolved) {
@@ -248,14 +294,50 @@ export async function askAiCoach(input: {
     input: { text: input.text },
     target_refs: input.studentId ? { studentId: input.studentId } : undefined,
     channel: input.channel ?? "student_app",
+    locale: input.locale,
     client_context_version: "gurukul-aicoach/1",
   });
 
+  if (isAiBillingOrCreditsIssue(response) && resolved.feature_id === "student.nova.chat") {
+    const msg = response.message?.trim() || AI_BILLING_UNAVAILABLE_MSG;
+    return { text: msg, response };
+  }
+
   if (response.error_code && !response.data) {
+    if (isAiBillingOrCreditsIssue(response)) {
+      return {
+        text: response.message?.trim() || AI_BILLING_UNAVAILABLE_MSG,
+        response,
+      };
+    }
     return {
       text: response.message ?? "I could not load that from your school records right now.",
       response,
     };
+  }
+
+  // Generative path returned data but reply null (degraded with facts/empty)
+  if (resolved.feature_id === "student.nova.chat") {
+    const d = response.data as Record<string, unknown> | null;
+    const reply =
+      (typeof d?.reply === "string" && d.reply.trim()) ||
+      (typeof d?.explanation === "string" && d.explanation.trim()) ||
+      "";
+    if (!reply) {
+      return {
+        text: response.message?.trim() || AI_BILLING_UNAVAILABLE_MSG,
+        response,
+      };
+    }
+  }
+
+  // Soft toast path for optional_explain features when generative is down
+  if (
+    isAiBillingOrCreditsIssue(response) &&
+    (resolved.feature_id === "student.performance.explain" ||
+      resolved.feature_id === "student.concept.explain")
+  ) {
+    // Still format facts-only reply; UI may toast separately via error_code
   }
 
   return {

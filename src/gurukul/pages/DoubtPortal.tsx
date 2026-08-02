@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { DoubtService, type ServiceContext, useAcademicLive } from "@/academic";
+import { askAiCoach, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } from "@/academic/ai/gatewayClient";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -248,6 +249,7 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
   onUpdateDoubt: (d: Doubt) => void;
 }) {
   const student = useGurukulStudent();
+  const { studentId } = useAcademicContext();
   const [replyText, setReplyText] = useState("");
   const [showAI, setShowAI] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -296,12 +298,38 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
     setLocalDoubt(d => ({ ...d, replies: [...d.replies, newReply] }));
     setReplyText("");
   }
-  function askAI() {
+  async function askAI() {
     setShowAI(true);
-    setAiLoading(false);
-    setAiReply(
-      "AI Coach answers are not available in this build yet. Post your doubt to the class so a teacher or classmate can help — or try the AI Coach page when it is connected.",
-    );
+    setAiLoading(true);
+    setAiReply(null);
+    try {
+      const prompt = [
+        localDoubt.title,
+        localDoubt.body,
+        localDoubt.subject ? `Subject: ${localDoubt.subject}` : "",
+        localDoubt.topic ? `Topic: ${localDoubt.topic}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      const { text, response } = await askAiCoach({
+        text: prompt || "Help me with this doubt",
+        studentId: studentId || undefined,
+        feature_id: "student.nova.chat",
+        channel: "student_app",
+        locale: typeof navigator !== "undefined" ? navigator.language : undefined,
+      });
+      if (isAiBillingOrCreditsIssue(response)) {
+        toast.message(AI_BILLING_UNAVAILABLE_MSG);
+      }
+      setAiReply(text);
+    } catch {
+      toast.error("AI Gateway unavailable");
+      setAiReply(
+        "I couldn’t reach Nova just now. You can still post this doubt to your class for teacher and peer help.",
+      );
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   const accepted = localDoubt.replies.find(r => r.isAccepted);
@@ -445,6 +473,7 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx }: {
   ctx: ServiceContext | null;
 }) {
   const student = useGurukulStudent();
+  const { studentId } = useAcademicContext();
   const [step, setStep] = useState<"ai"|"form">("form");
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -463,11 +492,39 @@ function AskDoubt({ onBack, onPosted, existingDoubts, ctx }: {
     English:["Grammar","Comprehension","Essay","Poetry","Drama"],
   };
 
-  function getAIAnswer() {
-    setAiLoading(false);
-    setAiReply(
-      "AI Coach answers are not available in this build yet. You can still post this doubt to your class for teacher and peer help.",
-    );
+  async function getAIAnswer() {
+    if (!title.trim()) return;
+    setAiLoading(true);
+    setAiReply(null);
+    try {
+      const prompt = [
+        title.trim(),
+        body.trim(),
+        subject ? `Subject: ${subject}` : "",
+        topic ? `Topic: ${topic}` : "",
+        chapter ? `Chapter: ${chapter}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n\n");
+      const { text, response } = await askAiCoach({
+        text: prompt,
+        studentId: studentId || undefined,
+        feature_id: "student.nova.chat",
+        channel: "student_app",
+        locale: typeof navigator !== "undefined" ? navigator.language : undefined,
+      });
+      if (isAiBillingOrCreditsIssue(response)) {
+        toast.message(AI_BILLING_UNAVAILABLE_MSG);
+      }
+      setAiReply(text);
+    } catch {
+      toast.error("AI Gateway unavailable");
+      setAiReply(
+        "I couldn’t reach Nova just now. You can still post this doubt to your class for teacher and peer help.",
+      );
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   async function postDoubt() {

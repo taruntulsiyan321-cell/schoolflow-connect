@@ -1,6 +1,6 @@
 /**
  * Map free-text student intents to registered capabilities.
- * Unmapped text stays as unsupported for generative paths (not in this sprint).
+ * Unmapped free text falls through to student.nova.chat in resolveCoachCapability.
  */
 
 export type MappedIntent = {

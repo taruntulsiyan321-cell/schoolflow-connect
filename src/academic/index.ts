@@ -152,6 +152,9 @@ export {
   AiContextApis,
   askAiCoach,
   invokeAiGateway,
+  AI_BILLING_UNAVAILABLE_MSG,
+  isAiBillingOrCreditsIssue,
+  resolveCoachCapability,
 } from "./ai";
 
 export {

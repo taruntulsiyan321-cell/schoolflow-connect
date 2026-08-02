@@ -120,6 +120,15 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     requires_student_target: true,
     description: "Deterministic next-concept / revision package from EIE seeds",
   },
+  "student.nova.chat": {
+    feature_id: "student.nova.chat",
+    route_class: "personalised_intelligence",
+    model_policy: "required_when_budget",
+    allowed_roles: ["student", "parent", "teacher", "principal", "admin"],
+    requires_student_target: true,
+    description:
+      "Nova free-form academic chat via Gateway → Model Router (Qwen); no invented school metrics",
+  },
   "student.image_doubt": {
     feature_id: "student.image_doubt",
     route_class: "multimodal",

@@ -96,11 +96,17 @@ async function invokeOpenRouterOnce(input: {
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
+      const billing =
+        res.status === 402 ||
+        /insufficient.?credits|payment.?required|billing/i.test(body);
       return {
         ok: false,
-        error: `OpenRouter error ${res.status}: ${body.slice(0, 200)}`,
+        error: billing
+          ? `openrouter_billing: OpenRouter ${res.status} (credits/billing)`
+          : `OpenRouter error ${res.status}: ${body.slice(0, 200)}`,
         degraded: true,
         budget_tier: input.budget_tier,
+        recovery_stage: billing ? "safe_fail" : undefined,
       };
     }
 

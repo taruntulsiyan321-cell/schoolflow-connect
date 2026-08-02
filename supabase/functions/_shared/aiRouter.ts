@@ -77,6 +77,8 @@ export type RouterRequest = {
   target_student_id?: string;
   /** Optional workflow-scoped session memory id. */
   session_id?: string;
+  /** BCP-47 / display language from envelope (e.g. en, hi). */
+  locale?: string;
   actor: RouterActor;
 };
 
@@ -2472,6 +2474,315 @@ export async function routeAiRequest(
           route_class: cap.route_class,
           used_model,
           cache_hit,
+          data,
+          provenance,
+          model_id,
+          confidence: confidence_score,
+          budget_tier,
+        };
+      }
+      case "student.nova.chat": {
+        const question = (req.input_text ?? req.intent_hint ?? "").trim();
+        if (!question) {
+          return fail({
+            decision: "rejected",
+            error_code: "empty_input",
+            message: "Please type a question for Nova.",
+            route_class: cap.route_class,
+          });
+        }
+
+        const language =
+          (req.locale && String(req.locale).trim()) ||
+          (typeof req.input_structured?.language === "string"
+            ? String(req.input_structured.language).trim()
+            : "") ||
+          "en";
+
+        const budget_tier: ReasoningTier = "simple";
+        let cost_units = estimateUnitsForTier(budget_tier);
+        let validation_ok: boolean | null = null;
+        let confidence_score: number | undefined;
+
+        const billingUnavailableMsg =
+          "AI temporarily unavailable (billing/credits). Deterministic help still works.";
+
+        if (!mayCallModel) {
+          const conf = scoreConfidence({
+            used_model: false,
+            cache_hit: false,
+            completeness: 0.2,
+            source_as_of: null,
+            route_class: cap.route_class,
+            budget_tier,
+          });
+          confidence_score = conf.confidence;
+          const reason = !flags.generativeEnabled
+            ? "generative_kill_switch"
+            : "openrouter_not_configured";
+          await writeDecision(admin, {
+            request_id: req.request_id,
+            school_id: req.actor.schoolId,
+            actor_user_id: req.actor.userId,
+            actor_role: req.actor.role,
+            feature_id: cap.feature_id,
+            route_class: cap.route_class,
+            decision: "degraded",
+            used_model: false,
+            cache_hit: false,
+            latency_ms: Date.now() - started,
+            error_code: reason,
+            confidence: confidence_score,
+            budget_tier,
+            estimated_cost_units: 0,
+            evidence: { student_id: studentId, language },
+          });
+          return {
+            request_id: req.request_id,
+            feature_id: cap.feature_id,
+            decision: "degraded",
+            route_class: cap.route_class,
+            used_model: false,
+            cache_hit: false,
+            data: {
+              reply: null,
+              degraded_reason: reason,
+              language,
+            },
+            message: billingUnavailableMsg,
+            error_code: reason === "generative_kill_switch"
+              ? "generative_disabled"
+              : "openrouter_not_configured",
+            confidence: confidence_score,
+            budget_tier,
+          };
+        }
+
+        const budget = await reserveBudget(
+          admin,
+          req.actor.schoolId,
+          cap.feature_id,
+          cost_units,
+        );
+        if (!budget.ok) {
+          await writeDecision(admin, {
+            request_id: req.request_id,
+            school_id: req.actor.schoolId,
+            actor_user_id: req.actor.userId,
+            actor_role: req.actor.role,
+            feature_id: cap.feature_id,
+            route_class: cap.route_class,
+            decision: "degraded",
+            used_model: false,
+            cache_hit: false,
+            latency_ms: Date.now() - started,
+            error_code: "budget_exhausted",
+            budget_tier,
+            estimated_cost_units: 0,
+            evidence: { student_id: studentId, budget },
+          });
+          return {
+            request_id: req.request_id,
+            feature_id: cap.feature_id,
+            decision: "degraded",
+            route_class: cap.route_class,
+            used_model: false,
+            cache_hit: false,
+            data: { reply: null, degraded_reason: "budget_exhausted", language },
+            message: billingUnavailableMsg,
+            error_code: "budget_exhausted",
+            budget_tier,
+          };
+        }
+
+        if (budget.soft_breach && budget_tier !== "simple") {
+          cost_units = estimateUnitsForTier("simple");
+        }
+
+        const modelResult = await completeWithPromptLibrary({
+          admin,
+          capability_id: cap.feature_id,
+          vars: { question, language, facts: "" },
+          budget_tier,
+          request_id: req.request_id,
+          shadow_percent: flags.shadowPromptPercent,
+        });
+
+        if (!modelResult.ok) {
+          const billing =
+            /openrouter_billing|402|credits|billing/i.test(modelResult.error);
+          const conf = scoreConfidence({
+            used_model: false,
+            cache_hit: false,
+            completeness: 0.2,
+            source_as_of: null,
+            route_class: cap.route_class,
+            budget_tier,
+          });
+          await writeDecision(admin, {
+            request_id: req.request_id,
+            school_id: req.actor.schoolId,
+            actor_user_id: req.actor.userId,
+            actor_role: req.actor.role,
+            feature_id: cap.feature_id,
+            route_class: cap.route_class,
+            decision: "degraded",
+            used_model: false,
+            cache_hit: false,
+            latency_ms: Date.now() - started,
+            error_code: billing ? "openrouter_billing" : "model_degraded",
+            confidence: conf.confidence,
+            budget_tier,
+            estimated_cost_units: 0,
+            evidence: {
+              student_id: studentId,
+              model_error: modelResult.error,
+              language,
+            },
+          });
+          return {
+            request_id: req.request_id,
+            feature_id: cap.feature_id,
+            decision: "degraded",
+            route_class: cap.route_class,
+            used_model: false,
+            cache_hit: false,
+            data: {
+              reply: null,
+              degraded_reason: modelResult.error,
+              language,
+            },
+            message: billing
+              ? billingUnavailableMsg
+              : "Nova could not reach the AI model right now. Try attendance, homework, marks, timetable, or mastery — those still work without generative credits.",
+            error_code: billing ? "openrouter_billing" : "model_degraded",
+            confidence: conf.confidence,
+            budget_tier,
+          };
+        }
+
+        // Light-touch validator: reject invented school metrics; no AE evidence pack required.
+        const validation = validateModelResponse(modelResult.text, {}, {
+          max_chars: 1600,
+        });
+        validation_ok = validation.ok && !validation.material_failure;
+
+        if (!validation_ok) {
+          const conf = scoreConfidence({
+            used_model: true,
+            cache_hit: false,
+            completeness: 0.3,
+            source_as_of: null,
+            route_class: cap.route_class,
+            budget_tier,
+            validation,
+          });
+          await writeDecision(admin, {
+            request_id: req.request_id,
+            school_id: req.actor.schoolId,
+            actor_user_id: req.actor.userId,
+            actor_role: req.actor.role,
+            feature_id: cap.feature_id,
+            route_class: cap.route_class,
+            decision: "degraded",
+            used_model: true,
+            model_id: modelResult.model_id,
+            cache_hit: false,
+            latency_ms: Date.now() - started,
+            error_code: "validation_failed",
+            confidence: conf.confidence,
+            budget_tier,
+            validation_ok: false,
+            estimated_cost_units: cost_units,
+            evidence: {
+              student_id: studentId,
+              validation_codes: validation.codes,
+              language,
+            },
+          });
+          return {
+            request_id: req.request_id,
+            feature_id: cap.feature_id,
+            decision: "degraded",
+            route_class: cap.route_class,
+            used_model: true,
+            cache_hit: false,
+            data: {
+              reply: null,
+              degraded_reason: "validation_failed",
+              language,
+            },
+            message:
+              "Nova drafted a reply that looked unreliable (possible invented scores). Please rephrase, or ask about attendance / homework / marks for live school records.",
+            error_code: "validation_failed",
+            model_id: modelResult.model_id,
+            confidence: conf.confidence,
+            budget_tier,
+          };
+        }
+
+        const conf = scoreConfidence({
+          used_model: true,
+          cache_hit: false,
+          completeness: 0.55,
+          source_as_of: null,
+          route_class: cap.route_class,
+          budget_tier,
+          validation,
+        });
+        confidence_score = conf.confidence;
+        used_model = true;
+        model_id = modelResult.model_id;
+        decision = "answered_model";
+        data = {
+          reply: modelResult.text,
+          explanation: modelResult.text,
+          language,
+          confidence: conf.confidence,
+          confidence_action: conf.action,
+          session_patch: buildSessionSummaryPatch({
+            last_feature_id: cap.feature_id,
+            last_decision: decision,
+          }),
+        };
+        provenance = {
+          budget_tier,
+          language,
+          prompt_version: modelResult.prompt?.version ?? null,
+          completeness: 0.55,
+        };
+
+        await writeDecision(admin, {
+          request_id: req.request_id,
+          school_id: req.actor.schoolId,
+          actor_user_id: req.actor.userId,
+          actor_role: req.actor.role,
+          feature_id: cap.feature_id,
+          route_class: cap.route_class,
+          decision,
+          used_model: true,
+          model_id: model_id ?? null,
+          cache_hit: false,
+          latency_ms: Date.now() - started,
+          confidence: confidence_score,
+          budget_tier,
+          validation_ok: true,
+          estimated_cost_units: cost_units,
+          evidence: {
+            student_id: studentId,
+            language,
+            prompt_version: modelResult.prompt?.version ?? null,
+            cost_units,
+          },
+        });
+
+        return {
+          request_id: req.request_id,
+          feature_id: cap.feature_id,
+          decision,
+          route_class: cap.route_class,
+          used_model: true,
+          cache_hit: false,
           data,
           provenance,
           model_id,

@@ -73,6 +73,20 @@ export const BUILTIN_PROMPTS: PromptRecord[] = [
     metadata: { source: "builtin" },
   },
   {
+    capability_id: "student.nova.chat",
+    version: "v1",
+    status: "production",
+    audience: "student",
+    system_template:
+      "You are Nova, Gurukul's academic tutor for school students. Help with study questions, concepts, and study habits. Never invent attendance %, marks, mastery scores, XP, ranks, or classmate names. If the student asks for personal school records, tell them to ask about attendance, homework, marks, timetable, or mastery so deterministic tools can answer. Prefer stepwise guidance over dumping final answers. Keep under 180 words. Respond in {{language}} when possible.",
+    user_template: "Student message:\n{{question}}",
+    output_schema: { type: "plain_text", max_words: 180 },
+    max_output_tokens: 400,
+    temperature: 0.3,
+    caching_eligible: false,
+    metadata: { source: "builtin" },
+  },
+  {
     capability_id: "teacher.question_paper.generate_outline",
     version: "v1",
     status: "production",

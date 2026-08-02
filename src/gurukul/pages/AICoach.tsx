@@ -5,7 +5,7 @@ import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/gurukul/components/shared";
 import { toast } from "sonner";
-import { askAiCoach, recordAiFeedback } from "@/academic/ai/gatewayClient";
+import { askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } from "@/academic/ai/gatewayClient";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Mic, MicOff, Send, Plus, Search, Pin, Star, Trash2, Edit3,
@@ -654,7 +654,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         text,
         studentId: studentId || undefined,
         channel: "student_app",
+        locale: typeof navigator !== "undefined" ? navigator.language : undefined,
       });
+      if (isAiBillingOrCreditsIssue(response)) {
+        toast.message(AI_BILLING_UNAVAILABLE_MSG);
+      }
       setConvos((cs) =>
         cs.map((c) =>
           c.id === convoId
