@@ -8,6 +8,7 @@
 DO $seed$
 DECLARE
   _fp int;
+  _corrupt int;
 BEGIN
   SELECT count(*) INTO _fp FROM public.question_bank
   WHERE source = 'seed_rbse_commerce_full_v1'
@@ -15,9 +16,28 @@ BEGIN
     AND class_level = 11
     AND chapter = 'Introduction to Accounting';
 
-  IF _fp >= 8 THEN
+  -- Force reseed when any paired subject still has UTF-8-as-cp1252 markers
+  SELECT count(*) INTO _corrupt FROM public.question_bank
+  WHERE source = 'seed_rbse_commerce_full_v1'
+    AND subject IN ('Accountancy', 'Business Studies')
+    AND (
+      position(CHR(224) || CHR(164) IN coalesce(chapter, '')) > 0
+      OR position(CHR(224) || CHR(165) IN coalesce(chapter, '')) > 0
+      OR position(CHR(224) || CHR(164) IN coalesce(question, '')) > 0
+      OR position(CHR(224) || CHR(165) IN coalesce(question, '')) > 0
+      OR position(U&'\00E2\20AC' IN coalesce(chapter, '')) > 0
+      OR position(U&'\00E2\20AC' IN coalesce(question, '')) > 0
+      OR position(U&'\00C3\00A2' IN coalesce(chapter, '')) > 0
+      OR position(U&'\00C2\00B0' IN coalesce(question, '')) > 0
+    );
+
+  IF _fp >= 8 AND _corrupt = 0 THEN
     RAISE NOTICE 'Skip Accountancy + Business Studies: fingerprint already seeded (% rows)', _fp;
     RETURN;
+  END IF;
+
+  IF _corrupt > 0 THEN
+    RAISE NOTICE 'Reseeding Accountancy + Business Studies: % rows still look encoding-corrupt', _corrupt;
   END IF;
 
   DELETE FROM public.question_bank
