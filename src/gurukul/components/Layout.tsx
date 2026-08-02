@@ -284,13 +284,19 @@ export default function Layout({
               <div className="text-[10px] text-[#78788c]">{student.class}</div>
             </div>
           </div>
-          <XPBar
-            xp={student.xp}
-            level={student.level}
-            xpIntoLevel={student.xpIntoLevel}
-            xpToNext={student.xpToNext}
-            progressPct={student.levelProgressPct}
-          />
+          {showXpChrome ? (
+            <XPBar
+              xp={student.xp}
+              level={student.level}
+              xpIntoLevel={student.xpIntoLevel}
+              xpToNext={student.xpToNext}
+              progressPct={student.levelProgressPct}
+            />
+          ) : (
+            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+              <div className="h-full w-1/3 rounded-full bg-white/10 animate-pulse" />
+            </div>
+          )}
         </div>
       )}
 
@@ -362,12 +368,16 @@ export default function Layout({
               {/* Streak */}
               <div className="hidden sm:flex items-center gap-1.5 bg-amber-400/10 border border-amber-400/20 rounded-full px-2.5 py-1">
                 <Flame className="w-3 h-3 text-amber-400"/>
-                <span className="text-xs font-bold text-amber-400">{student.streak}d</span>
+                <span className="text-xs font-bold text-amber-400">
+                  {showXpChrome ? `${student.streak}d` : "—"}
+                </span>
               </div>
               {/* XP */}
               <div className="hidden sm:flex items-center gap-1.5 bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-full px-2.5 py-1">
                 <Zap className="w-3 h-3 text-blue-400"/>
-                <span className="text-xs font-bold text-blue-400">{student.xp.toLocaleString()}</span>
+                <span className="text-xs font-bold text-blue-400">
+                  {showXpChrome ? student.xp.toLocaleString() : "—"}
+                </span>
               </div>
               {/* Bell -> Notifications (live inbox) */}
               <button
@@ -426,13 +436,19 @@ export default function Layout({
                         </div>
                       </div>
                       <div className="mt-3">
-                        <XPBar
-                          xp={student.xp}
-                          level={student.level}
-                          xpIntoLevel={student.xpIntoLevel}
-                          xpToNext={student.xpToNext}
-                          progressPct={student.levelProgressPct}
-                        />
+                        {showXpChrome ? (
+                          <XPBar
+                            xp={student.xp}
+                            level={student.level}
+                            xpIntoLevel={student.xpIntoLevel}
+                            xpToNext={student.xpToNext}
+                            progressPct={student.levelProgressPct}
+                          />
+                        ) : (
+                          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                            <div className="h-full w-1/3 rounded-full bg-white/10 animate-pulse" />
+                          </div>
+                        )}
                       </div>
                     </div>
 

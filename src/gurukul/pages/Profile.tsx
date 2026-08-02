@@ -76,7 +76,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           .maybeSingle(),
         AcademicProfileService.get(ctx, studentId),
         AnalyticsService.forStudent(ctx, studentId),
-        ProgressionService.getForStudent(ctx, studentId),
+        ProgressionService.getSnapshot(ctx, user?.id ?? undefined),
         ProgressionService.leaderboard(ctx, {
           scope: "class",
           period: "lifetime",

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Trophy, Zap } from "lucide-react";
-import { ProgressionService } from "@/academic";
+import { ProgressionService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useAuth } from "@/hooks/useAuth";
 import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/shared";
@@ -16,11 +16,12 @@ type LbRow = {
 
 /**
  * Class XP rankings from ProgressionService (rpc_progression_leaderboard).
- * No mock leaderboard XP; no client-invented ranks.
+ * Lifetime YOU value must match Dashboard/Profile snapshot.xp (student_xp.xp).
  */
 export default function Leaderboard() {
   const { user } = useAuth();
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["xp", "profile"]);
   const [rows, setRows] = useState<LbRow[]>([]);
   const [period, setPeriod] = useState<"lifetime" | "weekly" | "monthly">("lifetime");
   const [loading, setLoading] = useState(true);
@@ -65,16 +66,37 @@ export default function Leaderboard() {
     return () => {
       cancelled = true;
     };
+  }, [ready, ctx, period, user?.id, liveVersion]);
+
+  useEffect(() => {
+    const onXp = () => {
+      if (!ready || !ctx) return;
+      void ProgressionService.leaderboard(ctx, {
+        scope: "class",
+        period,
+        metric: "xp",
+        limit: 100,
+      })
+        .then((lb) => {
+          setRows(
+            lb.rows.map((r) => ({
+              userId: r.user_id,
+              name: r.name || r.user_id.slice(0, 8),
+              value: Number(r.value) || 0,
+              level: Number(r.level) || 1,
+              league: r.league || "bronze",
+              you: r.user_id === user?.id,
+            })),
+          );
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener("student-xp-updated", onXp);
+    return () => window.removeEventListener("student-xp-updated", onXp);
   }, [ready, ctx, period, user?.id]);
 
-  const ranked = useMemo(
-    () => rows.map((r, i) => ({ ...r, rank: i + 1 })),
-    [rows],
-  );
-  const maxXp = useMemo(
-    () => Math.max(1, ...ranked.map((r) => r.value)),
-    [ranked],
-  );
+  const ranked = useMemo(() => rows.map((r, i) => ({ ...r, rank: i + 1 })), [rows]);
+  const maxXp = useMemo(() => Math.max(1, ...ranked.map((r) => r.value)), [ranked]);
 
   if (loading) {
     return (
