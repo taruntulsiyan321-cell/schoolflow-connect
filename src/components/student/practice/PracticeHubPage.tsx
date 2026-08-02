@@ -25,6 +25,7 @@ import {
 import "./practice-hub.css";
 import "../dashboard/student-dashboard.css";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
+import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD } from "@/academic";
@@ -213,43 +214,61 @@ export default function PracticeHubPage() {
   }, [bankSubjects, mastery]);
 
   const weakTopics = useMemo(() => {
-    const fromSnap = (snapshot?.weak_topics ?? []).slice(0, 4).map((t) => ({
-      topic: t.topic || t.chapter || "Topic",
-      subject: t.subject,
-      mastery: Math.round(t.accuracy ?? 0),
-      questions: 0,
-    }));
+    const fromSnap = (snapshot?.weak_topics ?? [])
+      .map((t) => {
+        const topic = preferRealAcademicLabel(t.topic, t.chapter);
+        const subject = preferRealAcademicLabel(t.subject);
+        if (!topic || !subject) return null;
+        return { topic, subject, mastery: Math.round(t.accuracy ?? 0), questions: 0 };
+      })
+      .filter((row): row is NonNullable<typeof row> => !!row)
+      .slice(0, 4);
     if (fromSnap.length) return fromSnap;
     return mastery
       .filter((m) => (m.mastery_score ?? 100) < WEAK_CONCEPT_THRESHOLD)
       .sort((a, b) => (a.mastery_score ?? 0) - (b.mastery_score ?? 0))
-      .slice(0, 4)
-      .map((m) => ({
-        topic: m.concept || m.chapter || "Concept",
-        subject: m.subject,
-        mastery: Math.round(m.mastery_score ?? 0),
-        questions: m.total_attempts ?? 0,
-      }));
+      .map((m) => {
+        const topic = preferRealAcademicLabel(m.concept, m.chapter);
+        const subject = preferRealAcademicLabel(m.subject);
+        if (!topic || !subject) return null;
+        return {
+          topic,
+          subject,
+          mastery: Math.round(m.mastery_score ?? 0),
+          questions: m.total_attempts ?? 0,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => !!row)
+      .slice(0, 4);
   }, [snapshot, mastery]);
 
   const strongTopics = useMemo(() => {
-    const fromSnap = (snapshot?.strong_topics ?? []).slice(0, 4).map((t) => ({
-      topic: t.topic || t.chapter || "Topic",
-      subject: t.subject,
-      mastery: Math.round(t.accuracy ?? 0),
-      questions: 0,
-    }));
+    const fromSnap = (snapshot?.strong_topics ?? [])
+      .map((t) => {
+        const topic = preferRealAcademicLabel(t.topic, t.chapter);
+        const subject = preferRealAcademicLabel(t.subject);
+        if (!topic || !subject) return null;
+        return { topic, subject, mastery: Math.round(t.accuracy ?? 0), questions: 0 };
+      })
+      .filter((row): row is NonNullable<typeof row> => !!row)
+      .slice(0, 4);
     if (fromSnap.length) return fromSnap;
     return mastery
       .filter((m) => (m.mastery_score ?? 0) >= 80)
       .sort((a, b) => (b.mastery_score ?? 0) - (a.mastery_score ?? 0))
-      .slice(0, 4)
-      .map((m) => ({
-        topic: m.concept || m.chapter || "Concept",
-        subject: m.subject,
-        mastery: Math.round(m.mastery_score ?? 0),
-        questions: m.total_attempts ?? 0,
-      }));
+      .map((m) => {
+        const topic = preferRealAcademicLabel(m.concept, m.chapter);
+        const subject = preferRealAcademicLabel(m.subject);
+        if (!topic || !subject) return null;
+        return {
+          topic,
+          subject,
+          mastery: Math.round(m.mastery_score ?? 0),
+          questions: m.total_attempts ?? 0,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => !!row)
+      .slice(0, 4);
   }, [snapshot, mastery]);
 
   const focusTopic = weakTopics[0];

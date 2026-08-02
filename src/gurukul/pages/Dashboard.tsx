@@ -13,6 +13,8 @@ import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useStudentBadges } from "@/hooks/useStudentBadges";
 import { getBadge } from "@/lib/badges";
+import { dedupeSubjectChartPoints } from "@/lib/qualityGuards";
+import { displaySubject } from "@/lib/academicDisplay";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "#3b5bdb",
@@ -44,7 +46,7 @@ function localDateKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** Today's self-practice count from heatmap — not lifetime sessions_completed. */
+/** Today's self-practice count from heatmap ? not lifetime sessions_completed. */
 function practiceSessionsToday(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"]) {
   const key = localDateKey();
   const row = (snapshot?.activity_heatmap ?? []).find((r) => String(r.date).slice(0, 10) === key);
@@ -93,7 +95,7 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
   } else {
     nextAction = {
       label: practiceToday > 0 ? "Keep practicing" : "Start a practice session",
-      reason: practiceToday > 0 ? "Daily practice done — another session builds mastery" : "Build your daily practice habit",
+      reason: practiceToday > 0 ? "Daily practice done ? another session builds mastery" : "Build your daily practice habit",
       page: "practice",
     };
   }
@@ -137,6 +139,7 @@ function WeeklyRing({ sessions }: { sessions: number }) {
 
 export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }) {
   const student = useGurukulStudent();
+  const shellReady = useGurukulShellReady();
   const { user } = useAuth();
   const { data: snapshot, loading: snapLoading, error: snapError, reload: reloadSnap } = useStudentAcademicSnapshot();
   const { data: charts, loading: chartsLoading, error: chartsError, reload: reloadCharts } = useStudentPerformanceCharts();
@@ -175,31 +178,20 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
     [charts?.weekly_activity],
   );
 
-  // Roll topic-level chart rows up to one tile per subject (defensive if SQL not yet applied).
+  // One tile per canonical subject (Maths ? Mathematics); drop generic placeholders.
   const subjects = useMemo(() => {
-    const byName = new Map<string, { attempts: number; weighted: number }>();
-    for (const row of charts?.subjects ?? []) {
-      const name = (row.name ?? "").trim();
-      if (!name) continue;
-      const attempts = Math.max(0, Number(row.attempts) || 0);
-      const accuracy = Number(row.accuracy) || 0;
-      const prev = byName.get(name) ?? { attempts: 0, weighted: 0 };
-      byName.set(name, {
-        attempts: prev.attempts + attempts,
-        weighted: prev.weighted + accuracy * attempts,
-      });
-    }
-    return [...byName.entries()]
-      .map(([name, agg], i) => ({
+    return dedupeSubjectChartPoints(charts?.subjects ?? []).map((agg, i) => {
+      const name = displaySubject(agg.name) || agg.name;
+      return {
         id: name,
         name,
         color: subjectColor(name, i),
         icon: name.charAt(0).toUpperCase(),
         trend: 0,
         attempts: agg.attempts,
-        accuracy: agg.attempts > 0 ? Math.round(agg.weighted / agg.attempts) : 0,
-      }))
-      .sort((a, b) => b.accuracy - a.accuracy);
+        accuracy: Math.round(agg.accuracy),
+      };
+    });
   }, [charts?.subjects]);
 
   const recentAch = useMemo(
@@ -219,7 +211,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
 
   const goalLine = student.goal ? ` · Goal: ${student.goal}` : "";
   const levelLabel = shellReady ? `Lv.${student.level}` : "—";
-  const streakLabel = shellReady ? `${student.streak}-day streak` : "...";
+  const streakLabel = shellReady ? `${student.streak}-day streak` : "…";
 
   return (
     <div className="space-y-6">
@@ -230,30 +222,30 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs uppercase tracking-[0.2em] text-[#78788c]">{timeOfDayGreeting()}</span>
               <div className="flex items-center gap-1 bg-amber-400/10 border border-amber-400/20 rounded-full px-2 py-0.5">
-                <Flame className="w-3 h-3 text-amber-400"/><span className="text-[10px] font-bold text-amber-400">{student.streak}-day streak</span>
+                <Flame className="w-3 h-3 text-amber-400"/><span className="text-[10px] font-bold text-amber-400">{streakLabel}</span>
               </div>
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight" style={{fontFamily:"var(--font-display)"}}>
-              {student.firstName} 👋
+              {student.firstName}
             </h1>
-            <p className="text-[#78788c] text-sm mt-1">{student.class}{goalLine}</p>
+            <p className="text-[#78788c] text-sm mt-1">{student.class || (shellReady ? "—" : "…")}{goalLine}</p>
             <div className="grid grid-cols-3 gap-3 mt-4">
-              <StatTile label="Exam accuracy"   value={`${student.accuracy}%`}   color="#4b9fd4"/>
-              <StatTile label="Class Rank" value={student.rank > 0 ? `#${student.rank}` : "—"} color="#c08a3a"/>
-              <StatTile label="Level"      value={`Lv.${student.level}`}    color="#6882e8"/>
+              <StatTile label="Practice accuracy" value={shellReady ? `${student.accuracy}%` : "—"} color="#4b9fd4"/>
+              <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "—"} color="#c08a3a"/>
+              <StatTile label="Level" value={levelLabel} color="#6882e8"/>
             </div>
             <div className="mt-3">
               <XPBar
-                xp={student.xp}
-                level={student.level}
-                xpIntoLevel={student.xpIntoLevel}
-                xpToNext={student.xpToNext}
-                progressPct={student.levelProgressPct}
+                xp={shellReady ? student.xp : 0}
+                level={shellReady ? student.level : 1}
+                xpIntoLevel={shellReady ? student.xpIntoLevel : 0}
+                xpToNext={shellReady ? student.xpToNext : 100}
+                progressPct={shellReady ? student.levelProgressPct : 0}
               />
             </div>
           </div>
           <div className="flex flex-col items-center shrink-0">
-            <WeeklyRing sessions={student.sessionsThisWeek}/>
+            <WeeklyRing sessions={shellReady ? student.sessionsThisWeek : 0}/>
             <span className="text-[11px] text-[#78788c] uppercase tracking-widest mt-2">Sessions / Week</span>
           </div>
         </div>
@@ -393,7 +385,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
           </div>
         ) : (
           <GlassCard className="p-6 text-center">
-            <p className="text-sm text-[#78788c]">No subject data yet — complete practice to see performance.</p>
+            <p className="text-sm text-[#78788c]">No subject data yet ? complete practice to see performance.</p>
           </GlassCard>
         )}
       </div>
@@ -415,10 +407,10 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 <div className="flex items-center gap-1 text-amber-400 capitalize"><span className="text-xs font-bold">{a.tier}</span></div>
               </div>
             )) : (
-              <p className="text-sm text-[#78788c] text-center py-4">No badges earned yet — keep practicing!</p>
+              <p className="text-sm text-[#78788c] text-center py-4">No badges earned yet ? keep practicing!</p>
             )}
             <button onClick={() => setPage("achievements")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors">
-              View all achievements →
+              View all achievements ?
             </button>
           </div>
         </GlassCard>
@@ -430,7 +422,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               <Trophy className="w-7 h-7 text-amber-400"/>
             </div>
             <div className="text-4xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>
-              {student.rank > 0 ? `#${student.rank}` : "—"}
+              {student.rank > 0 ? `#${student.rank}` : "?"}
             </div>
             <div className="text-[#78788c] text-sm">
               {student.totalStudents > 0 ? `of ${student.totalStudents} students` : "Rankings unavailable"}
@@ -442,7 +434,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             )}
           </div>
           <button onClick={() => setPage("leaderboard")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors mt-2">
-            See full leaderboard →
+            See full leaderboard ?
           </button>
         </GlassCard>
       </div>

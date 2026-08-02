@@ -20,6 +20,7 @@ import {
   practiceAccuracyFromSnapshot,
   studyActiveDaysFromSnapshot,
 } from "@/lib/learningMetrics";
+import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 import {
   Area,
   AreaChart,
@@ -46,7 +47,7 @@ import {
   Wrench,
 } from "lucide-react";
 import "./wisdom/wisdom-analytics.css";
-import { displayChapter, displayConcept, displayTopic } from "@/lib/academicDisplay";
+import { displayChapter, displayConcept, displaySubject, displayTopic } from "@/lib/academicDisplay";
 
 type Props = {
   data: AcademicSnapshot;
@@ -103,8 +104,9 @@ function miniTrendValue(values: number[]) {
 function groupMasteryBySubject(mastery: ConceptMasteryItem[]) {
   const grouped = new Map<string, Map<string, ConceptMasteryItem[]>>();
   for (const item of mastery) {
-    const subject = item.subject || "Subject";
-    const chapter = item.chapter || "General";
+    const subject = displaySubject(item.subject);
+    const chapter = displayChapter(item.chapter);
+    if (!subject || !chapter) continue;
     if (!grouped.has(subject)) grouped.set(subject, new Map());
     const byChapter = grouped.get(subject)!;
     if (!byChapter.has(chapter)) byChapter.set(chapter, []);
