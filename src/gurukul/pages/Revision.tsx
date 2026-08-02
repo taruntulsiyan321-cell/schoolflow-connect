@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
-import { useAcademicContext } from "@/academic";
+import { useAcademicContext, PracticeService } from "@/academic";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
@@ -302,7 +303,9 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
 
 export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }) {
   const navigate = useNavigate();
-  const { data: snapshot, loading, error, reload } = useStudentAcademicSnapshot();
+  const student = useGurukulStudent();
+  const { ctx, ready: academicReady } = useAcademicContext();
+  const { data: snapshot, loading, error, reload } = useStudentAcademicSnapshot(academicReady);
   const [view, setView] = useState<RevView>("overview");
   const [activeItem, setActiveItem] = useState<RevItem | null>(null);
   const [score, setScore] = useState(0);
@@ -324,13 +327,16 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     ],
     [REVISION_ITEMS],
   );
-  const streak = snapshot?.xp?.study_streak ?? 0;
+  // Study streak SSOT: Progression via shell (same as Home) — not raw snapshot xp.
+  const streak = student.streak;
 
   async function markComplete(item: RevItem) {
+    if (!academicReady || !ctx) {
+      toast.error("Academic context is still loading");
+      return;
+    }
     setCompletingId(item.id);
     try {
-      const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
-      const ctx = await resolveStudentServiceContext();
       await PracticeService.completeRevision(ctx, item.id);
       await reload?.();
     } catch (e) {

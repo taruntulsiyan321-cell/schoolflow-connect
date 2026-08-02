@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicLive } from "@/academic";
+import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 
 export type PracticeSessionSummary = {
   id: string;
@@ -96,7 +98,7 @@ export function useAnalysisPageData(enabled = true) {
     setError(null);
 
     try {
-      const [sessionsRes, rankRes, masteryRes, classRes] = await Promise.all([
+      const [sessionsRes, rankRes, masteryRes, classRes, snapRes] = await Promise.all([
         supabase
           .from("practice_sessions")
           .select("id, subject, chapter, question_count, correct_count, score, created_at, finished_at, accuracy, wrong_count, skipped_count, total_time_ms")
@@ -116,6 +118,7 @@ export function useAnalysisPageData(enabled = true) {
           .select("class_id, classes(name, section)")
           .eq("user_id", user.id)
           .maybeSingle(),
+        supabase.rpc("rpc_student_academic_snapshot"),
       ]);
 
       const sessions = sessionsRes.error
@@ -172,8 +175,10 @@ export function useAnalysisPageData(enabled = true) {
       }
 
       const wrong = Math.max(0, totalAttempts - correct);
-      const accuracy_pct =
-        totalAttempts > 0 ? Math.round((100 * correct) / totalAttempts) : latest?.accuracy_pct ?? 0;
+      // Overall accuracy SSOT: academic snapshot exam_readiness — same as Home shell.
+      const accuracy_pct = practiceAccuracyFromSnapshot(
+        (snapRes.error ? null : snapRes.data) as AcademicSnapshot | null,
+      );
 
       // Average pace across recent timed sessions (not only the latest).
       const timed = sessions.filter((s) => s.question_count > 0 && s.duration_minutes > 0);

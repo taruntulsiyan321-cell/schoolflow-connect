@@ -5,10 +5,20 @@ export const PRACTICE_ACCURACY_LABEL = "Practice accuracy";
 export const CONCEPT_MASTERY_LABEL = "Concept mastery";
 export const STUDY_CONSISTENCY_LABEL = "Study consistency";
 
-/** Practice accuracy from recent DPP / practice attempts (actionable daily metric). */
+/**
+ * Product overall accuracy SSOT for Home / Practice / Analysis / Nova / Battleground chrome.
+ * Source: `rpc_student_academic_snapshot` → `exam_readiness.accuracy_pct` only.
+ * Never average charts subjects, mastery attempt ratios, or battle Q&A counters here.
+ * XP / level / study streak remain ProgressionService (`rpc_get_student_progression`).
+ */
 export function practiceAccuracyFromSnapshot(snap: AcademicSnapshot | null | undefined): number {
-  return Math.round(snap?.exam_readiness?.accuracy_pct ?? 0);
+  const raw = snap?.exam_readiness?.accuracy_pct;
+  if (raw == null || Number.isNaN(Number(raw))) return 0;
+  return Math.round(Number(raw));
 }
+
+/** Alias — same SSOT as practiceAccuracyFromSnapshot. */
+export const overallAccuracyFromSnapshot = practiceAccuracyFromSnapshot;
 
 /** Active study days in the last 14 days. */
 export function studyActiveDaysFromSnapshot(snap: AcademicSnapshot | null | undefined): number {
