@@ -83,48 +83,96 @@ export const PracticeService = {
       subject?: string;
       chapter?: string;
       concept?: string;
+      topic?: string;
+      difficulty?: string;
       hintUsed?: boolean;
       solutionViewed?: boolean;
       confidence?: number | null;
       attemptNumber?: number | null;
+      timedOut?: boolean;
+      practiceMode?: string | null;
       source?: string | null;
+      sourceId?: string | null;
+      classLevel?: number | null;
+      board?: string | null;
+      stream?: string | null;
+      schoolId?: string | null;
+      answeredAt?: string | null;
     },
   ) {
     assertCanOwn(ctx, "practice");
     const client = getClient(toRepoContext(ctx));
+    const skipped = Boolean(args.skipped || args.timedOut);
     const generatedQuestion = {
       ...args.generatedQuestion,
       ...(args.bankQuestionId ? { bank_question_id: args.bankQuestionId } : {}),
       ...(args.subject ? { subject: args.subject } : {}),
       ...(args.chapter ? { chapter: args.chapter } : {}),
       ...(args.concept ? { concept: args.concept } : {}),
+      ...(args.topic ? { topic: args.topic } : {}),
+      ...(args.difficulty ? { difficulty: args.difficulty } : {}),
+      ...(args.practiceMode ? { practice_mode: args.practiceMode } : {}),
+    };
+    const meta = {
+      solution_viewed: args.solutionViewed ?? false,
+      confidence: args.confidence ?? null,
+      attempt_number: args.attemptNumber ?? null,
+      timed_out: args.timedOut ?? false,
+      practice_mode: args.practiceMode ?? args.source ?? null,
+      source_id: args.sourceId ?? args.sessionId,
+      class_level: args.classLevel ?? null,
+      board: args.board ?? null,
+      stream: args.stream ?? null,
+      topic: args.topic ?? args.concept ?? args.chapter ?? null,
+      difficulty: args.difficulty ?? null,
+      school_id: args.schoolId ?? ctx.schoolId ?? null,
+      answered_at: args.answeredAt ?? new Date().toISOString(),
+      hint_used: args.hintUsed ?? false,
     };
     const payload = {
       _correct_answer: args.correctAnswer,
       _generated_question: generatedQuestion,
-      _is_correct: args.isCorrect,
+      _is_correct: skipped ? false : args.isCorrect,
       _selected_answer: args.selectedAnswer,
       _session_id: args.sessionId,
-      _score: args.score ?? (args.skipped ? 0 : args.isCorrect ? 1 : 0),
-      _skipped: args.skipped ?? false,
+      _score: args.score ?? (skipped ? 0 : args.isCorrect ? 1 : 0),
+      _skipped: skipped,
       _template_id: args.templateId ?? null,
       _time_taken_ms: args.timeTakenMs ?? null,
       _bank_question_id: args.bankQuestionId ?? null,
       _hint_used: args.hintUsed ?? false,
       _source: args.source ?? "practice",
+      _meta: meta,
     };
     const { data, error } = await client.rpc("rpc_record_question_attempt", payload as never);
     if (!error) return data as string;
+
+    // Mid-migration: hint+source, no meta.
+    const withHint = await client.rpc("rpc_record_question_attempt", {
+      _correct_answer: args.correctAnswer,
+      _generated_question: generatedQuestion,
+      _is_correct: skipped ? false : args.isCorrect,
+      _selected_answer: args.selectedAnswer,
+      _session_id: args.sessionId,
+      _score: args.score ?? (skipped ? 0 : args.isCorrect ? 1 : 0),
+      _skipped: skipped,
+      _template_id: args.templateId ?? null,
+      _time_taken_ms: args.timeTakenMs ?? null,
+      _bank_question_id: args.bankQuestionId ?? null,
+      _hint_used: args.hintUsed ?? false,
+      _source: args.source ?? "practice",
+    } as never);
+    if (!withHint.error) return withHint.data as string;
 
     // Mid-migration signature (bank id, no hint/source).
     const withBank = await client.rpc("rpc_record_question_attempt", {
       _correct_answer: args.correctAnswer,
       _generated_question: generatedQuestion,
-      _is_correct: args.isCorrect,
+      _is_correct: skipped ? false : args.isCorrect,
       _selected_answer: args.selectedAnswer,
       _session_id: args.sessionId,
-      _score: args.score ?? (args.skipped ? 0 : args.isCorrect ? 1 : 0),
-      _skipped: args.skipped ?? false,
+      _score: args.score ?? (skipped ? 0 : args.isCorrect ? 1 : 0),
+      _skipped: skipped,
       _template_id: args.templateId ?? null,
       _time_taken_ms: args.timeTakenMs ?? null,
       _bank_question_id: args.bankQuestionId ?? null,
@@ -135,15 +183,15 @@ export const PracticeService = {
     const legacy = await client.rpc("rpc_record_question_attempt", {
       _correct_answer: args.correctAnswer,
       _generated_question: generatedQuestion,
-      _is_correct: args.isCorrect,
+      _is_correct: skipped ? false : args.isCorrect,
       _selected_answer: args.selectedAnswer,
       _session_id: args.sessionId,
-      _score: args.score ?? (args.skipped ? 0 : args.isCorrect ? 1 : 0),
-      _skipped: args.skipped ?? false,
+      _score: args.score ?? (skipped ? 0 : args.isCorrect ? 1 : 0),
+      _skipped: skipped,
       _template_id: args.templateId ?? null,
       _time_taken_ms: args.timeTakenMs ?? null,
     } as never);
-    throwIfError(legacy.error ?? withBank.error ?? error, "Failed to record practice attempt");
+    throwIfError(legacy.error ?? withBank.error ?? withHint.error ?? error, "Failed to record practice attempt");
     return legacy.data as string;
   },
 

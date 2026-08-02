@@ -14,6 +14,7 @@ import { generateAiPracticeQuestions } from "@/lib/aiPracticeQuestions";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import {
   completePracticeSession,
+  recordPracticeAttemptBestEffort,
   type PracticeAttemptSnapshot,
 } from "@/lib/practiceSessionPersistence";
 import { loadMath12TemplatePractice } from "@/lib/templatePracticeLoader";
@@ -146,6 +147,14 @@ export default function Class12AiSession() {
       selectedIndex: optionIndex,
       isCorrect: ok,
       explanation: current.explanation,
+      subject,
+      chapter,
+      concept: chapter,
+      source: "practice",
+      practiceMode: "ai",
+      sourceId: sessionId,
+      solutionViewed: true,
+      templateId: current.templateId ?? null,
     });
 
     if (!ok) {
@@ -156,34 +165,32 @@ export default function Class12AiSession() {
         sourceType: "practice_session",
         sourceId: sessionId,
       });
-      void (supabase as any).rpc("rpc_record_concept_mistake", {
-        _assessment_type: "practice",
-        _source_id: sessionId,
-        _subject: subject,
-        _chapter: chapter,
-        _concept: chapter,
-        _question_text: current.question,
-        _options: current.options,
-        _student_answer: { selected_index: optionIndex },
-        _correct_answer: { correct_index: current.correctIndex },
-        _explanation: current.explanation,
-      });
     }
 
-    const { error: recErr } = await supabase.rpc("rpc_record_question_attempt", {
-      _session_id: sessionId,
-      _template_id: current.templateId ?? null,
-      _generated_question: {
+    const saved = await recordPracticeAttemptBestEffort({
+      sessionId,
+      templateId: current.templateId ?? null,
+      subject,
+      chapter,
+      concept: chapter,
+      topic: chapter,
+      generatedQuestion: {
         question: current.question,
         options: current.options,
         explanation: current.explanation,
       },
-      _correct_answer: { index: current.correctIndex, text: current.options[current.correctIndex] },
-      _selected_answer: { index: optionIndex, text: current.options[optionIndex] },
-      _is_correct: ok,
-      _score: ok ? 1 : 0,
-    } as any);
-    if (recErr) console.warn("record attempt:", recErr.message);
+      correctIndex: current.correctIndex,
+      selectedIndex: optionIndex,
+      isCorrect: ok,
+      score: ok ? 1 : 0,
+      solutionViewed: true,
+      practiceMode: "ai",
+      source: "practice",
+      sourceId: sessionId,
+    });
+    if (!saved.ok) {
+      console.warn("record attempt:", saved.error?.message);
+    }
   };
 
   const next = async () => {

@@ -3218,43 +3218,67 @@ export type Database = {
       }
       practice_sessions: {
         Row: {
+          accuracy: number | null
+          board: string | null
           chapter: string
+          class_level: number | null
           correct_count: number
           created_at: string
           finished_at: string | null
           id: string
+          practice_mode: string | null
           question_count: number
           school_id: string | null
           score: number
+          skipped_count: number
+          stream: string | null
           student_id: string | null
           subject: string
+          total_time_ms: number | null
           user_id: string
+          wrong_count: number
         }
         Insert: {
+          accuracy?: number | null
+          board?: string | null
           chapter: string
+          class_level?: number | null
           correct_count?: number
           created_at?: string
           finished_at?: string | null
           id?: string
+          practice_mode?: string | null
           question_count?: number
           school_id?: string | null
           score?: number
+          skipped_count?: number
+          stream?: string | null
           student_id?: string | null
           subject: string
+          total_time_ms?: number | null
           user_id: string
+          wrong_count?: number
         }
         Update: {
+          accuracy?: number | null
+          board?: string | null
           chapter?: string
+          class_level?: number | null
           correct_count?: number
           created_at?: string
           finished_at?: string | null
           id?: string
+          practice_mode?: string | null
           question_count?: number
           school_id?: string | null
           score?: number
+          skipped_count?: number
+          stream?: string | null
           student_id?: string | null
           subject?: string
+          total_time_ms?: number | null
           user_id?: string
+          wrong_count?: number
         }
         Relationships: [
           {
@@ -3316,60 +3340,108 @@ export type Database = {
       }
       question_attempts: {
         Row: {
+          answered_at: string | null
           attempt_number: number | null
           bank_question_id: string | null
+          board: string | null
+          chapter: string | null
+          class_level: number | null
+          concept: string | null
           confidence: number | null
           correct_answer: Json
           created_at: string
+          difficulty: string | null
           generated_question: Json
           hint_used: boolean
           id: string
           is_correct: boolean | null
+          practice_mode: string | null
+          school_id: string | null
           score: number
           selected_answer: Json | null
           session_id: string | null
+          skipped: boolean
           solution_viewed: boolean
           source: string | null
+          source_id: string | null
+          stream: string | null
           student_id: string | null
+          subconcept: string | null
+          subject: string | null
           template_id: string | null
+          time_taken_ms: number | null
+          timed_out: boolean
+          topic: string | null
           user_id: string
         }
         Insert: {
+          answered_at?: string | null
           attempt_number?: number | null
           bank_question_id?: string | null
+          board?: string | null
+          chapter?: string | null
+          class_level?: number | null
+          concept?: string | null
           confidence?: number | null
           correct_answer: Json
           created_at?: string
+          difficulty?: string | null
           generated_question: Json
           hint_used?: boolean
           id?: string
           is_correct?: boolean | null
+          practice_mode?: string | null
+          school_id?: string | null
           score?: number
           selected_answer?: Json | null
           session_id?: string | null
+          skipped?: boolean
           solution_viewed?: boolean
           source?: string | null
+          source_id?: string | null
+          stream?: string | null
           student_id?: string | null
+          subconcept?: string | null
+          subject?: string | null
           template_id?: string | null
+          time_taken_ms?: number | null
+          timed_out?: boolean
+          topic?: string | null
           user_id: string
         }
         Update: {
+          answered_at?: string | null
           attempt_number?: number | null
           bank_question_id?: string | null
+          board?: string | null
+          chapter?: string | null
+          class_level?: number | null
+          concept?: string | null
           confidence?: number | null
           correct_answer?: Json
           created_at?: string
+          difficulty?: string | null
           generated_question?: Json
           hint_used?: boolean
           id?: string
           is_correct?: boolean | null
+          practice_mode?: string | null
+          school_id?: string | null
           score?: number
           selected_answer?: Json | null
           session_id?: string | null
+          skipped?: boolean
           solution_viewed?: boolean
           source?: string | null
+          source_id?: string | null
+          stream?: string | null
           student_id?: string | null
+          subconcept?: string | null
+          subject?: string | null
           template_id?: string | null
+          time_taken_ms?: number | null
+          timed_out?: boolean
+          topic?: string | null
           user_id?: string
         }
         Relationships: [
@@ -5410,14 +5482,21 @@ export type Database = {
           _bank_question_id?: string
           _correct_answer: Json
           _generated_question: Json
+          _hint_used?: boolean
           _is_correct: boolean
+          _meta?: Json
           _score?: number
           _selected_answer: Json
           _session_id: string
           _skipped?: boolean
+          _source?: string
           _template_id?: string
           _time_taken_ms?: number
         }
+        Returns: string
+      }
+      rpc_mirror_battle_answer: {
+        Args: { _participant_id: string; _question_id: string }
         Returns: string
       }
       rpc_save_battle_ai_insights: {
@@ -5425,7 +5504,12 @@ export type Database = {
         Returns: undefined
       }
       rpc_start_practice_session: {
-        Args: { _chapter: string; _count?: number; _subject: string }
+        Args: {
+          _chapter: string
+          _count?: number
+          _practice_mode?: string
+          _subject: string
+        }
         Returns: string
       }
       rpc_student_academic_snapshot: { Args: never; Returns: Json }

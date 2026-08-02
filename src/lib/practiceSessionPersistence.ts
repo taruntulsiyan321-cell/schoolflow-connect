@@ -10,6 +10,8 @@ export type RecordPracticeAttemptOptions = {
   subject: string;
   chapter: string;
   concept?: string;
+  topic?: string;
+  difficulty?: string;
   generatedQuestion: {
     question: string;
     options: string[];
@@ -24,7 +26,18 @@ export type RecordPracticeAttemptOptions = {
   score?: number;
   timeTakenMs?: number;
   hintUsed?: boolean;
+  solutionViewed?: boolean;
+  confidence?: number | null;
+  attemptNumber?: number | null;
+  timedOut?: boolean;
+  practiceMode?: string;
   source?: string;
+  sourceId?: string | null;
+  classLevel?: number | null;
+  board?: string | null;
+  stream?: string | null;
+  schoolId?: string | null;
+  answeredAt?: string;
 };
 
 /** Go to results immediately; sync to Supabase in the background. */
@@ -39,6 +52,9 @@ export function completePracticeSession(
 
 async function syncPracticeSessionToServer(sessionId: string, state: PracticeSessionResultState) {
   const correct = state.attempts.filter((a) => a.isCorrect).length;
+  const skipped = state.attempts.filter((a) => a.skipped || a.timedOut).length;
+  const wrong = state.attempts.filter((a) => !a.isCorrect && !a.skipped && !a.timedOut).length;
+  const totalTimeMs = state.attempts.reduce((sum, a) => sum + (a.timeTakenMs ?? 0), 0);
 
   try {
     const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
@@ -66,7 +82,16 @@ async function syncPracticeSessionToServer(sessionId: string, state: PracticeSes
       _student_id: null,
       _class_id: null,
       _teacher_id: null,
-      _payload: { session_id: sessionId, correct },
+      _payload: {
+        session_id: sessionId,
+        correct,
+        skipped,
+        wrong,
+        total_time_ms: totalTimeMs,
+        accuracy: state.attempts.length
+          ? Math.round((correct / state.attempts.length) * 100)
+          : 0,
+      },
     } as any) as unknown as Promise<unknown>).catch(() => undefined);
   }
 
@@ -84,13 +109,24 @@ async function syncPracticeSessionToServer(sessionId: string, state: PracticeSes
 export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemptOptions) {
   const correctText = opts.generatedQuestion.options[opts.correctIndex] ?? "";
   const selectedText = opts.generatedQuestion.options[opts.selectedIndex] ?? "";
-  const correctAnswer = { index: opts.correctIndex, text: correctText };
-  const selectedAnswer = { index: opts.selectedIndex, text: selectedText };
-  const score = opts.score ?? (opts.isCorrect ? 1 : 0);
+  const correctAnswer = { index: opts.correctIndex, correct_index: opts.correctIndex, text: correctText };
+  const selectedAnswer = {
+    index: opts.selectedIndex,
+    selected_index: opts.selectedIndex,
+    text: selectedText,
+  };
+  const skipped = Boolean(opts.skipped || opts.timedOut);
+  const score = opts.score ?? (opts.isCorrect && !skipped ? 1 : 0);
   const bankQuestionId = opts.bankQuestionId ?? null;
   const generatedQuestion = {
     ...opts.generatedQuestion,
     bank_question_id: bankQuestionId,
+    subject: opts.subject,
+    chapter: opts.chapter,
+    concept: opts.concept ?? opts.chapter,
+    topic: opts.topic ?? opts.concept ?? opts.chapter,
+    difficulty: opts.difficulty,
+    practice_mode: opts.practiceMode ?? opts.source ?? "practice",
   };
 
   try {
@@ -106,12 +142,25 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
       isCorrect: opts.isCorrect,
       score,
       timeTakenMs: opts.timeTakenMs ?? null,
-      skipped: opts.skipped ?? false,
+      skipped,
       subject: opts.subject,
       chapter: opts.chapter,
       concept: opts.concept ?? opts.chapter,
+      topic: opts.topic ?? opts.concept ?? opts.chapter,
+      difficulty: opts.difficulty,
       hintUsed: opts.hintUsed ?? false,
+      solutionViewed: opts.solutionViewed ?? false,
+      confidence: opts.confidence ?? null,
+      attemptNumber: opts.attemptNumber ?? null,
+      timedOut: opts.timedOut ?? false,
+      practiceMode: opts.practiceMode ?? opts.source ?? "practice",
       source: opts.source ?? "practice",
+      sourceId: opts.sourceId ?? opts.sessionId,
+      classLevel: opts.classLevel ?? null,
+      board: opts.board ?? null,
+      stream: opts.stream ?? null,
+      schoolId: opts.schoolId ?? null,
+      answeredAt: opts.answeredAt ?? new Date().toISOString(),
     });
     return { ok: true as const };
   } catch {
@@ -119,21 +168,54 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
   }
 
   // Server grades when bank_question_id is set; never insert rows directly (RLS write denied).
+  const meta = {
+    solution_viewed: opts.solutionViewed ?? false,
+    confidence: opts.confidence ?? null,
+    attempt_number: opts.attemptNumber ?? null,
+    timed_out: opts.timedOut ?? false,
+    practice_mode: opts.practiceMode ?? opts.source ?? "practice",
+    source_id: opts.sourceId ?? opts.sessionId,
+    class_level: opts.classLevel ?? null,
+    board: opts.board ?? null,
+    stream: opts.stream ?? null,
+    topic: opts.topic ?? opts.concept ?? opts.chapter ?? null,
+    difficulty: opts.difficulty ?? null,
+    school_id: opts.schoolId ?? null,
+    answered_at: opts.answeredAt ?? new Date().toISOString(),
+    hint_used: opts.hintUsed ?? false,
+  };
   const currentRpc = await supabase.rpc("rpc_record_question_attempt", {
     _correct_answer: correctAnswer,
     _generated_question: generatedQuestion,
-    _is_correct: opts.isCorrect,
+    _is_correct: skipped ? false : opts.isCorrect,
     _selected_answer: selectedAnswer,
     _session_id: opts.sessionId,
     _score: score,
-    _skipped: opts.skipped ?? false,
+    _skipped: skipped,
+    _template_id: opts.templateId ?? null,
+    _time_taken_ms: opts.timeTakenMs ?? null,
+    _bank_question_id: bankQuestionId,
+    _hint_used: opts.hintUsed ?? false,
+    _source: opts.source ?? "practice",
+    _meta: meta,
+  } as any);
+  if (!currentRpc.error) return { ok: true as const };
+
+  const withHint = await supabase.rpc("rpc_record_question_attempt", {
+    _correct_answer: correctAnswer,
+    _generated_question: generatedQuestion,
+    _is_correct: skipped ? false : opts.isCorrect,
+    _selected_answer: selectedAnswer,
+    _session_id: opts.sessionId,
+    _score: score,
+    _skipped: skipped,
     _template_id: opts.templateId ?? null,
     _time_taken_ms: opts.timeTakenMs ?? null,
     _bank_question_id: bankQuestionId,
     _hint_used: opts.hintUsed ?? false,
     _source: opts.source ?? "practice",
   } as any);
-  if (!currentRpc.error) return { ok: true as const };
+  if (!withHint.error) return { ok: true as const };
 
   // Legacy migration signature (no bank_question_id arg) — still no client table insert.
   const legacyRpc = await supabase.rpc("rpc_record_question_attempt", {
@@ -142,13 +224,13 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
     _generated_question: generatedQuestion,
     _correct_answer: correctAnswer,
     _selected_answer: selectedAnswer,
-    _is_correct: opts.isCorrect,
+    _is_correct: skipped ? false : opts.isCorrect,
     _score: score,
   } as any);
   if (!legacyRpc.error) return { ok: true as const };
 
   return {
     ok: false as const,
-    error: legacyRpc.error ?? currentRpc.error,
+    error: legacyRpc.error ?? withHint.error ?? currentRpc.error,
   };
 }

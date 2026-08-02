@@ -14,7 +14,40 @@ export type PracticeAttemptSnapshot = {
   subject?: string;
   chapter?: string;
   concept?: string;
+  topic?: string;
+  difficulty?: string;
   source?: string;
+  practiceMode?: string;
+  sourceId?: string | null;
+  timeTakenMs?: number | null;
+  hintUsed?: boolean;
+  solutionViewed?: boolean;
+  confidence?: number | null;
+  attemptNumber?: number | null;
+  timedOut?: boolean;
+  answeredAt?: string;
+  classLevel?: number | null;
+  board?: string | null;
+  stream?: string | null;
+  schoolId?: string | null;
+  templateId?: string | null;
+};
+
+export type PracticeAttemptMeta = {
+  solution_viewed?: boolean;
+  confidence?: number | null;
+  attempt_number?: number | null;
+  timed_out?: boolean;
+  practice_mode?: string | null;
+  source_id?: string | null;
+  class_level?: number | null;
+  board?: string | null;
+  stream?: string | null;
+  topic?: string | null;
+  difficulty?: string | null;
+  school_id?: string | null;
+  answered_at?: string | null;
+  hint_used?: boolean;
 };
 
 export type PracticeSessionResultState = {
@@ -23,6 +56,26 @@ export type PracticeSessionResultState = {
   attempts: PracticeAttemptSnapshot[];
   startedAt?: string;
 };
+
+/** Build the optional intelligence meta blob for rpc_record_question_attempt. */
+export function buildAttemptMeta(a: PracticeAttemptSnapshot): PracticeAttemptMeta {
+  return {
+    solution_viewed: a.solutionViewed ?? false,
+    confidence: a.confidence ?? null,
+    attempt_number: a.attemptNumber ?? null,
+    timed_out: a.timedOut ?? false,
+    practice_mode: a.practiceMode ?? a.source ?? null,
+    source_id: a.sourceId ?? null,
+    class_level: a.classLevel ?? null,
+    board: a.board ?? null,
+    stream: a.stream ?? null,
+    topic: a.topic ?? a.concept ?? a.chapter ?? null,
+    difficulty: a.difficulty ?? null,
+    school_id: a.schoolId ?? null,
+    answered_at: a.answeredAt ?? new Date().toISOString(),
+    hint_used: a.hintUsed ?? false,
+  };
+}
 
 export function buildPracticeRecoveryReport(
   sessionId: string,
@@ -84,26 +137,58 @@ export function persistAndGoToPracticeResult(
   nav(`/student/practice/session/${sessionId}/result`, { replace: true, state });
 }
 
+/** Full finish-batch payload — every field Practice Intelligence can consume. */
 export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
-  return attempts.map((a) => ({
-    bank_question_id: a.bankQuestionId ?? null,
-    generated_question: {
-      question: a.question,
-      options: a.options,
-      explanation: a.explanation ?? "",
+  return attempts.map((a) => {
+    const meta = buildAttemptMeta(a);
+    return {
       bank_question_id: a.bankQuestionId ?? null,
-      subject: a.subject ?? null,
-      chapter: a.chapter ?? null,
-      concept: a.concept ?? a.chapter ?? null,
-    },
-    selected_answer: { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
-    // Server ignores these when bank_question_id is present; kept for audit/legacy.
-    correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
-    is_correct: a.skipped ? false : a.isCorrect,
-    score: a.skipped ? 0 : a.isCorrect ? 1 : 0,
-    skipped: a.skipped ?? false,
-    source: a.source ?? "practice",
-  }));
+      template_id: a.templateId ?? null,
+      generated_question: {
+        question: a.question,
+        options: a.options,
+        explanation: a.explanation ?? "",
+        bank_question_id: a.bankQuestionId ?? null,
+        subject: a.subject ?? null,
+        chapter: a.chapter ?? null,
+        concept: a.concept ?? a.chapter ?? null,
+        topic: a.topic ?? a.concept ?? a.chapter ?? null,
+        difficulty: a.difficulty ?? null,
+        practice_mode: a.practiceMode ?? a.source ?? null,
+      },
+      selected_answer: {
+        index: a.selectedIndex,
+        selected_index: a.selectedIndex,
+        text: a.options[a.selectedIndex] ?? "",
+      },
+      // Server ignores these when bank_question_id is present; kept for audit/legacy.
+      correct_answer: {
+        index: a.correctIndex,
+        correct_index: a.correctIndex,
+        text: a.options[a.correctIndex] ?? "",
+      },
+      is_correct: a.skipped || a.timedOut ? false : a.isCorrect,
+      score: a.skipped || a.timedOut ? 0 : a.isCorrect ? 1 : 0,
+      skipped: Boolean(a.skipped || a.timedOut),
+      time_taken_ms: a.timeTakenMs ?? null,
+      hint_used: a.hintUsed ?? false,
+      solution_viewed: a.solutionViewed ?? false,
+      confidence: a.confidence ?? null,
+      attempt_number: a.attemptNumber ?? null,
+      timed_out: a.timedOut ?? false,
+      practice_mode: a.practiceMode ?? a.source ?? "practice",
+      source: a.source ?? "practice",
+      source_id: a.sourceId ?? null,
+      topic: a.topic ?? a.concept ?? a.chapter ?? null,
+      difficulty: a.difficulty ?? null,
+      class_level: a.classLevel ?? null,
+      board: a.board ?? null,
+      stream: a.stream ?? null,
+      school_id: a.schoolId ?? null,
+      answered_at: a.answeredAt ?? null,
+      meta,
+    };
+  });
 }
 
 export async function finishPracticeSessionWithAttempts(

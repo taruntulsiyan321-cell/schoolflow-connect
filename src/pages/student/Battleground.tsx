@@ -317,6 +317,14 @@ export function BattleRoom() {
           title: "Answer saved locally for this round",
           description: "Network sync had a problem, but you can continue to the next question.",
         });
+      } else {
+        // Live Practice Intelligence capture (finish path still bulk-mirrors)
+        try {
+          const mirrorCtx = ctx && academicReady ? ctx : await resolveStudentServiceContext();
+          await BattleExperienceService.mirrorAnswer(mirrorCtx, participantId, currentQ.id);
+        } catch {
+          /* finish still captures */
+        }
       }
       const { error: partErr } = await supabase.from("battle_participants").update(newMe).eq("id", participantId);
       if (partErr) {
@@ -325,7 +333,7 @@ export function BattleRoom() {
     } finally {
       setSavingAnswer(false);
     }
-  }, [showResult, currentQ, participantId, readyCount, battle, questionStart, me]);
+  }, [showResult, currentQ, participantId, readyCount, battle, questionStart, me, ctx, academicReady]);
 
   // Per-question timer (guard against double fire at 0s)
   useEffect(() => {

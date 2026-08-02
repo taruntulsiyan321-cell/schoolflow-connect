@@ -74,6 +74,28 @@ export const BattleExperienceService = {
     afterExperienceWrite(ctx, ["battle", "xp", "achievements", "profile"]);
   },
 
+  /**
+   * Live per-answer Practice Intelligence mirror (correct / wrong / skip).
+   * Finish path still bulk-mirrors as a safety net.
+   */
+  async mirrorAnswer(
+    ctx: ServiceContext,
+    participantId: string,
+    questionId: string,
+  ): Promise<void> {
+    assertCanOwn(ctx, "battle");
+    const client = getClient(toRepoContext(ctx));
+    const { error } = await client.rpc("rpc_mirror_battle_answer" as never, {
+      _participant_id: participantId,
+      _question_id: questionId,
+    } as never);
+    if (error) {
+      // Mid-migration: finish-path capture still runs.
+      console.warn("battle answer mirror:", error.message);
+      return;
+    }
+  },
+
   async createFromDesign(
     ctx: ServiceContext,
     opts: BattleCreateOpts,

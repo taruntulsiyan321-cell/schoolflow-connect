@@ -864,6 +864,8 @@ function Session({
   const bookmarkedRef = useRef<number[]>([]);
   const attemptLog = useRef<PracticeAttemptSnapshot[]>([]);
   const finishedRef = useRef(false);
+  const questionStartRef = useRef<number>(Date.now());
+  const attemptNumberRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -885,9 +887,12 @@ function Session({
           _subject: config.subject === "Mixed" ? "General" : config.subject,
           _chapter: chapterForStart,
           _count: config.qCount,
+          _practice_mode: config.mode,
         });
         if (cancelled) return;
         sessionIdRef.current = sid as string;
+        questionStartRef.current = Date.now();
+        attemptNumberRef.current = 0;
 
         let rows: Awaited<ReturnType<typeof PracticeService.listBankQuestions>> = [];
 
@@ -959,7 +964,7 @@ function Session({
     if (!config.timeLimitSec || loadingQs || qs.length === 0) return;
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current!); void finish(); return 0; }
+        if (t <= 1) { clearInterval(timerRef.current!); void finish({ timedOut: true }); return 0; }
         return t - 1;
       });
     }, 1000);
@@ -967,11 +972,50 @@ function Session({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.timeLimitSec, loadingQs, qs.length]);
 
-  async function finish() {
+  async function finish(opts?: { timedOut?: boolean }) {
     if (finishedRef.current || finishing) return;
     finishedRef.current = true;
     setFinishing(true);
     if (timerRef.current) clearInterval(timerRef.current);
+
+    // Unanswered remaining questions → skipped / timed_out so Skipped mode can load them
+    if (opts?.timedOut) {
+      const loggedBankIds = new Set(
+        attemptLog.current.map((a) => a.bankQuestionId).filter(Boolean),
+      );
+      for (let i = idx; i < qs.length; i++) {
+        const q = qs[i];
+        if (!q || loggedBankIds.has(q.id)) continue;
+        const snap: PracticeAttemptSnapshot = {
+          question: q.question,
+          options: q.options,
+          correctIndex: q.correct,
+          selectedIndex: -1,
+          isCorrect: false,
+          skipped: true,
+          timedOut: true,
+          explanation: q.explanation,
+          bankQuestionId: q.id,
+          subject: q.subject,
+          chapter: q.chapter,
+          concept: q.chapter,
+          topic: q.chapter,
+          difficulty: q.difficulty,
+          source: "practice",
+          practiceMode: config.mode,
+          sourceId: sessionIdRef.current,
+          timeTakenMs: i === idx ? Date.now() - questionStartRef.current : 0,
+          hintUsed: false,
+          solutionViewed: false,
+          attemptNumber: ++attemptNumberRef.current,
+          answeredAt: new Date().toISOString(),
+          schoolId: ctx?.schoolId ?? null,
+        };
+        attemptLog.current.push(snap);
+        skippedRef.current = [...skippedRef.current, i];
+        void persistAttemptLive(snap);
+      }
+    }
 
     const results: SessionResults = {
       correct: correctRef.current,
@@ -1006,6 +1050,7 @@ function Session({
       correctRef.current += 1;
       setCorrect(correctRef.current);
     }
+    const elapsed = Date.now() - questionStartRef.current;
     const snap: PracticeAttemptSnapshot = {
       question: q.question,
       options: q.options,
@@ -1018,7 +1063,17 @@ function Session({
       subject: q.subject,
       chapter: q.chapter,
       concept: q.chapter,
+      topic: config.topic || q.chapter,
+      difficulty: q.difficulty,
       source: "practice",
+      practiceMode: config.mode,
+      sourceId: sessionIdRef.current,
+      timeTakenMs: elapsed,
+      hintUsed: false,
+      solutionViewed: Boolean(q.explanation),
+      attemptNumber: ++attemptNumberRef.current,
+      answeredAt: new Date().toISOString(),
+      schoolId: ctx?.schoolId ?? null,
     };
     attemptLog.current.push(snap);
     void persistAttemptLive(snap);
@@ -1028,6 +1083,7 @@ function Session({
   function next() {
     if (idx + 1 >= qs.length) { void finish(); return; }
     setIdx(i => i + 1); setChosen(null); setPhase("q");
+    questionStartRef.current = Date.now();
   }
 
   async function persistAttemptLive(snap: PracticeAttemptSnapshot) {
@@ -1042,34 +1098,54 @@ function Session({
           options: snap.options,
           explanation: snap.explanation ?? "",
           bank_question_id: snap.bankQuestionId ?? null,
+          subject: snap.subject,
+          chapter: snap.chapter,
+          concept: snap.concept,
+          topic: snap.topic,
+          difficulty: snap.difficulty,
+          practice_mode: snap.practiceMode,
         },
         selectedAnswer: {
           index: snap.selectedIndex,
+          selected_index: snap.selectedIndex,
           text: snap.options[snap.selectedIndex] ?? "",
         },
         correctAnswer: {
           index: snap.correctIndex,
+          correct_index: snap.correctIndex,
           text: snap.options[snap.correctIndex] ?? "",
         },
         isCorrect: snap.isCorrect,
-        score: snap.skipped ? 0 : snap.isCorrect ? 1 : 0,
+        score: snap.skipped || snap.timedOut ? 0 : snap.isCorrect ? 1 : 0,
         skipped: snap.skipped ?? false,
+        timedOut: snap.timedOut ?? false,
+        timeTakenMs: snap.timeTakenMs ?? null,
         subject: snap.subject,
         chapter: snap.chapter,
         concept: snap.concept ?? snap.chapter,
+        topic: snap.topic,
+        difficulty: snap.difficulty,
         source: snap.source ?? "practice",
-        hintUsed: false,
+        practiceMode: snap.practiceMode ?? config.mode,
+        sourceId: snap.sourceId ?? sid,
+        hintUsed: snap.hintUsed ?? false,
+        solutionViewed: snap.solutionViewed ?? false,
+        confidence: snap.confidence ?? null,
+        attemptNumber: snap.attemptNumber ?? null,
+        answeredAt: snap.answeredAt ?? null,
+        schoolId: snap.schoolId ?? ctx.schoolId ?? null,
       });
     } catch {
       /* finish() batch-writes if live persist fails */
     }
   }
 
-  function skip() {
+  function skip(opts?: { timedOut?: boolean }) {
     const q = qs[idx];
     if (!q) return;
     skippedRef.current = [...skippedRef.current, idx];
     setSkipped(skippedRef.current);
+    const elapsed = Date.now() - questionStartRef.current;
     const snap: PracticeAttemptSnapshot = {
       question: q.question,
       options: q.options,
@@ -1077,12 +1153,23 @@ function Session({
       selectedIndex: -1,
       isCorrect: false,
       skipped: true,
+      timedOut: opts?.timedOut ?? false,
       explanation: q.explanation,
       bankQuestionId: q.id,
       subject: q.subject,
       chapter: q.chapter,
       concept: q.chapter,
+      topic: config.topic || q.chapter,
+      difficulty: q.difficulty,
       source: "practice",
+      practiceMode: config.mode,
+      sourceId: sessionIdRef.current,
+      timeTakenMs: elapsed,
+      hintUsed: false,
+      solutionViewed: false,
+      attemptNumber: ++attemptNumberRef.current,
+      answeredAt: new Date().toISOString(),
+      schoolId: ctx?.schoolId ?? null,
     };
     attemptLog.current.push(snap);
     void persistAttemptLive(snap);

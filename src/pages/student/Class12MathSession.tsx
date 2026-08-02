@@ -113,6 +113,15 @@ export default function Class12MathSession() {
       selectedIndex: optionIndex,
       isCorrect: ok,
       explanation: current.generated.explanation,
+      subject: "Mathematics",
+      chapter,
+      concept: current.template.chapter,
+      source: "practice",
+      practiceMode: "math12",
+      sourceId: sessionId,
+      solutionViewed: true,
+      timeTakenMs: undefined,
+      templateId: current.template.id ?? null,
     });
 
     const saved = await recordPracticeAttemptBestEffort({
@@ -121,6 +130,7 @@ export default function Class12MathSession() {
       subject: "Mathematics",
       chapter,
       concept: current.template.chapter,
+      topic: current.template.chapter,
       generatedQuestion: {
         question: current.generated.question,
         options: current.generated.options,
@@ -132,6 +142,10 @@ export default function Class12MathSession() {
       selectedIndex: optionIndex,
       isCorrect: ok,
       score: ok ? 1 : 0,
+      solutionViewed: true,
+      practiceMode: "math12",
+      source: "practice",
+      sourceId: sessionId,
     });
     if (!saved.ok) {
       console.warn("record attempt:", saved.error?.message);
