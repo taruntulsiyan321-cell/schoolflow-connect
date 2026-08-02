@@ -14,6 +14,7 @@ import { PracticeService } from "./practiceService";
 import { DoubtService } from "./doubtService";
 import { XpService } from "./xpService";
 import { BadgeService } from "./badgeService";
+import { ProgressionService } from "./progressionService";
 import { BattleExperienceService } from "./battleExperienceService";
 import { QuestionBankService } from "./questionBankService";
 import { AnnouncementService } from "./announcementService";
@@ -35,6 +36,7 @@ export const AcademicServices = {
   doubt: DoubtService,
   xp: XpService,
   badge: BadgeService,
+  progression: ProgressionService,
   battle: BattleExperienceService,
   questionBank: QuestionBankService,
   announcement: AnnouncementService,
@@ -52,6 +54,7 @@ export {
   DoubtService,
   XpService,
   BadgeService,
+  ProgressionService,
   BattleExperienceService,
   QuestionBankService,
   AnnouncementService,

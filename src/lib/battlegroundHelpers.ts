@@ -14,8 +14,25 @@ export const LEAGUES: League[] = [
   { name: "Gold", tier: 3, colorClass: "text-tier-gold", minXp: 800 },
   { name: "Platinum", tier: 4, colorClass: "text-primary", minXp: 1800 },
   { name: "Diamond", tier: 5, colorClass: "text-accent", minXp: 3500 },
-  { name: "Champion", tier: 6, colorClass: "text-warning", minXp: 6000 },
+  { name: "Master", tier: 6, colorClass: "text-warning", minXp: 6000 },
+  { name: "Champion", tier: 7, colorClass: "text-warning", minXp: 10000 },
+  { name: "Legend", tier: 8, colorClass: "text-destructive", minXp: 16000 },
+  { name: "Titan", tier: 9, colorClass: "text-primary", minXp: 25000 },
+  { name: "Nova", tier: 10, colorClass: "text-accent", minXp: 40000 },
 ];
+
+/** Prefer backend league_code when present; else derive from XP thresholds. */
+export function leagueFromCodeOrXp(leagueCode: string | null | undefined, xp: number): League {
+  if (leagueCode) {
+    const found = LEAGUES.find((l) => l.name.toLowerCase() === leagueCode.toLowerCase()
+      || l.name.toLowerCase().replace(/\s+/g, "_") === leagueCode.toLowerCase());
+    // codes are bronze/silver/... matching name lowercased
+    const byCode = LEAGUES.find((l) => l.name.toLowerCase() === leagueCode.toLowerCase());
+    if (byCode) return byCode;
+    if (found) return found;
+  }
+  return leagueFromXp(xp);
+}
 
 /** Which league a student is in based on lifetime XP. */
 export function leagueFromXp(xp: number): League {

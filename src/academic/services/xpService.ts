@@ -24,6 +24,16 @@ export type StudentXpRow = {
   equipped_badge?: string | null;
   last_battle_at?: string | null;
   updated_at?: string;
+  league_code?: string | null;
+  highest_league_code?: string | null;
+  reputation?: number;
+  study_streak?: number;
+  study_longest_streak?: number;
+  study_week_streak?: number;
+  study_month_streak?: number;
+  demotion_warning_at?: string | null;
+  featured_badges?: string[] | null;
+  streak_protection_tokens?: number;
 };
 
 /**

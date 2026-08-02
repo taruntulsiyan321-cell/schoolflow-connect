@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, SectionLabel, cn } from "@/gurukul/components/shared";
 import { Trophy, Target, Medal, Loader2, ArrowRight } from "lucide-react";
-import { AcademicProfileService, AnalyticsService } from "@/academic";
+import { AcademicProfileService, AnalyticsService, ProgressionService } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,7 +19,7 @@ function formatEarnedDate(iso: string) {
 
 /**
  * Student Profile — academic metrics from Academic Engine.
- * Milestones from live student_badges.
+ * Milestones from live student_badges + Progression Engine.
  */
 export default function Profile({ setPage }: { setPage?: (p: PageKey) => void }) {
   const { user } = useAuth();
@@ -32,6 +32,11 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
   const [hwPct, setHwPct] = useState(0);
   const [testsAvg, setTestsAvg] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [level, setLevel] = useState(1);
+  const [xp, setXp] = useState(0);
+  const [league, setLeague] = useState("Bronze");
+  const [streak, setStreak] = useState(0);
+  const [reputation, setReputation] = useState(0);
 
   const recentMilestones = useMemo(
     () =>
@@ -63,12 +68,14 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             .maybeSingle(),
           AcademicProfileService.get(ctx, studentId),
           AnalyticsService.forStudent(ctx, studentId),
+          ProgressionService.getForStudent(ctx, studentId),
         ]);
         if (cancelled) return;
         const sRes = settled[0].status === "fulfilled" ? settled[0].value : null;
         const s = sRes?.data;
         const profile = settled[1].status === "fulfilled" ? settled[1].value : null;
         const analytics = settled[2].status === "fulfilled" ? settled[2].value : null;
+        const prog = settled[3].status === "fulfilled" ? settled[3].value : null;
         setName(s?.full_name ?? "Student");
         const cls = s?.classes as { name?: string; section?: string } | null;
         setClassLabel(
@@ -78,6 +85,13 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
         setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
         setHwPct(Math.round(analytics?.homework.pct ?? 0));
         setTestsAvg(Math.round(analytics?.tests.averagePct ?? 0));
+        if (prog) {
+          setLevel(prog.level);
+          setXp(prog.xp);
+          setLeague(prog.league?.label ?? prog.league?.code ?? "Bronze");
+          setStreak(prog.study_streak);
+          setReputation(prog.reputation);
+        }
       } catch {
         /* empty */
       } finally {
@@ -119,7 +133,9 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
               {name}
             </h2>
             <div className="text-sm text-[#78788c]">{classLabel}</div>
-            <div className="text-xs text-[#3b5bdb] mt-0.5">Academic Engine profile</div>
+            <div className="text-xs text-[#3b5bdb] mt-0.5">
+              Level {level} · {league} · {xp} XP · Streak {streak}d · Rep {reputation}
+            </div>
           </div>
         </div>
       </GlassCard>

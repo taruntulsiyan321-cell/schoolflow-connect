@@ -410,14 +410,90 @@ export async function projectPerformanceFacts(
   homework: HomeworkDueProjection;
   marks: MarksSummaryProjection;
   eie: StudentEducationalIntelligence;
+  progression: Awaited<ReturnType<typeof projectStudentProgression>>;
 }> {
-  const [attendance, homework, marks, eie] = await Promise.all([
+  const [attendance, homework, marks, eie, progression] = await Promise.all([
     projectAttendanceQuery(ctx, studentId),
     projectHomeworkDue(ctx, studentId),
     projectMarksSummary(ctx, studentId),
     projectEieMasterySummary(ctx, studentId),
+    projectStudentProgression(ctx, studentId),
   ]);
-  return { attendance, homework, marks, eie };
+  return { attendance, homework, marks, eie, progression };
+}
+
+/** Progression + weak-concept trends for Nova context packs. */
+export async function projectStudentProgression(
+  ctx: ServiceContext,
+  studentId: string,
+): Promise<{
+  projection: "StudentProgression";
+  version: 1;
+  studentId: string;
+  schoolId: string;
+  xp: number;
+  level: number;
+  league: string;
+  reputation: number;
+  study_streak: number;
+  badges_earned: number;
+  achievements_earned: number;
+  battleground_wins: number;
+  practice_sessions: number;
+  weak_concepts: string[];
+  source_as_of: string | null;
+  data_version: string;
+  completeness: number;
+}> {
+  await assertMayAccessStudent(ctx, studentId);
+  const { ProgressionService } = await import("../services/progressionService");
+  const { PracticeService } = await import("../services/practiceService");
+
+  let snap = null as Awaited<ReturnType<typeof ProgressionService.getForStudent>> | null;
+  let weak: Array<{ concept_label: string; subject: string }> = [];
+  try {
+    snap = await ProgressionService.getForStudent(ctx, studentId);
+  } catch {
+    snap = null;
+  }
+  try {
+    // Need student user context for practice weak concepts — resolve via profile ctx
+    const client = getClient(toRepoContext(ctx));
+    const { data: stu } = await client
+      .from("students")
+      .select("user_id")
+      .eq("id", studentId)
+      .maybeSingle();
+    if (stu?.user_id) {
+      const practiceCtx = { ...ctx, userId: stu.user_id, studentId };
+      weak = await PracticeService.listWeakConcepts(practiceCtx, { limit: 8 });
+    }
+  } catch {
+    weak = [];
+  }
+
+  const hasData = !!snap && (snap.xp > 0 || snap.counts.practice_sessions > 0 || snap.badges.length > 0);
+  return {
+    projection: "StudentProgression",
+    version: 1,
+    studentId,
+    schoolId: ctx.schoolId,
+    xp: snap?.xp ?? 0,
+    level: snap?.level ?? 1,
+    league: snap?.league?.label ?? snap?.league?.code ?? "Bronze",
+    reputation: snap?.reputation ?? 0,
+    study_streak: snap?.study_streak ?? 0,
+    badges_earned: snap?.badges?.length ?? 0,
+    achievements_earned: snap?.achievements?.length ?? 0,
+    battleground_wins: snap?.battleground?.wins ?? 0,
+    practice_sessions: snap?.counts?.practice_sessions ?? 0,
+    weak_concepts: weak.map((w) => `${w.subject}: ${w.concept_label}`).slice(0, 8),
+    ...meta(
+      null,
+      `prog:${studentId}:${snap?.xp ?? 0}:${snap?.level ?? 1}`,
+      hasData ? 1 : 0.2,
+    ),
+  };
 }
 
 export const AiContextApis = {
@@ -428,4 +504,5 @@ export const AiContextApis = {
   projectEieMasterySummary,
   projectParentChildSummary,
   projectPerformanceFacts,
+  projectStudentProgression,
 };

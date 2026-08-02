@@ -72,6 +72,40 @@ export const BattleExperienceService = {
     }).catch(() => undefined);
 
     afterExperienceWrite(ctx, ["battle", "xp", "achievements", "profile"]);
+
+    // Progression Engine — participation / win / top finish (battle score XP still from rpc_finish_battle)
+    try {
+      const { ProgressionService } = await import("./progressionService");
+      await ProgressionService.awardSafe(ctx, {
+        ruleCode: "battle.participate",
+        sourceType: "battle",
+        sourceId: battleId ?? participantId,
+        idempotencyKey: `battle.participate:${participantId}`,
+      });
+      const rank = Number(part?.rank ?? 0);
+      if (rank === 1) {
+        await ProgressionService.awardSafe(ctx, {
+          ruleCode: "battle.win",
+          sourceType: "battle",
+          sourceId: battleId ?? participantId,
+          idempotencyKey: `battle.win:${participantId}`,
+        });
+      } else if (rank >= 1 && rank <= 3) {
+        await ProgressionService.awardSafe(ctx, {
+          ruleCode: "battle.top_finish",
+          sourceType: "battle",
+          sourceId: battleId ?? participantId,
+          idempotencyKey: `battle.top:${participantId}`,
+        });
+      }
+      await ProgressionService.notifyExternalXpChange(ctx, {
+        source: "battle.finished",
+        participant_id: participantId,
+        battle_id: battleId,
+      });
+    } catch {
+      /* optional until migration applied */
+    }
   },
 
   /**

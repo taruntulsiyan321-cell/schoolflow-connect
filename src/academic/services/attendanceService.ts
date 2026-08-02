@@ -128,6 +128,30 @@ export const AttendanceService = {
       studentId: input.studentId,
       source: "AttendanceService.mark",
     });
+
+    if (input.status === "present" || input.status === "late") {
+      try {
+        const { data: stu } = await getClient(toRepoContext(ctx))
+          .from("students")
+          .select("user_id")
+          .eq("id", input.studentId)
+          .maybeSingle();
+        if (stu?.user_id) {
+          const { ProgressionService } = await import("./progressionService");
+          await ProgressionService.awardSafe(ctx, {
+            ruleCode: "attendance.present",
+            sourceType: "attendance",
+            sourceId: `${input.studentId}:${input.date}`,
+            idempotencyKey: `attendance.present:${input.studentId}:${input.date}`,
+            meta: { status: input.status },
+            targetUserId: stu.user_id,
+          });
+        }
+      } catch {
+        /* optional until migration applied */
+      }
+    }
+
     return row;
   },
 

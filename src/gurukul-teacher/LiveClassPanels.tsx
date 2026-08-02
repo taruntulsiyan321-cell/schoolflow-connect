@@ -27,12 +27,14 @@ import {
   MarksService,
   RemarksService,
   TestService,
+  ProgressionService,
   TEST_KIND_LABELS,
   type ClassStudentRow,
   type StudentAcademicProfile,
   type StudentHomeworkRow,
   type TeacherRemark,
   type TestKind,
+  type TeacherProgressionInsights,
 } from "@/academic";
 import type {
   ManualQuestionInput,
@@ -2263,6 +2265,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   const [tests, setTests] = useState<InsightTestRow[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
   const [pendingExams, setPendingExams] = useState<ExamRecord[]>([]);
+  const [progression, setProgression] = useState<TeacherProgressionInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -2280,6 +2283,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           TestService.listForClass(ctx, classId),
           MarksService.listExamsForClass(ctx, classId, { limit: 100 }),
           MarksService.listMyPendingSubjectExams(ctx, classId),
+          ProgressionService.teacherClassInsights(ctx, classId),
         ]);
         if (cancelled) return;
         const a = settled[0].status === "fulfilled" ? settled[0].value : null;
@@ -2292,6 +2296,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
             : [];
         const examRows = settled[5].status === "fulfilled" ? settled[5].value : [];
         const pending = settled[6].status === "fulfilled" ? settled[6].value : [];
+        const prog = settled[7].status === "fulfilled" ? settled[7].value : null;
         if (
           settled[0].status === "rejected" &&
           settled[1].status === "rejected" &&
@@ -2306,6 +2311,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         setTests(tRows);
         setExams(examRows);
         setPendingExams(pending);
+        setProgression(prog);
         const errs: string[] = [];
         if (settled[0].status === "rejected") errs.push(errMsg(settled[0].reason, "Analytics"));
         if (settled[1].status === "rejected") errs.push(errMsg(settled[1].reason, "Profiles"));
@@ -2314,6 +2320,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         if (settled[4].status === "rejected") errs.push(errMsg(settled[4].reason, "Tests"));
         if (settled[5].status === "rejected") errs.push(errMsg(settled[5].reason, "Exams"));
         if (settled[6].status === "rejected") errs.push(errMsg(settled[6].reason, "Pending marks"));
+        if (settled[7].status === "rejected") errs.push(errMsg(settled[7].reason, "Progression"));
         setError(errs.length ? errs.join(" · ") : null);
       } catch (e) {
         if (!cancelled) setError(errMsg(e, "Failed to load insights"));
@@ -2685,8 +2692,75 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
               <span className="text-[#46465a]">Upcoming exams </span>
               <span className="font-bold text-white tabular-nums">{upcomingExams.length}</span>
             </div>
+            {progression?.class_engagement && (
+              <>
+                <div>
+                  <span className="text-[#46465a]">Avg XP </span>
+                  <span className="font-bold text-white tabular-nums">
+                    {progression.class_engagement.avg_xp}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[#46465a]">Practice rate </span>
+                  <span className="font-bold text-white tabular-nums">
+                    {progression.class_engagement.practice_rate}%
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
+      )}
+
+      {progression && (
+        <>
+          <DecisionSection
+            title="Top XP (class)"
+            question="Who is most engaged this term?"
+            rows={(progression.top_xp ?? []).slice(0, 8).map((r) => ({
+              id: r.student_id,
+              name: r.full_name,
+              metric: `${r.xp} XP · L${r.level}`,
+              why: `${r.league} league`,
+            }))}
+            empty="No XP data yet"
+          />
+          <DecisionSection
+            title="Improvers (7 days)"
+            question="Who gained the most XP this week?"
+            rows={(progression.improvers ?? []).slice(0, 8).map((r) => ({
+              id: r.student_id,
+              name: r.full_name,
+              metric: `+${r.xp_gained_7d} XP`,
+              why: "Weekly improvement",
+            }))}
+            empty="No improvers this week"
+          />
+          <DecisionSection
+            title="Inactive (7+ days)"
+            question="Who needs a gentle nudge?"
+            rows={(progression.inactive ?? []).slice(0, 8).map((r) => ({
+              id: r.student_id,
+              name: r.full_name,
+              metric: r.last_activity_at
+                ? new Date(r.last_activity_at).toLocaleDateString()
+                : "Never",
+              why: "No recent academic activity",
+            }))}
+            empty="No inactive students"
+          />
+          <DecisionSection
+            title="Consistent practicers"
+            question="Who is building study habits?"
+            rows={(progression.consistent_practicers ?? []).slice(0, 8).map((r) => ({
+              id: r.student_id,
+              name: r.full_name,
+              metric: `${r.study_streak}d streak`,
+              why: `${r.practice_sessions} practice sessions`,
+            }))}
+            empty="No consistent practicers yet"
+          />
+        </>
       )}
 
       <DecisionSection

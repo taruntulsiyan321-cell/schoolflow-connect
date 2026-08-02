@@ -40,6 +40,7 @@ export {
   projectEieMasterySummary,
   projectParentChildSummary,
   projectPerformanceFacts,
+  projectStudentProgression,
 } from "./contextApis";
 
 export { AeSnapshotL1Cache, buildL1CacheKey, globalAeL1Cache } from "./l1Cache";

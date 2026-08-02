@@ -524,6 +524,47 @@ export const HomeworkService = {
       studentId: input.studentId,
       source: "HomeworkService.submit",
     });
+
+    // Progression Engine — homework submit (+ before-deadline bonus when due is set)
+    try {
+      const { ProgressionService } = await import("./progressionService");
+      const hw = await getHomework(toRepoContext(ctx), input.homeworkId);
+      await ProgressionService.awardSafe(ctx, {
+        ruleCode: "homework.submit",
+        sourceType: "homework_submission",
+        sourceId: row.id,
+        idempotencyKey: `homework.submit:${row.id}`,
+        meta: { homework_id: input.homeworkId },
+      });
+      if (hw.dueDate) {
+        const due = new Date(`${hw.dueDate}T${hw.dueTime || "23:59:59"}`);
+        if (!Number.isNaN(due.getTime()) && Date.now() <= due.getTime()) {
+          await ProgressionService.awardSafe(ctx, {
+            ruleCode: "homework.before_deadline",
+            sourceType: "homework_submission",
+            sourceId: row.id,
+            idempotencyKey: `homework.before:${row.id}`,
+          });
+        }
+      }
+      const client = getClient(toRepoContext(ctx));
+      const { data: xpRow } = await client
+        .from("student_xp")
+        .select("homework_submitted_count")
+        .eq("user_id", ctx.userId)
+        .maybeSingle();
+      if (xpRow) {
+        await client
+          .from("student_xp")
+          .update({
+            homework_submitted_count: (Number(xpRow.homework_submitted_count) || 0) + 1,
+          })
+          .eq("user_id", ctx.userId);
+      }
+    } catch {
+      /* progression optional if migration not applied yet */
+    }
+
     return row;
   },
 

@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { AcademicProfileService } from "@/academic";
+import { AcademicProfileService, ProgressionService } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useParentWeeklyDigest, type ParentAlert } from "@/hooks/useParentWeeklyDigest";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { Progress } from "@/components/ui/progress";
-import { ClipboardCheck, NotebookPen, Trophy, Wallet, Bell, TrendingUp, AlertTriangle } from "lucide-react";
+import { ClipboardCheck, NotebookPen, Trophy, Wallet, Bell, TrendingUp, AlertTriangle, Flame, Shield } from "lucide-react";
 
 type ChildInsight = {
   id: string;
@@ -19,6 +19,13 @@ type ChildInsight = {
   homeworkTotal: number;
   avgMarksPct: number;
   pendingFees: number;
+  xp: number;
+  level: number;
+  league: string;
+  reputation: number;
+  studyStreak: number;
+  badges: number;
+  achievements: number;
 };
 
 const alertTone: Record<ParentAlert["kind"], string> = {
@@ -56,6 +63,26 @@ export default function ParentInsights() {
         const homeworkTotal = profile?.homeworkAssigned ?? 0;
         const avgMarksPct = Math.round(profile?.examsAvgPct ?? 0);
 
+        let xp = 0;
+        let level = 1;
+        let league = "Bronze";
+        let reputation = 0;
+        let studyStreak = 0;
+        let badges = 0;
+        let achievements = 0;
+        try {
+          const prog = await ProgressionService.getForStudent(ctx, s.id);
+          xp = prog.xp;
+          level = prog.level;
+          league = prog.league?.label ?? prog.league?.code ?? "Bronze";
+          reputation = prog.reputation;
+          studyStreak = prog.study_streak;
+          badges = prog.badges.length;
+          achievements = prog.achievements.length;
+        } catch {
+          /* honest zeros if progression RPC not applied yet */
+        }
+
         const { data: fees } = await supabase.from("fees").select("amount, paid_amount, status").eq("student_id", s.id);
         const pendingFees = (fees ?? [])
           .filter((f) => f.status !== "paid")
@@ -70,6 +97,13 @@ export default function ParentInsights() {
           homeworkTotal,
           avgMarksPct,
           pendingFees,
+          xp,
+          level,
+          league,
+          reputation,
+          studyStreak,
+          badges,
+          achievements,
         });
       }
       setKids(insights);
@@ -124,6 +158,15 @@ export default function ParentInsights() {
                   <StatCard icon={<Trophy className="w-5 h-5" />} label="Avg marks" value={`${k.avgMarksPct}%`} />
                   <StatCard icon={<Wallet className="w-5 h-5" />} label="Pending fees" value={fmt(k.pendingFees)} tone={k.pendingFees > 0 ? "warning" : undefined} />
                 </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <StatCard icon={<Trophy className="w-5 h-5" />} label={`Level ${k.level}`} value={`${k.xp} XP`} />
+                  <StatCard icon={<Shield className="w-5 h-5" />} label="League" value={k.league} />
+                  <StatCard icon={<Flame className="w-5 h-5" />} label="Study streak" value={`${k.studyStreak}d`} />
+                  <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Reputation" value={`${k.reputation}`} />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Badges: {k.badges} · Achievements: {k.achievements}
+                </p>
                 <div>
                   <div>Homework completion ({k.homeworkDone}/{k.homeworkTotal})</div>
                   <Progress value={hwPct} className="h-2" />

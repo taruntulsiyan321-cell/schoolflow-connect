@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { AcademicProfileService } from "@/academic";
+import { AcademicProfileService, ProgressionService, type ProgressionSnapshot } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
-import { User, ClipboardCheck, Wallet, BookOpen, Phone, MapPin, Calendar, GraduationCap, Sword, Flame, Crown, Trophy, Award, TrendingUp, Target } from "lucide-react";
+import { User, ClipboardCheck, Wallet, BookOpen, Phone, MapPin, Calendar, GraduationCap, Sword, Flame, Crown, Trophy, Award, TrendingUp, Target, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BadgeEquipPanel } from "@/components/student/BadgeEquipPanel";
@@ -36,8 +36,8 @@ export default function StudentProfilePage() {
   const [presentDays, setPresentDays] = useState(0);
   const [pendingFees, setPendingFees] = useState(0);
 
-  // Battle identity
-  const [xp, setXp] = useState<any>(null);
+  // Progression Engine snapshot (never invent XP on the client)
+  const [progression, setProgression] = useState<ProgressionSnapshot | null>(null);
   const [classRank, setClassRank] = useState<number | null>(null);
   const [strengths, setStrengths] = useState<SubjectStrength[]>([]);
 
@@ -61,15 +61,32 @@ export default function StudentProfilePage() {
         .maybeSingle();
       setStudent(s);
 
-      // Battleground XP profile
-      const { data: x } = await supabase.from("student_xp").select("*").eq("user_id", user.id).maybeSingle();
-      setXp(x);
+      try {
+        setProgression(await ProgressionService.getSnapshot(ctx, user.id));
+      } catch {
+        setProgression(null);
+      }
 
-      // Class XP rank via leaderboard RPC
-      const { data: lb } = await supabase.rpc("rpc_leaderboard", { _scope: "class", _category: "xp", _subject: undefined, _limit: 200 });
-      if (Array.isArray(lb)) {
-        const i = lb.findIndex((r: any) => r.user_id === user.id);
+      try {
+        const lb = await ProgressionService.leaderboard(ctx, {
+          scope: "class",
+          period: "lifetime",
+          metric: "xp",
+          limit: 200,
+        });
+        const i = lb.rows.findIndex((r) => r.user_id === user.id);
         setClassRank(i >= 0 ? i + 1 : null);
+      } catch {
+        const { data: lb } = await supabase.rpc("rpc_leaderboard", {
+          _scope: "class",
+          _category: "xp",
+          _subject: undefined,
+          _limit: 200,
+        });
+        if (Array.isArray(lb)) {
+          const i = lb.findIndex((r: any) => r.user_id === user.id);
+          setClassRank(i >= 0 ? i + 1 : null);
+        }
       }
 
       if (s) {
@@ -172,27 +189,58 @@ export default function StudentProfilePage() {
         )}
       </Card>
 
-      {/* Battle identity card */}
+      {/* Academic progression identity */}
       {student && (
         <Card className="p-5 mb-4 hero-panel">
           <div className="flex flex-col sm:flex-row items-center gap-5">
-            <XPRing xp={Number(xp?.xp) || 0} level={Number(xp?.level) || 1} size={120} />
+            <XPRing
+              xp={Number(progression?.xp) || 0}
+              level={Number(progression?.level) || 1}
+              size={120}
+            />
             <div className="flex-1 w-full">
-              <div className="text-xs uppercase tracking-widest opacity-80 font-semibold mb-2">Academic Identity</div>
+              <div className="text-xs uppercase tracking-widest opacity-80 font-semibold mb-2">
+                Academic Progression
+              </div>
+              <div className="text-sm mb-3 opacity-90">
+                {progression?.league?.label ?? "Bronze"} League
+                {progression?.demotion_warning_at ? " · Demotion warning" : ""}
+                {" · "}
+                {progression?.xp_to_next_level ?? 0} XP to next level
+                {" · "}
+                Reputation {progression?.reputation ?? 0}
+              </div>
+              <div className="h-2 rounded-full bg-muted/40 overflow-hidden mb-3">
+                <div
+                  className="h-full rounded-full bg-primary/80"
+                  style={{ width: `${Math.max(3, progression?.level_progress_pct ?? 0)}%` }}
+                />
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <IdentityStat icon={<Crown className="w-4 h-4" />} label="Class Rank" value={classRank ? `#${classRank}` : "—"} />
-                <IdentityStat icon={<Sword className="w-4 h-4" />} label="Wins" value={`${xp?.wins ?? 0}`} />
-                <IdentityStat icon={<Flame className="w-4 h-4" />} label="Streak" value={`${xp?.current_streak ?? 0}d`} />
-                <IdentityStat icon={<Award className="w-4 h-4" />} label="Badges" value={`${earned?.length ?? 0}`} />
-                <IdentityStat icon={<Trophy className="w-4 h-4" />} label="Best Score" value={`${xp?.best_score ?? 0}`} />
-                <IdentityStat icon={<TrendingUp className="w-4 h-4" />} label="Battles" value={`${xp?.total_battles ?? 0}`} />
+                <IdentityStat icon={<Sword className="w-4 h-4" />} label="Wins" value={`${progression?.battleground?.wins ?? 0}`} />
+                <IdentityStat icon={<Flame className="w-4 h-4" />} label="Study Streak" value={`${progression?.study_streak ?? 0}d`} />
+                <IdentityStat icon={<Award className="w-4 h-4" />} label="Badges" value={`${earned?.length ?? progression?.badges?.length ?? 0}`} />
+                <IdentityStat icon={<Trophy className="w-4 h-4" />} label="Best Score" value={`${progression?.battleground?.best_score ?? 0}`} />
+                <IdentityStat icon={<TrendingUp className="w-4 h-4" />} label="Battles" value={`${progression?.battleground?.total_battles ?? 0}`} />
                 <IdentityStat
                   icon={<Target className="w-4 h-4" />}
                   label="Win Rate"
-                  value={xp?.total_battles ? `${Math.round((Number(xp.wins) / Number(xp.total_battles)) * 100)}%` : "—"}
+                  value={
+                    progression?.battleground?.total_battles
+                      ? `${Math.round((Number(progression.battleground.wins) / Number(progression.battleground.total_battles)) * 100)}%`
+                      : "—"
+                  }
                 />
-                <IdentityStat icon={<Flame className="w-4 h-4" />} label="Best Streak" value={`${xp?.best_win_streak ?? 0}`} />
+                <IdentityStat icon={<Shield className="w-4 h-4" />} label="Achievements" value={`${progression?.achievements?.length ?? 0}`} />
               </div>
+              {(progression?.featured_badges?.length ?? 0) > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {progression!.featured_badges.map((code) => (
+                    <EquippedBadge key={code} code={code} size="sm" showLabel />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </Card>

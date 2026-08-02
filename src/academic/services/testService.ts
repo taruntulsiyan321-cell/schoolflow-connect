@@ -542,6 +542,35 @@ export const TestService = {
       source: "TestService.submitAttempt",
     });
     notifyStudentXpUpdated();
+
+    try {
+      const { ProgressionService } = await import("./progressionService");
+      await ProgressionService.awardSafe(ctx, {
+        ruleCode: "test.attempt",
+        sourceType: "student_test_attempt",
+        sourceId: attemptId,
+        idempotencyKey: `test.attempt:${attemptId}`,
+      });
+      const result = data as { score?: number; total?: number; accuracy?: number } | null;
+      const accuracy =
+        typeof result?.accuracy === "number"
+          ? result.accuracy
+          : result?.total
+            ? Math.round((Number(result.score ?? 0) / Number(result.total)) * 100)
+            : null;
+      if (accuracy != null && accuracy >= 90) {
+        await ProgressionService.awardSafe(ctx, {
+          ruleCode: "test.high_accuracy",
+          sourceType: "student_test_attempt",
+          sourceId: attemptId,
+          idempotencyKey: `test.high:${attemptId}`,
+          meta: { accuracy },
+        });
+      }
+    } catch {
+      /* optional until migration applied */
+    }
+
     return data;
   },
 };

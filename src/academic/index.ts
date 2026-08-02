@@ -74,6 +74,7 @@ export {
   DoubtService,
   XpService,
   BadgeService,
+  ProgressionService,
   BattleExperienceService,
   QuestionBankService,
   AnnouncementService,
@@ -98,6 +99,12 @@ export {
 
 export type { StudentXpRow } from "./services/xpService";
 export type { EarnedBadgeRow } from "./services/badgeService";
+export type {
+  ProgressionSnapshot,
+  ProgressionApplyResult,
+  TeacherProgressionInsights,
+  ProgressionLeaderboard,
+} from "./services/progressionService";
 export type { BattleCreateOpts } from "./services/battleExperienceService";
 export type { CurriculumScope } from "./services/practiceService";
 export type { PracticeSessionRow } from "./services/practiceService";

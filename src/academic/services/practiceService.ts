@@ -1076,5 +1076,16 @@ export const PracticeService = {
       source: "PracticeService.completeRevision",
     });
     notifyStudentXpUpdated();
+    try {
+      const { ProgressionService } = await import("./progressionService");
+      await ProgressionService.awardSafe(ctx, {
+        ruleCode: "revision.complete",
+        sourceType: "revision",
+        sourceId: revisionId,
+        idempotencyKey: `revision.complete:${revisionId}`,
+      });
+    } catch {
+      /* optional */
+    }
   },
 };
