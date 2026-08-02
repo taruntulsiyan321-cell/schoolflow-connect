@@ -42,11 +42,13 @@ import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
 import BattleReportPage from "./student/BattleReportPage";
 import ChatPage from "./shared/ChatPage";
 import NoticesPage from "./shared/NoticesPage";
+import Notifications from "@/gurukul/pages/Notifications";
 import MyFeesPage from "./shared/MyFeesPage";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicLive } from "@/academic";
+import { useAcademicContext, useAcademicLive } from "@/academic";
+import { studentShellReady } from "@/academic/services/assertStudentContext";
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -75,9 +77,12 @@ export default function StudentDashboard() {
     sessionsThisWeek?: number;
     totalStudents?: number;
   }>({});
+  const { ready: academicReady } = useAcademicContext();
+  const [progressionLoaded, setProgressionLoaded] = useState(false);
 
   const loadProfile = useCallback(async () => {
     if (!user) return;
+    setProgressionLoaded(false);
     const { data: s, error: studentErr } = await supabase
       .from("students")
       .select("full_name, roll_number, classes(name, section)")
@@ -217,6 +222,7 @@ export default function StudentDashboard() {
       sessionsThisWeek,
       totalStudents,
     });
+    setProgressionLoaded(true);
   }, [user]);
 
   useEffect(() => {
@@ -229,6 +235,8 @@ export default function StudentDashboard() {
     return () => window.removeEventListener("student-xp-updated", onXp);
   }, [loadProfile]);
 
+  const shellReady = studentShellReady({ academicReady, progressionLoaded });
+
   const mergedStudent = useMemo(
     () => ({
       ...EMPTY_STUDENT,
@@ -239,8 +247,8 @@ export default function StudentDashboard() {
 
   return (
     <div className="gurukul-student dark min-h-screen">
-      <GurukulStudentProvider value={mergedStudent}>
-      <Layout page={page} setPage={setPage} profile={profile}>
+      <GurukulStudentProvider value={mergedStudent} shellReady={shellReady}>
+      <Layout page={page} setPage={setPage} profile={profile} progressionReady={shellReady}>
         <Routes>
           {/* Design student panel */}
           <Route index element={<Dashboard setPage={setPage} />} />
@@ -289,6 +297,7 @@ export default function StudentDashboard() {
           <Route path="dpp/:id/result" element={<DppResult />} />
           <Route path="chat" element={<ChatPage userRole="student" />} />
           <Route path="notices" element={<NoticesPage viewerRole="student" />} />
+          <Route path="notifications" element={<Notifications />} />
           <Route path="fees" element={<MyFeesPage />} />
           <Route
             path="classes"

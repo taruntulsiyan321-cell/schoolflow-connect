@@ -100,4 +100,25 @@ export const DoubtService = {
     });
     return typeof data === "number" ? data : Number(data ?? 0);
   },
+
+  /** Doubt author accepts a best answer -> DB status solved. */
+  async markBestAnswer(ctx: ServiceContext, answerId: string) {
+    assertCanOwn(ctx, "student_doubt");
+    const { error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_mark_best_community_answer",
+      { _answer_id: answerId } as never,
+    );
+    throwIfError(error, "Failed to accept answer");
+    await emitEvent(toRepoContext(ctx), {
+      eventType: "doubt.solved",
+      entityType: "student_doubt",
+      entityId: answerId,
+      studentId: ctx.studentId ?? null,
+      payload: { answerId },
+    }).catch(() => undefined);
+    broadcastAcademicWrite(ctx.schoolId, ["profile"], {
+      studentId: ctx.studentId,
+      source: "DoubtService.markBestAnswer",
+    });
+  },
 };

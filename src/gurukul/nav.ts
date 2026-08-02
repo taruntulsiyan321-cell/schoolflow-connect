@@ -78,7 +78,8 @@ export function pathToPage(pathname: string): PageKey {
   if (p.startsWith("/student/analytics") || p.startsWith("/student/analysis") || p.startsWith("/student/report"))
     return "analysis";
   if (p.startsWith("/student/revision") || p.startsWith("/student/plans")) return "revision";
-  if (p.startsWith("/student/chat") || p.startsWith("/student/notices")) return "classhub";
+  if (p.startsWith("/student/chat") || p.startsWith("/student/notices") || p.startsWith("/student/notifications"))
+    return "classhub";
   if (p.startsWith("/student/classes")) return "classhub";
   if (p.startsWith("/student/fees")) return "profile";
 

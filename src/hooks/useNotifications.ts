@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "@/hooks/use-toast";
 
 export type AppNotification = {
   id: string;
@@ -17,22 +18,31 @@ export function useNotifications() {
   const { user } = useAuth();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     if (!user) {
       setItems([]);
+      setError(null);
       setLoading(false);
       return;
     }
-    const { data, error } = await supabase
+    const { data, error: loadError } = await supabase
       .from("notifications")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(50);
-    if (error) {
+    if (loadError) {
       setItems([]);
+      setError(loadError.message || "Could not load notifications");
+      toast({
+        title: "Could not load notifications",
+        description: loadError.message || "Showing an empty inbox until the server responds.",
+        variant: "destructive",
+      });
     } else {
       setItems(data ?? []);
+      setError(null);
     }
     setLoading(false);
   }, [user]);
@@ -98,5 +108,5 @@ export function useNotifications() {
     [reload],
   );
 
-  return { items, unread, loading, reload, markRead, markAllRead, remove };
+  return { items, unread, loading, error, reload, markRead, markAllRead, remove };
 }

@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
 import { cn, XPBar } from "./shared";
 import {
   Home, BookOpen, Brain, Swords, Library,
@@ -11,7 +12,7 @@ import {
   Trophy, Medal, MessageCircle, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, Flame, Zap, Bell, Menu, X,
   FlaskConical, Calendar, Clock, GraduationCap, Settings, LogOut,
-  User, BarChart, Wallet,
+  User, BarChart, Wallet, Megaphone,
 } from "lucide-react";
 
 type NavItem  = { key: PageKey; label: string; icon: ReactNode };
@@ -85,7 +86,8 @@ const profileMenuItems = [
 ];
 
 const profileExtraLinks = [
-  { label: "Notices", path: "/student/notices", icon: <Bell className="w-3.5 h-3.5" /> },
+  { label: "Notifications", path: "/student/notifications", icon: <Bell className="w-3.5 h-3.5" /> },
+  { label: "Notices", path: "/student/notices", icon: <Megaphone className="w-3.5 h-3.5" /> },
   { label: "Fees", path: "/student/fees", icon: <Wallet className="w-3.5 h-3.5" /> },
 ];
 
@@ -97,16 +99,28 @@ export default function Layout({
   children,
   onOpenAdmin,
   profile,
+  progressionReady = true,
 }: {
   page: PageKey;
   setPage: (p: PageKey) => void;
   children: ReactNode;
   onOpenAdmin?: () => void;
   profile?: Partial<GurukulStudentProfile>;
+  /** When false, XP/level chrome shows a neutral placeholder (not Level 1 as truth). */
+  progressionReady?: boolean;
 }) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { unread } = useNotifications();
   const student = { ...EMPTY_STUDENT, ...profile };
+  const showXpChrome = progressionReady;
+  const headerTitle =
+    location.pathname.startsWith("/student/notifications") ? "Notifications"
+    : location.pathname.startsWith("/student/notices") ? "Notices"
+    : location.pathname.startsWith("/student/fees") ? "Fees"
+    : location.pathname.startsWith("/student/chat") ? "Chat"
+    : pageTitle[page];
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -340,7 +354,7 @@ export default function Layout({
 
             {/* Page title */}
             <h1 className="text-sm font-bold text-white flex-1 tracking-tight" style={{fontFamily:"var(--font-display)"}}>
-              {pageTitle[page]}
+              {headerTitle}
             </h1>
 
             {/* Right badges */}
@@ -355,13 +369,18 @@ export default function Layout({
                 <Zap className="w-3 h-3 text-blue-400"/>
                 <span className="text-xs font-bold text-blue-400">{student.xp.toLocaleString()}</span>
               </div>
-              {/* Bell → Notices */}
+              {/* Bell -> Notifications (live inbox) */}
               <button
-                onClick={() => navigate("/student/notices")}
-                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-colors"
-                title="Notices"
+                onClick={() => navigate("/student/notifications")}
+                className="relative w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-colors"
+                title="Notifications"
               >
                 <Bell className="w-4 h-4"/>
+                {unread > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#cc5069] text-white text-[9px] font-bold flex items-center justify-center">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
               </button>
 
               {/* Admin Panel shortcut */}

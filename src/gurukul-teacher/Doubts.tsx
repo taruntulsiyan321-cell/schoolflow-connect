@@ -90,7 +90,7 @@ function mapDoubt(row: DbDoubt, replies: UiDoubt["replies"] = []): UiDoubt {
 export default function Doubts() {
   const { ctx, ready } = useAcademicContext();
   const identity = useTeacherIdentity();
-  const liveVersion = useAcademicLive(["profile"]);
+  const liveVersion = useAcademicLive(["doubt", "profile"]);
   const [doubts, setDoubts] = useState<UiDoubt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -192,7 +192,8 @@ export default function Doubts() {
       void sendReply(id);
       return;
     }
-    toast.message("Post a reply to mark this doubt as answered");
+    setExpandedId(id);
+    toast.message("Type a reply first — posting a teacher reply marks the doubt answered");
   }
 
   const openCount = doubts.filter((d) => d.status === "open").length;

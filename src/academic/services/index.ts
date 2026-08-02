@@ -24,6 +24,11 @@ import { TimetableService } from "./timetableService";
 import { ResourceService } from "./resourceService";
 import { resolveStudentServiceContext } from "./resolveStudentContext";
 import {
+  assertStudentContext,
+  evaluateStudentContext,
+  studentShellReady,
+} from "./assertStudentContext";
+import {
   progressionXpForLevel,
   progressionLevelProgress,
   progressionLeagueFromXp,
@@ -78,6 +83,9 @@ export {
   TimetableService,
   ResourceService,
   resolveStudentServiceContext,
+  assertStudentContext,
+  evaluateStudentContext,
+  studentShellReady,
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
@@ -103,3 +111,5 @@ export {
   type TestKind,
   type ExamType,
 } from "./workLifecycle";
+
+export type { StudentContextReadiness } from "./assertStudentContext";

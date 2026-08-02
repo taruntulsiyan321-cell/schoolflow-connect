@@ -53,6 +53,12 @@ export default function Attendance() {
             description: "Showing zeros until Academic Engine responds.",
             variant: "destructive",
           });
+        } else if (settled.some((s) => s.status === "rejected")) {
+          toast({
+            title: "Partial attendance load",
+            description: "Some attendance data could not be loaded. Showing what is available.",
+            variant: "destructive",
+          });
         }
       } catch (e) {
         if (!cancelled) {

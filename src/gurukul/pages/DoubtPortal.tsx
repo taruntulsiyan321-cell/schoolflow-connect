@@ -69,7 +69,7 @@ interface Doubt {
   id: string; title: string; body: string;
   subject: string; chapter: string; topic: string;
   authorName: string; authorAvatar: string; authorColor: string;
-  authorRank: number; date: string; time: string;
+  date: string; time: string; createdAt: string;
   status: DoubtStatus; views: number; replies: Reply[];
   answerCount: number;
   upvotes: number; upvotedByMe: boolean; bookmarked: boolean;
@@ -141,9 +141,9 @@ function mapRowToDoubt(row: DbDoubtRow, userId: string | undefined, bookmarked =
     authorName: row.student_name,
     authorAvatar: initialsFromName(row.student_name),
     authorColor: subjectColor[subj] ?? "#3b5bdb",
-    authorRank: 0,
     date: created.toLocaleDateString("en-IN", { month: "short", day: "numeric" }),
     time: created.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" }),
+    createdAt: row.created_at,
     status: mapDbStatus(row.status),
     views: row.view_count ?? 0,
     replies: [],
@@ -263,7 +263,19 @@ function AvatarBubble({ initials, color, size=8, isTeacher=false, isAI=false }: 
   );
 }
 
-function ReplyBubble({ reply, onLike }: { reply: Reply; onLike: (id: string) => void }) {
+function ReplyBubble({
+  reply,
+  onLike,
+  canAccept,
+  accepting,
+  onAccept,
+}: {
+  reply: Reply;
+  onLike: (id: string) => void;
+  canAccept?: boolean;
+  accepting?: boolean;
+  onAccept?: (id: string) => void;
+}) {
   return (
     <div className={cn(
       "flex gap-3 p-3 rounded-xl transition-all",
@@ -288,6 +300,16 @@ function ReplyBubble({ reply, onLike }: { reply: Reply; onLike: (id: string) => 
           </button>
           {reply.isHelpful && (
             <span className="flex items-center gap-1 text-[10px] text-emerald-400"><Star className="w-3 h-3 fill-emerald-400"/>Helpful</span>
+          )}
+          {canAccept && !reply.isAccepted && onAccept && (
+            <button
+              type="button"
+              disabled={accepting}
+              onClick={() => onAccept(reply.id)}
+              className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 hover:text-emerald-300 disabled:opacity-40 transition-all"
+            >
+              <CheckCircle2 className="w-3 h-3"/> Accept as best
+            </button>
           )}
         </div>
       </div>
@@ -334,6 +356,7 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
   const [replyText, setReplyText] = useState("");
   const [replying, setReplying] = useState(false);
   const [voting, setVoting] = useState(false);
+  const [accepting, setAccepting] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiReply, setAiReply] = useState<string|null>(null);
@@ -418,6 +441,31 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
       toast.error(e instanceof Error ? e.message : "Could not update vote");
     } finally {
       setVoting(false);
+    }
+  }
+
+  async function acceptReply(rid: string) {
+    if (!ctx || !ready || !localDoubt.mine || accepting) return;
+    setAccepting(true);
+    try {
+      await DoubtService.markBestAnswer(ctx, rid);
+      setLocalDoubt((d) => {
+        const next = {
+          ...d,
+          status: "closed" as DoubtStatus,
+          replies: d.replies.map((r) => ({
+            ...r,
+            isAccepted: r.id === rid,
+          })),
+        };
+        onUpdateDoubt(next);
+        return next;
+      });
+      toast.success("Answer accepted — doubt marked solved");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not accept answer");
+    } finally {
+      setAccepting(false);
     }
   }
 
@@ -591,7 +639,16 @@ function DoubtDetail({ doubt, onBack, onUpdateDoubt }: {
               No replies yet. Be the first to help!
             </div>
           ) : (
-            localDoubt.replies.map(r => <ReplyBubble key={r.id} reply={r} onLike={likeReply}/>)
+            localDoubt.replies.map(r => (
+              <ReplyBubble
+                key={r.id}
+                reply={r}
+                onLike={likeReply}
+                canAccept={localDoubt.mine && localDoubt.status !== "closed"}
+                accepting={accepting}
+                onAccept={acceptReply}
+              />
+            ))
           )}
         </div>
       </div>
@@ -887,7 +944,7 @@ function MyDoubts({ doubts, onOpen }: { doubts: Doubt[]; onOpen: (d: Doubt) => v
 // ── Root ───────────────────────────────────────────────────────────────────────
 export default function DoubtPortal() {
   const { ctx, ready, classId } = useAcademicContext();
-  const liveVersion = useAcademicLive(["doubt"] as any);
+  const liveVersion = useAcademicLive(["doubt", "profile"]);
   const { user } = useAuth();
   const student = useGurukulStudent();
   const { subjects: scopedSubjects } = useScopedSubjects();
@@ -966,11 +1023,15 @@ export default function DoubtPortal() {
     const matchSub = subjectFilter === "All" || d.subject === subjectFilter;
     const matchStatus = statusFilter === "all" || d.status === statusFilter;
     return matchSearch && matchSub && matchStatus;
-  }).sort((a, b) =>
-    sort === "popular" ? b.upvotes - a.upvotes :
-    sort === "unanswered" ? a.answerCount - b.answerCount :
-    0
-  );
+  }).sort((a, b) => {
+    if (sort === "popular") return b.upvotes - a.upvotes || b.createdAt.localeCompare(a.createdAt);
+    if (sort === "unanswered") {
+      const unanswered = Number(a.answerCount === 0) - Number(b.answerCount === 0);
+      if (unanswered !== 0) return unanswered > 0 ? -1 : 1;
+      return a.answerCount - b.answerCount || b.createdAt.localeCompare(a.createdAt);
+    }
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 
   const pending = doubts.filter(d => d.status === "pending").length;
   const answered = doubts.filter(d => d.status === "answered").length;
