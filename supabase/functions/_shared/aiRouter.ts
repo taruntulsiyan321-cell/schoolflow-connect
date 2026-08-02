@@ -12,6 +12,15 @@ import {
 } from "./capabilityCatalog.ts";
 import { completeWithQwen, isOpenRouterConfigured } from "./modelRouter.ts";
 import { buildEieProjection } from "./eieProjection.ts";
+import { buildContextPack, packForModel } from "./contextBuilder.ts";
+import {
+  evidenceFromExplainFacts,
+  validateModelResponse,
+} from "./responseValidator.ts";
+import { applyConfidencePolicy, scoreConfidence } from "./confidenceEngine.ts";
+import { estimateUnitsForTier, type BudgetCheckResult } from "./budgetQuotas.ts";
+import { buildParentScheduledNarrative } from "./parentNarrative.ts";
+import type { ReasoningTier } from "./reasoningBudget.ts";
 
 export type KillSwitches = {
   gatewayEnabled: boolean;
@@ -48,6 +57,8 @@ export type RouterResponse = {
   error_code?: string;
   model_id?: string;
   kill_switch_hit?: string;
+  confidence?: number;
+  budget_tier?: ReasoningTier;
 };
 
 const l1 = new Map<string, { value: unknown; expiresAt: number }>();
@@ -109,6 +120,10 @@ export async function writeDecision(
     latency_ms?: number;
     error_code?: string | null;
     evidence?: Record<string, unknown>;
+    confidence?: number | null;
+    budget_tier?: string | null;
+    validation_ok?: boolean | null;
+    estimated_cost_units?: number | null;
   },
 ): Promise<void> {
   await admin.from("ai_request_decisions").upsert(
@@ -127,9 +142,55 @@ export async function writeDecision(
       latency_ms: row.latency_ms ?? null,
       error_code: row.error_code ?? null,
       evidence: row.evidence ?? {},
+      confidence: row.confidence ?? null,
+      budget_tier: row.budget_tier ?? null,
+      validation_ok: row.validation_ok ?? null,
+      estimated_cost_units: row.estimated_cost_units ?? 0,
     },
     { onConflict: "request_id" },
   );
+}
+
+async function reserveBudget(
+  admin: SupabaseClient,
+  schoolId: string,
+  featureId: string,
+  units: number,
+): Promise<BudgetCheckResult> {
+  const { data, error } = await admin.rpc("ai_budget_check_and_reserve", {
+    p_school_id: schoolId,
+    p_feature_id: featureId,
+    p_units: units,
+  });
+  if (error || !data) {
+    // Stub-safe: if migration not applied yet, allow with soft_breach false
+    return {
+      ok: true,
+      soft_breach: false,
+      units_used: 0,
+      soft_limit: 200,
+      hard_limit: 400,
+    };
+  }
+  const row = data as Record<string, unknown>;
+  if (row.ok === false) {
+    return {
+      ok: false,
+      soft_breach: true,
+      hard_breach: true,
+      units_used: Number(row.units_used ?? 0),
+      soft_limit: Number(row.soft_limit ?? 200),
+      hard_limit: Number(row.hard_limit ?? 400),
+      error_code: "budget_exhausted",
+    };
+  }
+  return {
+    ok: true,
+    soft_breach: !!row.soft_breach,
+    units_used: Number(row.units_used ?? 0),
+    soft_limit: Number(row.soft_limit ?? 200),
+    hard_limit: Number(row.hard_limit ?? 400),
+  };
 }
 
 async function assertMayAccessStudent(
@@ -711,14 +772,25 @@ export async function routeAiRequest(
         fresh && typeof fresh === "object" && "data_version" in (fresh as object)
           ? String((fresh as { data_version: string }).data_version)
           : dataVersion;
+      // Write under lookup key (stable) and content version key for cross-isolate reuse
       await writeL2Cache(admin, {
         schoolId: req.actor.schoolId,
-        cacheKey: `${cacheKeyBase}:${ver}`,
+        cacheKey: l2Key,
         featureId: cap.feature_id,
         studentId,
         dataVersion: ver,
         payload: fresh,
       }).catch(() => undefined);
+      if (ver !== dataVersion) {
+        await writeL2Cache(admin, {
+          schoolId: req.actor.schoolId,
+          cacheKey: `${cacheKeyBase}:${ver}`,
+          featureId: cap.feature_id,
+          studentId,
+          dataVersion: ver,
+          payload: fresh,
+        }).catch(() => undefined);
+      }
       return fresh;
     };
 
@@ -769,52 +841,337 @@ export async function routeAiRequest(
         decision = "answered_deterministic";
         break;
       }
-      case "student.performance.explain": {
-        const [attendance, homework, marks, eie] = await Promise.all([
-          fetchAttendance(admin, req.actor.schoolId, studentId),
-          fetchHomeworkDue(admin, req.actor.schoolId, studentId),
-          fetchMarksSummary(admin, req.actor.schoolId, studentId),
-          fetchEie(admin, req.actor.schoolId, studentId),
+      case "parent.child.narrative": {
+        const [parentSummary, eie] = await Promise.all([
+          withCache("pending", () =>
+            fetchParentSummary(admin, req.actor.schoolId, studentId),
+          ) as Promise<Awaited<ReturnType<typeof fetchParentSummary>>>,
+          withCache("pending", () => fetchEie(admin, req.actor.schoolId, studentId)),
         ]);
+        const narrative = buildParentScheduledNarrative({
+          attendance_pct: parentSummary.attendance_pct,
+          homework_completion_pct: parentSummary.homework_completion_pct,
+          tests_avg_pct: parentSummary.tests_avg_pct,
+          exams_avg_pct: parentSummary.exams_avg_pct,
+          weak_topics: parentSummary.weak_topics,
+          strong_topics: parentSummary.strong_topics,
+          avg_mastery: (eie as { avg_mastery?: number }).avg_mastery ?? null,
+          revision_topics: ((eie as { revision_priority?: { topic?: string | null }[] })
+            .revision_priority ?? [])
+            .map((r) => r.topic)
+            .filter((t): t is string => !!t),
+          source_as_of: parentSummary.source_as_of,
+          data_version: `narrative:${parentSummary.data_version}:${(eie as { data_version?: string }).data_version ?? "eie"}`,
+        });
+        data = narrative;
+        decision = "answered_deterministic";
+        provenance = {
+          algorithm_id: (eie as { algorithm_id?: string }).algorithm_id,
+          completeness: narrative.completeness,
+          data_version: narrative.data_version,
+          source_as_of: narrative.source_as_of,
+        };
+        break;
+      }
+      case "student.performance.explain": {
+        const factsVersionSeed = `explain-facts:${studentId}`;
+        const factsBundle = (await withCache(factsVersionSeed, async () => {
+          const [attendance, homework, marks, eie] = await Promise.all([
+            fetchAttendance(admin, req.actor.schoolId, studentId),
+            fetchHomeworkDue(admin, req.actor.schoolId, studentId),
+            fetchMarksSummary(admin, req.actor.schoolId, studentId),
+            fetchEie(admin, req.actor.schoolId, studentId),
+          ]);
+          return {
+            attendance,
+            homework,
+            marks,
+            eie,
+            data_version: `explain:${attendance.data_version}:${marks.data_version}:${eie.data_version}`,
+            source_as_of: attendance.source_as_of,
+            completeness:
+              (attendance.completeness +
+                homework.completeness +
+                marks.completeness +
+                eie.completeness) /
+              4,
+          };
+        })) as {
+          attendance: Awaited<ReturnType<typeof fetchAttendance>>;
+          homework: Awaited<ReturnType<typeof fetchHomeworkDue>>;
+          marks: Awaited<ReturnType<typeof fetchMarksSummary>>;
+          eie: Awaited<ReturnType<typeof fetchEie>>;
+          data_version: string;
+          source_as_of: string | null;
+          completeness: number;
+        };
+
+        const { attendance, homework, marks, eie } = factsBundle;
         const facts = { attendance, homework, marks, eie };
 
+        const pack = buildContextPack({
+          capability: cap.feature_id,
+          request_text: req.input_text,
+          ae: { attendance, homework, marks },
+          eie,
+          tier_signals: {
+            facts_complete: true,
+            budget_pressure: false,
+          },
+        });
+
+        let budget_tier: ReasoningTier = pack.tier;
+        let cost_units = estimateUnitsForTier(budget_tier);
+        let validation_ok: boolean | null = null;
+        let confidence_score: number | undefined;
+
         if (!mayCallModel) {
+          const conf = scoreConfidence({
+            used_model: false,
+            cache_hit,
+            completeness: pack.provenance.completeness || factsBundle.completeness,
+            source_as_of: pack.provenance.source_as_of,
+            route_class: cap.route_class,
+            budget_tier,
+          });
+          confidence_score = conf.confidence;
           data = {
             explanation: null,
             facts,
+            context_provenance: pack.provenance,
+            confidence: conf.confidence,
+            confidence_action: conf.action,
             degraded_reason: !flags.generativeEnabled
               ? "generative_kill_switch"
               : "openrouter_not_configured",
           };
           decision = "answered_facts_only";
-          break;
+          provenance = {
+            algorithm_id: eie.algorithm_id,
+            completeness: eie.completeness,
+            data_version: eie.source_data_version,
+            budget_tier,
+            context_versions: pack.provenance.data_versions,
+          };
+          await writeDecision(admin, {
+            request_id: req.request_id,
+            school_id: req.actor.schoolId,
+            actor_user_id: req.actor.userId,
+            actor_role: req.actor.role,
+            feature_id: cap.feature_id,
+            route_class: cap.route_class,
+            decision,
+            used_model: false,
+            cache_hit,
+            latency_ms: Date.now() - started,
+            confidence: confidence_score,
+            budget_tier,
+            validation_ok: null,
+            estimated_cost_units: 0,
+            evidence: {
+              student_id: studentId,
+              cost_units: 0,
+              confidence_factors: conf.factors,
+            },
+          });
+          return {
+            request_id: req.request_id,
+            feature_id: cap.feature_id,
+            decision,
+            route_class: cap.route_class,
+            used_model: false,
+            cache_hit,
+            data,
+            provenance,
+            confidence: confidence_score,
+            budget_tier,
+          };
         }
 
-        const system =
-          "You explain precomputed school academic facts for a student. " +
-          "Use ONLY the JSON facts provided. Never invent attendance, marks, mastery scores, or rankings. " +
-          "If a field is zero or empty, say records are not available yet. Keep under 120 words.";
-        const user = `Facts JSON:\n${JSON.stringify(facts)}\n\nWrite a short plain-language performance summary.`;
-        const modelResult = await completeWithQwen({ system, user, max_tokens: 350 });
-        if (!modelResult.ok) {
+        const budget = await reserveBudget(
+          admin,
+          req.actor.schoolId,
+          cap.feature_id,
+          cost_units,
+        );
+        if (!budget.ok) {
+          const conf = scoreConfidence({
+            used_model: false,
+            cache_hit,
+            completeness: pack.provenance.completeness,
+            source_as_of: pack.provenance.source_as_of,
+            route_class: cap.route_class,
+            budget_tier,
+          });
           data = {
             explanation: null,
             facts,
+            context_provenance: pack.provenance,
+            confidence: conf.confidence,
+            confidence_action: "facts_only",
+            degraded_reason: "budget_exhausted",
+          };
+          decision = "answered_facts_only";
+          confidence_score = conf.confidence;
+          await writeDecision(admin, {
+            request_id: req.request_id,
+            school_id: req.actor.schoolId,
+            actor_user_id: req.actor.userId,
+            actor_role: req.actor.role,
+            feature_id: cap.feature_id,
+            route_class: cap.route_class,
+            decision,
+            used_model: false,
+            cache_hit,
+            latency_ms: Date.now() - started,
+            error_code: "budget_exhausted",
+            confidence: confidence_score,
+            budget_tier,
+            estimated_cost_units: 0,
+            evidence: { student_id: studentId, budget },
+          });
+          return {
+            request_id: req.request_id,
+            feature_id: cap.feature_id,
+            decision,
+            route_class: cap.route_class,
+            used_model: false,
+            cache_hit,
+            data,
+            provenance: {
+              algorithm_id: eie.algorithm_id,
+              budget_tier,
+            },
+            confidence: confidence_score,
+            budget_tier,
+            error_code: "budget_exhausted",
+          };
+        }
+
+        if (budget.soft_breach && budget_tier !== "simple") {
+          budget_tier = "simple";
+          cost_units = estimateUnitsForTier(budget_tier);
+        }
+
+        const system = pack.system_rules.join(" ") + " Keep under 120 words.";
+        const user = `Facts JSON:\n${packForModel(pack)}\n\nWrite a short plain-language performance summary.`;
+        const modelResult = await completeWithQwen({
+          system,
+          user,
+          budget_tier,
+        });
+
+        if (!modelResult.ok) {
+          const conf = scoreConfidence({
+            used_model: false,
+            cache_hit,
+            completeness: pack.provenance.completeness,
+            source_as_of: pack.provenance.source_as_of,
+            route_class: cap.route_class,
+            budget_tier,
+          });
+          confidence_score = conf.confidence;
+          data = {
+            explanation: null,
+            facts,
+            context_provenance: pack.provenance,
+            confidence: conf.confidence,
+            confidence_action: conf.action,
             degraded_reason: modelResult.error,
           };
           decision = "answered_facts_only";
         } else {
-          data = { explanation: modelResult.text, facts };
-          decision = "answered_model";
-          used_model = true;
-          model_id = modelResult.model_id;
+          const evidence = evidenceFromExplainFacts(facts);
+          const validation = validateModelResponse(modelResult.text, evidence, {
+            max_chars: pack.token_budget.output * 6,
+          });
+          validation_ok = validation.ok && !validation.material_failure;
+
+          const conf = scoreConfidence({
+            used_model: true,
+            cache_hit,
+            completeness: pack.provenance.completeness,
+            source_as_of: pack.provenance.source_as_of,
+            validation,
+            route_class: cap.route_class,
+            budget_tier,
+          });
+          confidence_score = conf.confidence;
+
+          const payload = applyConfidencePolicy(
+            {
+              explanation: validation.material_failure ? null : modelResult.text,
+              facts,
+              context_provenance: pack.provenance,
+              validation_codes: validation.codes,
+            },
+            conf,
+          );
+
+          if (conf.action === "facts_only" || validation.material_failure) {
+            data = {
+              ...payload,
+              explanation: null,
+              degraded_reason: validation.material_failure
+                ? "validation_failed"
+                : "low_confidence_or_validation",
+            };
+            decision = "answered_facts_only";
+            used_model = true; // model was called but not trusted
+            model_id = modelResult.model_id;
+          } else {
+            data = payload;
+            decision = "answered_model";
+            used_model = true;
+            model_id = modelResult.model_id;
+          }
         }
+
         provenance = {
           algorithm_id: eie.algorithm_id,
           completeness: eie.completeness,
           data_version: eie.source_data_version,
+          budget_tier,
+          context_versions: pack.provenance.data_versions,
+          source_as_of: pack.provenance.source_as_of,
         };
-        break;
+
+        await writeDecision(admin, {
+          request_id: req.request_id,
+          school_id: req.actor.schoolId,
+          actor_user_id: req.actor.userId,
+          actor_role: req.actor.role,
+          feature_id: cap.feature_id,
+          route_class: cap.route_class,
+          decision,
+          used_model,
+          model_id: model_id ?? null,
+          cache_hit,
+          latency_ms: Date.now() - started,
+          confidence: confidence_score ?? null,
+          budget_tier,
+          validation_ok,
+          estimated_cost_units: used_model ? cost_units : 0,
+          evidence: {
+            student_id: studentId,
+            cost_units: used_model ? cost_units : 0,
+            soft_breach: budget.soft_breach,
+          },
+        });
+
+        return {
+          request_id: req.request_id,
+          feature_id: cap.feature_id,
+          decision,
+          route_class: cap.route_class,
+          used_model,
+          cache_hit,
+          data,
+          provenance,
+          model_id,
+          confidence: confidence_score,
+          budget_tier,
+        };
       }
       default:
         return fail({
@@ -840,6 +1197,14 @@ export async function routeAiRequest(
       };
     }
 
+    const conf = scoreConfidence({
+      used_model,
+      cache_hit,
+      completeness: Number(provenance?.completeness ?? 0.5),
+      source_as_of: (provenance?.source_as_of as string | null) ?? null,
+      route_class: cap.route_class,
+    });
+
     const response: RouterResponse = {
       request_id: req.request_id,
       feature_id: cap.feature_id,
@@ -850,6 +1215,7 @@ export async function routeAiRequest(
       data,
       provenance,
       model_id,
+      confidence: conf.confidence,
     };
 
     await writeDecision(admin, {
@@ -864,7 +1230,9 @@ export async function routeAiRequest(
       model_id: model_id ?? null,
       cache_hit,
       latency_ms: Date.now() - started,
-      evidence: { student_id: studentId },
+      confidence: conf.confidence,
+      estimated_cost_units: 0,
+      evidence: { student_id: studentId, confidence_factors: conf.factors },
     });
 
     return response;

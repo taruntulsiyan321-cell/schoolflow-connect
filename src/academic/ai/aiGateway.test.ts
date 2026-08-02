@@ -39,6 +39,7 @@ describe("capability catalog", () => {
       "student.eie.mastery_summary",
       "student.performance.explain",
       "parent.child.summary",
+      "parent.child.narrative",
     ]) {
       expect(getCapability(id)?.feature_id).toBe(id);
     }
@@ -109,6 +110,7 @@ describe("router policy", () => {
       "student.timetable.today",
       "student.eie.mastery_summary",
       "parent.child.summary",
+      "parent.child.narrative",
     ]) {
       expect(wouldCallModel(id, FLAGS_ON)).toBe(false);
     }

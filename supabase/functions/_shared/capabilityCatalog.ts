@@ -85,6 +85,14 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     requires_student_target: true,
     description: "Deterministic linked-child academic summary for parents",
   },
+  "parent.child.narrative": {
+    feature_id: "parent.child.narrative",
+    route_class: "deterministic_insight",
+    model_policy: "never",
+    allowed_roles: ["parent", "principal", "admin"],
+    requires_student_target: true,
+    description: "Scheduled parent progress narrative from AE/EIE facts (no LLM)",
+  },
 };
 
 export function getCapability(featureId: string): CapabilityDefinition | null {
