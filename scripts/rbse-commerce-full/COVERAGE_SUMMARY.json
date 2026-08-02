@@ -1,0 +1,102 @@
+{
+  "source": "seed_rbse_commerce_full_v1",
+  "total": 1590,
+  "summary": [
+    {
+      "subject": "Accountancy",
+      "classLevel": 11,
+      "chapters": 9,
+      "questions": 90,
+      "concepts": 45,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "Accountancy",
+      "classLevel": 12,
+      "chapters": 10,
+      "questions": 100,
+      "concepts": 50,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "Business Studies",
+      "classLevel": 11,
+      "chapters": 11,
+      "questions": 110,
+      "concepts": 55,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "Business Studies",
+      "classLevel": 12,
+      "chapters": 11,
+      "questions": 110,
+      "concepts": 55,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "Economics",
+      "classLevel": 11,
+      "chapters": 16,
+      "questions": 160,
+      "concepts": 80,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "Economics",
+      "classLevel": 12,
+      "chapters": 12,
+      "questions": 120,
+      "concepts": 60,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "Mathematics",
+      "classLevel": 11,
+      "chapters": 14,
+      "questions": 140,
+      "concepts": 70,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "Mathematics",
+      "classLevel": 12,
+      "chapters": 13,
+      "questions": 130,
+      "concepts": 65,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "English",
+      "classLevel": 11,
+      "chapters": 11,
+      "questions": 110,
+      "concepts": 55,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "English",
+      "classLevel": 12,
+      "chapters": 18,
+      "questions": 180,
+      "concepts": 90,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "Hindi",
+      "classLevel": 11,
+      "chapters": 16,
+      "questions": 160,
+      "concepts": 80,
+      "minPerChapter": 10
+    },
+    {
+      "subject": "Hindi",
+      "classLevel": 12,
+      "chapters": 18,
+      "questions": 180,
+      "concepts": 90,
+      "minPerChapter": 10
+    }
+  ]
+}

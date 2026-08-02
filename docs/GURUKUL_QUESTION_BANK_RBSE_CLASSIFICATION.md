@@ -1,8 +1,9 @@
 ﻿# Gurukul Question Bank — RBSE Classification RESULT (v1)
 
-**Status:** **APPROVED v1 seed scope** — Commerce Class **11–12** only (Science deferred)  
-**Approved seed:** `source = seed_rbse_commerce_v1` · **240 MCQs** (20 × 6 subjects × 2 classes)  
-**Migrations:** `20260802220000_rbse_question_bank_board_schema.sql`, `20260802220100_rbse_commerce_11_12_question_seed.sql`  
+**Status:** **full commerce chapter coverage v1** — Commerce Class **11–12** (Science deferred)  
+**Starter seed:** `source = seed_rbse_commerce_v1` · **240 MCQs** (keep)  
+**Full coverage seed:** `source = seed_rbse_commerce_full_v1` · **1590 MCQs** (10 per taxonomy chapter × 159 chapters)  
+**Migrations:** schema `20260802220000_…` · starter `20260802220100_…` · full `20260802230000_…` / `…230100_…` / `…230200_…` · apply pack `docs/APPLY_RBSE_COMMERCE_FULL.sql`  
 **Scope (live):** Class **11** and **12**, stream **Commerce**, board **`rbse`**, NCERT-aligned chapters  
 **Subjects (APPROVED):** English, Hindi, Accountancy, Mathematics, Business Studies (BST), Economics  
 **Deferred:** Science (Physics, Chemistry, Biology) chapter-depth seeding; Arts; Agriculture; CS/IP  
@@ -19,13 +20,14 @@
 | **APPROVED v1 classes** | 2 (11, 12) |
 | **APPROVED v1 stream** | Commerce only |
 | **APPROVED subjects** | **6** × 2 = **12** subject–class buckets |
-| Seeded MCQs (Batch Commerce v1) | **240** (20 per bucket) |
+| Seeded MCQs (Batch Commerce v1 starter) | **240** (20 per bucket) — kept |
+| Seeded MCQs (full commerce chapter coverage v1) | **1590** (10 per chapter; all 6 commerce subjects × 11/12) |
 | Taxonomy chapters catalogued (full 9-subject tables below) | **~236** (Science kept as taxonomy reference only) |
 | Deferred streams / subjects | Science seed, Arts electives, Agriculture, CS/IP |
 | Question types for RBSE v1 | MCQ — **not** assertion–reason / case-based |
 | Content strategy | Original NCERT-**aligned** items; `source_type=ncert_aligned` |
 
-**User approved Commerce 11–12 → Phase 0 schema + Commerce seed shipped in repo (apply SQL on Supabase).**
+**full commerce chapter coverage v1 shipped** — apply schema + starter + three full migrations (or `docs/APPLY_RBSE_COMMERCE_FULL.sql`) on Supabase.
 
 ---
 
