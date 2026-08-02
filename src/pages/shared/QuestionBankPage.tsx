@@ -12,10 +12,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Database, Upload, Check, Trash2, Library, Target, Brain, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { normalizeIncomingAcademicTerm, presentAcademicLabel } from "@/lib/academicPresentation";
+import { fixUtf8Content } from "@/lib/utf8Text";
 import { supabase } from "@/integrations/supabase/client";
 import "@/pages/teacher/teacher-premium.css";
 
-const SUBJECTS = ["Mathematics", "Science", "Physics", "Chemistry", "Biology", "English", "Social Studies", "General Knowledge", "Computer Science", "Economics", "Accountancy", "Business Studies"];
+const SUBJECTS = [
+  "Mathematics",
+  "Science",
+  "Physics",
+  "Chemistry",
+  "Biology",
+  "English",
+  "Hindi",
+  "Social Studies",
+  "General Knowledge",
+  "Computer Science",
+  "Economics",
+  "Accountancy",
+  "Business Studies",
+];
 const DIFFS = ["easy", "medium", "hard"];
 
 type DraftQ = {
@@ -111,8 +126,11 @@ export default function QuestionBankPage() {
       chapter: chapter.trim() ? normalizeIncomingAcademicTerm(chapter, "chapter") : null,
       topic: topic.trim() ? normalizeIncomingAcademicTerm(topic, "topic") : null,
       concept: topic.trim() ? normalizeIncomingAcademicTerm(topic, "concept") : null,
-      difficulty, question: d.question.trim(), options: d.options,
-      correct_index: d.correct_index, explanation: d.explanation?.trim() || null,
+      difficulty,
+      question: fixUtf8Content(d.question),
+      options: d.options.map((o) => fixUtf8Content(o)),
+      correct_index: d.correct_index,
+      explanation: d.explanation?.trim() ? fixUtf8Content(d.explanation) : null,
       source: "ai", created_by: user?.id ?? null,
     }));
     try {
@@ -376,7 +394,8 @@ function parseCsv(
     // skip header
     if (i === 0 && /question/i.test(cells[0]) && /option/i.test(cells[1])) continue;
     const [q, a, b, c, d, idxRaw, explanation] = cells;
-    const options = [a, b, c, d].map((x) => (x ?? "").trim());
+    // Repair UTF-8-as-CP1252 paste corruption at ingest (never store à¤… for Hindi).
+    const options = [a, b, c, d].map((x) => fixUtf8Content(x ?? ""));
     const correct_index = Math.max(0, Math.min(3, parseInt(idxRaw, 10) || 0));
     if (!q?.trim() || options.filter(Boolean).length < 2) continue;
     rows.push({
@@ -386,10 +405,10 @@ function parseCsv(
         ? normalizeIncomingAcademicTerm(meta.chapter, "chapter")
         : null,
       difficulty: meta.difficulty,
-      question: q.trim(),
+      question: fixUtf8Content(q),
       options,
       correct_index,
-      explanation: explanation?.trim() || null,
+      explanation: explanation?.trim() ? fixUtf8Content(explanation) : null,
       source: "csv",
       created_by: meta.userId,
     });
