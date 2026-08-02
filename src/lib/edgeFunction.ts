@@ -7,15 +7,32 @@ export type EdgeInvokeResult<T> = {
   usedFallback: boolean;
 };
 
-/** Strip vendor names from messages shown in the app UI. */
+/** Strip vendor names from messages shown in the app UI. Keep "AI" (billing copy). */
 function sanitizeUserFacingError(message: string): string {
   return message
     .replace(/google[_\s-]?gemini[_\s-]?api[_\s-]?key/gi, "service configuration")
     .replace(/gemini\s*flash/gi, "learning service")
     .replace(/gemini/gi, "learning service")
-    .replace(/\bAI\b/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+function isGatewayEnvelope(value: unknown): value is Record<string, unknown> {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    typeof (value as { decision?: unknown }).decision === "string" &&
+    typeof (value as { feature_id?: unknown }).feature_id === "string"
+  );
+}
+
+function messageFromErrorBody(parsed: Record<string, unknown>): string | null {
+  if (typeof parsed.message === "string" && parsed.message.trim()) return parsed.message;
+  if (typeof parsed.error === "string" && parsed.error.trim()) return parsed.error;
+  if (typeof parsed.error_code === "string" && parsed.error_code.trim()) {
+    return parsed.error_code;
+  }
+  return null;
 }
 
 /** Invoke a Supabase edge function and normalize error bodies (500 JSON, network, credits). */
@@ -32,6 +49,11 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
     return { data: null, error: sanitizeUserFacingError(message), usedFallback: false };
   }
 
+  // AI Gateway may return a full envelope as 2xx body even when decision is degraded.
+  if (isGatewayEnvelope(data)) {
+    return { data: data as T, error: null, usedFallback: false };
+  }
+
   if (data && typeof data === "object" && "error" in data && (data as { error?: string }).error) {
     return { data: null, error: sanitizeUserFacingError(String((data as { error: string }).error)), usedFallback: false };
   }
@@ -44,7 +66,14 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
     if (ctx && typeof ctx.json === "function") {
       try {
         const parsed = await ctx.json();
-        if (parsed?.error) message = String(parsed.error);
+        // Preserve structured AiGatewayResponse on 400/403/503 (rejected / deny / kill).
+        if (isGatewayEnvelope(parsed)) {
+          return { data: parsed as T, error: null, usedFallback: false };
+        }
+        if (parsed && typeof parsed === "object") {
+          const fromBody = messageFromErrorBody(parsed as Record<string, unknown>);
+          if (fromBody) message = fromBody;
+        }
       } catch {
         /* ignore */
       }

@@ -50,6 +50,7 @@ function subjectColor(name: string, index: number) {
 }
 
 type BankQuestion = {
+  id: string;
   subject: string; chapter: string; difficulty: string;
   question: string; options: string[]; correct: number; explanation?: string;
 };
@@ -705,8 +706,9 @@ function Session({
         const mapped: BankQuestion[] = rows
           .map((r) => {
             const options = parseBankOptions(r.options);
-            if (!r.question || options.length < 2) return null;
+            if (!r.id || !r.question || options.length < 2) return null;
             return {
+              id: r.id,
               subject: r.subject || "General",
               chapter: r.chapter || "",
               difficulty: r.difficulty || "medium",
@@ -786,6 +788,7 @@ function Session({
       selectedIndex: i,
       isCorrect: ok,
       explanation: q.explanation,
+      bankQuestionId: q.id,
     });
     setPhase("fb");
   }

@@ -43,7 +43,8 @@ describe("academic services — ownership gates", () => {
     expect(() => assertCanOwn(ctx("teacher"), "practice_attempt")).toThrow(ForbiddenError);
   });
 
-  it("treats super_admin as admin for ownership", () => {
-    expect(() => assertCanOwn(ctx("super_admin"), "student")).not.toThrow();
+  it("never elevates super_admin into school academic ownership", () => {
+    expect(() => assertCanOwn(ctx("super_admin"), "student")).toThrow(ForbiddenError);
+    expect(() => assertCanConsume(ctx("super_admin"), "marks")).toThrow(ForbiddenError);
   });
 });

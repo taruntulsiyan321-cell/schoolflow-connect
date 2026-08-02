@@ -81,6 +81,10 @@ Unmounted design-only files may keep fixtures **only** with an explicit `DESIGN-
 
 XP, badges, and battle finish flows are part of Academic Engine services / SQL events—not a parallel “gamification fork.” Migration language: *extend Academic Engine; do NOT fork SyncEngine.*
 
+### 4.3a Unified Academic Data Platform = Academic Engine extensions
+
+There is **no second SSOT / parallel SyncEngine / “Nova database.”** The Unified Academic Data Platform workstream means extending the existing Academic Engine: Nova Context Pack (AE + EIE facts into `student.nova.chat`), Practice Intelligence columns on `question_attempts`, and profile mastery sync via `refresh_student_academic_profile` → `metrics.weakTopics` / `strongTopics`.
+
 ### 4.4 AI order of operations
 
 **Deterministic-first → EIE → cache / retrieval → model-last.**
@@ -283,7 +287,7 @@ Deterministic / EIE (no model inventing records):
 
 Generative / tutor:
 
-- `student.nova.chat` — free-form Nova; grounded policies forbid inventing academic facts
+- `student.nova.chat` — free-form Nova with **Context Pack v1** (AE attendance/homework/marks/profile + EIE mastery facts); validator grounded on evidence; honest degrade when empty
 - `student.performance.explain` — optional explain over precomputed facts
 - Image/voice doubt capabilities exist in catalog; **live OCR vendor extraction is deferred**
 

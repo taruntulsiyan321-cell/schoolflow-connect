@@ -1,7 +1,11 @@
 /**
  * Map free-text student intents to registered capabilities.
  * Unmapped free text falls through to student.nova.chat in resolveCoachCapability.
+ * When `role` is set, skip capabilities the actor is not allowed to use.
  */
+
+import { getCapability } from "./capabilityCatalog";
+import type { AiActorRole } from "./envelope";
 
 export type MappedIntent = {
   feature_id: string;
@@ -10,9 +14,18 @@ export type MappedIntent = {
 
 const RULES: { feature_id: string; patterns: RegExp[] }[] = [
   {
+    feature_id: "principal.school.health_brief",
+    patterns: [
+      /\bschool\b.+\b(health|academic health)\b/i,
+      /\b(principal|school)\b.+\b(health brief|health snapshot)\b/i,
+      /\bschool.?wide\b.+\b(attendance|performance|health)\b/i,
+    ],
+  },
+  {
     feature_id: "student.attendance.query",
     patterns: [
-      /\battendance\b/i,
+      // Personal attendance — not school-wide / principal health briefs
+      /\b(?!school.?wide\b).*?\battendance\b/i,
       /\bpresent\b.+\b(month|week|today|class)\b/i,
       /\bhow many days\b.+\b(absent|present)\b/i,
     ],
@@ -96,14 +109,6 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
     ],
   },
   {
-    feature_id: "principal.school.health_brief",
-    patterns: [
-      /\bschool\b.+\b(health|academic health)\b/i,
-      /\b(principal|school)\b.+\b(health brief|health snapshot)\b/i,
-      /\bschool.?wide\b.+\b(attendance|performance|health)\b/i,
-    ],
-  },
-  {
     feature_id: "student.image_doubt.submit",
     patterns: [
       /\b(upload|submit|send)\b.+\b(image|photo|picture)\b.+\b(doubt|question|homework)\b/i,
@@ -161,13 +166,19 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
   },
 ];
 
-export function mapIntentToCapability(text: string): MappedIntent {
+export function mapIntentToCapability(
+  text: string,
+  opts?: { role?: AiActorRole },
+): MappedIntent | null {
   const t = (text ?? "").trim();
   if (!t) return null;
   for (const rule of RULES) {
-    if (rule.patterns.some((p) => p.test(t))) {
-      return { feature_id: rule.feature_id, confidence: 0.85 };
+    if (!rule.patterns.some((p) => p.test(t))) continue;
+    if (opts?.role) {
+      const cap = getCapability(rule.feature_id);
+      if (!cap || !cap.allowed_roles.includes(opts.role)) continue;
     }
+    return { feature_id: rule.feature_id, confidence: 0.85 };
   }
   return null;
 }

@@ -175,10 +175,11 @@ export async function loadKillSwitches(
     (shadowRow?.metadata as Record<string, unknown> | null) ?? null,
   );
 
+  // Fail-closed: missing global flag rows disable that path (do not default-on).
   return {
-    gatewayEnabled: read("ai.gateway.enabled", true),
-    deterministicEnabled: read("ai.deterministic.enabled", true),
-    generativeEnabled: read("ai.generative.enabled", true),
+    gatewayEnabled: read("ai.gateway.enabled", false),
+    deterministicEnabled: read("ai.deterministic.enabled", false),
+    generativeEnabled: read("ai.generative.enabled", false),
     shadowPromptPercent: shadowParsed.percent,
   };
 }
@@ -2491,6 +2492,14 @@ export async function routeAiRequest(
             route_class: cap.route_class,
           });
         }
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied",
+            error_code: "student_required",
+            message: "Student target required",
+            route_class: cap.route_class,
+          });
+        }
 
         const language =
           (req.locale && String(req.locale).trim()) ||
@@ -2499,20 +2508,89 @@ export async function routeAiRequest(
             : "") ||
           "en";
 
-        const budget_tier: ReasoningTier = "simple";
+        const factsVersionSeed = `nova-facts:${studentId}`;
+        const factsBundle = (await withCache(factsVersionSeed, async () => {
+          const [attendance, homework, marks, eie, profile] = await Promise.all([
+            fetchAttendance(admin, req.actor.schoolId, studentId),
+            fetchHomeworkDue(admin, req.actor.schoolId, studentId),
+            fetchMarksSummary(admin, req.actor.schoolId, studentId),
+            fetchEie(admin, req.actor.schoolId, studentId),
+            fetchParentSummary(admin, req.actor.schoolId, studentId),
+          ]);
+          return {
+            attendance,
+            homework,
+            marks,
+            eie,
+            profile,
+            data_version: `nova:${attendance.data_version}:${homework.data_version}:${marks.data_version}:${eie.data_version}:${profile.data_version}`,
+            source_as_of: (() => {
+              const stamps = [
+                attendance.source_as_of,
+                homework.source_as_of,
+                marks.source_as_of,
+                eie.computed_at,
+                profile.source_as_of,
+              ].filter((v): v is string => typeof v === "string" && v.length > 0);
+              stamps.sort();
+              return stamps.length ? stamps[stamps.length - 1] : null;
+            })(),
+            completeness:
+              (attendance.completeness +
+                homework.completeness +
+                marks.completeness +
+                eie.completeness +
+                profile.completeness) /
+              5,
+          };
+        })) as {
+          attendance: Awaited<ReturnType<typeof fetchAttendance>>;
+          homework: Awaited<ReturnType<typeof fetchHomeworkDue>>;
+          marks: Awaited<ReturnType<typeof fetchMarksSummary>>;
+          eie: Awaited<ReturnType<typeof fetchEie>>;
+          profile: Awaited<ReturnType<typeof fetchParentSummary>>;
+          data_version: string;
+          source_as_of: string | null;
+          completeness: number;
+        };
+
+        const { attendance, homework, marks, eie, profile } = factsBundle;
+        const facts = { attendance, homework, marks, eie, profile };
+        const factsEmpty =
+          factsBundle.completeness < 0.25 &&
+          !(eie.weak_concepts?.length || eie.strong_concepts?.length) &&
+          !(profile.weak_topics?.length || profile.strong_topics?.length);
+
+        const pack = buildContextPack({
+          capability: cap.feature_id,
+          request_text: question,
+          ae: { attendance, homework, marks, profile },
+          eie,
+          session_memory: sessionForContext,
+          tier_signals: {
+            facts_complete: !factsEmpty,
+            budget_pressure: false,
+            input_text_length: question.length,
+          },
+        });
+
+        let budget_tier: ReasoningTier = pack.tier;
         let cost_units = estimateUnitsForTier(budget_tier);
         let validation_ok: boolean | null = null;
         let confidence_score: number | undefined;
 
         const billingUnavailableMsg =
           "AI temporarily unavailable (billing/credits). Deterministic help still works.";
+        const factsJson = packForModel(pack);
+        const honestEmptyMsg =
+          "I do not have enough Academic Engine / mastery records for you yet, so I cannot cite personal attendance, marks, or mastery. Ask about a study concept, or check attendance / homework / marks once your school data is synced.";
 
         if (!mayCallModel) {
           const conf = scoreConfidence({
             used_model: false,
-            cache_hit: false,
-            completeness: 0.2,
-            source_as_of: null,
+            cache_hit,
+            completeness: pack.provenance.completeness || factsBundle.completeness,
+            source_as_of: pack.provenance.source_as_of,
             route_class: cap.route_class,
             budget_tier,
           });
@@ -2520,6 +2598,26 @@ export async function routeAiRequest(
           const reason = !flags.generativeEnabled
             ? "generative_kill_switch"
             : "openrouter_not_configured";
+          decision = factsEmpty ? "degraded" : "answered_facts_only";
+          data = {
+            reply: null,
+            explanation: null,
+            facts,
+            context_provenance: pack.provenance,
+            language,
+            confidence: conf.confidence,
+            confidence_action: conf.action,
+            degraded_reason: reason,
+            facts_empty: factsEmpty,
+          };
+          provenance = {
+            algorithm_id: eie.algorithm_id,
+            completeness: pack.provenance.completeness || factsBundle.completeness,
+            data_version: factsBundle.data_version,
+            budget_tier,
+            context_versions: pack.provenance.data_versions,
+            source_as_of: pack.provenance.source_as_of,
+          };
           await writeDecision(admin, {
             request_id: req.request_id,
             school_id: req.actor.schoolId,
@@ -2527,32 +2625,36 @@ export async function routeAiRequest(
             actor_role: req.actor.role,
             feature_id: cap.feature_id,
             route_class: cap.route_class,
-            decision: "degraded",
+            decision,
             used_model: false,
-            cache_hit: false,
+            cache_hit,
             latency_ms: Date.now() - started,
             error_code: reason,
             confidence: confidence_score,
             budget_tier,
+            validation_ok: null,
             estimated_cost_units: 0,
-            evidence: { student_id: studentId, language },
+            evidence: {
+              student_id: studentId,
+              language,
+              facts_empty: factsEmpty,
+              cost_units: 0,
+              confidence_factors: conf.factors,
+            },
           });
           return {
             request_id: req.request_id,
             feature_id: cap.feature_id,
-            decision: "degraded",
+            decision,
             route_class: cap.route_class,
             used_model: false,
-            cache_hit: false,
-            data: {
-              reply: null,
-              degraded_reason: reason,
-              language,
-            },
-            message: billingUnavailableMsg,
+            cache_hit,
+            data,
+            message: factsEmpty ? honestEmptyMsg : billingUnavailableMsg,
             error_code: reason === "generative_kill_switch"
               ? "generative_disabled"
               : "openrouter_not_configured",
+            provenance,
             confidence: confidence_score,
             budget_tier,
           };
@@ -2565,6 +2667,15 @@ export async function routeAiRequest(
           cost_units,
         );
         if (!budget.ok) {
+          const conf = scoreConfidence({
+            used_model: false,
+            cache_hit,
+            completeness: pack.provenance.completeness || factsBundle.completeness,
+            source_as_of: pack.provenance.source_as_of,
+            route_class: cap.route_class,
+            budget_tier,
+          });
+          confidence_score = conf.confidence;
           await writeDecision(admin, {
             request_id: req.request_id,
             school_id: req.actor.schoolId,
@@ -2574,12 +2685,13 @@ export async function routeAiRequest(
             route_class: cap.route_class,
             decision: "degraded",
             used_model: false,
-            cache_hit: false,
+            cache_hit,
             latency_ms: Date.now() - started,
             error_code: "budget_exhausted",
+            confidence: confidence_score,
             budget_tier,
             estimated_cost_units: 0,
-            evidence: { student_id: studentId, budget },
+            evidence: { student_id: studentId, budget, language, facts_empty: factsEmpty },
           });
           return {
             request_id: req.request_id,
@@ -2587,22 +2699,36 @@ export async function routeAiRequest(
             decision: "degraded",
             route_class: cap.route_class,
             used_model: false,
-            cache_hit: false,
-            data: { reply: null, degraded_reason: "budget_exhausted", language },
+            cache_hit,
+            data: {
+              reply: null,
+              facts,
+              context_provenance: pack.provenance,
+              degraded_reason: "budget_exhausted",
+              language,
+              facts_empty: factsEmpty,
+            },
             message: billingUnavailableMsg,
             error_code: "budget_exhausted",
+            provenance: {
+              algorithm_id: eie.algorithm_id,
+              budget_tier,
+              context_versions: pack.provenance.data_versions,
+            },
+            confidence: confidence_score,
             budget_tier,
           };
         }
 
         if (budget.soft_breach && budget_tier !== "simple") {
-          cost_units = estimateUnitsForTier("simple");
+          budget_tier = "simple";
+          cost_units = estimateUnitsForTier(budget_tier);
         }
 
         const modelResult = await completeWithPromptLibrary({
           admin,
           capability_id: cap.feature_id,
-          vars: { question, language, facts: "" },
+          vars: { question, language, facts: factsJson },
           budget_tier,
           request_id: req.request_id,
           shadow_percent: flags.shadowPromptPercent,
@@ -2613,12 +2739,25 @@ export async function routeAiRequest(
             /openrouter_billing|402|credits|billing/i.test(modelResult.error);
           const conf = scoreConfidence({
             used_model: false,
-            cache_hit: false,
-            completeness: 0.2,
-            source_as_of: null,
+            cache_hit,
+            completeness: pack.provenance.completeness || factsBundle.completeness,
+            source_as_of: pack.provenance.source_as_of,
             route_class: cap.route_class,
             budget_tier,
           });
+          confidence_score = conf.confidence;
+          decision = factsEmpty ? "degraded" : "answered_facts_only";
+          data = {
+            reply: null,
+            explanation: null,
+            facts,
+            context_provenance: pack.provenance,
+            language,
+            confidence: conf.confidence,
+            confidence_action: conf.action,
+            degraded_reason: modelResult.error,
+            facts_empty: factsEmpty,
+          };
           await writeDecision(admin, {
             request_id: req.request_id,
             school_id: req.actor.schoolId,
@@ -2626,9 +2765,9 @@ export async function routeAiRequest(
             actor_role: req.actor.role,
             feature_id: cap.feature_id,
             route_class: cap.route_class,
-            decision: "degraded",
+            decision,
             used_model: false,
-            cache_hit: false,
+            cache_hit,
             latency_ms: Date.now() - started,
             error_code: billing ? "openrouter_billing" : "model_degraded",
             confidence: conf.confidence,
@@ -2638,45 +2777,77 @@ export async function routeAiRequest(
               student_id: studentId,
               model_error: modelResult.error,
               language,
+              facts_empty: factsEmpty,
             },
           });
           return {
             request_id: req.request_id,
             feature_id: cap.feature_id,
-            decision: "degraded",
+            decision,
             route_class: cap.route_class,
             used_model: false,
-            cache_hit: false,
-            data: {
-              reply: null,
-              degraded_reason: modelResult.error,
-              language,
-            },
+            cache_hit,
+            data,
             message: billing
               ? billingUnavailableMsg
+              : factsEmpty
+              ? honestEmptyMsg
               : "Nova could not reach the AI model right now. Try attendance, homework, marks, timetable, or mastery — those still work without generative credits.",
             error_code: billing ? "openrouter_billing" : "model_degraded",
+            provenance: {
+              algorithm_id: eie.algorithm_id,
+              completeness: pack.provenance.completeness,
+              data_version: factsBundle.data_version,
+              budget_tier,
+              context_versions: pack.provenance.data_versions,
+              source_as_of: pack.provenance.source_as_of,
+            },
             confidence: conf.confidence,
             budget_tier,
           };
         }
 
-        // Light-touch validator: reject invented school metrics; no AE evidence pack required.
-        const validation = validateModelResponse(modelResult.text, {}, {
-          max_chars: 1600,
+        const evidence = evidenceFromExplainFacts(facts);
+        const validation = validateModelResponse(modelResult.text, evidence, {
+          max_chars: pack.token_budget.output * 6,
         });
         validation_ok = validation.ok && !validation.material_failure;
 
-        if (!validation_ok) {
-          const conf = scoreConfidence({
-            used_model: true,
-            cache_hit: false,
-            completeness: 0.3,
-            source_as_of: null,
-            route_class: cap.route_class,
-            budget_tier,
-            validation,
-          });
+        const conf = scoreConfidence({
+          used_model: true,
+          cache_hit,
+          completeness: pack.provenance.completeness || factsBundle.completeness,
+          source_as_of: pack.provenance.source_as_of,
+          route_class: cap.route_class,
+          budget_tier,
+          validation,
+        });
+        confidence_score = conf.confidence;
+
+        if (!validation_ok || conf.action === "facts_only") {
+          const payload = applyConfidencePolicy(
+            {
+              reply: null,
+              explanation: null,
+              facts,
+              context_provenance: pack.provenance,
+              validation_codes: validation.codes,
+              language,
+              facts_empty: factsEmpty,
+            },
+            conf,
+          );
+          decision = factsEmpty ? "degraded" : "answered_facts_only";
+          used_model = true;
+          model_id = modelResult.model_id;
+          data = {
+            ...payload,
+            reply: null,
+            explanation: null,
+            degraded_reason: validation.material_failure
+              ? "validation_failed"
+              : "low_confidence_or_validation",
+          };
           await writeDecision(admin, {
             request_id: req.request_id,
             school_id: req.actor.schoolId,
@@ -2684,12 +2855,12 @@ export async function routeAiRequest(
             actor_role: req.actor.role,
             feature_id: cap.feature_id,
             route_class: cap.route_class,
-            decision: "degraded",
+            decision,
             used_model: true,
             model_id: modelResult.model_id,
-            cache_hit: false,
+            cache_hit,
             latency_ms: Date.now() - started,
-            error_code: "validation_failed",
+            error_code: validation.material_failure ? "validation_failed" : null,
             confidence: conf.confidence,
             budget_tier,
             validation_ok: false,
@@ -2698,58 +2869,67 @@ export async function routeAiRequest(
               student_id: studentId,
               validation_codes: validation.codes,
               language,
+              facts_empty: factsEmpty,
+              prompt_version: modelResult.prompt?.version ?? null,
+              cost_units,
             },
           });
           return {
             request_id: req.request_id,
             feature_id: cap.feature_id,
-            decision: "degraded",
+            decision,
             route_class: cap.route_class,
             used_model: true,
-            cache_hit: false,
-            data: {
-              reply: null,
-              degraded_reason: "validation_failed",
-              language,
+            cache_hit,
+            data,
+            message: validation.material_failure
+              ? "Nova drafted a reply that looked unreliable (possible invented scores). Please rephrase, or ask about attendance / homework / marks for live school records."
+              : factsEmpty
+              ? honestEmptyMsg
+              : undefined,
+            error_code: validation.material_failure ? "validation_failed" : undefined,
+            provenance: {
+              algorithm_id: eie.algorithm_id,
+              completeness: pack.provenance.completeness,
+              data_version: factsBundle.data_version,
+              budget_tier,
+              context_versions: pack.provenance.data_versions,
+              source_as_of: pack.provenance.source_as_of,
+              prompt_version: modelResult.prompt?.version,
             },
-            message:
-              "Nova drafted a reply that looked unreliable (possible invented scores). Please rephrase, or ask about attendance / homework / marks for live school records.",
-            error_code: "validation_failed",
-            model_id: modelResult.model_id,
+            model_id,
             confidence: conf.confidence,
             budget_tier,
           };
         }
 
-        const conf = scoreConfidence({
-          used_model: true,
-          cache_hit: false,
-          completeness: 0.55,
-          source_as_of: null,
-          route_class: cap.route_class,
-          budget_tier,
-          validation,
-        });
-        confidence_score = conf.confidence;
         used_model = true;
         model_id = modelResult.model_id;
         decision = "answered_model";
-        data = {
-          reply: modelResult.text,
-          explanation: modelResult.text,
-          language,
-          confidence: conf.confidence,
-          confidence_action: conf.action,
-          session_patch: buildSessionSummaryPatch({
-            last_feature_id: cap.feature_id,
-            last_decision: decision,
-          }),
-        };
+        data = applyConfidencePolicy(
+          {
+            reply: modelResult.text,
+            explanation: modelResult.text,
+            facts,
+            context_provenance: pack.provenance,
+            language,
+            facts_empty: factsEmpty,
+            session_patch: buildSessionSummaryPatch({
+              last_feature_id: cap.feature_id,
+              last_decision: decision,
+            }),
+          },
+          conf,
+        );
         provenance = {
+          algorithm_id: eie.algorithm_id,
+          completeness: pack.provenance.completeness || factsBundle.completeness,
+          data_version: factsBundle.data_version,
           budget_tier,
+          context_versions: pack.provenance.data_versions,
+          source_as_of: pack.provenance.source_as_of,
+          prompt_version: modelResult.prompt?.version,
           language,
-          prompt_version: modelResult.prompt?.version ?? null,
-          completeness: 0.55,
         };
 
         await writeDecision(admin, {
@@ -2762,7 +2942,7 @@ export async function routeAiRequest(
           decision,
           used_model: true,
           model_id: model_id ?? null,
-          cache_hit: false,
+          cache_hit,
           latency_ms: Date.now() - started,
           confidence: confidence_score,
           budget_tier,
@@ -2771,8 +2951,10 @@ export async function routeAiRequest(
           evidence: {
             student_id: studentId,
             language,
+            facts_empty: factsEmpty,
             prompt_version: modelResult.prompt?.version ?? null,
             cost_units,
+            soft_breach: budget.soft_breach,
           },
         });
 
@@ -2782,7 +2964,7 @@ export async function routeAiRequest(
           decision,
           route_class: cap.route_class,
           used_model: true,
-          cache_hit: false,
+          cache_hit,
           data,
           provenance,
           model_id,

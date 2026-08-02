@@ -4,7 +4,7 @@
  */
 
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
-import type { AiClientRequest, AiGatewayResponse } from "./envelope";
+import type { AiActorRole, AiClientRequest, AiGatewayResponse } from "./envelope";
 import { mapIntentToCapability } from "./intentMapper";
 import { getCapability } from "./capabilityCatalog";
 
@@ -73,16 +73,30 @@ export async function invokeAiGateway<T = unknown>(
 export function resolveCoachCapability(input: {
   feature_id?: string;
   text?: string;
+  /** When set, refuse role-mismatched feature_id / intent hits (Student Panel → student). */
+  role?: AiActorRole;
 }): { feature_id: string } | { unsupported: true; message: string } {
-  if (input.feature_id && getCapability(input.feature_id)) {
-    return { feature_id: input.feature_id };
+  if (input.feature_id) {
+    const cap = getCapability(input.feature_id);
+    if (cap) {
+      if (input.role && !cap.allowed_roles.includes(input.role)) {
+        return {
+          unsupported: true,
+          message: `That action is not available for your role. Try attendance, homework, marks, timetable, mastery, or chat with Nova.`,
+        };
+      }
+      return { feature_id: input.feature_id };
+    }
   }
-  const mapped = mapIntentToCapability(input.text ?? "");
+  const mapped = mapIntentToCapability(input.text ?? "", {
+    role: input.role,
+  });
   if (mapped) return { feature_id: mapped.feature_id };
 
   const text = (input.text ?? "").trim();
   // Free-form Nova chat — Gateway → Model Router (Qwen); never invent local pedagogy.
-  if (text && getCapability("student.nova.chat")) {
+  const nova = getCapability("student.nova.chat");
+  if (text && nova && (!input.role || nova.allowed_roles.includes(input.role))) {
     return { feature_id: "student.nova.chat" };
   }
 
@@ -242,6 +256,28 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
     case "student.nova.chat": {
       if (typeof d.reply === "string" && d.reply.trim()) return d.reply;
       if (typeof d.explanation === "string" && d.explanation.trim()) return d.explanation;
+      const facts = d.facts as Record<string, unknown> | undefined;
+      if (facts?.attendance || facts?.eie || facts?.marks || facts?.homework) {
+        const att = facts.attendance as { attendance_pct?: number; total_marked?: number } | undefined;
+        const marks = facts.marks as { average_pct?: number | null; exams_count?: number } | undefined;
+        const eie = facts.eie as { avg_mastery?: number; total_tracked?: number } | undefined;
+        const hw = facts.homework as { pending_count?: number } | undefined;
+        if (d.facts_empty === true) {
+          return (
+            "I do not have enough Academic Engine / mastery records for you yet, so I cannot cite personal attendance, marks, or mastery. " +
+            "Ask about a study concept, or check attendance / homework / marks once your school data is synced."
+          );
+        }
+        return (
+          `**Nova (facts only)**\n` +
+          `Attendance **${att?.attendance_pct ?? 0}%**` +
+          (att?.total_marked != null ? ` (${att.total_marked} days marked)` : "") +
+          ` · Homework pending **${hw?.pending_count ?? 0}**` +
+          ` · Marks avg **${marks?.average_pct == null ? "—" : `${marks.average_pct}%`}**` +
+          ` · Mastery **${eie?.avg_mastery ?? 0}%**` +
+          `\n_Generative reply unavailable — showing Academic Engine + EIE facts._`
+        );
+      }
       return AI_BILLING_UNAVAILABLE_MSG;
     }
     case "student.knowledge.retrieve": {
@@ -269,8 +305,15 @@ export async function askAiCoach(input: {
   feature_id?: string;
   channel?: AiClientRequest["channel"];
   locale?: string;
+  /** Defaults to student for Gurukul student panel callers. */
+  role?: AiActorRole;
 }): Promise<{ text: string; response: AiGatewayResponse }> {
-  const resolved = resolveCoachCapability({ feature_id: input.feature_id, text: input.text });
+  const role = input.role ?? "student";
+  const resolved = resolveCoachCapability({
+    feature_id: input.feature_id,
+    text: input.text,
+    role,
+  });
   if ("unsupported" in resolved) {
     return {
       text: resolved.message,
@@ -299,6 +342,16 @@ export async function askAiCoach(input: {
   });
 
   if (isAiBillingOrCreditsIssue(response) && resolved.feature_id === "student.nova.chat") {
+    const d = response.data as Record<string, unknown> | null;
+    if (d && (d.facts || d.facts_empty === true)) {
+      return {
+        text:
+          (response.message?.trim() && d.facts_empty === true
+            ? response.message.trim()
+            : null) || formatDeterministicReply(resolved.feature_id, response.data),
+        response,
+      };
+    }
     const msg = response.message?.trim() || AI_BILLING_UNAVAILABLE_MSG;
     return { text: msg, response };
   }
@@ -323,12 +376,17 @@ export async function askAiCoach(input: {
       (typeof d?.reply === "string" && d.reply.trim()) ||
       (typeof d?.explanation === "string" && d.explanation.trim()) ||
       "";
-    if (!reply) {
-      return {
-        text: response.message?.trim() || AI_BILLING_UNAVAILABLE_MSG,
-        response,
-      };
+    if (reply) {
+      return { text: reply, response };
     }
+    // Prefer honest gateway message, else format facts-only strip (never invent metrics).
+    if (response.message?.trim() && d?.facts_empty === true) {
+      return { text: response.message.trim(), response };
+    }
+    return {
+      text: formatDeterministicReply(resolved.feature_id, response.data),
+      response,
+    };
   }
 
   // Soft toast path for optional_explain features when generative is down

@@ -52,6 +52,69 @@ export const PracticeService = {
     return data;
   },
 
+  /**
+   * Record one practice attempt via RPC (preferred). Product paths should not
+   * raw-insert `question_attempts` when this succeeds.
+   */
+  async recordAttempt(
+    ctx: ServiceContext,
+    args: {
+      sessionId: string;
+      templateId?: string | null;
+      bankQuestionId?: string | null;
+      generatedQuestion: Record<string, unknown>;
+      selectedAnswer: Record<string, unknown>;
+      correctAnswer: Record<string, unknown>;
+      isCorrect: boolean;
+      score?: number;
+      timeTakenMs?: number | null;
+      skipped?: boolean;
+      subject?: string;
+      chapter?: string;
+      concept?: string;
+      hintUsed?: boolean;
+      solutionViewed?: boolean;
+      confidence?: number | null;
+      attemptNumber?: number | null;
+      source?: string | null;
+    },
+  ) {
+    assertCanOwn(ctx, "practice");
+    const client = getClient(toRepoContext(ctx));
+    const generatedQuestion = {
+      ...args.generatedQuestion,
+      ...(args.bankQuestionId ? { bank_question_id: args.bankQuestionId } : {}),
+    };
+    const { data, error } = await client.rpc("rpc_record_question_attempt", {
+      _correct_answer: args.correctAnswer,
+      _generated_question: generatedQuestion,
+      _is_correct: args.isCorrect,
+      _selected_answer: args.selectedAnswer,
+      _session_id: args.sessionId,
+      _score: args.score ?? (args.isCorrect ? 1 : 0),
+      _skipped: args.skipped ?? false,
+      _template_id: args.templateId ?? null,
+      _time_taken_ms: args.timeTakenMs ?? null,
+      _bank_question_id: args.bankQuestionId ?? null,
+    } as never);
+    if (!error) return data as string;
+
+    // Pre-grading-migration signature (no bank_question_id).
+    const legacy = await client.rpc("rpc_record_question_attempt", {
+      _correct_answer: args.correctAnswer,
+      _generated_question: generatedQuestion,
+      _is_correct: args.isCorrect,
+      _selected_answer: args.selectedAnswer,
+      _session_id: args.sessionId,
+      _score: args.score ?? (args.isCorrect ? 1 : 0),
+      _skipped: args.skipped ?? false,
+      _template_id: args.templateId ?? null,
+      _time_taken_ms: args.timeTakenMs ?? null,
+    } as never);
+    throwIfError(legacy.error ?? error, "Failed to record practice attempt");
+    return legacy.data as string;
+  },
+
   async getSession(ctx: ServiceContext, sessionId: string) {
     assertCanConsume(ctx, "practice");
     const { data, error } = await getClient(toRepoContext(ctx))
@@ -106,7 +169,16 @@ export const PracticeService = {
 
     const { data, error } = await query;
     throwIfError(error, "Failed to load practice questions");
-    const rows = data ?? [];
+    const rows = (data ?? []) as Array<{
+      id: string;
+      subject: string;
+      chapter: string | null;
+      difficulty: string | null;
+      question: string;
+      options: unknown;
+      correct_index: number;
+      explanation: string | null;
+    }>;
     // Shuffle client-side so repeated sessions vary when bank is large enough.
     for (let i = rows.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));

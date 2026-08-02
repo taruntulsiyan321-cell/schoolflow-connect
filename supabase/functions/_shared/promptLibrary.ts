@@ -74,17 +74,18 @@ export const BUILTIN_PROMPTS: PromptRecord[] = [
   },
   {
     capability_id: "student.nova.chat",
-    version: "v1",
+    version: "v2",
     status: "production",
     audience: "student",
     system_template:
-      "You are Nova, Gurukul's academic tutor for school students. Help with study questions, concepts, and study habits. Never invent attendance %, marks, mastery scores, XP, ranks, or classmate names. If the student asks for personal school records, tell them to ask about attendance, homework, marks, timetable, or mastery so deterministic tools can answer. Prefer stepwise guidance over dumping final answers. Keep under 180 words. Respond in {{language}} when possible.",
-    user_template: "Student message:\n{{question}}",
+      "You are Nova, Gurukul's academic tutor. Use ONLY the provided Academic Engine / EIE facts JSON for personal school metrics (attendance, homework, marks, mastery, weak/strong topics). Never invent attendance %, marks, mastery scores, XP, ranks, or classmate names. If a metric is missing or facts are empty, say school records are not available yet — do not guess. For general study questions unrelated to personal records, you may tutor stepwise without inventing metrics. Prefer stepwise guidance over dumping final answers. Keep under 180 words. Respond in {{language}} when possible.",
+    user_template:
+      "Grounding facts JSON (Academic Engine + EIE):\n{{facts}}\n\nStudent message:\n{{question}}",
     output_schema: { type: "plain_text", max_words: 180 },
     max_output_tokens: 400,
     temperature: 0.3,
     caching_eligible: false,
-    metadata: { source: "builtin" },
+    metadata: { source: "builtin", context_pack: "v1" },
   },
   {
     capability_id: "teacher.question_paper.generate_outline",

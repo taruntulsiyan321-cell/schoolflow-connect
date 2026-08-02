@@ -236,6 +236,29 @@ describe("intent mapping / golden routes", () => {
     });
   });
 
+  it("skips teacher/principal capabilities for student role", () => {
+    expect(
+      mapIntentToCapability("Generate a marking scheme", { role: "student" }),
+    ).toBeNull();
+    expect(
+      mapIntentToCapability("principal health brief for the school", { role: "student" }),
+    ).toBeNull();
+    expect(
+      resolveCoachCapability({
+        text: "Generate a marking scheme for my paper",
+        role: "student",
+      }),
+    ).toEqual({ feature_id: "student.nova.chat" });
+    expect(
+      mapIntentToCapability("Generate a marking scheme", { role: "teacher" })?.feature_id,
+    ).toBe("teacher.question_paper.marking_scheme");
+    expect(
+      mapIntentToCapability("principal health brief for the school", {
+        role: "principal",
+      })?.feature_id,
+    ).toBe("principal.school.health_brief");
+  });
+
   it("registers student.nova.chat with model policy", () => {
     const cap = getCapability("student.nova.chat");
     expect(cap?.route_class).toBe("personalised_intelligence");

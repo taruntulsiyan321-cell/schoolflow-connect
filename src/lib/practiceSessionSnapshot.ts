@@ -8,6 +8,8 @@ export type PracticeAttemptSnapshot = {
   selectedIndex: number;
   isCorrect: boolean;
   explanation?: string;
+  /** When set, finish RPC grades against question_bank (ignores client isCorrect). */
+  bankQuestionId?: string | null;
 };
 
 export type PracticeSessionResultState = {
@@ -79,12 +81,15 @@ export function persistAndGoToPracticeResult(
 
 export function attemptsToFinishPayload(attempts: PracticeAttemptSnapshot[]) {
   return attempts.map((a) => ({
+    bank_question_id: a.bankQuestionId ?? null,
     generated_question: {
       question: a.question,
       options: a.options,
       explanation: a.explanation ?? "",
+      bank_question_id: a.bankQuestionId ?? null,
     },
     selected_answer: { index: a.selectedIndex, text: a.options[a.selectedIndex] ?? "" },
+    // Server ignores these when bank_question_id is present; kept for audit/legacy.
     correct_answer: { index: a.correctIndex, text: a.options[a.correctIndex] ?? "" },
     is_correct: a.isCorrect,
     score: a.isCorrect ? 1 : 0,

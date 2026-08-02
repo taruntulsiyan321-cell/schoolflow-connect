@@ -39,8 +39,7 @@ function asOwnerRole(role: AppRole): OwnerRole | null {
   ) {
     return role;
   }
-  // super_admin may act as admin for school ops in future; treat as admin for ownership
-  if (role === "super_admin") return "admin";
+  // Never map super_admin into school portal ownership (not a Gurukul actor role).
   return null;
 }
 
@@ -62,5 +61,5 @@ export function assertCanConsume(ctx: ServiceContext, entity: AcademicEntityKey)
 
 /** Admin/principal override for operational supervision (read + limited write). */
 export function isSchoolOperator(role: AppRole): boolean {
-  return role === "admin" || role === "principal" || role === "super_admin";
+  return role === "admin" || role === "principal";
 }
