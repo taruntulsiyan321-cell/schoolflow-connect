@@ -5523,6 +5523,7 @@ export type Database = {
         Args: {
           _chapter: string
           _count?: number
+          _difficulty?: string
           _practice_mode?: string
           _subject: string
         }

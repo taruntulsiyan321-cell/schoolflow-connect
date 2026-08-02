@@ -452,7 +452,7 @@ function Hub({
             </div>
             <button
               type="button"
-              disabled={savingLatest || history.length === 0}
+              disabled={savingLatest}
               onClick={onSaveLatest}
               className="flex items-center gap-1 text-[10px] text-[#3b5bdb] hover:text-blue-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -608,7 +608,9 @@ function ConfigView({
   const [selSubject,    setSelSubject]    = useState<string | null>(null);
   const [selChapter,    setSelChapter]    = useState<string | null>(null);
   const [selTopic,      setSelTopic]      = useState<string | null>(null);
-  const [selDifficulty, setSelDifficulty] = useState<string>("mixed");
+  const [selDifficulty, setSelDifficulty] = useState<string>(
+    modeKey === "difficulty" ? "medium" : "mixed",
+  );
   const [qCount,        setQCount]        = useState(20);
   const [timeLimitMin,  setTimeLimitMin]  = useState(15);
   const [chapters,      setChapters]      = useState<AcademicTermRef[]>([]);
@@ -620,6 +622,13 @@ function ConfigView({
     { id: string; title: string; subject: string; questionCount: number; durationSec: number; testKind: string }[]
   >([]);
   const [mockLoading, setMockLoading] = useState(false);
+
+  // Difficulty-Based mode must start with a real level selected (not mixed).
+  useEffect(() => {
+    if (modeKey === "difficulty" && (selDifficulty === "mixed" || !selDifficulty)) {
+      setSelDifficulty("medium");
+    }
+  }, [modeKey, selDifficulty]);
 
   useEffect(() => {
     setSelChapter(null);
@@ -884,7 +893,11 @@ function ConfigView({
           )}
           <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
         </div>
-        <StartButton color={mode.color} disabled={!selSubject || !selChapter} onStart={handleStart}/>
+        <StartButton
+          color={mode.color}
+          disabled={!selSubject || !selChapter || !selDifficulty || selDifficulty === "mixed"}
+          onStart={handleStart}
+        />
       </ConfigShell>
     );
   }
@@ -1264,6 +1277,8 @@ function Session({
 
         let excludeIds: string[] = [];
         let remainingCount = config.qCount;
+        /** Effective bank difficulty — prefer config, then session row, then prior attempts. */
+        let effectiveDifficulty = config.difficulty || "mixed";
 
         if (config.resumeSessionId) {
           sessionIdRef.current = config.resumeSessionId;
@@ -1273,6 +1288,11 @@ function Session({
             return;
           }
           startedAtRef.current = existing.created_at;
+          if (existing.difficulty && existing.difficulty !== "mixed") {
+            effectiveDifficulty = existing.difficulty;
+          } else if (!effectiveDifficulty || effectiveDifficulty === "mixed") {
+            // Legacy incomplete rows pre-difficulty-persist: keep config as-is.
+          }
           const prior = await PracticeService.listSessionAttempts(ctx, config.resumeSessionId);
           if (cancelled) return;
 
@@ -1327,6 +1347,18 @@ function Session({
             });
           });
 
+          // Legacy resume: if session.difficulty is null, infer when all prior attempts agree.
+          if ((!effectiveDifficulty || effectiveDifficulty === "mixed") && priorLog.length > 0) {
+            const uniq = [
+              ...new Set(
+                priorLog
+                  .map((p) => String(p.difficulty || "").toLowerCase())
+                  .filter((d) => d && d !== "mixed"),
+              ),
+            ];
+            if (uniq.length === 1) effectiveDifficulty = uniq[0];
+          }
+
           attemptLog.current = priorLog;
           correctRef.current = priorCorrect;
           attemptedRef.current = priorAttempted;
@@ -1348,6 +1380,7 @@ function Session({
             _chapter: chapterForStart,
             _count: config.qCount,
             _practice_mode: config.mode,
+            _difficulty: config.difficulty,
           });
           if (cancelled) return;
           sessionIdRef.current = sid as string;
@@ -1379,7 +1412,7 @@ function Session({
             rows = [];
           } else {
             rows = await PracticeService.listBankQuestions(ctx, {
-              difficulty: config.difficulty,
+              difficulty: effectiveDifficulty,
               limit: remainingCount,
               weakTargets: weak.map((w) => ({
                 subject: w.subject,
@@ -1392,7 +1425,7 @@ function Session({
         } else if (config.mode === "pyq") {
           rows = await PracticeService.listBankQuestions(ctx, {
             subject: config.subject,
-            difficulty: config.difficulty,
+            difficulty: effectiveDifficulty,
             limit: remainingCount,
             pyqOnly: true,
             ...bankOpts,
@@ -1402,7 +1435,7 @@ function Session({
             subject: config.subject,
             chapter: config.chapter,
             topic: config.topic,
-            difficulty: config.difficulty,
+            difficulty: effectiveDifficulty,
             limit: remainingCount,
             ...bankOpts,
           });
@@ -2179,13 +2212,20 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   }
 
   async function saveLatestSession() {
-    if (!ctx || history.length === 0) {
+    if (!ctx) {
       toast.message("Complete a practice session first");
       return;
     }
-    const latest = history[0];
     setSavingLatest(true);
     try {
+      // Absolute latest finished session — ignore history filters.
+      const recent = await PracticeService.listRecentFinished(ctx, 1);
+      const latestRow = recent[0];
+      if (!latestRow) {
+        toast.message("Complete a practice session first");
+        return;
+      }
+      const latest = mapSessionToHistoryRow(latestRow);
       const session = await PracticeService.getSession(ctx, latest.id);
       const snap = buildPracticeAnalysisSnapshot({
         subject: session?.subject ?? latest.subject,

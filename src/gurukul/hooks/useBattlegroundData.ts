@@ -138,6 +138,7 @@ type BattleRow = {
   title: string;
   subject: string;
   chapter?: string | null;
+  difficulty?: string | null;
   status: string;
   mode: string;
   starts_at: string;
@@ -401,7 +402,7 @@ export function useBattlegroundData() {
           const { data: inviteBattles, error: invBattleErr } = await supabase
             .from("battles")
             .select(
-              "id,title,subject,chapter,status,mode,starts_at,duration_sec,question_count,source,battle_code,creator_user_id",
+              "id,title,subject,chapter,difficulty,status,mode,starts_at,duration_sec,question_count,source,battle_code,creator_user_id",
             )
             .in("id", battleIds);
           if (invBattleErr) {
@@ -861,6 +862,13 @@ export async function joinBattleByCode(code: string): Promise<string> {
   const { BattleExperienceService, resolveStudentServiceContext } = await import("@/academic");
   const ctx = await resolveStudentServiceContext();
   return BattleExperienceService.joinByCode(ctx, code);
+}
+
+/** Join a known battle id (featured card / open lobby) without going through code. */
+export async function joinBattleById(battleId: string): Promise<string> {
+  const { BattleExperienceService, resolveStudentServiceContext } = await import("@/academic");
+  const ctx = await resolveStudentServiceContext();
+  return BattleExperienceService.joinById(ctx, battleId);
 }
 
 export async function acceptBattleInvite(inviteId: string, battleId: string): Promise<string> {

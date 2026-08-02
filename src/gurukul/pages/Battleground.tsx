@@ -13,6 +13,7 @@ import {
   useBattlegroundData,
   createBattleFromDesign,
   joinBattleByCode,
+  joinBattleById,
   ensureFeatured,
   acceptBattleInvite,
   loadLeaderboardEntries,
@@ -2343,6 +2344,24 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       }
       return;
     }
+    // Open / featured card without a participant row yet — join before entering room.
+    if (card && !card.participantId && card.status !== "completed") {
+      setBusy(true);
+      try {
+        await joinBattleById(id);
+        void data.reload();
+        goBattle(id);
+      } catch (e: unknown) {
+        const msg =
+          e && typeof e === "object" && "message" in e
+            ? String((e as { message: string }).message)
+            : "Could not join battle";
+        toast({ title: msg, variant: "destructive" });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     goBattle(id);
   }
 
@@ -2352,6 +2371,17 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       if (battleId && data.battles.find((b) => b.id === battleId)?.participantId) {
         goBattle(battleId);
         return;
+      }
+      // Prefer the featured battle already shown on the card.
+      if (battleId) {
+        try {
+          await joinBattleById(battleId);
+          void data.reload();
+          goBattle(battleId);
+          return;
+        } catch {
+          /* fall through to ensureFeatured */
+        }
       }
       const id = await ensureFeatured(kind);
       void data.reload();
