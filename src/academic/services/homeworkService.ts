@@ -518,9 +518,10 @@ export const HomeworkService = {
     } else if (!isSchoolOperator(ctx.role)) {
       throw new ForbiddenError("Not authorized to submit homework");
     }
-    await assertStudentInHomeworkClass(ctx, input.homeworkId, input.studentId);
+    const hwGate = await assertStudentInHomeworkClass(ctx, input.homeworkId, input.studentId);
     const row = await upsertHomeworkSubmission(toRepoContext(ctx), input);
     afterHomeworkWrite(ctx, {
+      classId: hwGate.classId,
       studentId: input.studentId,
       source: "HomeworkService.submit",
     });
@@ -581,9 +582,11 @@ export const HomeworkService = {
     input: { submissionId: string; grade: string; remarks?: string | null },
   ): Promise<HomeworkSubmissionRecord> {
     assertCanOwn(ctx, "homework");
-    await assertTeacherMayManageSubmission(ctx, input.submissionId);
+    const gate = await assertTeacherMayManageSubmission(ctx, input.submissionId);
     const row = await gradeHomeworkSubmission(toRepoContext(ctx), input);
+    const hw = await getHomework(toRepoContext(ctx), gate.homeworkId);
     afterHomeworkWrite(ctx, {
+      classId: hw.classId,
       studentId: row.studentId,
       source: "HomeworkService.grade",
     });
@@ -595,9 +598,11 @@ export const HomeworkService = {
     input: ReviewHomeworkInput,
   ): Promise<HomeworkSubmissionRecord> {
     assertCanOwn(ctx, "homework");
-    await assertTeacherMayManageSubmission(ctx, input.submissionId);
+    const gate = await assertTeacherMayManageSubmission(ctx, input.submissionId);
     const row = await reviewHomeworkSubmission(toRepoContext(ctx), input);
+    const hw = await getHomework(toRepoContext(ctx), gate.homeworkId);
     afterHomeworkWrite(ctx, {
+      classId: hw.classId,
       studentId: row.studentId,
       source: "HomeworkService.review",
     });

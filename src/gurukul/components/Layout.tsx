@@ -11,7 +11,7 @@ import {
   Trophy, Medal, MessageCircle, ClipboardList, CalendarDays,
   ChevronLeft, ChevronRight, ChevronDown, Flame, Zap, Bell, Menu, X,
   FlaskConical, Calendar, Clock, GraduationCap, Settings, LogOut,
-  User, BarChart, HelpCircle,
+  User, BarChart, HelpCircle, Wallet,
 } from "lucide-react";
 
 type NavItem  = { key: PageKey; label: string; icon: ReactNode };
@@ -82,6 +82,11 @@ const profileMenuItems = [
   { label:"Achievements",  icon:<Medal className="w-3.5 h-3.5"/>,    key:"achievements" as PageKey },
   { label:"Leaderboard",   icon:<Trophy className="w-3.5 h-3.5"/>,   key:"leaderboard"  as PageKey },
   { label:"Analysis",      icon:<BarChart className="w-3.5 h-3.5"/>, key:"analysis"     as PageKey },
+];
+
+const profileExtraLinks = [
+  { label: "Notices", path: "/student/notices", icon: <Bell className="w-3.5 h-3.5" /> },
+  { label: "Fees", path: "/student/fees", icon: <Wallet className="w-3.5 h-3.5" /> },
 ];
 
 export type { GurukulStudentProfile };
@@ -257,7 +262,13 @@ export default function Layout({
               <div className="text-[10px] text-[#78788c]">{student.class}</div>
             </div>
           </div>
-          <XPBar xp={student.xp} level={student.level}/>
+          <XPBar
+            xp={student.xp}
+            level={student.level}
+            xpIntoLevel={student.xpIntoLevel}
+            xpToNext={student.xpToNext}
+            progressPct={student.levelProgressPct}
+          />
         </div>
       )}
 
@@ -336,8 +347,12 @@ export default function Layout({
                 <Zap className="w-3 h-3 text-blue-400"/>
                 <span className="text-xs font-bold text-blue-400">{student.xp.toLocaleString()}</span>
               </div>
-              {/* Bell */}
-              <button className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-colors">
+              {/* Bell → Notices */}
+              <button
+                onClick={() => navigate("/student/notices")}
+                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-colors"
+                title="Notices"
+              >
                 <Bell className="w-4 h-4"/>
               </button>
 
@@ -384,7 +399,13 @@ export default function Layout({
                         </div>
                       </div>
                       <div className="mt-3">
-                        <XPBar xp={student.xp} level={student.level}/>
+                        <XPBar
+                          xp={student.xp}
+                          level={student.level}
+                          xpIntoLevel={student.xpIntoLevel}
+                          xpToNext={student.xpToNext}
+                          progressPct={student.levelProgressPct}
+                        />
                       </div>
                     </div>
 
@@ -399,6 +420,16 @@ export default function Layout({
                           <span className={page === item.key ? "text-[#3b5bdb]" : "text-[#78788c]"}>{item.icon}</span>
                           {item.label}
                           {page === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#3b5bdb]"/>}
+                        </button>
+                      ))}
+                      {profileExtraLinks.map(item => (
+                        <button
+                          key={item.path}
+                          onClick={() => { navigate(item.path); setProfileOpen(false); }}
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-[#a0a0b0] hover:text-white hover:bg-white/5 transition-all"
+                        >
+                          <span className="text-[#78788c]">{item.icon}</span>
+                          {item.label}
                         </button>
                       ))}
                     </div>

@@ -3,12 +3,14 @@ import { toast } from "sonner";
 import {
   BadgeService,
   resolveStudentServiceContext,
+  useAcademicLive,
   type EarnedBadgeRow,
 } from "@/academic";
 
 export type EarnedBadge = EarnedBadgeRow;
 
 export function useStudentBadges(userId: string | undefined) {
+  const liveVersion = useAcademicLive(["achievements", "xp"]);
   const [earned, setEarned] = useState<EarnedBadge[]>([]);
   const [equipped, setEquipped] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,8 +39,8 @@ export function useStudentBadges(userId: string | undefined) {
   }, [userId]);
 
   useEffect(() => {
-    reload();
-  }, [reload]);
+    void reload();
+  }, [reload, liveVersion]);
 
   const equip = async (badgeCode: string | null) => {
     if (!userId) return;

@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useAcademicLive } from "@/academic";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AcademicSnapshot = {
@@ -25,23 +26,32 @@ export type AcademicSnapshot = {
 };
 
 export function useStudentAcademicSnapshot(enabled = true) {
+  const liveVersion = useAcademicLive([
+    "homework",
+    "xp",
+    "battle",
+    "profile",
+    "test",
+    "marks",
+    "achievements",
+  ]);
   const [data, setData] = useState<AcademicSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     setLoading(true);
     setError(null);
     const { data: snap, error: err } = await supabase.rpc("rpc_student_academic_snapshot");
     if (err) setError(err.message);
     else setData((snap as AcademicSnapshot) ?? null);
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
-    reload();
-  }, [enabled]);
+    void reload();
+  }, [enabled, liveVersion, reload]);
 
   return { data, loading, error, reload };
 }

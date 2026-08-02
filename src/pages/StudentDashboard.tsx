@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { PAGE_PATH, pathToPage } from "@/gurukul/nav";
+import { PAGE_PATH, pathToPage, legacyClassesRedirectPath } from "@/gurukul/nav";
 import Layout from "@/gurukul/components/Layout";
 import { GurukulStudentProvider } from "@/gurukul/StudentContext";
 import { EMPTY_STUDENT } from "@/gurukul/emptyStudent";
@@ -42,6 +42,7 @@ import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
 import BattleReportPage from "./student/BattleReportPage";
 import ChatPage from "./shared/ChatPage";
 import NoticesPage from "./shared/NoticesPage";
+import MyFeesPage from "./shared/MyFeesPage";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,7 +52,7 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const liveVersion = useAcademicLive(["xp", "battle", "profile", "achievements"]);
+  const liveVersion = useAcademicLive(["xp", "battle", "profile", "achievements", "homework", "test", "marks"]);
   const page = useMemo(() => pathToPage(location.pathname), [location.pathname]);
   const setPage = (p: PageKey) => navigate(PAGE_PATH[p]);
 
@@ -62,6 +63,11 @@ export default function StudentDashboard() {
     avatar?: string;
     xp?: number;
     level?: number;
+    xpToNext?: number;
+    xpIntoLevel?: number;
+    levelProgressPct?: number;
+    league?: string;
+    reputation?: number;
     streak?: number;
     rank?: number;
     accuracy?: number;
@@ -81,32 +87,48 @@ export default function StudentDashboard() {
       console.warn("student profile:", studentErr.message);
     }
 
-    let x: { xp?: number; level?: number; current_streak?: number } | null = null;
-    try {
-      const { XpService, resolveStudentServiceContext } = await import("@/academic");
-      const ctx = await resolveStudentServiceContext();
-      x = await XpService.getForUser(ctx, user.id);
-    } catch {
-      const { data: xpRow } = await supabase
-        .from("student_xp")
-        .select("xp, level, current_streak")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      x = xpRow;
-    }
-
+    let prog: {
+      xp: number;
+      level: number;
+      xp_to_next_level: number;
+      xp_into_level: number;
+      level_progress_pct: number;
+      study_streak: number;
+      reputation: number;
+      league: { label?: string; code?: string } | null;
+    } | null = null;
     let rank: number | undefined;
     let totalStudents = 0;
-    const { data: lb } = await supabase.rpc("rpc_leaderboard", {
-      _scope: "class",
-      _category: "xp",
-      _subject: undefined,
-      _limit: 200,
-    });
-    if (Array.isArray(lb)) {
-      totalStudents = lb.length;
-      const i = lb.findIndex((r: { user_id?: string }) => r.user_id === user.id);
-      if (i >= 0) rank = i + 1;
+    try {
+      const { ProgressionService, resolveStudentServiceContext } = await import("@/academic");
+      const { progressionLevelProgress } = await import("@/academic/services/progressionMath");
+      const ctx = await resolveStudentServiceContext();
+      prog = await ProgressionService.getSnapshot(ctx, user.id);
+      // Ensure level bar fields exist even if RPC omits them
+      if (prog) {
+        const derived = progressionLevelProgress(prog.xp, prog.level);
+        prog = {
+          ...prog,
+          xp_into_level: prog.xp_into_level ?? derived.xpIntoLevel,
+          xp_to_next_level: prog.xp_to_next_level ?? derived.xpToNextLevel,
+          level_progress_pct: prog.level_progress_pct ?? derived.levelProgressPct,
+        };
+      }
+      try {
+        const lb = await ProgressionService.leaderboard(ctx, {
+          scope: "class",
+          period: "lifetime",
+          metric: "xp",
+          limit: 200,
+        });
+        totalStudents = lb.rows.length;
+        const i = lb.rows.findIndex((r) => r.user_id === user.id);
+        if (i >= 0) rank = i + 1;
+      } catch {
+        /* rank stays 0 / unavailable */
+      }
+    } catch (e) {
+      console.warn("progression snapshot:", e instanceof Error ? e.message : e);
     }
 
     const [{ data: snap }, { data: charts }] = await Promise.all([
@@ -163,14 +185,32 @@ export default function StudentDashboard() {
       ? `${clsObj.name ?? ""}-${clsObj.section ?? ""}`.replace(/^-|-$/g, "") || undefined
       : undefined;
 
+    const xp = prog?.xp ?? 0;
+    const level = prog?.level ?? 1;
+    let xpToNext = prog?.xp_to_next_level;
+    let xpIntoLevel = prog?.xp_into_level;
+    let levelProgressPct = prog?.level_progress_pct;
+    if (xpToNext == null || xpIntoLevel == null || levelProgressPct == null) {
+      const { progressionLevelProgress } = await import("@/academic/services/progressionMath");
+      const derived = progressionLevelProgress(xp, level);
+      xpToNext = xpToNext ?? derived.xpToNextLevel;
+      xpIntoLevel = xpIntoLevel ?? derived.xpIntoLevel;
+      levelProgressPct = levelProgressPct ?? derived.levelProgressPct;
+    }
+
     setProfile({
       name: fullName,
       firstName: parts[0] || fullName,
       class: cls,
       avatar: initials.toUpperCase(),
-      xp: x?.xp ?? 0,
-      level: x?.level ?? 1,
-      streak: x?.current_streak ?? 0,
+      xp,
+      level,
+      xpToNext,
+      xpIntoLevel,
+      levelProgressPct,
+      league: prog?.league?.label ?? prog?.league?.code ?? "",
+      reputation: prog?.reputation ?? 0,
+      streak: prog?.study_streak ?? 0,
       rank: rank ?? 0,
       accuracy,
       attendance,
@@ -242,7 +282,11 @@ export default function StudentDashboard() {
           <Route path="dpp/:id/result" element={<DppResult />} />
           <Route path="chat" element={<ChatPage userRole="student" />} />
           <Route path="notices" element={<NoticesPage viewerRole="student" />} />
-          <Route path="classes" element={<Navigate to="/student/class" replace />} />
+          <Route path="fees" element={<MyFeesPage />} />
+          <Route
+            path="classes"
+            element={<Navigate to={legacyClassesRedirectPath(location.hash)} replace />}
+          />
           <Route path="*" element={<Navigate to="/student" replace />} />
         </Routes>
       </Layout>

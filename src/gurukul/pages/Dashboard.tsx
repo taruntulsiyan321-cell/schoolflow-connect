@@ -40,13 +40,32 @@ function mapWeeklyActivity(dates: { date: string; total: number }[]) {
   }));
 }
 
+function localDateKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Today's self-practice count from heatmap — not lifetime sessions_completed. */
+function practiceSessionsToday(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"]) {
+  const key = localDateKey();
+  const row = (snapshot?.activity_heatmap ?? []).find((r) => String(r.date).slice(0, 10) === key);
+  return row?.self_practice ?? 0;
+}
+
+function timeOfDayGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good Morning";
+  if (h < 17) return "Good Afternoon";
+  return "Good Evening";
+}
+
 function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["data"]) {
-  const practiceSessions = snapshot?.self_practice?.sessions_completed ?? 0;
+  const practiceLifetime = snapshot?.self_practice?.sessions_completed ?? 0;
+  const practiceToday = practiceSessionsToday(snapshot);
   const recoveryPending = snapshot?.recovery_pending ?? 0;
   const revisionPending = snapshot?.revision_queue?.length ?? 0;
   const homeworkPending = snapshot?.homework?.pending ?? 0;
 
-  const practiceDone = Math.min(practiceSessions, PRACTICE_TARGET);
+  const practiceDone = Math.min(practiceToday, PRACTICE_TARGET);
   const recoveryTarget = recoveryPending > 0 ? Math.max(recoveryPending, 1) : 1;
   const recoveryDone = recoveryPending === 0 ? 1 : Math.max(0, recoveryTarget - recoveryPending);
   const revisionTarget = revisionPending > 0 ? Math.max(revisionPending, 1) : 1;
@@ -73,8 +92,8 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
     };
   } else {
     nextAction = {
-      label: "Start a practice session",
-      reason: practiceSessions > 0 ? "Keep your momentum going" : "Build your daily practice habit",
+      label: practiceToday > 0 ? "Keep practicing" : "Start a practice session",
+      reason: practiceToday > 0 ? "Daily practice done — another session builds mastery" : "Build your daily practice habit",
       page: "practice",
     };
   }
@@ -89,7 +108,8 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
     nextAction,
     recoveryPending,
     revisionPending,
-    practiceSessions,
+    practiceSessions: practiceLifetime,
+    practiceToday,
     mistakesLogged: snapshot?.mistake_count ?? 0,
   };
 }
@@ -190,7 +210,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs uppercase tracking-[0.2em] text-[#78788c]">Good Morning</span>
+              <span className="text-xs uppercase tracking-[0.2em] text-[#78788c]">{timeOfDayGreeting()}</span>
               <div className="flex items-center gap-1 bg-amber-400/10 border border-amber-400/20 rounded-full px-2 py-0.5">
                 <Flame className="w-3 h-3 text-amber-400"/><span className="text-[10px] font-bold text-amber-400">{student.streak}-day streak</span>
               </div>
@@ -204,7 +224,15 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               <StatTile label="Class Rank" value={student.rank > 0 ? `#${student.rank}` : "—"} color="#c08a3a"/>
               <StatTile label="Level"      value={`Lv.${student.level}`}    color="#6882e8"/>
             </div>
-            <div className="mt-3"><XPBar xp={student.xp} level={student.level}/></div>
+            <div className="mt-3">
+              <XPBar
+                xp={student.xp}
+                level={student.level}
+                xpIntoLevel={student.xpIntoLevel}
+                xpToNext={student.xpToNext}
+                progressPct={student.levelProgressPct}
+              />
+            </div>
           </div>
           <div className="flex flex-col items-center shrink-0">
             <WeeklyRing sessions={student.sessionsThisWeek}/>

@@ -78,12 +78,16 @@ export {
   BattleExperienceService,
   QuestionBankService,
   AnnouncementService,
+  TimetableService,
+  ResourceService,
   resolveStudentServiceContext,
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
   ForbiddenError,
   isSchoolOperator,
+  progressionXpForLevel,
+  progressionLevelProgress,
   WORK_KINDS,
   WORK_KIND_LABELS,
   TEST_KIND_LABELS,
@@ -135,6 +139,8 @@ export type {
 } from "./services/attendanceService";
 
 export type { StudentHomeworkRow, SchoolHomeworkSummary, HomeworkClassStatsRow } from "./services/homeworkService";
+export type { ClassTimetableSnapshot } from "./services/timetableService";
+export type { LearningResourceRow } from "./services/resourceService";
 
 export { AnalyticsService, AiSummaryService, AuditReadService } from "./services/readServices";
 

@@ -1,6 +1,7 @@
 /**
  * Honest empty student shape for Gurukul chrome.
  * Never use mock Arjun / invented XP as a fallback.
+ * XP/level/streak come from ProgressionService (rpc_get_student_progression).
  */
 export type GurukulStudentProfile = {
   name: string;
@@ -11,7 +12,14 @@ export type GurukulStudentProfile = {
   avatar: string;
   xp: number;
   level: number;
+  /** XP remaining to next level (engine). */
   xpToNext: number;
+  /** XP earned within current level (engine). */
+  xpIntoLevel: number;
+  /** 0–100 progress within level (engine). */
+  levelProgressPct: number;
+  league: string;
+  reputation: number;
   streak: number;
   rank: number;
   totalStudents: number;
@@ -34,6 +42,10 @@ export const EMPTY_STUDENT: GurukulStudentProfile = {
   xp: 0,
   level: 1,
   xpToNext: 100,
+  xpIntoLevel: 0,
+  levelProgressPct: 0,
+  league: "Bronze",
+  reputation: 0,
   streak: 0,
   rank: 0,
   totalStudents: 0,

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { progressionLevelProgress } from "@/academic/services/progressionMath";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -126,13 +127,37 @@ export function StatTile({ label, value, color, sub }: { label:string; value:str
   );
 }
 
-export function XPBar({ xp, level }: { xp:number; level:number }) {
-  const progress = (xp%1000)/10;
+/** Level progress from ProgressionService — mirrors SQL triangular curve when fields omitted. */
+export function XPBar({
+  xp,
+  level,
+  xpIntoLevel,
+  xpToNext,
+  progressPct,
+}: {
+  xp: number;
+  level: number;
+  xpIntoLevel?: number;
+  xpToNext?: number;
+  progressPct?: number;
+}) {
+  const derived = progressionLevelProgress(xp, level);
+  const into = Math.max(0, xpIntoLevel ?? derived.xpIntoLevel);
+  const remaining = Math.max(0, xpToNext ?? derived.xpToNextLevel);
+  const span = into + remaining;
+  const progress =
+    progressPct != null
+      ? Math.min(100, Math.max(0, progressPct))
+      : span > 0
+        ? Math.min(100, Math.round((into / span) * 100))
+        : derived.levelProgressPct;
+  const label =
+    span > 0 ? `${into}/${span} XP` : `${Math.max(0, xp)} XP`;
   return (
     <div className="flex flex-col gap-1">
       <div className="flex justify-between">
         <span className="text-[11px] text-[#78788c]">Level {level}</span>
-        <span className="text-[11px] text-[#78788c]">{xp%1000}/1000 XP</span>
+        <span className="text-[11px] text-[#78788c]">{label}</span>
       </div>
       <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
         <div className="h-full rounded-full" style={{width:`${progress}%`,background:"linear-gradient(90deg,#3b5bdb,#6882e8)",transition:"width 1s ease"}}/>
@@ -169,5 +194,6 @@ export function DifficultyBadge({ level }: { level:"easy"|"medium"|"hard"|string
 
 export const subjectColor: Record<string,string> = {
   Mathematics:"#3b5bdb", Physics:"#4b9fd4", Chemistry:"#6882e8",
-  Biology:"#4aa87a", English:"#c08a3a",
+  Biology:"#4aa87a", English:"#c08a3a", Accountancy:"#4aa87a",
+  "Business Studies":"#6882e8", Economics:"#c08a3a", Hindi:"#cc5069",
 };

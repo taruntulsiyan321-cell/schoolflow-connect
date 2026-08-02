@@ -4,11 +4,17 @@ import { HomeworkService, WORK_KIND_LABELS, normalizeWorkKind, useAcademicLive }
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
 
+function subjectAccent(raw: string): string {
+  const label = displaySubject(raw) || raw;
+  return subjectColor[label] ?? subjectColor[raw] ?? "#78788c";
+}
+
 /**
- * Student Assignments — view attachments + submit text/files/links.
+ * Student Assignments — HomeworkService list / submit / feedback (no mock).
  */
 export default function Assignments() {
   const { ctx, ready, studentId } = useAcademicContext();
@@ -71,11 +77,11 @@ export default function Assignments() {
     if (filter === "done") list = completed;
     if (search.trim()) {
       const q = search.toLowerCase();
-      list = list.filter(
-        (r) =>
-          r.homework.title.toLowerCase().includes(q) ||
-          r.homework.subject.toLowerCase().includes(q),
-      );
+      list = list.filter((r) => {
+        const title = (presentAcademicLabel(r.homework.title) || r.homework.title).toLowerCase();
+        const subject = (displaySubject(r.homework.subject) || r.homework.subject).toLowerCase();
+        return title.includes(q) || subject.includes(q) || r.homework.subject.toLowerCase().includes(q);
+      });
     }
     return list;
   }, [rows, filter, pending, completed, search]);
@@ -169,7 +175,8 @@ export default function Assignments() {
             </div>
           )}
           {visible.map(({ homework: a, submission: s, displayStatus }) => {
-            const col = subjectColor[a.subject] ?? "#78788c";
+            const col = subjectAccent(a.subject);
+            const title = presentAcademicLabel(a.title) || a.title;
             const canSubmit =
               !s || ["pending", "submitted", "late", "returned"].includes(s.status);
             const isReturned = s?.status === "returned";
@@ -189,7 +196,7 @@ export default function Assignments() {
                   </div>
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <span className="text-sm font-semibold text-white">{a.title}</span>
+                      <span className="text-sm font-semibold text-white">{title}</span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
                         {WORK_KIND_LABELS[normalizeWorkKind(a.workKind)]}
                       </span>
@@ -198,6 +205,12 @@ export default function Assignments() {
                       </span>
                       {s?.grade && !isReturned && (
                         <span className="text-xs font-bold text-purple-400">{s.grade}</span>
+                      )}
+                      {s?.marksObtained != null && !isReturned && (
+                        <span className="text-[10px] text-[#78788c]">
+                          {s.marksObtained}
+                          {a.maxMarks != null ? ` / ${a.maxMarks}` : ""}
+                        </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">

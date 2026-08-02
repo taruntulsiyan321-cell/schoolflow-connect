@@ -118,12 +118,8 @@ export const doubts = [
   { id:"d3", question:"Difference between dominant and codominance?",   subject:"Biology",     chapter:"Genetics",          date:"Jun 9",  status:"answered", answer:"In dominance one allele masks another. In codominance both alleles are expressed equally (e.g., AB blood type).", answeredBy:"Ms. Iyer" },
 ];
 
-export const assignments = [
-  { id:"as1", title:"Integration Practice Set",        subject:"Mathematics", teacher:"Mr. Verma",  due:"Jun 15", questions:15, completed:10, status:"in-progress" },
-  { id:"as2", title:"Organic Chemistry Problem Sheet", subject:"Chemistry",   teacher:"Mr. Khan",   due:"Jun 14", questions:20, completed:20, status:"submitted"   },
-  { id:"as3", title:"Wave Optics Problems",            subject:"Physics",     teacher:"Ms. Sharma", due:"Jun 16", questions:12, completed:0,  status:"not-started" },
-  { id:"as4", title:"Genetics Case Study",             subject:"Biology",     teacher:"Ms. Iyer",   due:"Jun 13", questions:8,  completed:8,  status:"graded", marks:"7/8" },
-];
+/** DESIGN-ONLY fixture — never import into mounted student Homework / Assignments. */
+export const assignments: never[] = [];
 
 export const attendanceData = {
   overall: 92,

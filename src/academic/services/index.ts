@@ -18,7 +18,13 @@ import { ProgressionService } from "./progressionService";
 import { BattleExperienceService } from "./battleExperienceService";
 import { QuestionBankService } from "./questionBankService";
 import { AnnouncementService } from "./announcementService";
+import { TimetableService } from "./timetableService";
+import { ResourceService } from "./resourceService";
 import { resolveStudentServiceContext } from "./resolveStudentContext";
+import {
+  progressionXpForLevel,
+  progressionLevelProgress,
+} from "./progressionMath";
 
 /**
  * Facade used by panels — single entry to academic write/read APIs.
@@ -40,6 +46,8 @@ export const AcademicServices = {
   battle: BattleExperienceService,
   questionBank: QuestionBankService,
   announcement: AnnouncementService,
+  timetable: TimetableService,
+  resource: ResourceService,
 } as const;
 
 export {
@@ -58,10 +66,14 @@ export {
   BattleExperienceService,
   QuestionBankService,
   AnnouncementService,
+  TimetableService,
+  ResourceService,
   resolveStudentServiceContext,
   assertCanOwn,
   assertCanConsume,
   toRepoContext,
+  progressionXpForLevel,
+  progressionLevelProgress,
   type ServiceContext,
 };
 
