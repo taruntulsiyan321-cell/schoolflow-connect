@@ -269,27 +269,934 @@ export type Database = {
           },
         ]
       }
+      ai_benchmark_fixtures: {
+        Row: {
+          created_at: string
+          expected: Json
+          fixture_key: string
+          id: string
+          input: Json
+          metadata: Json
+          suite_id: string
+        }
+        Insert: {
+          created_at?: string
+          expected?: Json
+          fixture_key: string
+          id?: string
+          input?: Json
+          metadata?: Json
+          suite_id: string
+        }
+        Update: {
+          created_at?: string
+          expected?: Json
+          fixture_key?: string
+          id?: string
+          input?: Json
+          metadata?: Json
+          suite_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_benchmark_fixtures_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "ai_benchmark_suite_defs"
+            referencedColumns: ["suite_id"]
+          },
+        ]
+      }
+      ai_benchmark_runs: {
+        Row: {
+          baseline_score: number | null
+          candidate_label: string
+          candidate_score: number | null
+          created_at: string
+          created_by: string | null
+          finished_at: string | null
+          id: string
+          passed: boolean | null
+          scorecard: Json
+          status: string
+          suite_id: string
+        }
+        Insert: {
+          baseline_score?: number | null
+          candidate_label: string
+          candidate_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          finished_at?: string | null
+          id?: string
+          passed?: boolean | null
+          scorecard?: Json
+          status?: string
+          suite_id: string
+        }
+        Update: {
+          baseline_score?: number | null
+          candidate_label?: string
+          candidate_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          finished_at?: string | null
+          id?: string
+          passed?: boolean | null
+          scorecard?: Json
+          status?: string
+          suite_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_benchmark_runs_suite_id_fkey"
+            columns: ["suite_id"]
+            isOneToOne: false
+            referencedRelation: "ai_benchmark_suite_defs"
+            referencedColumns: ["suite_id"]
+          },
+        ]
+      }
+      ai_benchmark_suite_defs: {
+        Row: {
+          created_at: string
+          critical: boolean
+          description: string
+          metadata: Json
+          name: string
+          suite_id: string
+        }
+        Insert: {
+          created_at?: string
+          critical?: boolean
+          description?: string
+          metadata?: Json
+          name: string
+          suite_id: string
+        }
+        Update: {
+          created_at?: string
+          critical?: boolean
+          description?: string
+          metadata?: Json
+          name?: string
+          suite_id?: string
+        }
+        Relationships: []
+      }
+      ai_budget_quotas: {
+        Row: {
+          feature_id: string | null
+          hard_limit_units: number | null
+          id: string
+          metadata: Json
+          period: string
+          school_id: string
+          scope: string
+          soft_limit_units: number
+          updated_at: string
+        }
+        Insert: {
+          feature_id?: string | null
+          hard_limit_units?: number | null
+          id?: string
+          metadata?: Json
+          period: string
+          school_id: string
+          scope: string
+          soft_limit_units: number
+          updated_at?: string
+        }
+        Update: {
+          feature_id?: string | null
+          hard_limit_units?: number | null
+          id?: string
+          metadata?: Json
+          period?: string
+          school_id?: string
+          scope?: string
+          soft_limit_units?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_budget_quotas_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_budget_usage: {
+        Row: {
+          feature_id: string | null
+          id: string
+          period: string
+          period_key: string
+          school_id: string
+          units_used: number
+          updated_at: string
+        }
+        Insert: {
+          feature_id?: string | null
+          id?: string
+          period: string
+          period_key: string
+          school_id: string
+          units_used?: number
+          updated_at?: string
+        }
+        Update: {
+          feature_id?: string | null
+          id?: string
+          period?: string
+          period_key?: string
+          school_id?: string
+          units_used?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_budget_usage_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_embedding_jobs: {
+        Row: {
+          attempts: number
+          chunk_id: string
+          completed_at: string | null
+          created_at: string
+          document_id: string
+          id: string
+          last_error: string | null
+          metadata: Json
+          provider_hint: string
+          school_id: string
+          status: string
+          updated_at: string
+          version_id: string
+        }
+        Insert: {
+          attempts?: number
+          chunk_id: string
+          completed_at?: string | null
+          created_at?: string
+          document_id: string
+          id?: string
+          last_error?: string | null
+          metadata?: Json
+          provider_hint?: string
+          school_id: string
+          status?: string
+          updated_at?: string
+          version_id: string
+        }
+        Update: {
+          attempts?: number
+          chunk_id?: string
+          completed_at?: string | null
+          created_at?: string
+          document_id?: string
+          id?: string
+          last_error?: string | null
+          metadata?: Json
+          provider_hint?: string
+          school_id?: string
+          status?: string
+          updated_at?: string
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_embedding_jobs_chunk_id_fkey"
+            columns: ["chunk_id"]
+            isOneToOne: true
+            referencedRelation: "ai_kms_chunks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_embedding_jobs_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_kms_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_embedding_jobs_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_embedding_jobs_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "ai_kms_document_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_explanations: {
         Row: {
           cache_key: string
           created_at: string
+          created_by: string | null
           payload: Json
+          school_id: string | null
+          student_id: string | null
           subject: string | null
           topic: string | null
         }
         Insert: {
           cache_key: string
           created_at?: string
+          created_by?: string | null
           payload: Json
+          school_id?: string | null
+          student_id?: string | null
           subject?: string | null
           topic?: string | null
         }
         Update: {
           cache_key?: string
           created_at?: string
+          created_by?: string | null
           payload?: Json
+          school_id?: string | null
+          student_id?: string | null
           subject?: string | null
           topic?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_explanations_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_explanations_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_feature_flags: {
+        Row: {
+          enabled: boolean
+          flag_key: string
+          id: string
+          metadata: Json
+          school_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enabled?: boolean
+          flag_key: string
+          id?: string
+          metadata?: Json
+          school_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enabled?: boolean
+          flag_key?: string
+          id?: string
+          metadata?: Json
+          school_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_feature_flags_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_feedback_signals: {
+        Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          comment_redacted: string | null
+          created_at: string
+          feature_id: string | null
+          id: string
+          metadata: Json
+          rating: number | null
+          request_id: string | null
+          school_id: string | null
+          signal_type: string
+          target_kind: string
+          target_ref: string | null
+        }
+        Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          comment_redacted?: string | null
+          created_at?: string
+          feature_id?: string | null
+          id?: string
+          metadata?: Json
+          rating?: number | null
+          request_id?: string | null
+          school_id?: string | null
+          signal_type: string
+          target_kind?: string
+          target_ref?: string | null
+        }
+        Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          comment_redacted?: string | null
+          created_at?: string
+          feature_id?: string | null
+          id?: string
+          metadata?: Json
+          rating?: number | null
+          request_id?: string | null
+          school_id?: string | null
+          signal_type?: string
+          target_kind?: string
+          target_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_feedback_signals_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_kms_approval_audit: {
+        Row: {
+          action: string
+          actor_role: string | null
+          actor_user_id: string | null
+          created_at: string
+          detail: Json
+          document_id: string
+          id: string
+          version_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          detail?: Json
+          document_id: string
+          id?: string
+          version_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_role?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          detail?: Json
+          document_id?: string
+          id?: string
+          version_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_kms_approval_audit_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_kms_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_kms_approval_audit_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "ai_kms_document_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_kms_chunks: {
+        Row: {
+          chunk_index: number
+          chunk_metadata: Json
+          chunk_text: string
+          created_at: string
+          document_id: string
+          embed_status: string
+          embedded_at: string | null
+          embedding: string | null
+          embedding_compat: number[] | null
+          embedding_model_version: string | null
+          embedding_stub: Json
+          id: string
+          published: boolean
+          version_id: string
+        }
+        Insert: {
+          chunk_index: number
+          chunk_metadata?: Json
+          chunk_text?: string
+          created_at?: string
+          document_id: string
+          embed_status?: string
+          embedded_at?: string | null
+          embedding?: string | null
+          embedding_compat?: number[] | null
+          embedding_model_version?: string | null
+          embedding_stub?: Json
+          id?: string
+          published?: boolean
+          version_id: string
+        }
+        Update: {
+          chunk_index?: number
+          chunk_metadata?: Json
+          chunk_text?: string
+          created_at?: string
+          document_id?: string
+          embed_status?: string
+          embedded_at?: string | null
+          embedding?: string | null
+          embedding_compat?: number[] | null
+          embedding_model_version?: string | null
+          embedding_stub?: Json
+          id?: string
+          published?: boolean
+          version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_kms_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_kms_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_kms_chunks_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: false
+            referencedRelation: "ai_kms_document_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_kms_document_versions: {
+        Row: {
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
+          chunk_count: number
+          content_hash: string | null
+          created_at: string
+          created_by: string | null
+          document_id: string
+          embedding_status: string
+          id: string
+          quality_score: number | null
+          raw_text: string | null
+          rejection_reason: string | null
+          source_uri: string | null
+          version: number
+        }
+        Insert: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          chunk_count?: number
+          content_hash?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_id: string
+          embedding_status?: string
+          id?: string
+          quality_score?: number | null
+          raw_text?: string | null
+          rejection_reason?: string | null
+          source_uri?: string | null
+          version: number
+        }
+        Update: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          chunk_count?: number
+          content_hash?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_id?: string
+          embedding_status?: string
+          id?: string
+          quality_score?: number | null
+          raw_text?: string | null
+          rejection_reason?: string | null
+          source_uri?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_kms_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_kms_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_kms_documents: {
+        Row: {
+          board: string | null
+          chapter: string | null
+          content_type: string
+          created_at: string
+          current_version: number
+          grade: string | null
+          id: string
+          language: string
+          metadata: Json
+          owner_user_id: string | null
+          school_id: string
+          status: string
+          subject: string | null
+          tenant_scope: string
+          title: string
+          updated_at: string
+          visibility_scope: string[]
+        }
+        Insert: {
+          board?: string | null
+          chapter?: string | null
+          content_type?: string
+          created_at?: string
+          current_version?: number
+          grade?: string | null
+          id?: string
+          language?: string
+          metadata?: Json
+          owner_user_id?: string | null
+          school_id: string
+          status?: string
+          subject?: string | null
+          tenant_scope?: string
+          title: string
+          updated_at?: string
+          visibility_scope?: string[]
+        }
+        Update: {
+          board?: string | null
+          chapter?: string | null
+          content_type?: string
+          created_at?: string
+          current_version?: number
+          grade?: string | null
+          id?: string
+          language?: string
+          metadata?: Json
+          owner_user_id?: string | null
+          school_id?: string
+          status?: string
+          subject?: string | null
+          tenant_scope?: string
+          title?: string
+          updated_at?: string
+          visibility_scope?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_kms_documents_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_prompt_library: {
+        Row: {
+          audience: string
+          benchmark_run_ids: string[]
+          caching_eligible: boolean
+          capability_id: string
+          created_at: string
+          id: string
+          max_output_tokens: number
+          metadata: Json
+          output_schema: Json
+          promoted_at: string | null
+          promoted_by: string | null
+          rollback_version: string | null
+          scorecard: Json
+          status: string
+          system_template: string
+          temperature: number
+          updated_at: string
+          user_template: string
+          version: string
+        }
+        Insert: {
+          audience?: string
+          benchmark_run_ids?: string[]
+          caching_eligible?: boolean
+          capability_id: string
+          created_at?: string
+          id?: string
+          max_output_tokens?: number
+          metadata?: Json
+          output_schema?: Json
+          promoted_at?: string | null
+          promoted_by?: string | null
+          rollback_version?: string | null
+          scorecard?: Json
+          status?: string
+          system_template: string
+          temperature?: number
+          updated_at?: string
+          user_template?: string
+          version: string
+        }
+        Update: {
+          audience?: string
+          benchmark_run_ids?: string[]
+          caching_eligible?: boolean
+          capability_id?: string
+          created_at?: string
+          id?: string
+          max_output_tokens?: number
+          metadata?: Json
+          output_schema?: Json
+          promoted_at?: string | null
+          promoted_by?: string | null
+          rollback_version?: string | null
+          scorecard?: Json
+          status?: string
+          system_template?: string
+          temperature?: number
+          updated_at?: string
+          user_template?: string
+          version?: string
+        }
+        Relationships: []
+      }
+      ai_request_decisions: {
+        Row: {
+          actor_role: string | null
+          actor_user_id: string | null
+          budget_tier: string | null
+          cache_hit: boolean
+          confidence: number | null
+          created_at: string
+          decision: string
+          error_code: string | null
+          estimated_cost_units: number | null
+          evidence: Json
+          feature_id: string
+          id: string
+          kill_switch_hit: string | null
+          latency_ms: number | null
+          model_id: string | null
+          request_id: string
+          route_class: string
+          school_id: string | null
+          used_model: boolean
+          validation_ok: boolean | null
+        }
+        Insert: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          budget_tier?: string | null
+          cache_hit?: boolean
+          confidence?: number | null
+          created_at?: string
+          decision: string
+          error_code?: string | null
+          estimated_cost_units?: number | null
+          evidence?: Json
+          feature_id: string
+          id?: string
+          kill_switch_hit?: string | null
+          latency_ms?: number | null
+          model_id?: string | null
+          request_id: string
+          route_class: string
+          school_id?: string | null
+          used_model?: boolean
+          validation_ok?: boolean | null
+        }
+        Update: {
+          actor_role?: string | null
+          actor_user_id?: string | null
+          budget_tier?: string | null
+          cache_hit?: boolean
+          confidence?: number | null
+          created_at?: string
+          decision?: string
+          error_code?: string | null
+          estimated_cost_units?: number | null
+          evidence?: Json
+          feature_id?: string
+          id?: string
+          kill_switch_hit?: string | null
+          latency_ms?: number | null
+          model_id?: string | null
+          request_id?: string
+          route_class?: string
+          school_id?: string | null
+          used_model?: boolean
+          validation_ok?: boolean | null
+        }
+        Relationships: []
+      }
+      ai_session_memory: {
+        Row: {
+          actor_role: string
+          actor_user_id: string
+          capability_id: string | null
+          closed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          metadata: Json
+          school_id: string
+          status: string
+          summary: Json
+          target_student_id: string | null
+          turn_count: number
+          updated_at: string
+          workflow_id: string | null
+          workflow_scope: string
+        }
+        Insert: {
+          actor_role: string
+          actor_user_id: string
+          capability_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          metadata?: Json
+          school_id: string
+          status?: string
+          summary?: Json
+          target_student_id?: string | null
+          turn_count?: number
+          updated_at?: string
+          workflow_id?: string | null
+          workflow_scope: string
+        }
+        Update: {
+          actor_role?: string
+          actor_user_id?: string
+          capability_id?: string | null
+          closed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          metadata?: Json
+          school_id?: string
+          status?: string
+          summary?: Json
+          target_student_id?: string | null
+          turn_count?: number
+          updated_at?: string
+          workflow_id?: string | null
+          workflow_scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_session_memory_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_solution_cache: {
+        Row: {
+          cache_key: string
+          created_at: string
+          data_version: string | null
+          expires_at: string | null
+          feature_id: string
+          id: string
+          payload: Json
+          school_id: string
+          student_id: string | null
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          data_version?: string | null
+          expires_at?: string | null
+          feature_id: string
+          id?: string
+          payload: Json
+          school_id: string
+          student_id?: string | null
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          data_version?: string | null
+          expires_at?: string | null
+          feature_id?: string
+          id?: string
+          payload?: Json
+          school_id?: string
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_solution_cache_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_workflow_registry: {
+        Row: {
+          capability_id: string
+          enabled: boolean
+          metadata: Json
+          updated_at: string
+          version: string
+          workflow_id: string
+        }
+        Insert: {
+          capability_id: string
+          enabled?: boolean
+          metadata?: Json
+          updated_at?: string
+          version: string
+          workflow_id: string
+        }
+        Update: {
+          capability_id?: string
+          enabled?: boolean
+          metadata?: Json
+          updated_at?: string
+          version?: string
+          workflow_id?: string
         }
         Relationships: []
       }
@@ -790,7 +1697,7 @@ export type Database = {
           type: Database["public"]["Enums"]["battle_type"]
         }
         Insert: {
-          battle_code?: string
+          battle_code: string
           chapter?: string | null
           class_id?: string | null
           class_level?: number | null
@@ -1514,12 +2421,15 @@ export type Database = {
           class_id: string
           created_at: string
           created_by: string | null
+          end_date: string | null
           exam_date: string | null
+          exam_group_id: string | null
           exam_type: Database["public"]["Enums"]["exam_type"]
           id: string
           max_marks: number
           name: string
           school_id: string | null
+          start_date: string | null
           status: string
           subject: string
           subject_id: string | null
@@ -1528,12 +2438,15 @@ export type Database = {
           class_id: string
           created_at?: string
           created_by?: string | null
+          end_date?: string | null
           exam_date?: string | null
+          exam_group_id?: string | null
           exam_type?: Database["public"]["Enums"]["exam_type"]
           id?: string
           max_marks?: number
           name: string
           school_id?: string | null
+          start_date?: string | null
           status?: string
           subject: string
           subject_id?: string | null
@@ -1542,12 +2455,15 @@ export type Database = {
           class_id?: string
           created_at?: string
           created_by?: string | null
+          end_date?: string | null
           exam_date?: string | null
+          exam_group_id?: string | null
           exam_type?: Database["public"]["Enums"]["exam_type"]
           id?: string
           max_marks?: number
           name?: string
           school_id?: string | null
+          start_date?: string | null
           status?: string
           subject?: string
           subject_id?: string | null
@@ -2400,45 +3316,70 @@ export type Database = {
       }
       question_attempts: {
         Row: {
+          attempt_number: number | null
+          bank_question_id: string | null
+          confidence: number | null
           correct_answer: Json
           created_at: string
           generated_question: Json
+          hint_used: boolean
           id: string
           is_correct: boolean | null
           score: number
           selected_answer: Json | null
           session_id: string | null
+          solution_viewed: boolean
+          source: string | null
           student_id: string | null
           template_id: string | null
           user_id: string
         }
         Insert: {
+          attempt_number?: number | null
+          bank_question_id?: string | null
+          confidence?: number | null
           correct_answer: Json
           created_at?: string
           generated_question: Json
+          hint_used?: boolean
           id?: string
           is_correct?: boolean | null
           score?: number
           selected_answer?: Json | null
           session_id?: string | null
+          solution_viewed?: boolean
+          source?: string | null
           student_id?: string | null
           template_id?: string | null
           user_id: string
         }
         Update: {
+          attempt_number?: number | null
+          bank_question_id?: string | null
+          confidence?: number | null
           correct_answer?: Json
           created_at?: string
           generated_question?: Json
+          hint_used?: boolean
           id?: string
           is_correct?: boolean | null
           score?: number
           selected_answer?: Json | null
           session_id?: string | null
+          solution_viewed?: boolean
+          source?: string | null
           student_id?: string | null
           template_id?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "question_attempts_bank_question_id_fkey"
+            columns: ["bank_question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "question_attempts_session_id_fkey"
             columns: ["session_id"]
@@ -3828,6 +4769,7 @@ export type Database = {
         Args: { _student_id: string; _uid: string }
         Returns: Json
       }
+      _generate_battle_code: { Args: never; Returns: string }
       _humanize_template_type: { Args: { _t: string }; Returns: string }
       _maybe_finish_battle: { Args: { _battle_id: string }; Returns: undefined }
       _notify: {
@@ -3852,6 +4794,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      _notify_school_operators: {
+        Args: {
+          _body?: string
+          _icon?: string
+          _link?: string
+          _school_id: string
+          _title: string
+          _type: string
+        }
+        Returns: undefined
+      }
       _notify_student_circle: {
         Args: {
           _body?: string
@@ -3862,6 +4815,27 @@ export type Database = {
           _type: string
         }
         Returns: undefined
+      }
+      _practice_grade_from_bank: {
+        Args: {
+          _bank_question_id: string
+          _client_correct_answer?: Json
+          _selected_answer: Json
+        }
+        Returns: {
+          chapter: string
+          class_level: number
+          concept: string
+          correct_answer: Json
+          difficulty: string
+          explanation: string
+          is_correct: boolean
+          options: Json
+          question_text: string
+          score: number
+          subconcept: string
+          subject: string
+        }[]
       }
       _rebuild_revision_queue: {
         Args: { _student_id: string; _uid: string }
@@ -3983,6 +4957,130 @@ export type Database = {
         Args: { _active: boolean; _teacher_id: string }
         Returns: undefined
       }
+      ai_analytics_summary_v1: {
+        Args: { p_from: string; p_school_id: string; p_to: string }
+        Returns: Json
+      }
+      ai_benchmark_gate_passed: {
+        Args: { p_candidate_label: string; p_suite_ids?: string[] }
+        Returns: Json
+      }
+      ai_budget_check_and_reserve: {
+        Args: { p_feature_id: string; p_school_id: string; p_units?: number }
+        Returns: Json
+      }
+      ai_cosine_similarity: {
+        Args: { a: number[]; b: number[] }
+        Returns: number
+      }
+      ai_embedding_jobs_process_batch: {
+        Args: { p_limit?: number; p_provider_configured?: boolean }
+        Returns: Json
+      }
+      ai_kms_approve_version: {
+        Args: { p_document_id: string; p_publish?: boolean; p_version: number }
+        Returns: Json
+      }
+      ai_kms_assert_staff: { Args: never; Returns: string }
+      ai_kms_complete_chunk_embed: {
+        Args: {
+          p_chunk_id: string
+          p_embedding?: number[]
+          p_error?: string
+          p_failed?: boolean
+          p_model_version?: string
+        }
+        Returns: Json
+      }
+      ai_kms_defer_unset_embeddings: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
+      ai_kms_enqueue_embedding_jobs: {
+        Args: { p_document_id: string; p_version?: number }
+        Returns: Json
+      }
+      ai_kms_register_document: {
+        Args: {
+          p_content_type?: string
+          p_metadata?: Json
+          p_school_id: string
+          p_title: string
+          p_visibility?: string[]
+        }
+        Returns: Json
+      }
+      ai_kms_reject_version: {
+        Args: { p_document_id: string; p_reason?: string; p_version: number }
+        Returns: Json
+      }
+      ai_kms_retrieve_chunks: {
+        Args: {
+          p_grade?: string
+          p_limit?: number
+          p_min_score?: number
+          p_query: string
+          p_query_embedding?: number[]
+          p_role?: string
+          p_school_id: string
+          p_subject?: string
+        }
+        Returns: Json
+      }
+      ai_kms_submit_version: {
+        Args: {
+          p_chunk_texts?: string[]
+          p_document_id: string
+          p_raw_text: string
+          p_source_uri?: string
+        }
+        Returns: Json
+      }
+      ai_lexical_overlap: {
+        Args: { body: string; query: string }
+        Returns: number
+      }
+      ai_prompt_load_production: {
+        Args: { p_capability_id: string }
+        Returns: Json
+      }
+      ai_prompt_load_shadow: {
+        Args: { p_capability_id: string }
+        Returns: Json
+      }
+      ai_prompt_promote: {
+        Args: {
+          p_benchmark_run_ids?: string[]
+          p_capability_id: string
+          p_rollback_version?: string
+          p_scorecard?: Json
+          p_to_status: string
+          p_version: string
+        }
+        Returns: Json
+      }
+      ai_session_memory_append: {
+        Args: {
+          p_increment_turn?: boolean
+          p_session_id: string
+          p_summary_patch?: Json
+        }
+        Returns: Json
+      }
+      ai_session_memory_close: { Args: { p_session_id: string }; Returns: Json }
+      ai_session_memory_open: {
+        Args: {
+          p_capability_id?: string
+          p_school_id: string
+          p_summary?: Json
+          p_target_student_id?: string
+          p_ttl_minutes?: number
+          p_workflow_id?: string
+          p_workflow_scope: string
+        }
+        Returns: Json
+      }
+      ai_session_memory_read: { Args: { p_session_id: string }; Returns: Json }
       default_school_id: { Args: never; Returns: string }
       emit_academic_event: {
         Args: {
@@ -4040,6 +5138,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_battle_participant: { Args: { _battle_id: string }; Returns: boolean }
       is_class_teacher_of_student: {
         Args: { _student_id: string; _uid: string }
         Returns: boolean
@@ -4098,7 +5197,6 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      rpc_accept_battle_invite: { Args: { _invite_id: string }; Returns: string }
       rpc_battle_monitor: { Args: { _battle_id: string }; Returns: Json }
       rpc_challenge_student: {
         Args: {
@@ -4202,14 +5300,13 @@ export type Database = {
         Returns: undefined
       }
       rpc_finish_practice_session: {
-        Args: { _session_id: string }
+        Args: { _attempts?: Json; _session_id: string }
         Returns: Json
       }
       rpc_generate_battle: {
         Args: { _battle_id: string; _count?: number }
         Returns: number
       }
-      rpc_join_battle_by_code: { Args: { _code: string }; Returns: string }
       rpc_get_battle_report: {
         Args: { _participant_id: string }
         Returns: Json
@@ -4222,6 +5319,7 @@ export type Database = {
         Args: { _assignment_id: string }
         Returns: Json
       }
+      rpc_join_battle_by_code: { Args: { _code: string }; Returns: string }
       rpc_leaderboard: {
         Args: {
           _category?: string
@@ -4304,33 +5402,21 @@ export type Database = {
         }
         Returns: string
       }
-      rpc_record_question_attempt:
-        | {
-            Args: {
-              _correct_answer: Json
-              _generated_question: Json
-              _is_correct?: boolean
-              _score?: number
-              _selected_answer?: Json
-              _session_id: string
-              _template_id: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _correct_answer: Json
-              _generated_question: Json
-              _is_correct: boolean
-              _score?: number
-              _selected_answer: Json
-              _session_id: string
-              _skipped?: boolean
-              _template_id: string
-              _time_taken_ms?: number
-            }
-            Returns: string
-          }
+      rpc_record_question_attempt: {
+        Args: {
+          _bank_question_id?: string
+          _correct_answer: Json
+          _generated_question: Json
+          _is_correct: boolean
+          _score?: number
+          _selected_answer: Json
+          _session_id: string
+          _skipped?: boolean
+          _template_id?: string
+          _time_taken_ms?: number
+        }
+        Returns: string
+      }
       rpc_save_battle_ai_insights: {
         Args: { _insights: Json; _participant_id: string }
         Returns: undefined
