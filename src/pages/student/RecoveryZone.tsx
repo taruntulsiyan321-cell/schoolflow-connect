@@ -127,7 +127,7 @@ export default function RecoveryZone() {
             rank: i + 1,
             concept: displayConcept(w.concept),
             subject: w.subject,
-            accuracy: Math.round(w.mastery_score ?? 0),
+            accuracy: Math.round(w.mastery_score ?? 0), // Hub prop name; value is mastery_score
             mastery: Math.round(w.mastery_score ?? 0),
             questionsAssigned: assignments.find((a) => a.concept === w.concept)?.question_count ?? 0,
           }))

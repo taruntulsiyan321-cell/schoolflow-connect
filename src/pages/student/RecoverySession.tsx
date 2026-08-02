@@ -563,7 +563,7 @@ export default function RecoverySession() {
 
 
 
-  const next = () => {
+  const next = async () => {
 
     setRevealed(false);
 
@@ -571,7 +571,7 @@ export default function RecoverySession() {
 
     if (idx + 1 >= questions.length) {
 
-      finishSession(attemptSnapshotsRef.current);
+      await finishSession(attemptSnapshotsRef.current);
 
       return;
 

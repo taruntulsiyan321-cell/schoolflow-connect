@@ -19,9 +19,13 @@ type MBView = "list" | "practice" | "results";
 interface Mistake {
   id: string; question: string; options: string[]; correct: number; chosen: number;
   subject: string; chapter: string; topic: string; difficulty: "easy"|"medium"|"hard";
+  /** Raw DB chapter/concept for recovery assign (not display-humanized). */
+  chapterRaw: string | null;
+  conceptRaw: string | null;
   source: string; sourceLabel: string; date: string; frequency: number;
   aiExplanation: string; correctReason: string; studentReason: string;
   bookmarked: boolean; resolved: boolean; qType: string; sortDate: string;
+  questionId: string | null;
 }
 
 type MistakeRow = {
@@ -87,6 +91,8 @@ function parseDifficulty(raw: string | null | undefined): "easy" | "medium" | "h
 
 function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
   const options = parseOptions(row.options);
+  const chapterRaw = row.chapter?.trim() || null;
+  const conceptRaw = (row.concept ?? row.topic)?.trim() || null;
   return {
     id: row.id,
     question: row.question_text,
@@ -96,6 +102,8 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     subject: row.subject,
     chapter: displayChapter(row.chapter) || "—",
     topic: displayTopic(row.concept ?? row.topic) || "—",
+    chapterRaw,
+    conceptRaw,
     difficulty: parseDifficulty(row.difficulty),
     source: row.source,
     sourceLabel: sourceLabel(row.source),
@@ -108,7 +116,27 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     resolved: row.mastered,
     qType: row.assessment_type ?? "MCQ",
     sortDate: row.last_wrong_at,
+    questionId: row.question_id ?? null,
   };
+}
+
+/** One row per bank question_id (keep highest frequency / latest); rows without question_id stay unique by id. */
+function dedupeMistakes(list: Mistake[]): Mistake[] {
+  const byKey = new Map<string, Mistake>();
+  for (const m of list) {
+    const key = m.questionId ? `q:${m.questionId}` : `id:${m.id}`;
+    const prev = byKey.get(key);
+    if (!prev) {
+      byKey.set(key, m);
+      continue;
+    }
+    const prevTs = new Date(prev.sortDate).getTime();
+    const nextTs = new Date(m.sortDate).getTime();
+    if (m.frequency > prev.frequency || (m.frequency === prev.frequency && nextTs > prevTs)) {
+      byKey.set(key, m);
+    }
+  }
+  return Array.from(byKey.values());
 }
 
 const SOURCE_COLORS: Record<string, { color: string; bg: string }> = {
@@ -222,7 +250,9 @@ function MistakeCard({
               <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <AlertCircle className="w-3 h-3"/> Why You Got It Wrong
               </div>
-              <p className="text-xs text-[#a0a0b0] leading-relaxed">{mistake.studentReason}</p>
+              <p className="text-xs text-[#a0a0b0] leading-relaxed">
+                {mistake.studentReason || "No student reason recorded for this attempt yet."}
+              </p>
             </div>
           </div>
         )}
@@ -428,9 +458,11 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
 
   const mistakes = useMemo(
     () =>
-      rows
-        .filter((r) => isSubjectAllowedForScope(r.subject, stream, classLevel))
-        .map((r) => mapRowToMistake(r, bookmarks.has(r.id))),
+      dedupeMistakes(
+        rows
+          .filter((r) => isSubjectAllowedForScope(r.subject, stream, classLevel))
+          .map((r) => mapRowToMistake(r, bookmarks.has(r.id))),
+      ),
     [rows, bookmarks, stream, classLevel],
   );
 
@@ -452,17 +484,38 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     const m = mistakes.find(x => x.id === id);
     if (!m) return;
     try {
-      await assignRecoveryOnMistake({
+      const assignmentId = await assignRecoveryOnMistake({
         subject: m.subject,
-        chapter: m.chapter,
-        concept: m.topic || m.chapter,
+        chapter: m.chapterRaw,
+        concept: m.conceptRaw || m.chapterRaw,
         sourceType: "student_mistake",
         sourceId: m.id,
       });
-      setToast(`"${m.topic || m.chapter}" queued for Recovery`);
-      setTimeout(() => setPage?.("recovery"), 800);
+      setToast(
+        assignmentId
+          ? `"${m.topic || m.chapter}" queued for Recovery`
+          : `Could not create recovery for "${m.topic || m.chapter}" — try Practice`,
+      );
+      setTimeout(() => {
+        if (assignmentId) setPage?.("recovery");
+        else setPage?.("practice");
+      }, 800);
     } catch (e) {
       setToast(e instanceof Error ? e.message : "Could not add to Recovery");
+    }
+  }
+
+  async function finishMistakePractice(score: number) {
+    setPracticeScore(score);
+    setView("results");
+    if (score < 70 || practiceIds.length === 0 || !ctx) return;
+    try {
+      await PracticeService.markMistakesMastered(ctx, practiceIds);
+      setRows((prev) =>
+        prev.map((r) => (practiceIds.includes(r.id) ? { ...r, mastered: true } : r)),
+      );
+    } catch (e) {
+      console.warn("mark mistakes mastered:", e instanceof Error ? e.message : e);
     }
   }
 
@@ -486,7 +539,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
 
   if (view === "practice") {
     return <MistakePractice ids={practiceIds} mistakes={mistakes}
-      onDone={score => { setPracticeScore(score); setView("results"); }}/>;
+      onDone={(score) => void finishMistakePractice(score)}/>;
   }
 
   if (view === "results") {

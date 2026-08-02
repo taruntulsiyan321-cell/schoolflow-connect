@@ -1,7 +1,12 @@
+﻿-- =============================================================================
+-- APPLY_RECOVERY_REVISION_INTEGRITY.sql
+-- Apply after APPLY_PRACTICE_ENGINE_SSOT.sql / Progression Engine.
+-- Fixes: revision_queue dupes, rpc_complete_recovery_assignment, recovery zone history.
+-- =============================================================================
 -- Recovery / revision integrity: no revision-queue dupes on mistakes,
 -- complete AI/template recovery sessions, expose completed recovery count.
 
--- ── 1) Deduplicate open revision_queue rows (same user+subject+chapter+topic) ─
+-- â”€â”€ 1) Deduplicate open revision_queue rows (same user+subject+chapter+topic) â”€
 DELETE FROM public.revision_queue a
 USING public.revision_queue b
 WHERE a.user_id = b.user_id
@@ -16,7 +21,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS revision_queue_open_unique
   ON public.revision_queue (user_id, subject, (COALESCE(chapter, '')), (COALESCE(topic, '')))
   WHERE completed = false;
 
--- ── 2) Mistake → revision insert is idempotent ───────────────────────────────
+-- â”€â”€ 2) Mistake â†’ revision insert is idempotent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE OR REPLACE FUNCTION public.rpc_record_concept_mistake(
   _assessment_type text,
   _source_id uuid,
@@ -116,7 +121,7 @@ END; $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_record_concept_mistake(text, uuid, uuid, text, text, text, text, int, text, jsonb, jsonb, jsonb, text) TO authenticated;
 
--- ── 3) Complete recovery when session used AI/template (no bank Q UUIDs) ─────
+-- â”€â”€ 3) Complete recovery when session used AI/template (no bank Q UUIDs) â”€â”€â”€â”€â”€
 CREATE OR REPLACE FUNCTION public.rpc_complete_recovery_assignment(
   _assignment_id uuid,
   _questions_completed int DEFAULT NULL,
@@ -171,7 +176,7 @@ END; $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_complete_recovery_assignment(uuid, int, int) TO authenticated;
 
--- ── 4) Recovery zone includes completed count + recent history ───────────────
+-- â”€â”€ 4) Recovery zone includes completed count + recent history â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE OR REPLACE FUNCTION public.rpc_student_recovery_zone()
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -261,3 +266,4 @@ BEGIN
 END; $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_student_recovery_zone() TO authenticated;
+

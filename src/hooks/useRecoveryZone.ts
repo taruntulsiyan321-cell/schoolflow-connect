@@ -61,30 +61,39 @@ export function useRecoveryZone(enabled = true) {
     ]);
     if (err) setError(err.message);
     else {
-      const recent_completed: RecentCompletedRecovery[] = (completedRes.data ?? []).map((row) => {
-        const qCount = row.question_count ?? 0;
-        const correct = row.questions_correct ?? 0;
-        const completed = row.questions_completed ?? 0;
-        const denom = qCount > 0 ? qCount : completed;
-        const score = denom > 0 ? Math.round((100 * correct) / denom) : 0;
-        return {
-          id: row.id,
-          concept: row.concept,
-          subject: row.subject,
-          date: row.completed_at ?? "",
-          score,
-          improved: score >= 65,
-        };
-      });
       const base = (zone as RecoveryZoneData) ?? {
         pending_count: 0,
         weak_concepts: [],
         mastery: [],
         open_assignments: [],
       };
+      // Prefer RPC recent_completed when present; fallback client select if older RPC.
+      const fromRpc = Array.isArray(base.recent_completed) ? base.recent_completed : null;
+      const recent_completed: RecentCompletedRecovery[] =
+        fromRpc && fromRpc.length > 0
+          ? fromRpc
+          : (completedRes.data ?? []).map((row) => {
+              const qCount = row.question_count ?? 0;
+              const correct = row.questions_correct ?? 0;
+              const completed = row.questions_completed ?? 0;
+              const denom = qCount > 0 ? qCount : completed;
+              const score = denom > 0 ? Math.round((100 * correct) / denom) : 0;
+              return {
+                id: row.id,
+                concept: row.concept,
+                subject: row.subject,
+                date: row.completed_at ?? "",
+                score,
+                improved: score >= 65,
+              };
+            });
       setData({
         ...base,
-        completed_count: recent_completed.length,
+        // Prefer server completed_count (full total), not truncated recent list length.
+        completed_count:
+          typeof base.completed_count === "number"
+            ? base.completed_count
+            : recent_completed.length,
         recent_completed,
       });
     }

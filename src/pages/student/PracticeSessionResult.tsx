@@ -137,8 +137,9 @@ export default function PracticeSessionResult() {
     : null);
   const stats = resolvePracticeSessionStats(session, overlay);
   const hasSessionRow = Boolean(session || overlay);
+  // When finish-RPC / DB row exists, never inflate totals from local attempt array length.
   const total = hasSessionRow
-    ? Math.max(stats.questionCount, displayAttempts.length)
+    ? stats.questionCount
     : Math.max(displayAttempts.length, 0);
   const correct = hasSessionRow ? stats.correctCount : localCorrect;
   const wrong = hasSessionRow ? stats.wrongCount : localWrong;

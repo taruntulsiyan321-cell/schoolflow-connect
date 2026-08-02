@@ -1926,6 +1926,10 @@ function Summary({ results, onRetry, onHub }: {
         : 0;
   const color = pct >= 80 ? "#4aa87a" : pct >= 60 ? "#c08a3a" : "#cc5069";
   const emoji = pct >= 90 ? "🏆" : pct >= 75 ? "🎯" : pct >= 60 ? "📈" : "💪";
+  const xpLabel =
+    typeof serverStats?.xpEarned === "number"
+      ? `+${serverStats.xpEarned} XP`
+      : null;
 
   return (
     <div className="max-w-lg mx-auto space-y-5">
@@ -1933,10 +1937,10 @@ function Summary({ results, onRetry, onHub }: {
         <div className="text-5xl mb-3">{emoji}</div>
         <div className="text-[10px] uppercase tracking-widest text-[#78788c] mb-1">{config.label} · Complete</div>
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
-        <div className="text-[#78788c] text-sm mb-6">{correct} correct out of {total} attempted</div>
-        {typeof serverStats?.xpEarned === "number" && (
+        <div className="text-[#78788c] text-sm mb-6">{correct} correct out of {total}</div>
+        {xpLabel && (
           <div className="text-sm font-bold text-[#c08a3a] mb-4 tabular-nums">
-            +{serverStats.xpEarned} XP
+            {xpLabel}
           </div>
         )}
 

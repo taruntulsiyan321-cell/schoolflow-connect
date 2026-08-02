@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
+import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/gurukul/components/shared";
+import { displayConcept } from "@/lib/academicDisplay";
 import { toast } from "sonner";
 import { askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } from "@/academic/ai/gatewayClient";
 import { useAuth } from "@/hooks/useAuth";
@@ -38,7 +40,7 @@ interface Conversation {
   pinned?: boolean; starred?: boolean; messages: Message[];
 }
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
+// ── Honest empty conversation list (never seed demo chats) ────────────────────
 const EMPTY_CONVOS: Conversation[] = [];
 
 const SUGGESTIONS = [
@@ -300,12 +302,14 @@ function ContextPill({
   xp,
   level,
   streak,
+  weakConcepts,
 }: {
   studentClass: string;
   subjectNames: string[];
   xp: number;
   level: number;
   streak: number;
+  weakConcepts: string[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const subjectPreview = subjectNames.length > 0
@@ -316,9 +320,13 @@ function ContextPill({
     level > 1 || xp > 0 ? `Lv ${level}` : null,
     streak > 0 ? `${streak}d streak` : null,
   ].filter(Boolean);
+  const weakPreview = weakConcepts.length
+    ? `Weak: ${weakConcepts.slice(0, 2).join(", ")}${weakConcepts.length > 2 ? "…" : ""}`
+    : null;
   const contextLine = [
     studentClass || null,
     progressionBits.length ? progressionBits.join(" · ") : null,
+    weakPreview,
     subjectPreview,
   ].filter(Boolean).join(" · ");
   return (
@@ -331,12 +339,15 @@ function ContextPill({
         </span>
         <Brain className="w-3 h-3 text-[#78788c]"/>
       </button>
+      {expanded && (
+        <div className="sr-only">{weakConcepts.join(", ")}</div>
+      )}
     </div>
   );
 }
 
 // ── Suggestions (empty state) ─────────────────────────────────────────────────
-function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects, xp, level, streak }: {
+function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects, xp, level, streak, weakConcepts }: {
   onSelect: (text: string) => void;
   firstName: string;
   studentClass: string;
@@ -345,6 +356,7 @@ function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects
   xp: number;
   level: number;
   streak: number;
+  weakConcepts: string[];
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
@@ -366,6 +378,7 @@ function SuggestionGrid({ onSelect, firstName, studentClass, goal, chartSubjects
           ...(studentClass ? [{ label: studentClass, color:"#3b5bdb" }] : []),
           ...(xp > 0 || level > 1 ? [{ label: `Lv ${level} · ${xp.toLocaleString()} XP`, color:"#6882e8" }] : []),
           ...(streak > 0 ? [{ label: `${streak}d streak`, color:"#c08a3a" }] : []),
+          ...(weakConcepts[0] ? [{ label: `Weak: ${weakConcepts[0]}`, color:"#cc5069" }] : []),
           ...(goal ? [{ label: goal, color:"#4aa87a" }] : []),
           ...chartSubjects.slice(0, 3).map(s => ({ label: s.name, color: s.color })),
         ].map(item => (
@@ -643,10 +656,20 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const { user } = useAuth();
   const { studentId, schoolId } = useAcademicContext();
   const { data: charts } = useStudentPerformanceCharts();
+  const { items: masteryItems } = useConceptMastery();
   const chartSubjects = (charts?.subjects ?? []).map((s, i) => ({
     name: s.name,
     color: ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"][i % 5],
   }));
+  const weakConceptLabels = useMemo(
+    () =>
+      [...masteryItems]
+        .filter((m) => m.mastery_score < 60 || m.mistake_count >= 2)
+        .sort((a, b) => a.mastery_score - b.mastery_score || b.mistake_count - a.mistake_count)
+        .slice(0, 3)
+        .map((m) => displayConcept(m.concept)),
+    [masteryItems],
+  );
 
   const [convos,     setConvos]     = useState<Conversation[]>(EMPTY_CONVOS);
   const [activeId,   setActiveId]   = useState<string|null>(null);
@@ -965,6 +988,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
               xp={student.xp}
               level={student.level}
               streak={student.streak}
+              weakConcepts={weakConceptLabels}
             />
           ) : (
             <div className="px-4 py-4 space-y-5 max-w-3xl mx-auto w-full">
@@ -974,6 +998,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
                 xp={student.xp}
                 level={student.level}
                 streak={student.streak}
+                weakConcepts={weakConceptLabels}
               />
               {msgs.map((m, i) => (
                 <MessageBubble key={m.id} msg={m}
