@@ -51,6 +51,14 @@ export default function Achievements() {
     void loadProgression();
   }, [loadProgression]);
 
+  useEffect(() => {
+    const onXp = () => {
+      void loadProgression();
+    };
+    window.addEventListener("student-xp-updated", onXp);
+    return () => window.removeEventListener("student-xp-updated", onXp);
+  }, [loadProgression]);
+
   const { unlocked, locked, visibleCatalogCount } = useMemo(() => {
     const earnedCodes = new Set(earned.map((e) => e.badge_code));
     const unlockedItems = earned
