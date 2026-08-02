@@ -11,11 +11,50 @@
 --   7. Tenant-bind admin SECURITY DEFINER RPCs + link_portal_on_auth
 -- ============================================================================
 
--- ── 0a. Ensure profiles.is_active exists ─────────────────────────────────────
--- Live DBs may have school_id from a partial/earlier apply without is_active
--- (generated types show school_id only). Keep disable-account security intact.
+-- ── 0a. Ensure tenant columns exist (idempotent; live DBs may lag migrations) ─
+-- profiles.school_id / is_active and school_id on policy-target tables must exist
+-- BEFORE any function, trigger, or RLS policy references them.
+CREATE TABLE IF NOT EXISTS public.schools (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  slug text UNIQUE,
+  logo_url text,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO public.schools (id, name, slug)
+VALUES ('00000000-0000-4000-8000-000000000001', 'Wisdom Campus', 'wisdom-campus')
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS school_id uuid REFERENCES public.schools(id);
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
+
+-- Tables this script scopes with same_school(school_id) / admin RPCs
+DO $$
+DECLARE
+  t text;
+  tables text[] := ARRAY[
+    'classes', 'students', 'teachers', 'teacher_classes',
+    'attendance_locks', 'exams', 'marks', 'fees', 'notices',
+    'class_timetables', 'community_doubts'
+  ];
+BEGIN
+  FOREACH t IN ARRAY tables LOOP
+    IF EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = t
+    ) THEN
+      EXECUTE format(
+        'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS school_id uuid REFERENCES public.schools(id)',
+        t
+      );
+    END IF;
+  END LOOP;
+END $$;
 
 -- ── 0. Active-session helper (defense in depth for DEFINER RPCs) ─────────────
 CREATE OR REPLACE FUNCTION public.require_active_profile()
