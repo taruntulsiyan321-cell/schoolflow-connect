@@ -260,7 +260,7 @@ function validateHomeworkInput(input: CreateHomeworkInput | UpdateHomeworkInput,
 
 export async function getHomework(ctx: RepoContext, homeworkId: string): Promise<HomeworkRecord> {
   const schoolId = schoolIdOf(ctx);
-  const { data, error } = await getClient(ctx)
+  const { data, error } = await (getClient(ctx) as any)
     .from("homework")
     .select(HW_SELECT)
     .eq("id", homeworkId)
@@ -281,7 +281,7 @@ export async function listHomeworkForClass(
   const schoolId = schoolIdOf(ctx);
   const { limit, offset } = normalizePage(page);
 
-  let q = getClient(ctx)
+  let q = (getClient(ctx) as any)
     .from("homework")
     .select(HW_SELECT)
     .eq("school_id", schoolId)
@@ -320,7 +320,7 @@ export async function listHomeworkForSchool(
 ): Promise<HomeworkRecord[]> {
   const schoolId = schoolIdOf(ctx);
   const { limit, offset } = normalizePage(page);
-  let q = getClient(ctx)
+  let q = (getClient(ctx) as any)
     .from("homework")
     .select(HW_SELECT)
     .eq("school_id", schoolId)
@@ -378,7 +378,7 @@ export async function createHomework(
     ]);
   }
 
-  const { data, error } = await getClient(ctx)
+  const { data, error } = await (getClient(ctx) as any)
     .from("homework")
     .insert({
       school_id: schoolId,
@@ -459,7 +459,7 @@ export async function updateHomework(
   if (input.publishedAt !== undefined) patch.published_at = input.publishedAt;
   if (input.archivedAt !== undefined) patch.archived_at = input.archivedAt;
 
-  const { data, error } = await getClient(ctx)
+  const { data, error } = await (getClient(ctx) as any)
     .from("homework")
     .update(patch as never)
     .eq("id", homeworkId)
@@ -547,7 +547,7 @@ export async function deleteHomework(ctx: RepoContext, homeworkId: string): Prom
       },
     ]);
   }
-  const { error } = await getClient(ctx)
+  const { error } = await (getClient(ctx) as any)
     .from("homework")
     .delete()
     .eq("id", homeworkId)
