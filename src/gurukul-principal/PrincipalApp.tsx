@@ -81,32 +81,26 @@ function StatTile({ label, value, color, icon: Icon }: { label: string; value: s
 // ── Data ──────────────────────────────────────────────────────────────────────
 // Academic mocks (attendance trends, class/subject scores, rankings, exam schedules)
 // have been removed — those pages now render live Academic Engine data instead.
-// Remaining mocks below are non-academic (announcements, messages).
+// Announcements / messages stay empty until their services are product-mounted.
 
-const announcements = [
-  { title: 'Annual Sports Day — 15 August', audience: 'All', date: '27 Jul', status: 'published', author: 'Principal Office' },
-  { title: 'Parent-Teacher Meeting — 5 Aug', audience: 'All Parents', date: '25 Jul', status: 'pending', author: 'Admin Office' },
-  { title: 'School Closed — Independence Day', audience: 'All', date: '24 Jul', status: 'scheduled', author: 'Principal Office' },
-  { title: 'Fee Payment Reminder — Last Date 31 Jul', audience: 'Parents', date: '22 Jul', status: 'published', author: 'Accounts' },
-  { title: 'Science Fair Registration Open', audience: 'Students', date: '20 Jul', status: 'published', author: 'Science Dept' },
-  { title: 'Library Timings Updated', audience: 'Students & Staff', date: '18 Jul', status: 'published', author: 'Library' },
-]
+const announcements: {
+  title: string;
+  audience: string;
+  date: string;
+  status: string;
+  author: string;
+}[] = [];
 
-const messages = [
-  { name: 'Ms. Priya Singh', preview: 'The Science lab schedule for next week has been updated. Please review...', time: '9:42 AM', unread: 2, avatar: 'PS', online: true },
-  { name: 'Admin Office', preview: 'Fee collection report for July 2025 is ready for your review.', time: '8:15 AM', unread: 1, avatar: 'AO', online: true },
-  { name: 'Mr. Ramesh Kumar', preview: "Regarding the Mathematics syllabus coverage — we're slightly behind.", time: 'Yesterday', unread: 0, avatar: 'RK', online: false },
-  { name: 'Examination Cell', preview: 'Mid-term schedule has been finalized. Timetable attached.', time: 'Yesterday', unread: 0, avatar: 'EC', online: false },
-  { name: 'Ms. Kavitha Reddy', preview: 'Chemistry lab consumables are running low. Approval needed.', time: '25 Jul', unread: 0, avatar: 'KR', online: true },
-  { name: 'Transport Committee', preview: 'Bus route 4 will be modified from next month due to road work.', time: '24 Jul', unread: 0, avatar: 'TC', online: false },
-]
+const messages: {
+  name: string;
+  preview: string;
+  time: string;
+  unread: number;
+  avatar: string;
+  online: boolean;
+}[] = [];
 
-const convMessages = [
-  { from: 'them', text: "The Science lab schedule for next week has been updated. I've shifted the Class 10A practical to Wednesday morning.", time: '9:38 AM' },
-  { from: 'me', text: 'Thank you for the update. Does this affect the exam preparation schedule?', time: '9:40 AM' },
-  { from: 'them', text: 'No impact on exam prep. We\'ve ensured all revision practicals are completed by Friday. Please review the updated timetable.', time: '9:41 AM' },
-  { from: 'them', text: 'Also, the Science Fair registrations are coming in well — 34 teams so far across Classes 9–12.', time: '9:42 AM' },
-]
+const convMessages: { from: string; text: string; time: string }[] = [];
 
 // ── Nav items ─────────────────────────────────────────────────────────────────
 

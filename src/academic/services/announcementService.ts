@@ -115,6 +115,37 @@ export const AnnouncementService = {
     return (data ?? []).map((r) => mapNotice(r as NoticeRow));
   },
 
+  /** Published school/class notices for parent/student consumers. */
+  async listPublishedForSchool(
+    ctx: ServiceContext,
+  ): Promise<TeacherAnnouncementRow[]> {
+    assertCanConsume(ctx, "announcement");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("notices")
+      .select("*, classes(name, section)")
+      .eq("school_id", ctx.schoolId)
+      .eq("status", "published")
+      .is("revoked_at", null)
+      .order("published_at", { ascending: false })
+      .limit(100);
+    throwIfError(error, "Failed to list published announcements");
+    return (data ?? []).map((r) => mapNotice(r as NoticeRow));
+  },
+
+  /** All school notices (draft / scheduled / published) for principal/admin. */
+  async listForSchool(ctx: ServiceContext): Promise<TeacherAnnouncementRow[]> {
+    assertCanConsume(ctx, "announcement");
+    const { data, error } = await getClient(toRepoContext(ctx))
+      .from("notices")
+      .select("*, classes(name, section)")
+      .eq("school_id", ctx.schoolId)
+      .is("revoked_at", null)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    throwIfError(error, "Failed to list school announcements");
+    return (data ?? []).map((r) => mapNotice(r as NoticeRow));
+  },
+
   async create(
     ctx: ServiceContext,
     input: UpsertAnnouncementInput,

@@ -9,6 +9,7 @@ import {
   TestService,
   WORK_KIND_LABELS,
   normalizeWorkKind,
+  useAcademicLive,
   type StudentAcademicProfile,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -25,6 +26,7 @@ function Loading({ label }: { label: string }) {
 /** Parent homework from HomeworkService (no mock). */
 export function ParentLiveHomework({ studentId }: { studentId: string }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["homework", "profile"]);
   const [rows, setRows] = useState<Awaited<ReturnType<typeof HomeworkService.listForStudent>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId]);
+  }, [ready, ctx, studentId, liveVersion]);
 
   if (loading) return <Loading label="Loading homework…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
@@ -105,6 +107,7 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
 /** Parent exams + marks from MarksService; tests from TestService. */
 export function ParentLiveExams({ studentId, classId }: { studentId: string; classId: string | null }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["marks", "examination", "test", "profile"]);
   const [marks, setMarks] = useState<Awaited<ReturnType<typeof MarksService.listForStudent>>>([]);
   const [exams, setExams] = useState<Awaited<ReturnType<typeof MarksService.listExamsForClass>>>([]);
   const [tests, setTests] = useState<any[]>([]);
@@ -141,7 +144,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId, classId]);
+  }, [ready, ctx, studentId, classId, liveVersion]);
 
   if (loading) return <Loading label="Loading exams & tests…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
@@ -202,6 +205,14 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
 /** Performance / insights from AcademicProfileService + Analytics + AI. */
 export function ParentLivePerformance({ studentId }: { studentId: string }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive([
+    "attendance",
+    "homework",
+    "marks",
+    "examination",
+    "test",
+    "profile",
+  ]);
   const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
   const [analytics, setAnalytics] = useState<Awaited<
     ReturnType<typeof AnalyticsService.forStudent>
@@ -246,7 +257,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId]);
+  }, [ready, ctx, studentId, liveVersion]);
 
   if (loading) return <Loading label="Loading performance…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;

@@ -9,10 +9,10 @@ import {
   useParentLiveChildren,
 } from "./ParentLiveAttendance";
 import { ParentLivePerformance } from "./ParentLiveAcademic";
-import { HomeworkService } from "@/academic";
+import { HomeworkService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useEffect, useState } from "react";
-import { parentNotifications } from "./data";
+import { useNotifications } from "@/hooks/useNotifications";
 
 function QuickStat({ label, value, sub, color, icon }: { label: string; value: string | number; sub?: string; color: string; icon: React.ReactNode }) {
   return (
@@ -42,13 +42,14 @@ export default function ParentDashboard({
   setActiveChildId: (id: string) => void;
 }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["homework", "profile"]);
   const { children: liveChildren, loading: childrenLoading } = useParentLiveChildren();
   const liveChild = liveChildren.find((c) => c.id === activeChildId) ?? liveChildren[0];
   const attendanceId = liveChild?.id ?? null;
   const { pct: attendancePct, present: presentDays, total: schoolDays, todayStatus } =
     useChildAttendancePct(attendanceId);
   const [pendingHw, setPendingHw] = useState(0);
-  const unreadNotifications = parentNotifications.filter((n) => !n.read).length;
+  const { unread: unreadNotifications } = useNotifications();
 
   useEffect(() => {
     if (liveChild && liveChild.id !== activeChildId) {
@@ -72,7 +73,7 @@ export default function ParentDashboard({
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, attendanceId]);
+  }, [ready, ctx, attendanceId, liveVersion]);
 
   if (childrenLoading) {
     return (

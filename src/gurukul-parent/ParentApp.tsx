@@ -20,11 +20,17 @@ import ParentNotifications from "./Notifications";
 import ParentProfile from "./Profile";
 import AcademicInsights from "./AcademicInsights";
 import TestResults from "./TestResults";
-import { parentNotifications, messageThreads } from "./data";
 import { useParentLiveChildren } from "./ParentLiveAttendance";
 import { useAuth } from "@/hooks/useAuth";
+import { useNotifications } from "@/hooks/useNotifications";
 
 export type { ParentPageKey } from "./nav";
+
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  return parts.map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
 
 interface NavItem {
   key: ParentPageKey;
@@ -48,6 +54,9 @@ function Sidebar({
   activeChildId,
   setActiveChildId,
   onSignOut,
+  parentName,
+  unreadNotif,
+  unreadMsg,
 }: {
   page: ParentPageKey;
   setPage: (p: ParentPageKey) => void;
@@ -58,9 +67,12 @@ function Sidebar({
   activeChildId: string;
   setActiveChildId: (id: string) => void;
   onSignOut?: () => void;
+  parentName: string;
+  unreadNotif: number;
+  unreadMsg: number;
 }) {
-  const unreadNotif = parentNotifications.filter((n) => !n.read).length;
-  const unreadMsg = messageThreads.reduce((s, t) => s + t.unreadCount, 0);
+  const displayName = parentName.trim() || "Parent";
+  const initials = initialsFromName(displayName);
 
   const NAV_GROUPS: NavGroup[] = [
     {
@@ -212,11 +224,11 @@ function Sidebar({
         <div className="px-3 py-4 border-t border-white/7 space-y-2">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-              <span className="text-[11px] font-black text-white">RM</span>
+              <span className="text-[11px] font-black text-white">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-white truncate">Rajesh Mehta</div>
-              <div className="text-[9px] text-[#46465a]">Father · {children.length} children</div>
+              <div className="text-xs font-bold text-white truncate">{displayName}</div>
+              <div className="text-[9px] text-[#46465a]">{children.length} linked children</div>
             </div>
           </div>
           {onSignOut && (
@@ -237,14 +249,16 @@ function Sidebar({
 export default function ParentApp() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
+  const { unread: unreadNotif } = useNotifications();
   const page = useMemo(() => parentPathToPage(location.pathname), [location.pathname]);
   const setPage = (p: ParentPageKey) => navigate(PARENT_PAGE_PATH[p]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeChildId, setActiveChildId] = useState("");
-  const unreadNotif = parentNotifications.filter((n) => !n.read).length;
-  const unreadMsg = messageThreads.reduce((s, t) => s + t.unreadCount, 0);
+  const unreadMsg = 0;
+  const parentName = profile?.fullName ?? "";
+  const initials = initialsFromName(parentName.trim() || "Parent");
 
   const handleSignOut = async () => {
     await signOut();
@@ -262,6 +276,9 @@ export default function ParentApp() {
           activeChildId={activeChildId}
           setActiveChildId={setActiveChildId}
           onSignOut={handleSignOut}
+          parentName={parentName}
+          unreadNotif={unreadNotif}
+          unreadMsg={unreadMsg}
         />
       </div>
 
@@ -279,6 +296,9 @@ export default function ParentApp() {
               activeChildId={activeChildId}
               setActiveChildId={setActiveChildId}
               onSignOut={handleSignOut}
+              parentName={parentName}
+              unreadNotif={unreadNotif}
+              unreadMsg={unreadMsg}
             />
           </div>
         </div>
@@ -330,7 +350,7 @@ export default function ParentApp() {
               onClick={() => setPage("profile")}
               className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"
             >
-              <span className="text-[11px] font-black text-white">RM</span>
+              <span className="text-[11px] font-black text-white">{initials}</span>
             </button>
           </div>
         </header>

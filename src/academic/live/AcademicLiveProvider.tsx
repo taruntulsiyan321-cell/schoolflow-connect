@@ -127,6 +127,11 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
       )
       .on(
         "postgres_changes",
+        { event: "*", schema: "public", table: "dpps", filter: `school_id=eq.${schoolId}` },
+        onTable(["test", "profile"]),
+      )
+      .on(
+        "postgres_changes",
         {
           event: "*",
           schema: "public",
@@ -174,6 +179,16 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
           filter: `user_id=eq.${user.id}`,
         },
         onTable(["battle", "xp", "profile"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "practice_sessions",
+          filter: `user_id=eq.${user.id}`,
+        },
+        onTable(["xp", "profile"]),
       )
       .on(
         "postgres_changes",

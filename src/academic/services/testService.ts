@@ -11,12 +11,24 @@ import {
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
 import { emitEvent } from "../repository/eventsRepository";
+import { broadcastAcademicWrite } from "../live";
 import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
 import { isSchoolOperator } from "./context";
 import type { TestKind } from "./workLifecycle";
 import { ValidationFailedError } from "../repository/errors";
 
 export type TestStatus = "draft" | "scheduled" | "published" | "archived";
+
+function afterTestWrite(
+  ctx: ServiceContext,
+  meta?: { classId?: string | null; studentId?: string | null; source?: string },
+) {
+  broadcastAcademicWrite(ctx.schoolId, ["test", "profile"], {
+    classId: meta?.classId,
+    studentId: meta?.studentId,
+    source: meta?.source ?? "TestService",
+  });
+}
 
 export type ManualQuestionKind =
   | "mcq"
@@ -291,6 +303,10 @@ export const TestService = {
         },
       }).catch(() => undefined);
     }
+    afterTestWrite(ctx, {
+      classId: input.classId,
+      source: "TestService.create",
+    });
     return data;
   },
 
@@ -420,6 +436,10 @@ export const TestService = {
         testKind: existing.test_kind ?? "class_test",
       },
     }).catch(() => undefined);
+    afterTestWrite(ctx, {
+      classId: String(existing.class_id),
+      source: "TestService.publish",
+    });
     return data;
   },
 
@@ -440,6 +460,10 @@ export const TestService = {
       .select("*")
       .single();
     throwIfError(error, "Failed to archive test");
+    afterTestWrite(ctx, {
+      classId: String(existing.class_id),
+      source: "TestService.archive",
+    });
     return data;
   },
 
@@ -476,6 +500,10 @@ export const TestService = {
         scheduledPublishAt: at,
       },
     }).catch(() => undefined);
+    afterTestWrite(ctx, {
+      classId: String(existing.class_id),
+      source: "TestService.schedule",
+    });
     return data;
   },
 
@@ -647,7 +675,6 @@ export const TestService = {
         accuracy: result?.accuracy ?? null,
       },
     }).catch(() => undefined);
-    const { broadcastAcademicWrite } = await import("../live");
     const { notifyStudentXpUpdated } = await import("@/lib/studentXpNotify");
     broadcastAcademicWrite(ctx.schoolId, ["test", "xp", "profile"], {
       studentId: ctx.studentId,

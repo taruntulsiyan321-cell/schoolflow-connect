@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  User, Mail, Phone, MapPin, Briefcase, Lock, Link2, Link2Off,
+  User, Mail, Lock, Link2, Link2Off,
   Edit2, Save, X, Check, Smartphone, Shield,
 } from "lucide-react";
-import { cn } from "./shared";
-import { parentProfile, type ParentProfile } from "./data";
+import { type ParentProfile } from "./data";
+import { useAuth } from "@/hooks/useAuth";
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -32,13 +32,38 @@ function EditableField({ label, value, editing, onChange, type = "text" }: { lab
   );
 }
 
-export default function ParentProfile() {
-  const [profile, setProfile] = useState<ParentProfile>(parentProfile);
+function profileFromAuth(fullName: string, email: string | null): ParentProfile {
+  return {
+    name: fullName || "Parent",
+    email: email ?? "",
+    phone: "",
+    occupation: "",
+    address: "",
+    relationship: "",
+    googleLinked: false,
+    googleEmail: "",
+    mobileLinked: false,
+  };
+}
+
+export default function ParentProfilePage() {
+  const { profile: authProfile } = useAuth();
+  const seeded = profileFromAuth(authProfile?.fullName ?? "", authProfile?.email ?? null);
+  const [profile, setProfile] = useState<ParentProfile>(seeded);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<ParentProfile>(parentProfile);
+  const [draft, setDraft] = useState<ParentProfile>(seeded);
   const [flash, setFlash] = useState<string | null>(null);
   const [changePwdOpen, setChangePwdOpen] = useState(false);
   const [pwdForm, setPwdForm] = useState({ current: "", next: "", confirm: "" });
+
+  useEffect(() => {
+    const next = profileFromAuth(authProfile?.fullName ?? "", authProfile?.email ?? null);
+    setProfile((prev) => ({
+      ...prev,
+      name: next.name,
+      email: next.email || prev.email,
+    }));
+  }, [authProfile?.fullName, authProfile?.email]);
 
   function startEdit() {
     setDraft(profile);
@@ -48,7 +73,7 @@ export default function ParentProfile() {
   function saveEdit() {
     setProfile(draft);
     setEditing(false);
-    showFlash("Profile updated successfully");
+    showFlash("Local profile draft saved (account name comes from auth)");
   }
 
   function cancelEdit() {
@@ -66,12 +91,14 @@ export default function ParentProfile() {
     if (pwdForm.next !== pwdForm.confirm) return;
     setChangePwdOpen(false);
     setPwdForm({ current: "", next: "", confirm: "" });
-    showFlash("Password changed successfully");
+    showFlash("Use account settings / auth provider to change password");
   }
 
   function d(key: keyof ParentProfile, value: string) {
     setDraft((prev) => ({ ...prev, [key]: value }));
   }
+
+  const initials = (profile.name || "P").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "P";
 
   return (
     <div className="space-y-5 max-w-2xl">
@@ -81,15 +108,14 @@ export default function ParentProfile() {
         </div>
       )}
 
-      {/* Avatar + edit toggle */}
       <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 flex items-center gap-4">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <span className="text-xl font-black text-white">{profile.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}</span>
+          <span className="text-xl font-black text-white">{initials}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-black text-white">{profile.name}</div>
-          <div className="text-xs text-[#78788c] mt-0.5">{profile.relationship} · {profile.occupation}</div>
-          <div className="text-[10px] text-[#46465a]">{profile.email}</div>
+          <div className="text-base font-black text-white">{profile.name || "Parent"}</div>
+          <div className="text-xs text-[#78788c] mt-0.5">{profile.relationship || "Guardian"}{profile.occupation ? ` · ${profile.occupation}` : ""}</div>
+          <div className="text-[10px] text-[#46465a]">{profile.email || "No email on profile"}</div>
         </div>
         {!editing ? (
           <button onClick={startEdit}
@@ -108,7 +134,6 @@ export default function ParentProfile() {
         )}
       </div>
 
-      {/* Personal Info */}
       <Section title="Personal Information" icon={<User className="w-4 h-4" />}>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
@@ -124,10 +149,8 @@ export default function ParentProfile() {
         </div>
       </Section>
 
-      {/* Linked Accounts */}
       <Section title="Linked Accounts" icon={<Link2 className="w-4 h-4" />}>
         <div className="space-y-3">
-          {/* Google */}
           <div className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
             <div className="w-8 h-8 rounded-lg bg-[#ea4335]/15 flex items-center justify-center">
               <Mail className="w-4 h-4 text-[#ea4335]" />
@@ -139,57 +162,46 @@ export default function ParentProfile() {
             {profile.googleLinked ? (
               <div className="flex items-center gap-2">
                 <span className="text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/15 px-2 py-0.5 rounded-full">Linked</span>
-                <button onClick={() => { setProfile((p) => ({ ...p, googleLinked: false })); showFlash("Google account unlinked"); }}
+                <button onClick={() => { setProfile((p) => ({ ...p, googleLinked: false })); showFlash("Google account unlinked locally"); }}
                   className="text-[10px] text-[#cc5069] hover:underline flex items-center gap-0.5">
                   <Link2Off className="w-3 h-3" /> Remove
                 </button>
               </div>
             ) : (
-              <button onClick={() => { setProfile((p) => ({ ...p, googleLinked: true, googleEmail: "rajesh.mehta@gmail.com" })); showFlash("Google account linked"); }}
-                className="text-[10px] text-[#6366f1] hover:underline flex items-center gap-0.5">
-                <Link2 className="w-3 h-3" /> Link
-              </button>
+              <span className="text-[10px] text-[#46465a]">Link via auth provider</span>
             )}
           </div>
 
-          {/* Mobile */}
           <div className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
             <div className="w-8 h-8 rounded-lg bg-[#3b5bdb]/15 flex items-center justify-center">
               <Smartphone className="w-4 h-4 text-[#3b5bdb]" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-white">Mobile Number</div>
-              <div className="text-[10px] text-[#78788c]">{profile.mobileLinked ? profile.phone : "Not linked"}</div>
+              <div className="text-[10px] text-[#78788c]">{profile.mobileLinked ? profile.phone || "Verified" : "Not linked"}</div>
             </div>
             {profile.mobileLinked ? (
               <span className="text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/15 px-2 py-0.5 rounded-full">Verified</span>
             ) : (
-              <button onClick={() => { setProfile((p) => ({ ...p, mobileLinked: true })); showFlash("Mobile number linked"); }}
-                className="text-[10px] text-[#6366f1] hover:underline flex items-center gap-0.5">
-                <Link2 className="w-3 h-3" /> Link
-              </button>
+              <span className="text-[10px] text-[#46465a]">Not verified</span>
             )}
           </div>
         </div>
       </Section>
 
-      {/* Password */}
       <Section title="Security" icon={<Shield className="w-4 h-4" />}>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 rounded-xl bg-white/3">
-            <div>
-              <div className="text-xs font-semibold text-white">Password</div>
-              <div className="text-[10px] text-[#78788c]">Last changed 3 months ago</div>
-            </div>
-            <button onClick={() => setChangePwdOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#c08a3a] bg-[#c08a3a]/10 hover:bg-[#c08a3a]/15 transition-all">
-              <Lock className="w-3.5 h-3.5" /> Change
-            </button>
+        <div className="flex items-center justify-between p-3 rounded-xl bg-white/3">
+          <div>
+            <div className="text-xs font-semibold text-white">Password</div>
+            <div className="text-[10px] text-[#78788c]">Managed by authentication provider</div>
           </div>
+          <button onClick={() => setChangePwdOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#c08a3a] bg-[#c08a3a]/10 hover:bg-[#c08a3a]/15 transition-all">
+            <Lock className="w-3.5 h-3.5" /> Change
+          </button>
         </div>
       </Section>
 
-      {/* Change Password Modal */}
       {changePwdOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setChangePwdOpen(false)} />

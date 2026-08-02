@@ -134,7 +134,14 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
 /** Hook: live children for parent panel (engine). */
 export function useParentLiveChildren() {
   const { ctx, ready } = useAcademicContext();
-  const liveVersion = useAcademicLive(["attendance", "profile"]);
+  const liveVersion = useAcademicLive([
+    "attendance",
+    "homework",
+    "marks",
+    "examination",
+    "test",
+    "profile",
+  ]);
   const [children, setChildren] = useState<ParentChildRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
