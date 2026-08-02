@@ -9,6 +9,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
+import { localDateKey } from "@/lib/localDate";
 
 /**
  * Principal live academic panels — sourced from the Academic Engine only.
@@ -16,7 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
  */
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey();
 }
 
 function Loading({ label }: { label: string }) {

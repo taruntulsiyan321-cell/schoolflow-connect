@@ -72,6 +72,7 @@ export default function ParentProfile() {
   const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [flashError, setFlashError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [changePwdOpen, setChangePwdOpen] = useState(false);
   const [pwdForm, setPwdForm] = useState({ next: "", confirm: "" });
   const [pwdSaving, setPwdSaving] = useState(false);
@@ -88,12 +89,19 @@ export default function ParentProfile() {
     let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("parents")
         .select("id, full_name, email, phone")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
+      if (error) {
+        setLoadError(error.message);
+        setParentRow(null);
+        setLoading(false);
+        return;
+      }
+      setLoadError(null);
       setParentRow(data);
       setDraftName(data?.full_name || profile?.fullName || "");
       setDraftPhone(data?.phone || "");
@@ -199,6 +207,11 @@ export default function ParentProfile() {
       {flashError && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#cc5069]/15 border border-[#cc5069]/25 text-[#cc5069] text-xs font-semibold">
           {flashError}
+        </div>
+      )}
+      {loadError && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#cc5069]/15 border border-[#cc5069]/25 text-[#cc5069] text-xs font-semibold">
+          Failed to load parent profile: {loadError}
         </div>
       )}
 

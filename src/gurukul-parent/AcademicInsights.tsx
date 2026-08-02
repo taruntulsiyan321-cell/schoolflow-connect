@@ -14,7 +14,7 @@ export default function AcademicInsights({
   activeChildId: string;
   setActiveChildId: (id: string) => void;
 }) {
-  const { children, loading } = useParentLiveChildren();
+  const { children, loading, error } = useParentLiveChildren();
   const child = children.find((c) => c.id === activeChildId) ?? children[0];
   const [tab, setTab] = useState<"performance" | "exams">("performance");
 
@@ -22,6 +22,14 @@ export default function AcademicInsights({
     return (
       <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-sm text-[#cc5069] py-16 text-center">
+        Failed to load children: {error}
       </div>
     );
   }

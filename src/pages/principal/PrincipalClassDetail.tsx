@@ -9,6 +9,7 @@ import {
   useAcademicLive,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { localDateKey } from "@/lib/localDate";
 import { Card } from "@/components/ui/card";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,83 +58,101 @@ export default function PrincipalClassDetail() {
   const [auditHint, setAuditHint] = useState(0);
   const [classTeacher, setClassTeacher] = useState<{ full_name: string; mobile: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !ctx || !classId) return;
+    let cancelled = false;
     (async () => {
       setLoading(true);
-      const today = new Date().toISOString().split("T")[0];
-
-      const [k, s, ct, analytics, profiles, todayAtt] = await Promise.all([
-        supabase.from("classes").select("*").eq("id", classId).maybeSingle(),
-        supabase
-          .from("students")
-          .select("id, full_name, roll_number, admission_number")
-          .eq("class_id", classId)
-          .order("roll_number", { nullsFirst: false }),
-        supabase
-          .from("teachers")
-          .select("full_name, mobile")
-          .eq("class_teacher_of", classId)
-          .maybeSingle(),
-        AnalyticsService.forClass(ctx, classId),
-        AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
-        AttendanceService.listForClassDate(ctx, classId, today),
-      ]);
-
-      setKlass(k.data ?? null);
-      setStudents((s.data ?? []) as Student[]);
-      setClassTeacher(ct.data ?? null);
-      setAvgAttendancePct(Math.round(analytics.avgAttendancePct));
-      setProfileRows(
-        profiles.map((p) => ({
-          studentId: p.studentId,
-          attendancePct: Math.round(p.attendancePct),
-          examsAvgPct: Math.round(p.examsAvgPct),
-        })),
-      );
-
-      setTodayMarked(todayAtt.length);
-      setTodayPresent(todayAtt.filter((r) => r.status === "present" || r.status === "late").length);
-      setTodayAbsent(todayAtt.filter((r) => r.status === "absent").length);
-
-      const { data: feedRows } = await supabase
-        .from("school_activity_feed")
-        .select("action, created_at, entity_type, metadata")
-        .eq("school_id", ctx.schoolId)
-        .eq("entity_type", "attendance")
-        .order("created_at", { ascending: false })
-        .limit(40);
-      const classFeed = ((feedRows ?? []) as {
-        action: string;
-        created_at: string;
-        metadata: { class_id?: string } | null;
-      }[])
-        .filter((row) => row.metadata?.class_id === classId)
-        .slice(0, 12)
-        .map((row) => ({ title: row.action, created_at: row.created_at }));
-      setFeed(classFeed);
-
+      setError(null);
       try {
-        const recent = await AuditReadService.recent(ctx);
-        setAuditHint(
-          recent.filter((a) => {
-            if (a.entityType !== "attendance") return false;
-            const meta = a.metadata as { class_id?: string } | null;
-            return meta?.class_id === classId;
-          }).length,
-        );
-      } catch {
-        setAuditHint(0);
-      }
+        const today = localDateKey();
 
-      setLoading(false);
+        const [k, s, ct, analytics, profiles, todayAtt] = await Promise.all([
+          supabase.from("classes").select("*").eq("id", classId).eq("school_id", ctx.schoolId).maybeSingle(),
+          supabase
+            .from("students")
+            .select("id, full_name, roll_number, admission_number")
+            .eq("class_id", classId)
+            .eq("school_id", ctx.schoolId)
+            .order("roll_number", { nullsFirst: false }),
+          supabase
+            .from("teachers")
+            .select("full_name, mobile")
+            .eq("class_teacher_of", classId)
+            .eq("school_id", ctx.schoolId)
+            .maybeSingle(),
+          AnalyticsService.forClass(ctx, classId),
+          AcademicProfileService.listForClass(ctx, classId, { limit: 200 }),
+          AttendanceService.listForClassDate(ctx, classId, today),
+        ]);
+
+        if (cancelled) return;
+
+        setKlass(k.data ?? null);
+        setStudents((s.data ?? []) as Student[]);
+        setClassTeacher(ct.data ?? null);
+        setAvgAttendancePct(Math.round(analytics.avgAttendancePct));
+        setProfileRows(
+          profiles.map((p) => ({
+            studentId: p.studentId,
+            attendancePct: Math.round(p.attendancePct),
+            examsAvgPct: Math.round(p.examsAvgPct),
+          })),
+        );
+
+        setTodayMarked(todayAtt.length);
+        setTodayPresent(todayAtt.filter((r) => r.status === "present" || r.status === "late").length);
+        setTodayAbsent(todayAtt.filter((r) => r.status === "absent").length);
+
+        const { data: feedRows } = await supabase
+          .from("school_activity_feed")
+          .select("action, created_at, entity_type, metadata")
+          .eq("school_id", ctx.schoolId)
+          .eq("entity_type", "attendance")
+          .order("created_at", { ascending: false })
+          .limit(40);
+        const classFeed = ((feedRows ?? []) as {
+          action: string;
+          created_at: string;
+          metadata: { class_id?: string } | null;
+        }[])
+          .filter((row) => row.metadata?.class_id === classId)
+          .slice(0, 12)
+          .map((row) => ({ title: row.action, created_at: row.created_at }));
+        if (!cancelled) setFeed(classFeed);
+
+        try {
+          const recent = await AuditReadService.recent(ctx);
+          if (!cancelled) {
+            setAuditHint(
+              recent.filter((a) => {
+                if (a.entityType !== "attendance") return false;
+                const meta = a.metadata as { class_id?: string } | null;
+                return meta?.class_id === classId;
+              }).length,
+            );
+          }
+        } catch {
+          if (!cancelled) setAuditHint(0);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load class");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [classId, ctx, ready, liveVersion]);
 
   const total = students.length;
-  const attendanceRate = todayMarked
-    ? Math.round((todayPresent / todayMarked) * 100)
+  const attendanceRate = total
+    ? Math.round((todayPresent / total) * 100)
     : Math.round(avgAttendancePct);
 
   const distribution = useMemo(() => {
@@ -160,6 +179,11 @@ export default function PrincipalClassDetail() {
 
   if (!classId) return <Navigate to="/principal/classes" replace />;
   if (loading) return <p className="text-muted-foreground text-center py-12">Loading class…</p>;
+  if (error) {
+    return (
+      <p className="text-destructive text-center py-12">Failed to load class: {error}</p>
+    );
+  }
   if (!klass) return <Navigate to="/principal/classes" replace />;
 
   return (

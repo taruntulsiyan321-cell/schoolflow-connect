@@ -8,6 +8,7 @@ import {
   type ParentChildRow,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { localDateKey } from "@/lib/localDate";
 
 /**
  * Live parent attendance — AcademicProfileService + AttendanceService only.
@@ -151,11 +152,15 @@ export function useParentLiveChildren() {
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setError(null);
       try {
         const list = await AttendanceService.listParentChildren(ctx);
         if (!cancelled) setChildren(list);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load children");
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load children");
+          setChildren([]);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -182,7 +187,7 @@ export function useChildAttendancePct(studentId: string | null) {
     let cancelled = false;
     (async () => {
       try {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = localDateKey();
         const settled = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AttendanceService.listForStudent(ctx, studentId, { limit: 40 }),

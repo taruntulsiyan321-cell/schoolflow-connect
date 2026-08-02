@@ -13,8 +13,8 @@ import {
   adminPathToPage,
 } from "./nav";
 import AdminHome from "./Dashboard";
-import StudentManagement from "./Students";
-import TeacherManagement from "./Teachers";
+import StudentsAdmin from "@/pages/admin/StudentsAdmin";
+import TeachersAdmin from "@/pages/admin/TeachersAdmin";
 import ParentManagement from "./Parents";
 import ClassManagement from "./Classes";
 import AnnouncementManagement from "./Announcements";
@@ -25,6 +25,7 @@ import LeaveRequests from "./LeaveRequests";
 import SettingsPage from "./Settings";
 import AiAnalyticsPanel from "./AiAnalytics";
 import { useAuth } from "@/hooks/useAuth";
+import { ROLE_LABELS } from "@/auth/constants";
 
 export type { AdminPageKey } from "./nav";
 
@@ -181,7 +182,17 @@ function Sidebar({
 export default function AdminApp() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, profile, role } = useAuth();
+  const roleLabel = role ? ROLE_LABELS[role] : "Admin";
+  const initials =
+    (profile?.fullName ?? "")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?";
   const page = useMemo(() => adminPathToPage(location.pathname), [location.pathname]);
   const setPage = (p: AdminPageKey) => navigate(ADMIN_PAGE_PATH[p]);
   const [collapsed, setCollapsed] = useState(false);
@@ -239,10 +250,10 @@ export default function AdminApp() {
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-1.5 bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-full px-2.5 py-1">
               <Shield className="w-3 h-3 text-[#3b5bdb]" />
-              <span className="text-[10px] font-bold text-[#3b5bdb]">Super Admin</span>
+              <span className="text-[10px] font-bold text-[#3b5bdb]">{roleLabel}</span>
             </div>
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-              <span className="text-[11px] font-black text-white">SA</span>
+              <span className="text-[11px] font-black text-white">{initials}</span>
             </div>
           </div>
         </header>
@@ -251,8 +262,8 @@ export default function AdminApp() {
           <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
             <Routes>
               <Route index element={<AdminHome setPage={setPage} />} />
-              <Route path="students/*" element={<StudentManagement />} />
-              <Route path="teachers/*" element={<TeacherManagement />} />
+              <Route path="students/*" element={<StudentsAdmin />} />
+              <Route path="teachers/*" element={<TeachersAdmin />} />
               <Route path="parents/*" element={<ParentManagement />} />
               <Route path="classes/*" element={<ClassManagement />} />
               <Route path="announcements/*" element={<AnnouncementManagement />} />

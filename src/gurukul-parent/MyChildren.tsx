@@ -27,7 +27,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 /** My Children — Academic Engine only (no mock children / homework / exams). */
 export default function MyChildren({ activeChildId, setActiveChildId }: { activeChildId: string; setActiveChildId: (id: string) => void }) {
   const [tab, setTab] = useState<ChildTab>("profile");
-  const { children: liveChildren, loading: liveLoading } = useParentLiveChildren();
+  const { children: liveChildren, loading: liveLoading, error: liveError } = useParentLiveChildren();
 
   const liveChild = liveChildren.find((c) => c.id === activeChildId) ?? liveChildren[0];
   const displayName = liveChild?.fullName ?? "Child";
@@ -45,6 +45,14 @@ export default function MyChildren({ activeChildId, setActiveChildId }: { active
 
   if (liveLoading) {
     return <div className="text-xs text-[#78788c] py-16 text-center">Loading linked children…</div>;
+  }
+
+  if (liveError) {
+    return (
+      <div className="text-xs text-[#cc5069] py-16 text-center">
+        Failed to load children: {liveError}
+      </div>
+    );
   }
 
   if (liveChildren.length === 0) {

@@ -52,7 +52,7 @@ const ACADEMIC_NOTIF_TYPES = new Set([
  * drains pending sync events, and bumps a shared version so every portal refetches.
  */
 export function AcademicLiveProvider({ children }: { children: ReactNode }) {
-  const { user, schoolId, isAuthenticated } = useAuth();
+  const { user, schoolId, isAuthenticated, role } = useAuth();
   const queryClient = useQueryClient();
   const [version, setVersion] = useState(0);
   const [lastDomains, setLastDomains] = useState<AcademicDomain[]>(["all"]);
@@ -163,7 +163,8 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
           event: "*",
           schema: "public",
           table: "student_xp",
-          filter: `user_id=eq.${user.id}`,
+          filter:
+            role === "student" ? `user_id=eq.${user.id}` : `school_id=eq.${schoolId}`,
         },
         onTable(["xp", "achievements", "profile"]),
       )
@@ -272,7 +273,7 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
       window.clearInterval(poll);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [bump, isAuthenticated, schoolId, user?.id]);
+  }, [bump, isAuthenticated, schoolId, user?.id, role]);
 
   const value = useMemo(
     () => ({ version, lastDomains, bump }),

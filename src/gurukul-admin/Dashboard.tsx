@@ -7,12 +7,10 @@ import {
 } from "lucide-react";
 import { cn, InitialsAvatar } from "./shared";
 import type { AdminPageKey } from "./nav";
-import {
-  adminStats, recentActivities, pendingRequests, announcements,
-  adminStudents, adminTeachers,
-} from "./data";
-import { AnalyticsService, AttendanceService } from "@/academic";
+import { AnalyticsService, AttendanceService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { supabase } from "@/integrations/supabase/client";
+import { localDateKey } from "@/lib/localDate";
 
 function StatCard({
   label, value, sub, icon, color, delta,
@@ -57,27 +55,27 @@ function AttendanceBar({ label, value, color }: { label: string; value: number; 
   );
 }
 
-const activityColor: Record<string, string> = {
-  student_added: "#4aa87a",
-  teacher_added: "#3b5bdb",
-  student_deleted: "#cc5069",
-  teacher_deleted: "#cc5069",
-  password_reset: "#c08a3a",
-  class_changed: "#4b9fd4",
-  student_promoted: "#6882e8",
-  announcement: "#3b5bdb",
-  suspension: "#cc5069",
-};
-
 const priorityColor: Record<string, string> = {
   high: "#cc5069",
   medium: "#c08a3a",
   low: "#4aa87a",
 };
 
+type RecentStudent = { id: string; fullName: string; classLabel: string; admissionNumber: string };
+type RecentTeacher = { id: string; fullName: string; department: string | null; employeeId: string | null };
+type ActivityRow = { id: string; action: string; created_at: string; actor_name: string | null };
+type LeaveRow = { id: string; leave_type: string; from_date: string; to_date: string; created_at: string };
+type NoticeRow = { id: string; title: string; body: string; created_at: string; priority: string | null };
+
+/**
+ * Admin dashboard — live census + recent rosters + activity from Supabase /
+ * Academic Engine only. No adminStats / adminStudents mock KPIs.
+ */
 export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey) => void }) {
   const { ctx, ready } = useAcademicContext();
-  const stats = adminStats;
+  const liveVersion = useAcademicLive(["attendance", "homework", "marks", "examination", "test", "profile"]);
+
+  const [counts, setCounts] = useState({ students: 0, teachers: 0, parents: 0, classes: 0 });
   const [todayPresent, setTodayPresent] = useState(0);
   const [todayAbsent, setTodayAbsent] = useState(0);
   const [todayPct, setTodayPct] = useState(0);
@@ -85,20 +83,76 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
   const [classRows, setClassRows] = useState<
     { name: string; total: number; present: number; submitted: boolean; dayRatePct: number }[]
   >([]);
-  const [attLoading, setAttLoading] = useState(true);
+  const [recentStudents, setRecentStudents] = useState<RecentStudent[]>([]);
+  const [recentTeachers, setRecentTeachers] = useState<RecentTeacher[]>([]);
+  const [activity, setActivity] = useState<ActivityRow[]>([]);
+  const [pendingLeaves, setPendingLeaves] = useState<LeaveRow[]>([]);
+  const [notices, setNotices] = useState<NoticeRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !ctx) return;
     let cancelled = false;
     (async () => {
-      setAttLoading(true);
+      setLoading(true);
+      setError(null);
       try {
-        const today = new Date().toISOString().slice(0, 10);
-        const [day, school] = await Promise.all([
+        const today = localDateKey();
+        const [
+          day,
+          school,
+          studentCount,
+          teacherCount,
+          parentCount,
+          classCount,
+          recentStudentRows,
+          recentTeacherRows,
+          activityRows,
+          leaveRows,
+          noticeRows,
+        ] = await Promise.all([
           AttendanceService.summarizeSchoolDate(ctx, today),
           AnalyticsService.forSchool(ctx),
+          supabase.from("students").select("id", { count: "exact", head: true }).eq("school_id", ctx.schoolId),
+          supabase.from("teachers").select("id", { count: "exact", head: true }).eq("school_id", ctx.schoolId),
+          supabase.from("parents").select("id", { count: "exact", head: true }).eq("school_id", ctx.schoolId),
+          supabase.from("classes").select("id", { count: "exact", head: true }).eq("school_id", ctx.schoolId),
+          supabase
+            .from("students")
+            .select("id, full_name, admission_number, classes(name, section)")
+            .eq("school_id", ctx.schoolId)
+            .order("created_at", { ascending: false })
+            .limit(4),
+          supabase
+            .from("teachers")
+            .select("id, full_name, department, employee_id")
+            .eq("school_id", ctx.schoolId)
+            .order("created_at", { ascending: false })
+            .limit(4),
+          supabase
+            .from("school_activity_feed")
+            .select("id, action, created_at, actor_name")
+            .eq("school_id", ctx.schoolId)
+            .order("created_at", { ascending: false })
+            .limit(6),
+          supabase
+            .from("leave_requests")
+            .select("id, leave_type, from_date, to_date, created_at, classes!inner(school_id)")
+            .eq("status", "pending")
+            .eq("classes.school_id", ctx.schoolId)
+            .order("created_at", { ascending: false })
+            .limit(5),
+          supabase
+            .from("notices")
+            .select("id, title, body, created_at, priority")
+            .eq("school_id", ctx.schoolId)
+            .order("created_at", { ascending: false })
+            .limit(4),
         ]);
+
         if (cancelled) return;
+
         setTodayPresent(day.present);
         setTodayAbsent(day.absent);
         setTodayPct(day.overallDayRatePct);
@@ -112,18 +166,63 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             dayRatePct: c.dayRatePct,
           })),
         );
-      } catch {
-        if (!cancelled) {
-          setClassRows([]);
-        }
+
+        setCounts({
+          students: studentCount.count ?? 0,
+          teachers: teacherCount.count ?? 0,
+          parents: parentCount.count ?? 0,
+          classes: classCount.count ?? 0,
+        });
+
+        setRecentStudents(
+          ((recentStudentRows.data ?? []) as {
+            id: string;
+            full_name: string;
+            admission_number: string;
+            classes: { name: string; section: string } | null;
+          }[]).map((s) => ({
+            id: s.id,
+            fullName: s.full_name,
+            classLabel: s.classes ? `${s.classes.name}-${s.classes.section}` : "Unassigned",
+            admissionNumber: s.admission_number,
+          })),
+        );
+
+        setRecentTeachers(
+          ((recentTeacherRows.data ?? []) as {
+            id: string;
+            full_name: string;
+            department: string | null;
+            employee_id: string | null;
+          }[]).map((t) => ({
+            id: t.id,
+            fullName: t.full_name,
+            department: t.department,
+            employeeId: t.employee_id,
+          })),
+        );
+
+        setActivity((activityRows.data ?? []) as ActivityRow[]);
+        setPendingLeaves(
+          ((leaveRows.data ?? []) as unknown as (LeaveRow & { classes: unknown })[]).map((r) => ({
+            id: r.id,
+            leave_type: r.leave_type,
+            from_date: r.from_date,
+            to_date: r.to_date,
+            created_at: r.created_at,
+          })),
+        );
+        setNotices((noticeRows.data ?? []) as NoticeRow[]);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load dashboard");
       } finally {
-        if (!cancelled) setAttLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx]);
+  }, [ready, ctx, liveVersion]);
 
   return (
     <div className="space-y-6">
@@ -157,14 +256,20 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         </div>
       </div>
 
-      {/* Stat Cards — zeros until live school rollups; attendance block below is live */}
+      {error && (
+        <div className="text-xs text-[#cc5069] bg-[#cc5069]/10 border border-[#cc5069]/20 rounded-xl px-4 py-3">
+          Failed to load dashboard: {error}
+        </div>
+      )}
+
+      {/* Stat Cards — live census counts */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <StatCard label="Total Students" value={stats.totalStudents} icon={<GraduationCap className="w-5 h-5" />} color="#3b5bdb" />
-        <StatCard label="Total Teachers" value={stats.totalTeachers} icon={<Users className="w-5 h-5" />} color="#4b9fd4" />
-        <StatCard label="Total Parents" value={stats.totalParents} icon={<UserCheck className="w-5 h-5" />} color="#6882e8" />
-        <StatCard label="Classes" value={stats.totalClasses || classRows.length} icon={<Building2 className="w-5 h-5" />} color="#4aa87a" />
-        <StatCard label="Active Today" value={stats.activeUsersToday} icon={<Activity className="w-5 h-5" />} color="#c08a3a" sub="students + teachers" />
-        <StatCard label="Pending" value={stats.pendingRequests} icon={<AlertCircle className="w-5 h-5" />} color="#cc5069" sub={`${stats.pendingDoubts} doubts`} />
+        <StatCard label="Total Students" value={counts.students} icon={<GraduationCap className="w-5 h-5" />} color="#3b5bdb" />
+        <StatCard label="Total Teachers" value={counts.teachers} icon={<Users className="w-5 h-5" />} color="#4b9fd4" />
+        <StatCard label="Total Parents" value={counts.parents} icon={<UserCheck className="w-5 h-5" />} color="#6882e8" />
+        <StatCard label="Classes" value={counts.classes} icon={<Building2 className="w-5 h-5" />} color="#4aa87a" />
+        <StatCard label="Present Today" value={todayPresent} icon={<Activity className="w-5 h-5" />} color="#c08a3a" sub="marked attendance" />
+        <StatCard label="Pending Leaves" value={pendingLeaves.length} icon={<AlertCircle className="w-5 h-5" />} color="#cc5069" />
       </div>
 
       {/* Middle Row */}
@@ -194,12 +299,12 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           </div>
           {/* Per-class status */}
           <div className="space-y-2">
-            {attLoading && (
+            {loading && (
               <div className="flex items-center gap-2 text-[10px] text-[#78788c] py-2">
                 <Loader2 className="w-3 h-3 animate-spin" /> Loading AttendanceService…
               </div>
             )}
-            {!attLoading && classRows.length === 0 && (
+            {!loading && classRows.length === 0 && (
               <div className="text-[10px] text-[#46465a]">No class attendance for today.</div>
             )}
             {classRows.map((cls) => {
@@ -238,20 +343,16 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             </button>
           </div>
           <div className="space-y-3">
-            {adminStudents.length === 0 && (
-              <div className="text-[10px] text-[#46465a]">No students loaded yet.</div>
+            {!loading && recentStudents.length === 0 && (
+              <div className="text-[10px] text-[#46465a]">No students yet.</div>
             )}
-            {adminStudents.slice(0, 4).map((s) => (
+            {recentStudents.map((s) => (
               <div key={s.id} className="flex items-center gap-3">
                 <InitialsAvatar name={s.fullName} size="sm" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-white truncate">{s.fullName}</div>
-                  <div className="text-[10px] text-[#78788c]">{s.className} {s.section} · {s.admissionNumber}</div>
+                  <div className="text-[10px] text-[#78788c]">{s.classLabel} · {s.admissionNumber}</div>
                 </div>
-                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-                  s.status === "active" ? "bg-[#4aa87a22] text-[#4aa87a]" :
-                  s.status === "suspended" ? "bg-[#cc506922] text-[#cc5069]" : "bg-white/5 text-[#78788c]"
-                )}>{s.status}</span>
               </div>
             ))}
           </div>
@@ -266,19 +367,16 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             </button>
           </div>
           <div className="space-y-3">
-            {adminTeachers.length === 0 && (
-              <div className="text-[10px] text-[#46465a]">No teachers loaded yet.</div>
+            {!loading && recentTeachers.length === 0 && (
+              <div className="text-[10px] text-[#46465a]">No teachers yet.</div>
             )}
-            {adminTeachers.slice(0, 4).map((t) => (
+            {recentTeachers.map((t) => (
               <div key={t.id} className="flex items-center gap-3">
                 <InitialsAvatar name={t.fullName} size="sm" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-white truncate">{t.fullName}</div>
-                  <div className="text-[10px] text-[#78788c]">{t.department} · {t.employeeId}</div>
+                  <div className="text-[10px] text-[#78788c]">{t.department ?? "—"} · {t.employeeId ?? "—"}</div>
                 </div>
-                <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-                  t.status === "active" ? "bg-[#4aa87a22] text-[#4aa87a]" : "bg-white/5 text-[#78788c]"
-                )}>{t.status}</span>
               </div>
             ))}
           </div>
@@ -291,20 +389,19 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         <div className="lg:col-span-1 bg-[#131316] border border-white/7 rounded-2xl p-5">
           <div className="text-sm font-bold text-white mb-4">Recent Activity</div>
           <div className="space-y-3">
-            {recentActivities.length === 0 && (
+            {!loading && activity.length === 0 && (
               <div className="text-[10px] text-[#46465a]">No recent activity.</div>
             )}
-            {recentActivities.map((a) => (
+            {activity.map((a) => (
               <div key={a.id} className="flex items-start gap-3">
-                <div
-                  className="w-2 h-2 rounded-full mt-1.5 shrink-0"
-                  style={{ background: activityColor[a.type] ?? "#78788c" }}
-                />
+                <div className="w-2 h-2 rounded-full mt-1.5 shrink-0 bg-[#3b5bdb]" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs text-white">{a.description}</div>
-                  <div className="text-[10px] text-[#78788c] truncate">{a.target}</div>
+                  <div className="text-xs text-white">{a.action}</div>
+                  <div className="text-[10px] text-[#78788c] truncate">{a.actor_name ?? "System"}</div>
                 </div>
-                <div className="text-[9px] text-[#46465a] shrink-0">{a.ago}</div>
+                <div className="text-[9px] text-[#46465a] shrink-0">
+                  {new Date(a.created_at).toLocaleDateString()}
+                </div>
               </div>
             ))}
           </div>
@@ -312,27 +409,18 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
 
         {/* Pending Requests */}
         <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
-          <div className="text-sm font-bold text-white mb-4">Pending Requests</div>
+          <div className="text-sm font-bold text-white mb-4">Pending Leave Requests</div>
           <div className="space-y-3">
-            {pendingRequests.length === 0 && (
+            {!loading && pendingLeaves.length === 0 && (
               <div className="text-[10px] text-[#46465a]">No pending requests.</div>
             )}
-            {pendingRequests.map((r) => (
-              <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/5 transition-all cursor-pointer">
-                <div
-                  className="w-2 h-2 rounded-full mt-1.5 shrink-0"
-                  style={{ background: priorityColor[r.priority] }}
-                />
+            {pendingLeaves.map((r) => (
+              <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/5 transition-all cursor-pointer" onClick={() => setPage("leave_requests")}>
+                <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: priorityColor.medium }} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-white">{r.title}</div>
-                  <div className="text-[10px] text-[#78788c]">{r.from} · {r.time}</div>
+                  <div className="text-xs font-semibold text-white capitalize">{r.leave_type}</div>
+                  <div className="text-[10px] text-[#78788c]">{r.from_date} → {r.to_date}</div>
                 </div>
-                <span
-                  className="text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0"
-                  style={{ background: `${priorityColor[r.priority]}22`, color: priorityColor[r.priority] }}
-                >
-                  {r.priority}
-                </span>
               </div>
             ))}
           </div>
@@ -347,17 +435,16 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
               <div className="text-sm font-bold text-white">Announcements</div>
             </div>
             <div className="space-y-3">
-              {announcements.length === 0 && (
+              {!loading && notices.length === 0 && (
                 <div className="text-[10px] text-[#46465a]">No announcements yet.</div>
               )}
-              {announcements.map((a) => (
+              {notices.map((a) => (
                 <div key={a.id} className="space-y-1">
                   <div className="flex items-center gap-2">
-                    {a.pinned && <span className="text-[8px] font-bold text-[#3b5bdb] uppercase">Pinned</span>}
                     <div className="text-xs font-semibold text-white">{a.title}</div>
                   </div>
-                  <div className="text-[10px] text-[#78788c]">{a.content}</div>
-                  <div className="text-[9px] text-[#46465a]">{a.date} · For {a.audience}</div>
+                  <div className="text-[10px] text-[#78788c] line-clamp-2">{a.body}</div>
+                  <div className="text-[9px] text-[#46465a]">{new Date(a.created_at).toLocaleDateString()}</div>
                 </div>
               ))}
             </div>

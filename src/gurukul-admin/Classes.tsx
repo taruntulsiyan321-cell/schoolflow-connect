@@ -6,10 +6,12 @@ import { cn, InitialsAvatar } from "./shared";
 import {
   AnalyticsService,
   AttendanceService,
+  useAcademicLive,
   type AttendanceStatus,
   type ClassStudentRow,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { localDateKey } from "@/lib/localDate";
 
 type LiveClass = {
   classId: string;
@@ -30,7 +32,7 @@ function AttendancePanel({
   onClose: () => void;
 }) {
   const { ctx, ready } = useAcademicContext();
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = useState(localDateKey());
   const [students, setStudents] = useState<ClassStudentRow[]>([]);
   const [statusByStudent, setStatusByStudent] = useState<Record<string, AttendanceStatus>>({});
   const [loading, setLoading] = useState(true);
@@ -315,6 +317,7 @@ function ClassRosterDrawer({
  */
 export default function Classes() {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["attendance", "homework", "marks", "examination", "profile"]);
   const [rows, setRows] = useState<LiveClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -328,7 +331,7 @@ export default function Classes() {
       setLoading(true);
       setError(null);
       try {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = localDateKey();
         const settled = await Promise.allSettled([
           AnalyticsService.classRollups(ctx),
           AttendanceService.summarizeSchoolDate(ctx, today),
@@ -361,7 +364,7 @@ export default function Classes() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx]);
+  }, [ready, ctx, liveVersion]);
 
   return (
     <div className="space-y-4">

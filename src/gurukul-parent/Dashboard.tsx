@@ -43,7 +43,7 @@ export default function ParentDashboard({
 }) {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["homework", "profile"]);
-  const { children: liveChildren, loading: childrenLoading } = useParentLiveChildren();
+  const { children: liveChildren, loading: childrenLoading, error: childrenError } = useParentLiveChildren();
   const liveChild = liveChildren.find((c) => c.id === activeChildId) ?? liveChildren[0];
   const attendanceId = liveChild?.id ?? null;
   const { pct: attendancePct, present: presentDays, total: schoolDays, todayStatus } =
@@ -79,6 +79,14 @@ export default function ParentDashboard({
     return (
       <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading children…
+      </div>
+    );
+  }
+
+  if (childrenError) {
+    return (
+      <div className="text-sm text-[#cc5069] py-16 text-center">
+        Failed to load children: {childrenError}
       </div>
     );
   }

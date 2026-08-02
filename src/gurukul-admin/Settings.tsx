@@ -1,50 +1,24 @@
 import { useState, useEffect } from "react";
 import {
-  Save, X, School, Phone, Clock, Image, AlertTriangle,
+  Save, X, School, Image, AlertTriangle, Loader2, Check,
 } from "lucide-react";
-import { cn, UndoToast } from "./shared";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
+import { cn } from "./shared";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SchoolSettings {
   schoolName: string;
   logoUrl: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-  contactNumber: string;
-  email: string;
-  website: string;
-  principalName: string;
-  academicYear: string;
-  schoolStartTime: string;
-  schoolEndTime: string;
-  workingDays: string[];
+  board: string;
+  stream: string;
 }
 
-/** Empty defaults — never invent school identity; load from school profile when wired. */
-const DEFAULT: SchoolSettings = {
+const EMPTY: SchoolSettings = {
   schoolName: "",
   logoUrl: "",
-  address: "",
-  city: "",
-  state: "",
-  pincode: "",
-  contactNumber: "",
-  email: "",
-  website: "",
-  principalName: "",
-  academicYear: "",
-  schoolStartTime: "",
-  schoolEndTime: "",
-  workingDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+  board: "",
+  stream: "",
 };
-
-const ALL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const ACADEMIC_YEARS = ["2024-25", "2025-26", "2026-27", "2027-28", "2028-29"];
-
-// ── Section component ─────────────────────────────────────────────────────────
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -68,34 +42,86 @@ function Field({ label, children, hint }: { label: string; children: React.React
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
-
+/**
+ * Admin settings — loads/saves the real `schools` row for this tenant.
+ * No fields beyond what the schools table actually stores; no fake "saved" toast
+ * unless the Supabase update actually succeeds.
+ */
 export default function Settings() {
-  const [saved, setSaved] = useState<SchoolSettings>(DEFAULT);
-  const [form, setForm] = useState<SchoolSettings>(DEFAULT);
+  const { schoolId } = useAuth();
+  const [saved, setSaved] = useState<SchoolSettings>(EMPTY);
+  const [form, setForm] = useState<SchoolSettings>(EMPTY);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
 
   const isDirty = JSON.stringify(form) !== JSON.stringify(saved);
 
-  useEffect(() => {}, [isDirty]);
+  useEffect(() => {
+    if (!schoolId) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError(null);
+      const { data, error } = await supabase
+        .from("schools")
+        .select("name, logo_url, board, stream")
+        .eq("id", schoolId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        setLoadError(error.message);
+        setLoading(false);
+        return;
+      }
+      const loaded: SchoolSettings = {
+        schoolName: data?.name ?? "",
+        logoUrl: data?.logo_url ?? "",
+        board: data?.board ?? "",
+        stream: data?.stream ?? "",
+      };
+      setSaved(loaded);
+      setForm(loaded);
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [schoolId]);
 
-  function set(key: keyof SchoolSettings, value: string | string[]) {
+  function set(key: keyof SchoolSettings, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  function toggleDay(day: string) {
-    setForm((f) => ({
-      ...f,
-      workingDays: f.workingDays.includes(day)
-        ? f.workingDays.filter((d) => d !== day)
-        : [...f.workingDays, day],
-    }));
-  }
-
-  function handleSave() {
+  async function handleSave() {
+    if (!schoolId) {
+      setSaveError("No school linked to this account.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    const { error } = await supabase
+      .from("schools")
+      .update({
+        name: form.schoolName.trim(),
+        logo_url: form.logoUrl.trim() || null,
+        board: form.board.trim() || null,
+        stream: form.stream.trim() || null,
+      })
+      .eq("id", schoolId);
+    setSaving(false);
+    if (error) {
+      setSaveError(error.message);
+      return;
+    }
     setSaved(form);
-    setToast("Settings saved successfully");
+    setToast("Settings saved");
     setTimeout(() => setToast(null), 3000);
   }
 
@@ -111,13 +137,36 @@ export default function Settings() {
 
   const inputCls = "bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50 w-full";
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading school settings…
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="text-sm text-[#cc5069] py-16 text-center">
+        Failed to load school settings: {loadError}
+      </div>
+    );
+  }
+
+  if (!schoolId) {
+    return (
+      <div className="text-sm text-[#78788c] py-16 text-center">
+        No school linked to this account. Settings unavailable.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* Header with save / cancel */}
       <div className="flex items-center justify-between">
         <div>
           <div className="text-base font-bold text-white">School Settings</div>
-          <div className="text-xs text-[#78788c] mt-0.5">Manage your school's basic information and configuration</div>
+          <div className="text-xs text-[#78788c] mt-0.5">Manage your school's basic information</div>
         </div>
         <div className="flex items-center gap-3">
           {isDirty && (
@@ -130,16 +179,21 @@ export default function Settings() {
               </button>
             </>
           )}
-          <button onClick={handleSave} disabled={!isDirty}
+          <button onClick={() => void handleSave()} disabled={!isDirty || saving}
             className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-              isDirty ? "text-white bg-[#3b5bdb] hover:bg-[#2f4fc4]" : "text-[#46465a] bg-white/5 cursor-not-allowed")}>
+              isDirty && !saving ? "text-white bg-[#3b5bdb] hover:bg-[#2f4fc4]" : "text-[#46465a] bg-white/5 cursor-not-allowed")}>
             <Save className="w-3.5 h-3.5" />
-            {isDirty ? "Save Changes" : "All Saved"}
+            {saving ? "Saving…" : isDirty ? "Save Changes" : "All Saved"}
           </button>
         </div>
       </div>
 
-      {/* School Identity */}
+      {saveError && (
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-[#cc5069]/15 border border-[#cc5069]/25 text-[#cc5069] text-xs font-semibold">
+          Failed to save: {saveError}
+        </div>
+      )}
+
       <Section title="School Identity" icon={<School className="w-4 h-4" />}>
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
@@ -148,110 +202,37 @@ export default function Settings() {
             </Field>
           </div>
 
-          {/* Logo */}
           <div className="col-span-2">
-            <Field label="School Logo" hint="Upload a PNG or SVG. The logo will appear across the platform.">
+            <Field label="School Logo URL" hint="Paste a hosted image URL. The logo will appear across the platform.">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 overflow-hidden">
                   {form.logoUrl ? (
                     <img src={form.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                   ) : (
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center">
-                      <span className="text-xs font-black text-white">G</span>
+                      <Image className="w-4 h-4 text-white" />
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all cursor-pointer">
-                    <Image className="w-3.5 h-3.5" /> Change Logo
-                    <input type="file" accept="image/*" className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) set("logoUrl", URL.createObjectURL(file));
-                      }} />
-                  </label>
-                  {form.logoUrl && (
-                    <button onClick={() => set("logoUrl", "")} className="text-[10px] text-[#cc5069] hover:underline">Remove logo</button>
-                  )}
-                </div>
+                <input value={form.logoUrl} onChange={(e) => set("logoUrl", e.target.value)} className={inputCls} placeholder="https://…" />
               </div>
             </Field>
           </div>
 
           <div>
-            <Field label="Principal Name">
-              <input value={form.principalName} onChange={(e) => set("principalName", e.target.value)} className={inputCls} />
+            <Field label="Board">
+              <input value={form.board} onChange={(e) => set("board", e.target.value)} className={inputCls} placeholder="e.g. CBSE" />
             </Field>
           </div>
 
           <div>
-            <Field label="Academic Year">
-              <select value={form.academicYear} onChange={(e) => set("academicYear", e.target.value)} className={inputCls}>
-                {ACADEMIC_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
+            <Field label="Stream">
+              <input value={form.stream} onChange={(e) => set("stream", e.target.value)} className={inputCls} placeholder="e.g. Science, Commerce" />
             </Field>
           </div>
         </div>
       </Section>
 
-      {/* Contact Information */}
-      <Section title="Contact Information" icon={<Phone className="w-4 h-4" />}>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <Field label="Street Address">
-              <input value={form.address} onChange={(e) => set("address", e.target.value)} className={inputCls} />
-            </Field>
-          </div>
-          <Field label="City">
-            <input value={form.city} onChange={(e) => set("city", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="State">
-            <input value={form.state} onChange={(e) => set("state", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="PIN Code">
-            <input value={form.pincode} onChange={(e) => set("pincode", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="Contact Number">
-            <input value={form.contactNumber} onChange={(e) => set("contactNumber", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="Official Email">
-            <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="Website">
-            <input type="url" value={form.website} onChange={(e) => set("website", e.target.value)} className={inputCls} />
-          </Field>
-        </div>
-      </Section>
-
-      {/* School Timings */}
-      <Section title="School Timings" icon={<Clock className="w-4 h-4" />}>
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="School Start Time">
-            <input type="time" value={form.schoolStartTime} onChange={(e) => set("schoolStartTime", e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="School End Time">
-            <input type="time" value={form.schoolEndTime} onChange={(e) => set("schoolEndTime", e.target.value)} className={inputCls} />
-          </Field>
-
-          <div className="col-span-2">
-            <Field label="Working Days">
-              <div className="flex flex-wrap gap-2 mt-1">
-                {ALL_DAYS.map((day) => (
-                  <button key={day} onClick={() => toggleDay(day)}
-                    className={cn("px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all",
-                      form.workingDays.includes(day)
-                        ? "bg-[#3b5bdb]/15 border-[#3b5bdb]/30 text-[#a5b4fc]"
-                        : "bg-white/5 border-white/10 text-[#78788c] hover:text-white")}>
-                    {day.slice(0, 3)}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          </div>
-        </div>
-      </Section>
-
-      {/* Sticky save bar when dirty */}
       {isDirty && (
         <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between px-6 py-4 bg-[#0a0a0c]/95 border-t border-white/10 backdrop-blur-xl">
           <div className="flex items-center gap-2 text-sm text-[#c08a3a]">
@@ -262,14 +243,13 @@ export default function Settings() {
             <button onClick={handleCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">
               Discard
             </button>
-            <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
-              <Save className="w-3.5 h-3.5" /> Save Changes
+            <button onClick={() => void handleSave()} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all disabled:opacity-50">
+              <Save className="w-3.5 h-3.5" /> {saving ? "Saving…" : "Save Changes"}
             </button>
           </div>
         </div>
       )}
 
-      {/* Unsaved changes warning */}
       {showUnsavedWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowUnsavedWarning(false)} />
@@ -291,9 +271,12 @@ export default function Settings() {
         </div>
       )}
 
-      {toast && <UndoToast state={{ message: toast, type: "success" }} onClose={() => setToast(null)} />}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-[#4aa87a]/15 border border-[#4aa87a]/25 text-[#4aa87a] text-xs font-semibold">
+          <Check className="w-3.5 h-3.5" /> {toast}
+        </div>
+      )}
 
-      {/* Bottom padding for sticky bar */}
       {isDirty && <div className="h-16" />}
     </div>
   );
