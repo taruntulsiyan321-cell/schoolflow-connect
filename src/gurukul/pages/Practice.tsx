@@ -1280,7 +1280,7 @@ function Session({
         const chapterForStart =
           config.chapter ||
           config.topic ||
-          (config.mode === "daily" ? "Daily" : config.mode);
+          null;
 
         let excludeIds: string[] = [];
         let remainingCount = config.qCount;
@@ -1341,7 +1341,7 @@ function Session({
               skipped,
               explanation: typeof gq.explanation === "string" ? gq.explanation : undefined,
               bankQuestionId: bankId,
-              subject: String(row.subject ?? gq.subject ?? existing.subject ?? "General"),
+              subject: String(row.subject ?? gq.subject ?? existing.subject ?? ""),
               chapter: String(row.chapter ?? gq.chapter ?? existing.chapter ?? ""),
               difficulty: typeof gq.difficulty === "string" ? gq.difficulty : "medium",
               source: "practice",
@@ -1394,7 +1394,7 @@ function Session({
           }
         } else {
           const sid = await PracticeService.start(ctx, {
-            _subject: config.subject === "Mixed" ? "General" : config.subject,
+            _subject: config.subject === "Mixed" ? "" : config.subject,
             _chapter: chapterForStart,
             _count: config.qCount,
             _practice_mode: config.mode,
@@ -1467,7 +1467,7 @@ function Session({
             if (!r.id || !r.question || options.length < 2) return null;
             return {
               id: r.id,
-              subject: r.subject || "General",
+              subject: r.subject || "",
               chapter: r.chapter || "",
               difficulty: r.difficulty || "medium",
               question: r.question,

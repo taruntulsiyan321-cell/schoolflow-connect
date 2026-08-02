@@ -20,6 +20,10 @@ export interface ServiceContext {
   teacherId?: string | null;
   /** Optional student row id when already resolved */
   studentId?: string | null;
+  /** Optional class id from students.class_id (never hardcoded) */
+  classId?: string | null;
+  /** Optional class display label e.g. "10-A" */
+  classLabel?: string | null;
 }
 
 export function toRepoContext(ctx: ServiceContext): RepoContext {

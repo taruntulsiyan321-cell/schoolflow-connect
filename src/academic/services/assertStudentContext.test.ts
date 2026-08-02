@@ -30,6 +30,12 @@ describe("assertStudentContext", () => {
     expect(r.reason).toMatch(/not linked/i);
   });
 
+  it("evaluateStudentContext reports class unresolved when required", () => {
+    const r = evaluateStudentContext({ ...base, classId: null }, { requireClass: true });
+    expect(r.ready).toBe(false);
+    expect(r.reason).toMatch(/class/i);
+  });
+
   it("studentShellReady requires both academic and progression", () => {
     expect(studentShellReady({ academicReady: true, progressionLoaded: false })).toBe(false);
     expect(studentShellReady({ academicReady: true, progressionLoaded: true })).toBe(true);

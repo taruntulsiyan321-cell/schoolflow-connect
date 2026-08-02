@@ -6,6 +6,7 @@ export type StudentContextReadiness = {
   userId: string | null;
   studentId: string | null;
   schoolId: string | null;
+  classId: string | null;
   reason: string | null;
 };
 
@@ -24,10 +25,17 @@ export function assertStudentContext(
 
 export function evaluateStudentContext(
   ctx: ServiceContext | null | undefined,
-  opts?: { requireStudentRow?: boolean },
+  opts?: { requireStudentRow?: boolean; requireClass?: boolean },
 ): StudentContextReadiness {
   if (!ctx?.userId) {
-    return { ready: false, userId: null, studentId: null, schoolId: null, reason: "Sign in required" };
+    return {
+      ready: false,
+      userId: null,
+      studentId: null,
+      schoolId: null,
+      classId: null,
+      reason: "Sign in required",
+    };
   }
   if (ctx.role !== "student") {
     return {
@@ -35,6 +43,7 @@ export function evaluateStudentContext(
       userId: ctx.userId,
       studentId: ctx.studentId ?? null,
       schoolId: ctx.schoolId ?? null,
+      classId: ctx.classId ?? null,
       reason: "Student role required",
     };
   }
@@ -44,6 +53,7 @@ export function evaluateStudentContext(
       userId: ctx.userId,
       studentId: ctx.studentId ?? null,
       schoolId: null,
+      classId: ctx.classId ?? null,
       reason: "School not bound",
     };
   }
@@ -53,7 +63,18 @@ export function evaluateStudentContext(
       userId: ctx.userId,
       studentId: null,
       schoolId: ctx.schoolId,
+      classId: ctx.classId ?? null,
       reason: "Student profile not linked",
+    };
+  }
+  if (opts?.requireClass && !ctx.classId) {
+    return {
+      ready: false,
+      userId: ctx.userId,
+      studentId: ctx.studentId ?? null,
+      schoolId: ctx.schoolId,
+      classId: null,
+      reason: "Couldn't determine your class",
     };
   }
   return {
@@ -61,6 +82,7 @@ export function evaluateStudentContext(
     userId: ctx.userId,
     studentId: ctx.studentId ?? null,
     schoolId: ctx.schoolId,
+    classId: ctx.classId ?? null,
     reason: null,
   };
 }

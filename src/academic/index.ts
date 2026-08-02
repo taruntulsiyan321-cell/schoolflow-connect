@@ -103,10 +103,13 @@ export {
   assertTeacherMayManageAcademicWork,
   isPastDue,
   normalizeWorkKind,
+  loadStudentAcademicIdentity,
+  identityToServiceContext,
   type ServiceContext,
   type WorkKind,
   type TestKind,
   type ExamType,
+  type StudentAcademicIdentity,
 } from "./services";
 
 export type { StudentXpRow } from "./services/xpService";

@@ -97,6 +97,12 @@ export {
   type ServiceContext,
 };
 
+export {
+  loadStudentAcademicIdentity,
+  identityToServiceContext,
+  type StudentAcademicIdentity,
+} from "./resolveStudentContext";
+
 export { ForbiddenError, isSchoolOperator } from "./context";
 export { AnalyticsService, AiSummaryService, AuditReadService } from "./readServices";
 export {

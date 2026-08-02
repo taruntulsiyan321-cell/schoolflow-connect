@@ -208,6 +208,8 @@ await AuditReadService.recent(ctx);
 |-----|---------|
 | `get_auth_context()` | Profile + role + school bootstrap |
 | `claim_signup_role(student\|parent)` | Self-signup role (SECURITY DEFINER) |
-| `get_my_school_id()` | Current tenant id |
+| `get_my_school_id()` | Current tenant id (prefers `students`/`teachers.school_id` over `profiles`) |
+| `get_my_role()` | Highest-priority portal role (aligned with Auth `ROLE_PRIORITY`) |
+| `rpc_get_my_student_identity()` | SSOT student row + class label for Home/Practice |
 | `ensure_default_role()` | Fallback student role |
 | `link_portal_on_auth()` | Link reserved portal emails/phones |

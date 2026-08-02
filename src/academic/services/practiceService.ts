@@ -503,8 +503,9 @@ export const PracticeService = {
     }
 
     let classLevel: number | null = null;
-    let classLabel: string | null = null;
+    let classLabel: string | null = ctx.classLabel ?? null;
     let classCategory: string | null = null;
+    let resolvedClassId: string | null = ctx.classId ?? null;
 
     type ClassJoin = {
       name?: string | null;
@@ -518,7 +519,7 @@ export const PracticeService = {
       if (!c) return;
       classCategory = c.category ?? null;
       const base = [c.name, c.section].filter(Boolean).join("-");
-      classLabel = c.display_name || base || null;
+      classLabel = c.display_name || base || classLabel || null;
       classLevel = parseClassLevel(classLabel) ?? parseClassLevel(c.name) ?? parseClassLevel(base);
     };
 
@@ -528,6 +529,7 @@ export const PracticeService = {
         .select("class_id, classes(name, section, display_name, category)")
         .eq("id", ctx.studentId)
         .maybeSingle();
+      resolvedClassId = (stu as { class_id?: string | null } | null)?.class_id ?? resolvedClassId;
       readClass((stu as { classes?: ClassJoin | ClassJoin[] | null } | null)?.classes);
     } else if (ctx.userId) {
       const { data: stu } = await client
@@ -535,7 +537,23 @@ export const PracticeService = {
         .select("class_id, classes(name, section, display_name, category)")
         .eq("user_id", ctx.userId)
         .maybeSingle();
+      resolvedClassId = (stu as { class_id?: string | null } | null)?.class_id ?? resolvedClassId;
       readClass((stu as { classes?: ClassJoin | ClassJoin[] | null } | null)?.classes);
+    }
+
+    // Embed can be null when classes RLS blocked the join — fetch own class by id.
+    if (resolvedClassId && classLevel == null) {
+      const { data: c } = await client
+        .from("classes")
+        .select("name, section, display_name, category")
+        .eq("id", resolvedClassId)
+        .maybeSingle();
+      readClass(c as ClassJoin | null);
+    }
+
+    // Last resort: parse label already present on ServiceContext (shared AcademicContext).
+    if (classLevel == null && classLabel) {
+      classLevel = parseClassLevel(classLabel);
     }
 
     const stream =
@@ -810,7 +828,7 @@ export const PracticeService = {
       }
       pushRow({
         id: r.question_id || r.id,
-        subject: r.subject || "General",
+        subject: r.subject || "",
         chapter: r.chapter,
         difficulty: (r.question_id && difficultyByBank.get(r.question_id)) || null,
         question: r.question_text,
@@ -858,7 +876,7 @@ export const PracticeService = {
               : 0;
         pushRow({
           id,
-          subject: r.subject || gq.subject || "General",
+          subject: r.subject || gq.subject || "",
           chapter: r.chapter ?? gq.chapter ?? null,
           difficulty:
             (typeof (gq as { difficulty?: string }).difficulty === "string"
@@ -944,8 +962,8 @@ export const PracticeService = {
       const stem = String(gq.question ?? "").trim();
       const optsRaw = Array.isArray(gq.options) ? gq.options : [];
       if (!stem || optsRaw.length < 2) continue;
-      const subject = r.subject || gq.subject || "General";
-      if (!isSubjectAllowedForScope(subject, scope.stream, scope.classLevel)) continue;
+      const subject = r.subject || gq.subject || "";
+      if (!subject || !isSubjectAllowedForScope(subject, scope.stream, scope.classLevel)) continue;
       const key = stem.toLowerCase();
       if (seenFallback.has(key)) continue;
       seenFallback.add(key);

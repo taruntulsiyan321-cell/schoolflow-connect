@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/auth";
 import type { ServiceContext } from "@/academic";
-import { supabase } from "@/integrations/supabase/client";
+import {
+  loadStudentAcademicIdentity,
+  type StudentAcademicIdentity,
+} from "@/academic/services/resolveStudentContext";
 
 /**
  * Build ServiceContext from the authenticated session.
- * For students, also resolves `studentId` + tenant `school_id` from the students table
- * so Academic Engine / Nova stay aligned with gateway actor resolution (no invented school).
+ * For students, resolves studentId + classId + tenant school_id via the same
+ * identity loader as `resolveStudentServiceContext` (Home and Practice share SSOT).
  */
 export function useAcademicContext(): {
   ctx: ServiceContext | null;
@@ -14,11 +17,11 @@ export function useAcademicContext(): {
   schoolId: string | null;
   studentId: string | null;
   classId: string | null;
+  classLabel: string | null;
+  identity: StudentAcademicIdentity | null;
 } {
   const { user, role, schoolId: authSchoolId, loading, status } = useAuth();
-  const [studentId, setStudentId] = useState<string | null>(null);
-  const [classId, setClassId] = useState<string | null>(null);
-  const [studentSchoolId, setStudentSchoolId] = useState<string | null>(null);
+  const [identity, setIdentity] = useState<StudentAcademicIdentity | null>(null);
   const [identityReady, setIdentityReady] = useState(false);
 
   useEffect(() => {
@@ -26,32 +29,29 @@ export function useAcademicContext(): {
     (async () => {
       if (!user?.id || !role) {
         if (!cancelled) {
-          setStudentId(null);
-          setClassId(null);
-          setStudentSchoolId(null);
+          setIdentity(null);
           setIdentityReady(false);
         }
         return;
       }
       if (role !== "student") {
         if (!cancelled) {
-          setStudentId(null);
-          setClassId(null);
-          setStudentSchoolId(null);
+          setIdentity(null);
           setIdentityReady(true);
         }
         return;
       }
-      const { data } = await supabase
-        .from("students")
-        .select("id, class_id, school_id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (!cancelled) {
-        setStudentId(data?.id ?? null);
-        setClassId(data?.class_id ?? null);
-        setStudentSchoolId(data?.school_id ?? null);
-        setIdentityReady(true);
+      try {
+        const loaded = await loadStudentAcademicIdentity(user.id);
+        if (!cancelled) {
+          setIdentity(loaded);
+          setIdentityReady(true);
+        }
+      } catch {
+        if (!cancelled) {
+          setIdentity(null);
+          setIdentityReady(true);
+        }
       }
     })();
     return () => {
@@ -59,8 +59,12 @@ export function useAcademicContext(): {
     };
   }, [user?.id, role]);
 
+  const studentId = identity?.studentId ?? null;
+  const classId = identity?.classId ?? null;
+  const classLabel = identity?.classLabel ?? null;
   // Prefer portal-bound school (students.school_id) over profile fallback — never invent a tenant.
-  const schoolId = (role === "student" ? studentSchoolId : null) || authSchoolId || null;
+  const schoolId =
+    (role === "student" ? identity?.schoolId : null) || authSchoolId || null;
 
   const ctx = useMemo<ServiceContext | null>(() => {
     if (!user?.id || !role || !schoolId) return null;
@@ -69,8 +73,10 @@ export function useAcademicContext(): {
       userId: user.id,
       role,
       studentId,
+      classId,
+      classLabel,
     };
-  }, [user?.id, role, schoolId, studentId]);
+  }, [user?.id, role, schoolId, studentId, classId, classLabel]);
 
   return {
     ctx,
@@ -78,5 +84,7 @@ export function useAcademicContext(): {
     schoolId,
     studentId,
     classId,
+    classLabel,
+    identity,
   };
 }

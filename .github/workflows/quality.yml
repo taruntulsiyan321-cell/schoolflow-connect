@@ -17,4 +17,4 @@ jobs:
       - run: npm run quality:student-context
       - run: npm run quality:flow
       - run: npm run quality:guardrails
-      - run: npm run test -- src/lib/practiceSessionStats.test.ts src/lib/utf8MojibakeRepair.test.ts src/lib/qualityGuards.test.ts src/academic/services/progressionMath.test.ts src/academic/services/assertStudentContext.test.ts src/academic/services/resolveStudentContext.test.ts src/lib/productFeatureFlags.test.ts
+      - run: npm run test -- src/lib/practiceSessionStats.test.ts src/lib/utf8MojibakeRepair.test.ts src/lib/qualityGuards.test.ts src/academic/services/progressionMath.test.ts src/academic/services/assertStudentContext.test.ts src/academic/services/resolveStudentContext.test.ts src/lib/productFeatureFlags.test.ts src/academic/taxonomy/taxonomy.test.ts
