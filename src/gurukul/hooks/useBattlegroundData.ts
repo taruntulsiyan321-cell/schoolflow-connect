@@ -280,7 +280,6 @@ export function useBattlegroundData() {
           next_league_label: null,
         };
       }
-      }
 
       if (stuRes.error) throw stuRes.error;
       // Soft-fail classmates — don't blank the arena; never invent ranks
