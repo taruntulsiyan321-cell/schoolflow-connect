@@ -115,6 +115,17 @@ export function planRoute(
     };
   }
 
+  if (capability.route_class === "multimodal" && capability.model_policy === "never") {
+    return {
+      feature_id: featureId,
+      route_class: capability.route_class,
+      capability,
+      may_call_model: false,
+      decision_if_ready: "answered_deterministic",
+      reason: "multimodal_pipeline_deterministic",
+    };
+  }
+
   if (
     capability.route_class === "deterministic_record" ||
     capability.route_class === "deterministic_insight"

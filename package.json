@@ -11,6 +11,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ai-benchmarks": "vitest run src/academic/ai/benchmarkCi.test.ts",
     "db:seed": "node scripts/apply-seed.mjs",
     "db:migrate": "node scripts/apply-pending-migrations.mjs",
     "db:migrate:all": "node scripts/apply-pending-migrations.mjs --all",

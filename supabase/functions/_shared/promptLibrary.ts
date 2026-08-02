@@ -1,11 +1,20 @@
 /**
- * Edge Prompt Library loader — mirrors src/academic/ai/promptLibrary.ts
+ * Prompt Library v1 — versioned prompt contracts.
+ * Runtime prefers DB production rows; built-in fallbacks keep edge/tests offline-safe.
  */
+
+export type PromptStatus =
+  | "draft"
+  | "offline_benchmark"
+  | "shadow"
+  | "ab_test"
+  | "production"
+  | "retired";
 
 export type PromptRecord = {
   capability_id: string;
   version: string;
-  status: string;
+  status: PromptStatus;
   audience: string;
   system_template: string;
   user_template: string;
@@ -16,7 +25,8 @@ export type PromptRecord = {
   metadata?: Record<string, unknown>;
 };
 
-const BUILTIN: PromptRecord[] = [
+/** Built-in production fallbacks (must match migration seeds). */
+export const BUILTIN_PROMPTS: PromptRecord[] = [
   {
     capability_id: "student.performance.explain",
     version: "v1",
@@ -30,6 +40,7 @@ const BUILTIN: PromptRecord[] = [
     max_output_tokens: 250,
     temperature: 0.1,
     caching_eligible: true,
+    metadata: { source: "builtin" },
   },
   {
     capability_id: "student.concept.explain",
@@ -44,9 +55,49 @@ const BUILTIN: PromptRecord[] = [
     max_output_tokens: 300,
     temperature: 0.15,
     caching_eligible: true,
+    metadata: { source: "builtin" },
+  },
+  {
+    capability_id: "student.recommendation.explain",
+    version: "v1",
+    status: "production",
+    audience: "student",
+    system_template:
+      "You rephrase a deterministic recommendation package. Never change the recommended concept, priority order, or invent new metrics. Keep under 80 words. Task-focused, no shaming.",
+    user_template:
+      "Recommendation package JSON:\n{{facts}}\n\nWrite a short encouraging rationale for why this next step makes sense.",
+    output_schema: { type: "plain_text", max_words: 80 },
+    max_output_tokens: 200,
+    temperature: 0.1,
+    caching_eligible: true,
+    metadata: { source: "builtin" },
+  },
+  {
+    capability_id: "teacher.question_paper.generate_outline",
+    version: "v1",
+    status: "production",
+    audience: "teacher",
+    system_template:
+      "You draft a short question-paper section outline from the provided curriculum weight plan only. Never change chapter marks totals or invent chapters. Do not produce a full marking scheme or answer key. Keep under 200 words. Use the facts JSON as the only source of marks and chapters.",
+    user_template:
+      "Paper plan facts JSON:\n{{facts}}\n\nTeacher notes: {{question}}\n\nWrite a brief outline of section question stems aligned to each chapter's marks. No marking scheme.",
+    output_schema: { type: "plain_text", max_words: 200 },
+    max_output_tokens: 450,
+    temperature: 0.2,
+    caching_eligible: true,
+    metadata: { source: "builtin" },
   },
 ];
 
+export function getBuiltinPrompt(capabilityId: string): PromptRecord | null {
+  return (
+    BUILTIN_PROMPTS.find(
+      (p) => p.capability_id === capabilityId && p.status === "production",
+    ) ?? null
+  );
+}
+
+/** Fill {{key}} placeholders; unknown keys become empty string. */
 export function renderPromptTemplate(
   template: string,
   vars: Record<string, string>,
@@ -56,38 +107,36 @@ export function renderPromptTemplate(
   });
 }
 
-export function getBuiltinPrompt(capabilityId: string): PromptRecord | null {
-  return BUILTIN.find((p) => p.capability_id === capabilityId) ?? null;
+/**
+ * Resolve production prompt: optional DB row → builtin fallback.
+ */
+export function resolveProductionPrompt(
+  capabilityId: string,
+  dbRow?: PromptRecord | null,
+): PromptRecord | null {
+  if (dbRow && dbRow.status === "production" && dbRow.capability_id === capabilityId) {
+    return dbRow;
+  }
+  return getBuiltinPrompt(capabilityId);
 }
 
+/**
+ * Load production prompt via RPC `ai_prompt_load_production`, else builtin.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function loadProductionPrompt(
-  admin: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> },
+  client: any,
   capabilityId: string,
-): Promise<PromptRecord> {
+): Promise<PromptRecord | null> {
   try {
-    const { data, error } = await admin.rpc("ai_prompt_load_production", {
+    const rpc = await client.rpc("ai_prompt_load_production", {
       p_capability_id: capabilityId,
     });
-    if (!error && data && typeof data === "object") {
-      return data as PromptRecord;
+    if (!rpc.error && rpc.data && typeof rpc.data === "object") {
+      return resolveProductionPrompt(capabilityId, rpc.data as PromptRecord);
     }
   } catch {
-    // fall through
+    // offline / migration not applied
   }
-  const builtin = getBuiltinPrompt(capabilityId);
-  if (builtin) return builtin;
-  return {
-    capability_id: capabilityId,
-    version: "fallback",
-    status: "production",
-    audience: "student",
-    system_template:
-      "Use only provided facts. Never invent academic numbers. Keep answers short.",
-    user_template: "Facts:\n{{facts}}\n\nQuestion: {{question}}",
-    output_schema: {},
-    max_output_tokens: 250,
-    temperature: 0.2,
-    caching_eligible: false,
-  };
+  return getBuiltinPrompt(capabilityId);
 }

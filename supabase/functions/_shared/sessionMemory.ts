@@ -31,11 +31,14 @@ export const SESSION_MEMORY_CAPABILITIES: Record<string, SessionWorkflowScope> =
   "student.concept.explain": "tutoring",
   "student.knowledge.retrieve": "tutoring",
   "student.image_doubt": "tutoring",
+  "student.image_doubt.submit": "tutoring",
   "teacher.question_paper.plan": "paper_gen",
+  "teacher.question_paper.generate_outline": "paper_gen",
   "teacher.question_paper.generate": "paper_gen",
   "parent.child.summary": "parent_guidance",
   "parent.child.narrative": "parent_guidance",
   "principal.analytics.brief": "principal_analytics",
+  "principal.school.health_brief": "principal_analytics",
 };
 
 export function sessionScopeForCapability(featureId: string): SessionWorkflowScope | null {

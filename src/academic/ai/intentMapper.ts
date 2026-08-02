@@ -80,11 +80,35 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
     ],
   },
   {
+    feature_id: "teacher.question_paper.generate_outline",
+    patterns: [
+      /\b(outline|draft outline)\b.+\b(question\s*paper|test paper|exam paper)\b/i,
+      /\bquestion\s*paper\b.+\boutline\b/i,
+      /\bgenerate\b.+\bpaper\b.+\boutline\b/i,
+    ],
+  },
+  {
     feature_id: "teacher.question_paper.plan",
     patterns: [
       /\b(plan|blueprint)\b.+\b(question\s*paper|test paper|exam paper)\b/i,
       /\bquestion\s*paper\b.+\b(plan|weights|blueprint)\b/i,
       /\bcurriculum\s*weights?\b.+\b(paper|test|exam)\b/i,
+    ],
+  },
+  {
+    feature_id: "principal.school.health_brief",
+    patterns: [
+      /\bschool\b.+\b(health|academic health)\b/i,
+      /\b(principal|school)\b.+\b(health brief|health snapshot)\b/i,
+      /\bschool.?wide\b.+\b(attendance|performance|health)\b/i,
+    ],
+  },
+  {
+    feature_id: "student.image_doubt.submit",
+    patterns: [
+      /\b(upload|submit|send)\b.+\b(image|photo|picture)\b.+\b(doubt|question|homework)\b/i,
+      /\bimage\s*doubt\b/i,
+      /\bphoto\b.+\b(of my|of the)\b.+\b(question|problem)\b/i,
     ],
   },
   {

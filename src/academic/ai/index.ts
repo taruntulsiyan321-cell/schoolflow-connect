@@ -159,11 +159,22 @@ export {
   rejectKmsVersion,
   enqueueKmsEmbeddingJobs,
   deferUnsetEmbeddings,
+  processEmbeddingJobsBatch,
   completeKmsChunkEmbed,
   type KmsDocumentStatus,
   type KmsContentType,
   type KmsChunkEmbedStatus,
 } from "./knowledgeManagement";
+
+export {
+  resolveEmbeddingApiKey,
+  planProcessOneEmbeddingJob,
+  processOneEmbeddingJob,
+  parseEmbeddingApiResponse,
+  buildEmbeddingRequestBody,
+  type EmbeddingJobClaim,
+  type EmbeddingVectorResult,
+} from "./embeddingProvider";
 
 export {
   lexicalOverlap,
@@ -199,11 +210,27 @@ export {
 } from "./questionPaperPlan";
 
 export {
+  buildQuestionPaperOutline,
+  buildOutlineSectionsFromPlan,
+  renderOutlinePrompt,
+  type QuestionPaperOutline,
+  type PaperOutlineInput,
+} from "./questionPaperOutline";
+
+export {
+  buildSchoolHealthBrief,
+  type SchoolHealthBrief,
+  type SchoolHealthAggregateInput,
+} from "./schoolHealthBrief";
+
+export {
   validateImageMetadata,
   runOcrPipelineStub,
+  runImageDoubtSubmit,
   isOcrProviderConfigured,
   type MultimodalExtractionV1,
   type OcrPipelineResult,
+  type ImageDoubtSubmitResult,
 } from "./multimodalPipeline";
 
 export {
@@ -211,8 +238,11 @@ export {
   BUILTIN_BENCHMARK_FIXTURES,
   criticalSuiteIds,
   evaluateBenchmarkGate,
+  evaluateFixture,
+  runBuiltinBenchmarkSuites,
   fetchBenchmarkGate,
   type BenchmarkGateResult,
+  type FixtureEvalResult,
 } from "./benchmarkSuite";
 
 export {

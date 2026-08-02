@@ -34,6 +34,12 @@ import {
   type SessionMemoryRecord,
 } from "./sessionMemory.ts";
 import { planQuestionPaper } from "./questionPaperPlan.ts";
+import {
+  buildQuestionPaperOutline,
+  renderOutlinePrompt,
+} from "./questionPaperOutline.ts";
+import { runImageDoubtSubmit } from "./multimodalPipeline.ts";
+import { buildSchoolHealthBrief } from "./schoolHealthBrief.ts";
 
 export type KillSwitches = {
   gatewayEnabled: boolean;
@@ -828,7 +834,8 @@ export async function routeAiRequest(
     cap.route_class === "eie_insight" ||
     cap.route_class === "recommendation" ||
     cap.route_class === "grounded_retrieval" ||
-    (cap.route_class === "content_generation" && !isModelAllowed(cap));
+    (cap.route_class === "content_generation" && !isModelAllowed(cap)) ||
+    (cap.route_class === "multimodal" && !isModelAllowed(cap));
 
   if (isDeterministic && !flags.deterministicEnabled) {
     return fail({
@@ -1390,6 +1397,228 @@ export async function routeAiRequest(
           plan_hash: plan.plan_hash,
           completeness: plan.chapters.length ? 0.9 : 0.3,
           data_version: plan.plan_hash,
+        };
+        break;
+      }
+      case "teacher.question_paper.generate_outline": {
+        const structured = req.input_structured ?? {};
+        const chaptersRaw = Array.isArray(structured.chapters) ? structured.chapters : [];
+        const chapters = chaptersRaw.map((c) => {
+          if (typeof c === "string") return { name: c };
+          const row = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+          return {
+            name: String(row.name ?? row.chapter ?? ""),
+            weight_hint: typeof row.weight_hint === "number" ? row.weight_hint : undefined,
+          };
+        });
+        const planInput = {
+          subject: String(structured.subject ?? req.input_text ?? "General"),
+          grade: structured.grade != null ? String(structured.grade) : null,
+          board: structured.board != null ? String(structured.board) : null,
+          total_marks: Number(structured.total_marks ?? 100),
+          chapters,
+          difficulty_mix:
+            structured.difficulty_mix && typeof structured.difficulty_mix === "object"
+              ? (structured.difficulty_mix as { easy?: number; medium?: number; hard?: number })
+              : undefined,
+          duration_minutes:
+            structured.duration_minutes != null ? Number(structured.duration_minutes) : null,
+          teacher_notes:
+            structured.teacher_notes != null
+              ? String(structured.teacher_notes)
+              : req.input_text ?? null,
+          may_call_model: mayCallModel,
+        };
+
+        let modelText: string | null = null;
+        let modelError: string | null = null;
+        let outlineUsedModel = false;
+        let outlineModelId: string | undefined;
+
+        if (mayCallModel) {
+          const planPreview = planQuestionPaper(planInput);
+          const rendered = renderOutlinePrompt(planPreview, planInput.teacher_notes);
+          const modelResult = await completeWithPromptLibrary({
+            admin,
+            capability_id: "teacher.question_paper.generate_outline",
+            vars: {
+              facts: rendered.facts_json,
+              question: planInput.teacher_notes?.trim() || "Generate a section outline only.",
+            },
+            budget_tier: "medium",
+          });
+          if (modelResult.ok) {
+            modelText = modelResult.text;
+            outlineUsedModel = true;
+            outlineModelId = modelResult.model_id;
+          } else {
+            modelError = modelResult.error;
+          }
+        } else {
+          modelError = !flags.generativeEnabled
+            ? "generative_kill_switch"
+            : "openrouter_not_configured";
+        }
+
+        const outline = buildQuestionPaperOutline({
+          planInput,
+          model_text: modelText,
+          may_call_model: mayCallModel,
+          model_error: modelError,
+        });
+        data = {
+          ...outline,
+          session_memory: sessionForContext,
+          workflow_id: "teacher.question_paper.outline.v1",
+        };
+        used_model = outlineUsedModel;
+        model_id = outlineModelId;
+        decision =
+          outline.mode === "outline_with_model" ? "answered_model" : "answered_facts_only";
+        provenance = {
+          dry_run: false,
+          generates_full_paper: false,
+          generates_marking_scheme: false,
+          plan_hash: outline.plan_hash,
+          mode: outline.mode,
+          completeness: outline.plan.chapters.length ? 0.8 : 0.25,
+          data_version: outline.plan_hash,
+          degraded_reason: outline.degraded_reason,
+        };
+        break;
+      }
+      case "student.image_doubt.submit": {
+        const structured = req.input_structured ?? {};
+        const imageRaw =
+          structured.image && typeof structured.image === "object"
+            ? (structured.image as Record<string, unknown>)
+            : structured;
+        const meta = {
+          mime: String(imageRaw.mime ?? imageRaw.content_type ?? ""),
+          bytes: Number(imageRaw.bytes ?? imageRaw.size ?? 0),
+          width: imageRaw.width != null ? Number(imageRaw.width) : null,
+          height: imageRaw.height != null ? Number(imageRaw.height) : null,
+          sha256: imageRaw.sha256 != null ? String(imageRaw.sha256) : null,
+          media_ref: imageRaw.media_ref != null ? String(imageRaw.media_ref) : null,
+          malware_scan_status:
+            imageRaw.malware_scan_status === "stub_flagged" ||
+            imageRaw.malware_scan_status === "stub_pass" ||
+            imageRaw.malware_scan_status === "unchecked"
+              ? imageRaw.malware_scan_status
+              : null,
+          filename: imageRaw.filename != null ? String(imageRaw.filename) : null,
+        };
+        const submit = runImageDoubtSubmit(meta, {
+          env: {
+            OCR_PROVIDER_API_KEY: Deno.env.get("OCR_PROVIDER_API_KEY") ?? undefined,
+            GURUKUL_OCR_API_KEY: Deno.env.get("GURUKUL_OCR_API_KEY") ?? undefined,
+          },
+        });
+        data = {
+          ...submit,
+          session_memory: sessionForContext,
+        };
+        decision =
+          submit.status === "rejected"
+            ? "rejected"
+            : submit.status === "clarify"
+              ? "degraded"
+              : "answered_deterministic";
+        provenance = {
+          invented_problem_text: false,
+          stop_reason: submit.stop_reason,
+          workflow_id: submit.workflow_id,
+          completeness: submit.status === "ocr_ready" ? 0.6 : 0.2,
+          data_version: `image_submit:${submit.stop_reason}`,
+          needs_clarification: submit.status === "clarify",
+        };
+        break;
+      }
+      case "principal.school.health_brief": {
+        const schoolId = req.actor.schoolId;
+        const [classes, students, teachers, profiles] = await Promise.all([
+          admin
+            .from("classes")
+            .select("id", { count: "exact", head: true })
+            .eq("school_id", schoolId),
+          admin
+            .from("students")
+            .select("id", { count: "exact", head: true })
+            .eq("school_id", schoolId),
+          admin
+            .from("teachers")
+            .select("id", { count: "exact", head: true })
+            .eq("school_id", schoolId),
+          admin
+            .from("student_academic_profiles")
+            .select(
+              "attendance_pct, exams_avg_pct, homework_completion_pct, tests_avg_pct, refreshed_at",
+            )
+            .eq("school_id", schoolId)
+            .limit(5000),
+        ]);
+        const rows = profiles.data ?? [];
+        const n = rows.length || 0;
+        const avg = (key: string) => {
+          if (!n) return null;
+          const sum = rows.reduce(
+            (a, r) => a + Number((r as Record<string, unknown>)[key] ?? 0),
+            0,
+          );
+          return Math.round((sum / n) * 10) / 10;
+        };
+        let avgMastery: number | null = null;
+        let weakConceptCount: number | null = null;
+        const { data: schoolStudents } = await admin
+          .from("students")
+          .select("id")
+          .eq("school_id", schoolId)
+          .limit(2000);
+        const studentIds = (schoolStudents ?? []).map((s) => String(s.id));
+        if (studentIds.length) {
+          const { data: masteryAgg } = await admin
+            .from("concept_mastery")
+            .select("mastery_score")
+            .in("student_id", studentIds.slice(0, 500))
+            .limit(5000);
+          if (masteryAgg && masteryAgg.length) {
+            const scores = masteryAgg.map((r) => Number(r.mastery_score) || 0);
+            avgMastery = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+            weakConceptCount = scores.filter((s) => s < 60).length;
+          }
+        }
+        const latestRefresh = rows
+          .map((r) => (r as { refreshed_at?: string }).refreshed_at)
+          .filter(Boolean)
+          .sort()
+          .at(-1) as string | undefined;
+
+        const brief = buildSchoolHealthBrief({
+          school_id: schoolId,
+          class_count: classes.count ?? 0,
+          student_count: students.count ?? 0,
+          teacher_count: teachers.count ?? 0,
+          avg_attendance_pct: avg("attendance_pct"),
+          avg_homework_completion_pct: avg("homework_completion_pct"),
+          avg_tests_pct: avg("tests_avg_pct"),
+          avg_exams_pct: avg("exams_avg_pct"),
+          avg_mastery: avgMastery,
+          weak_concept_count: weakConceptCount,
+          source_as_of: latestRefresh ?? null,
+          data_version: `school_health:${n}:${avgMastery ?? "na"}`,
+          eie_algorithm_id: avgMastery != null ? "eie.mastery.v1" : null,
+        });
+        data = {
+          ...brief,
+          session_memory: sessionForContext,
+          workflow_id: "principal.school.health_brief.v1",
+        };
+        decision = "answered_deterministic";
+        provenance = {
+          used_model: false,
+          completeness: brief.completeness,
+          data_version: brief.data_version,
+          status: brief.status,
         };
         break;
       }

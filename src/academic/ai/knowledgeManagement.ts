@@ -72,9 +72,10 @@ export function buildEmbeddingStub(): { status: "deferred"; dims: 0 } {
 /** True when OPENAI/OpenRouter embedding env is present (edge/worker). */
 export function isEmbeddingProviderConfigured(env: Record<string, string | undefined> = {}): boolean {
   const openrouter = (env.OPENROUTER_API_KEY ?? "").trim();
+  const aiEmb = (env.AI_EMBEDDING_API_KEY ?? "").trim();
   const openai = (env.OPENAI_API_KEY ?? "").trim();
   const emb = (env.EMBEDDING_API_KEY ?? "").trim();
-  return openrouter.length > 0 || openai.length > 0 || emb.length > 0;
+  return openrouter.length > 0 || aiEmb.length > 0 || openai.length > 0 || emb.length > 0;
 }
 
 /**
@@ -182,6 +183,20 @@ export async function enqueueKmsEmbeddingJobs(
 export async function deferUnsetEmbeddings(client: any, limit = 100) {
   const { data, error } = await client.rpc("ai_kms_defer_unset_embeddings", {
     p_limit: limit,
+  });
+  if (error) return { ok: false as const, error: String(error.message ?? error) };
+  return { ok: true as const, data };
+}
+
+/** Cron-friendly: claim/defer embedding jobs (edge worker embeds when configured). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function processEmbeddingJobsBatch(
+  client: any,
+  opts: { limit?: number; provider_configured?: boolean } = {},
+) {
+  const { data, error } = await client.rpc("ai_embedding_jobs_process_batch", {
+    p_limit: opts.limit ?? 10,
+    p_provider_configured: opts.provider_configured ?? false,
   });
   if (error) return { ok: false as const, error: String(error.message ?? error) };
   return { ok: true as const, data };

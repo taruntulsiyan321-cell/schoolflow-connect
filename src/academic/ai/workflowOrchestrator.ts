@@ -150,7 +150,7 @@ export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
     failure_policy: "safe_fail",
     session_memory_scope: "workflow",
     notes:
-      "OCR / multimodal stub — clarify when provider unset; live OCR vendor deferred.",
+      "Full image-doubt tutoring deferred — use student.image_doubt.submit for OCR gate.",
     steps: [
       {
         step_id: "validate_media",
@@ -190,6 +190,110 @@ export const WORKFLOW_REGISTRY: Record<string, WorkflowDefinition> = {
         step_id: "capture_feedback",
         kind: "feedback_capture",
         description: "Record like/retry into Feedback Loop",
+      },
+    ],
+  },
+  "student.image_doubt.submit.v1": {
+    workflow_id: "student.image_doubt.submit.v1",
+    version: "v1",
+    capability_id: "student.image_doubt.submit",
+    allowed_audiences: ["student", "teacher", "admin"],
+    enabled: true,
+    failure_policy: "safe_fail",
+    session_memory_scope: "workflow",
+    notes:
+      "Enabled submit gate — stops at clarify/OCR-missing; never invents problem text.",
+    steps: [
+      {
+        step_id: "validate_media",
+        kind: "media_validate",
+        description: "Validate mime/size/dimensions/malware stub",
+      },
+      {
+        step_id: "safety_screen",
+        kind: "stub",
+        description: "Safety & malware stub screen",
+      },
+      {
+        step_id: "ocr_extract",
+        kind: "ocr_extract",
+        feature_id: "student.image_doubt.submit",
+        budget_ceiling: "simple",
+        description: "OCR extract or clarify when provider unset",
+      },
+      {
+        step_id: "confidence_gate",
+        kind: "validate",
+        description: "Stop at clarify when extraction missing/low — no invented text",
+      },
+    ],
+  },
+  "teacher.question_paper.outline.v1": {
+    workflow_id: "teacher.question_paper.outline.v1",
+    version: "v1",
+    capability_id: "teacher.question_paper.generate_outline",
+    allowed_audiences: ["teacher", "admin"],
+    enabled: true,
+    failure_policy: "safe_fail",
+    session_memory_scope: "workflow",
+    notes: "Step-1 outline via plan + Qwen; no marking scheme; kill-switch → plan-only.",
+    steps: [
+      {
+        step_id: "permission_purpose",
+        kind: "permission_check",
+        description: "Verify teacher assignment + purpose",
+      },
+      {
+        step_id: "compute_plan",
+        kind: "stub",
+        feature_id: "teacher.question_paper.plan",
+        description: "Deterministic curriculum weight plan",
+      },
+      {
+        step_id: "assemble_context",
+        kind: "context_assemble",
+        description: "Context Builder pack from plan",
+      },
+      {
+        step_id: "generate_outline",
+        kind: "router_invoke",
+        feature_id: "teacher.question_paper.generate_outline",
+        budget_ceiling: "medium",
+        description: "Prompt Library + Qwen outline (kill-switch respectful)",
+      },
+      {
+        step_id: "validate_outline",
+        kind: "validate",
+        description: "Response Validator — drop outline on material failure",
+      },
+    ],
+  },
+  "principal.school.health_brief.v1": {
+    workflow_id: "principal.school.health_brief.v1",
+    version: "v1",
+    capability_id: "principal.school.health_brief",
+    allowed_audiences: ["principal", "admin"],
+    enabled: true,
+    failure_policy: "safe_fail",
+    session_memory_scope: "workflow",
+    notes: "Deterministic AE/EIE school health brief — no LLM.",
+    steps: [
+      {
+        step_id: "permission_purpose",
+        kind: "permission_check",
+        description: "Principal/admin school scope",
+      },
+      {
+        step_id: "assemble_aggregates",
+        kind: "context_assemble",
+        description: "Load AE/EIE school aggregates",
+      },
+      {
+        step_id: "emit_brief",
+        kind: "router_invoke",
+        feature_id: "principal.school.health_brief",
+        budget_ceiling: "simple",
+        description: "Deterministic health brief (honest empty)",
       },
     ],
   },

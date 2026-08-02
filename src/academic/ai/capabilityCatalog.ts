@@ -117,6 +117,15 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     description:
       "Image doubt via OCR/multimodal pipeline then grounded tutoring (OCR vendor deferred — clarify)",
   },
+  "student.image_doubt.submit": {
+    feature_id: "student.image_doubt.submit",
+    route_class: "multimodal",
+    model_policy: "never",
+    allowed_roles: ["student", "teacher", "admin"],
+    requires_student_target: true,
+    description:
+      "Submit image doubt media; run validate→safety→OCR until clarify/OCR-missing — never invent problem text",
+  },
   "teacher.question_paper.plan": {
     feature_id: "teacher.question_paper.plan",
     route_class: "content_generation",
@@ -125,6 +134,24 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     requires_student_target: false,
     description:
       "Dry-run question-paper plan with deterministic curriculum weights — does not generate full paper",
+  },
+  "teacher.question_paper.generate_outline": {
+    feature_id: "teacher.question_paper.generate_outline",
+    route_class: "content_generation",
+    model_policy: "required_when_budget",
+    allowed_roles: ["teacher", "admin"],
+    requires_student_target: false,
+    description:
+      "Step-1 paper outline from plan + Context Builder + Prompt Library + Qwen + Validator (no marking scheme)",
+  },
+  "principal.school.health_brief": {
+    feature_id: "principal.school.health_brief",
+    route_class: "deterministic_insight",
+    model_policy: "never",
+    allowed_roles: ["principal", "admin"],
+    requires_student_target: false,
+    description:
+      "Deterministic school academic health brief from AE/EIE aggregates (honest empty when missing)",
   },
 };
 

@@ -17,6 +17,7 @@ import {
   sessionScopeForCapability,
   buildSessionSummaryPatch,
 } from "../_shared/sessionMemory.ts";
+import { processEmbeddingJobsBatch } from "../_shared/embeddingWorker.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -162,6 +163,27 @@ Deno.serve(async (req) => {
     const feature_id = String(body.feature_id ?? "").trim();
     if (!feature_id) {
       return json({ error: "feature_id is required", error_code: "invalid_envelope" }, 400);
+    }
+
+    // Cron / admin: process embedding jobs (never invents vectors when key unset)
+    if (feature_id === "system.embedding.process_batch") {
+      if (actor.role !== "admin" && actor.role !== "principal") {
+        return json(
+          { error: "Only admin/principal may process embedding jobs", error_code: "role_not_allowed" },
+          403,
+        );
+      }
+      const limit = Math.min(50, Math.max(1, Number(body.limit ?? body.input?.structured?.limit ?? 10)));
+      const batch = await processEmbeddingJobsBatch(admin, limit);
+      return json({
+        request_id: crypto.randomUUID(),
+        feature_id,
+        decision: "answered_deterministic",
+        route_class: "deterministic_insight",
+        used_model: false,
+        cache_hit: false,
+        data: batch,
+      });
     }
 
     // Clients must not override tenant/actor

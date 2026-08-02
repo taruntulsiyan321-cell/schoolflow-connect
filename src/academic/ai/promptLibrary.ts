@@ -72,6 +72,21 @@ export const BUILTIN_PROMPTS: PromptRecord[] = [
     caching_eligible: true,
     metadata: { source: "builtin" },
   },
+  {
+    capability_id: "teacher.question_paper.generate_outline",
+    version: "v1",
+    status: "production",
+    audience: "teacher",
+    system_template:
+      "You draft a short question-paper section outline from the provided curriculum weight plan only. Never change chapter marks totals or invent chapters. Do not produce a full marking scheme or answer key. Keep under 200 words. Use the facts JSON as the only source of marks and chapters.",
+    user_template:
+      "Paper plan facts JSON:\n{{facts}}\n\nTeacher notes: {{question}}\n\nWrite a brief outline of section question stems aligned to each chapter's marks. No marking scheme.",
+    output_schema: { type: "plain_text", max_words: 200 },
+    max_output_tokens: 450,
+    temperature: 0.2,
+    caching_eligible: true,
+    metadata: { source: "builtin" },
+  },
 ];
 
 export function getBuiltinPrompt(capabilityId: string): PromptRecord | null {
