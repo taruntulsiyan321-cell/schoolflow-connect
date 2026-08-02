@@ -2,10 +2,11 @@ import type { AcademicLabelKind } from "./types";
 import { canonicalizeConceptId, slugifyAcademicId } from "./canonicalize";
 import { CONCEPT_DISPLAY_DICTIONARY, TOKEN_DISPLAY } from "./dictionary";
 import { lookupDisplayName } from "./registry";
+import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
 
 const SMALL_WORDS = new Set(["a", "an", "the", "and", "or", "of", "in", "on", "to", "for", "vs", "via"]);
 
-/** Common UTF-8-as-Windows-1252 / Latin-1 mojibake → intended characters (labels). */
+/** Leftover UTF-8-as-Windows-1252 / Latin-1 sequences after structural repair (labels). */
 const MOJIBAKE_MAP: Array<[RegExp, string]> = [
   [/â€”/g, "\u2014"],
   [/â€“/g, "\u2013"],
@@ -53,16 +54,28 @@ export function looksLikeAcademicSlug(raw: string): boolean {
 }
 
 /**
- * Decode common UTF-8-as-Latin1 corruption and normalize dashes/quotes
+ * Decode UTF-8-as-CP1252/Latin-1 corruption and normalize dashes/quotes
  * to clean ASCII hyphen / straight quotes for consistent UI.
+ *
+ * Quote/dash ASCII folding runs ONLY after mojibake is resolved — otherwise
+ * CP1252 punctuation inside Devanagari mojibake (e.g. U+201A in à¤‚) is destroyed.
  */
 export function fixMojibake(text: string | null | undefined): string {
   if (text == null) return "";
   let s = String(text);
   if (!s) return "";
 
+  s = repairUtf8Mojibake(s);
+
   for (const [re, repl] of MOJIBAKE_MAP) {
     s = s.replace(re, repl);
+  }
+
+  // Never ASCII-fold curly quotes / dashes while Devanagari mojibake remains —
+  // that path previously turned à¤‚ (U+201A) into à¤' and blocked later data repair.
+  // Western leftovers still get dash/quote normalization below.
+  if (/à[¤¥]/.test(s)) {
+    return s.replace(/[ \t\u00A0]+/g, " ").trim();
   }
 
   s = s.replace(/\s*[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]\s*/g, " - ");

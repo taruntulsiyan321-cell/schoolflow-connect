@@ -1,4 +1,5 @@
 import type { TaxonomyKind } from "./types";
+import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
 
 /** Collapse whitespace / punctuation into a stable slug id. */
 export function slugifyAcademicId(raw: string | null | undefined): string {
@@ -149,13 +150,14 @@ export function kindFromColumn(column: string): TaxonomyKind | null {
  * Normalize an incoming teacher/AI/seed label for storage:
  * - concepts/topics → canonical slug id
  * - chapters/subjects → cleaned display title (not forced to slug)
+ * - UTF-8 mojibake repaired at ingest so DB never stores à¤… for Devanagari
  */
 export function normalizeIncomingAcademicTerm(
   raw: string | null | undefined,
   kind: TaxonomyKind,
 ): string {
   if (raw == null) return "";
-  const trimmed = String(raw).trim();
+  const trimmed = repairUtf8Mojibake(String(raw)).trim();
   if (!trimmed) return "";
 
   if (kind === "concept" || kind === "topic") {

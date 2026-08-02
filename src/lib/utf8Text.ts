@@ -1,13 +1,22 @@
 /**
  * Root UTF-8 / encoding repair for academic content (questions, options, explanations).
- * Fixes common UTF-8-as-Latin1 mojibake while PRESERVING mathematical Unicode
+ * Fixes common UTF-8-as-Windows-1252 / Latin-1 mojibake while PRESERVING mathematical Unicode
  * (π θ √ α β Σ ∞ ≤ ≥ ± × ÷ superscripts/subscripts, fractions).
  *
- * Taxonomy labels use `@/academic/taxonomy` fixMojibake (dash/quote normalize).
+ * Structural WIN1252→UTF-8 (Devanagari chapters, π, etc.) is in utf8MojibakeRepair.ts.
+ * Taxonomy labels use `@/academic/taxonomy` fixMojibake (calls repairUtf8Mojibake first).
  * Question stems/options must use this module + MathText — never one-off char maps in pages.
  */
 
-/** UTF-8 misread as Windows-1252 / Latin-1 → intended Unicode. */
+import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
+
+export {
+  looksLikeUtf8Mojibake,
+  repairUtf8Mojibake,
+  UTF8_MOJIBAKE_SIGNATURE,
+} from "@/lib/utf8MojibakeRepair";
+
+/** Leftover UTF-8-as-Windows-1252 / Latin-1 sequences after structural repair. */
 const CONTENT_MOJIBAKE: Array<[RegExp, string]> = [
   // punctuation
   [/â€”/g, "\u2014"],
@@ -40,7 +49,6 @@ const CONTENT_MOJIBAKE: Array<[RegExp, string]> = [
   [/âˆ´/g, "\u2234"],
   [/âˆµ/g, "\u2235"],
   [/âˆ /g, "\u2220"],
-  [/âˆ¥/g, "\u2225"],
   [/âˆ¥/g, "\u2225"],
   [/âŠ‚/g, "\u2282"],
   [/âŠƒ/g, "\u2283"],
@@ -84,7 +92,7 @@ const CONTENT_MOJIBAKE: Array<[RegExp, string]> = [
  */
 export function fixUtf8Content(text: string | null | undefined): string {
   if (text == null) return "";
-  let s = String(text);
+  let s = repairUtf8Mojibake(text);
   if (!s) return "";
 
   for (const [re, repl] of CONTENT_MOJIBAKE) {

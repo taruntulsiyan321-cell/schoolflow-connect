@@ -59,15 +59,40 @@ const PRACTICE_SESSION_LIST_SELECT =
 export const PracticeService = {
   async start(
     ctx: ServiceContext,
-    args: Record<string, unknown>,
+    args: {
+      _subject: string;
+      _chapter: string;
+      _count?: number;
+      _practice_mode?: string | null;
+      /** easy | medium | hard — persisted for resume; omitted/mixed → null in DB. */
+      _difficulty?: string | null;
+    },
   ) {
     assertCanOwn(ctx, "practice");
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_start_practice_session",
-      args as never,
-    );
-    throwIfError(error, "Failed to start practice session");
-    return data;
+    const client = getClient(toRepoContext(ctx));
+    const difficulty =
+      args._difficulty && !["mixed", "any", "all"].includes(String(args._difficulty).toLowerCase())
+        ? String(args._difficulty).toLowerCase()
+        : null;
+
+    const withDiff = await client.rpc("rpc_start_practice_session", {
+      _subject: args._subject,
+      _chapter: args._chapter,
+      _count: args._count ?? 10,
+      _practice_mode: args._practice_mode ?? null,
+      _difficulty: difficulty,
+    } as never);
+    if (!withDiff.error) return withDiff.data;
+
+    // Pre-migration: start RPC without _difficulty.
+    const legacy = await client.rpc("rpc_start_practice_session", {
+      _subject: args._subject,
+      _chapter: args._chapter,
+      _count: args._count ?? 10,
+      _practice_mode: args._practice_mode ?? null,
+    } as never);
+    throwIfError(legacy.error ?? withDiff.error, "Failed to start practice session");
+    return legacy.data;
   },
 
   async finish(

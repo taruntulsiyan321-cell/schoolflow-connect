@@ -39,9 +39,25 @@ describe("fixMojibake", () => {
     expect(fixMojibake("Loadingâ€¦")).toBe("Loading...");
   });
 
+  it("recovers Devanagari mojibake instead of damaging U+201A anusvara bytes", () => {
+    const bad = "à¤†à¤²à¥‹-à¤†à¤‚à¤§à¤¾à¤°à¥€";
+    expect(fixMojibake(bad)).toBe("आलो-आंधारी");
+    // Must NOT leave a damaged à¤' fragment from quote-folding
+    expect(fixMojibake(bad)).not.toContain("'");
+  });
+
+  it("leaves clean Devanagari unchanged", () => {
+    expect(fixMojibake("आलो आँधारि")).toBe("आलो आँधारि");
+  });
+
   it("handles nullish", () => {
     expect(fixMojibake(null)).toBe("");
     expect(fixMojibake(undefined)).toBe("");
+  });
+
+  it("recovers Devanagari chapter mojibake to seed form", () => {
+    expect(fixMojibake("à¤†à¤²à¥‹ à¤†à¤à¤§à¤¾à¤°à¤¿")).toBe("आलो आँधारि");
+    expect(displayChapter("à¤†à¤²à¥‹ à¤†à¤à¤§à¤¾à¤°à¤¿")).toBe("आलो आँधारि");
   });
 });
 
