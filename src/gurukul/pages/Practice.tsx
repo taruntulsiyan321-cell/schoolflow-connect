@@ -1,7 +1,6 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
-import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService } from "@/academic";
 import { attemptsToFinishPayload } from "@/lib/practiceSessionSnapshot";
@@ -9,12 +8,12 @@ import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { toast } from "sonner";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import {
-  BookOpen, Clock, Zap, Target, RefreshCw, AlertCircle, Bookmark,
-  Shuffle, Trophy, BarChart2, ClipboardList, Star, Search, Filter,
+  BookOpen, Clock, Target, ClipboardList,
+  Shuffle, Trophy, BarChart2, Search,
   ChevronRight, CheckCircle2, XCircle, ArrowLeft, Play, SkipForward,
-  Flame, Calendar, FlaskConical, Layers, SlidersHorizontal, History,
-  Save, X, ChevronDown, Check, Timer, BookMarked, Lightbulb,
-  RotateCcw, HelpCircle, Award, TrendingDown, FileText, Globe,
+  Flame, Layers, SlidersHorizontal, History,
+  Save, Bookmark, Timer, BookMarked, Lightbulb,
+  RotateCcw, HelpCircle, TrendingDown, FileText, Globe, AlertCircle,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -35,6 +34,9 @@ interface Mode {
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "#3b5bdb",
   Math: "#3b5bdb",
+  Accountancy: "#4aa87a",
+  "Business Studies": "#c08a3a",
+  Economics: "#6882e8",
   Physics: "#4b9fd4",
   Chemistry: "#6882e8",
   Biology: "#4aa87a",
@@ -68,7 +70,6 @@ function parseBankOptions(raw: unknown): string[] {
 
 type PracticeSubject = {
   id: string; name: string; color: string;
-  accuracy: number; attempts: number; trend: number; icon: string;
 };
 
 type HistoryRow = {
@@ -120,7 +121,7 @@ const MODES: Mode[] = [
   { key:"timed",      label:"Timed Practice",         desc:"Solve questions against the clock — choose your time limit",
     icon:<Timer className="w-5 h-5"/>,      color:"#cc5069", cat:"type",    badge:"Speed mode" },
   { key:"untimed",    label:"Untimed Practice",       desc:"No time pressure — focus on understanding, not speed",
-    icon:<BookOpen className="w-5 h-5"/>,   color:"#4aa87a", cat:"type",    badge:"Relaxed mode", instant:true },
+    icon:<BookOpen className="w-5 h-5"/>,   color:"#4aa87a", cat:"type",    badge:"Relaxed mode" },
   { key:"mixed",      label:"Mixed Practice",         desc:"Questions from multiple subjects and chapters in one go",
     icon:<Shuffle className="w-5 h-5"/>,    color:"#4b9fd4", cat:"type",    badge:"All subjects", instant:true },
   { key:"mock",       label:"Mock Tests",             desc:"Full-length exam simulation under real test conditions",
@@ -133,8 +134,8 @@ const MODES: Mode[] = [
     icon:<XCircle className="w-5 h-5"/>,    color:"#cc5069", cat:"targeted", badge:"Retry wrong", instant:true },
   { key:"skipped",    label:"Skipped Questions",      desc:"Solve questions you chose to skip earlier",
     icon:<SkipForward className="w-5 h-5"/>, color:"#c08a3a", cat:"targeted", badge:"Skipped", instant:true },
-  { key:"bookmarked", label:"Bookmarked Questions",   desc:"Practice questions you saved for later review",
-    icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"Saved", instant:true },
+  { key:"bookmarked", label:"Bookmarked Questions",   desc:"Opens Mistake Book for mistakes you saved for review",
+    icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"Mistake Book" },
   { key:"random",     label:"Random Practice",        desc:"Surprise yourself — questions picked randomly from your syllabus",
     icon:<Shuffle className="w-5 h-5"/>,    color:"#3b5bdb", cat:"type",    badge:"Surprise me", instant:true },
 ];
@@ -382,103 +383,127 @@ function Hub({ onMode, history, streak }: { onMode: (key: ModeKey) => void; hist
 
 // ── Config views ─────────────────────────────────────────────────────────────
 function ConfigView({
-  modeKey, onStart, onBack, subjects,
-}: { modeKey: ModeKey; onStart: (cfg: SessionConfig) => void; onBack: () => void; subjects: PracticeSubject[] }) {
+  modeKey, onStart, onBack, subjects, onNavigate,
+}: {
+  modeKey: ModeKey;
+  onStart: (cfg: SessionConfig) => void;
+  onBack: () => void;
+  subjects: PracticeSubject[];
+  onNavigate?: (page: PageKey) => void;
+}) {
   const mode = MODES.find(m => m.key === modeKey)!;
+  const { ctx, ready: academicReady } = useAcademicContext();
 
-  // Subject config
   const [selSubject,    setSelSubject]    = useState<string | null>(null);
+  const [selChapter,    setSelChapter]    = useState<string | null>(null);
+  const [selTopic,      setSelTopic]      = useState<string | null>(null);
   const [selDifficulty, setSelDifficulty] = useState<string>("mixed");
   const [qCount,        setQCount]        = useState(20);
   const [timeLimitMin,  setTimeLimitMin]  = useState(15);
-  const [selTeacher,    setSelTeacher]    = useState<number | null>(null);
-  const [selMock,       setSelMock]       = useState<number | null>(null);
+  const [chapters,      setChapters]      = useState<string[]>([]);
+  const [topics,        setTopics]        = useState<string[]>([]);
+  const [metaLoading,   setMetaLoading]   = useState(false);
+
+  useEffect(() => {
+    setSelChapter(null);
+    setSelTopic(null);
+    setChapters([]);
+    setTopics([]);
+    if (!selSubject || !ctx || !academicReady) return;
+    if (!["chapter", "topic", "custom", "qbank"].includes(modeKey)) return;
+    let cancelled = false;
+    (async () => {
+      setMetaLoading(true);
+      try {
+        const ch = await PracticeService.listBankChapters(ctx, { subject: selSubject });
+        if (!cancelled) setChapters(ch);
+      } catch {
+        if (!cancelled) setChapters([]);
+      } finally {
+        if (!cancelled) setMetaLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selSubject, ctx, academicReady, modeKey]);
+
+  useEffect(() => {
+    setSelTopic(null);
+    setTopics([]);
+    if (!selSubject || !ctx || !academicReady) return;
+    if (!["topic", "custom"].includes(modeKey)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const tp = await PracticeService.listBankTopics(ctx, {
+          subject: selSubject,
+          chapter: selChapter,
+        });
+        if (!cancelled) setTopics(tp);
+      } catch {
+        if (!cancelled) setTopics([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selSubject, selChapter, ctx, academicReady, modeKey]);
 
   function handleStart() {
     onStart({
       mode: modeKey,
       label: mode.label,
       subject: selSubject ?? "Mixed",
+      chapter: selChapter,
+      topic: selTopic,
       difficulty: selDifficulty,
       qCount,
-      timeLimitSec: modeKey === "timed" ? timeLimitMin * 60 : null,
+      timeLimitSec: modeKey === "timed" || modeKey === "mock" ? timeLimitMin * 60 : null,
     });
   }
 
-  // Teacher assigned list
   if (modeKey === "teacher") {
     return (
       <ConfigShell mode={mode} onBack={onBack}>
-        <div className="space-y-3">
-          {TEACHER_SETS.map(t => {
-            const subj = subjects.find(s => s.name === t.subject);
-            return (
-              <button key={t.id} onClick={() => { setSelTeacher(t.id); }}
-                className={cn(
-                  "w-full text-left p-4 rounded-2xl border transition-all",
-                  selTeacher === t.id ? "border-[#c08a3a]/40 bg-[#c08a3a]/8" : "border-white/7 hover:border-white/15"
-                )}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-sm font-bold text-white">{t.title}</span>
-                      <StatusTag status={t.status}/>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-[#78788c]">
-                      {subj && <SubjectBadge subject={t.subject} color={subj.color}/>}
-                      <span>{t.teacher}</span>
-                      <span>Due {t.due}</span>
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm font-black tabular-nums text-white">{t.done}/{t.qs}</div>
-                    <div className="text-[10px] text-[#78788c]">completed</div>
-                  </div>
-                </div>
-                {t.done > 0 && t.done < t.qs && (
-                  <div className="mt-2"><ProgressBar value={t.done} max={t.qs} color="#c08a3a" height="h-1"/></div>
-                )}
-              </button>
-            );
-          })}
-        </div>
-        <StartButton color={mode.color} disabled={selTeacher === null} onStart={handleStart}/>
+        {TEACHER_SETS.length === 0 ? (
+          <EmptyConfig
+            title="No teacher assignments yet"
+            body="When your teacher assigns a practice set, it will appear here."
+            actionLabel="Open Homework"
+            onAction={() => onNavigate?.("assignments")}
+          />
+        ) : (
+          <>
+            <div className="space-y-3">
+              {TEACHER_SETS.map(t => {
+                const subj = subjects.find(s => s.name === t.subject);
+                return (
+                  <button key={t.id} type="button" className="w-full text-left p-4 rounded-2xl border border-white/7">
+                    <div className="text-sm font-bold text-white">{t.title}</div>
+                    {subj && <SubjectBadge subject={t.subject} color={subj.color}/>}
+                  </button>
+                );
+              })}
+            </div>
+            <StartButton color={mode.color} disabled onStart={handleStart}/>
+          </>
+        )}
       </ConfigShell>
     );
   }
 
-  // Mock tests
   if (modeKey === "mock") {
     return (
       <ConfigShell mode={mode} onBack={onBack}>
-        <div className="space-y-3">
-          {MOCK_TESTS.map(t => (
-            <button key={t.id} onClick={() => setSelMock(t.id)}
-              className={cn(
-                "w-full text-left p-4 rounded-2xl border transition-all",
-                selMock === t.id ? "border-[#c08a3a]/40 bg-[#c08a3a]/8" : "border-white/7 hover:border-white/15"
-              )}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-bold text-white mb-1">{t.title}</div>
-                  <div className="text-[11px] text-[#78788c]">{t.subject}</div>
-                </div>
-                <div className="text-right">
-                  <div className="flex items-center gap-2">
-                    <Tag color="#c08a3a">{t.qs} Qs</Tag>
-                    <Tag color="#cc5069">{t.dur}</Tag>
-                  </div>
-                </div>
-              </div>
-            </button>
-          ))}
-        </div>
-        <StartButton color={mode.color} disabled={selMock === null} onStart={handleStart} label="Start Mock Test"/>
+        {MOCK_TESTS.length === 0 ? (
+          <EmptyConfig
+            title="No mock tests available"
+            body="Full-length mocks will show here once your school publishes them. Try Timed Practice for a timed bank session."
+          />
+        ) : (
+          <StartButton color={mode.color} disabled onStart={handleStart} label="Start Mock Test"/>
+        )}
       </ConfigShell>
     );
   }
 
-  // Difficulty-based
   if (modeKey === "difficulty") {
     return (
       <ConfigShell mode={mode} onBack={onBack}>
@@ -504,12 +529,11 @@ function ConfigView({
     );
   }
 
-  // Timed practice
   if (modeKey === "timed") {
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects}/>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll label="Subject (optional)"/>
           <div>
             <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Time Limit</div>
             <div className="flex gap-2 flex-wrap">
@@ -531,14 +555,112 @@ function ConfigView({
     );
   }
 
-  // Subject / Chapter / Topic / Mixed / Custom and everything else with a subject picker
-  const needsSubject = ["subject","chapter","topic","custom","qbank","pyq","untimed"].includes(modeKey);
+  if (modeKey === "subject") {
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        <div className="space-y-6">
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll={false} label="Choose subject"/>
+          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+        </div>
+        <StartButton color={mode.color} disabled={!selSubject} onStart={handleStart}/>
+      </ConfigShell>
+    );
+  }
 
-  return (
-    <ConfigShell mode={mode} onBack={onBack}>
-      <div className="space-y-6">
-        {needsSubject && <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects}/>}
-        {["custom","difficulty","chapter","topic","qbank"].includes(modeKey) && (
+  if (modeKey === "chapter") {
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        <div className="space-y-6">
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll={false} label="1. Subject"/>
+          {selSubject && (
+            <OptionChips
+              label={metaLoading ? "Loading chapters…" : "2. Chapter"}
+              options={chapters}
+              selected={selChapter}
+              onSelect={setSelChapter}
+              empty="No chapters in the bank for this subject yet."
+            />
+          )}
+          {selChapter && (
+            <div>
+              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Difficulty</div>
+              <div className="flex gap-2 flex-wrap">
+                {DIFFICULTIES.map(d => (
+                  <button key={d.key} onClick={() => setSelDifficulty(d.key)}
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                      selDifficulty === d.key ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                    )}
+                    style={selDifficulty === d.key ? { background:d.color } : {}}>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+        </div>
+        <StartButton color={mode.color} disabled={!selSubject || !selChapter} onStart={handleStart}/>
+      </ConfigShell>
+    );
+  }
+
+  if (modeKey === "topic") {
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        <div className="space-y-6">
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll={false} label="1. Subject"/>
+          {selSubject && (
+            <OptionChips
+              label="2. Chapter (optional)"
+              options={chapters}
+              selected={selChapter}
+              onSelect={setSelChapter}
+              allowClear
+              empty="No chapters yet — pick a topic below if available."
+            />
+          )}
+          {selSubject && (
+            <OptionChips
+              label="3. Topic / concept"
+              options={topics}
+              selected={selTopic}
+              onSelect={setSelTopic}
+              empty="No topics tagged in the bank for this selection yet."
+            />
+          )}
+          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+        </div>
+        <StartButton color={mode.color} disabled={!selSubject || !selTopic} onStart={handleStart}/>
+      </ConfigShell>
+    );
+  }
+
+  if (modeKey === "custom" || modeKey === "qbank") {
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        <div className="space-y-6">
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll label="Subject"/>
+          {selSubject && selSubject !== "Mixed" && (
+            <OptionChips
+              label="Chapter (optional)"
+              options={chapters}
+              selected={selChapter}
+              onSelect={setSelChapter}
+              allowClear
+              empty="No chapters for this subject yet."
+            />
+          )}
+          {modeKey === "custom" && selSubject && (
+            <OptionChips
+              label="Topic (optional)"
+              options={topics}
+              selected={selTopic}
+              onSelect={setSelTopic}
+              allowClear
+              empty="No topics tagged yet."
+            />
+          )}
           <div>
             <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Difficulty</div>
             <div className="flex gap-2 flex-wrap">
@@ -554,11 +676,104 @@ function ConfigView({
               ))}
             </div>
           </div>
-        )}
+          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+        </div>
+        <StartButton color={mode.color} onStart={handleStart}/>
+      </ConfigShell>
+    );
+  }
+
+  if (modeKey === "pyq") {
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        <div className="space-y-6">
+          <p className="text-xs text-[#78788c]">Loads past-paper / exam-year tagged questions from the bank when available.</p>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll label="Subject"/>
+          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+        </div>
+        <StartButton color={mode.color} onStart={handleStart}/>
+      </ConfigShell>
+    );
+  }
+
+  if (modeKey === "untimed") {
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        <div className="space-y-6">
+          <p className="text-xs text-[#78788c]">No countdown — focus on understanding.</p>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll label="Subject"/>
+          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+        </div>
+        <StartButton color={mode.color} onStart={handleStart}/>
+      </ConfigShell>
+    );
+  }
+
+  return (
+    <ConfigShell mode={mode} onBack={onBack}>
+      <div className="space-y-6">
+        <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} allowAll/>
         <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
       </div>
       <StartButton color={mode.color} onStart={handleStart}/>
     </ConfigShell>
+  );
+}
+
+function EmptyConfig({
+  title, body, actionLabel, onAction,
+}: { title: string; body: string; actionLabel?: string; onAction?: () => void }) {
+  return (
+    <div className="py-8 text-center space-y-3">
+      <HelpCircle className="w-8 h-8 text-[#78788c] mx-auto"/>
+      <div className="text-sm font-bold text-white">{title}</div>
+      <p className="text-xs text-[#78788c] leading-relaxed max-w-sm mx-auto">{body}</p>
+      {actionLabel && onAction && (
+        <button type="button" onClick={onAction}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#3b5bdb] hover:text-blue-300">
+          {actionLabel} <ChevronRight className="w-3 h-3"/>
+        </button>
+      )}
+    </div>
+  );
+}
+
+function OptionChips({
+  label, options, selected, onSelect, empty, allowClear,
+}: {
+  label: string;
+  options: string[];
+  selected: string | null;
+  onSelect: (v: string | null) => void;
+  empty?: string;
+  allowClear?: boolean;
+}) {
+  return (
+    <div>
+      <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">{label}</div>
+      {options.length === 0 ? (
+        <p className="text-xs text-[#78788c]">{empty ?? "Nothing available yet."}</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {allowClear && (
+            <button type="button" onClick={() => onSelect(null)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                selected === null ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+              )}>Any</button>
+          )}
+          {options.map(opt => (
+            <button key={opt} type="button" onClick={() => onSelect(opt)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all max-w-full truncate",
+                selected === opt ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+              )}>
+              {opt}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -590,27 +805,41 @@ function ConfigShell({ mode, onBack, children }: {
 }
 
 // Subject picker
-function SubjectPicker({ selected, onSelect, subjects }: { selected:string|null; onSelect:(s:string|null)=>void; subjects: PracticeSubject[] }) {
+function SubjectPicker({
+  selected, onSelect, subjects, allowAll = true, label = "Subject",
+}: {
+  selected: string | null;
+  onSelect: (s: string | null) => void;
+  subjects: PracticeSubject[];
+  allowAll?: boolean;
+  label?: string;
+}) {
   return (
     <div>
-      <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Subject</div>
-      <div className="flex flex-wrap gap-2">
-        <button onClick={() => onSelect(null)}
-          className={cn(
-            "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-            selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
-          )}>All</button>
-        {subjects.map(s => (
-          <button key={s.id} onClick={() => onSelect(s.name)}
-            className={cn(
-              "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-              selected === s.name ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
-            )}
-            style={selected===s.name ? { background:s.color, boxShadow:`0 4px 14px ${s.color}40` } : {}}>
-            {s.icon} {s.name}
-          </button>
-        ))}
-      </div>
+      <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">{label}</div>
+      {subjects.length === 0 ? (
+        <p className="text-xs text-[#78788c]">No subjects in the question bank yet for your board.</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {allowAll && (
+            <button type="button" onClick={() => onSelect(null)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+              )}>All</button>
+          )}
+          {subjects.map(s => (
+            <button key={s.id} type="button" onClick={() => onSelect(s.name)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                selected === s.name ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+              )}
+              style={selected===s.name ? { background:s.color, boxShadow:`0 4px 14px ${s.color}40` } : {}}>
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -650,6 +879,7 @@ function StartButton({ color, disabled=false, onStart, label="Start Practice" }:
 // ── Session types ─────────────────────────────────────────────────────────────
 interface SessionConfig {
   mode: ModeKey; label: string; subject: string;
+  chapter?: string | null; topic?: string | null;
   difficulty: string; qCount: number; timeLimitSec: number | null;
 }
 
@@ -689,19 +919,58 @@ function Session({
           setLoadError("Academic context not ready. Try again in a moment.");
           return;
         }
+
+        const chapterForStart =
+          config.chapter ||
+          config.topic ||
+          (config.mode === "daily" ? "Daily" : config.mode);
+
         const sid = await PracticeService.start(ctx, {
           _subject: config.subject === "Mixed" ? "General" : config.subject,
-          _chapter: config.label,
+          _chapter: chapterForStart,
           _count: config.qCount,
         });
         if (cancelled) return;
         sessionIdRef.current = sid as string;
 
-        const rows = await PracticeService.listBankQuestions(ctx, {
-          subject: config.subject,
-          difficulty: config.difficulty,
-          limit: config.qCount,
-        });
+        let rows: Awaited<ReturnType<typeof PracticeService.listBankQuestions>> = [];
+
+        if (config.mode === "incorrect") {
+          rows = await PracticeService.listMistakeQuestions(ctx, { limit: config.qCount });
+        } else if (config.mode === "skipped") {
+          rows = await PracticeService.listSkippedBankQuestions(ctx, { limit: config.qCount });
+        } else if (config.mode === "weak") {
+          const weak = await PracticeService.listWeakConcepts(ctx, { threshold: 70, limit: 12 });
+          if (weak.length === 0) {
+            rows = [];
+          } else {
+            rows = await PracticeService.listBankQuestions(ctx, {
+              difficulty: config.difficulty,
+              limit: config.qCount,
+              weakTargets: weak.map((w) => ({
+                subject: w.subject,
+                chapter: w.chapter,
+                concept: w.concept,
+              })),
+            });
+          }
+        } else if (config.mode === "pyq") {
+          rows = await PracticeService.listBankQuestions(ctx, {
+            subject: config.subject,
+            difficulty: config.difficulty,
+            limit: config.qCount,
+            pyqOnly: true,
+          });
+        } else {
+          rows = await PracticeService.listBankQuestions(ctx, {
+            subject: config.subject,
+            chapter: config.chapter,
+            topic: config.topic,
+            difficulty: config.difficulty,
+            limit: config.qCount,
+          });
+        }
+
         if (cancelled) return;
         const mapped: BankQuestion[] = rows
           .map((r): BankQuestion | null => {
@@ -727,7 +996,7 @@ function Session({
       }
     })();
     return () => { cancelled = true; };
-  }, [ctx, academicReady, config.subject, config.difficulty, config.qCount, config.label]);
+  }, [ctx, academicReady, config]);
 
   // Timer
   useEffect(() => {
@@ -841,12 +1110,24 @@ function Session({
   }
 
   if (qs.length === 0) {
+    const emptyByMode: Partial<Record<ModeKey, string>> = {
+      weak: "No weak concepts tracked yet (mastery below 70%). Practice more, then return here — or open Recovery.",
+      incorrect: "No incorrect questions saved yet. Mistakes from practice and tests will appear here.",
+      skipped: "You have not skipped any bank questions yet.",
+      pyq: "No previous-year / exam-tagged questions in the bank for this filter yet.",
+      bookmarked: "Bookmarked practice questions are not stored yet — use Mistake Book for saved mistakes.",
+      chapter: "No questions for this chapter in the bank yet.",
+      topic: "No questions for this topic in the bank yet.",
+      teacher: "No teacher-assigned practice sets right now.",
+      mock: "No mock tests published yet.",
+    };
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
         <HelpCircle className="w-10 h-10 text-[#78788c] mx-auto"/>
         <div className="text-lg font-bold text-white">No questions available</div>
         <p className="text-sm text-[#78788c]">
-          The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions.
+          {emptyByMode[config.mode] ??
+            "The question bank has no approved questions for this mode yet. Try another subject or ask your teacher to add questions."}
         </p>
         <button onClick={onBack}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
@@ -1023,23 +1304,36 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const student = useGurukulStudent();
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
-  const { data: charts } = useStudentPerformanceCharts();
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [historyTick, setHistoryTick] = useState(0);
+  const [subjects, setSubjects] = useState<PracticeSubject[]>([]);
 
-  const subjects = useMemo<PracticeSubject[]>(
-    () =>
-      (charts?.subjects ?? []).map((s, i) => ({
-        id: s.name,
-        name: s.name,
-        color: subjectColor(s.name, i),
-        accuracy: Math.round(s.accuracy),
-        attempts: s.attempts,
-        trend: 0,
-        icon: s.name.charAt(0).toUpperCase(),
-      })),
-    [charts?.subjects],
-  );
+  useEffect(() => {
+    if (!ctx || !academicReady) {
+      setSubjects([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const names = await PracticeService.listBankSubjects(ctx);
+        if (cancelled) return;
+        setSubjects(
+          names.map((name, i) => ({
+            id: name.toLowerCase(),
+            name,
+            color: subjectColor(name, i),
+          })),
+        );
+      } catch (e) {
+        if (!cancelled) {
+          setSubjects([]);
+          toast.error(e instanceof Error ? e.message : "Could not load subjects");
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [ctx, academicReady]);
 
   useEffect(() => {
     if (!user || !ctx || !academicReady) {
@@ -1059,7 +1353,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
             return {
               id: row.id,
               date: formatSessionDate(row.finished_at!),
-              mode: row.chapter ? "Chapter Practice" : "Practice",
+              mode: row.chapter ? String(row.chapter) : "Practice",
               subject: row.subject || "Mixed",
               qs: row.question_count,
               attempted: row.question_count,
@@ -1086,14 +1380,27 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const [config,  setConfig]  = useState<SessionConfig | null>(null);
   const [results, setResults] = useState<SessionResults | null>(null);
 
-  // Instant-start modes skip the config screen
-  const INSTANT: ModeKey[] = ["daily","weak","incorrect","skipped","bookmarked","random","untimed","mixed"];
+  /** Instant modes skip config and load with mode-specific filters. */
+  const INSTANT: ModeKey[] = ["daily", "weak", "incorrect", "skipped", "random", "mixed"];
 
   function handleMode(key: ModeKey) {
+    if (key === "bookmarked") {
+      setPage?.("mistakebook");
+      return;
+    }
     setModeKey(key);
     if (INSTANT.includes(key)) {
       const mode = MODES.find(m => m.key === key)!;
-      setConfig({ mode:key, label:mode.label, subject:"Mixed", difficulty:"mixed", qCount:20, timeLimitSec:null });
+      setConfig({
+        mode: key,
+        label: mode.label,
+        subject: "Mixed",
+        chapter: null,
+        topic: null,
+        difficulty: "mixed",
+        qCount: key === "daily" ? 15 : 20,
+        timeLimitSec: null,
+      });
       setPhase("session");
     } else {
       setPhase("config");
@@ -1117,7 +1424,15 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   return (
     <>
       {phase === "hub"     && <Hub onMode={handleMode} history={history} streak={streak}/>}
-      {phase === "config"  && <ConfigView modeKey={modeKey} onStart={handleConfigStart} onBack={() => setPhase("hub")} subjects={subjects}/>}
+      {phase === "config"  && (
+        <ConfigView
+          modeKey={modeKey}
+          onStart={handleConfigStart}
+          onBack={() => setPhase("hub")}
+          subjects={subjects}
+          onNavigate={setPage}
+        />
+      )}
       {phase === "session" && config && <Session config={config} onFinish={handleFinish} onBack={() => setPhase("hub")} subjects={subjects}/>}
       {phase === "summary" && results && (
         <Summary results={results} onRetry={handleRetry} onHub={() => setPhase("hub")}/>
