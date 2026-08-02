@@ -19,6 +19,7 @@ import {
   TestService,
   MarksService,
   DoubtService,
+  useAcademicLive,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
@@ -117,6 +118,7 @@ function todayIsoDate(): string {
 /** Teacher command center — what needs attention + quick actions that land on the right tab. */
 export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) => void }) {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["attendance", "homework", "test", "marks", "profile"]);
   const [loading, setLoading] = useState(true);
   const [classCount, setClassCount] = useState(0);
   const [classNames, setClassNames] = useState<string[]>([]);
@@ -195,7 +197,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         try {
           const doubts = await DoubtService.list(ctx);
           open = (doubts as { status?: string }[]).filter(
-            (d) => d.status === "open" || d.status === "pending",
+            (d) => d.status === "unsolved",
           ).length;
         } catch {
           open = 0;
@@ -221,7 +223,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx]);
+  }, [ready, ctx, liveVersion]);
 
   if (loading) {
     return (

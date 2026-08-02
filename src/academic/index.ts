@@ -78,6 +78,8 @@ export {
   BattleExperienceService,
   QuestionBankService,
   AnnouncementService,
+  LeaveService,
+  MessageService,
   TimetableService,
   ResourceService,
   resolveStudentServiceContext,
@@ -122,6 +124,8 @@ export type {
   AnnouncementPriority,
   AnnouncementStatus,
 } from "./services/announcementService";
+export type { LeaveRequestRow } from "./services/leaveService";
+export type { ChatContact, ChatMessage } from "./services/messageService";
 
 export { AcademicLiveProvider, useAcademicLive, useAcademicLiveBump, broadcastAcademicWrite } from "./live";
 export {

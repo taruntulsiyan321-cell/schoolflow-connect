@@ -18,6 +18,8 @@ import { ProgressionService } from "./progressionService";
 import { BattleExperienceService } from "./battleExperienceService";
 import { QuestionBankService } from "./questionBankService";
 import { AnnouncementService } from "./announcementService";
+import { LeaveService } from "./leaveService";
+import { MessageService } from "./messageService";
 import { TimetableService } from "./timetableService";
 import { ResourceService } from "./resourceService";
 import { resolveStudentServiceContext } from "./resolveStudentContext";
@@ -49,6 +51,8 @@ export const AcademicServices = {
   battle: BattleExperienceService,
   questionBank: QuestionBankService,
   announcement: AnnouncementService,
+  leave: LeaveService,
+  message: MessageService,
   timetable: TimetableService,
   resource: ResourceService,
 } as const;
@@ -69,6 +73,8 @@ export {
   BattleExperienceService,
   QuestionBankService,
   AnnouncementService,
+  LeaveService,
+  MessageService,
   TimetableService,
   ResourceService,
   resolveStudentServiceContext,

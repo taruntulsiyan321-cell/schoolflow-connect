@@ -6,6 +6,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import {
   AttendanceService,
   AnnouncementService,
+  useAcademicLive,
   type AssignedClass,
   type TeacherAnnouncementRow,
   type AnnouncementPriority,
@@ -126,6 +127,7 @@ function AnnouncementForm({
 
 export default function Announcements() {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["profile"]);
   const [classes, setClasses] = useState<AssignedClass[]>([]);
   const [items, setItems] = useState<TeacherAnnouncementRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,7 +173,7 @@ export default function Announcements() {
       }
     })();
     return () => { cancelled = true; };
-  }, [ready, ctx?.schoolId, ctx?.userId]);
+  }, [ready, ctx?.schoolId, ctx?.userId, liveVersion]);
 
   async function handleCreate(form: FormState) {
     if (!ctx) return;
