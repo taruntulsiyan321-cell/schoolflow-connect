@@ -144,6 +144,21 @@ export {
   buildClassAiSummary,
   buildSchoolAiSummary,
   buildTeacherAiSummary,
+  bindEnvelope,
+  CAPABILITY_CATALOG,
+  getCapability,
+  planRoute,
+  wouldCallModel,
+  AiContextApis,
+  askAiCoach,
+  invokeAiGateway,
 } from "./ai";
+
+export {
+  buildStudentEducationalIntelligence,
+  bandFromScore,
+  EIE_ALGORITHM_ID,
+  MASTERY_THRESHOLDS,
+} from "./eie";
 
 export { AuditService, listAuditForEntity, listRecentAudit } from "./audit";

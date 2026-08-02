@@ -2,8 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/gurukul/components/shared";
 import { toast } from "sonner";
+import { askAiCoach } from "@/academic/ai/gatewayClient";
 import {
   Mic, MicOff, Send, Plus, Search, Pin, Star, Trash2, Edit3,
   MoreHorizontal, ChevronLeft, Paperclip, Copy, Bookmark,
@@ -35,14 +37,14 @@ interface Conversation {
 const EMPTY_CONVOS: Conversation[] = [];
 
 const SUGGESTIONS = [
-  { icon:<HelpCircle className="w-4 h-4"/>,    text:"Explain integration by parts",        color:"#3b5bdb" },
-  { icon:<Layers className="w-4 h-4"/>,         text:"Help me understand this chapter",      color:"#4b9fd4" },
-  { icon:<BookOpen className="w-4 h-4"/>,       text:"Prepare me for tomorrow's test",       color:"#6882e8" },
-  { icon:<Brain className="w-4 h-4"/>,          text:"Teach me using Feynman technique",     color:"#4aa87a" },
-  { icon:<Sparkles className="w-4 h-4"/>,       text:"Create 10 practice questions",         color:"#c08a3a" },
-  { icon:<MessageSquare className="w-4 h-4"/>,  text:"Solve this question step by step",     color:"#cc5069" },
-  { icon:<Globe className="w-4 h-4"/>,          text:"Summarise my notes on this topic",     color:"#4b9fd4" },
-  { icon:<AlertCircle className="w-4 h-4"/>,    text:"Explain why I keep making this mistake",color:"#c08a3a" },
+  { icon:<HelpCircle className="w-4 h-4"/>,    text:"What is my attendance this month?",     color:"#3b5bdb" },
+  { icon:<Layers className="w-4 h-4"/>,         text:"Which homework is due soon?",           color:"#4b9fd4" },
+  { icon:<BookOpen className="w-4 h-4"/>,       text:"Show my marks summary",                 color:"#6882e8" },
+  { icon:<Brain className="w-4 h-4"/>,          text:"What is today's timetable?",            color:"#4aa87a" },
+  { icon:<Sparkles className="w-4 h-4"/>,       text:"What should I revise? Show mastery",    color:"#c08a3a" },
+  { icon:<MessageSquare className="w-4 h-4"/>,  text:"Explain my performance from school records", color:"#cc5069" },
+  { icon:<Globe className="w-4 h-4"/>,          text:"Summarise my weak concepts",            color:"#4b9fd4" },
+  { icon:<AlertCircle className="w-4 h-4"/>,    text:"How am I doing in attendance and marks?",color:"#c08a3a" },
 ];
 
 const ATTACH_TYPES = [
@@ -60,11 +62,11 @@ function now() {
   return new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
 }
 
-function novaReply(_text: string): string {
+function offlineFallback(): string {
   return (
-    "**Preview mode** — a live AI coach is not connected yet. " +
-    "I can’t invent explanations or practice problems as product answers. " +
-    "Use Practice, Doubts, or Recovery for real learning paths, or ask your teacher."
+    "I couldn’t reach the AI Gateway just now. " +
+    "Ask about attendance, homework due, marks, today’s timetable, or mastery/revision — " +
+    "or use Practice, Doubts, or Recovery for learning paths."
   );
 }
 
@@ -571,6 +573,7 @@ function InputBar({
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
+  const { studentId } = useAcademicContext();
   const { data: charts } = useStudentPerformanceCharts();
   const chartSubjects = (charts?.subjects ?? []).map((s, i) => ({
     name: s.name,
@@ -603,9 +606,50 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     ));
   }
 
+  async function replyViaGateway(convoId: string, text: string) {
+    setIsTyping(true);
+    try {
+      const { text: reply } = await askAiCoach({
+        text,
+        studentId: studentId || undefined,
+        channel: "student_app",
+      });
+      setConvos((cs) =>
+        cs.map((c) =>
+          c.id === convoId
+            ? {
+                ...c,
+                messages: [
+                  ...c.messages,
+                  { id: `m${Date.now()}`, role: "nova", text: reply, time: now() },
+                ],
+                preview: reply.slice(0, 60) + (reply.length > 60 ? "…" : ""),
+              }
+            : c,
+        ),
+      );
+    } catch {
+      toast.error("AI Gateway unavailable");
+      setConvos((cs) =>
+        cs.map((c) =>
+          c.id === convoId
+            ? {
+                ...c,
+                messages: [
+                  ...c.messages,
+                  { id: `m${Date.now()}`, role: "nova", text: offlineFallback(), time: now() },
+                ],
+              }
+            : c,
+        ),
+      );
+    } finally {
+      setIsTyping(false);
+    }
+  }
+
   function sendMessage(text: string, attachments: Attachment[]) {
     if (!activeId) {
-      // Create a new conversation
       const id = `c${Date.now()}`;
       const newConvo: Conversation = {
         id, title: text.slice(0,40) || "New Conversation",
@@ -613,24 +657,15 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       };
       setConvos(cs => [newConvo, ...cs]);
       setActiveId(id);
-      // Add student message then nova response
       setTimeout(() => {
         setConvos(cs => cs.map(c => c.id === id ? { ...c, messages:[{ id:"m1", role:"student", text, time:now(), attachments:attachments.length>0?attachments:undefined }] } : c));
-        setIsTyping(true);
-        setTimeout(() => {
-          setIsTyping(false);
-          setConvos(cs => cs.map(c => c.id === id ? { ...c, messages:[...c.messages, { id:"m2", role:"nova", text:novaReply(text), time:now() }] } : c));
-        }, 1800);
+        void replyViaGateway(id, text);
       }, 100);
       return;
     }
 
     addMessage(activeId, { role:"student", text, time:now(), attachments:attachments.length>0?attachments:undefined });
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      if (activeId) addMessage(activeId, { role:"nova", text:novaReply(text), time:now() });
-    }, 1600 + Math.random()*800);
+    void replyViaGateway(activeId, text);
   }
 
   function startVoice() {
@@ -638,12 +673,8 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     voiceTimer.current = setTimeout(() => {
       setVoiceState("processing");
       setTimeout(() => {
-        setVoiceState("speaking");
-        if (activeId) addMessage(activeId, { role:"student", text:"(Voice input captured — transcript unavailable offline)", time:now() });
-        setTimeout(() => {
-          if (activeId) addMessage(activeId, { role:"nova", text:novaReply(""), time:now() });
-          setVoiceState("idle");
-        }, 1200);
+        setVoiceState("idle");
+        toast.message("Voice transcript is not connected yet — type your question instead.");
       }, 800);
     }, 2000);
   }
@@ -654,22 +685,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   }
 
   function handleSuggestion(text: string) {
-    if (!activeId) {
-      const id = `c${Date.now()}`;
-      const newConvo: Conversation = { id, title:text.slice(0,40), preview:text.slice(0,60), date:"Today", messages:[] };
-      setConvos(cs => [newConvo, ...cs]);
-      setActiveId(id);
-      setTimeout(() => {
-        setConvos(cs => cs.map(c => c.id === id ? { ...c, messages:[{ id:"m1", role:"student", text, time:now() }] } : c));
-        setIsTyping(true);
-        setTimeout(() => {
-          setIsTyping(false);
-          setConvos(cs => cs.map(c => c.id === id ? { ...c, messages:[...c.messages, { id:"m2", role:"nova", text:novaReply(text), time:now() }] } : c));
-        }, 1800);
-      }, 100);
-    } else {
-      sendMessage(text, []);
-    }
+    sendMessage(text, []);
   }
 
   function newConversation() {
@@ -716,15 +732,14 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     const studentMsgs = c.messages.filter(m => m.role === "student");
     const lastQ = studentMsgs[studentMsgs.length - 1];
     if (!lastQ) return;
-    setConvos(cs => cs.map(x => x.id === activeId
-      ? { ...x, messages: x.messages.filter(m => m.id !== x.messages[x.messages.length-1].id) }
-      : x
-    ));
-    setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
-      if (activeId) addMessage(activeId, { role:"nova", text:novaReply(lastQ.text) + "\n\n*(regenerated)*", time:now() });
-    }, 1500);
+    const last = c.messages[c.messages.length - 1];
+    if (last?.role === "nova") {
+      setConvos(cs => cs.map(x => x.id === activeId
+        ? { ...x, messages: x.messages.filter(m => m.id !== last.id) }
+        : x
+      ));
+    }
+    void replyViaGateway(activeId, lastQ.text);
   }
 
   return (
