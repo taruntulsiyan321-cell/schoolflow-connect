@@ -66,6 +66,17 @@ export {
 } from "./contextBuilder";
 
 export {
+  buildNovaUiChips,
+  buildNovaContextLine,
+  dedupeLabels,
+  dedupeSubjects,
+  isPlaceholderLabel,
+  normalizeLabelKey,
+  type NovaChip,
+  type NovaUiContextInput,
+} from "./novaContextBuilder";
+
+export {
   validateModelResponse,
   evidenceFromExplainFacts,
   type ValidationResult,

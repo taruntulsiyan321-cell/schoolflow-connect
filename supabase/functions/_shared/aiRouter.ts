@@ -13,6 +13,7 @@ import {
 import { completeWithPromptLibrary, isOpenRouterConfigured } from "./modelRouter.ts";
 import { buildEieProjection } from "./eieProjection.ts";
 import { buildContextPack, packForModel } from "./contextBuilder.ts";
+import { dedupeSubjects, isPlaceholderLabel } from "./novaContextBuilder.ts";
 import {
   evidenceFromExplainFacts,
   validateModelResponse,
@@ -501,7 +502,7 @@ async function fetchMarksSummary(admin: SupabaseClient, schoolId: string, studen
       .map((e) => [String(e.id), e]),
   );
 
-  const bySubject = new Map<string, { sum: number; count: number }>();
+  const bySubject = new Map<string, { subject: string; sum: number; count: number }>();
   const recent: {
     examId: string;
     subject: string;
@@ -518,15 +519,17 @@ async function fetchMarksSummary(admin: SupabaseClient, schoolId: string, studen
     const max = Number(exam.max_marks) || 100;
     const obtained = Number(row.marks_obtained) || 0;
     const pct = Math.round((obtained / max) * 1000) / 10;
-    const subject = String(exam.subject || "Subject");
-    const cur = bySubject.get(subject) ?? { sum: 0, count: 0 };
+    const subjectRaw = String(exam.subject || "").trim();
+    if (isPlaceholderLabel(subjectRaw)) continue;
+    const subjectKey = subjectRaw.toLowerCase();
+    const cur = bySubject.get(subjectKey) ?? { subject: subjectRaw, sum: 0, count: 0 };
     cur.sum += pct;
     cur.count += 1;
-    bySubject.set(subject, cur);
+    bySubject.set(subjectKey, cur);
     if (recent.length < 10) {
       recent.push({
         examId: String(exam.id),
-        subject,
+        subject: subjectRaw,
         marksObtained: obtained,
         maxMarks: max,
         pct,
@@ -534,8 +537,8 @@ async function fetchMarksSummary(admin: SupabaseClient, schoolId: string, studen
     }
   }
 
-  const subjects = [...bySubject.entries()].map(([subject, v]) => ({
-    subject,
+  const subjects = [...bySubject.values()].map((v) => ({
+    subject: v.subject,
     average_pct: Math.round((v.sum / v.count) * 10) / 10,
     count: v.count,
   }));
@@ -673,17 +676,26 @@ async function fetchProgression(admin: SupabaseClient, schoolId: string, student
   const hasRow = !!xp;
   const xpVal = Number(xp?.xp ?? 0);
   const level = Number(xp?.level ?? 1);
-  const streak = Number(xp?.study_streak ?? xp?.current_streak ?? 0);
+  // Study streak SSOT only — never fall back to battle current_streak.
+  const streak = Number(xp?.study_streak ?? 0);
   const wins = Number(xp?.wins ?? 0);
   const battles = Number(xp?.total_battles ?? 0);
   const practice = Number(xp?.practice_sessions_count ?? 0);
   const leagueCode = typeof xp?.league_code === "string" && xp.league_code.trim() ? String(xp.league_code) : null;
   const asOf = xp?.updated_at ? String(xp.updated_at) : null;
   const hasData = hasRow && (xpVal > 0 || practice > 0 || battles > 0 || streak > 0);
-  const weak_concepts = (masteryRows ?? [])
-    .filter((r) => Number(r.mastery_score ?? 100) < 60 || Number(r.mistake_count ?? 0) >= 2)
-    .slice(0, 8)
-    .map((r) => `${String(r.subject ?? "General")}: ${String(r.concept ?? "Topic")}`);
+  const weak_concepts = dedupeSubjects(
+    (masteryRows ?? [])
+      .filter((r) => Number(r.mastery_score ?? 100) < 60 || Number(r.mistake_count ?? 0) >= 2)
+      .map((r) => {
+        const subject = String(r.subject ?? "").trim();
+        const concept = String(r.concept ?? "").trim();
+        if (isPlaceholderLabel(concept)) return null;
+        if (isPlaceholderLabel(subject)) return concept;
+        return `${subject}: ${concept}`;
+      }),
+    8,
+  );
 
   let leagueLabel: string | null = null;
   if (leagueCode) {
@@ -809,8 +821,14 @@ async function fetchParentSummary(admin: SupabaseClient, schoolId: string, stude
     .maybeSingle();
 
   const metrics = (profile?.metrics ?? {}) as Record<string, unknown>;
-  const weak = Array.isArray(metrics.weakTopics) ? metrics.weakTopics.map(String) : [];
-  const strong = Array.isArray(metrics.strongTopics) ? metrics.strongTopics.map(String) : [];
+  const weak = dedupeSubjects(
+    Array.isArray(metrics.weakTopics) ? metrics.weakTopics.map(String) : [],
+    8,
+  );
+  const strong = dedupeSubjects(
+    Array.isArray(metrics.strongTopics) ? metrics.strongTopics.map(String) : [],
+    8,
+  );
 
   const pctOrNull = (v: unknown): number | null => {
     if (v == null) return null;
@@ -839,6 +857,249 @@ async function fetchParentSummary(admin: SupabaseClient, schoolId: string, stude
         ? 1
         : 0.4
       : 0.3,
+  };
+}
+
+/** Profile + class + enrolled subjects for Nova (deduped, no placeholders). */
+async function fetchStudentProfileContext(admin: SupabaseClient, schoolId: string, studentId: string) {
+  const empty = {
+    projection: "StudentProfileContext",
+    version: 1,
+    studentId,
+    schoolId,
+    full_name: null as string | null,
+    roll_number: null as string | null,
+    class_id: null as string | null,
+    class_name: null as string | null,
+    section: null as string | null,
+    class_label: null as string | null,
+    subjects: [] as string[],
+    source_as_of: null as string | null,
+    data_version: `profilectx:${studentId}:none`,
+    completeness: 0,
+  };
+
+  const { data: student } = await admin
+    .from("students")
+    .select("full_name, roll_number, class_id, classes(name, section)")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  if (!student) return empty;
+
+  const rawClasses = student.classes as
+    | { name?: string; section?: string }
+    | { name?: string; section?: string }[]
+    | null
+    | undefined;
+  const clsObj = Array.isArray(rawClasses) ? rawClasses[0] : rawClasses;
+  const class_name = clsObj?.name ? String(clsObj.name).trim() : null;
+  const section = clsObj?.section ? String(clsObj.section).trim() : null;
+  const class_label =
+    class_name || section
+      ? `${class_name ?? ""}${class_name && section ? "-" : ""}${section ?? ""}`.replace(/^-|-$/g, "") ||
+        null
+      : null;
+
+  let subjects: string[] = [];
+  if (student.class_id) {
+    const { data: tc } = await admin
+      .from("teacher_classes")
+      .select("subject")
+      .eq("class_id", student.class_id)
+      .eq("school_id", schoolId);
+    subjects = dedupeSubjects((tc ?? []).map((r) => r.subject));
+  }
+
+  const hasIdentity = !!(student.full_name || class_label || subjects.length);
+  return {
+    projection: "StudentProfileContext",
+    version: 1,
+    studentId,
+    schoolId,
+    full_name: student.full_name ? String(student.full_name) : null,
+    roll_number: student.roll_number ? String(student.roll_number) : null,
+    class_id: student.class_id ? String(student.class_id) : null,
+    class_name,
+    section,
+    class_label,
+    subjects,
+    source_as_of: null,
+    data_version: `profilectx:${studentId}:${class_label ?? "none"}:${subjects.length}`,
+    completeness: hasIdentity ? 1 : 0.2,
+  };
+}
+
+/** Recent practice history for Nova. */
+async function fetchPracticeHistory(admin: SupabaseClient, schoolId: string, studentId: string) {
+  const { data: student } = await admin
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const userId = student?.user_id ? String(student.user_id) : null;
+  if (!userId) {
+    return {
+      projection: "StudentPracticeHistory",
+      version: 1,
+      studentId,
+      schoolId,
+      sessions_completed: 0,
+      subjects: [] as string[],
+      recent: [] as { subject: string; chapter: string; accuracy: number | null; finished_at: string }[],
+      source_as_of: null as string | null,
+      data_version: `practice:${studentId}:0`,
+      completeness: 0,
+    };
+  }
+
+  const { data: rows } = await admin
+    .from("practice_sessions")
+    .select("subject, chapter, accuracy, correct_count, question_count, finished_at, saved_at")
+    .eq("user_id", userId)
+    .not("finished_at", "is", null)
+    .order("finished_at", { ascending: false })
+    .limit(30);
+
+  const list = rows ?? [];
+  const subjects = dedupeSubjects(list.map((r) => r.subject));
+  const recent = list.slice(0, 8).map((r) => {
+    const acc =
+      r.accuracy != null
+        ? Number(r.accuracy)
+        : r.question_count
+          ? Math.round((1000 * Number(r.correct_count ?? 0)) / Number(r.question_count)) / 10
+          : null;
+    return {
+      subject: String(r.subject ?? ""),
+      chapter: String(r.chapter ?? ""),
+      accuracy: acc,
+      finished_at: String(r.finished_at ?? r.saved_at ?? ""),
+    };
+  }).filter((r) => !isPlaceholderLabel(r.subject));
+
+  const latest = recent[0]?.finished_at || null;
+  return {
+    projection: "StudentPracticeHistory",
+    version: 1,
+    studentId,
+    schoolId,
+    sessions_completed: list.length,
+    subjects,
+    recent,
+    source_as_of: latest,
+    data_version: `practice:${studentId}:${list.length}:${latest ?? "none"}`,
+    completeness: list.length > 0 ? 1 : 0.1,
+  };
+}
+
+/** Mistake Book summary for Nova. */
+async function fetchMistakesBook(admin: SupabaseClient, schoolId: string, studentId: string) {
+  const { data: student } = await admin
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const userId = student?.user_id ? String(student.user_id) : null;
+  if (!userId) {
+    return {
+      projection: "StudentMistakesBook",
+      version: 1,
+      studentId,
+      schoolId,
+      open_count: 0,
+      subjects: [] as string[],
+      recent_concepts: [] as string[],
+      source_as_of: null as string | null,
+      data_version: `mistakes:${studentId}:0`,
+      completeness: 0,
+    };
+  }
+
+  const { data: rows } = await admin
+    .from("student_mistakes")
+    .select("subject, concept, topic, times_wrong, last_wrong_at, mastered")
+    .eq("user_id", userId)
+    .eq("mastered", false)
+    .order("last_wrong_at", { ascending: false })
+    .limit(40);
+
+  const list = rows ?? [];
+  const subjects = dedupeSubjects(list.map((r) => r.subject));
+  const recent_concepts = dedupeSubjects(
+    list.map((r) => {
+      const c = String(r.concept ?? r.topic ?? "").trim();
+      return isPlaceholderLabel(c) ? null : c;
+    }),
+    8,
+  );
+  const latest = list[0]?.last_wrong_at ? String(list[0].last_wrong_at) : null;
+  return {
+    projection: "StudentMistakesBook",
+    version: 1,
+    studentId,
+    schoolId,
+    open_count: list.length,
+    subjects,
+    recent_concepts,
+    source_as_of: latest,
+    data_version: `mistakes:${studentId}:${list.length}:${latest ?? "none"}`,
+    completeness: list.length > 0 ? 1 : 0.1,
+  };
+}
+
+/** Recovery queue summary for Nova. */
+async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, studentId: string) {
+  const { data: student } = await admin
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const userId = student?.user_id ? String(student.user_id) : null;
+  if (!userId) {
+    return {
+      projection: "StudentRecoveryQueue",
+      version: 1,
+      studentId,
+      schoolId,
+      pending_count: 0,
+      subjects: [] as string[],
+      open_concepts: [] as string[],
+      source_as_of: null as string | null,
+      data_version: `recovery:${studentId}:0`,
+      completeness: 0,
+    };
+  }
+
+  const { data: rows } = await admin
+    .from("recovery_assignments")
+    .select("subject, concept, status, created_at")
+    .eq("user_id", userId)
+    .in("status", ["pending", "in_progress"])
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  const list = rows ?? [];
+  const subjects = dedupeSubjects(list.map((r) => r.subject));
+  const open_concepts = dedupeSubjects(
+    list.map((r) => (isPlaceholderLabel(r.concept) ? null : String(r.concept))),
+    8,
+  );
+  const latest = list[0]?.created_at ? String(list[0].created_at) : null;
+  return {
+    projection: "StudentRecoveryQueue",
+    version: 1,
+    studentId,
+    schoolId,
+    pending_count: list.length,
+    subjects,
+    open_concepts,
+    source_as_of: latest,
+    data_version: `recovery:${studentId}:${list.length}:${latest ?? "none"}`,
+    completeness: list.length > 0 ? 1 : 0.1,
   };
 }
 
@@ -2605,13 +2866,36 @@ export async function routeAiRequest(
 
         const factsVersionSeed = `nova-facts:${studentId}`;
         const factsBundle = (await withCache(factsVersionSeed, async () => {
-          const [attendance, homework, marks, eie, profile, progression] = await Promise.all([
+          const [
+            attendance,
+            homework,
+            marks,
+            eie,
+            profile,
+            progression,
+            student_profile,
+            practice,
+            mistakes,
+            recovery,
+          ] = await Promise.all([
             fetchAttendance(admin, req.actor.schoolId, studentId),
             fetchHomeworkDue(admin, req.actor.schoolId, studentId),
             fetchMarksSummary(admin, req.actor.schoolId, studentId),
             fetchEie(admin, req.actor.schoolId, studentId),
             fetchParentSummary(admin, req.actor.schoolId, studentId),
             fetchProgression(admin, req.actor.schoolId, studentId),
+            fetchStudentProfileContext(admin, req.actor.schoolId, studentId),
+            fetchPracticeHistory(admin, req.actor.schoolId, studentId),
+            fetchMistakesBook(admin, req.actor.schoolId, studentId),
+            fetchRecoveryQueue(admin, req.actor.schoolId, studentId),
+          ]);
+          // Merge enrolled subjects with practice/marks subjects (deduped).
+          const subjects = dedupeSubjects([
+            ...student_profile.subjects,
+            ...practice.subjects,
+            ...marks.subjects.map((s) => s.subject),
+            ...mistakes.subjects,
+            ...recovery.subjects,
           ]);
           return {
             attendance,
@@ -2620,7 +2904,11 @@ export async function routeAiRequest(
             eie,
             profile,
             progression,
-            data_version: `nova:${attendance.data_version}:${homework.data_version}:${marks.data_version}:${eie.data_version}:${profile.data_version}:${progression.data_version}`,
+            student_profile: { ...student_profile, subjects },
+            practice,
+            mistakes,
+            recovery,
+            data_version: `nova:${attendance.data_version}:${homework.data_version}:${marks.data_version}:${eie.data_version}:${profile.data_version}:${progression.data_version}:${student_profile.data_version}:${practice.data_version}:${mistakes.data_version}:${recovery.data_version}`,
             source_as_of: (() => {
               const stamps = [
                 attendance.source_as_of,
@@ -2629,6 +2917,10 @@ export async function routeAiRequest(
                 eie.computed_at,
                 profile.source_as_of,
                 progression.source_as_of,
+                student_profile.source_as_of,
+                practice.source_as_of,
+                mistakes.source_as_of,
+                recovery.source_as_of,
               ].filter((v): v is string => typeof v === "string" && v.length > 0);
               stamps.sort();
               return stamps.length ? stamps[stamps.length - 1] : null;
@@ -2639,8 +2931,12 @@ export async function routeAiRequest(
                 marks.completeness +
                 eie.completeness +
                 profile.completeness +
-                progression.completeness) /
-              6,
+                progression.completeness +
+                student_profile.completeness +
+                practice.completeness +
+                mistakes.completeness +
+                recovery.completeness) /
+              10,
           };
         })) as {
           attendance: Awaited<ReturnType<typeof fetchAttendance>>;
@@ -2649,23 +2945,62 @@ export async function routeAiRequest(
           eie: Awaited<ReturnType<typeof fetchEie>>;
           profile: Awaited<ReturnType<typeof fetchParentSummary>>;
           progression: Awaited<ReturnType<typeof fetchProgression>>;
+          student_profile: Awaited<ReturnType<typeof fetchStudentProfileContext>> & {
+            subjects: string[];
+          };
+          practice: Awaited<ReturnType<typeof fetchPracticeHistory>>;
+          mistakes: Awaited<ReturnType<typeof fetchMistakesBook>>;
+          recovery: Awaited<ReturnType<typeof fetchRecoveryQueue>>;
           data_version: string;
           source_as_of: string | null;
           completeness: number;
         };
 
-        const { attendance, homework, marks, eie, profile, progression } = factsBundle;
-        const facts = { attendance, homework, marks, eie, profile, progression };
+        const {
+          attendance,
+          homework,
+          marks,
+          eie,
+          profile,
+          progression,
+          student_profile,
+          practice,
+          mistakes,
+          recovery,
+        } = factsBundle;
+        const facts = {
+          attendance,
+          homework,
+          marks,
+          eie,
+          profile,
+          progression,
+          student_profile,
+          practice,
+          mistakes,
+          recovery,
+        };
         const factsEmpty =
           factsBundle.completeness < 0.25 &&
           !(eie.weak_concepts?.length || eie.strong_concepts?.length) &&
           !(profile.weak_topics?.length || profile.strong_topics?.length) &&
-          !(progression.xp > 0 || progression.practice_sessions > 0 || progression.total_battles > 0);
+          !(progression.xp > 0 || progression.practice_sessions > 0) &&
+          !(practice.sessions_completed > 0 || mistakes.open_count > 0 || recovery.pending_count > 0);
 
         const pack = buildContextPack({
           capability: cap.feature_id,
           request_text: question,
-          ae: { attendance, homework, marks, profile, progression },
+          ae: {
+            attendance,
+            homework,
+            marks,
+            profile,
+            progression,
+            student_profile,
+            practice,
+            mistakes,
+            recovery,
+          },
           eie,
           session_memory: sessionForContext,
           tier_signals: {

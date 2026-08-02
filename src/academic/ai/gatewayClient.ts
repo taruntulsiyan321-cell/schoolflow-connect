@@ -137,9 +137,15 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       if (items.length === 0) {
         return "**Homework** — nothing pending in your class list right now.";
       }
-      const lines = items.slice(0, 8).map((h: { title?: string; subject?: string; due_date?: string; display_status?: string }) =>
-        `• **${h.subject ?? "Subject"}**: ${h.title ?? "Homework"} — ${h.due_date ?? "no due date"} (${h.display_status ?? "pending"})`,
-      );
+      const lines = items.slice(0, 8).map((h: { title?: string; subject?: string; due_date?: string; display_status?: string }) => {
+        const subj = presentAcademicLabel(String(h.subject ?? ""), "subject");
+        const title = h.title ?? "Homework";
+        const due = h.due_date ?? "no due date";
+        const status = h.display_status ?? "pending";
+        return subj
+          ? `• **${subj}**: ${title} — ${due} (${status})`
+          : `• **${title}** — ${due} (${status})`;
+      });
       return `**Homework due / pending** (${d.pending_count ?? items.length})\n${lines.join("\n")}`;
     }
     case "student.marks.summary": {
@@ -210,8 +216,10 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       }
       const concept = d.concept as Record<string, unknown> | undefined;
       if (concept?.name || concept?.concept) {
+        const conceptLabel = presentAcademicLabel(String(concept.name ?? concept.concept), "concept");
+        const subjectLabel = presentAcademicLabel(String(concept.subject ?? ""), "subject");
         return (
-          `**Concept: ${presentAcademicLabel(String(concept.name ?? concept.concept), "concept")}** (${presentAcademicLabel(String(concept.subject ?? "Subject"), "subject")})\n` +
+          `**Concept: ${conceptLabel}**${subjectLabel ? ` (${subjectLabel})` : ""}\n` +
           `Your mastery: **${concept.mastery_score ?? "—"}%**` +
           (concept.band ? ` (${concept.band})` : "") +
           `\n_Generative explanation unavailable — showing Educational Intelligence facts._`
@@ -274,7 +282,17 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
       if (typeof d.reply === "string" && d.reply.trim()) return d.reply;
       if (typeof d.explanation === "string" && d.explanation.trim()) return d.explanation;
       const facts = d.facts as Record<string, unknown> | undefined;
-      if (facts?.attendance || facts?.eie || facts?.marks || facts?.homework || facts?.progression) {
+      if (
+        facts?.attendance ||
+        facts?.eie ||
+        facts?.marks ||
+        facts?.homework ||
+        facts?.progression ||
+        facts?.practice ||
+        facts?.mistakes ||
+        facts?.recovery ||
+        facts?.student_profile
+      ) {
         const att = facts.attendance as { attendance_pct?: number; total_marked?: number } | undefined;
         const marks = facts.marks as { average_pct?: number | null; exams_count?: number } | undefined;
         const eie = facts.eie as {
@@ -287,11 +305,17 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
           xp?: number;
           level?: number;
           study_streak?: number;
-          battleground_wins?: number;
           practice_sessions?: number;
           league?: string | null;
           league_label?: string | null;
           weak_concepts?: string[];
+        } | undefined;
+        const practice = facts.practice as { sessions_completed?: number; subjects?: string[] } | undefined;
+        const mistakes = facts.mistakes as { open_count?: number; recent_concepts?: string[] } | undefined;
+        const recovery = facts.recovery as { pending_count?: number; open_concepts?: string[] } | undefined;
+        const studentProfile = facts.student_profile as {
+          class_label?: string | null;
+          subjects?: string[];
         } | undefined;
         if (d.facts_empty === true) {
           return (
@@ -307,9 +331,13 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
           prog?.xp != null ? `XP **${prog.xp}**` : null,
           prog?.level != null ? `Level **${prog.level}**` : null,
           leagueBit,
-          prog?.study_streak != null ? `Streak **${prog.study_streak}d**` : null,
-          prog?.practice_sessions != null ? `Practice **${prog.practice_sessions}**` : null,
-          prog?.battleground_wins != null ? `Battle wins **${prog.battleground_wins}**` : null,
+          prog?.study_streak != null && prog.study_streak > 0
+            ? `Study streak **${prog.study_streak}d**`
+            : null,
+          (prog?.practice_sessions != null && prog.practice_sessions > 0) ||
+          (practice?.sessions_completed != null && practice.sessions_completed > 0)
+            ? `Practice **${prog?.practice_sessions ?? practice?.sessions_completed ?? 0}**`
+            : null,
         ].filter(Boolean);
         const weakFromEie = (eie?.weak_concepts ?? [])
           .slice(0, 3)
@@ -330,13 +358,27 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
           Number(eie?.total_tracked ?? 0) > 0
             ? `Mastery **${eie?.avg_mastery ?? 0}%**`
             : `Mastery **not tracked yet**`;
+        const classBit = studentProfile?.class_label
+          ? `Class **${studentProfile.class_label}**`
+          : null;
+        const subjectsBit =
+          Array.isArray(studentProfile?.subjects) && studentProfile!.subjects!.length
+            ? `Subjects: ${studentProfile!.subjects!.slice(0, 5).join(", ")}`
+            : null;
+        const extras = [
+          Number(mistakes?.open_count ?? 0) > 0 ? `Mistakes open **${mistakes!.open_count}**` : null,
+          Number(recovery?.pending_count ?? 0) > 0 ? `Recovery **${recovery!.pending_count}**` : null,
+        ].filter(Boolean);
         return (
           `**Nova (facts only)**\n` +
+          (classBit ? `${classBit} · ` : "") +
           `${attLine}` +
           ` · Homework pending **${hw?.pending_count ?? 0}**` +
           ` · ${marksLine}` +
           ` · ${masteryLine}` +
           (progBits.length ? `\nProgression: ${progBits.join(" · ")}` : "") +
+          (subjectsBit ? `\n${subjectsBit}` : "") +
+          (extras.length ? `\n${extras.join(" · ")}` : "") +
           (weakBits.length ? `\nWeak areas: ${weakBits.join(", ")}` : "") +
           `\n_Generative reply unavailable — showing Academic Engine + EIE + Progression facts._`
         );
@@ -410,7 +452,7 @@ export async function askAiCoach(input: {
     target_refs: input.studentId ? { studentId: input.studentId } : undefined,
     channel: input.channel ?? "student_app",
     locale: input.locale,
-    client_context_version: "gurukul-aicoach/1",
+    client_context_version: "gurukul-aicoach/2",
     session_id: input.session_id,
     open_session: input.session_id ? false : wantsSession && input.open_session !== false,
   });
