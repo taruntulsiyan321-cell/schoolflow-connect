@@ -238,9 +238,9 @@ export default function TeacherApp() {
       </div>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
+        <div className="fixed inset-0 z-modal md:hidden flex">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <div className="relative z-50 flex h-full">
+          <div className="relative z-modal flex h-full">
             <Sidebar
               {...sidebarProps}
               collapsed={false}
@@ -253,7 +253,7 @@ export default function TeacherApp() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/7 bg-[#0d0d0f] shrink-0 gap-4">
+        <header className="relative z-40 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/7 bg-[#0d0d0f]/80 backdrop-blur-xl shrink-0 gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"

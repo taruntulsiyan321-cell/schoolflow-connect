@@ -394,7 +394,9 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   ]);
 
   if (loading) return <Loading label="Loading roster…" />;
-  if (error) return <div className="text-xs text-[#cc5069] py-8 text-center">{error}</div>;
+  if (error && rows.length === 0) {
+    return <div className="text-xs text-[#cc5069] py-8 text-center">{error}</div>;
+  }
 
   if (selected) {
     const parentContact =
@@ -698,6 +700,11 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div className="text-xs text-[#f59e0b] px-3 py-2 rounded-xl bg-[#f59e0b]/10 border border-[#f59e0b]/20">
+          {error}
+        </div>
+      )}
       <div className="text-[10px] text-[#46465a]">
         Open a student for an academic report — who needs help, and why.
       </div>
