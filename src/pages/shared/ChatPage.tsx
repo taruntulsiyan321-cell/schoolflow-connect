@@ -28,10 +28,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { NewChatSheet } from "@/components/chat/NewChatSheet";
+import { CHAT_FILE_ACCEPT } from "@/academic/storage/chatFileUpload";
 import "@/components/chat/chat-panel.css";
-
-const CHAT_FILE_ACCEPT =
-  ".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.txt,image/*,application/pdf";
 
 /** Role chip colors — Gurukul dark surfaces (same palette as teacher Communication). */
 const roleColors: Record<string, string> = {

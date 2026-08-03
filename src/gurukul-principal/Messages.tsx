@@ -5,15 +5,11 @@ import {
 import {
   MessageService,
   useAcademicLive,
-  type ChatAttachment,
   type ChatContact,
   type ChatMessage,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import {
-  ACADEMIC_FILE_ACCEPT,
-  uploadAcademicFile,
-} from "@/academic/storage/academicFileUpload";
+import { CHAT_FILE_ACCEPT } from "@/academic/storage/chatFileUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -167,7 +163,7 @@ export default function PrincipalMessages() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, selectedKey, selected?.conversationId, selected?.userId]);
+  }, [ready, ctx, selectedKey, selected?.conversationId, selected?.userId, liveTick]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -177,23 +173,72 @@ export default function PrincipalMessages() {
     if (!ctx?.userId) return;
     const channel = supabase
       .channel("principal_chat_messages")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, () => {
-        void reloadContacts().catch(() => undefined);
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (payload) => {
+        const row = payload.new as {
+          id: string;
+          sender_id: string;
+          receiver_id: string | null;
+          conversation_id?: string | null;
+          content: string;
+          is_read: boolean;
+          created_at: string;
+          reply_to_id?: string | null;
+          deleted_at?: string | null;
+          has_attachment?: boolean | null;
+        };
+        const mapped: ChatMessage = {
+          id: row.id,
+          senderId: row.sender_id,
+          receiverId: row.receiver_id,
+          conversationId: row.conversation_id,
+          content: row.content,
+          isRead: row.is_read,
+          createdAt: row.created_at,
+          replyToId: row.reply_to_id,
+          deletedAt: row.deleted_at,
+          attachments: [],
+        };
+
+        const activeConv = selected?.conversationId;
+        const inActiveConv =
+          activeConv && mapped.conversationId === activeConv
+            ? true
+            : selected &&
+              !isGroup(selected) &&
+              ((mapped.senderId === ctx.userId && mapped.receiverId === selected.userId) ||
+                (mapped.senderId === selected.userId && mapped.receiverId === ctx.userId));
+
+        if (inActiveConv) {
+          setMessages((prev) => (prev.find((m) => m.id === mapped.id) ? prev : [...prev, mapped]));
+          if (row.has_attachment && !row.deleted_at) {
+            const msgId = mapped.id;
+            void MessageService.listAttachments(ctx, [msgId])
+              .then((map) => {
+                const atts = map.get(msgId) ?? [];
+                if (!atts.length) return;
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === msgId ? { ...m, attachments: atts } : m)),
+                );
+              })
+              .catch(() => undefined);
+          }
+        } else if (mapped.receiverId === ctx.userId || (mapped.conversationId && mapped.senderId !== ctx.userId)) {
+          void reloadContacts().catch(() => undefined);
+        }
       })
       .subscribe();
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [ctx?.userId]);
+  }, [ctx?.userId, selectedKey, selected?.conversationId, selected?.userId]);
 
-  async function handleSend(text: string, opts?: { replyToId?: string; attachment?: ChatAttachment }) {
+  async function handleSend(text: string, opts?: { replyToId?: string }) {
     if (!ctx || !selected) return;
     setSending(true);
     try {
       const msg = await MessageService.send(ctx, selected.userId, text, {
         conversationId: selected.conversationId ?? (isGroup(selected) ? selected.userId : null),
         replyToId: opts?.replyToId,
-        attachment: opts?.attachment,
       });
       setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
       setContacts((prev) =>
@@ -201,7 +246,7 @@ export default function PrincipalMessages() {
           (c.conversationId || c.userId) === selectedKey
             ? {
                 ...c,
-                lastMessage: text || opts?.attachment?.name || "Attachment",
+                lastMessage: text || "Message",
                 lastTime: msg.createdAt,
                 conversationId: msg.conversationId || c.conversationId,
               }
@@ -225,21 +270,33 @@ export default function PrincipalMessages() {
   }
 
   async function onPickFile(file: File | null) {
-    if (!file) return;
+    if (!file || !ctx || !selected) return;
     setUploading(true);
     try {
-      const meta = await uploadAcademicFile(file);
-      await handleSend(input.trim(), {
-        replyToId: replyTo?.id,
-        attachment: {
-          name: meta.name,
-          url: meta.url,
-          mimeType: meta.mimeType,
-          sizeBytes: meta.sizeBytes,
-        },
-      });
+      const caption = input.trim();
+      const replyId = replyTo?.id;
       setInput("");
       setReplyTo(null);
+      const msg = await MessageService.sendFile(ctx, {
+        receiverId: selected.userId,
+        file,
+        conversationId: selected.conversationId ?? (isGroup(selected) ? selected.userId : null),
+        caption,
+        replyToId: replyId,
+      });
+      setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      setContacts((prev) =>
+        prev.map((c) =>
+          (c.conversationId || c.userId) === selectedKey
+            ? {
+                ...c,
+                lastMessage: caption || file.name || "Attachment",
+                lastTime: msg.createdAt,
+                conversationId: msg.conversationId || c.conversationId,
+              }
+            : c,
+        ),
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -514,7 +571,7 @@ export default function PrincipalMessages() {
             )}
 
             <div style={{ padding: 14, borderTop: "1px solid var(--border)", display: "flex", gap: 8, alignItems: "flex-end" }}>
-              <input ref={fileRef} type="file" accept={ACADEMIC_FILE_ACCEPT} style={{ display: "none" }} onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)} />
+              <input ref={fileRef} type="file" accept={CHAT_FILE_ACCEPT} style={{ display: "none" }} onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)} />
               <button
                 type="button"
                 disabled={sending || uploading}
