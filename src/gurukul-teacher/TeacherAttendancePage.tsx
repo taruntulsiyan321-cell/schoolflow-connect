@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Search,
@@ -30,6 +30,7 @@ const STATUS_OPTIONS: {
   { value: "absent", label: "Absent", short: "A", color: "#cc5069" },
   { value: "late", label: "Late", short: "L", color: "#f59e0b" },
   { value: "half_day", label: "Half Day", short: "H", color: "#6366f1" },
+  { value: "leave", label: "Leave", short: "Lv", color: "#c08a3a" },
 ];
 
 type SortKey = "roll" | "name" | "status";
@@ -67,6 +68,8 @@ export function TeacherAttendanceWorkspace({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const dirtyRef = useRef(false);
+  const rosterKeyRef = useRef("");
 
   useEffect(() => {
     if (fixedClassId) setClassId(fixedClassId);
@@ -110,7 +113,10 @@ export function TeacherAttendanceWorkspace({
       setLoading(false);
       return;
     }
-    setLoading(true);
+    const key = `${classId}|${date}`;
+    const keyChanged = rosterKeyRef.current !== key;
+    const quiet = !keyChanged && rosterKeyRef.current !== "";
+    if (!quiet) setLoading(true);
     setError(null);
     try {
       const [roster, existing] = await Promise.all([
@@ -118,21 +124,25 @@ export function TeacherAttendanceWorkspace({
         AttendanceService.listForClassDate(ctx, classId, date),
       ]);
       setStudents(roster);
-      setHadSubmittedRows(existing.length > 0);
       const next: Record<string, AttendanceStatus> = {};
       for (const s of roster) {
         const rec = existing.find((r) => r.studentId === s.id);
         next[s.id] = (rec?.status as AttendanceStatus) ?? "present";
       }
-      setMarks(next);
-      setSavedMarks({ ...next });
+      // Never clobber in-progress marks on a quiet live refresh.
+      if (keyChanged || !dirtyRef.current) {
+        setHadSubmittedRows(existing.length > 0);
+        setMarks(next);
+        setSavedMarks({ ...next });
+      }
+      rosterKeyRef.current = key;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load attendance");
       setStudents([]);
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
-  }, [ctx, classId, date, liveVersion]);
+  }, [ctx, classId, date]);
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -142,20 +152,29 @@ export function TeacherAttendanceWorkspace({
   useEffect(() => {
     if (!ready || !ctx || !classId) return;
     void loadRoster();
-  }, [ready, ctx, classId, date, loadRoster, liveVersion]);
+  }, [ready, ctx, classId, date, loadRoster]);
+
+  useEffect(() => {
+    if (!ready || !ctx || !classId || !rosterKeyRef.current) return;
+    void loadRoster();
+  }, [liveVersion, ready, ctx, classId, loadRoster]);
 
   const dirty = useMemo(
     () => students.some((s) => marks[s.id] !== savedMarks[s.id]),
     [students, marks, savedMarks],
   );
 
-  const saveState: "unsaved" | "saved" | "submitted" | "readonly" = !canMark
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
+  const saveState: "unsaved" | "draft" | "submitted" | "readonly" = !canMark
     ? "readonly"
     : dirty
       ? "unsaved"
       : hadSubmittedRows
         ? "submitted"
-        : "saved";
+        : "draft";
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -334,14 +353,14 @@ export function TeacherAttendanceWorkspace({
               className={cn(
                 "text-[10px] font-bold px-2.5 py-1 rounded-lg",
                 saveState === "unsaved" && "bg-[#f59e0b]/20 text-[#f59e0b]",
-                saveState === "saved" && "bg-[#10b981]/15 text-[#10b981]",
-                saveState === "submitted" && "bg-[#3b5bdb]/15 text-[#3b5bdb]",
+                saveState === "draft" && "bg-white/10 text-[#a0a0b0]",
+                saveState === "submitted" && "bg-[#10b981]/15 text-[#10b981]",
                 saveState === "readonly" && "bg-white/10 text-[#a0a0b0]",
               )}
             >
               {saveState === "unsaved" && "Unsaved Changes"}
-              {saveState === "saved" && "Saved"}
-              {saveState === "submitted" && "Attendance Already Submitted"}
+              {saveState === "draft" && "Not submitted yet"}
+              {saveState === "submitted" && "Attendance submitted"}
               {saveState === "readonly" && "Read Only"}
             </span>
           </div>

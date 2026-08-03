@@ -12,6 +12,7 @@ import {
 } from "@/academic";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { displaySubject } from "@/lib/academicPresentation";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/gurukul/components/shared";
 
@@ -20,7 +21,7 @@ import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/guruk
  */
 export default function Tests() {
   const { ctx, ready, studentId, classId } = useAcademicContext();
-  const liveVersion = useAcademicLive(["test", "marks"]);
+  const liveVersion = useAcademicLive(["test", "marks", "examination", "profile"]);
   const [marks, setMarks] = useState<MarksRecord[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
   const [upcoming, setUpcoming] = useState<
@@ -30,16 +31,17 @@ export default function Tests() {
   const [testsAvg, setTestsAvg] = useState(0);
   const [filter, setFilter] = useState<"all" | "graded" | "upcoming">("all");
   const [loading, setLoading] = useState(true);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
-      setLoading(false);
+      endLoading(setLoading);
       return;
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      beginLoading(setLoading);
       try {
         await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
         const settled = await Promise.allSettled([
@@ -79,7 +81,7 @@ export default function Tests() {
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load tests");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) endLoading(setLoading);
       }
     })();
     return () => {
@@ -106,7 +108,7 @@ export default function Tests() {
     }));
   }, [marks, examById]);
 
-  if (!ready || loading) {
+  if (!ready || showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading tests…

@@ -45,6 +45,7 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
       try {
         setStudentId(ctxStudentId);
         setNoClass(false);
+        await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
         const list = await HomeworkService.listForStudent(ctx, ctxStudentId);
         if (!cancelled) setRows(list);
       } catch (e) {

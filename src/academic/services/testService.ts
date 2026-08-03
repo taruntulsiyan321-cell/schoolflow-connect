@@ -208,11 +208,19 @@ export const TestService = {
       .maybeSingle();
     throwIfError(error, "Failed to load test");
     if (!data) throw new ForbiddenError("Test not found");
+    if (
+      (ctx.role === "student" || ctx.role === "parent") &&
+      !isPublishedFlag(data as Record<string, unknown>)
+    ) {
+      throw new ForbiddenError("This test is not published yet");
+    }
     return data;
   },
 
   async listQuestions(ctx: ServiceContext, testId: string) {
     assertCanConsume(ctx, "test");
+    // Enforce publish gate for students/parents (same as get)
+    await this.get(ctx, testId);
     const { data, error } = await getClient(toRepoContext(ctx))
       .from("dpp_questions")
       .select("*")
@@ -358,6 +366,10 @@ export const TestService = {
       } as never)
       .eq("id", testId);
 
+    afterTestWrite(ctx, {
+      classId: String(test.class_id),
+      source: "TestService.setQuestions",
+    });
     return data ?? [];
   },
 
@@ -398,6 +410,10 @@ export const TestService = {
       .select("*")
       .single();
     throwIfError(error, "Failed to update test");
+    afterTestWrite(ctx, {
+      classId: String(existing.class_id),
+      source: "TestService.update",
+    });
     return data;
   },
 
@@ -510,15 +526,21 @@ export const TestService = {
   async remove(ctx: ServiceContext, testId: string) {
     assertCanOwn(ctx, "test");
     const repo = toRepoContext(ctx);
+    let classId: string | null = null;
     try {
       const existing = (await this.get(ctx, testId)) as { class_id: string };
-      await assertTeacherCanWriteTest(ctx, String(existing.class_id));
+      classId = String(existing.class_id);
+      await assertTeacherCanWriteTest(ctx, classId);
     } catch {
       /* still attempt delete */
     }
     await getClient(repo).from("dpp_questions").delete().eq("dpp_id", testId);
     const { error } = await getClient(repo).from("dpps").delete().eq("id", testId);
     throwIfError(error, "Failed to delete test");
+    afterTestWrite(ctx, {
+      classId,
+      source: "TestService.remove",
+    });
   },
 
   /** Empty library framework — content added later. */
@@ -621,6 +643,11 @@ export const TestService = {
 
   async startAttempt(ctx: ServiceContext, dppId: string) {
     assertCanOwn(ctx, "student_test_attempt");
+    // Service-layer publish gate (RPC also enforces after migration applied)
+    const dpp = (await this.get(ctx, dppId)) as Record<string, unknown>;
+    if (ctx.role === "student" && !isPublishedFlag(dpp)) {
+      throw new ForbiddenError("This test is not published yet");
+    }
     const { data, error } = await getClient(toRepoContext(ctx)).rpc("rpc_dpp_start", {
       _dpp_id: dppId,
     } as never);
@@ -713,11 +740,32 @@ export const TestService = {
       }
     }
 
+    // Prefer ctx.studentId; fall back to attempt row so sync/parent fan-out always has an id
+    let studentId = ctx.studentId ?? null;
+    if (!studentId) {
+      const { data: attRow } = await client
+        .from("dpp_attempts")
+        .select("student_id, user_id")
+        .eq("id", attemptId)
+        .maybeSingle();
+      if (attRow?.student_id) {
+        studentId = String(attRow.student_id);
+      } else if (attRow?.user_id) {
+        const { data: stu } = await client
+          .from("students")
+          .select("id")
+          .eq("user_id", attRow.user_id)
+          .eq("school_id", ctx.schoolId)
+          .maybeSingle();
+        if (stu?.id) studentId = String(stu.id);
+      }
+    }
+
     await emitEvent(toRepoContext(ctx), {
       eventType: "test.attempt.completed",
       entityType: "student_test_attempt",
       entityId: attemptId,
-      studentId: ctx.studentId ?? null,
+      studentId,
       payload: {
         score: result?.score ?? null,
         accuracy: result?.accuracy ?? null,
@@ -725,7 +773,7 @@ export const TestService = {
     }).catch(() => undefined);
     const { notifyStudentXpUpdated } = await import("@/lib/studentXpNotify");
     broadcastAcademicWrite(ctx.schoolId, ["test", "xp", "profile"], {
-      studentId: ctx.studentId,
+      studentId,
       source: "TestService.submitAttempt",
     });
     notifyStudentXpUpdated();
