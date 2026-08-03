@@ -63,13 +63,16 @@ BEGIN
       LIMIT 1;
     END IF;
 
-    -- Prefer teacher whose primary subject matches; then maths; then any in school
+    -- Prefer teacher whose primary subject matches; then maths; then any in school.
+    -- Prefer @wisdomcampus.com emails so teacher panel is reachable with portal demos.
     SELECT t.id
     INTO _teacher
     FROM public.teachers t
     WHERE t.school_id = _school
       AND lower(trim(coalesce(t.subject, ''))) = lower(_subj)
-    ORDER BY t.created_at ASC NULLS LAST
+    ORDER BY
+      CASE WHEN lower(trim(coalesce(t.email, ''))) LIKE '%@wisdomcampus.com' THEN 0 ELSE 1 END,
+      t.created_at ASC NULLS LAST
     LIMIT 1;
 
     IF _teacher IS NULL AND lower(_subj) IN ('mathematics', 'maths', 'math') THEN
@@ -78,7 +81,9 @@ BEGIN
       FROM public.teachers t
       WHERE t.school_id = _school
         AND lower(trim(coalesce(t.subject, ''))) LIKE '%math%'
-      ORDER BY t.created_at ASC NULLS LAST
+      ORDER BY
+        CASE WHEN lower(trim(coalesce(t.email, ''))) LIKE '%@wisdomcampus.com' THEN 0 ELSE 1 END,
+        t.created_at ASC NULLS LAST
       LIMIT 1;
     END IF;
 
@@ -91,7 +96,9 @@ BEGIN
           lower(trim(coalesce(t.subject, ''))) LIKE '%business%'
           OR lower(trim(coalesce(t.subject, ''))) = 'bst'
         )
-      ORDER BY t.created_at ASC NULLS LAST
+      ORDER BY
+        CASE WHEN lower(trim(coalesce(t.email, ''))) LIKE '%@wisdomcampus.com' THEN 0 ELSE 1 END,
+        t.created_at ASC NULLS LAST
       LIMIT 1;
     END IF;
 
@@ -101,7 +108,9 @@ BEGIN
       FROM public.teachers t
       WHERE t.school_id = _school
         AND t.user_id IS NOT NULL
-      ORDER BY t.created_at ASC NULLS LAST
+      ORDER BY
+        CASE WHEN lower(trim(coalesce(t.email, ''))) LIKE '%@wisdomcampus.com' THEN 0 ELSE 1 END,
+        t.created_at ASC NULLS LAST
       LIMIT 1;
     END IF;
 
@@ -110,7 +119,9 @@ BEGIN
       INTO _teacher
       FROM public.teachers t
       WHERE t.school_id = _school
-      ORDER BY t.created_at ASC NULLS LAST
+      ORDER BY
+        CASE WHEN lower(trim(coalesce(t.email, ''))) LIKE '%@wisdomcampus.com' THEN 0 ELSE 1 END,
+        t.created_at ASC NULLS LAST
       LIMIT 1;
     END IF;
 

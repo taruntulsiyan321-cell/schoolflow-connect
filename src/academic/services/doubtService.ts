@@ -126,8 +126,16 @@ export const DoubtService = {
       q = q.eq("class_id", filters.classId);
     }
 
-    if (filters?.subjectId) q = q.eq("subject_id", filters.subjectId);
-    else if (filters?.subject) q = q.eq("subject", filters.subject);
+    // Prefer OR of subject_id + subject text — older doubts may only have one populated.
+    if (filters?.subjectId && filters?.subject) {
+      const sid = filters.subjectId.replace(/[^a-fA-F0-9-]/g, "");
+      const sub = filters.subject.replace(/"/g, "");
+      q = q.or(`subject_id.eq.${sid},subject.ilike."${sub}"`);
+    } else if (filters?.subjectId) {
+      q = q.eq("subject_id", filters.subjectId);
+    } else if (filters?.subject) {
+      q = q.ilike("subject", filters.subject);
+    }
     if (filters?.mineOnly && ctx.userId) q = q.eq("user_id", ctx.userId);
 
     const { data, error } = await q;
@@ -136,27 +144,19 @@ export const DoubtService = {
     let rows = ((data ?? []) as DoubtRow[]).map(asDoubt);
 
     // Defense in depth for teachers: filter to assigned class+subject only.
-    // Match subject_id OR text subject (teacher_classes may only have one populated).
+    // Single RPC call matches RLS (subject_id OR text, case-insensitive).
     if (ctx.role === "teacher") {
+      const repo = toRepoContext(ctx);
       const checked: DoubtRow[] = [];
       for (const row of rows) {
         if (!row.class_id) continue;
-        const repo = toRepoContext(ctx);
-        const byId = row.subject_id
-          ? await teacherAssignedToClassSubject(repo, {
-              teacherUserId: ctx.userId,
-              classId: row.class_id,
-              subjectId: row.subject_id,
-            })
-          : false;
-        const byName = row.subject
-          ? await teacherAssignedToClassSubject(repo, {
-              teacherUserId: ctx.userId,
-              classId: row.class_id,
-              subject: row.subject,
-            })
-          : false;
-        if (byId || byName) checked.push(row);
+        const ok = await teacherAssignedToClassSubject(repo, {
+          teacherUserId: ctx.userId,
+          classId: row.class_id,
+          subjectId: row.subject_id,
+          subject: row.subject,
+        });
+        if (ok) checked.push(row);
       }
       rows = checked.map(asDoubt);
     }
@@ -180,22 +180,13 @@ export const DoubtService = {
 
     const row = asDoubt(data as DoubtRow);
     if (ctx.role === "teacher" && row.class_id) {
-      const repo = toRepoContext(ctx);
-      const byId = row.subject_id
-        ? await teacherAssignedToClassSubject(repo, {
-            teacherUserId: ctx.userId,
-            classId: row.class_id,
-            subjectId: row.subject_id,
-          })
-        : false;
-      const byName = row.subject
-        ? await teacherAssignedToClassSubject(repo, {
-            teacherUserId: ctx.userId,
-            classId: row.class_id,
-            subject: row.subject,
-          })
-        : false;
-      if (!byId && !byName) throw new ForbiddenError("Not assigned to this class and subject");
+      const ok = await teacherAssignedToClassSubject(toRepoContext(ctx), {
+        teacherUserId: ctx.userId,
+        classId: row.class_id,
+        subjectId: row.subject_id,
+        subject: row.subject,
+      });
+      if (!ok) throw new ForbiddenError("Not assigned to this class and subject");
     }
     if (ctx.role === "student" && ctx.classId && row.class_id !== ctx.classId) {
       throw new ForbiddenError("Doubt is not in your class");

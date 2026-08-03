@@ -1,8 +1,10 @@
 import { getClient, schoolIdOf, throwIfError, type RepoContext } from "./base";
 
 /**
- * Teaching-assignment checks used by marks / homework services.
- * Centralized so panels never reimplement subject ownership rules.
+ * Teaching-assignment checks used by marks / homework / doubts services.
+ * Delegates to public.teacher_teaches_class_subject so TS matches RLS:
+ * case-insensitive subject text, subject_id, and subject_id↔name fallback.
+ * Class-teacher-only does NOT unlock every subject.
  */
 export async function teacherAssignedToClassSubject(
   ctx: RepoContext,
@@ -13,36 +15,18 @@ export async function teacherAssignedToClassSubject(
     subjectId?: string | null;
   },
 ): Promise<boolean> {
-  const schoolId = schoolIdOf(ctx);
+  if (!input.classId) return false;
+  if (!input.subjectId && !String(input.subject ?? "").trim()) return false;
 
-  const { data: teacher, error: tErr } = await getClient(ctx)
-    .from("teachers")
-    .select("id, class_teacher_of")
-    .eq("school_id", schoolId)
-    .eq("user_id", input.teacherUserId)
-    .maybeSingle();
+  const { data, error } = await getClient(ctx).rpc("teacher_teaches_class_subject", {
+    _user_id: input.teacherUserId,
+    _class_id: input.classId,
+    _subject: String(input.subject ?? "").trim() || null,
+    _subject_id: input.subjectId ?? null,
+  } as never);
 
-  throwIfError(tErr, "Failed to load teacher");
-  if (!teacher) return false;
-
-  // Subject teachers only — class teacher role alone does NOT unlock every subject for marks.
-  let q = getClient(ctx)
-    .from("teacher_classes")
-    .select("id")
-    .eq("school_id", schoolId)
-    .eq("teacher_id", teacher.id)
-    .eq("class_id", input.classId)
-    .limit(1);
-
-  if (input.subjectId) {
-    q = q.eq("subject_id", input.subjectId);
-  } else if (input.subject) {
-    q = q.eq("subject", input.subject);
-  }
-
-  const { data, error } = await q;
   throwIfError(error, "Failed to check teaching assignment");
-  return (data?.length ?? 0) > 0;
+  return data === true;
 }
 
 /** True if this user is the class teacher of the class. */

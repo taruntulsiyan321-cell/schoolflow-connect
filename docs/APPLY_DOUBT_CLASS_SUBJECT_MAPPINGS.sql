@@ -130,12 +130,15 @@ BEGIN
         RETURNING id INTO v_subject_id;
       END IF;
 
-      -- Prefer teacher whose subject matches; prefer portal-linked (user_id set)
+      -- Prefer teacher whose subject matches; prefer @wisdomcampus.com then portal-linked
       SELECT t.id INTO v_teacher_id
       FROM public.teachers t
       WHERE t.school_id = v_school
         AND public._doubt_norm_subject(t.subject) = r_subj
-      ORDER BY (t.user_id IS NOT NULL) DESC, t.created_at ASC NULLS LAST
+      ORDER BY
+        CASE WHEN lower(trim(coalesce(t.email, ''))) LIKE '%@wisdomcampus.com' THEN 0 ELSE 1 END,
+        (t.user_id IS NOT NULL) DESC,
+        t.created_at ASC NULLS LAST
       LIMIT 1;
 
       -- Else: class teacher of this class
@@ -144,7 +147,10 @@ BEGIN
         FROM public.teachers t
         WHERE t.school_id = v_school
           AND t.class_teacher_of = r_class.class_id
-        ORDER BY (t.user_id IS NOT NULL) DESC, t.created_at ASC NULLS LAST
+        ORDER BY
+          CASE WHEN lower(trim(coalesce(t.email, ''))) LIKE '%@wisdomcampus.com' THEN 0 ELSE 1 END,
+          (t.user_id IS NOT NULL) DESC,
+          t.created_at ASC NULLS LAST
         LIMIT 1;
       END IF;
 
@@ -154,7 +160,9 @@ BEGIN
         FROM public.teachers t
         WHERE t.school_id = v_school
           AND t.user_id IS NOT NULL
-        ORDER BY t.created_at ASC NULLS LAST
+        ORDER BY
+          CASE WHEN lower(trim(coalesce(t.email, ''))) LIKE '%@wisdomcampus.com' THEN 0 ELSE 1 END,
+          t.created_at ASC NULLS LAST
         LIMIT 1;
       END IF;
 
@@ -163,7 +171,9 @@ BEGIN
         SELECT t.id INTO v_teacher_id
         FROM public.teachers t
         WHERE t.school_id = v_school
-        ORDER BY t.created_at ASC NULLS LAST
+        ORDER BY
+          CASE WHEN lower(trim(coalesce(t.email, ''))) LIKE '%@wisdomcampus.com' THEN 0 ELSE 1 END,
+          t.created_at ASC NULLS LAST
         LIMIT 1;
       END IF;
 
