@@ -15,7 +15,7 @@ import { localDateKey } from "@/lib/localDate";
  * No mock data. Summary % comes from AcademicProfileService (engine).
  */
 export function ParentLiveAttendance({ studentId }: { studentId: string }) {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["attendance", "profile"]);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [pct, setPct] = useState(0);
@@ -25,19 +25,23 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx || !studentId) return;
+    if (!settled) return;
+    if (!ready || !ctx || !studentId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
       setError(null);
       try {
-        const settled = await Promise.allSettled([
+        const results = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AttendanceService.listForStudent(ctx, studentId, { limit: 120 }),
         ]);
         if (cancelled) return;
-        const profile = settled[0].status === "fulfilled" ? settled[0].value : null;
-        const list = settled[1].status === "fulfilled" ? settled[1].value : [];
+        const profile = results[0].status === "fulfilled" ? results[0].value : null;
+        const list = results[1].status === "fulfilled" ? results[1].value : [];
         setRecords(list);
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);
@@ -51,7 +55,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId, liveVersion]);
+  }, [settled, ready, ctx, studentId, liveVersion]);
 
   const statusColor: Record<string, string> = {
     present: "#3b5bdb",
@@ -134,7 +138,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
 
 /** Hook: live children for parent panel (engine). */
 export function useParentLiveChildren() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive([
     "attendance",
     "homework",
@@ -148,7 +152,13 @@ export function useParentLiveChildren() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      setChildren([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -168,14 +178,14 @@ export function useParentLiveChildren() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveVersion]);
+  }, [settled, ready, ctx, liveVersion]);
 
   return { children, loading, error, ready };
 }
 
 /** Attendance metrics from AcademicProfileService for dashboard widgets. */
 export function useChildAttendancePct(studentId: string | null) {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["attendance", "profile"]);
   const [pct, setPct] = useState(0);
   const [present, setPresent] = useState(0);
@@ -183,18 +193,25 @@ export function useChildAttendancePct(studentId: string | null) {
   const [todayStatus, setTodayStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx || !studentId) return;
+    if (!settled) return;
+    if (!ready || !ctx || !studentId) {
+      setPct(0);
+      setPresent(0);
+      setTotal(0);
+      setTodayStatus(null);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
         const today = localDateKey();
-        const settled = await Promise.allSettled([
+        const results = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AttendanceService.listForStudent(ctx, studentId, { limit: 40 }),
         ]);
         if (cancelled) return;
-        const profile = settled[0].status === "fulfilled" ? settled[0].value : null;
-        const list = settled[1].status === "fulfilled" ? settled[1].value : [];
+        const profile = results[0].status === "fulfilled" ? results[0].value : null;
+        const list = results[1].status === "fulfilled" ? results[1].value : [];
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);
         setTotal(profile?.attendanceTotal ?? 0);
@@ -211,7 +228,7 @@ export function useChildAttendancePct(studentId: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId, liveVersion]);
+  }, [settled, ready, ctx, studentId, liveVersion]);
 
   return { pct, present, total, todayStatus };
 }

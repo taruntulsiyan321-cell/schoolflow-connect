@@ -14,9 +14,23 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useEffect, useState } from "react";
 import { useNotifications } from "@/hooks/useNotifications";
 
-function QuickStat({ label, value, sub, color, icon }: { label: string; value: string | number; sub?: string; color: string; icon: React.ReactNode }) {
-  return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center gap-3">
+function QuickStat({
+  label,
+  value,
+  sub,
+  color,
+  icon,
+  onClick,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  color: string;
+  icon: React.ReactNode;
+  onClick?: () => void;
+}) {
+  const body = (
+    <>
       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${color}18`, color }}>
         {icon}
       </div>
@@ -25,6 +39,22 @@ function QuickStat({ label, value, sub, color, icon }: { label: string; value: s
         <div className="text-[10px] font-semibold text-[#78788c]">{label}</div>
         {sub && <div className="text-[9px] text-[#46465a]">{sub}</div>}
       </div>
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-white/15 transition-all w-full"
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center gap-3">
+      {body}
     </div>
   );
 }
@@ -168,9 +198,10 @@ export default function ParentDashboard({
         <QuickStat
           label="Notifications"
           value={unreadNotifications}
-          sub="unread"
+          sub="unread — tap to open"
           color={unreadNotifications > 0 ? "#cc5069" : "#78788c"}
           icon={<Bell className="w-5 h-5" />}
+          onClick={() => setPage("notifications")}
         />
         <QuickActionCard setPage={setPage} />
       </div>

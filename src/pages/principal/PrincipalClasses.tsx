@@ -18,13 +18,17 @@ type ClassRow = {
 
 export default function PrincipalClasses() {
   const liveVersion = useAcademicLive(["attendance", "profile"]);
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const [rows, setRows] = useState<ClassRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -88,7 +92,7 @@ export default function PrincipalClasses() {
     return () => {
       cancelled = true;
     };
-  }, [liveVersion, ctx, ready]);
+  }, [settled, liveVersion, ctx, ready]);
 
   return (
     <>

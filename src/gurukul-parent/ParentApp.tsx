@@ -170,7 +170,7 @@ function Sidebar({
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] font-semibold truncate">{c.name}</div>
-                <div className="text-[8px] opacity-60">{c.className} · {c.section}</div>
+                <div className="text-[8px] opacity-60">{c.className}</div>
               </div>
             </div>
           ))}

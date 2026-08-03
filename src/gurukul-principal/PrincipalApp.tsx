@@ -30,7 +30,7 @@ import PrincipalClassDetail from '@/pages/principal/PrincipalClassDetail'
 import {
   Search, Bell, Users, GraduationCap, UserCheck, CalendarDays,
   LayoutDashboard, BarChart2, Settings, LogOut, CheckCircle, Clock,
-  MessageSquare, Megaphone, School, Layers, ToggleLeft, ToggleRight, Lock, Loader2,
+  MessageSquare, Megaphone, School, Layers, Lock, Loader2,
 } from 'lucide-react'
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -174,7 +174,7 @@ function AttendancePage() {
 }
 
 function AnnouncementsPage() {
-  const { ctx, ready } = useAcademicContext()
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(['profile'])
   const [rows, setRows] = useState<TeacherAnnouncementRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -183,7 +183,12 @@ function AnnouncementsPage() {
   const [busyId, setBusyId] = useState<string | null>(null)
 
   const reload = async () => {
-    if (!ready || !ctx) return
+    if (!settled) return
+    if (!ctx) {
+      setRows([])
+      setLoading(false)
+      return
+    }
     setLoading(true)
     try {
       const list = await AnnouncementService.listForSchool(ctx)
@@ -200,7 +205,7 @@ function AnnouncementsPage() {
   useEffect(() => {
     void reload()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, liveVersion])
+  }, [settled, ready, ctx, liveVersion])
 
   const filtered = rows.filter((a) => tab === 'all' || a.status === tab)
 
@@ -315,7 +320,6 @@ function MessagesPage() {
 
 function SettingsPage() {
   const { profile, school, user, updatePassword } = useAuth()
-  const [twoFa, setTwoFa] = useState(false)
   const [pwdOpen, setPwdOpen] = useState(false)
   const [pwd, setPwd] = useState({ next: '', confirm: '' })
   const [pwdBusy, setPwdBusy] = useState(false)
@@ -378,11 +382,11 @@ function SettingsPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid var(--border-subtle)' }}>
           <div>
             <div style={{ fontSize: 13, fontWeight: 600 }}>Two-Factor Authentication</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>UI preference only — not persisted yet</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Not connected — MFA is not wired yet</div>
           </div>
-          <button type="button" onClick={() => setTwoFa(!twoFa)} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            {twoFa ? <ToggleRight size={28} color="var(--indigo)" /> : <ToggleLeft size={28} color="var(--text-muted)" />}
-          </button>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 999, padding: '4px 10px' }}>
+            Not connected
+          </span>
         </div>
         <div style={{ padding: '14px 0' }}>
           {!pwdOpen ? (
@@ -417,13 +421,15 @@ export default function PrincipalApp() {
   const navigate = useNavigate()
   const location = useLocation()
   const { signOut, profile, school } = useAuth()
-  const { items: notifItems, unread: unreadNotif, loading: notifLoading } = useNotifications()
-  const { ctx, ready } = useAcademicContext()
+  const { items: notifItems, unread: unreadNotif, loading: notifLoading, markRead, markAllRead } = useNotifications()
+  const { ctx, ready, settled } = useAcademicContext();
   const messageLive = useAcademicLive('message')
   const page = useMemo(() => principalPathToPage(location.pathname), [location.pathname])
   const setPage = (p: PrincipalPageKey) => navigate(PRINCIPAL_PAGE_PATH[p])
   const [notifOpen, setNotifOpen] = useState(false)
   const [unreadMsg, setUnreadMsg] = useState(0)
+  const [headerSearch, setHeaderSearch] = useState('')
+  const [searchHint, setSearchHint] = useState<string | null>(null)
 
   useEffect(() => {
     if (!ready || !ctx) {
@@ -526,14 +532,39 @@ export default function PrincipalApp() {
               {today}{schoolName ? ` · ${schoolName}` : ''}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 14px', width: 240 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 14px', width: 280, position: 'relative' }}>
             <Search size={14} color="var(--text-muted)" />
-            <input placeholder="Search students, teachers..." style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--text-primary)', width: '100%' }} />
+            <input
+              value={headerSearch}
+              onChange={(e) => {
+                setHeaderSearch(e.target.value)
+                setSearchHint(null)
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return
+                e.preventDefault()
+                setSearchHint('Not connected — global student/teacher search is not wired yet')
+              }}
+              placeholder="Search students, teachers..."
+              style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--text-primary)', width: '100%' }}
+              aria-label="School search (not connected)"
+            />
+            {searchHint && (
+              <div style={{ position: 'absolute', left: 0, right: 0, top: 44, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)', boxShadow: 'var(--shadow-sm)' }}>
+                {searchHint}
+              </div>
+            )}
           </div>
           <div style={{ position: 'relative' }}>
             <button
               type="button"
-              onClick={() => setNotifOpen((o) => !o)}
+              onClick={() => {
+                setNotifOpen((o) => {
+                  const next = !o
+                  if (next && unreadNotif > 0) void markAllRead()
+                  return next
+                })
+              }}
               style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', position: 'relative' }}
             >
               <Bell size={16} color="var(--text-secondary)" />
@@ -543,18 +574,40 @@ export default function PrincipalApp() {
             </button>
             {notifOpen && (
               <div style={{ position: 'absolute', right: 0, top: 48, width: 300, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)', padding: 16, zIndex: 100 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>Notifications</div>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Notifications</span>
+                  {unreadNotif > 0 && (
+                    <button type="button" onClick={() => void markAllRead()} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--indigo)', fontWeight: 600 }}>
+                      Mark all read
+                    </button>
+                  )}
+                </div>
                 {notifLoading && <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Loading…</div>}
                 {!notifLoading && notifItems.length === 0 && (
                   <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>No notifications</div>
                 )}
                 {notifItems.slice(0, 8).map((n, i, arr) => (
-                  <div key={n.id} style={{ padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{n.title}</div>
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => {
+                      if (!n.read) void markRead(n.id)
+                      if (n.link) {
+                        setNotifOpen(false)
+                        navigate(n.link)
+                      }
+                    }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+                      padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      opacity: n.read ? 0.75 : 1,
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: n.read ? 400 : 600 }}>{n.title}</div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                       {new Date(n.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

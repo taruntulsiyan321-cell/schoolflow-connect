@@ -42,7 +42,7 @@ type Student = { id: string; full_name: string; roll_number: string | null; admi
  */
 export default function PrincipalClassDetail() {
   const { classId } = useParams<{ classId: string }>();
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["attendance", "marks", "examination", "profile"]);
 
   const [klass, setKlass] = useState<Klass | null>(null);
@@ -61,7 +61,11 @@ export default function PrincipalClassDetail() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx || !classId) return;
+    if (!settled) return;
+    if (!ready || !ctx || !classId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -148,7 +152,7 @@ export default function PrincipalClassDetail() {
     return () => {
       cancelled = true;
     };
-  }, [classId, ctx, ready, liveVersion]);
+  }, [settled, classId, ctx, ready, liveVersion]);
 
   const total = students.length;
   const attendanceRate = total

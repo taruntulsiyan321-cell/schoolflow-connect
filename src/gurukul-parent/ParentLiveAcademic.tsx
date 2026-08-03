@@ -26,14 +26,18 @@ function Loading({ label }: { label: string }) {
 
 /** Parent homework from HomeworkService (no mock). */
 export function ParentLiveHomework({ studentId }: { studentId: string }) {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["homework", "profile"]);
   const [rows, setRows] = useState<Awaited<ReturnType<typeof HomeworkService.listForStudent>>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx || !studentId) return;
+    if (!settled) return;
+    if (!ready || !ctx || !studentId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -52,7 +56,7 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId, liveVersion]);
+  }, [settled, ready, ctx, studentId, liveVersion]);
 
   if (loading) return <Loading label="Loading homework…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
@@ -107,7 +111,7 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
 
 /** Parent exams + marks from MarksService; tests from TestService with attempt scores. */
 export function ParentLiveExams({ studentId, classId }: { studentId: string; classId: string | null }) {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["marks", "examination", "test", "profile"]);
   const [marks, setMarks] = useState<Awaited<ReturnType<typeof MarksService.listForStudent>>>([]);
   const [exams, setExams] = useState<Awaited<ReturnType<typeof MarksService.listExamsForClass>>>([]);
@@ -117,7 +121,11 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx || !studentId) return;
+    if (!settled) return;
+    if (!ready || !ctx || !studentId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -127,12 +135,12 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
         let testRows: any[] = [];
         let attemptMap: Record<string, Record<string, unknown>> = {};
         if (classId) {
-          const settled = await Promise.allSettled([
+          const results = await Promise.allSettled([
             MarksService.listExamsForClass(ctx, classId, { limit: 50 }),
             TestService.listForClass(ctx, classId),
           ]);
-          examRows = settled[0].status === "fulfilled" ? settled[0].value : [];
-          testRows = settled[1].status === "fulfilled" ? settled[1].value : [];
+          examRows = results[0].status === "fulfilled" ? results[0].value : [];
+          testRows = results[1].status === "fulfilled" ? results[1].value : [];
           const ids = testRows.map((t) => String(t.id)).filter(Boolean);
           if (ids.length) {
             try {
@@ -156,7 +164,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId, classId, liveVersion]);
+  }, [settled, ready, ctx, studentId, classId, liveVersion]);
 
   if (loading) return <Loading label="Loading exams & tests…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
@@ -237,7 +245,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
 
 /** Performance / insights from AcademicProfileService + Analytics + AI. */
 export function ParentLivePerformance({ studentId }: { studentId: string }) {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive([
     "attendance",
     "homework",
@@ -262,27 +270,31 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx || !studentId) return;
+    if (!settled) return;
+    if (!ready || !ctx || !studentId) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const settled = await Promise.allSettled([
+        const results = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AnalyticsService.forStudent(ctx, studentId),
           AiSummaryService.student(ctx, studentId),
           ProgressionService.getForStudent(ctx, studentId),
         ]);
         if (cancelled) return;
-        if (settled.slice(0, 3).every((s) => s.status === "rejected")) {
-          const first = settled[0] as PromiseRejectedResult;
+        if (results.slice(0, 3).every((s) => s.status === "rejected")) {
+          const first = results[0] as PromiseRejectedResult;
           setError(first.reason instanceof Error ? first.reason.message : "Failed to load performance");
           return;
         }
-        const p = settled[0].status === "fulfilled" ? settled[0].value : null;
-        const a = settled[1].status === "fulfilled" ? settled[1].value : null;
-        const summary = settled[2].status === "fulfilled" ? settled[2].value : null;
-        const prog = settled[3].status === "fulfilled" ? settled[3].value : null;
+        const p = results[0].status === "fulfilled" ? results[0].value : null;
+        const a = results[1].status === "fulfilled" ? results[1].value : null;
+        const summary = results[2].status === "fulfilled" ? results[2].value : null;
+        const prog = results[3].status === "fulfilled" ? results[3].value : null;
         setProfile(p);
         setAnalytics(a);
         setProgression(
@@ -310,7 +322,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, studentId, liveVersion]);
+  }, [settled, ready, ctx, studentId, liveVersion]);
 
   if (loading) return <Loading label="Loading performance…" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;

@@ -14,7 +14,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
  * School-wide + linked children's classes; empty when none; never fake notices.
  */
 export default function ParentAnnouncements() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["profile"]);
   const [announcements, setAnnouncements] = useState<TeacherAnnouncementRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +24,11 @@ export default function ParentAnnouncements() {
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -46,7 +50,7 @@ export default function ParentAnnouncements() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveVersion]);
+  }, [settled, ready, ctx, liveVersion]);
 
   const filtered = announcements.filter((a) => {
     const q = search.toLowerCase();

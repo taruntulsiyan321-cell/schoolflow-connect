@@ -55,7 +55,7 @@ const thStyle: React.CSSProperties = {
  * School-wide KPI overview — AnalyticsService.forSchool + AttendanceService.summarizeSchoolDate + AiSummaryService.school.
  */
 export function PrincipalSchoolOverview() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive([
     "attendance",
     "homework",
@@ -71,7 +71,11 @@ export function PrincipalSchoolOverview() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -95,7 +99,7 @@ export function PrincipalSchoolOverview() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveVersion]);
+  }, [settled, ready, ctx, liveVersion]);
 
   if (loading) return <Loading label="Loading school overview (Academic Engine)…" />;
   if (error) return <ErrorNote message={error} />;
@@ -134,7 +138,7 @@ export function PrincipalSchoolOverview() {
  * Per-class rollups table — AnalyticsService.classRollups (computed in the engine, not in React).
  */
 export function PrincipalClassRollups() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive([
     "attendance",
     "homework",
@@ -148,7 +152,11 @@ export function PrincipalClassRollups() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -165,7 +173,7 @@ export function PrincipalClassRollups() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveVersion]);
+  }, [settled, ready, ctx, liveVersion]);
 
   if (loading) return <Loading label="Loading class rollups…" />;
   if (error) return <ErrorNote message={error} />;
@@ -222,7 +230,7 @@ interface RankedStudent {
  * `students` table for name lookup only (no academic numbers from that query).
  */
 export function PrincipalStudentRankings() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["profile", "marks", "attendance", "examination"]);
   const [rows, setRows] = useState<RankedStudent[]>([]);
   const [metric, setMetric] = useState<"exams" | "attendance">("exams");
@@ -230,7 +238,11 @@ export function PrincipalStudentRankings() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -269,7 +281,7 @@ export function PrincipalStudentRankings() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveVersion]);
+  }, [settled, ready, ctx, liveVersion]);
 
   if (loading) return <Loading label="Loading student rankings…" />;
   if (error) return <ErrorNote message={error} />;
@@ -347,7 +359,7 @@ export function PrincipalStudentRankings() {
  * Live school attendance for a chosen date — AttendanceService.summarizeSchoolDate.
  */
 export function PrincipalAttendanceLive() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["attendance", "profile"]);
   const [date, setDate] = useState(() => todayStr());
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof AttendanceService.summarizeSchoolDate>> | null>(null);
@@ -355,7 +367,11 @@ export function PrincipalAttendanceLive() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -372,7 +388,7 @@ export function PrincipalAttendanceLive() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, date, liveVersion]);
+  }, [settled, ready, ctx, date, liveVersion]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -449,7 +465,7 @@ export function PrincipalAttendanceLive() {
  * No fake avg/attendance/homework columns.
  */
 export function PrincipalTeachersLive() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive([
     "attendance",
     "homework",
@@ -478,7 +494,11 @@ export function PrincipalTeachersLive() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -518,7 +538,7 @@ export function PrincipalTeachersLive() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveVersion]);
+  }, [settled, ready, ctx, liveVersion]);
 
   const filtered = rows.filter(
     (t) =>
@@ -603,14 +623,18 @@ export function PrincipalTeachersLive() {
  * School homework overview — AnalyticsService.homeworkSchool / HomeworkService.summarizeSchool.
  */
 export function PrincipalHomeworkLive() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["homework", "profile"]);
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof AnalyticsService.homeworkSchool>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -629,7 +653,7 @@ export function PrincipalHomeworkLive() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveVersion]);
+  }, [settled, ready, ctx, liveVersion]);
 
   if (loading) return <Loading label="Loading homework analytics..." />;
   if (error) return <ErrorNote message={error} />;
