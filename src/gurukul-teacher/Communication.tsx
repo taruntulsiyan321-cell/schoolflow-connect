@@ -20,6 +20,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
 import { toast } from "sonner";
+import { NewChatSheet } from "@/components/chat/NewChatSheet";
 
 const roleColor: Record<string, string> = {
   student: "#6366f1",
@@ -352,18 +353,16 @@ export default function Communication() {
   const [showCreate, setShowCreate] = useState(false);
   const [showNewDm, setShowNewDm] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
-  const [newForm, setNewForm] = useState({ contactId: "", message: "" });
+  const [startingChat, setStartingChat] = useState(false);
   /** True after first contacts fetch — liveTick must not flip back to full-page loading. */
   const contactsLoadedRef = useRef(false);
 
   const selected = useMemo(
-    () => contacts.find((c) => (c.conversationId || c.userId) === selectedKey) ?? null,
+    () =>
+      contacts.find((c) => (c.conversationId || c.userId) === selectedKey) ??
+      contacts.find((c) => !isGroup(c) && c.userId === selectedKey) ??
+      null,
     [contacts, selectedKey],
-  );
-
-  const dmContacts = useMemo(
-    () => contacts.filter((c) => !isGroup(c)),
-    [contacts],
   );
 
   async function reloadContacts() {
@@ -525,22 +524,30 @@ export default function Communication() {
     }
   }
 
-  async function startNewThread() {
-    if (!ctx || !newForm.contactId || !newForm.message.trim()) return;
-    setSending(true);
+  async function openNewChatWith(contact: ChatContact) {
+    if (!ctx || isGroup(contact)) return;
+    setStartingChat(true);
     try {
-      await MessageService.send(ctx, newForm.contactId, newForm.message.trim());
-      const list = await reloadContacts();
-      setSelectedKey(newForm.contactId);
-      const found = list?.find((c) => c.userId === newForm.contactId);
-      if (found?.conversationId) setSelectedKey(found.conversationId);
+      const ensured = await MessageService.ensureDm(ctx, contact.userId);
+      const next: ChatContact = {
+        ...contact,
+        ...ensured,
+        name: contact.name || ensured.name,
+        role: contact.role || ensured.role,
+        kind: "dm",
+      };
+      setContacts((prev) => {
+        const others = prev.filter(
+          (c) => isGroup(c) || (c.userId !== contact.userId && c.conversationId !== next.conversationId),
+        );
+        return [next, ...others];
+      });
+      setSelectedKey(next.conversationId || next.userId);
       setShowNewDm(false);
-      setNewForm({ contactId: "", message: "" });
-      toast.success("Message sent");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not send");
+      toast.error(e instanceof Error ? e.message : "Could not open chat");
     } finally {
-      setSending(false);
+      setStartingChat(false);
     }
   }
 
@@ -604,7 +611,7 @@ export default function Communication() {
             <button
               type="button"
               onClick={() => setShowNewDm(true)}
-              title="New message"
+              title="New chat"
               className="w-7 h-7 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb] flex items-center justify-center hover:bg-[#3b5bdb]/25 transition-all"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -686,60 +693,15 @@ export default function Communication() {
         </div>
       )}
 
-      {showNewDm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowNewDm(false)} />
-          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-bold text-white">New Message</div>
-              <button type="button" onClick={() => setShowNewDm(false)} className="text-[#78788c] hover:text-white text-lg">
-                ×
-              </button>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Recipient *</label>
-              <select
-                value={newForm.contactId}
-                onChange={(e) => setNewForm((p) => ({ ...p, contactId: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
-              >
-                <option value="">Select contact</option>
-                {dmContacts.map((c) => (
-                  <option key={c.userId} value={c.userId}>
-                    {c.name} ({c.role})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Message *</label>
-              <textarea
-                value={newForm.message}
-                onChange={(e) => setNewForm((p) => ({ ...p, message: e.target.value }))}
-                rows={3}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40 resize-none"
-              />
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                onClick={() => setShowNewDm(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void startNewThread()}
-                disabled={!newForm.contactId || !newForm.message.trim() || sending}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 transition-all"
-              >
-                <Send className="w-3.5 h-3.5" /> Send
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <NewChatSheet
+        open={showNewDm}
+        onClose={() => {
+          if (!startingChat) setShowNewDm(false);
+        }}
+        contacts={contacts}
+        busy={startingChat}
+        onSelect={(peer) => void openNewChatWith(peer)}
+      />
     </div>
   );
 }

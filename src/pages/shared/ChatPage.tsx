@@ -27,6 +27,7 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
+import { NewChatSheet } from "@/components/chat/NewChatSheet";
 import "@/components/chat/chat-panel.css";
 
 const CHAT_FILE_ACCEPT =
@@ -134,7 +135,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   const [canCreateGroup, setCanCreateGroup] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
-  const [newForm, setNewForm] = useState({ contactId: "", message: "" });
+  const [startingChat, setStartingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   /** True after the first contacts fetch settles — live/realtime refreshes must not flip loading. */
@@ -393,50 +394,34 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   };
 
 
-  const dmContacts = contacts.filter(
-    (c) =>
-      c.kind !== "class_group" &&
-      c.kind !== "teacher_group" &&
-      c.role !== "class_group" &&
-      c.role !== "teacher_group",
-  );
-
-  const startNewThread = async () => {
-    if (!ctx || !newForm.contactId || !newForm.message.trim()) return;
-    const peer = dmContacts.find((c) => c.userId === newForm.contactId);
-    if (!peer) {
-      toast.error("Select a contact");
-      return;
-    }
-    setSending(true);
+  const openNewChatWith = async (contact: ChatContact) => {
+    if (!ctx) return;
+    setStartingChat(true);
     try {
-      const ensured = await MessageService.ensureDm(ctx, peer.userId);
-      const next: ChatContact = {
-        ...peer,
-        ...ensured,
-        name: peer.name || ensured.name,
-        role: peer.role || ensured.role,
-        kind: "dm",
-      };
-      setContacts((prev) => {
-        const others = prev.filter((x) => !samePeer(x, peer));
-        return [next, ...others];
-      });
+      let next = contact;
+      if (contact.kind !== "class_group" && contact.kind !== "teacher_group") {
+        const ensured = await MessageService.ensureDm(ctx, contact.userId);
+        next = {
+          ...contact,
+          ...ensured,
+          name: contact.name || ensured.name,
+          role: contact.role || ensured.role,
+          kind: "dm",
+        };
+        setContacts((prev) => {
+          const others = prev.filter((c) => !samePeer(c, contact));
+          return [next, ...others];
+        });
+      }
       setSelectedContact(next);
       setReplyTo(null);
       setShowEmoji(false);
-      const data = await MessageService.send(ctx, peer.userId, newForm.message.trim(), {
-        conversationId: ensured.conversationId,
-      });
-      setMessages((prev) => (prev.find((m) => m.id === data.id) ? prev : [...prev, data]));
-      applySentToContact(data, next, previewOf(data));
+      setSearch("");
       setShowNewChat(false);
-      setNewForm({ contactId: "", message: "" });
-      toast.success("Message sent");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not send");
+      toast.error(e instanceof Error ? e.message : "Could not open chat");
     } finally {
-      setSending(false);
+      setStartingChat(false);
     }
   };
 
@@ -851,71 +836,15 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         </main>
       </div>
 
-      {showNewChat && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => !sending && setShowNewChat(false)} />
-          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-bold text-white">New chat</div>
-              <button
-                type="button"
-                onClick={() => setShowNewChat(false)}
-                disabled={sending}
-                className="text-[#78788c] hover:text-white text-lg disabled:opacity-40"
-              >
-                ×
-              </button>
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Recipient *</label>
-              <select
-                value={newForm.contactId}
-                onChange={(e) => setNewForm((p) => ({ ...p, contactId: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
-              >
-                <option value="">Select contact</option>
-                {dmContacts.map((c) => (
-                  <option key={c.userId} value={c.userId}>
-                    {c.name} ({c.role})
-                  </option>
-                ))}
-              </select>
-              {dmContacts.length === 0 && (
-                <p className="text-[10px] text-[#78788c] mt-1">No allowed contacts yet.</p>
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Message *</label>
-              <textarea
-                value={newForm.message}
-                onChange={(e) => setNewForm((p) => ({ ...p, message: e.target.value }))}
-                rows={3}
-                placeholder="Write your first message…"
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none"
-              />
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                onClick={() => setShowNewChat(false)}
-                disabled={sending}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 disabled:opacity-40"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void startNewThread()}
-                disabled={!newForm.contactId || !newForm.message.trim() || sending}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 transition-all"
-              >
-                {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                Send
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <NewChatSheet
+        open={showNewChat}
+        onClose={() => {
+          if (!startingChat) setShowNewChat(false);
+        }}
+        contacts={contacts}
+        busy={startingChat}
+        onSelect={(peer) => void openNewChatWith(peer)}
+      />
     </div>
   );
 }

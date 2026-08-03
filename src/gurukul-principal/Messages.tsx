@@ -17,6 +17,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { NewChatSheet } from "@/components/chat/NewChatSheet";
 
 const roleColor: Record<string, string> = {
   student: "#0ea5a0",
@@ -68,14 +69,17 @@ export default function PrincipalMessages() {
   const [showCreate, setShowCreate] = useState(false);
   const [showNewDm, setShowNewDm] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
-  const [newForm, setNewForm] = useState({ contactId: "", message: "" });
+  const [startingChat, setStartingChat] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
   /** True after first contacts fetch — liveTick must not flip back to full-page loading. */
   const contactsLoadedRef = useRef(false);
 
   const selected = useMemo(
-    () => contacts.find((c) => (c.conversationId || c.userId) === selectedKey) ?? null,
+    () =>
+      contacts.find((c) => (c.conversationId || c.userId) === selectedKey) ??
+      contacts.find((c) => !isGroup(c) && c.userId === selectedKey) ??
+      null,
     [contacts, selectedKey],
   );
 
@@ -256,21 +260,30 @@ export default function PrincipalMessages() {
     }
   }
 
-  async function startNewThread() {
-    if (!ctx || !newForm.contactId || !newForm.message.trim()) return;
-    setSending(true);
+  async function openNewChatWith(contact: ChatContact) {
+    if (!ctx || isGroup(contact)) return;
+    setStartingChat(true);
     try {
-      await MessageService.send(ctx, newForm.contactId, newForm.message.trim());
-      const list = await reloadContacts();
-      const found = list.find((c) => c.userId === newForm.contactId);
-      setSelectedKey(found?.conversationId || newForm.contactId);
+      const ensured = await MessageService.ensureDm(ctx, contact.userId);
+      const next: ChatContact = {
+        ...contact,
+        ...ensured,
+        name: contact.name || ensured.name,
+        role: contact.role || ensured.role,
+        kind: "dm",
+      };
+      setContacts((prev) => {
+        const others = prev.filter(
+          (c) => isGroup(c) || (c.userId !== contact.userId && c.conversationId !== next.conversationId),
+        );
+        return [next, ...others];
+      });
+      setSelectedKey(next.conversationId || next.userId);
       setShowNewDm(false);
-      setNewForm({ contactId: "", message: "" });
-      toast.success("Message sent");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not send");
+      toast.error(e instanceof Error ? e.message : "Could not open chat");
     } finally {
-      setSending(false);
+      setStartingChat(false);
     }
   }
 

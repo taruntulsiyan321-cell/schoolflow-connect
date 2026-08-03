@@ -64,3 +64,31 @@
 .chat-panel .chat-thread-bg {
   background: rgba(15, 27, 53, 0.35);
 }
+
+.chat-panel .chat-new-fab {
+  position: absolute;
+  right: 1rem;
+  bottom: 1rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3b5bdb, #6882e8);
+  color: #fff;
+  border: none;
+  box-shadow: 0 10px 28px -8px rgba(59, 91, 219, 0.65);
+  z-index: 5;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.chat-panel .chat-new-fab:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.chat-panel .chat-new-fab:disabled {
+  opacity: 0.5;
+  transform: none;
+}
