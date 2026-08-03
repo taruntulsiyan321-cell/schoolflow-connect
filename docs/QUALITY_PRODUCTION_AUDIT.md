@@ -28,9 +28,9 @@
 
 | ID | Finding | Status |
 |----|---------|--------|
-| C1 | Admin account linking claimed auth side-effects with no API | **Mitigated** — “not connected” flashes; no fake email seed |
-| C2 | Admin announcements / exams / leave / directory CRUD local-only | **Open** — seeds emptied; mutations still React state |
-| C3 | Admin Settings school identity not wired | **Open** |
+| C1 | Admin account linking claimed auth side-effects with no API | **Fixed** — honest not-wired panel; no fake link/unlink success |
+| C2 | Admin announcements / exams / leave / directory CRUD local-only | **Fixed** — Announcements/Exams Engine-wired; Leave via LeaveService; Parents live `parents`/`parent_students`; Students/Teachers re-export live admin pages |
+| C3 | Admin Settings school identity not wired | **Fixed** — loads/saves `schools` row via Supabase |
 
 ### High
 
@@ -111,11 +111,12 @@ Detects: missing student context / shell readiness, analytics placeholder labels
 
 ## 7. Remaining known issues
 
-- Admin ops not production
 - Battle Rating client heuristic
 - Draws folded into non-wins
 - Messaging honest-empty
 - DESIGN-ONLY fixtures remain unmounted
+- Admin non-academic report tabs (account/platform/communication) honest placeholder — not Academic Engine
+- Account linking auth admin APIs still not wired (honest empty panel)
 
 ### Supervisor note (Issues 9 / 11 / 12 / 13) — 2026-08-02
 

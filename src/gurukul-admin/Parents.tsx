@@ -1,59 +1,119 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Search, Plus, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Trash2, Edit2, Eye, UserX, UserCheck, X, Users, ArrowUpDown,
-  CheckSquare, Square, Mail, Phone, MapPin, Calendar, GraduationCap,
+  Search, Plus, ChevronLeft, ChevronRight, Trash2, Edit2, Eye, X,
+  Users, Mail, Phone, GraduationCap, Loader2, Link2,
 } from "lucide-react";
-import { cn, InitialsAvatar, StatusBadge, ConfirmModal, UndoToast, useUndoDelete } from "./shared";
-import { AccountLinkingPanel } from "./AccountLinking";
-import { adminParents as initial, adminStudents, type AdminParent, type ParentStatus } from "./data";
+import { cn, InitialsAvatar } from "./shared";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-type SortField = "fullName" | "occupation" | "status";
-type SortDir = "asc" | "desc";
-type DetailTab = "profile" | "activity" | "account";
+type LinkedStudent = {
+  id: string;
+  fullName: string;
+  classLabel: string;
+};
+
+type LiveParent = {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  userId: string | null;
+  createdAt: string;
+  linkedStudents: LinkedStudent[];
+};
+
+type StudentOption = { id: string; fullName: string; classLabel: string };
 
 const PER_PAGE = 8;
 
-function ParentForm({ parent, onSave, onClose }: { parent?: AdminParent; onSave: (p: AdminParent) => void; onClose: () => void }) {
-  const blank: AdminParent = {
-    id: `p${Date.now()}`, fullName: "", fatherName: "", motherName: "",
-    relationship: "Father", email: "", phone: "", occupation: "", address: "",
-    linkedStudentIds: [], status: "active", lastLogin: "Never", joinedDate: new Date().toISOString().slice(0, 10),
-  };
-  const [form, setForm] = useState<AdminParent>(parent ?? blank);
+function ParentForm({
+  parent,
+  students,
+  onSaved,
+  onClose,
+}: {
+  parent?: LiveParent;
+  students: StudentOption[];
+  onSaved: () => void;
+  onClose: () => void;
+}) {
+  const { ctx } = useAcademicContext();
+  const [fullName, setFullName] = useState(parent?.fullName ?? "");
+  const [email, setEmail] = useState(parent?.email ?? "");
+  const [phone, setPhone] = useState(parent?.phone ?? "");
+  const [linkedIds, setLinkedIds] = useState<Set<string>>(
+    () => new Set(parent?.linkedStudents.map((s) => s.id) ?? []),
+  );
+  const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function validate() {
+  function toggleStudent(id: string) {
+    setLinkedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    if (!ctx?.schoolId) return;
     const errs: Record<string, string> = {};
-    if (!form.fullName.trim()) errs.fullName = "Required";
-    if (!form.email.includes("@")) errs.email = "Invalid email";
-    if (!form.phone.trim()) errs.phone = "Required";
+    if (!fullName.trim()) errs.fullName = "Required";
+    if (email.trim() && !email.includes("@")) errs.email = "Invalid email";
     setErrors(errs);
-    return Object.keys(errs).length === 0;
-  }
+    if (Object.keys(errs).length) return;
 
-  function field(key: keyof AdminParent, label: string, type = "text", opts?: string[]) {
-    return (
-      <div className="flex flex-col gap-1">
-        <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">{label}</label>
-        {opts ? (
-          <select value={form[key] as string} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50">
-            {opts.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-        ) : (
-          <input type={type} value={form[key] as string} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-            className={cn("bg-white/5 border rounded-xl px-3 py-2 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50",
-              errors[key] ? "border-[#cc5069]/50" : "border-white/10")} />
-        )}
-        {errors[key] && <span className="text-[9px] text-[#cc5069]">{errors[key]}</span>}
-      </div>
-    );
-  }
+    setSaving(true);
+    try {
+      let parentId = parent?.id;
+      if (parentId) {
+        const { error } = await supabase
+          .from("parents")
+          .update({
+            full_name: fullName.trim(),
+            email: email.trim() || null,
+            phone: phone.trim() || null,
+          })
+          .eq("id", parentId)
+          .eq("school_id", ctx.schoolId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("parents")
+          .insert({
+            full_name: fullName.trim(),
+            email: email.trim() || null,
+            phone: phone.trim() || null,
+            school_id: ctx.schoolId,
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        parentId = data.id;
+      }
 
-  function handleSave() {
-    if (!validate()) return;
-    onSave(form);
+      await supabase.from("parent_students").delete().eq("parent_id", parentId);
+      const links = [...linkedIds].map((studentId) => ({
+        parent_id: parentId!,
+        student_id: studentId,
+        school_id: ctx.schoolId,
+      }));
+      if (links.length) {
+        const { error: linkErr } = await supabase.from("parent_students").insert(links);
+        if (linkErr) throw linkErr;
+      }
+
+      toast.success(parent ? "Parent updated" : "Parent added");
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save parent");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -62,23 +122,87 @@ function ParentForm({ parent, onSave, onClose }: { parent?: AdminParent; onSave:
       <div className="relative z-10 bg-[#0d0d0f] border border-white/10 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-[#0d0d0f] border-b border-white/7 px-6 py-4 flex items-center justify-between">
           <div className="text-sm font-bold text-white">{parent ? "Edit Parent" : "Add Parent"}</div>
-          <button onClick={onClose} className="text-[#78788c] hover:text-white"><X className="w-5 h-5" /></button>
+          <button type="button" onClick={onClose} className="text-[#78788c] hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
         </div>
         <div className="p-6 grid grid-cols-2 gap-4">
-          {field("fullName", "Full Name")}
-          {field("relationship", "Relationship", "text", ["Father", "Mother", "Guardian"])}
-          {field("email", "Email", "email")}
-          {field("phone", "Phone")}
-          {field("occupation", "Occupation")}
-          {field("fatherName", "Father Name")}
-          {field("motherName", "Mother Name")}
-          {field("status", "Status", "text", ["active", "inactive", "suspended"])}
-          <div className="col-span-2">{field("address", "Address")}</div>
+          <div className="col-span-2 flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Full Name</label>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className={cn(
+                "bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50",
+                errors.fullName ? "border-[#cc5069]/50" : "border-white/10",
+              )}
+            />
+            {errors.fullName && <span className="text-[9px] text-[#cc5069]">{errors.fullName}</span>}
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={cn(
+                "bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50",
+                errors.email ? "border-[#cc5069]/50" : "border-white/10",
+              )}
+            />
+            {errors.email && <span className="text-[9px] text-[#cc5069]">{errors.email}</span>}
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Phone</label>
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
+            />
+          </div>
+          <div className="col-span-2 flex flex-col gap-2">
+            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+              Linked students ({linkedIds.size})
+            </label>
+            {students.length === 0 ? (
+              <div className="text-xs text-[#78788c]">No students in this school yet.</div>
+            ) : (
+              <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border border-white/7 p-2">
+                {students.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => toggleStudent(s.id)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs transition-all",
+                      linkedIds.has(s.id)
+                        ? "bg-[#3b5bdb]/20 text-[#a5b4fc]"
+                        : "text-[#78788c] hover:bg-white/5 hover:text-white",
+                    )}
+                  >
+                    <span className="font-semibold truncate">{s.fullName}</span>
+                    <span className="text-[9px] opacity-70 shrink-0 ml-2">{s.classLabel}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <div className="sticky bottom-0 bg-[#0d0d0f] border-t border-white/7 px-6 py-4 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">Cancel</button>
-          <button onClick={handleSave} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
-            {parent ? "Save Changes" : "Add Parent"}
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleSave()}
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all disabled:opacity-50"
+          >
+            {saving ? "Saving…" : parent ? "Save Changes" : "Add Parent"}
           </button>
         </div>
       </div>
@@ -86,16 +210,15 @@ function ParentForm({ parent, onSave, onClose }: { parent?: AdminParent; onSave:
   );
 }
 
-function ParentDetail({ parent, onClose, onEdit }: { parent: AdminParent; onClose: () => void; onEdit: () => void }) {
-  const [tab, setTab] = useState<DetailTab>("profile");
-  const linkedStudents = adminStudents.filter((s) => parent.linkedStudentIds.includes(s.id));
-
-  const tabs: { key: DetailTab; label: string }[] = [
-    { key: "profile", label: "Profile" },
-    { key: "activity", label: "Activity" },
-    { key: "account", label: "Account" },
-  ];
-
+function ParentDetail({
+  parent,
+  onClose,
+  onEdit,
+}: {
+  parent: LiveParent;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
@@ -104,58 +227,61 @@ function ParentDetail({ parent, onClose, onEdit }: { parent: AdminParent; onClos
           <InitialsAvatar name={parent.fullName} size="lg" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-white">{parent.fullName}</div>
-            <div className="text-[10px] text-[#78788c]">{parent.relationship} · {parent.occupation}</div>
-            <div className="mt-1"><StatusBadge status={parent.status} /></div>
+            <div className="text-[10px] text-[#78788c] mt-1">
+              {parent.userId ? "Portal linked" : "No login linked"}
+            </div>
           </div>
-          <button onClick={onClose} className="text-[#78788c] hover:text-white shrink-0"><X className="w-4 h-4" /></button>
-        </div>
-        <div className="flex gap-1 px-4 py-2 border-b border-white/7">
-          {tabs.map((t) => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              className={cn("text-[10px] font-semibold px-3 py-1.5 rounded-lg whitespace-nowrap transition-all",
-                tab === t.key ? "bg-[#3b5bdb]/20 text-[#3b5bdb]" : "text-[#78788c] hover:text-white")}>
-              {t.label}
-            </button>
-          ))}
+          <button type="button" onClick={onClose} className="text-[#78788c] hover:text-white shrink-0">
+            <X className="w-4 h-4" />
+          </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {tab === "profile" && (
-            <>
-              {[
-                { label: "Email", value: parent.email },
-                { label: "Phone", value: parent.phone },
-                { label: "Occupation", value: parent.occupation },
-                { label: "Address", value: parent.address },
-                { label: "Joined", value: parent.joinedDate },
-              ].map((row) => (
-                <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-white/3">
-                  <div className="text-[9px] text-[#46465a] uppercase tracking-wider">{row.label}</div>
-                  <div className="text-xs text-white">{row.value}</div>
+          {[
+            { label: "Email", value: parent.email || "—", icon: <Mail className="w-3.5 h-3.5" /> },
+            { label: "Phone", value: parent.phone || "—", icon: <Phone className="w-3.5 h-3.5" /> },
+            {
+              label: "Joined",
+              value: parent.createdAt
+                ? new Date(parent.createdAt).toLocaleDateString("en-IN")
+                : "—",
+              icon: <Users className="w-3.5 h-3.5" />,
+            },
+          ].map((row) => (
+            <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-white/3">
+              <div className="flex items-center gap-1.5 text-[9px] text-[#46465a] uppercase tracking-wider">
+                {row.icon} {row.label}
+              </div>
+              <div className="text-xs text-white">{row.value}</div>
+            </div>
+          ))}
+          <div className="p-3 rounded-xl bg-white/3">
+            <div className="text-[9px] text-[#46465a] uppercase tracking-wider mb-2 flex items-center gap-1">
+              <GraduationCap className="w-3 h-3" /> Linked Students
+            </div>
+            {parent.linkedStudents.length === 0 ? (
+              <div className="text-xs text-[#78788c]">No linked students</div>
+            ) : (
+              parent.linkedStudents.map((s) => (
+                <div key={s.id} className="flex items-center gap-2 mt-1.5">
+                  <InitialsAvatar name={s.fullName} size="sm" />
+                  <div>
+                    <div className="text-xs font-semibold text-white">{s.fullName}</div>
+                    <div className="text-[9px] text-[#78788c]">{s.classLabel}</div>
+                  </div>
                 </div>
-              ))}
-              {linkedStudents.length > 0 && (
-                <div className="p-3 rounded-xl bg-white/3">
-                  <div className="text-[9px] text-[#46465a] uppercase tracking-wider mb-2">Linked Students</div>
-                  {linkedStudents.map((s) => (
-                    <div key={s.id} className="flex items-center gap-2 mt-1.5">
-                      <InitialsAvatar name={s.fullName} size="sm" />
-                      <div>
-                        <div className="text-xs font-semibold text-white">{s.fullName}</div>
-                        <div className="text-[9px] text-[#78788c]">{s.className} {s.section}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-          {tab === "activity" && (
-            <div className="text-xs text-[#78788c] text-center pt-8">Last login: {parent.lastLogin}</div>
-          )}
-          {tab === "account" && <AccountLinkingPanel entityName={parent.fullName} entityType="parent" status={parent.status} />}
+              ))
+            )}
+          </div>
+          <div className="p-3 rounded-xl bg-white/3 text-[10px] text-[#78788c] leading-relaxed">
+            Login linking uses the parents.user_id column. Auth invitation / password-reset admin APIs are not wired on this panel — no fake success actions.
+          </div>
         </div>
         <div className="p-4 border-t border-white/7">
-          <button onClick={onEdit} className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all"
+          >
             Edit Parent
           </button>
         </div>
@@ -164,193 +290,269 @@ function ParentDetail({ parent, onClose, onEdit }: { parent: AdminParent; onClos
   );
 }
 
+/**
+ * Admin Parents — live `parents` + `parent_students` for this school.
+ * No local-only CRUD / fake directories.
+ */
 export default function ParentManagement() {
-  const [parents, setParents] = useState<AdminParent[]>(initial);
-  const { toast, closeToast, softDelete } = useUndoDelete<AdminParent>(setParents);
+  const { ctx, ready } = useAcademicContext();
+  const [parents, setParents] = useState<LiveParent[]>([]);
+  const [students, setStudents] = useState<StudentOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [sortField, setSortField] = useState<SortField>("fullName");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
-  const [detail, setDetail] = useState<AdminParent | null>(null);
-  const [editParent, setEditParent] = useState<AdminParent | "new" | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<string | "bulk" | null>(null);
-  const [statusToast, setStatusToast] = useState<string | null>(null);
+  const [detail, setDetail] = useState<LiveParent | null>(null);
+  const [editParent, setEditParent] = useState<LiveParent | "new" | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  function toggleSort(field: SortField) {
-    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortField(field); setSortDir("asc"); }
+  async function load() {
+    if (!ready || !ctx?.schoolId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [parentsRes, linksRes, studentsRes] = await Promise.all([
+        supabase
+          .from("parents")
+          .select("id, full_name, email, phone, user_id, created_at")
+          .eq("school_id", ctx.schoolId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("parent_students")
+          .select("parent_id, student_id")
+          .eq("school_id", ctx.schoolId),
+        supabase
+          .from("students")
+          .select("id, full_name, classes(name, section, kind, display_name)")
+          .eq("school_id", ctx.schoolId)
+          .order("full_name"),
+      ]);
+      if (parentsRes.error) throw parentsRes.error;
+      if (linksRes.error) throw linksRes.error;
+      if (studentsRes.error) throw studentsRes.error;
+
+      const studentOpts: StudentOption[] = ((studentsRes.data ?? []) as {
+        id: string;
+        full_name: string;
+        classes: {
+          name: string;
+          section: string;
+          kind: string | null;
+          display_name: string | null;
+        } | null;
+      }[]).map((s) => ({
+        id: s.id,
+        fullName: s.full_name,
+        classLabel: s.classes
+          ? s.classes.kind === "batch" && s.classes.display_name
+            ? s.classes.display_name
+            : `${s.classes.name}-${s.classes.section}`
+          : "Unassigned",
+      }));
+      const studentMap = new Map(studentOpts.map((s) => [s.id, s]));
+
+      const linksByParent = new Map<string, LinkedStudent[]>();
+      for (const link of (linksRes.data ?? []) as { parent_id: string; student_id: string }[]) {
+        const st = studentMap.get(link.student_id);
+        if (!st) continue;
+        const list = linksByParent.get(link.parent_id) ?? [];
+        list.push({ id: st.id, fullName: st.fullName, classLabel: st.classLabel });
+        linksByParent.set(link.parent_id, list);
+      }
+
+      setStudents(studentOpts);
+      setParents(
+        ((parentsRes.data ?? []) as {
+          id: string;
+          full_name: string;
+          email: string | null;
+          phone: string | null;
+          user_id: string | null;
+          created_at: string;
+        }[]).map((p) => ({
+          id: p.id,
+          fullName: p.full_name,
+          email: p.email,
+          phone: p.phone,
+          userId: p.user_id,
+          createdAt: p.created_at,
+          linkedStudents: linksByParent.get(p.id) ?? [],
+        })),
+      );
+    } catch (e) {
+      setParents([]);
+      setError(e instanceof Error ? e.message : "Failed to load parents");
+    } finally {
+      setLoading(false);
+    }
   }
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, ctx?.schoolId]);
 
   const filtered = useMemo(() => {
-    let list = parents;
-    if (search) list = list.filter((p) => p.fullName.toLowerCase().includes(search.toLowerCase()) || p.email.includes(search));
-    if (filterStatus !== "all") list = list.filter((p) => p.status === filterStatus);
-    return [...list].sort((a, b) => {
-      const va = a[sortField] ?? "";
-      const vb = b[sortField] ?? "";
-      const cmp = String(va).localeCompare(String(vb));
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-  }, [parents, search, filterStatus, sortField, sortDir]);
+    const q = search.trim().toLowerCase();
+    if (!q) return parents;
+    return parents.filter(
+      (p) =>
+        p.fullName.toLowerCase().includes(q) ||
+        (p.email ?? "").toLowerCase().includes(q) ||
+        (p.phone ?? "").includes(q),
+    );
+  }, [parents, search]);
 
-  const totalPages = Math.ceil(filtered.length / PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const paged = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-  const allSelected = paged.length > 0 && paged.every((p) => selected.has(p.id));
 
-  function toggleAll() {
-    const ids = paged.map((p) => p.id);
-    if (allSelected) setSelected((prev) => { const next = new Set(prev); ids.forEach((id) => next.delete(id)); return next; });
-    else setSelected((prev) => { const next = new Set(prev); ids.forEach((id) => next.add(id)); return next; });
+  async function handleDelete(id: string) {
+    if (!ctx?.schoolId) return;
+    setDeleting(true);
+    try {
+      await supabase.from("parent_students").delete().eq("parent_id", id);
+      const { error: delErr } = await supabase
+        .from("parents")
+        .delete()
+        .eq("id", id)
+        .eq("school_id", ctx.schoolId);
+      if (delErr) throw delErr;
+      toast.success("Parent deleted");
+      setDetail(null);
+      setConfirmDelete(null);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
   }
 
-  function handleSave(p: AdminParent) {
-    setParents((prev) => {
-      const idx = prev.findIndex((x) => x.id === p.id);
-      if (idx >= 0) { const next = [...prev]; next[idx] = p; return next; }
-      return [p, ...prev];
-    });
-    setEditParent(null);
-    setStatusToast(editParent === "new" ? "Parent added" : "Parent updated");
-    setTimeout(() => setStatusToast(null), 3000);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading parents…
+      </div>
+    );
   }
 
-  function handleDelete(id: string) {
-    const item = parents.find((x) => x.id === id);
-    if (!item) return;
-    setDetail(null);
-    softDelete([item], `${item.fullName} deleted`);
+  if (error) {
+    return <div className="text-sm text-[#cc5069] py-16 text-center">{error}</div>;
   }
-
-  function handleBulkDelete() {
-    const toRemove = parents.filter((p) => selected.has(p.id));
-    setSelected(new Set());
-    softDelete(toRemove, `${toRemove.length} parents deleted`);
-  }
-
-  function handleBulkStatus(status: ParentStatus) {
-    setParents((prev) => prev.map((p) => selected.has(p.id) ? { ...p, status } : p));
-    setSelected(new Set());
-    setStatusToast(`${selected.size} parents ${status}`);
-    setTimeout(() => setStatusToast(null), 3000);
-  }
-
-  const SortIcon = ({ field }: { field: SortField }) => (
-    sortField === field
-      ? (sortDir === "asc" ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)
-      : <ArrowUpDown className="w-3 h-3 opacity-30" />
-  );
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#46465a]" />
-          <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder="Search parents..."
-            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50" />
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search parents…"
+            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
+          />
         </div>
-        <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50">
-          <option value="all">All Statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="suspended">Suspended</option>
-        </select>
-        <button onClick={() => setEditParent("new")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all">
+        <button
+          type="button"
+          onClick={() => setEditParent("new")}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all"
+        >
           <Plus className="w-3.5 h-3.5" /> Add Parent
         </button>
       </div>
-
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-[#3b5bdb]/10 border border-[#3b5bdb]/20">
-          <Users className="w-4 h-4 text-[#3b5bdb]" />
-          <span className="text-sm text-white font-semibold">{selected.size} selected</span>
-          <div className="ml-auto flex gap-2">
-            <button onClick={() => handleBulkStatus("active")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#4aa87a] bg-[#4aa87a]/10 hover:bg-[#4aa87a]/20 transition-all">
-              <UserCheck className="w-3 h-3" /> Activate
-            </button>
-            <button onClick={() => handleBulkStatus("inactive")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all">
-              <UserX className="w-3 h-3" /> Deactivate
-            </button>
-            <button onClick={() => setConfirmDelete("bulk")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#cc5069] bg-[#cc5069]/10 hover:bg-[#cc5069]/20 transition-all">
-              <Trash2 className="w-3 h-3" /> Delete
-            </button>
-          </div>
-        </div>
-      )}
 
       <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-white/7">
-              <th className="px-4 py-3 text-left w-10">
-                <button onClick={toggleAll} className="text-[#78788c] hover:text-white">
-                  {allSelected ? <CheckSquare className="w-4 h-4 text-[#3b5bdb]" /> : <Square className="w-4 h-4" />}
-                </button>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+                Parent
               </th>
-              {([
-                { key: "fullName", label: "Parent" },
-                { key: "occupation", label: "Occupation" },
-                { key: "status", label: "Status" },
-              ] as { key: SortField; label: string }[]).map((col) => (
-                <th key={col.key} className="px-4 py-3 text-left">
-                  <button onClick={() => toggleSort(col.key)} className="flex items-center gap-1.5 text-[10px] font-bold text-[#78788c] uppercase tracking-wider hover:text-white transition-colors">
-                    {col.label} <SortIcon field={col.key} />
-                  </button>
-                </th>
-              ))}
-              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Linked Students</th>
-              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Last Login</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+                Contact
+              </th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+                Login
+              </th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+                Linked Students
+              </th>
               <th className="px-4 py-3 w-24" />
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {paged.map((p) => {
-              const linked = adminStudents.filter((s) => p.linkedStudentIds.includes(s.id));
-              return (
-                <tr key={p.id} className="hover:bg-white/2 transition-colors group">
-                  <td className="px-4 py-3">
-                    <button onClick={() => setSelected((prev) => { const next = new Set(prev); next.has(p.id) ? next.delete(p.id) : next.add(p.id); return next; })} className="text-[#78788c] hover:text-white">
-                      {selected.has(p.id) ? <CheckSquare className="w-4 h-4 text-[#3b5bdb]" /> : <Square className="w-4 h-4" />}
+            {paged.map((p) => (
+              <tr key={p.id} className="hover:bg-white/2 transition-colors group">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <InitialsAvatar name={p.fullName} size="sm" />
+                    <div className="text-sm font-semibold text-white">{p.fullName}</div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-xs text-[#78788c]">{p.email || "—"}</div>
+                  <div className="text-[10px] text-[#46465a]">{p.phone || "—"}</div>
+                </td>
+                <td className="px-4 py-3">
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
+                      p.userId
+                        ? "bg-[#4aa87a]/15 text-[#4aa87a]"
+                        : "bg-white/5 text-[#78788c]",
+                    )}
+                  >
+                    <Link2 className="w-2.5 h-2.5" />
+                    {p.userId ? "Linked" : "No login"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {p.linkedStudents.length === 0 ? (
+                      <span className="text-[10px] text-[#46465a]">None</span>
+                    ) : (
+                      p.linkedStudents.map((s) => (
+                        <span
+                          key={s.id}
+                          className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#3b5bdb]/15 text-[#a5b4fc]"
+                        >
+                          {s.fullName.split(" ")[0]}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={() => setDetail(p)}
+                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
                     </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <InitialsAvatar name={p.fullName} size="sm" />
-                      <div>
-                        <div className="text-sm font-semibold text-white">{p.fullName}</div>
-                        <div className="text-[10px] text-[#78788c]">{p.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-[#78788c]">{p.occupation}</td>
-                  <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
-                      {linked.map((s) => (
-                        <span key={s.id} className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#3b5bdb]/15 text-[#a5b4fc]">{s.fullName.split(" ")[0]}</span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-[#78788c]">{p.lastLogin}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setDetail(p)} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all">
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setEditParent(p)} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all">
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => setConfirmDelete(p.id)} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-[#78788c] hover:text-[#cc5069] transition-all">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+                    <button
+                      type="button"
+                      onClick={() => setEditParent(p)}
+                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(p.id)}
+                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-[#78788c] hover:text-[#cc5069] transition-all"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
         {paged.length === 0 && (
@@ -362,11 +564,23 @@ export default function ParentManagement() {
         <div className="flex items-center justify-between px-4 py-3 border-t border-white/7">
           <div className="text-xs text-[#78788c]">{filtered.length} parents total</div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] disabled:opacity-30 transition-all">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] disabled:opacity-30 transition-all"
+            >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="text-xs text-[#78788c]">{page} / {totalPages || 1}</span>
-            <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page >= totalPages} className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] disabled:opacity-30 transition-all">
+            <span className="text-xs text-[#78788c]">
+              {page} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] disabled:opacity-30 transition-all"
+            >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -374,25 +588,51 @@ export default function ParentManagement() {
       </div>
 
       {editParent !== null && (
-        <ParentForm parent={editParent === "new" ? undefined : editParent} onSave={handleSave} onClose={() => setEditParent(null)} />
+        <ParentForm
+          parent={editParent === "new" ? undefined : editParent}
+          students={students}
+          onSaved={() => void load()}
+          onClose={() => setEditParent(null)}
+        />
       )}
       {detail && (
-        <ParentDetail parent={detail} onClose={() => setDetail(null)} onEdit={() => { setEditParent(detail); setDetail(null); }} />
+        <ParentDetail
+          parent={detail}
+          onClose={() => setDetail(null)}
+          onEdit={() => {
+            setEditParent(detail);
+            setDetail(null);
+          }}
+        />
       )}
-      <ConfirmModal
-        open={confirmDelete !== null}
-        title={confirmDelete === "bulk" ? `Are you sure you want to delete ${selected.size} parents?` : "Are you sure you want to delete this parent?"}
-        description="You will have 5 seconds to undo after deletion."
-        confirmLabel="Delete" danger
-        onConfirm={() => {
-          if (confirmDelete === "bulk") handleBulkDelete();
-          else if (confirmDelete) handleDelete(confirmDelete);
-          setConfirmDelete(null);
-        }}
-        onCancel={() => setConfirmDelete(null)}
-      />
-      {statusToast && <UndoToast state={{ message: statusToast, type: "success" }} onClose={() => setStatusToast(null)} />}
-      {toast && <UndoToast state={toast} onClose={closeToast} />}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmDelete(null)} />
+          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4">
+            <div className="text-sm font-bold text-white">Delete this parent?</div>
+            <div className="text-xs text-[#78788c]">
+              Removes the parent row and student links. This cannot be undone from the UI.
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(null)}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => void handleDelete(confirmDelete)}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#cc5069] disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

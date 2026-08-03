@@ -138,7 +138,7 @@ export type {
   AnnouncementPriority,
   AnnouncementStatus,
 } from "./services/announcementService";
-export type { LeaveRequestRow } from "./services/leaveService";
+export type { LeaveRequestRow, SchoolLeaveRequestRow } from "./services/leaveService";
 export type {
   ChatContact,
   ChatMessage,
@@ -167,12 +167,6 @@ export type {
 export type { StudentHomeworkRow, SchoolHomeworkSummary, HomeworkClassStatsRow } from "./services/homeworkService";
 export type { ClassTimetableSnapshot } from "./services/timetableService";
 export type { LearningResourceRow } from "./services/resourceService";
-export type {
-  DoubtStatus,
-  DoubtRow,
-  DoubtAnswerRow,
-  DoubtAttachmentRow,
-} from "./services/doubtService";
 export {
   uploadDoubtAttachment,
   signedDoubtUrl,

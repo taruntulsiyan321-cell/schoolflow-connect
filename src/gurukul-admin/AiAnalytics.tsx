@@ -166,6 +166,9 @@ export default function AiAnalyticsPanel() {
 
           <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
             <div className="text-sm font-bold text-white mb-2">Budget forecast</div>
+            <p className="text-[10px] text-[#5c5c70] mb-3">
+              Soft/hard limits below are provisional product defaults (not school-configured quotas).
+            </p>
             {!forecast || forecast.status === "insufficient_data" ? (
               <p className="text-sm text-[#78788c]">
                 Insufficient ledger history to forecast. Status: {forecast?.status ?? "—"}.
@@ -175,8 +178,9 @@ export default function AiAnalyticsPanel() {
                 <Stat label="Avg daily units" value={forecast.avg_daily_units} />
                 <Stat label="Projected month-end" value={forecast.projected_month_end_units} />
                 <Stat
-                  label="Projected soft %"
+                  label="Vs provisional soft"
                   value={`${Math.round(forecast.projected_soft_pct * 1000) / 10}%`}
+                  hint="Default soft cap — not school policy"
                 />
                 <Stat label="Status" value={forecast.status} />
               </div>

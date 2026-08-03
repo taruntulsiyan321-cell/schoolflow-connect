@@ -26,8 +26,16 @@ export type LeaveRequestRow = {
   status: LeaveStatus;
   createdAt: string;
   reviewedAt: string | null;
+  reviewedBy: string | null;
   studentId: string | null;
   classId: string | null;
+};
+
+/** School-scoped leave row with resolved applicant display fields. */
+export type SchoolLeaveRequestRow = LeaveRequestRow & {
+  applicantName: string;
+  department: string | null;
+  days: number;
 };
 
 type DbLeave = {
@@ -41,6 +49,7 @@ type DbLeave = {
   status: LeaveStatus;
   created_at: string;
   reviewed_at: string | null;
+  reviewed_by: string | null;
   student_id: string | null;
   class_id: string | null;
 };
@@ -57,9 +66,18 @@ function mapRow(row: DbLeave): LeaveRequestRow {
     status: row.status,
     createdAt: row.created_at,
     reviewedAt: row.reviewed_at,
+    reviewedBy: row.reviewed_by,
     studentId: row.student_id,
     classId: row.class_id,
   };
+}
+
+function daysBetween(from: string, to: string): number {
+  const a = new Date(`${from}T00:00:00`);
+  const b = new Date(`${to}T00:00:00`);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return 1;
+  const diff = Math.round((b.getTime() - a.getTime()) / 86_400_000);
+  return Math.max(1, diff + 1);
 }
 
 export const LeaveService = {
@@ -75,18 +93,97 @@ export const LeaveService = {
   },
 
   async listPending(ctx: ServiceContext): Promise<LeaveRequestRow[]> {
+    const rows = await LeaveService.listForSchool(ctx, { status: "pending" });
+    return rows;
+  },
+
+  /**
+   * School-scoped leave inbox for admin/principal.
+   * leave_requests has no school_id — filter via students / teachers / classes of this tenant.
+   */
+  async listForSchool(
+    ctx: ServiceContext,
+    opts?: { status?: LeaveStatus | "all"; limit?: number },
+  ): Promise<SchoolLeaveRequestRow[]> {
     assertCanConsume(ctx, "leave_request");
     if (!isSchoolOperator(ctx.role)) {
-      throw new ForbiddenError("Only school operators may review leave requests");
+      throw new ForbiddenError("Only school operators may list school leave requests");
     }
-    const { data, error } = await getClient(toRepoContext(ctx))
+    const client = getClient(toRepoContext(ctx));
+    const limit = opts?.limit ?? 300;
+    const status = opts?.status ?? "all";
+
+    const [studentsRes, teachersRes, classesRes] = await Promise.all([
+      client.from("students").select("id, full_name").eq("school_id", ctx.schoolId),
+      client
+        .from("teachers")
+        .select("id, full_name, user_id, department")
+        .eq("school_id", ctx.schoolId),
+      client.from("classes").select("id").eq("school_id", ctx.schoolId),
+    ]);
+    throwIfError(studentsRes.error, "Failed to list students for leave filter");
+    throwIfError(teachersRes.error, "Failed to list teachers for leave filter");
+    throwIfError(classesRes.error, "Failed to list classes for leave filter");
+
+    const students = (studentsRes.data ?? []) as { id: string; full_name: string }[];
+    const teachers = (teachersRes.data ?? []) as {
+      id: string;
+      full_name: string;
+      user_id: string | null;
+      department: string | null;
+    }[];
+    const classIds = new Set(((classesRes.data ?? []) as { id: string }[]).map((c) => c.id));
+    const studentById = new Map(students.map((s) => [s.id, s]));
+    const teacherByUserId = new Map(
+      teachers.filter((t) => t.user_id).map((t) => [t.user_id as string, t]),
+    );
+    const studentIds = [...studentById.keys()];
+    const teacherUserIds = [...teacherByUserId.keys()];
+
+    if (studentIds.length === 0 && teacherUserIds.length === 0 && classIds.size === 0) {
+      return [];
+    }
+
+    let query = client
       .from("leave_requests")
       .select("*")
-      .eq("status", "pending")
       .order("created_at", { ascending: false })
-      .limit(200);
-    throwIfError(error, "Failed to list pending leave requests");
-    return ((data ?? []) as DbLeave[]).map(mapRow);
+      .limit(Math.min(800, Math.max(limit * 3, 200)));
+    if (status !== "all") {
+      query = query.eq("status", status);
+    }
+    const { data, error } = await query;
+    throwIfError(error, "Failed to list leave requests");
+
+    const scoped = ((data ?? []) as DbLeave[]).filter((row) => {
+      if (row.student_id && studentById.has(row.student_id)) return true;
+      if (row.class_id && classIds.has(row.class_id)) return true;
+      if (row.applicant_kind === "teacher" && teacherByUserId.has(row.applicant_user_id)) {
+        return true;
+      }
+      return false;
+    });
+
+    return scoped.slice(0, limit).map((row) => {
+      const base = mapRow(row);
+      const teacher = teacherByUserId.get(row.applicant_user_id);
+      const student = row.student_id ? studentById.get(row.student_id) : undefined;
+      const applicantName =
+        row.applicant_kind === "teacher"
+          ? teacher?.full_name ?? "Teacher"
+          : student?.full_name ?? "Student";
+      return {
+        ...base,
+        applicantName,
+        department:
+          row.applicant_kind === "teacher"
+            ? teacher?.department ?? null
+            : row.applicant_kind === "student"
+              ? "Student"
+              : null,
+        days: daysBetween(row.from_date, row.to_date),
+      };
+    });
   },
 
   async submit(
@@ -179,12 +276,12 @@ export const LeaveService = {
       ]);
     }
 
+    // Schema has no review_note column — persist decision only; remarks go on the event.
     const patch: Record<string, unknown> = {
       status: decision,
       reviewed_at: new Date().toISOString(),
       reviewed_by: ctx.userId,
     };
-    if (adminRemarks?.trim()) patch.review_note = adminRemarks.trim();
 
     const { data, error } = await getClient(toRepoContext(ctx))
       .from("leave_requests")

@@ -234,7 +234,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             { icon: <UserPlus className="w-4 h-4" />, label: "Add Student", color: "#3b5bdb", action: () => setPage("students") },
             { icon: <Plus className="w-4 h-4" />, label: "Add Teacher", color: "#4b9fd4", action: () => setPage("teachers") },
             { icon: <UserCheck className="w-4 h-4" />, label: "Add Parent", color: "#6882e8", action: () => setPage("parents") },
-            { icon: <Bell className="w-4 h-4" />, label: "Create Announcement", color: "#c08a3a", action: () => setPage("announcements") },
+            { icon: <Bell className="w-4 h-4" />, label: "View Announcements", color: "#c08a3a", action: () => setPage("announcements") },
             { icon: <ClipboardEdit className="w-4 h-4" />, label: "Edit Today's Attendance", color: "#4aa87a", action: () => setPage("classes") },
           ].map((item) => (
             <button
