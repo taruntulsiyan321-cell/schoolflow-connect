@@ -60,6 +60,7 @@ const sidebarNav: NavEntry[] = [
 const bottomNav: NavItem[] = [
   { key:"dashboard",   label:"Home",     icon:<Home className="w-5 h-5"/> },
   { key:"practice",    label:"Practice", icon:<BookOpen className="w-5 h-5"/> },
+  { key:"chat",        label:"Chat",     icon:<MessageCircle className="w-5 h-5"/> },
   { key:"learninghub", label:"Learning", icon:<GraduationCap className="w-5 h-5"/> },
   { key:"classhub",    label:"Class",    icon:<FlaskConical className="w-5 h-5"/> },
 ];
