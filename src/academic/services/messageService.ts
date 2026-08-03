@@ -27,6 +27,7 @@ export type ChatContact = {
   unread: number;
   lastMessage?: string;
   lastTime?: string;
+  avatarUrl?: string | null;
   /** Present when backed by chat_conversations */
   conversationId?: string;
   kind?: "dm" | "class_group" | "teacher_group";
@@ -54,6 +55,14 @@ export type ChatMessage = {
   attachments?: ChatAttachment[];
   /** Resolved reply preview (optional) */
   replyPreview?: string | null;
+};
+
+export type ChatSearchHit = {
+  conversationId?: string | null;
+  peerUserId?: string | null;
+  title: string;
+  snippet: string;
+  createdAt?: string | null;
 };
 
 type DbMessage = {
@@ -472,5 +481,72 @@ export const MessageService = {
       kind: "teacher_group",
       unread: 0,
     };
+  },
+
+  /** Client-side search over inbox rows (name / role / last message). */
+  searchContacts(contacts: ChatContact[], query: string): ChatContact[] {
+    const q = query.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.role.toLowerCase().includes(q) ||
+        (c.lastMessage || "").toLowerCase().includes(q),
+    );
+  },
+
+  /** Optional server-side message body search (no-op until RPC applied). */
+  async search(ctx: ServiceContext, query: string): Promise<ChatSearchHit[]> {
+    assertCanConsume(ctx, "message");
+    const q = query.trim();
+    if (!q) return [];
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_search_chat" as never, { _query: q } as never);
+    if (error || !Array.isArray(data)) return [];
+    return (data as {
+      conversation_id?: string | null;
+      peer_user_id?: string | null;
+      title?: string;
+      snippet?: string;
+      created_at?: string | null;
+    }[]).map((r) => ({
+      conversationId: r.conversation_id ?? null,
+      peerUserId: r.peer_user_id ?? null,
+      title: r.title || "Chat",
+      snippet: r.snippet || "",
+      createdAt: r.created_at ?? null,
+    }));
+  },
+
+  /** Students/parents never; class teachers + principal/admin yes. */
+  async canCreateClassGroup(ctx: ServiceContext): Promise<boolean> {
+    if (ctx.role === "student" || ctx.role === "parent") return false;
+    if (ctx.role === "principal" || ctx.role === "admin") return true;
+    if (ctx.role !== "teacher") return false;
+    const client = getClient(toRepoContext(ctx));
+    const { data } = await client
+      .from("teachers")
+      .select("class_teacher_of")
+      .eq("user_id", ctx.userId)
+      .maybeSingle();
+    return Boolean(data?.class_teacher_of);
+  },
+
+  /** Ensure Class Group when allowed (class_teacher_of or ctx.classId). */
+  async createClassGroup(ctx: ServiceContext, classIdArg?: string): Promise<ChatContact> {
+    const allowed = await this.canCreateClassGroup(ctx);
+    if (!allowed) throw new Error("Only class teachers or school admins can create a Class Group");
+    let classId = classIdArg ?? ctx.classId ?? null;
+    if (!classId) {
+      const client = getClient(toRepoContext(ctx));
+      const { data } = await client
+        .from("teachers")
+        .select("class_teacher_of")
+        .eq("user_id", ctx.userId)
+        .maybeSingle();
+      classId = data?.class_teacher_of ?? null;
+    }
+    if (!classId) throw new Error("No class available for Class Group");
+    return this.ensureClassGroup(ctx, classId);
   },
 };
