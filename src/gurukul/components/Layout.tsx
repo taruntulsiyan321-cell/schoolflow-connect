@@ -346,7 +346,7 @@ export default function Layout({
 
       {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-modal md:hidden">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)}/>
           <aside className="absolute left-0 top-0 h-full w-64 bg-[#0d0d0f] border-r border-white/5 flex flex-col">
             <div className="flex justify-end p-3 shrink-0">
@@ -497,13 +497,6 @@ export default function Layout({
 
                     {/* Footer */}
                     <div className="px-2 py-2 border-t border-white/5">
-                      <button
-                        onClick={() => { setPage("profile"); setProfileOpen(false); }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-[#78788c] hover:text-white hover:bg-white/5 transition-all"
-                      >
-                        <Settings className="w-3.5 h-3.5"/>
-                        Settings
-                      </button>
                       <button
                         onClick={handleSignOut}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-[#78788c] hover:text-rose-400 hover:bg-rose-400/5 transition-all"

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -2222,9 +2222,50 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   const [modeKey, setModeKey] = useState<ModeKey>("daily");
   const [config,  setConfig]  = useState<SessionConfig | null>(null);
   const [results, setResults] = useState<SessionResults | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkHandled = useRef(false);
 
   /** Instant modes skip config and load with mode-specific filters. */
   const INSTANT: ModeKey[] = ["daily", "weak", "incorrect", "skipped"];
+
+  /** Honor Revision/Recovery CTAs: /student/practice?chapter=&subject=&topic= */
+  useEffect(() => {
+    if (deepLinkHandled.current || phase !== "hub") return;
+    const chapterRaw = searchParams.get("chapter");
+    const subjectRaw = searchParams.get("subject");
+    const topicRaw = searchParams.get("topic");
+    if (!chapterRaw && !subjectRaw && !topicRaw) return;
+
+    const chapter =
+      chapterRaw && !isPlaceholderAcademicLabel(chapterRaw) ? chapterRaw.trim() : null;
+    const subject =
+      subjectRaw && !isPlaceholderAcademicLabel(subjectRaw) ? subjectRaw.trim() : null;
+    const topic =
+      topicRaw && !isPlaceholderAcademicLabel(topicRaw) ? topicRaw.trim() : null;
+
+    deepLinkHandled.current = true;
+    setSearchParams({}, { replace: true });
+
+    if (!chapter && !subject && !topic) {
+      toast.message("Practice link had no real subject or chapter — pick a mode below.");
+      return;
+    }
+
+    const modeKeyDeep: ModeKey = chapter || topic ? "chapter" : "subject";
+    const mode = MODES.find((m) => m.key === modeKeyDeep) ?? MODES.find((m) => m.key === "chapter")!;
+    setModeKey(modeKeyDeep);
+    setConfig({
+      mode: modeKeyDeep,
+      label: mode.label,
+      subject: subject || "Mixed",
+      chapter: chapter || topic,
+      topic,
+      difficulty: "mixed",
+      qCount: 20,
+      timeLimitSec: null,
+    });
+    setPhase("session");
+  }, [searchParams, setSearchParams, phase]);
 
   function handleMode(key: ModeKey) {
     if (key === "bookmarked") {

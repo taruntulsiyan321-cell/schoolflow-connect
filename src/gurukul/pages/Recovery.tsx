@@ -69,7 +69,7 @@ function mapRecoveryZoneToTopics(data: RecoveryZoneData): RecoveryTopic[] {
       priority: severityToPriority(a.severity),
       mastery: Math.round(weak?.mastery_score ?? 0),
       attempts: weak?.mistake_count ?? 0,
-      source: "practice",
+      source: sourceFromType(a.source_type),
       pendingQs: Math.max(0, (a.question_count ?? 0) - (a.questions_completed ?? 0)),
       lastAttempt: formatRelativeDate(a.created_at),
       aiReason: weak
@@ -116,6 +116,17 @@ const SOURCE_LABELS: Record<string,string> = {
   practice:"Practice", tests:"Tests", battleground:"Battleground",
   homework:"Homework", pyq:"PYQ", qbank:"Question Bank",
 };
+
+/** Map recovery_assignments.source_type → UI filter keys. */
+function sourceFromType(sourceType: string | null | undefined): string {
+  const s = (sourceType ?? "").toLowerCase();
+  if (s.includes("battle")) return "battleground";
+  if (s.includes("dpp") || s.includes("test") || s.includes("exam") || s.includes("marks")) return "tests";
+  if (s.includes("homework") || s.includes("assignment")) return "homework";
+  if (s.includes("pyq")) return "pyq";
+  if (s.includes("qbank") || s.includes("question_bank")) return "qbank";
+  return "practice";
+}
 
 function PriorityTag({ p }: { p: Priority }) {
   const m = PRIORITY_META[p];
@@ -481,6 +492,14 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     );
   }
 
+  if (!academicReady) {
+    return (
+      <GlassCard className="p-8 text-center">
+        <p className="text-sm text-[#78788c]">No student profile linked to this account.</p>
+      </GlassCard>
+    );
+  }
+
   if (error) {
     return (
       <GlassCard className="p-8 text-center">
@@ -680,7 +699,34 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-lg font-black tabular-nums" style={{color:h.improved?"#4aa87a":"#c08a3a"}}>{h.score}%</span>
-                  <button className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#78788c] hover:text-white transition-all">
+                  <button
+                    type="button"
+                    title="Retry this concept"
+                    onClick={() => {
+                      const match = TOPICS.find(
+                        (t) => t.concept === h.concept && t.subject === h.subject,
+                      );
+                      if (match) {
+                        void startSession(match);
+                        return;
+                      }
+                      void startSession({
+                        id: `retry:${h.id}`,
+                        concept: h.concept,
+                        subject: h.subject,
+                        chapter: "—",
+                        priority: "medium",
+                        mastery: 0,
+                        attempts: 0,
+                        source: "practice",
+                        pendingQs: 0,
+                        lastAttempt: h.date,
+                        aiReason: `Retry recovery for ${displayConcept(h.concept)}.`,
+                        teacherAssigned: false,
+                      });
+                    }}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#78788c] hover:text-white transition-all"
+                  >
                     <RotateCcw className="w-3.5 h-3.5"/>
                   </button>
                 </div>
