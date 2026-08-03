@@ -8,9 +8,6 @@ import {
   type ChatContact,
   type ChatMessage,
 } from "@/academic";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
   MessageSquare,
@@ -26,6 +23,7 @@ import {
   X,
   Check,
   CheckCheck,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import "@/components/chat/chat-panel.css";
@@ -33,14 +31,15 @@ import "@/components/chat/chat-panel.css";
 const CHAT_FILE_ACCEPT =
   ".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.txt,image/*,application/pdf";
 
+/** Role chip colors — Gurukul dark surfaces (same palette as teacher Communication). */
 const roleColors: Record<string, string> = {
-  admin: "bg-red-500/10 text-red-700 border-red-500/20",
-  principal: "bg-purple-500/10 text-purple-700 border-purple-500/20",
-  teacher: "bg-blue-500/10 text-blue-700 border-blue-500/20",
-  student: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
-  parent: "bg-amber-500/10 text-amber-800 border-amber-500/20",
-  class_group: "bg-teal-500/10 text-teal-700 border-teal-500/20",
-  teacher_group: "bg-indigo-500/10 text-indigo-700 border-indigo-500/20",
+  admin: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
+  principal: "bg-rose-500/15 text-rose-400 border-rose-500/25",
+  teacher: "bg-[#3b5bdb]/15 text-[#818cf8] border-[#3b5bdb]/30",
+  student: "bg-indigo-500/15 text-indigo-300 border-indigo-500/25",
+  parent: "bg-amber-500/15 text-amber-400 border-amber-500/25",
+  class_group: "bg-teal-500/15 text-teal-400 border-teal-500/25",
+  teacher_group: "bg-amber-500/15 text-amber-400 border-amber-500/25",
 };
 
 const EMOJI_QUICK = [
@@ -63,14 +62,27 @@ function isImageMime(mime?: string | null, name?: string) {
 }
 
 function Avatar({ name, url, size = "md" }: { name: string; url?: string | null; size?: "sm" | "md" }) {
-  const dim = size === "sm" ? "w-10 h-10 rounded-xl text-sm" : "w-11 h-11 rounded-2xl text-sm";
+  const dim = size === "sm" ? "w-9 h-9 rounded-xl text-[10px]" : "w-10 h-10 rounded-xl text-xs";
   if (url) {
-    return <img src={url} alt="" className={cn("chat-avatar object-cover shrink-0 shadow-sm", dim)} />;
+    return <img src={url} alt="" className={cn("chat-avatar object-cover shrink-0", dim)} />;
   }
   return (
-    <div className={cn("chat-avatar flex items-center justify-center shrink-0 font-semibold shadow-sm", dim)}>
+    <div className={cn("chat-avatar flex items-center justify-center shrink-0 font-black", dim)}>
       {name[0]?.toUpperCase() || "?"}
     </div>
+  );
+}
+
+function RoleChip({ role }: { role: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border capitalize",
+        roleColors[role] || "bg-white/5 text-[#78788c] border-white/10",
+      )}
+    >
+      {role.replace(/_/g, " ")}
+    </span>
   );
 }
 
@@ -358,130 +370,127 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   // Keep list mounted once we have contacts even if a stray loading flip occurs.
   if (!ready || (loading && !contactsLoadedRef.current)) {
     return (
-      <div className="chat-panel max-w-5xl mx-auto py-12 text-center text-muted-foreground">
-        Loading conversations…
+      <div className="chat-panel flex items-center justify-center py-16 text-sm text-[#78788c] gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading conversations…
       </div>
     );
   }
 
   return (
-    <div className="chat-panel max-w-5xl mx-auto pb-6">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className="chat-panel space-y-4 pb-2">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">Messages</p>
-          <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold text-foreground mt-1 tracking-tight">
+          <h1 className="text-lg font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
             {userRole === "teacher" ? "Class Messages" : userRole === "principal" ? "School Messages" : "Chat"}
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs text-[#78788c] mt-0.5">
             {userRole === "teacher"
               ? "Share announcements, practice links, recovery reminders, and quick guidance with students and families."
-              : "Connect with teachers, classmates, and school staff."}
+              : userRole === "parent"
+                ? "Message teachers and school staff about your child."
+                : "Connect with teachers, classmates, and school staff."}
           </p>
         </div>
         {canCreateGroup && (
           <div className="flex flex-wrap gap-2">
-            <Button
+            <button
               type="button"
-              variant="outline"
-              className="rounded-xl h-10 gap-2"
               disabled={creatingGroup}
               onClick={() => void onCreateClassGroup()}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 text-white text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
             >
-              <Users className="w-4 h-4" />
+              <Users className="w-3.5 h-3.5 text-teal-400" />
               {creatingGroup ? "Creating…" : "Class Group"}
-            </Button>
+            </button>
             {(userRole === "teacher" || userRole === "principal" || userRole === "admin") && (
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                className="rounded-xl h-10 gap-2"
                 disabled={creatingGroup}
                 onClick={() => void onCreateTeacherGroup()}
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 text-white text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
               >
-                <Users className="w-4 h-4" />
+                <Users className="w-3.5 h-3.5 text-amber-400" />
                 Teacher Group
-              </Button>
+              </button>
             )}
           </div>
         )}
       </div>
 
-      <div className="chat-shell rounded-[1.75rem] overflow-hidden flex flex-col md:flex-row min-h-[calc(100vh-14rem)] md:min-h-[32rem]">
+      <div className="chat-shell rounded-2xl overflow-hidden flex flex-col md:flex-row min-h-[calc(100vh-14rem)] md:min-h-[32rem]">
         <aside
           className={cn(
-            "chat-sidebar w-full md:w-[340px] shrink-0 flex flex-col",
+            "chat-sidebar w-full md:w-[320px] shrink-0 flex flex-col",
             showMobileChat && "hidden md:flex",
           )}
         >
-          <div className="p-4 border-b border-border/40">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
+          <div className="p-3 border-b border-white/7">
+            <div className="chat-search flex items-center gap-2 rounded-xl px-3 py-2">
+              <Search className="w-3.5 h-3.5 text-[#46465a] shrink-0" />
+              <input
                 placeholder="Search chats…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 rounded-xl bg-white border-border/60 h-11"
+                className="flex-1 bg-transparent text-xs text-white placeholder:text-[#46465a] outline-none"
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-1">
-            {filtered.map((c) => (
-              <button
-                key={contactKey(c)}
-                type="button"
-                onClick={() => {
-                  setSelectedContact(c);
-                  setReplyTo(null);
-                  setShowEmoji(false);
-                }}
-                className={cn(
-                  "w-full text-left rounded-2xl border border-transparent p-3 sm:p-4 transition-all hover:bg-white/80",
-                  selectedContact && contactKey(selectedContact) === contactKey(c) && "chat-contact-active border",
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  {c.kind === "class_group" || c.kind === "teacher_group" ? (
-                    <div className="chat-avatar w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-                      <Users className="w-5 h-5" />
-                    </div>
-                  ) : (
-                    <Avatar name={c.name} url={c.avatarUrl} />
+          <div className="flex-1 overflow-y-auto divide-y divide-white/5">
+            {filtered.map((c) => {
+              const active = selectedContact && contactKey(selectedContact) === contactKey(c);
+              return (
+                <button
+                  key={contactKey(c)}
+                  type="button"
+                  onClick={() => {
+                    setSelectedContact(c);
+                    setReplyTo(null);
+                    setShowEmoji(false);
+                  }}
+                  className={cn(
+                    "w-full text-left px-4 py-3 transition-all hover:bg-white/[0.03]",
+                    active && "chat-contact-active border-r-2 border-[#3b5bdb]",
                   )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-sm truncate text-foreground">{c.name}</span>
-                      {c.lastTime && (
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {formatTime(c.lastTime)}
-                        </span>
-                      )}
+                >
+                  <div className="flex items-start gap-3">
+                    {c.kind === "class_group" || c.kind === "teacher_group" ? (
+                      <div className="chat-avatar w-10 h-10 rounded-xl flex items-center justify-center shrink-0">
+                        <Users className="w-4 h-4" />
+                      </div>
+                    ) : (
+                      <Avatar name={c.name} url={c.avatarUrl} />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-xs truncate text-white">{c.name}</span>
+                        {c.lastTime && (
+                          <span className="text-[9px] text-[#46465a] shrink-0 tabular-nums">
+                            {formatTime(c.lastTime)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between gap-2 mt-0.5">
+                        {c.lastMessage ? (
+                          <span className="text-[10px] text-[#78788c] truncate">{c.lastMessage}</span>
+                        ) : (
+                          <span className="text-[10px] text-[#46465a] italic">No messages yet</span>
+                        )}
+                        {c.unread > 0 && (
+                          <span className="shrink-0 min-w-[1.1rem] h-4 px-1 rounded-full bg-[#3b5bdb] text-white text-[9px] flex items-center justify-center font-black">
+                            {c.unread > 9 ? "9+" : c.unread}
+                          </span>
+                        )}
+                      </div>
+                      <RoleChip role={c.role} />
                     </div>
-                    <div className="flex items-center justify-between gap-2 mt-0.5">
-                      {c.lastMessage ? (
-                        <span className="text-xs text-muted-foreground truncate">{c.lastMessage}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">No messages yet</span>
-                      )}
-                      {c.unread > 0 && (
-                        <span className="shrink-0 min-w-[1.25rem] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
-                          {c.unread}
-                        </span>
-                      )}
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={cn("mt-2 text-[10px] capitalize", roleColors[c.role] || "")}
-                    >
-                      {c.role.replace(/_/g, " ")}
-                    </Badge>
                   </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
             {filtered.length === 0 && (
               <div className="p-8 text-center">
-                <MessageSquare className="w-10 h-10 mx-auto text-muted-foreground mb-2 opacity-50" />
-                <p className="text-sm text-muted-foreground">
+                <MessageSquare className="w-8 h-8 mx-auto text-[#46465a] mb-2 opacity-60" />
+                <p className="text-xs text-[#78788c]">
                   {contacts.length === 0 ? "No contacts available." : "No chats match your search."}
                 </p>
               </div>
@@ -489,45 +498,36 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
           </div>
         </aside>
 
-        <main className={cn("flex-1 flex flex-col min-w-0 bg-white", !showMobileChat && "hidden md:flex")}>
+        <main className={cn("flex-1 flex flex-col min-w-0 chat-thread-bg", !showMobileChat && "hidden md:flex")}>
           {selectedContact ? (
             <>
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40 bg-gradient-to-r from-[#f4fff8] to-white">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="md:hidden shrink-0 rounded-xl"
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-white/7 bg-[#131316]/80">
+                <button
+                  type="button"
+                  className="md:hidden shrink-0 w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white"
                   onClick={() => setSelectedContact(null)}
                 >
                   <ArrowLeft className="w-4 h-4" />
-                </Button>
+                </button>
                 {selectedContact.kind === "class_group" || selectedContact.kind === "teacher_group" ? (
-                  <div className="chat-avatar w-10 h-10 rounded-xl flex items-center justify-center">
+                  <div className="chat-avatar w-9 h-9 rounded-xl flex items-center justify-center">
                     <Users className="w-4 h-4" />
                   </div>
                 ) : (
                   <Avatar name={selectedContact.name} url={selectedContact.avatarUrl} size="sm" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm truncate">{selectedContact.name}</p>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-[10px] capitalize mt-0.5",
-                      roleColors[selectedContact.role] || "",
-                    )}
-                  >
-                    {selectedContact.role.replace(/_/g, " ")}
-                  </Badge>
+                  <p className="font-bold text-sm truncate text-white">{selectedContact.name}</p>
+                  <RoleChip role={selectedContact.role} />
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#fafefb]/50">
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
                 {messages.length === 0 && (
                   <div className="chat-empty-state flex flex-col items-center justify-center h-full py-16 text-center">
-                    <MessageSquare className="w-12 h-12 text-primary/30 mb-3" />
-                    <p className="font-medium text-foreground">Start the conversation</p>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <MessageSquare className="w-10 h-10 text-[#3b5bdb]/40 mb-3" />
+                    <p className="font-bold text-sm text-white">Start the conversation</p>
+                    <p className="text-xs text-[#78788c] mt-1">
                       Send a message to {selectedContact.name}
                     </p>
                   </div>
@@ -541,21 +541,21 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                       <div className="relative max-w-[80%] sm:max-w-[70%]">
                         <div
                           className={cn(
-                            "rounded-2xl px-4 py-2.5 text-sm",
+                            "rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed",
                             deleted
-                              ? "bg-muted/60 text-muted-foreground italic rounded-2xl"
+                              ? "bg-white/5 text-[#46465a] italic"
                               : isMine
-                                ? "chat-bubble-mine text-primary-foreground rounded-br-md"
-                                : "chat-bubble-theirs rounded-bl-md text-foreground",
+                                ? "chat-bubble-mine rounded-br-md"
+                                : "chat-bubble-theirs rounded-bl-md",
                           )}
                         >
                           {!deleted && m.replyToId && (
                             <div
                               className={cn(
-                                "mb-2 rounded-lg px-2.5 py-1.5 text-[11px] border-l-2",
+                                "mb-2 rounded-lg px-2.5 py-1.5 text-[10px] border-l-2",
                                 isMine
-                                  ? "bg-white/10 border-white/40 text-primary-foreground/80"
-                                  : "bg-black/5 border-primary/40 text-muted-foreground",
+                                  ? "bg-white/10 border-white/40 text-white/80"
+                                  : "bg-black/20 border-[#3b5bdb]/50 text-[#78788c]",
                               )}
                             >
                               {m.replyPreview || "Reply"}
@@ -572,7 +572,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                                       <img
                                         src={att.url}
                                         alt={att.name}
-                                        className="max-h-48 rounded-xl object-contain border border-white/20"
+                                        className="max-h-48 rounded-xl object-contain border border-white/10"
                                       />
                                     </a>
                                   ) : (
@@ -581,27 +581,25 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                                       target="_blank"
                                       rel="noreferrer"
                                       className={cn(
-                                        "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium",
-                                        isMine ? "bg-white/15" : "bg-black/5",
+                                        "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-medium",
+                                        isMine ? "bg-white/15" : "bg-white/5 border border-white/10",
                                       )}
                                     >
-                                      <FileText className="w-4 h-4" />
+                                      <FileText className="w-3.5 h-3.5" />
                                       <span className="truncate max-w-[12rem]">{att.name}</span>
                                     </a>
                                   )}
                                 </div>
                               ))}
                               {m.content && m.content !== "Message deleted" && (
-                                <p className="leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
+                                <p className="whitespace-pre-wrap break-words">{m.content}</p>
                               )}
                             </>
                           )}
                           <div
                             className={cn(
-                              "text-[10px] mt-1.5 tabular-nums flex items-center gap-1",
-                              isMine && !deleted
-                                ? "text-primary-foreground/60 justify-end"
-                                : "text-muted-foreground",
+                              "text-[9px] mt-1.5 tabular-nums flex items-center gap-1",
+                              isMine && !deleted ? "text-white/60 justify-end" : "text-[#46465a]",
                             )}
                           >
                             {new Date(m.createdAt).toLocaleTimeString("en-IN", {
@@ -623,7 +621,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                             <button
                               type="button"
                               title="Reply"
-                              className="w-7 h-7 rounded-lg bg-white border border-border/60 shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground"
+                              className="w-7 h-7 rounded-lg bg-[#131316] border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white"
                               onClick={() => setReplyTo(m)}
                             >
                               <Reply className="w-3.5 h-3.5" />
@@ -632,7 +630,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                               <button
                                 type="button"
                                 title="Delete"
-                                className="w-7 h-7 rounded-lg bg-white border border-border/60 shadow-sm flex items-center justify-center text-muted-foreground hover:text-red-600"
+                                className="w-7 h-7 rounded-lg bg-[#131316] border border-white/10 flex items-center justify-center text-[#78788c] hover:text-[#cc5069]"
                                 onClick={() => void onDelete(m)}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -648,30 +646,28 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               </div>
 
               {replyTo && (
-                <div className="px-4 pt-3 flex items-center gap-2 border-t border-border/30 bg-white">
-                  <div className="flex-1 rounded-xl bg-[#f4fff8] border border-border/40 px-3 py-2 text-xs text-muted-foreground truncate">
-                    <span className="font-semibold text-foreground">Replying · </span>
+                <div className="px-4 pt-3 flex items-center gap-2 border-t border-white/7 bg-[#131316]/90">
+                  <div className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-[10px] text-[#78788c] truncate">
+                    <span className="font-bold text-white">Replying · </span>
                     {previewOf(replyTo).slice(0, 100) || "Message"}
                   </div>
-                  <Button
+                  <button
                     type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="rounded-xl shrink-0"
+                    className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white shrink-0"
                     onClick={() => setReplyTo(null)}
                   >
-                    <X className="w-4 h-4" />
-                  </Button>
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               )}
 
               {showEmoji && (
-                <div className="px-4 pt-2 flex flex-wrap gap-1 border-t border-border/20 bg-white">
+                <div className="px-4 pt-2 flex flex-wrap gap-1 border-t border-white/5 bg-[#131316]/90">
                   {EMOJI_QUICK.map((e) => (
                     <button
                       key={e}
                       type="button"
-                      className="w-9 h-9 rounded-lg hover:bg-[#f4fff8] text-lg"
+                      className="w-9 h-9 rounded-lg hover:bg-white/5 text-lg"
                       onClick={() => {
                         setNewMessage((prev) => prev + e);
                         setShowEmoji(false);
@@ -683,7 +679,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 </div>
               )}
 
-              <div className="chat-composer p-4 flex gap-2 rounded-b-[1.75rem]">
+              <div className="chat-composer p-3 sm:p-4 flex items-end gap-2">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -691,56 +687,55 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                   className="hidden"
                   onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
                 />
-                <Button
+                <button
                   type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="rounded-xl h-11 w-11 shrink-0"
                   disabled={sending}
                   onClick={() => setShowEmoji((v) => !v)}
                   title="Emoji"
+                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white disabled:opacity-40 shrink-0"
                 >
                   <Smile className="w-4 h-4" />
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="rounded-xl h-11 w-11 shrink-0"
                   disabled={sending}
                   onClick={() => fileInputRef.current?.click()}
                   title="Attach image or document"
+                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white disabled:opacity-40 shrink-0"
                 >
                   <Paperclip className="w-4 h-4" />
-                </Button>
-                <Input
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      void sendText();
-                    }
-                  }}
-                  placeholder="Type a message…"
-                  className="flex-1 rounded-xl h-11 border-border/60 bg-[#fafefb]"
-                />
-                <Button
-                  onClick={() => void sendText()}
-                  disabled={sending || !newMessage.trim()}
-                  className="rounded-xl h-11 px-4 bg-gradient-primary text-primary-foreground shadow-md"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
+                </button>
+                <div className="flex-1 flex items-end gap-2 bg-white/5 border border-white/10 rounded-2xl px-3 py-2 focus-within:border-[#3b5bdb]/40 transition-all">
+                  <input
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void sendText();
+                      }
+                    }}
+                    placeholder="Type a message…"
+                    className="flex-1 bg-transparent text-sm text-white placeholder:text-[#46465a] outline-none min-h-[24px] py-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void sendText()}
+                    disabled={sending || !newMessage.trim()}
+                    className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-white flex items-center justify-center disabled:opacity-40 shrink-0 hover:bg-[#6882e8] transition-colors"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </>
           ) : (
             <div className="chat-empty-state flex-1 flex flex-col items-center justify-center p-8 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <MessageSquare className="w-8 h-8 text-primary" />
+              <div className="w-14 h-14 rounded-2xl bg-[#3b5bdb]/15 border border-[#3b5bdb]/25 flex items-center justify-center mb-4">
+                <MessageSquare className="w-7 h-7 text-[#818cf8]" />
               </div>
-              <p className="font-semibold text-lg text-foreground">Select a conversation</p>
-              <p className="text-sm text-muted-foreground mt-2 max-w-xs">
+              <p className="font-bold text-base text-white">Select a conversation</p>
+              <p className="text-xs text-[#78788c] mt-2 max-w-xs">
                 Choose a contact from the list to view messages and start chatting.
               </p>
             </div>

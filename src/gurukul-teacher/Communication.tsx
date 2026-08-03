@@ -98,7 +98,7 @@ function ThreadList({
                 <div className="flex items-center gap-2">
                   <div className="text-xs font-bold text-white truncate">{t.name}</div>
                   {t.unread > 0 && (
-                    <div className="w-4 h-4 rounded-full bg-[#3b5bdb] text-black text-[8px] font-black flex items-center justify-center shrink-0">
+                    <div className="w-4 h-4 rounded-full bg-[#3b5bdb] text-white text-[8px] font-black flex items-center justify-center shrink-0">
                       {t.unread > 9 ? "9+" : t.unread}
                     </div>
                   )}
@@ -234,8 +234,8 @@ function ChatView({
                     deleted
                       ? "bg-white/5 text-[#46465a] italic"
                       : isMe
-                        ? "bg-[#3b5bdb]/15 text-[#fcd34d]"
-                        : "bg-white/5 text-[#b0b0c0]",
+                        ? "bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] text-white"
+                        : "bg-white/5 text-[#d0d8f0] border border-white/8",
                   )}
                 >
                   {deleted ? "Message deleted" : m.content}
@@ -329,7 +329,7 @@ function ChatView({
             type="button"
             onClick={() => void send()}
             disabled={!input.trim() || sending}
-            className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-black flex items-center justify-center hover:bg-[#d97706] disabled:opacity-40 transition-all"
+            className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-white flex items-center justify-center hover:bg-[#6882e8] disabled:opacity-40 transition-all"
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
@@ -732,7 +732,7 @@ export default function Communication() {
                 type="button"
                 onClick={() => void startNewThread()}
                 disabled={!newForm.contactId || !newForm.message.trim() || sending}
-                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all"
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold text-white bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 transition-all"
               >
                 <Send className="w-3.5 h-3.5" /> Send
               </button>

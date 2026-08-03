@@ -1,48 +1,66 @@
-/* Premium chat panel */
+/* Gurukul / Wisdom Campus chat — matches student shell tokens (dark indigo) */
 .chat-panel {
-  --chat-emerald: #003324;
-  --chat-mint: #defaeb;
+  --chat-indigo: #3b5bdb;
+  --chat-indigo-soft: #6882e8;
+  --chat-surface: #131316;
+  --chat-surface-2: #0d0d0f;
+  --chat-muted: #78788c;
+  --chat-faint: #46465a;
+  --chat-border: rgba(255, 255, 255, 0.07);
+  font-family: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
 }
 
 .chat-panel .chat-shell {
-  background: linear-gradient(180deg, #ffffff 0%, #f7fdf9 100%);
-  border: 1px solid rgba(0, 51, 36, 0.08);
-  box-shadow: 0 8px 32px -8px rgba(0, 51, 36, 0.12);
+  background: rgba(19, 19, 22, 0.9);
+  border: 1px solid var(--chat-border);
+  box-shadow: 0 12px 40px -12px rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(8px);
 }
 
 .chat-panel .chat-sidebar {
-  background: linear-gradient(180deg, #fafefb 0%, #f4fff8 100%);
-  border-right: 1px solid rgba(0, 51, 36, 0.06);
+  background: rgba(13, 13, 15, 0.85);
+  border-right: 1px solid var(--chat-border);
 }
 
 .chat-panel .chat-contact-active {
-  background: linear-gradient(135deg, #defaeb 0%, #ffffff 100%);
-  border-color: rgba(0, 51, 36, 0.12);
-  box-shadow: 0 4px 16px -4px rgba(0, 51, 36, 0.1);
+  background: rgba(59, 91, 219, 0.08);
+  border-color: rgba(59, 91, 219, 0.35);
+  box-shadow: none;
 }
 
 .chat-panel .chat-bubble-mine {
-  background: linear-gradient(135deg, #064e3b 0%, #003324 100%);
-  box-shadow: 0 4px 12px -2px rgba(0, 51, 36, 0.25);
+  background: linear-gradient(135deg, #3b5bdb, #6882e8);
+  color: #ffffff;
+  box-shadow: none;
 }
 
 .chat-panel .chat-bubble-theirs {
-  background: #ffffff;
-  border: 1px solid rgba(0, 51, 36, 0.08);
-  box-shadow: 0 2px 8px -2px rgba(0, 51, 36, 0.06);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d0d8f0;
+  box-shadow: none;
 }
 
 .chat-panel .chat-composer {
-  background: #ffffff;
-  border: 1px solid rgba(0, 51, 36, 0.1);
-  box-shadow: 0 -4px 24px -8px rgba(0, 51, 36, 0.08);
+  background: rgba(19, 19, 22, 0.95);
+  border-top: 1px solid var(--chat-border);
+  box-shadow: none;
 }
 
 .chat-panel .chat-avatar {
-  background: linear-gradient(135deg, #0d5c44 0%, #003324 100%);
-  color: #f4fff8;
+  background: linear-gradient(135deg, #3b5bdb, #6882e8);
+  color: #ffffff;
 }
 
 .chat-panel .chat-empty-state {
-  background: radial-gradient(circle at center, rgba(178, 240, 212, 0.2) 0%, transparent 65%);
+  background: radial-gradient(circle at center, rgba(59, 91, 219, 0.12) 0%, transparent 65%);
+}
+
+.chat-panel .chat-search {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.chat-panel .chat-thread-bg {
+  background: rgba(15, 27, 53, 0.35);
 }
