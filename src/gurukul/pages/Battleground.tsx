@@ -2235,11 +2235,42 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         : "Student";
   const ini = initials(displayName);
 
-  const featuredLive = useMemo(() => data.battles.filter((b) => b.featured), [data.battles]);
+  const featuredLive = useMemo(
+    () =>
+      data.battles.filter((b) => {
+        if (!b.featured) return false;
+        const src = (b.source || "").toLowerCase();
+        if (src === "featured_teacher" || src === "manual") return b.status === "live" || b.status === "upcoming";
+        if (src === "featured_beat_topper") return false;
+        if (b.startsAt) {
+          // Keep strip on current day/week only
+          const start = new Date(b.startsAt);
+          if (Number.isNaN(start.getTime())) return false;
+          const now = new Date();
+          if (src === "featured_daily" || src === "featured_ncert") {
+            return (
+              start.getFullYear() === now.getFullYear() &&
+              start.getMonth() === now.getMonth() &&
+              start.getDate() === now.getDate() &&
+              b.status !== "completed"
+            );
+          }
+          if (src === "featured_weekly") {
+            const day = (d: Date) => {
+              const x = (d.getDay() + 6) % 7;
+              return new Date(d.getFullYear(), d.getMonth(), d.getDate() - x).getTime();
+            };
+            return day(start) === day(now) && b.status !== "completed";
+          }
+        }
+        return b.status !== "completed";
+      }),
+    [data.battles],
+  );
   const dailyLive = useMemo(
     () =>
       featuredLive.find((b) => guessFeaturedKind(b) === "daily") ||
-      data.battles.find((b) => (b.title || "").toLowerCase().includes("daily")),
+      data.battles.find((b) => (b.title || "").toLowerCase().includes("daily") && b.status !== "completed"),
     [featuredLive, data.battles],
   );
 
@@ -2465,11 +2496,19 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
     }
     setBusy(true);
     try {
+      // Period-scoped + beat_topper: always ensure current instance.
+      // Never trust a stale card battleId (yesterday/last-week still live).
+      if (kind === "daily" || kind === "weekly" || kind === "ncert" || kind === "beat_topper") {
+        const id = await ensureFeatured(kind);
+        void data.reload();
+        goBattle(id);
+        return;
+      }
+      // Teacher: prefer listed live battle when already joined / joinable
       if (battleId && data.battles.find((b) => b.id === battleId)?.participantId) {
         goBattle(battleId);
         return;
       }
-      // Prefer the featured battle already shown on the card.
       if (battleId) {
         try {
           await joinBattleById(battleId);
