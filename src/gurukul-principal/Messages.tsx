@@ -88,8 +88,6 @@ export default function PrincipalMessages() {
     [contacts, search],
   );
 
-  const dmContacts = useMemo(() => contacts.filter((c) => !isGroup(c)), [contacts]);
-
   async function reloadContacts() {
     if (!ctx) return [];
     const list = await MessageService.listContacts(ctx);
@@ -350,7 +348,7 @@ export default function PrincipalMessages() {
             </button>
             <button
               type="button"
-              title="New message"
+              title="New chat"
               onClick={() => setShowNewDm(true)}
               style={{ width: 30, height: 30, borderRadius: 8, border: "none", background: "var(--indigo-light)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
@@ -586,46 +584,15 @@ export default function PrincipalMessages() {
         </div>
       )}
 
-      {showNewDm && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)" }} onClick={() => setShowNewDm(false)} />
-          <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 380, background: "var(--surface)", borderRadius: 16, border: "1px solid var(--border)", boxShadow: "var(--shadow-lg)", padding: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>New Message</div>
-              <button type="button" onClick={() => setShowNewDm(false)} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 18, color: "var(--text-muted)" }}>×</button>
-            </div>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Recipient</label>
-            <select
-              value={newForm.contactId}
-              onChange={(e) => setNewForm((p) => ({ ...p, contactId: e.target.value }))}
-              style={{ width: "100%", marginTop: 6, marginBottom: 12, borderRadius: 10, border: "1px solid var(--border)", padding: "9px 10px", fontSize: 13, background: "var(--bg)" }}
-            >
-              <option value="">Select contact</option>
-              {dmContacts.map((c) => (
-                <option key={c.userId} value={c.userId}>{c.name} ({c.role})</option>
-              ))}
-            </select>
-            <label style={{ fontSize: 10, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Message</label>
-            <textarea
-              value={newForm.message}
-              onChange={(e) => setNewForm((p) => ({ ...p, message: e.target.value }))}
-              rows={3}
-              style={{ width: "100%", marginTop: 6, borderRadius: 10, border: "1px solid var(--border)", padding: 10, fontSize: 13, resize: "none", background: "var(--bg)" }}
-            />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
-              <button type="button" onClick={() => setShowNewDm(false)} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", cursor: "pointer", fontSize: 12 }}>Cancel</button>
-              <button
-                type="button"
-                disabled={!newForm.contactId || !newForm.message.trim() || sending}
-                onClick={() => void startNewThread()}
-                style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "var(--indigo)", color: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 700, opacity: !newForm.contactId || !newForm.message.trim() || sending ? 0.5 : 1 }}
-              >
-                Send
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <NewChatSheet
+        open={showNewDm}
+        onClose={() => {
+          if (!startingChat) setShowNewDm(false);
+        }}
+        contacts={contacts}
+        busy={startingChat}
+        onSelect={(peer) => void openNewChatWith(peer)}
+      />
     </div>
   );
 }

@@ -287,6 +287,21 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       return [next, ...others];
     });
   };
+
+  const openNewChatWith = async (contact: ChatContact) => {
+    if (!ctx) return;
+    setStartingChat(true);
+    try {
+      let next = contact;
+      if (contact.kind !== "class_group" && contact.kind !== "teacher_group") {
+        const ensured = await MessageService.ensureDm(ctx, contact.userId);
+        next = {
+          ...contact,
+          ...ensured,
+          name: contact.name || ensured.name,
+          role: contact.role || ensured.role,
+          kind: "dm",
+        };
         setContacts((prev) => {
           const others = prev.filter((c) => !samePeer(c, contact));
           return [next, ...others];
@@ -390,38 +405,6 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       toast.error(e instanceof Error ? e.message : "Could not create Class Group");
     } finally {
       setCreatingGroup(false);
-    }
-  };
-
-
-  const openNewChatWith = async (contact: ChatContact) => {
-    if (!ctx) return;
-    setStartingChat(true);
-    try {
-      let next = contact;
-      if (contact.kind !== "class_group" && contact.kind !== "teacher_group") {
-        const ensured = await MessageService.ensureDm(ctx, contact.userId);
-        next = {
-          ...contact,
-          ...ensured,
-          name: contact.name || ensured.name,
-          role: contact.role || ensured.role,
-          kind: "dm",
-        };
-        setContacts((prev) => {
-          const others = prev.filter((c) => !samePeer(c, contact));
-          return [next, ...others];
-        });
-      }
-      setSelectedContact(next);
-      setReplyTo(null);
-      setShowEmoji(false);
-      setSearch("");
-      setShowNewChat(false);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not open chat");
-    } finally {
-      setStartingChat(false);
     }
   };
 
