@@ -216,9 +216,9 @@ export default function AdminApp() {
       </div>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
+        <div className="fixed inset-0 z-modal md:hidden flex">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <div className="relative z-50 flex">
+          <div className="relative z-modal flex">
             <Sidebar
               page={page}
               setPage={setPage}
@@ -252,9 +252,14 @@ export default function AdminApp() {
               <Shield className="w-3 h-3 text-[#3b5bdb]" />
               <span className="text-[10px] font-bold text-[#3b5bdb]">{roleLabel}</span>
             </div>
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
+            <button
+              type="button"
+              onClick={() => setPage("settings")}
+              title="Settings"
+              className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"
+            >
               <span className="text-[11px] font-black text-white">{initials}</span>
-            </div>
+            </button>
           </div>
         </header>
 

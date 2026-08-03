@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -432,6 +433,23 @@ export default function PrincipalApp() {
   const [searchHint, setSearchHint] = useState<string | null>(null)
 
   useEffect(() => {
+    if (!notifOpen) return
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null
+      if (!t) return
+      if (t.closest('#principal-notif-trigger') || t.closest('#principal-notif-panel')) return
+      setNotifOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setNotifOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [notifOpen])
+
+  useEffect(() => {
     if (!ready || !ctx) {
       setUnreadMsg(0)
       return
@@ -523,7 +541,7 @@ export default function PrincipalApp() {
       </aside>
 
       <main style={{ flex: 1, minWidth: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-        <header style={{ position: 'sticky', top: 0, zIndex: 20, background: 'rgba(244,245,247,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '14px 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
+        <header style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(244,245,247,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border)', padding: '14px 32px', display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ flex: 1 }}>
             <div className="font-display" style={{ fontSize: 20, fontWeight: 400, color: 'var(--text-primary)', lineHeight: 1 }}>
               {greetingForNow()}, {firstName}
@@ -550,7 +568,7 @@ export default function PrincipalApp() {
               aria-label="School search (not connected)"
             />
             {searchHint && (
-              <div style={{ position: 'absolute', left: 0, right: 0, top: 44, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)', boxShadow: 'var(--shadow-sm)' }}>
+              <div className="z-overlay" style={{ position: 'absolute', left: 0, right: 0, top: 44, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)', boxShadow: 'var(--shadow-sm)' }}>
                 {searchHint}
               </div>
             )}
@@ -558,6 +576,7 @@ export default function PrincipalApp() {
           <div style={{ position: 'relative' }}>
             <button
               type="button"
+              id="principal-notif-trigger"
               onClick={() => {
                 setNotifOpen((o) => {
                   const next = !o
@@ -572,8 +591,13 @@ export default function PrincipalApp() {
                 <span style={{ position: 'absolute', top: 7, right: 7, width: 7, height: 7, borderRadius: '50%', background: '#f43f5e', border: '1.5px solid var(--bg)' }} />
               )}
             </button>
-            {notifOpen && (
-              <div style={{ position: 'absolute', right: 0, top: 48, width: 300, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)', padding: 16, zIndex: 100 }}>
+            {notifOpen && typeof document !== 'undefined' && createPortal(
+              <div
+                id="principal-notif-panel"
+                className="z-overlay"
+                style={{ position: 'fixed', right: 32, top: 62, width: 300, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-lg)', padding: 16 }}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Notifications</span>
                   {unreadNotif > 0 && (
@@ -609,7 +633,8 @@ export default function PrincipalApp() {
                     </div>
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body,
             )}
           </div>
         </header>

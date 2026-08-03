@@ -309,9 +309,9 @@ export default function ParentApp() {
       </div>
 
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex">
+        <div className="fixed inset-0 z-modal md:hidden flex">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <div className="relative z-50 flex">
+          <div className="relative z-modal flex">
             <Sidebar
               page={page}
               setPage={setPage}

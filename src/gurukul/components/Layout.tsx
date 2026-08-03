@@ -6,6 +6,8 @@ import type { PageKey } from "@/gurukul/nav";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { MessageService, useAcademicLive } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn, XPBar } from "./shared";
 import {
   Home, BookOpen, Brain, Swords, Library,
@@ -116,8 +118,31 @@ export default function Layout({
   const navigate = useNavigate();
   const location = useLocation();
   const { unread } = useNotifications();
+  const { ctx, ready } = useAcademicContext();
+  const messageLive = useAcademicLive("message");
+  const [unreadMsg, setUnreadMsg] = useState(0);
   const student = { ...EMPTY_STUDENT, ...profile };
   const showXpChrome = progressionReady;
+
+  useEffect(() => {
+    if (!ready || !ctx) {
+      setUnreadMsg(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const n = await MessageService.countUnread(ctx);
+        if (!cancelled) setUnreadMsg(n);
+      } catch {
+        if (!cancelled) setUnreadMsg(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, messageLive]);
+
   const headerTitle =
     location.pathname.startsWith("/student/notifications") ? "Notifications"
     : location.pathname.startsWith("/student/notices") ? "Notices"
@@ -200,6 +225,7 @@ export default function Layout({
   // ── Top-level link ──────────────────────────────────────────────────────────
   const TopLink = ({ entry }: { entry: Extract<NavEntry, {type:"link"}> }) => {
     const active = page === entry.key;
+    const showChatBadge = entry.key === "chat" && unreadMsg > 0;
     return (
       <button
         onClick={() => { setPage(entry.key); setMobileOpen(false); }}
@@ -209,8 +235,20 @@ export default function Layout({
           collapsed && "justify-center px-2"
         )}
         title={collapsed ? entry.label : undefined}>
-        <span className="shrink-0">{entry.icon}</span>
-        {!collapsed && <span className="truncate">{entry.label}</span>}
+        <span className="shrink-0 relative">
+          {entry.icon}
+          {showChatBadge && collapsed && (
+            <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center">
+              {unreadMsg > 9 ? "9+" : unreadMsg}
+            </span>
+          )}
+        </span>
+        {!collapsed && <span className="truncate flex-1">{entry.label}</span>}
+        {showChatBadge && !collapsed && (
+          <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center shrink-0">
+            {unreadMsg > 9 ? "9+" : unreadMsg}
+          </span>
+        )}
       </button>
     );
   };
@@ -523,13 +561,21 @@ export default function Layout({
           <div className="flex">
             {bottomNav.map(item => {
               const active = isBottomActive(item.key);
+              const showChatBadge = item.key === "chat" && unreadMsg > 0;
               return (
                 <button key={item.key} onClick={() => setPage(item.key)}
                   className={cn(
-                    "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-all",
+                    "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-all relative",
                     active ? "text-[#3b5bdb]" : "text-[#78788c]"
                   )}>
-                  <span className={cn("transition-transform duration-150", active && "scale-110")}>{item.icon}</span>
+                  <span className={cn("relative transition-transform duration-150", active && "scale-110")}>
+                    {item.icon}
+                    {showChatBadge && (
+                      <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center">
+                        {unreadMsg > 9 ? "9+" : unreadMsg}
+                      </span>
+                    )}
+                  </span>
                   {item.label}
                 </button>
               );
