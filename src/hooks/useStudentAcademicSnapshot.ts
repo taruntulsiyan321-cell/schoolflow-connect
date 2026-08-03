@@ -60,9 +60,13 @@ export function useStudentAcademicSnapshot(enabled = true) {
   }, [beginLoading, endLoading]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     void reload();
   }, [enabled, liveVersion, reload]);
 
-  return { data, loading: showLoading(loading), error, reload };
+  return { data, loading: enabled ? showLoading(loading) : false, error, reload };
 }

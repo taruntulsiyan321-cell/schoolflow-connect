@@ -241,9 +241,13 @@ export function useAnalysisPageData(enabled = true) {
   }, [user, beginLoading, endLoading]);
 
   useEffect(() => {
-    if (!enabled) return;
-    reload();
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    void reload();
   }, [enabled, reload, liveVersion]);
 
-  return { data, loading: showLoading(loading), error, reload };
+  return { data, loading: enabled ? showLoading(loading) : false, error, reload };
 }

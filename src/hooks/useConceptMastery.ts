@@ -33,9 +33,13 @@ export function useConceptMastery(enabled = true) {
   };
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
     void reload();
   }, [enabled, liveVersion]);
 
-  return { items, loading: showLoading(loading), error, reload };
+  return { items, loading: enabled ? showLoading(loading) : false, error, reload };
 }

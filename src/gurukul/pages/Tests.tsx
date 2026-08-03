@@ -13,6 +13,7 @@ import {
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
+import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/gurukul/components/shared";
 
@@ -77,6 +78,14 @@ export default function Tests() {
             published: t.is_published === true || t.status === "published",
           })),
         );
+        const rejected = settled.filter((s) => s.status === "rejected").length;
+        if (rejected > 0) {
+          toast({
+            title: "Some test data failed to load",
+            description: "Showing available results; missing sections show as empty.",
+            variant: "destructive",
+          });
+        }
         setError(null);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load tests");
