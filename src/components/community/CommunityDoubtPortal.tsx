@@ -311,13 +311,13 @@ function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
     try {
       const imageUrl = await uploadDoubtImage(file, user?.id);
       const serviceCtx = ctx && academicReady ? ctx : await resolveStudentServiceContext();
-      const data = await DoubtService.create(serviceCtx, {
-        _subject: subject,
-        _chapter: chapter,
-        _concept: concept,
-        _title: title,
-        _body: body,
-        _image_url: imageUrl,
+      const id = await DoubtService.create(serviceCtx, {
+        subject,
+        chapter,
+        concept,
+        title,
+        content: body,
+        imageUrl,
       });
       toast.success("Doubt posted to the community.");
       setChapter("");
@@ -325,11 +325,7 @@ function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
       setTitle("");
       setBody("");
       setFile(null);
-      const id =
-        typeof data === "string"
-          ? data
-          : String((data as { id?: string } | null)?.id ?? "");
-      if (id) onCreated(id);
+      if (id) onCreated(String(id));
     } catch (error: any) {
       toast.error(error?.message ?? "Could not post doubt.");
     } finally {
@@ -393,9 +389,9 @@ function AnswerComposer({ selected, onAnswered }: { selected: CommunityDoubt | n
       const imageUrl = await uploadDoubtImage(file, user?.id);
       const serviceCtx = ctx && academicReady ? ctx : await resolveStudentServiceContext();
       await DoubtService.reply(serviceCtx, {
-        _doubt_id: selected.id,
-        _body: body,
-        _image_url: imageUrl,
+        doubtId: selected.id,
+        content: body,
+        imageUrl,
       });
       toast.success("Answer added.");
       setBody("");
