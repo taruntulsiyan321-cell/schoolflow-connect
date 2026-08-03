@@ -13,6 +13,9 @@ import {
  */
 export function useAcademicContext(): {
   ctx: ServiceContext | null;
+  /** Auth + identity finished; may still lack school ctx. */
+  settled: boolean;
+  /** Settled and ServiceContext is available. */
   ready: boolean;
   schoolId: string | null;
   studentId: string | null;
@@ -82,9 +85,12 @@ export function useAcademicContext(): {
     };
   }, [user?.id, effectiveRole, schoolId, studentId, classId, classLabel, classCategory]);
 
+  const settled = !loading && status !== "loading" && identityReady;
+
   return {
     ctx,
-    ready: !loading && status !== "loading" && !!ctx && identityReady,
+    settled,
+    ready: settled && !!ctx,
     schoolId,
     studentId,
     classId,

@@ -341,7 +341,7 @@ function ChatView({
 }
 
 export default function Communication() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const identity = useTeacherIdentity();
   const liveTick = useAcademicLive("message");
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
@@ -377,7 +377,13 @@ export default function Communication() {
   }
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      contactsLoadedRef.current = true;
+      setLoading(false);
+      setContacts([]);
+      return;
+    }
     let cancelled = false;
     const isFirstLoad = !contactsLoadedRef.current;
     (async () => {
@@ -401,7 +407,7 @@ export default function Communication() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveTick]);
+  }, [settled, ready, ctx, liveTick]);
 
   useEffect(() => {
     if (!ready || !ctx || !selected) {
@@ -646,7 +652,7 @@ export default function Communication() {
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
           <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">

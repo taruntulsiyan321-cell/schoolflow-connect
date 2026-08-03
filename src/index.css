@@ -130,16 +130,19 @@
 }
 
 @layer base {
-  /* Overlay > modal so Select/Popover inside Dialog still paint on top; both above shell chrome. */
+  /* Overlay > modal so Select/Popover inside Dialog still paint on top; both above shell chrome.
+     Toast sits above both so errors remain visible over open menus/modals. */
   :root {
     --z-overlay: 260;
     --z-modal: 250;
+    --z-toast: 280;
   }
 }
 
 @layer utilities {
   .z-overlay { z-index: var(--z-overlay); }
   .z-modal { z-index: var(--z-modal); }
+  .z-toast { z-index: var(--z-toast); }
   .bg-gradient-primary { background: var(--gradient-primary); }
   .bg-gradient-soft { background: var(--gradient-soft); }
   .bg-gradient-hero { background: var(--gradient-hero); }

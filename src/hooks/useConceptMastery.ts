@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAcademicLive } from "@/academic";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 export type ConceptMasteryItem = {
   subject: string;
@@ -20,14 +21,15 @@ export function useConceptMastery(enabled = true) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const liveVersion = useAcademicLive(["xp", "profile"]);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   const reload = async () => {
-    setLoading(true);
+    beginLoading(setLoading);
     setError(null);
     const { data, error: err } = await (supabase as any).rpc("rpc_student_concept_mastery");
     if (err) setError(err.message);
     else setItems((data?.items as ConceptMasteryItem[]) ?? []);
-    setLoading(false);
+    endLoading(setLoading);
   };
 
   useEffect(() => {
@@ -35,5 +37,5 @@ export function useConceptMastery(enabled = true) {
     void reload();
   }, [enabled, liveVersion]);
 
-  return { items, loading, error, reload };
+  return { items, loading: showLoading(loading), error, reload };
 }

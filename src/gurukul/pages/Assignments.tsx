@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList, Loader2, Send } from "lucide-react";
 import { HomeworkService, WORK_KIND_LABELS, normalizeWorkKind, useAcademicLive } from "@/academic";
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
@@ -19,6 +19,7 @@ function subjectAccent(raw: string): string {
 export default function Assignments() {
   const { ctx, ready, studentId } = useAcademicContext();
   const liveVersion = useAcademicLive("homework");
+  const loadedRef = useRef(false);
   const [rows, setRows] = useState<StudentHomeworkRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -44,10 +45,13 @@ export default function Assignments() {
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!loadedRef.current) setLoading(true);
       try {
         await reload();
-        if (!cancelled) setLoadError(null);
+        if (!cancelled) {
+          setLoadError(null);
+          loadedRef.current = true;
+        }
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : "Failed to load assignments");
       } finally {

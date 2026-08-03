@@ -51,7 +51,7 @@ function isGroup(c: ChatContact | null | undefined) {
 type SchoolClass = { id: string; name: string; section: string };
 
 export default function PrincipalMessages() {
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const { profile } = useAuth();
   const liveTick = useAcademicLive("message");
   const myName = profile?.fullName?.trim() || "Principal";
@@ -96,7 +96,13 @@ export default function PrincipalMessages() {
   }
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!settled) return;
+    if (!ctx) {
+      contactsLoadedRef.current = true;
+      setLoading(false);
+      setContacts([]);
+      return;
+    }
     let cancelled = false;
     const isFirstLoad = !contactsLoadedRef.current;
     (async () => {
@@ -130,7 +136,7 @@ export default function PrincipalMessages() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveTick]);
+  }, [settled, ready, ctx, liveTick]);
 
   useEffect(() => {
     if (!ready || !ctx || !selected) {
@@ -544,7 +550,7 @@ export default function PrincipalMessages() {
       </div>
 
       {showCreate && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 250, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ position: "absolute", inset: 0, background: "rgba(15,23,42,0.45)" }} onClick={() => setShowCreate(false)} />
           <div style={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 380, background: "var(--surface)", borderRadius: 16, border: "1px solid var(--border)", boxShadow: "var(--shadow-lg)", padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>

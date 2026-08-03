@@ -183,6 +183,7 @@ export default function DoubtPortal() {
   const liveVersion = useAcademicLive(["doubt", "profile"]);
   const askFileRef = useRef<HTMLInputElement>(null);
   const replyFileRef = useRef<HTMLInputElement>(null);
+  const feedLoadedRef = useRef(false);
   const [askAccept, setAskAccept] = useState(DOUBT_FILE_ACCEPT);
   const [replyAccept, setReplyAccept] = useState(DOUBT_FILE_ACCEPT);
 
@@ -267,7 +268,8 @@ export default function DoubtPortal() {
     if (!ready || !ctx) return;
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      const isFirstLoad = !feedLoadedRef.current;
+      if (isFirstLoad) setLoading(true);
       setError(null);
       try {
         const rows = await DoubtService.list(ctx, {
@@ -287,7 +289,10 @@ export default function DoubtPortal() {
             }
           }),
         );
-        if (!cancelled) setItems(withCounts);
+        if (!cancelled) {
+          setItems(withCounts);
+          feedLoadedRef.current = true;
+        }
       } catch (e) {
         if (!cancelled) {
           setItems([]);

@@ -121,7 +121,7 @@ function samePeer(a: ChatContact, b: ChatContact) {
 
 export default function ChatPage({ userRole }: { userRole?: string }) {
   const { user } = useAuth();
-  const { ctx, ready } = useAcademicContext();
+  const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["message"]);
   const [contacts, setContacts] = useState<ChatContact[]>([]);
   const [selectedContact, setSelectedContact] = useState<ChatContact | null>(null);
@@ -153,7 +153,15 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   };
 
   useEffect(() => {
-    if (!user || !ready || !ctx) return;
+    if (!user || !settled) return;
+    // Settled without school ctx — leave empty state, never spin forever.
+    if (!ctx) {
+      contactsLoadedRef.current = true;
+      setLoading(false);
+      setContacts([]);
+      setCanCreateGroup(false);
+      return;
+    }
     let cancelled = false;
     // liveVersion (AcademicLive message bumps / focus / poll) re-runs this effect.
     // Only show the full-page spinner on the genuine first load — never wipe an already-rendered list.
@@ -185,7 +193,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     return () => {
       cancelled = true;
     };
-  }, [user, ready, ctx, liveVersion]);
+  }, [user, settled, ctx, liveVersion]);
 
   useEffect(() => {
     if (!user || !ready || !ctx || !selectedContact) return;
@@ -411,8 +419,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   const filtered = MessageService.searchContacts(contacts, search);
   const showMobileChat = !!selectedContact;
 
-  // Keep list mounted once we have contacts even if a stray loading flip occurs.
-  if (!ready || (loading && !contactsLoadedRef.current)) {
+  // First load only. Do not blank the list when live/focus bumps re-run fetches.
+  if (!contactsLoadedRef.current && (!settled || loading)) {
     return (
       <div className="chat-panel flex items-center justify-center py-16 text-sm text-[#78788c] gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading conversations…

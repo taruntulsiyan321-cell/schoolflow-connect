@@ -6,6 +6,7 @@ import {
   useAcademicLive,
   type EarnedBadgeRow,
 } from "@/academic";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 export type EarnedBadge = EarnedBadgeRow;
 
@@ -15,15 +16,16 @@ export function useStudentBadges(userId: string | undefined) {
   const [equipped, setEquipped] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   const reload = useCallback(async () => {
     if (!userId) {
       setEarned([]);
       setEquipped(null);
-      setLoading(false);
+      endLoading(setLoading);
       return;
     }
-    setLoading(true);
+    beginLoading(setLoading);
     try {
       const ctx = await resolveStudentServiceContext();
       const { earned: list, equipped: eq } = await BadgeService.listWithEquipped(ctx, userId);
@@ -34,9 +36,9 @@ export function useStudentBadges(userId: string | undefined) {
       setEquipped(null);
       toast.error(err instanceof Error ? err.message : "Could not load badges");
     } finally {
-      setLoading(false);
+      endLoading(setLoading);
     }
-  }, [userId]);
+  }, [userId, beginLoading, endLoading]);
 
   useEffect(() => {
     void reload();
@@ -57,7 +59,7 @@ export function useStudentBadges(userId: string | undefined) {
     }
   };
 
-  return { earned, equipped, loading, saving, equip, reload };
+  return { earned, equipped, loading: showLoading(loading), saving, equip, reload };
 }
 
 /** Batch-load public equipped badges for classmates / leaderboards. */

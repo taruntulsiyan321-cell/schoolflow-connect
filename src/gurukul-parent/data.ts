@@ -1,4 +1,4 @@
-// ── Parent Panel — Mock Data ───────────────────────────────────────────────────
+// ── Parent Panel — shared types + empty stubs (product UIs use live hooks) ─────
 
 export interface Child {
   id: string;

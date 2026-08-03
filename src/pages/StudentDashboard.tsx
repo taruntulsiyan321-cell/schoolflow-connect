@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { PAGE_PATH, pathToPage, legacyClassesRedirectPath } from "@/gurukul/nav";
@@ -89,10 +89,13 @@ export default function StudentDashboard() {
     classLabel,
   } = useAcademicContext();
   const [progressionLoaded, setProgressionLoaded] = useState(false);
+  /** Live/focus/poll refreshes must not wipe XP chrome back to placeholders. */
+  const progressionLoadedRef = useRef(false);
 
   const loadProfile = useCallback(async () => {
     if (!user || !academicReady || !ctx) return;
-    setProgressionLoaded(false);
+    // Do NOT flip progressionLoaded false on live refresh — that collapses shellReady
+    // and remounts the whole student panel after it already rendered.
     const { data: s, error: studentErr } = await supabase
       .from("students")
       .select("full_name, roll_number")
@@ -212,11 +215,13 @@ export default function StudentDashboard() {
       sessionsThisWeek,
       totalStudents,
     });
+    progressionLoadedRef.current = true;
     setProgressionLoaded(true);
   }, [user, academicReady, ctx]);
 
   useEffect(() => {
     if (!academicReady || !ctx) {
+      progressionLoadedRef.current = false;
       setProgressionLoaded(false);
       return;
     }

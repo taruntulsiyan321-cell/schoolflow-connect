@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicLive } from "@/academic";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 
@@ -86,15 +87,16 @@ export function useAnalysisPageData(enabled = true) {
   const [data, setData] = useState<AnalysisPageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   const reload = useCallback(async () => {
     if (!user) {
       setData(null);
-      setLoading(false);
+      endLoading(setLoading);
       return;
     }
 
-    setLoading(true);
+    beginLoading(setLoading);
     setError(null);
 
     try {
@@ -234,14 +236,14 @@ export function useAnalysisPageData(enabled = true) {
         trend: { previous_accuracy: null, current_accuracy: null, improvement_pct: null },
       });
     } finally {
-      setLoading(false);
+      endLoading(setLoading);
     }
-  }, [user]);
+  }, [user, beginLoading, endLoading]);
 
   useEffect(() => {
     if (!enabled) return;
     reload();
   }, [enabled, reload, liveVersion]);
 
-  return { data, loading, error, reload };
+  return { data, loading: showLoading(loading), error, reload };
 }

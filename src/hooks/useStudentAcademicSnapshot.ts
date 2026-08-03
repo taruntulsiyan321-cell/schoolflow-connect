@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAcademicLive } from "@/academic";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { supabase } from "@/integrations/supabase/client";
 
 export type AcademicSnapshot = {
@@ -47,20 +48,21 @@ export function useStudentAcademicSnapshot(enabled = true) {
   const [data, setData] = useState<AcademicSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   const reload = useCallback(async () => {
-    setLoading(true);
+    beginLoading(setLoading);
     setError(null);
     const { data: snap, error: err } = await supabase.rpc("rpc_student_academic_snapshot");
     if (err) setError(err.message);
     else setData((snap as AcademicSnapshot) ?? null);
-    setLoading(false);
-  }, []);
+    endLoading(setLoading);
+  }, [beginLoading, endLoading]);
 
   useEffect(() => {
     if (!enabled) return;
     void reload();
   }, [enabled, liveVersion, reload]);
 
-  return { data, loading, error, reload };
+  return { data, loading: showLoading(loading), error, reload };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
   AcademicProfileService,
@@ -17,6 +17,7 @@ import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/s
 export default function Attendance() {
   const { ctx, ready, studentId } = useAcademicContext();
   const liveVersion = useAcademicLive(["attendance", "profile"]);
+  const loadedRef = useRef(false);
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [pct, setPct] = useState(0);
   const [present, setPresent] = useState(0);
@@ -34,7 +35,7 @@ export default function Attendance() {
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!loadedRef.current) setLoading(true);
       try {
         const settled = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
@@ -47,6 +48,7 @@ export default function Attendance() {
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);
         setTotal(profile?.attendanceTotal ?? 0);
+        loadedRef.current = true;
         if (settled.every((s) => s.status === "rejected")) {
           toast({
             title: "Could not load attendance",

@@ -10,7 +10,7 @@ import {
   FlowSectionTitle,
   FlowTopBar,
 } from "@/components/student/flow/FlowDesign";
-import { ListChecks, Check, Info, Clock, Loader2, BookOpen } from "lucide-react";
+import { ListChecks, Check, Info, Clock, Loader2 } from "lucide-react";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { toast } from "sonner";
 import { displayChapter, displayConcept, displayTopic } from "@/lib/academicDisplay";
@@ -218,13 +218,11 @@ export default function RevisionQueue() {
                     <Button
                       size="sm"
                       className="shrink-0 rounded-full"
-                      disabled={completingId === r.id || r.id.startsWith("demo-")}
+                      disabled={completingId === r.id}
                       onClick={() => complete(r.id)}
                     >
                       {completingId === r.id ? (
                         <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Saving…</>
-                      ) : r.id.startsWith("demo-") ? (
-                        <><BookOpen className="w-4 h-4 mr-1" /> Demo</>
                       ) : (
                         <><Check className="w-4 h-4 mr-1" /> Done</>
                       )}

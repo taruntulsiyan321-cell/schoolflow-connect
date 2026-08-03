@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, Search, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatContact } from "@/academic";
@@ -39,7 +40,7 @@ type NewChatSheetProps = {
   busy?: boolean;
 };
 
-/** Searchable DM contact picker (Gurukul dark). */
+/** Searchable DM contact picker (Gurukul dark). Portaled + z-modal to clear shell stacking traps. */
 export function NewChatSheet({
   open,
   onClose,
@@ -56,10 +57,26 @@ export function NewChatSheet({
     [peers, query],
   );
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      setPickingId(null);
+    }
+  }, [open]);
 
-  return (
-    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4">
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !busy && !pickingId) onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, busy, pickingId, onClose]);
+
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-modal flex items-end sm:items-center justify-center p-0 sm:p-4">
       <button
         type="button"
         aria-label="Close new chat"
@@ -69,6 +86,7 @@ export function NewChatSheet({
       />
       <div
         role="dialog"
+        aria-modal="true"
         aria-labelledby="new-chat-title"
         className="relative z-10 w-full sm:max-w-md flex flex-col shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[85vh] sm:max-h-[70vh] bg-[#131316] border border-white/10"
       >
@@ -148,6 +166,7 @@ export function NewChatSheet({
           })}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

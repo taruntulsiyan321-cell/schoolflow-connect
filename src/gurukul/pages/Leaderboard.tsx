@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Trophy, Zap } from "lucide-react";
 import { ProgressionService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -22,6 +22,7 @@ export default function Leaderboard() {
   const { user } = useAuth();
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["xp", "profile"]);
+  const loadedRef = useRef(false);
   const [rows, setRows] = useState<LbRow[]>([]);
   const [period, setPeriod] = useState<"lifetime" | "weekly" | "monthly">("lifetime");
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,7 @@ export default function Leaderboard() {
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (!loadedRef.current) setLoading(true);
       setError(null);
       try {
         const lb = await ProgressionService.leaderboard(ctx, {
@@ -54,6 +55,7 @@ export default function Leaderboard() {
             you: r.user_id === user?.id,
           })),
         );
+        loadedRef.current = true;
       } catch (e) {
         if (!cancelled) {
           setRows([]);
