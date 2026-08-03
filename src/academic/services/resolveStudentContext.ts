@@ -101,6 +101,7 @@ export async function loadStudentAcademicIdentity(
     /* optional */
   }
   try {
+    // Portal link only — never invents a synthetic student role.
     await supabase.rpc("ensure_default_role");
   } catch {
     /* optional */

@@ -11,13 +11,19 @@ export function dashboardForRole(role: AppRole | null | undefined): string {
   return "/auth";
 }
 
+/** Paths safe for post-login redirect when not under a portal prefix. */
+const SAFE_OPEN_PATHS = ["/", "/unauthorized", "/reset-password", "/auth"] as const;
+
 export function canAccessPath(role: AppRole | null | undefined, pathname: string): boolean {
   if (!role) return false;
+  if (!pathname.startsWith("/") || pathname.startsWith("//")) return false;
   const match = Object.entries(ROUTE_ALLOW).find(([prefix]) =>
     pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
-  if (!match) return true; // non-role routes handled elsewhere
-  return match[1].includes(role);
+  if (match) return match[1].includes(role);
+  return SAFE_OPEN_PATHS.some(
+    (p) => pathname === p || (p !== "/" && pathname.startsWith(`${p}/`)),
+  );
 }
 
 export function canAccessModule(role: AppRole | null | undefined, moduleKey: string): boolean {
@@ -46,6 +52,15 @@ export function mapAuthError(error: { message?: string; status?: number } | null
   }
   if (msg.includes("expired") || msg.includes("session")) {
     return "Your session has expired. Please sign in again.";
+  }
+  if (
+    msg.includes("permission denied") ||
+    msg.includes("row-level security") ||
+    msg.includes("rls") ||
+    msg.includes("not authorized") ||
+    msg.includes("forbidden")
+  ) {
+    return "You don't have permission for this action. Contact your school admin.";
   }
   return error.message;
 }

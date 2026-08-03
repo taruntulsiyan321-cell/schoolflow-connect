@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/auth";
 import type { ServiceContext } from "@/academic";
 import {
@@ -10,6 +10,9 @@ import {
  * Build ServiceContext from the authenticated session.
  * For students, resolves studentId + classId + tenant school_id via the same
  * identity loader as `resolveStudentServiceContext` (Home and Practice share SSOT).
+ *
+ * Student class/identity is sticky: transient load failures keep the last good
+ * identity so class is never wiped across refresh/navigation glitches.
  */
 export function useAcademicContext(): {
   ctx: ServiceContext | null;
@@ -26,12 +29,14 @@ export function useAcademicContext(): {
   const { user, role, schoolId: authSchoolId, loading, status } = useAuth();
   const [identity, setIdentity] = useState<StudentAcademicIdentity | null>(null);
   const [identityReady, setIdentityReady] = useState(false);
+  const lastGoodIdentity = useRef<StudentAcademicIdentity | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!user?.id || !role) {
         if (!cancelled) {
+          lastGoodIdentity.current = null;
           setIdentity(null);
           setIdentityReady(false);
         }
@@ -40,13 +45,18 @@ export function useAcademicContext(): {
       try {
         const loaded = await loadStudentAcademicIdentity(user.id);
         if (!cancelled) {
-          setIdentity(loaded);
+          if (loaded?.studentId) {
+            lastGoodIdentity.current = loaded;
+          }
+          setIdentity(loaded ?? lastGoodIdentity.current);
           setIdentityReady(true);
         }
       } catch {
         if (!cancelled) {
-          setIdentity(null);
-          setIdentityReady(true);
+          // Keep last good identity — do not wipe class/school on soft failure.
+          setIdentity(lastGoodIdentity.current);
+          // Students without a prior identity stay unsettled until a successful load.
+          setIdentityReady(role !== "student" || !!lastGoodIdentity.current?.studentId);
         }
       }
     })();
@@ -74,6 +84,8 @@ export function useAcademicContext(): {
 
   const ctx = useMemo<ServiceContext | null>(() => {
     if (!user?.id || !effectiveRole || !schoolId) return null;
+    // Pure student shell must wait for linked student row (class may still be null).
+    if (role === "student" && !studentId) return null;
     return {
       schoolId,
       userId: user.id,
@@ -83,7 +95,7 @@ export function useAcademicContext(): {
       classLabel,
       classCategory,
     };
-  }, [user?.id, effectiveRole, schoolId, studentId, classId, classLabel, classCategory]);
+  }, [user?.id, effectiveRole, role, schoolId, studentId, classId, classLabel, classCategory]);
 
   const settled = !loading && status !== "loading" && identityReady;
 

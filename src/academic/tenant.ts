@@ -1,5 +1,3 @@
-import { DEFAULT_SCHOOL_ID } from "@/auth/constants";
-
 /**
  * Multi-tenant helpers for the Academic Engine.
  * Every tenant-scoped query must include school_id from the auth context.
@@ -17,13 +15,9 @@ export function requireSchoolId(schoolId: string | null | undefined): string {
   return schoolId;
 }
 
-/** Prefer auth school; fall back only for local/demo bootstrap. */
-export function resolveSchoolId(
-  schoolId: string | null | undefined,
-  allowDefault = false,
-): string {
+/** Prefer auth school; never invent a default tenant. */
+export function resolveSchoolId(schoolId: string | null | undefined): string {
   if (schoolId) return schoolId;
-  if (allowDefault) return DEFAULT_SCHOOL_ID;
   throw new MissingSchoolContextError();
 }
 

@@ -55,9 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ctx, setCtx] = useState<AuthContextData | null>(null);
   const [loading, setLoading] = useState(true);
   const bootstrapped = useRef<string | null>(null);
+  /** Monotonic id so a slower loadAuthContext cannot overwrite a newer session. */
+  const contextRequestId = useRef(0);
 
   const applyContext = useCallback(async (uid: string | undefined | null) => {
+    const requestId = ++contextRequestId.current;
     if (!uid) {
+      if (requestId !== contextRequestId.current) return;
       setCtx(null);
       bootstrapped.current = null;
       setLoading(false);
@@ -66,13 +70,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const data = await loadAuthContext(uid);
+      if (requestId !== contextRequestId.current) return;
       setCtx(data);
       bootstrapped.current = uid;
     } catch (err) {
+      if (requestId !== contextRequestId.current) return;
       console.error("[auth] failed to load context", err);
       setCtx(null);
     } finally {
-      setLoading(false);
+      if (requestId === contextRequestId.current) setLoading(false);
     }
   }, []);
 
@@ -83,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Recovery sessions land on /reset-password — still restore user
       if (event === "SIGNED_OUT") {
+        contextRequestId.current += 1;
         setCtx(null);
         bootstrapped.current = null;
         setLoading(false);
@@ -99,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void applyContext(sess.user.id);
         }, 0);
       } else {
+        contextRequestId.current += 1;
         setCtx(null);
         bootstrapped.current = null;
         setLoading(false);

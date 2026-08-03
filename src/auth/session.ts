@@ -52,8 +52,9 @@ function mapRow(row: AuthContextRow): AuthContextData {
 }
 
 /**
- * Same role resolution as the pre-refactor AuthProvider:
- * link portal -> read user_roles -> ensure_default_role if empty -> pick by priority.
+ * Role resolution: link portal → read user_roles → optional ensure_default_role
+ * (portal link only; never invents student) → pick by priority.
+ * Missing role fails closed to null → AuthStatus missing_role /unauthorized.
  */
 async function resolveRole(userId: string): Promise<AppRole | null> {
   try {
@@ -66,6 +67,7 @@ async function resolveRole(userId: string): Promise<AppRole | null> {
 
   if (!data || data.length === 0) {
     try {
+      // After migration: links portal only — does NOT INSERT synthetic student.
       await supabase.rpc("ensure_default_role");
     } catch {
       /* optional */
