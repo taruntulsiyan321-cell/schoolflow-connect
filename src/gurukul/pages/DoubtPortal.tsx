@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import {
   DoubtService,
   useAcademicLive,
@@ -13,6 +13,13 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { GlassCard, SubjectBadge, cn, subjectColor } from "@/gurukul/components/shared";
+import { getNcertChapters, parseClassGrade } from "@/lib/ncertSyllabus";
+import {
+  COMING_SOON_LABEL,
+  comingSoonToast,
+  listDoubtAttachControls,
+  type DoubtAttachKind,
+} from "@/lib/productFeatureFlags";
 import { toast } from "sonner";
 import {
   MessageCircle,
@@ -27,7 +34,29 @@ import {
   Loader2,
   AlertCircle,
   Filter,
+  Image,
+  Camera,
+  FileText,
+  Mic,
 } from "lucide-react";
+
+const DOUBT_ATTACH_ICONS: Record<DoubtAttachKind, ReactNode> = {
+  image: <Image className="w-3.5 h-3.5" />,
+  camera: <Camera className="w-3.5 h-3.5" />,
+  pdf: <FileText className="w-3.5 h-3.5" />,
+  voice: <Mic className="w-3.5 h-3.5" />,
+};
+
+const DOUBT_ATTACH_ACCEPT: Record<DoubtAttachKind, string> = {
+  image: "image/png,image/jpeg,image/gif,image/webp,.png,.jpg,.jpeg,.gif,.webp",
+  camera: "image/*",
+  pdf: "application/pdf,.pdf",
+  voice: "audio/*",
+};
+
+function notifyDoubtAttachComingSoon(label: string) {
+  toast.message(comingSoonToast(label));
+}
 
 type View = "feed" | "ask" | "detail";
 type ScopeFilter = "all" | "mine";
@@ -150,8 +179,12 @@ function FileChips({
 }
 
 export default function DoubtPortal() {
-  const { ctx, ready, classId } = useAcademicContext();
+  const { ctx, ready, classId, classLabel } = useAcademicContext();
   const liveVersion = useAcademicLive(["doubt", "profile"]);
+  const askFileRef = useRef<HTMLInputElement>(null);
+  const replyFileRef = useRef<HTMLInputElement>(null);
+  const [askAccept, setAskAccept] = useState(DOUBT_FILE_ACCEPT);
+  const [replyAccept, setReplyAccept] = useState(DOUBT_FILE_ACCEPT);
 
   const [view, setView] = useState<View>("feed");
   const [items, setItems] = useState<FeedItem[]>([]);
@@ -171,6 +204,7 @@ export default function DoubtPortal() {
   // Ask form
   const [askSubject, setAskSubject] = useState("");
   const [askSubjectId, setAskSubjectId] = useState<string | null>(null);
+  const [askChapter, setAskChapter] = useState("");
   const [askBody, setAskBody] = useState("");
   const [askFiles, setAskFiles] = useState<File[]>([]);
   const [asking, setAsking] = useState(false);
@@ -184,6 +218,14 @@ export default function DoubtPortal() {
   const [replyText, setReplyText] = useState("");
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [replying, setReplying] = useState(false);
+
+  const classGrade = useMemo(() => parseClassGrade(classLabel), [classLabel]);
+  const chapterOptions = useMemo(
+    () => (askSubject ? getNcertChapters(classGrade, askSubject) : []),
+    [classGrade, askSubject],
+  );
+  const askAttachControls = useMemo(() => listDoubtAttachControls(), []);
+  const replyAttachControls = useMemo(() => listDoubtAttachControls(["image", "voice"]), []);
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -216,6 +258,10 @@ export default function DoubtPortal() {
   useEffect(() => {
     setAskSubjectId(subjects.find((s) => s.subject === askSubject)?.subjectId ?? null);
   }, [subjects, askSubject]);
+
+  useEffect(() => {
+    setAskChapter((prev) => (prev && chapterOptions.includes(prev) ? prev : ""));
+  }, [chapterOptions]);
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -265,9 +311,36 @@ export default function DoubtPortal() {
         d.body.toLowerCase().includes(q) ||
         d.title.toLowerCase().includes(q) ||
         d.student_name.toLowerCase().includes(q) ||
-        d.subject.toLowerCase().includes(q),
+        d.subject.toLowerCase().includes(q) ||
+        (d.chapter ?? "").toLowerCase().includes(q),
     );
   }, [items, search]);
+
+  function openAskAttach(kind?: DoubtAttachKind) {
+    setAskAccept(kind ? DOUBT_ATTACH_ACCEPT[kind] : DOUBT_FILE_ACCEPT);
+    queueMicrotask(() => askFileRef.current?.click());
+  }
+
+  function openReplyAttach(kind?: DoubtAttachKind) {
+    setReplyAccept(kind ? DOUBT_ATTACH_ACCEPT[kind] : DOUBT_FILE_ACCEPT);
+    queueMicrotask(() => replyFileRef.current?.click());
+  }
+
+  function onAskAttachControl(kind: DoubtAttachKind, presentation: "live" | "coming_soon", label: string) {
+    if (presentation === "coming_soon") {
+      notifyDoubtAttachComingSoon(label);
+      return;
+    }
+    openAskAttach(kind);
+  }
+
+  function onReplyAttachControl(kind: DoubtAttachKind, presentation: "live" | "coming_soon", label: string) {
+    if (presentation === "coming_soon") {
+      notifyDoubtAttachComingSoon(label);
+      return;
+    }
+    openReplyAttach(kind);
+  }
 
   async function openDetail(id: string) {
     if (!ctx) return;
@@ -329,11 +402,13 @@ export default function DoubtPortal() {
       const id = await DoubtService.create(ctx, {
         subject: askSubject.trim(),
         subjectId: askSubjectId,
+        chapter: askChapter.trim() || undefined,
         content: body,
         attachments: uploaded,
       });
       toast.success("Doubt posted to your class");
       setAskBody("");
+      setAskChapter("");
       setAskFiles([]);
       setView("feed");
       await openDetail(String(id));
@@ -429,6 +504,7 @@ export default function DoubtPortal() {
                 const sub = e.target.value;
                 setAskSubject(sub);
                 setAskSubjectId(subjects.find((s) => s.subject === sub)?.subjectId ?? null);
+                setAskChapter("");
               }}
               disabled={subjectsLoading || !!subjectsError || subjects.length === 0}
               className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none disabled:opacity-60"
@@ -459,6 +535,28 @@ export default function DoubtPortal() {
             )}
           </div>
           <div>
+            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wide">Chapter</label>
+            <select
+              value={askChapter}
+              onChange={(e) => setAskChapter(e.target.value)}
+              disabled={!askSubject || chapterOptions.length === 0}
+              className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none disabled:opacity-60"
+            >
+              <option value="" className="bg-[#12121a] text-white">
+                {!askSubject
+                  ? "Select a subject first"
+                  : chapterOptions.length
+                    ? "Select chapter (optional)…"
+                    : "No chapters listed"}
+              </option>
+              {chapterOptions.map((c) => (
+                <option key={c} value={c} className="bg-[#12121a] text-white">
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
             <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wide">Your doubt</label>
             <textarea
               value={askBody}
@@ -469,11 +567,52 @@ export default function DoubtPortal() {
             />
           </div>
           <div className="space-y-2">
-            <label className="inline-flex items-center gap-2 text-xs text-[#818cf8] cursor-pointer hover:text-white">
-              <Paperclip className="w-3.5 h-3.5" />
-              Attach files
-              <input type="file" accept={DOUBT_FILE_ACCEPT} multiple className="hidden" onChange={onPickAskFiles} />
+            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wide">
+              Attach (optional)
             </label>
+            <input
+              ref={askFileRef}
+              type="file"
+              accept={askAccept}
+              multiple
+              className="hidden"
+              onChange={onPickAskFiles}
+            />
+            <div className="flex flex-wrap gap-2">
+              {askAttachControls.map((a) => {
+                const soon = a.presentation === "coming_soon";
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    title={soon ? `${a.label} — ${COMING_SOON_LABEL}` : a.label}
+                    onClick={() => onAskAttachControl(a.id, a.presentation, a.label)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all",
+                      soon
+                        ? "border-white/10 text-[#78788c]/70 hover:bg-white/5"
+                        : "border-[#3b5bdb]/35 text-[#818cf8] hover:bg-[#3b5bdb]/10 hover:text-white",
+                    )}
+                  >
+                    {DOUBT_ATTACH_ICONS[a.id]}
+                    {a.label}
+                    {soon && (
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-[#78788c]/80">
+                        {COMING_SOON_LABEL}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => openAskAttach()}
+                className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-[#3b5bdb]/35 text-[#818cf8] hover:bg-[#3b5bdb]/10 hover:text-white"
+              >
+                <Paperclip className="w-3.5 h-3.5" />
+                Files
+              </button>
+            </div>
             <FileChips
               files={askFiles.map((f) => ({ name: f.name }))}
               onRemove={(i) => setAskFiles((prev) => prev.filter((_, idx) => idx !== i))}
@@ -516,6 +655,9 @@ export default function DoubtPortal() {
             <GlassCard className="p-5 space-y-4">
               <div className="flex flex-wrap items-center gap-2">
                 <SubjectBadge subject={detail.subject} />
+                {detail.chapter ? (
+                  <span className="text-[10px] text-[#78788c]">{detail.chapter}</span>
+                ) : null}
                 <StatusChip status={detail.status} />
                 {detail.user_id === ctx.userId && (
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/12 text-[#818cf8]">
@@ -604,17 +746,42 @@ export default function DoubtPortal() {
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white placeholder:text-[#46465a] outline-none resize-none focus:border-[#3b5bdb]/40"
               />
               <div className="flex flex-wrap items-center gap-3">
-                <label className="inline-flex items-center gap-2 text-xs text-[#818cf8] cursor-pointer">
+                <input
+                  ref={replyFileRef}
+                  type="file"
+                  accept={replyAccept}
+                  multiple
+                  className="hidden"
+                  onChange={onPickReplyFiles}
+                />
+                {replyAttachControls.map((a) => {
+                  const soon = a.presentation === "coming_soon";
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      title={soon ? `${a.label} — ${COMING_SOON_LABEL}` : a.label}
+                      onClick={() => onReplyAttachControl(a.id, a.presentation, a.label)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-lg border transition-all",
+                        soon
+                          ? "border-white/10 text-[#78788c]/70 hover:bg-white/5"
+                          : "border-white/10 text-[#818cf8] hover:bg-white/5 hover:text-white",
+                      )}
+                    >
+                      {DOUBT_ATTACH_ICONS[a.id]}
+                      {a.label}
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => openReplyAttach()}
+                  className="inline-flex items-center gap-2 text-xs text-[#818cf8] hover:text-white"
+                >
                   <Paperclip className="w-3.5 h-3.5" />
                   Attach
-                  <input
-                    type="file"
-                    accept={DOUBT_FILE_ACCEPT}
-                    multiple
-                    className="hidden"
-                    onChange={onPickReplyFiles}
-                  />
-                </label>
+                </button>
                 <FileChips
                   files={replyFiles.map((f) => ({ name: f.name }))}
                   onRemove={(i) => setReplyFiles((prev) => prev.filter((_, idx) => idx !== i))}
@@ -746,6 +913,9 @@ export default function DoubtPortal() {
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1.5">
                       <SubjectBadge subject={d.subject} />
+                      {d.chapter ? (
+                        <span className="text-[10px] text-[#78788c] truncate max-w-[140px]">{d.chapter}</span>
+                      ) : null}
                       <StatusChip status={d.status} />
                       {d.user_id === ctx.userId && (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/12 text-[#818cf8]">
