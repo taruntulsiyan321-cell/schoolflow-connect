@@ -26,6 +26,7 @@ const sidebarNav: NavEntry[] = [
   { type:"link", key:"practice",     label:"Practice",     icon:<BookOpen className="w-4 h-4"/> },
   { type:"link", key:"aicoach",      label:"AI Coach",     icon:<Brain className="w-4 h-4"/> },
   { type:"link", key:"battleground", label:"Battleground", icon:<Swords className="w-4 h-4"/> },
+  { type:"link", key:"chat",         label:"Chat",         icon:<MessageCircle className="w-4 h-4"/> },
 
   {
     type:"group", hubKey:"learninghub", label:"Learning", color:"#3b5bdb",
@@ -70,7 +71,7 @@ const pageTitle: Record<PageKey, string> = {
   dashboard:"Home",         practice:"Practice",       aicoach:"AI Coach",
   analysis:"Analysis",      recovery:"Recovery",       revision:"Revision",
   mistakebook:"Mistake Book",
-  battleground:"Battleground", leaderboard:"Rankings",
+  battleground:"Battleground", chat:"Chat",            leaderboard:"Rankings",
   achievements:"Achievements", resources:"Resources",
   doubtportal:"Doubts",     assignments:"Homework",    attendance:"Attendance",
   profile:"Profile",        timetable:"Timetable",     calendar:"Calendar",

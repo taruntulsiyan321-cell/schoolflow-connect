@@ -2,7 +2,7 @@
 export type PageKey =
   | "dashboard" | "practice" | "aicoach" | "analysis"
   | "recovery"  | "revision" | "mistakebook"
-  | "battleground" | "leaderboard" | "achievements"
+  | "battleground" | "chat" | "leaderboard" | "achievements"
   | "resources" | "doubtportal" | "assignments" | "attendance" | "profile"
   | "timetable" | "calendar" | "tests"
   | "learninghub" | "classhub";
@@ -17,6 +17,7 @@ export const PAGE_PATH: Record<PageKey, string> = {
   revision: "/student/revision",
   mistakebook: "/student/mistakes",
   battleground: "/student/battleground",
+  chat: "/student/chat",
   leaderboard: "/student/leaderboard",
   achievements: "/student/achievements",
   resources: "/student/resources",
@@ -78,7 +79,8 @@ export function pathToPage(pathname: string): PageKey {
   if (p.startsWith("/student/analytics") || p.startsWith("/student/analysis") || p.startsWith("/student/report"))
     return "analysis";
   if (p.startsWith("/student/revision") || p.startsWith("/student/plans")) return "revision";
-  if (p.startsWith("/student/chat") || p.startsWith("/student/notices") || p.startsWith("/student/notifications"))
+  if (p.startsWith("/student/chat")) return "chat";
+  if (p.startsWith("/student/notices") || p.startsWith("/student/notifications"))
     return "classhub";
   if (p.startsWith("/student/classes")) return "classhub";
   if (p.startsWith("/student/fees")) return "profile";
@@ -102,6 +104,7 @@ export function pageTitle(page: PageKey): string {
     revision: "Revision",
     mistakebook: "Mistake Book",
     battleground: "Battleground",
+    chat: "Chat",
     leaderboard: "Rankings",
     achievements: "Achievements",
     resources: "Resources",
