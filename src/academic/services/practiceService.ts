@@ -158,7 +158,9 @@ export const PracticeService = {
       entityId: (args._session_id as string) ?? null,
       studentId: ctx.studentId ?? null,
       payload: args,
-    }).catch(() => undefined);
+    }).catch((err) => {
+      console.warn("[PracticeService.finish] emitEvent failed:", err);
+    });
     broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
       studentId: ctx.studentId,
       source: "PracticeService",
@@ -251,6 +253,10 @@ export const PracticeService = {
       _meta: meta,
     });
     throwIfError(error, "Failed to record practice attempt");
+    broadcastAcademicWrite(ctx.schoolId, ["xp", "profile"], {
+      studentId: ctx.studentId,
+      source: "PracticeService.recordAttempt",
+    });
     return data as string;
   },
 

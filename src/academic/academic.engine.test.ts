@@ -54,6 +54,15 @@ describe("academic engine — events", () => {
   it("lists a stable event catalog", () => {
     expect(ACADEMIC_EVENT_TYPES.length).toBeGreaterThan(10);
     expect(ACADEMIC_EVENT_TYPES).toContain("attendance.marked");
+    expect(ACADEMIC_EVENT_TYPES).toContain("doubt.solved");
+    expect(ACADEMIC_EVENT_TYPES).toContain("examination.deleted");
+  });
+
+  it("maps doubt.solved and examination.deleted to profile sync targets", () => {
+    expect(syncTargetsFor("doubt.solved")).toContain("student_academic_profile");
+    expect(syncTargetsFor("doubt.solved")).toContain("notifications");
+    expect(syncTargetsFor("examination.deleted")).toContain("student_academic_profile");
+    expect(syncTargetsFor("examination.deleted")).toContain("audit");
   });
 });
 

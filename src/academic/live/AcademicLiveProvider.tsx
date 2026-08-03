@@ -242,6 +242,26 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         {
           event: "*",
           schema: "public",
+          table: "question_attempts",
+          filter: `user_id=eq.${user.id}`,
+        },
+        onTable(["xp", "profile"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "battle_invites",
+          filter: `invited_user_id=eq.${user.id}`,
+        },
+        onTable(["battle"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: "messages",
           filter: `receiver_id=eq.${user.id}`,
         },
@@ -273,17 +293,18 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
       )
       .subscribe();
 
+    // Focus / poll: drain SyncEngine only. Do NOT bump(["all"]) — that rematches
+    // every filtered useAcademicLive consumer and was resetting panels to loading.
+    // Domain-specific realtime handlers above still bump the right surfaces.
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       void SyncEngine.processPendingEvents(schoolId, 50).catch(() => undefined);
-      bump(["all"]);
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
 
     const poll = window.setInterval(() => {
       void SyncEngine.processPendingEvents(schoolId, 30).catch(() => undefined);
-      bump(["all"]);
     }, 90_000);
 
     return () => {

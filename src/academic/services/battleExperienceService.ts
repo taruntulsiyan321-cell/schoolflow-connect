@@ -261,6 +261,7 @@ export const BattleExperienceService = {
     throwIfError(partErr, "Failed to update battle score");
 
     await this.mirrorAnswer(ctx, args.participantId, args.questionId);
+    afterExperienceWrite(ctx, ["battle", "xp", "profile"]);
   },
 
   async sendInvites(

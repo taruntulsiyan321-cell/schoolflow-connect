@@ -6,7 +6,7 @@ import {
   type ServiceContext,
 } from "./context";
 import { getClient, throwIfError } from "../repository/base";
-import { emitEvent } from "../repository/eventsRepository";
+import { emitEventBestEffort } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { teacherAssignedToClassSubject } from "../repository/teacherAssignmentRepository";
 import {
@@ -14,6 +14,7 @@ import {
   listTeacherClassSubjectPairs,
 } from "../repository/teacherClassesRepository";
 import type { DoubtUploadMeta } from "../storage/doubtFileUpload";
+import { fixUtf8Content } from "@/lib/utf8Text";
 
 export type DoubtStatus = "open" | "solved";
 
@@ -69,7 +70,15 @@ function normalizeStatus(raw: string | null | undefined): DoubtStatus {
 }
 
 function asDoubt(row: DoubtRow): DoubtRow & { status: DoubtStatus } {
-  return { ...row, status: normalizeStatus(row.status) };
+  return {
+    ...row,
+    title: fixUtf8Content(row.title),
+    body: fixUtf8Content(row.body),
+    subject: fixUtf8Content(row.subject),
+    chapter: row.chapter != null ? fixUtf8Content(row.chapter) : row.chapter,
+    concept: row.concept != null ? fixUtf8Content(row.concept) : row.concept,
+    status: normalizeStatus(row.status),
+  };
 }
 
 /**
@@ -202,7 +211,11 @@ export const DoubtService = {
       .eq("doubt_id", doubtId)
       .order("created_at", { ascending: true });
     throwIfError(error, "Failed to list answers");
-    return (data ?? []) as DoubtAnswerRow[];
+    return ((data ?? []) as DoubtAnswerRow[]).map((r) => ({
+      ...r,
+      body: fixUtf8Content(r.body),
+      author_name: fixUtf8Content(r.author_name),
+    }));
   },
 
   async listDoubtAttachments(ctx: ServiceContext, doubtId: string) {
@@ -281,13 +294,13 @@ export const DoubtService = {
       throwIfError(attErr, "Failed to save attachments");
     }
 
-    await emitEvent(toRepoContext(ctx), {
+    await emitEventBestEffort(toRepoContext(ctx), {
       eventType: "doubt.created",
       entityType: "student_doubt",
       entityId: doubtId,
       studentId: ctx.studentId ?? null,
       payload: { subject, subjectId: args.subjectId ?? null },
-    }).catch(() => undefined);
+    });
     broadcastAcademicWrite(ctx.schoolId, ["doubt", "profile"], {
       studentId: ctx.studentId,
       source: "DoubtService.create",
@@ -316,14 +329,20 @@ export const DoubtService = {
     const body = args.content.trim();
     if (!body) throw new ForbiddenError("Answer text is required");
 
-    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
-      "rpc_add_community_answer",
-      {
-        _doubt_id: args.doubtId,
-        _body: body,
-        _image_url: args.imageUrl ?? null,
-      } as never,
-    );
+    const client = getClient(toRepoContext(ctx));
+    let askerStudentId: string | null = ctx.studentId ?? null;
+    try {
+      const doubtBefore = await this.get(ctx, args.doubtId);
+      askerStudentId = doubtBefore?.student_id ?? askerStudentId;
+    } catch {
+      // Keep reply success even if owner lookup fails; still emit with best-effort id.
+    }
+
+    const { data, error } = await client.rpc("rpc_add_community_answer", {
+      _doubt_id: args.doubtId,
+      _body: body,
+      _image_url: args.imageUrl ?? null,
+    } as never);
     throwIfError(error, "Failed to reply to doubt");
     const answerId = typeof data === "string" ? data : String(data);
 
@@ -337,31 +356,22 @@ export const DoubtService = {
         file_size_bytes: a.fileSizeBytes,
         created_by: ctx.userId,
       }));
-      const { error: attErr } = await getClient(toRepoContext(ctx))
+      const { error: attErr } = await client
         .from("community_doubt_answer_attachments")
         .insert(rows as never);
       throwIfError(attErr, "Failed to save answer attachments");
     }
 
-    let askerStudentId: string | null = ctx.studentId ?? null;
-    try {
-      const doubt = await this.get(ctx, args.doubtId);
-      askerStudentId = doubt?.student_id ?? askerStudentId;
-    } catch {
-      // Keep reply success even if owner lookup fails; still emit with best-effort id.
-    }
+    await emitEventBestEffort(toRepoContext(ctx), {
+      eventType: "doubt.replied",
+      entityType: ctx.role === "teacher" ? "teacher_reply" : "student_doubt",
+      entityId: answerId,
+      studentId: askerStudentId,
+      payload: { doubtId: args.doubtId },
+    });
 
-    try {
-      await emitEvent(toRepoContext(ctx), {
-        eventType: "doubt.replied",
-        entityType: ctx.role === "teacher" ? "teacher_reply" : "student_doubt",
-        entityId: answerId,
-        studentId: askerStudentId,
-        payload: { doubtId: args.doubtId },
-      });
-    } catch (e) {
-      console.warn("[DoubtService.reply] emitEvent failed:", e);
-    }
+    // First-answer → solved is emitted by tg_community_doubt_first_answer_solves (DB SSOT).
+
     broadcastAcademicWrite(ctx.schoolId, ["doubt", "profile"], {
       studentId: askerStudentId,
       source: "DoubtService.reply",
@@ -407,13 +417,13 @@ export const DoubtService = {
       { _answer_id: answerId } as never,
     );
     throwIfError(error, "Failed to accept answer");
-    await emitEvent(toRepoContext(ctx), {
+    await emitEventBestEffort(toRepoContext(ctx), {
       eventType: "doubt.solved",
       entityType: "student_doubt",
       entityId: answerId,
       studentId: ctx.studentId ?? null,
       payload: { answerId },
-    }).catch(() => undefined);
+    });
     broadcastAcademicWrite(ctx.schoolId, ["doubt", "profile"], {
       studentId: ctx.studentId,
       source: "DoubtService.markBestAnswer",

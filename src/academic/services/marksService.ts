@@ -21,7 +21,7 @@ import { getClient, schoolIdOf, throwIfError } from "../repository/base";
 import type { PageParams } from "../repository/base";
 import { ForbiddenError, isSchoolOperator } from "./context";
 import { assertMayAccessStudent } from "./parentAccess";
-import { emitEvent } from "../repository/eventsRepository";
+import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
 import { assertTeacherMayManageAcademicWork } from "./workLifecycle";
 import { ValidationFailedError } from "../repository/errors";
 import { broadcastAcademicWrite } from "../live";
@@ -205,6 +205,17 @@ export const MarksService = {
     await assertTeacherMayManageAcademicWork(ctx, exam.classId, exam.subject);
     const { deleteExam } = await import("../repository/examRepository");
     await deleteExam(toRepoContext(ctx), examId);
+    await emitEventBestEffort(toRepoContext(ctx), {
+      eventType: "examination.deleted",
+      entityType: "examination",
+      entityId: examId,
+      classId: exam.classId,
+      payload: {
+        name: exam.name,
+        subject: exam.subject,
+        examType: exam.examType,
+      },
+    });
     afterMarksWrite(ctx, { classId: exam.classId, source: "MarksService.removeExam" });
   },
 

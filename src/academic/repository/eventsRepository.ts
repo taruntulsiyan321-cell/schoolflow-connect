@@ -73,6 +73,20 @@ export async function emitEvent(
   return data as string;
 }
 
+/** Best-effort emit — never blocks the write path; logs failures for integrity audits. */
+export async function emitEventBestEffort(
+  ctx: RepoContext,
+  input: Parameters<typeof emitEvent>[1],
+): Promise<string | null> {
+  try {
+    return await emitEvent(ctx, input);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[academic] emit ${input.eventType} failed:`, msg);
+    return null;
+  }
+}
+
 export async function listPendingEvents(
   ctx: RepoContext,
   page?: PageParams,

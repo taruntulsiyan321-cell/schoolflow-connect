@@ -7,6 +7,7 @@
 import { getClient, throwIfError } from "../repository/base";
 import { broadcastAcademicWrite } from "../live";
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import { fixUtf8Content } from "@/lib/utf8Text";
 
 /** Best-effort FCM for DM receivers (native tokens). Never blocks the send path. */
 function notifyReceiverPush(receiverId: string, title: string, body: string): void {
@@ -157,7 +158,7 @@ export const MessageService = {
     if (!error && Array.isArray(data)) {
       return (data as any[]).map((r) => ({
         userId: r.peer_user_id || r.conversation_id,
-        name: r.title || "Chat",
+        name: fixUtf8Content(r.title) || "Chat",
         role:
           r.kind === "class_group"
             ? "class_group"
@@ -165,7 +166,7 @@ export const MessageService = {
               ? "teacher_group"
               : r.peer_role || "user",
         unread: r.unread ?? 0,
-        lastMessage: r.last_message ?? undefined,
+        lastMessage: r.last_message != null ? fixUtf8Content(r.last_message) : undefined,
         lastTime: r.last_time ?? undefined,
         conversationId: r.conversation_id,
         kind: r.kind as ChatContact["kind"],
@@ -177,7 +178,7 @@ export const MessageService = {
     if (!inboxErr && Array.isArray(inbox)) {
       const mapped = (inbox as InboxRow[]).map((r) => ({
         userId: r.peer_user_id || r.conversation_id,
-        name: r.title || "Chat",
+        name: fixUtf8Content(r.title) || "Chat",
         role:
           r.kind === "class_group"
             ? "class_group"
@@ -185,7 +186,7 @@ export const MessageService = {
               ? "teacher_group"
               : r.peer_role || "user",
         unread: r.unread ?? 0,
-        lastMessage: r.last_message ?? undefined,
+        lastMessage: r.last_message != null ? fixUtf8Content(r.last_message) : undefined,
         lastTime: r.last_time ?? undefined,
         conversationId: r.conversation_id,
         kind: r.kind as ChatContact["kind"],
@@ -252,7 +253,7 @@ export const MessageService = {
       const rows = inbox as InboxRow[];
       const mapped: ChatContact[] = rows.map((r) => ({
         userId: r.peer_user_id || r.conversation_id,
-        name: r.title || "Chat",
+        name: fixUtf8Content(r.title) || "Chat",
         role:
           r.kind === "class_group"
             ? "class_group"
@@ -260,7 +261,7 @@ export const MessageService = {
               ? "teacher_group"
               : r.peer_role || "user",
         unread: r.unread ?? 0,
-        lastMessage: r.last_message ?? undefined,
+        lastMessage: r.last_message != null ? fixUtf8Content(r.last_message) : undefined,
         lastTime: r.last_time ?? undefined,
         conversationId: r.conversation_id,
         kind: r.kind as ChatContact["kind"],
