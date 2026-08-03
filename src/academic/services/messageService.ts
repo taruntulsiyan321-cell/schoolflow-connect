@@ -363,58 +363,52 @@ export const MessageService = {
       _attachment_mime: att?.mimeType ?? null,
       _attachment_size: att?.sizeBytes ?? null,
     } as never);
-
-    let m: DbMessage | null = null;
-    if (!rpcErr && rpcData) {
-      m = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as DbMessage;
-    } else {
-      // Fallback: legacy direct insert / older rpc_send_direct_message
-      const { data: legacy, error: legacyErr } = await client.rpc("rpc_send_direct_message" as never, {
-        _receiver_id: receiverId,
-        _content: body || att?.name || "[Attachment]",
-      } as never);
-      if (!legacyErr && legacy) {
-        m = (Array.isArray(legacy) ? legacy[0] : legacy) as DbMessage;
-      } else {
-        const insert: Record<string, unknown> = {
-          sender_id: ctx.userId,
-          receiver_id: receiverId,
-          content: body || att?.name || "[Attachment]",
-          is_read: false,
-        };
-        if (ctx.schoolId) insert.school_id = ctx.schoolId;
-        if (opts?.replyToId) insert.reply_to_id = opts.replyToId;
-        if (opts?.conversationId) insert.conversation_id = opts.conversationId;
-        if (att?.url) insert.has_attachment = true;
-        const { data, error } = await client.from("messages").insert(insert).select("*").single();
-        throwIfError(error ?? rpcErr ?? legacyErr, "Failed to send message");
-        m = data as DbMessage;
-        if (att?.url && m) {
-          await client.from("message_attachments" as never).insert({
-            message_id: m.id,
-            name: att.name,
-            url: att.url,
-            mime_type: att.mimeType ?? null,
-            size_bytes: att.sizeBytes ?? null,
-          } as never);
-        }
-      }
-    }
+    // Never fall back to raw INSERT — that bypassed DM / class / school checks.
+    throwIfError(rpcErr, "Failed to send message");
+    const m = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as DbMessage;
+    if (!m?.id) throw new Error("Failed to send message");
 
     broadcastAcademicWrite(ctx.schoolId, ["message"], {
       source: "MessageService.send",
     });
 
-    if (m?.receiver_id) {
+    if (m.receiver_id) {
       const preview = (body || att?.name || "New message").slice(0, 160);
       notifyReceiverPush(m.receiver_id, "New message", preview);
     }
 
     const attachments = att?.url
       ? [{ name: att.name, url: att.url, mimeType: att.mimeType, sizeBytes: att.sizeBytes }]
-      : await loadAttachments(client, [m!.id]).then((map) => map.get(m!.id) ?? []);
+      : await loadAttachments(client, [m.id]).then((map) => map.get(m.id) ?? []);
 
-    return mapMessage(m!, attachments);
+    return mapMessage(m, attachments);
+  },
+
+  async sendFile(
+    ctx: ServiceContext,
+    opts: {
+      receiverId: string;
+      file: File;
+      conversationId?: string | null;
+      caption?: string;
+      replyToId?: string | null;
+    },
+  ): Promise<ChatMessage> {
+    assertCanOwn(ctx, "message");
+    if (!ctx.schoolId) throw new Error("Missing school context");
+    const { uploadChatAttachment } = await import("../storage/chatFileUpload");
+    const threadKey = opts.conversationId || opts.receiverId || "dm";
+    const uploaded = await uploadChatAttachment(opts.file, ctx.schoolId, threadKey);
+    return this.send(ctx, opts.receiverId, opts.caption || "", {
+      conversationId: opts.conversationId,
+      replyToId: opts.replyToId,
+      attachment: {
+        name: uploaded.name,
+        url: uploaded.url,
+        mimeType: uploaded.mimeType,
+        sizeBytes: uploaded.sizeBytes,
+      },
+    });
   },
 
   async deleteMessage(ctx: ServiceContext, messageId: string): Promise<void> {
@@ -424,12 +418,10 @@ export const MessageService = {
       _message_id: messageId,
     } as never);
     if (error) {
-      const { error: updErr } = await client
-        .from("messages")
-        .update({ content: "Message deleted" } as never)
-        .eq("id", messageId)
-        .eq("sender_id", ctx.userId);
-      throwIfError(updErr ?? error, "Failed to delete message");
+      const { error: altErr } = await client.rpc("rpc_delete_message" as never, {
+        _message_id: messageId,
+      } as never);
+      throwIfError(altErr ?? error, "Failed to delete message");
     }
     broadcastAcademicWrite(ctx.schoolId, ["message"], {
       source: "MessageService.deleteMessage",

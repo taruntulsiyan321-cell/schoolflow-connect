@@ -153,6 +153,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.chat_can_dm(uuid, uuid) TO authenticated;
 
 -- ── 2. Contacts RPC — reuse chat_can_dm (no enumeration bypass) ──────────────
+DROP FUNCTION IF EXISTS public.get_chat_contacts();
 CREATE OR REPLACE FUNCTION public.get_chat_contacts()
 RETURNS TABLE(user_id uuid, name text, role text)
 LANGUAGE plpgsql
@@ -939,3 +940,75 @@ CREATE POLICY "chat attachments delete own" ON storage.objects
     AND (storage.foldername(name))[1] = public.get_my_school_id()::text
     AND (storage.foldername(name))[2] = auth.uid()::text
   );
+
+-- Legacy 2-arg send must not bypass matrix / attachment checks
+CREATE OR REPLACE FUNCTION public.rpc_send_direct_message(
+  _receiver_id uuid,
+  _content text
+)
+RETURNS public.messages
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN public.rpc_send_chat_message(
+    NULL, _receiver_id, _content, NULL, NULL, NULL, NULL, NULL
+  );
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.rpc_send_direct_message(uuid, text) FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.rpc_send_direct_message(uuid, text) TO authenticated;
+
+-- Teacher group: students/parents cannot create
+CREATE OR REPLACE FUNCTION public.rpc_ensure_teacher_group()
+RETURNS public.chat_conversations
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _uid uuid := auth.uid();
+  _role text := public.chat_caller_role();
+  _school uuid := public.get_my_school_id();
+  _row public.chat_conversations;
+BEGIN
+  IF _uid IS NULL OR _school IS NULL THEN
+    RAISE EXCEPTION 'auth required';
+  END IF;
+  IF _role NOT IN ('teacher', 'principal', 'admin') THEN
+    RAISE EXCEPTION 'chat_forbidden: cannot create teacher group';
+  END IF;
+
+  INSERT INTO public.chat_conversations (school_id, kind, title, created_by)
+  VALUES (_school, 'teacher_group', 'Teacher Group', _uid)
+  ON CONFLICT DO NOTHING
+  RETURNING * INTO _row;
+
+  IF _row.id IS NULL THEN
+    SELECT * INTO _row
+    FROM public.chat_conversations
+    WHERE school_id = _school AND kind = 'teacher_group';
+  END IF;
+
+  INSERT INTO public.chat_participants (conversation_id, user_id)
+  SELECT _row.id, t.user_id
+  FROM public.teachers t
+  JOIN public.profiles p ON p.id = t.user_id
+  WHERE p.school_id = _school AND t.user_id IS NOT NULL AND COALESCE(p.is_active, true)
+  ON CONFLICT DO NOTHING;
+
+  INSERT INTO public.chat_participants (conversation_id, user_id)
+  SELECT _row.id, ur.user_id
+  FROM public.user_roles ur
+  JOIN public.profiles p ON p.id = ur.user_id
+  WHERE p.school_id = _school AND ur.role IN ('principal', 'admin')
+  ON CONFLICT DO NOTHING;
+
+  RETURN _row;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.rpc_ensure_teacher_group() FROM anon, public;
+GRANT EXECUTE ON FUNCTION public.rpc_ensure_teacher_group() TO authenticated;
