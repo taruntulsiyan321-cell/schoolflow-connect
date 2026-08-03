@@ -8,7 +8,6 @@ import {
   type ChatContact,
   type ChatMessage,
 } from "@/academic";
-import { ACADEMIC_FILE_ACCEPT } from "@/academic/storage/academicFileUpload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +29,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import "@/components/chat/chat-panel.css";
+
+const CHAT_FILE_ACCEPT =
+  ".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.txt,image/*,application/pdf";
 
 const roleColors: Record<string, string> = {
   admin: "bg-red-500/10 text-red-700 border-red-500/20",
@@ -55,7 +57,7 @@ function formatTime(iso?: string) {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-function isImageMime(mime?: string, name?: string) {
+function isImageMime(mime?: string | null, name?: string) {
   if (mime?.startsWith("image/")) return true;
   return /\.(png|jpe?g|gif|webp|heic)$/i.test(name || "");
 }
@@ -63,13 +65,7 @@ function isImageMime(mime?: string, name?: string) {
 function Avatar({ name, url, size = "md" }: { name: string; url?: string | null; size?: "sm" | "md" }) {
   const dim = size === "sm" ? "w-10 h-10 rounded-xl text-sm" : "w-11 h-11 rounded-2xl text-sm";
   if (url) {
-    return (
-      <img
-        src={url}
-        alt=""
-        className={cn("chat-avatar object-cover shrink-0 shadow-sm", dim)}
-      />
-    );
+    return <img src={url} alt="" className={cn("chat-avatar object-cover shrink-0 shadow-sm", dim)} />;
   }
   return (
     <div className={cn("chat-avatar flex items-center justify-center shrink-0 font-semibold shadow-sm", dim)}>
@@ -78,25 +74,30 @@ function Avatar({ name, url, size = "md" }: { name: string; url?: string | null;
   );
 }
 
+function previewOf(m: ChatMessage): string {
+  if (m.deletedAt) return "This message was deleted";
+  const att = m.attachments?.[0];
+  if (att && !m.content) return `📎 ${att.name}`;
+  return m.content || (att ? `📎 ${att.name}` : "");
+}
+
 function mapRealtimeMessage(raw: Record<string, unknown>): ChatMessage {
   return {
     id: String(raw.id),
     senderId: String(raw.sender_id),
-    receiverId: String(raw.receiver_id || ""),
-    content: raw.deleted_at ? "" : String(raw.content || ""),
+    receiverId: raw.receiver_id ? String(raw.receiver_id) : null,
+    content: raw.deleted_at ? "Message deleted" : String(raw.content || ""),
     isRead: Boolean(raw.is_read),
     createdAt: String(raw.created_at),
     replyToId: (raw.reply_to_id as string) || null,
     deletedAt: (raw.deleted_at as string) || null,
     conversationId: (raw.conversation_id as string) || null,
-    attachment: raw.attachment_url
-      ? {
-          url: String(raw.attachment_url),
-          name: String(raw.attachment_name || "Attachment"),
-          mimeType: (raw.attachment_mime as string) || undefined,
-        }
-      : null,
+    attachments: [],
   };
+}
+
+function contactKey(c: ChatContact) {
+  return c.conversationId || c.userId;
 }
 
 export default function ChatPage({ userRole }: { userRole?: string }) {
@@ -123,11 +124,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     setContacts(list);
     setSelectedContact((prev) => {
       if (!prev) return prev;
-      return list.find((c) =>
-        prev.conversationId
-          ? c.conversationId === prev.conversationId
-          : c.userId === prev.userId,
-      ) ?? prev;
+      return list.find((c) => contactKey(c) === contactKey(prev)) ?? prev;
     });
   };
 
@@ -165,19 +162,15 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     let cancelled = false;
     (async () => {
       try {
-        const thread = selectedContact.conversationId
-          ? await MessageService.listGroupThread(ctx, selectedContact.conversationId)
-          : await MessageService.listThread(ctx, selectedContact.userId);
+        const thread = await MessageService.listThread(
+          ctx,
+          selectedContact.userId,
+          selectedContact.conversationId,
+        );
         if (cancelled) return;
         setMessages(thread);
         setContacts((prev) =>
-          prev.map((c) =>
-            (selectedContact.conversationId
-              ? c.conversationId === selectedContact.conversationId
-              : c.userId === selectedContact.userId)
-              ? { ...c, unread: 0 }
-              : c,
-          ),
+          prev.map((c) => (contactKey(c) === contactKey(selectedContact) ? { ...c, unread: 0 } : c)),
         );
       } catch (e) {
         if (!cancelled) toast.error(e instanceof Error ? e.message : "Could not load messages");
@@ -194,18 +187,16 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       .channel("chat_messages_student")
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, (payload) => {
         const raw = (payload.new || payload.old) as Record<string, unknown> | undefined;
-        if (!raw?.id) return;
-
-        if (payload.eventType === "DELETE") return;
+        if (!raw?.id || payload.eventType === "DELETE") return;
 
         const newMsg = mapRealtimeMessage(raw);
-        const isGroup = Boolean(selectedContact?.conversationId);
-        const inOpenThread = selectedContact
-          ? isGroup
-            ? newMsg.conversationId === selectedContact.conversationId
+        const open = selectedContact;
+        const inOpenThread = open
+          ? open.conversationId
+            ? newMsg.conversationId === open.conversationId
             : !newMsg.conversationId &&
-              ((newMsg.senderId === user.id && newMsg.receiverId === selectedContact.userId) ||
-                (newMsg.senderId === selectedContact.userId && newMsg.receiverId === user.id))
+              ((newMsg.senderId === user.id && newMsg.receiverId === open.userId) ||
+                (newMsg.senderId === open.userId && newMsg.receiverId === user.id))
           : false;
 
         if (inOpenThread) {
@@ -213,27 +204,29 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
             const idx = prev.findIndex((m) => m.id === newMsg.id);
             if (idx >= 0) {
               const next = [...prev];
-              next[idx] = { ...next[idx], ...newMsg };
+              next[idx] = { ...next[idx], ...newMsg, attachments: next[idx].attachments };
               return next;
             }
             return [...prev, newMsg];
           });
-          if (newMsg.receiverId === user.id && !newMsg.conversationId && ctx) {
-            void MessageService.markThreadRead(ctx, selectedContact!.userId);
+          if (ctx && open?.conversationId) {
+            void MessageService.markConversationRead(ctx, open.conversationId);
+          } else if (ctx && open && newMsg.receiverId === user.id) {
+            void MessageService.markThreadRead(ctx, open.userId);
           }
         } else if (newMsg.senderId !== user.id && !newMsg.deletedAt) {
           setContacts((prev) =>
             prev.map((c) => {
               const match = newMsg.conversationId
                 ? c.conversationId === newMsg.conversationId
-                : c.kind === "dm" && c.userId === newMsg.senderId;
+                : c.kind !== "class_group" &&
+                  c.kind !== "teacher_group" &&
+                  c.userId === newMsg.senderId;
               if (!match) return c;
               return {
                 ...c,
                 unread: c.unread + 1,
-                lastMessage: newMsg.attachment
-                  ? `📎 ${newMsg.attachment.name}`
-                  : newMsg.content,
+                lastMessage: previewOf(newMsg),
                 lastTime: newMsg.createdAt,
               };
             }),
@@ -251,14 +244,11 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   }, [messages]);
 
   const sendText = async () => {
-    if (!ctx || !selectedContact || (!newMessage.trim() && !replyTo)) return;
-    if (!newMessage.trim()) return;
+    if (!ctx || !selectedContact || !newMessage.trim()) return;
     setSending(true);
     try {
-      const data = await MessageService.sendMessage(ctx, {
-        receiverId: selectedContact.conversationId ? undefined : selectedContact.userId,
+      const data = await MessageService.send(ctx, selectedContact.userId, newMessage, {
         conversationId: selectedContact.conversationId,
-        content: newMessage,
         replyToId: replyTo?.id,
       });
       setMessages((prev) => (prev.find((m) => m.id === data.id) ? prev : [...prev, data]));
@@ -267,10 +257,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       setShowEmoji(false);
       setContacts((prev) =>
         prev.map((c) =>
-          (selectedContact.conversationId
-            ? c.conversationId === selectedContact.conversationId
-            : c.userId === selectedContact.userId)
-            ? { ...c, lastMessage: `You: ${data.content || "📎"}`, lastTime: data.createdAt }
+          contactKey(c) === contactKey(selectedContact)
+            ? { ...c, lastMessage: `You: ${previewOf(data)}`, lastTime: data.createdAt }
             : c,
         ),
       );
@@ -286,9 +274,9 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     setSending(true);
     try {
       const data = await MessageService.sendFile(ctx, {
-        receiverId: selectedContact.conversationId ? undefined : selectedContact.userId,
-        conversationId: selectedContact.conversationId,
+        receiverId: selectedContact.userId,
         file,
+        conversationId: selectedContact.conversationId,
         caption: newMessage.trim() || undefined,
         replyToId: replyTo?.id,
       });
@@ -297,14 +285,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       setReplyTo(null);
       setContacts((prev) =>
         prev.map((c) =>
-          (selectedContact.conversationId
-            ? c.conversationId === selectedContact.conversationId
-            : c.userId === selectedContact.userId)
-            ? {
-                ...c,
-                lastMessage: `You: ${data.attachment ? `📎 ${data.attachment.name}` : data.content}`,
-                lastTime: data.createdAt,
-              }
+          contactKey(c) === contactKey(selectedContact)
+            ? { ...c, lastMessage: `You: ${previewOf(data)}`, lastTime: data.createdAt }
             : c,
         ),
       );
@@ -323,7 +305,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       setMessages((prev) =>
         prev.map((x) =>
           x.id === m.id
-            ? { ...x, deletedAt: new Date().toISOString(), content: "", attachment: null }
+            ? { ...x, deletedAt: new Date().toISOString(), content: "Message deleted", attachments: [] }
             : x,
         ),
       );
@@ -407,7 +389,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
           <div className="flex-1 overflow-y-auto p-3 space-y-1">
             {filtered.map((c) => (
               <button
-                key={c.conversationId || c.userId}
+                key={contactKey(c)}
                 type="button"
                 onClick={() => {
                   setSelectedContact(c);
@@ -416,9 +398,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 }}
                 className={cn(
                   "w-full text-left rounded-2xl border border-transparent p-3 sm:p-4 transition-all hover:bg-white/80",
-                  (selectedContact?.conversationId
-                    ? selectedContact.conversationId === c.conversationId
-                    : selectedContact?.userId === c.userId) && "chat-contact-active border",
+                  selectedContact && contactKey(selectedContact) === contactKey(c) && "chat-contact-active border",
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -454,7 +434,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                       variant="outline"
                       className={cn("mt-2 text-[10px] capitalize", roleColors[c.role] || "")}
                     >
-                      {c.role.replace("_", " ")}
+                      {c.role.replace(/_/g, " ")}
                     </Badge>
                   </div>
                 </div>
@@ -499,7 +479,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                       roleColors[selectedContact.role] || "",
                     )}
                   >
-                    {selectedContact.role.replace("_", " ")}
+                    {selectedContact.role.replace(/_/g, " ")}
                   </Badge>
                 </div>
               </div>
@@ -517,6 +497,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 {messages.map((m) => {
                   const isMine = m.senderId === user!.id;
                   const deleted = Boolean(m.deletedAt);
+                  const attachments = m.attachments ?? [];
                   return (
                     <div key={m.id} className={cn("flex group", isMine ? "justify-end" : "justify-start")}>
                       <div className="relative max-w-[80%] sm:max-w-[70%]">
@@ -546,19 +527,19 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                             <p>This message was deleted</p>
                           ) : (
                             <>
-                              {m.attachment && (
-                                <div className="mb-2">
-                                  {isImageMime(m.attachment.mimeType, m.attachment.name) ? (
-                                    <a href={m.attachment.url} target="_blank" rel="noreferrer">
+                              {attachments.map((att) => (
+                                <div key={att.id || att.url} className="mb-2">
+                                  {isImageMime(att.mimeType, att.name) ? (
+                                    <a href={att.url} target="_blank" rel="noreferrer">
                                       <img
-                                        src={m.attachment.url}
-                                        alt={m.attachment.name}
+                                        src={att.url}
+                                        alt={att.name}
                                         className="max-h-48 rounded-xl object-contain border border-white/20"
                                       />
                                     </a>
                                   ) : (
                                     <a
-                                      href={m.attachment.url}
+                                      href={att.url}
                                       target="_blank"
                                       rel="noreferrer"
                                       className={cn(
@@ -567,12 +548,12 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                                       )}
                                     >
                                       <FileText className="w-4 h-4" />
-                                      <span className="truncate max-w-[12rem]">{m.attachment.name}</span>
+                                      <span className="truncate max-w-[12rem]">{att.name}</span>
                                     </a>
                                   )}
                                 </div>
-                              )}
-                              {m.content && (
+                              ))}
+                              {m.content && m.content !== "Message deleted" && (
                                 <p className="leading-relaxed whitespace-pre-wrap break-words">{m.content}</p>
                               )}
                             </>
@@ -632,9 +613,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 <div className="px-4 pt-3 flex items-center gap-2 border-t border-border/30 bg-white">
                   <div className="flex-1 rounded-xl bg-[#f4fff8] border border-border/40 px-3 py-2 text-xs text-muted-foreground truncate">
                     <span className="font-semibold text-foreground">Replying · </span>
-                    {replyTo.attachment
-                      ? `📎 ${replyTo.attachment.name}`
-                      : replyTo.content.slice(0, 100) || "Message"}
+                    {previewOf(replyTo).slice(0, 100) || "Message"}
                   </div>
                   <Button
                     type="button"
@@ -670,7 +649,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept={ACADEMIC_FILE_ACCEPT}
+                  accept={CHAT_FILE_ACCEPT}
                   className="hidden"
                   onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
                 />
