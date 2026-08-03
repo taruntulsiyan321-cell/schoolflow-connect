@@ -656,7 +656,7 @@ export default function Analysis() {
               { label: "Incorrect answers",  value: overview.incorrect.toLocaleString(),      color: "#cc5069" },
               { label: overview.avgScoreIsExam ? "Average score" : "Accuracy", value: `${overview.avgScore}%`, color: "#c08a3a" },
               { label: "Practice sessions",  value: overview.practiceCompleted,               color: "#e8eaf0" },
-              { label: "Tests completed",    value: overview.testsCompleted,                  color: "#e8eaf0" },
+              { label: "Marks recorded",     value: overview.testsCompleted,                  color: "#e8eaf0" },
               { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "#6882e8" },
               { label: "Exam readiness",     value: `${overview.examReadiness}%`,             color: "#3b5bdb" },
             ].map((s) => (
@@ -1299,10 +1299,9 @@ export default function Analysis() {
             <SLabel>Download & share your report</SLabel>
             <div className="grid sm:grid-cols-2 gap-3">
               {[
-                { label: "Download PDF report",   icon: <Download className="w-4 h-4" />,  color: "#3b5bdb",  desc: "Full performance report as PDF", action: "pdf" as const },
-                { label: "Share with teacher",    icon: <Share2 className="w-4 h-4" />,    color: "#4aa87a",  desc: "Send a link to your teacher", action: "share" as const },
-                { label: "Share with parents",    icon: <Share2 className="w-4 h-4" />,    color: "#6882e8",  desc: "Send a summary to your parents", action: "share" as const },
-                { label: "Print report",          icon: <Printer className="w-4 h-4" />,   color: "#c08a3a",  desc: "Print a physical copy", action: "print" as const },
+                { label: "Print / Save as PDF", icon: <Download className="w-4 h-4" />,  color: "#3b5bdb",  desc: "Opens browser print → Save as PDF", action: "pdf" as const },
+                { label: "Copy summary",        icon: <Share2 className="w-4 h-4" />,    color: "#4aa87a",  desc: "Copy text to paste yourself — teacher/parent send is coming soon", action: "share" as const },
+                { label: "Print report",        icon: <Printer className="w-4 h-4" />,   color: "#c08a3a",  desc: "Print a physical copy", action: "print" as const },
               ].map((r) => (
                 <button
                   key={r.label}

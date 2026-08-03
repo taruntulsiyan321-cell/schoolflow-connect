@@ -12,6 +12,7 @@ import { NotFoundError, ValidationFailedError } from "../repository/errors";
 import { validateAnnouncementContent } from "../validation/rules";
 import { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
 import { assertMayAccessStudent } from "./parentAccess";
+import { fixUtf8Content } from "@/lib/utf8Text";
 
 export { ForbiddenError, isSchoolOperator } from "./context";
 export { assertTeacherOwnsClass } from "../repository/teacherClassesRepository";
@@ -102,8 +103,8 @@ function mapNotice(row: NoticeRow): TeacherAnnouncementRow {
   const attachmentUrl = row.attachment_url?.trim() || null;
   return {
     id: row.id,
-    title: row.title,
-    body: row.body,
+    title: fixUtf8Content(row.title),
+    body: fixUtf8Content(row.body),
     targetClass: row.classes?.name ?? "",
     targetSection: row.classes?.section ?? "",
     classId: row.class_id,

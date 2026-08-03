@@ -9,7 +9,7 @@ import { displayChapter, displayConcept } from "@/lib/academicDisplay";
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
-  RotateCcw, Brain, CheckCircle2, XCircle, AlertCircle,
+  RotateCcw, Brain, CheckCircle2, AlertCircle,
   ChevronRight, Flame, History, Bookmark,
   Play, Layers, RefreshCw, Calendar,
   Zap, FileText, BookOpen,
@@ -352,11 +352,11 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
       <div className="grid sm:grid-cols-3 gap-3">
         <div
           className="p-4 rounded-2xl border border-white/7 bg-white/[0.02] text-left opacity-60"
-          title="Flashcards are not available yet"
+          title="Flashcards — coming soon"
         >
           <Layers className="w-5 h-5 text-[#78788c] mb-2"/>
           <div className="text-sm font-bold text-white">Flashcards</div>
-          <div className="text-xs text-[#78788c] mt-0.5">Not available yet</div>
+          <div className="text-xs text-[#78788c] mt-0.5">Coming soon</div>
         </div>
         <button
           type="button"
@@ -377,11 +377,11 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
         </button>
         <div
           className="p-4 rounded-2xl border border-white/7 bg-white/[0.02] text-left opacity-60"
-          title="Revision notes are not available yet"
+          title="Revision notes — coming soon"
         >
           <FileText className="w-5 h-5 text-[#78788c] mb-2"/>
           <div className="text-sm font-bold text-white">My Notes</div>
-          <div className="text-xs text-[#78788c] mt-0.5">Not available yet</div>
+          <div className="text-xs text-[#78788c] mt-0.5">Coming soon</div>
         </div>
       </div>
 

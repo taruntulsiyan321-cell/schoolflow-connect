@@ -32,14 +32,19 @@ export default function Class12AiSession() {
   const { user } = useAuth();
   const nav = useNavigate();
   const [params] = useSearchParams();
-  const subject = params.get("subject") ?? "Mathematics";
-  const chapter = params.get("chapter") ?? "Relations and Functions";
+  const subjectParam = params.get("subject")?.trim() || "";
+  const chapterParam = params.get("chapter")?.trim() || "";
+  const subject = subjectParam;
+  const chapter = chapterParam;
   const count = Math.min(20, Math.max(1, Number(params.get("count") ?? 10)));
   const isMath = subject.toLowerCase().includes("math");
+  const paramsMissing = !subjectParam || !chapterParam;
 
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(
+    paramsMissing ? "Choose a real subject and chapter before starting AI practice." : null,
+  );
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [items, setItems] = useState<AiQuestion[]>([]);
   const [idx, setIdx] = useState(0);
@@ -52,6 +57,11 @@ export default function Class12AiSession() {
 
   useEffect(() => {
     if (!user) return;
+    if (paramsMissing) {
+      setLoading(false);
+      setLoadError("Choose a real subject and chapter before starting AI practice.");
+      return;
+    }
     (async () => {
       setLoading(true);
       setAiLoading(false);
@@ -129,7 +139,7 @@ export default function Class12AiSession() {
       );
       setLoading(false);
     })();
-  }, [user, subject, chapter, count, isMath]);
+  }, [user, subject, chapter, count, isMath, paramsMissing]);
 
   const current = items[idx];
 

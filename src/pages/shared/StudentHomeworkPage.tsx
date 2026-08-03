@@ -16,6 +16,7 @@ import { PageHeader, StatCard } from "@/components/ui-bits";
 import { NotebookPen, Clock, CheckCircle, Send, Calendar, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 /**
  * Student homework — HomeworkService only (list / submit / feedback).
@@ -27,6 +28,7 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
   const [rows, setRows] = useState<StudentHomeworkRow[]>([]);
   const [studentId, setStudentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
   const [noClass, setNoClass] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [submitText, setSubmitText] = useState<Record<string, string>>({});
@@ -35,13 +37,13 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
     if (!ready || !ctx || !ctxStudentId) {
       if (ready && !ctxStudentId) {
         setNoClass(true);
-        setLoading(false);
+        endLoading(setLoading);
       }
       return;
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      beginLoading(setLoading);
       try {
         setStudentId(ctxStudentId);
         setNoClass(false);
@@ -52,7 +54,7 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
         toast.error(e instanceof Error ? e.message : "Failed to load homework");
         if (!cancelled) setRows([]);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) endLoading(setLoading);
       }
     })();
     return () => {
@@ -84,7 +86,7 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
     setSubmitting(null);
   };
 
-  if (loading) {
+  if (showLoading(loading)) {
     return (
       <>
         {!embedded && <PageHeader title="Homework" subtitle="Assigned tasks and submissions" />}

@@ -118,7 +118,23 @@ Detects: missing student context / shell readiness, analytics placeholder labels
 - Admin non-academic report tabs (account/platform/communication) honest placeholder — not Academic Engine
 - Account linking auth admin APIs still not wired (honest empty panel)
 
-### Supervisor note (Issues 9 / 11 / 12 / 13) — 2026-08-02
+### Cross-cutting supervisor note (Auth + SSOT + Live + Encoding + Quality) — 2026-08-03
+
+| ID | Domain | Status | Fix |
+|----|--------|--------|-----|
+| AUTH-C1 | Auth | **Fixed** | `AuthProvider` request-id guard — stale `loadAuthContext` cannot overwrite newer session |
+| AUTH-C2 | Auth | **APPLY required** | `handle_new_user` no longer binds `default_school_id`; see `docs/APPLY_AUTH_SIGNUP_NO_DEFAULT_SCHOOL.sql` + migration `20260803400000_*` |
+| SSOT-C1 | SSOT | **Fixed** | Class-12 Math practice/session gated on `parseClassLevel(classLabel) === 12` |
+| SSOT-C2 | SSOT | **Fixed (Analysis XP)** | Analysis class rank uses `ProgressionService.leaderboard`; subject battle boards may still use `rpc_leaderboard` |
+| L1 | Live | **Fixed** | Focus/90s poll drains SyncEngine only — no `bump(["all"])` rematch storm |
+| L2 | Live | **Mitigated** | `useInitialLoadGate` on student panels + homework; Chat first-load pattern retained |
+| E1–E2 | Encoding | **Fixed** | Notices/Chat/Doubts repair via services; Analysis priority label uses `displayTopic/Chapter/Subject` |
+| Q1–Q2 | Quality | **Prior** | Admin directory / AccountLinking honesty already on main (`d7ebdd6`); gates remain green |
+
+**CEO:** Student academic core stays conditionally production-ready. Paste AUTH-C2 APPLY before next public self-signup wave. Parent/principal panels still have some ungated live spinners (High, not blocking student release). Admin ops local CRUD remains non-production.
+
+---
+
 
 | Issue | Status | Evidence |
 |-------|--------|----------|

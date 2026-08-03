@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { parseClassLevel } from "@/lib/curriculumScope";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -27,6 +29,8 @@ type SessionItem = {
 
 export default function Class12MathSession() {
   const { user } = useAuth();
+  const { classLabel, settled, ready } = useAcademicContext();
+  const classLevel = parseClassLevel(classLabel);
   const nav = useNavigate();
   const [params] = useSearchParams();
   const chapter = params.get("chapter") ?? "Matrices";
@@ -177,6 +181,10 @@ export default function Class12MathSession() {
     }
     setIdx(idx + 1);
   };
+
+  if (settled && ready && classLevel != null && classLevel !== 12) {
+    return <Navigate to="/student/practice" replace />;
+  }
 
   if (loading) {
     return <StudentSessionSkeleton label="Loading session…" />;

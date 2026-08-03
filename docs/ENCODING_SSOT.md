@@ -4,6 +4,8 @@
 
 **Hindi Practice CHAPTER chips (mixed C1+CP1252 gap):** paste [`APPLY_HINDI_CHAPTER_MOJIBAKE_REPAIR.sql`](./APPLY_HINDI_CHAPTER_MOJIBAKE_REPAIR.sql) — supersedes the UTF8 APPLY function with a path that normalizes CP1252 glyphs before LATIN1→UTF8 so `व्याकरण` / `आलो आँधारि` mojibake actually repairs. Also aligns Hindi chapters to taxonomy and collapses dash duplicates.
 
+**Auth tenant (AUTH-C2):** paste [APPLY_AUTH_SIGNUP_NO_DEFAULT_SCHOOL.sql](./APPLY_AUTH_SIGNUP_NO_DEFAULT_SCHOOL.sql) so self-signup profiles are not auto-bound to default_school_id().
+
 ## Rules
 
 1. One strategy: reverse UTF-8-as-CP1252/Latin-1 on signature-matched mojibake (`à¤` / `à¥` / `â€` / `Ï€` …).
