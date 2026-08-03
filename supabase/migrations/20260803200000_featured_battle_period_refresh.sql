@@ -215,10 +215,13 @@ BEGIN
   _grade := public._class_grade(_cid);
   SELECT COALESCE(full_name, 'A challenger') INTO _name FROM public.students WHERE user_id = _uid LIMIT 1;
   SELECT id INTO _stu_id FROM public.students WHERE user_id = _uid LIMIT 1;
-  _subj := public._pick_featured_subject(_cid, _grade);
 
   IF _kind IN ('daily', 'weekly', 'ncert', 'teacher') AND _cid IS NULL THEN
     RAISE EXCEPTION 'Join a class to play this featured battle';
+  END IF;
+
+  IF _kind IN ('daily', 'weekly', 'ncert', 'beat_topper') THEN
+    _subj := public._pick_featured_subject(_cid, _grade);
   END IF;
 
   _lock_a := hashtext('featured:' || coalesce(_kind, '') || ':' || coalesce(_cid::text, ''));

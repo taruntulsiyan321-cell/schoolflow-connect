@@ -1,128 +1,87 @@
--- Featured polish (runs after period refresh + seed refresh):
---   * Teacher Challenge → live teacher-hosted custom/manual/bank battles
---   * Beat the Topper → reuse open duel; soft unlock message
---   * ensure-all warms Daily/Weekly/NCERT without forcing join when seed exists
+﻿-- =============================================================================
+-- APPLY_FEATURED_ENSURE_PICK_SUBJECT.sql
+-- Paste into Supabase SQL Editor (UTF-8). Idempotent.
+-- Creates _pick_featured_subject + patches rpc_ensure_featured_battle so Teacher
+-- Join does not require subject pick; Daily/NCERT/Weekly/Beat Topper still do.
+-- Same as migration 20260803250000_ensure_pick_featured_subject.sql
+-- =============================================================================
+-- Ensure stream-aware subject helper exists for featured Daily/Weekly/NCERT/Beat Topper.
+-- Live DBs that applied refresh APPLY without 20260802340000 were missing this function.
+-- Also: teacher ensure must not require subject pick (peek-only path).
 
-CREATE OR REPLACE FUNCTION public._peek_teacher_featured_battle(_class_id uuid)
-RETURNS uuid
+CREATE OR REPLACE FUNCTION public._pick_featured_subject(_class_id uuid, _grade int)
+RETURNS text
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  _bid uuid;
+  _stream text;
+  _subj text;
 BEGIN
-  IF _class_id IS NULL THEN RETURN NULL; END IF;
-  SELECT b.id INTO _bid
-  FROM public.battles b
-  WHERE b.class_id = _class_id
-    AND b.is_public = true
-    AND b.status IN ('live', 'scheduled')
-    AND coalesce(b.source, '') NOT LIKE 'featured_%'
-    AND b.source IN ('manual', 'custom', 'bank')
-    AND EXISTS (
-      SELECT 1 FROM public.user_roles ur
-      WHERE ur.user_id = b.creator_user_id AND ur.role = 'teacher'
-    )
-    AND EXISTS (
-      SELECT 1 FROM public.battle_questions bq WHERE bq.battle_id = b.id LIMIT 1
-    )
-  ORDER BY b.starts_at DESC NULLS LAST, b.created_at DESC
+  SELECT lower(nullif(trim(s.stream), '')) INTO _stream
+  FROM public.classes c
+  JOIN public.schools s ON s.id = c.school_id
+  WHERE c.id = _class_id;
+
+  IF _stream = 'commerce' THEN
+    SELECT q.subject INTO _subj
+    FROM public.question_bank q
+    WHERE q.is_approved
+      AND lower(q.subject) IN ('accountancy', 'business studies', 'economics', 'mathematics', 'english', 'hindi')
+      AND (_grade IS NULL OR q.class_level IS NULL OR q.class_level = _grade)
+    GROUP BY q.subject
+    ORDER BY
+      CASE lower(q.subject)
+        WHEN 'accountancy' THEN 1
+        WHEN 'business studies' THEN 2
+        WHEN 'economics' THEN 3
+        WHEN 'mathematics' THEN 4
+        WHEN 'english' THEN 5
+        ELSE 6
+      END,
+      count(*) DESC
+    LIMIT 1;
+  ELSIF _stream = 'science' THEN
+    SELECT q.subject INTO _subj
+    FROM public.question_bank q
+    WHERE q.is_approved
+      AND lower(q.subject) IN ('physics', 'chemistry', 'biology', 'mathematics', 'english', 'hindi')
+      AND (_grade IS NULL OR q.class_level IS NULL OR q.class_level = _grade)
+    GROUP BY q.subject
+    ORDER BY
+      CASE lower(q.subject)
+        WHEN 'physics' THEN 1
+        WHEN 'chemistry' THEN 2
+        WHEN 'mathematics' THEN 3
+        WHEN 'biology' THEN 4
+        ELSE 5
+      END,
+      count(*) DESC
+    LIMIT 1;
+  END IF;
+
+  IF _subj IS NOT NULL THEN
+    RETURN _subj;
+  END IF;
+
+  SELECT q.subject INTO _subj
+  FROM public.question_bank q
+  WHERE q.is_approved
+    AND (_grade IS NULL OR q.class_level IS NULL OR q.class_level = _grade)
+  GROUP BY q.subject
+  ORDER BY count(*) DESC
   LIMIT 1;
-  RETURN _bid;
+
+  RETURN COALESCE(_subj, 'Mathematics');
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public._peek_teacher_featured_battle(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public._pick_featured_subject(uuid, int) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public._pick_featured_subject(uuid, int) TO authenticated;
 
--- Allow class warm path to call seed helper
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM pg_proc p
-    JOIN pg_namespace n ON n.oid = p.pronamespace
-    WHERE n.nspname = 'public' AND p.proname = '_seed_featured_battle_for_class'
-  ) THEN
-    GRANT EXECUTE ON FUNCTION public._seed_featured_battle_for_class(uuid, text) TO authenticated;
-  END IF;
-END $$;
-
-CREATE OR REPLACE FUNCTION public.rpc_ensure_featured_battles_all()
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  _uid uuid := auth.uid();
-  _cid uuid;
-  _daily uuid;
-  _weekly uuid;
-  _ncert uuid;
-  _teacher uuid;
-BEGIN
-  IF _uid IS NULL THEN RAISE EXCEPTION 'auth required'; END IF;
-
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rpc_rotate_featured_battles') THEN
-    PERFORM public.rpc_rotate_featured_battles();
-  ELSIF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rpc_refresh_featured_battles') THEN
-    PERFORM public.rpc_refresh_featured_battles();
-  END IF;
-
-  _cid := public.student_class_id(_uid);
-
-  IF _cid IS NOT NULL AND EXISTS (
-    SELECT 1 FROM pg_proc WHERE proname = '_seed_featured_battle_for_class'
-  ) THEN
-    BEGIN
-      _daily := public._seed_featured_battle_for_class(_cid, 'daily');
-    EXCEPTION WHEN OTHERS THEN
-      _daily := NULL;
-    END;
-    BEGIN
-      _weekly := public._seed_featured_battle_for_class(_cid, 'weekly');
-    EXCEPTION WHEN OTHERS THEN
-      _weekly := NULL;
-    END;
-    BEGIN
-      _ncert := public._seed_featured_battle_for_class(_cid, 'ncert');
-    EXCEPTION WHEN OTHERS THEN
-      _ncert := NULL;
-    END;
-  ELSE
-    -- Fallback: ensure (joins caller) so cards still populate
-    BEGIN
-      _daily := public.rpc_ensure_featured_battle('daily');
-    EXCEPTION WHEN OTHERS THEN
-      _daily := NULL;
-    END;
-    BEGIN
-      _weekly := public.rpc_ensure_featured_battle('weekly');
-    EXCEPTION WHEN OTHERS THEN
-      _weekly := NULL;
-    END;
-    BEGIN
-      _ncert := public.rpc_ensure_featured_battle('ncert');
-    EXCEPTION WHEN OTHERS THEN
-      _ncert := NULL;
-    END;
-  END IF;
-
-  _teacher := public._peek_teacher_featured_battle(_cid);
-
-  RETURN jsonb_build_object(
-    'daily', _daily,
-    'weekly', _weekly,
-    'ncert', _ncert,
-    'teacher', _teacher
-  );
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.rpc_ensure_featured_battles_all() TO authenticated;
-
--- Patch ensure: teacher sources + graceful beat_topper (reuse open duel)
+-- Teacher Join peeks live teacher battles; do not call pick until needed.
 CREATE OR REPLACE FUNCTION public.rpc_ensure_featured_battle(_kind text)
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -137,7 +96,9 @@ BEGIN
   IF _uid IS NULL THEN RAISE EXCEPTION 'auth required'; END IF;
 
   IF _kind IN ('daily', 'weekly', 'ncert') THEN
-    PERFORM public.rpc_rotate_featured_battles();
+    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rpc_rotate_featured_battles') THEN
+      PERFORM public.rpc_rotate_featured_battles();
+    END IF;
   END IF;
 
   _cid := public.student_class_id(_uid);
@@ -324,7 +285,9 @@ BEGIN
     END IF;
 
   ELSIF _kind = 'teacher' THEN
-    _existing := public._peek_teacher_featured_battle(_cid);
+    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = '_peek_teacher_featured_battle') THEN
+      _existing := public._peek_teacher_featured_battle(_cid);
+    END IF;
     IF _existing IS NULL THEN
       RAISE EXCEPTION 'No teacher-hosted challenge is live right now — check back soon.';
     END IF;
@@ -342,6 +305,8 @@ BEGIN
   END IF;
 
   RETURN _bid;
-END; $$;
+END;
+$$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_ensure_featured_battle(text) TO authenticated;
+
