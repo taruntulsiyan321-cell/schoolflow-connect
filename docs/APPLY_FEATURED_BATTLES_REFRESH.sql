@@ -1230,63 +1230,86 @@ DECLARE
   _teacher uuid;
 BEGIN
   IF _uid IS NULL THEN RAISE EXCEPTION 'auth required'; END IF;
-
-  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rpc_rotate_featured_battles') THEN
-    PERFORM public.rpc_rotate_featured_battles();
-  ELSIF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rpc_refresh_featured_battles') THEN
-    PERFORM public.rpc_refresh_featured_battles();
-  END IF;
-
   _cid := public.student_class_id(_uid);
+  IF _cid IS NULL THEN
+    RETURN jsonb_build_object(
+      'daily', null, 'weekly', null, 'ncert', null, 'teacher', null,
+      'ok', false, 'reason', 'no_class'
+    );
+  END IF;
 
-  IF _cid IS NOT NULL AND EXISTS (
-    SELECT 1 FROM pg_proc WHERE proname = '_seed_featured_battle_for_class'
-  ) THEN
+  BEGIN
+    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rpc_refresh_featured_battles') THEN
+      PERFORM public.rpc_refresh_featured_battles();
+    ELSIF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rpc_rotate_featured_battles') THEN
+      PERFORM public.rpc_rotate_featured_battles();
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = '_seed_featured_battle_for_class') THEN
     BEGIN
-      _daily := public._seed_featured_battle_for_class(_cid, 'daily');
+      PERFORM public._seed_featured_battle_for_class(_cid, 'daily');
     EXCEPTION WHEN OTHERS THEN
-      _daily := NULL;
+      NULL;
     END;
     BEGIN
-      _weekly := public._seed_featured_battle_for_class(_cid, 'weekly');
+      PERFORM public._seed_featured_battle_for_class(_cid, 'weekly');
     EXCEPTION WHEN OTHERS THEN
-      _weekly := NULL;
+      NULL;
     END;
     BEGIN
-      _ncert := public._seed_featured_battle_for_class(_cid, 'ncert');
+      PERFORM public._seed_featured_battle_for_class(_cid, 'ncert');
     EXCEPTION WHEN OTHERS THEN
-      _ncert := NULL;
-    END;
-  ELSE
-    -- Fallback: ensure (joins caller) so cards still populate
-    BEGIN
-      _daily := public.rpc_ensure_featured_battle('daily');
-    EXCEPTION WHEN OTHERS THEN
-      _daily := NULL;
-    END;
-    BEGIN
-      _weekly := public.rpc_ensure_featured_battle('weekly');
-    EXCEPTION WHEN OTHERS THEN
-      _weekly := NULL;
-    END;
-    BEGIN
-      _ncert := public.rpc_ensure_featured_battle('ncert');
-    EXCEPTION WHEN OTHERS THEN
-      _ncert := NULL;
+      NULL;
     END;
   END IF;
 
-  _teacher := public._peek_teacher_featured_battle(_cid);
+  SELECT id INTO _daily FROM public.battles
+  WHERE source = 'featured_daily' AND class_id = _cid
+    AND starts_at::date = current_date AND status IN ('live', 'scheduled')
+  ORDER BY created_at LIMIT 1;
+
+  SELECT id INTO _weekly FROM public.battles
+  WHERE source = 'featured_weekly' AND class_id = _cid
+    AND date_trunc('week', starts_at) = date_trunc('week', now())
+    AND status IN ('live', 'scheduled')
+  ORDER BY created_at LIMIT 1;
+
+  SELECT id INTO _ncert FROM public.battles
+  WHERE source = 'featured_ncert' AND class_id = _cid
+    AND starts_at::date = current_date AND status IN ('live', 'scheduled')
+  ORDER BY created_at LIMIT 1;
+
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = '_peek_teacher_featured_battle') THEN
+    _teacher := public._peek_teacher_featured_battle(_cid);
+  ELSE
+    SELECT b.id INTO _teacher
+    FROM public.battles b
+    WHERE b.class_id = _cid
+      AND b.is_public = true
+      AND b.status IN ('live', 'scheduled')
+      AND coalesce(b.source, 'manual') IN ('manual', 'custom', 'bank')
+      AND EXISTS (
+        SELECT 1 FROM public.user_roles ur
+        WHERE ur.user_id = b.creator_user_id AND ur.role = 'teacher'
+      )
+    ORDER BY b.starts_at DESC
+    LIMIT 1;
+  END IF;
 
   RETURN jsonb_build_object(
     'daily', _daily,
     'weekly', _weekly,
     'ncert', _ncert,
-    'teacher', _teacher
+    'teacher', _teacher,
+    'ok', true
   );
 END;
 $$;
 
+REVOKE ALL ON FUNCTION public.rpc_ensure_featured_battles_all() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.rpc_ensure_featured_battles_all() TO authenticated;
 
 -- Patch ensure: teacher sources + graceful beat_topper (reuse open duel)

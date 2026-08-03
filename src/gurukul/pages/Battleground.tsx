@@ -93,6 +93,7 @@ function cardStatus(c: DesignBattleCard): BattleStatus {
   if (c.status === "live") return "active";
   if (c.result === "won") return "won";
   if (c.result === "lost") return "lost";
+  // Draw / solo finished / unknown → Completed tab (not Active)
   return "completed";
 }
 
@@ -2277,7 +2278,11 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   const me: MeInfo = useMemo(() => {
     // Shared chrome SSOT: shell profile (ProgressionService) when ready —
     // same XP / study streak / league label as Home + Profile.
-    const xp = shellReady ? profile.xp : data.stats.xp;
+    // If shell is ready but still at empty zeros while battleground snap has XP, prefer snap.
+    const xp =
+      shellReady && (profile.xp > 0 || !(data.stats.xp > 0))
+        ? profile.xp
+        : data.stats.xp;
     const wins = data.stats.wins;
     const total = data.stats.totalBattles;
     const league =
@@ -2302,10 +2307,14 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       })();
     const xpNext = next ? next.nextMin : xp;
     const levelProgressPct = shellReady
-      ? profile.levelProgressPct
+      ? profile.levelProgressPct || data.stats.levelProgressPct || 0
       : data.stats.levelProgressPct || 0;
-    const xpIntoLevel = shellReady ? profile.xpIntoLevel : data.stats.xpIntoLevel || 0;
-    const xpToNextLevel = shellReady ? profile.xpToNext : data.stats.xpToNextLevel || 100;
+    const xpIntoLevel = shellReady
+      ? profile.xpIntoLevel || data.stats.xpIntoLevel || 0
+      : data.stats.xpIntoLevel || 0;
+    const xpToNextLevel = shellReady
+      ? profile.xpToNext || data.stats.xpToNextLevel || 100
+      : data.stats.xpToNextLevel || 100;
     return {
       name: displayName,
       initials: ini,
@@ -2365,10 +2374,8 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
     () =>
       data.battles.filter(
         (b) =>
-          !!b.participantId ||
-          b.status === "pending" ||
-          !!b.inviteId ||
-          (b.type === "1v1" && !!b.opponent),
+          // Real participation or inbound invite only — never open/featured lobby cards.
+          !!b.participantId || b.status === "pending" || !!b.inviteId,
       ),
     [data.battles],
   );

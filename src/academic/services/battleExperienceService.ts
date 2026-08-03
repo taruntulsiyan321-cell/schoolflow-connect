@@ -679,6 +679,11 @@ export const BattleExperienceService = {
     const { data, error } = await client.rpc("rpc_ensure_featured_battle", { _kind: kind });
     if (error) {
       const msg = error.message || "Featured battle unavailable";
+      if (/_pick_featured_subject|function .* does not exist/i.test(msg)) {
+        throw new Error(
+          "Featured battles need a database update — ask your admin to apply APPLY_FEATURED_PICK_SUBJECT.sql.",
+        );
+      }
       if (isEmptyQuestionBankError(msg)) {
         throw new Error(NO_BANK_MSG + " — featured challenges need questions in the bank first.");
       }
@@ -770,7 +775,8 @@ export const BattleExperienceService = {
       };
     }
 
-    // Fallbacks when ensure-all not applied yet
+    // Fallbacks when ensure-all not applied — NEVER call ensureFeatured here:
+    // that RPC auto-joins and pollutes My Battles Active on every home load.
     await client.rpc("rpc_refresh_featured_battles" as never).then(
       () => undefined,
       () => undefined,
@@ -780,15 +786,46 @@ export const BattleExperienceService = {
       () => undefined,
     );
 
-    const kinds = ["daily", "weekly", "ncert"] as const;
-    const settled = await Promise.allSettled(kinds.map((k) => this.ensureFeatured(ctx, k)));
     const out = { ...empty };
-    kinds.forEach((k, i) => {
-      const r = settled[i];
-      if (r.status === "fulfilled") out[k] = r.value;
-    });
-
     if (ctx.classId) {
+      const { data: seeded } = await client
+        .from("battles")
+        .select("id, source, starts_at")
+        .eq("class_id", ctx.classId)
+        .like("source", "featured_%")
+        .in("status", ["live", "scheduled"])
+        .order("starts_at", { ascending: false })
+        .limit(20);
+      const now = new Date();
+      const weekKey = (d: Date) => {
+        const day = (d.getDay() + 6) % 7;
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate() - day).getTime();
+      };
+      for (const b of seeded || []) {
+        const src = (b.source || "").toLowerCase();
+        const start = b.starts_at ? new Date(b.starts_at) : null;
+        if (!start || Number.isNaN(start.getTime())) continue;
+        if (src === "featured_daily" && !out.daily) {
+          if (
+            start.getFullYear() === now.getFullYear() &&
+            start.getMonth() === now.getMonth() &&
+            start.getDate() === now.getDate()
+          ) {
+            out.daily = b.id;
+          }
+        } else if (src === "featured_weekly" && !out.weekly) {
+          if (weekKey(start) === weekKey(now)) out.weekly = b.id;
+        } else if (src === "featured_ncert" && !out.ncert) {
+          if (
+            start.getFullYear() === now.getFullYear() &&
+            start.getMonth() === now.getMonth() &&
+            start.getDate() === now.getDate()
+          ) {
+            out.ncert = b.id;
+          }
+        }
+      }
+
       const { data: teacherBattles } = await client
         .from("battles")
         .select("id, creator_user_id")
@@ -826,6 +863,48 @@ export const BattleExperienceService = {
       .maybeSingle();
     throwIfError(error, "Failed to load battle");
     return data;
+  },
+
+  /** Teacher host list — battles created by the signed-in user (optional class filter). */
+  async listCreatedByTeacher(
+    ctx: ServiceContext,
+    opts?: { classIds?: string[]; limit?: number },
+  ): Promise<Record<string, unknown>[]> {
+    assertCanConsume(ctx, "battle");
+    let q = getClient(toRepoContext(ctx))
+      .from("battles")
+      .select("*")
+      .eq("creator_user_id", ctx.userId)
+      .order("created_at", { ascending: false })
+      .limit(Math.min(50, Math.max(1, opts?.limit ?? 12)));
+    if (opts?.classIds?.length) {
+      q = q.in("class_id", opts.classIds);
+    }
+    const { data, error } = await q;
+    throwIfError(error, "Failed to load teacher battles");
+    return (data ?? []) as Record<string, unknown>[];
+  },
+
+  /** Live monitor payload for a hosted battle (RPC). */
+  async getMonitor(ctx: ServiceContext, battleId: string): Promise<unknown> {
+    assertCanConsume(ctx, "battle");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_battle_monitor" as never,
+      { _battle_id: battleId } as never,
+    );
+    throwIfError(error, "Failed to load battle monitor");
+    return data;
+  },
+
+  /** Per-participant teacher reports for a hosted battle (RPC). */
+  async listTeacherReports(ctx: ServiceContext, battleId: string): Promise<unknown[]> {
+    assertCanConsume(ctx, "battle");
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_teacher_battle_reports" as never,
+      { _battle_id: battleId } as never,
+    );
+    throwIfError(error, "Failed to load battle reports");
+    return (data ?? []) as unknown[];
   },
 
   /**

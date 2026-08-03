@@ -1,11 +1,6 @@
-﻿-- =============================================================================
--- APPLY_FEATURED_ENSURE_ALL.sql
--- Hotfix: featured warm must NEVER auto-join (pollutes My Battles Active).
--- Paste into Supabase SQL Editor (UTF-8). Idempotent.
--- Prerequisite: _pick_featured_subject + _seed_featured_battle_for_class /
---   rpc_refresh_featured_battles (see APPLY_FEATURED_PICK_SUBJECT.sql and
---   APPLY_FEATURED_BATTLES_REFRESH.sql).
--- =============================================================================
+-- Restore class-scoped featured warm WITHOUT auto-join.
+-- 20260803240000 reintroduced a fallback that called rpc_ensure_featured_battle,
+-- which inserts the caller into battle_participants and pollutes My Battles Active.
 
 CREATE OR REPLACE FUNCTION public.rpc_ensure_featured_battles_all()
 RETURNS jsonb
@@ -30,6 +25,7 @@ BEGIN
     );
   END IF;
 
+  -- Expire + seed current windows (idempotent). Prefer refresh; else class seed.
   BEGIN
     IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'rpc_refresh_featured_battles') THEN
       PERFORM public.rpc_refresh_featured_battles();
