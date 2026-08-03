@@ -1,8 +1,9 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- APPLY_DOUBT_PORTAL.sql
 -- Paste into Supabase SQL Editor as UTF-8. Idempotent.
 -- Evolves community_doubts: first-answer atomic solve, subject_id, multi-attachments,
 -- teacher RLS via teacher_classes (class+subject), student class-only visibility.
+-- Canonical mirror of supabase/migrations/20260803180000_doubt_portal_evolve.sql
 -- =============================================================================
 -- =============================================================================
 -- Doubt Portal - evolve community_doubts (class feed, first-answer solve)
@@ -772,4 +773,3 @@ GRANT EXECUTE ON FUNCTION public.rpc_teacher_doubt_dashboard() TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_create_community_doubt(text, text, text, text, text, text, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_add_community_answer(uuid, text, text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_teacher_doubt_dashboard() TO authenticated;
-
