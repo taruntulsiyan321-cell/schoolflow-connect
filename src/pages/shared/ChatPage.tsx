@@ -314,6 +314,21 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     }
   };
 
+  const onCreateTeacherGroup = async () => {
+    if (!ctx || !canCreateGroup) return;
+    setCreatingGroup(true);
+    try {
+      const group = await MessageService.createTeacherGroup(ctx);
+      await reloadContacts();
+      setSelectedContact(group);
+      toast.success("Teacher Group ready");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not create Teacher Group");
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
   const onCreateClassGroup = async () => {
     if (!ctx || !canCreateGroup) return;
     setCreatingGroup(true);
@@ -346,7 +361,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary/70">Messages</p>
           <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold text-foreground mt-1 tracking-tight">
-            {userRole === "teacher" ? "Class Messages" : "Chat"}
+            {userRole === "teacher" ? "Class Messages" : userRole === "principal" ? "School Messages" : "Chat"}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {userRole === "teacher"
@@ -355,16 +370,30 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
           </p>
         </div>
         {canCreateGroup && (
-          <Button
-            type="button"
-            variant="outline"
-            className="rounded-xl h-10 gap-2"
-            disabled={creatingGroup}
-            onClick={() => void onCreateClassGroup()}
-          >
-            <Users className="w-4 h-4" />
-            {creatingGroup ? "Creating…" : "Create Class Group"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="rounded-xl h-10 gap-2"
+              disabled={creatingGroup}
+              onClick={() => void onCreateClassGroup()}
+            >
+              <Users className="w-4 h-4" />
+              {creatingGroup ? "Creating…" : "Class Group"}
+            </Button>
+            {(userRole === "teacher" || userRole === "principal" || userRole === "admin") && (
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl h-10 gap-2"
+                disabled={creatingGroup}
+                onClick={() => void onCreateTeacherGroup()}
+              >
+                <Users className="w-4 h-4" />
+                Teacher Group
+              </Button>
+            )}
+          </div>
         )}
       </div>
 

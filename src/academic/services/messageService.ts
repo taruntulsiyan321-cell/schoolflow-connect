@@ -312,7 +312,7 @@ export const MessageService = {
 
     let data: DbMessage[] | null = null;
     if (convId) {
-      const res = await client
+      const res = await (client as any)
         .from("messages")
         .select("*")
         .eq("conversation_id", convId)
@@ -427,6 +427,7 @@ export const MessageService = {
     } as never);
     // Never fall back to raw INSERT ΓÇö that bypassed DM / class / school checks.
     throwIfError(rpcErr, "Failed to send message");
+    if (!rpcData) throw new Error("Failed to send message");
     const m = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as DbMessage;
     if (!m?.id) throw new Error("Failed to send message");
 
@@ -497,6 +498,7 @@ export const MessageService = {
       _class_id: classId,
     } as never);
     throwIfError(error, "Failed to create class group");
+    if (!data) throw new Error("Failed to create class group");
     const row = (Array.isArray(data) ? data[0] : data) as {
       id: string;
       title: string;
@@ -520,6 +522,7 @@ export const MessageService = {
     const client = getClient(toRepoContext(ctx));
     const { data, error } = await client.rpc("rpc_ensure_teacher_group" as never);
     throwIfError(error, "Failed to create teacher group");
+    if (!data) throw new Error("Failed to create teacher group");
     const row = (Array.isArray(data) ? data[0] : data) as {
       id: string;
       title: string;
