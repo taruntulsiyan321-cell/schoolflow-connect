@@ -58,6 +58,10 @@ $$;
 COMMENT ON FUNCTION public._fix_utf8_content(text) IS
   'Root encoding repair for QB / attempt text. Preserves math Unicode (π θ √ …).';
 
+-- Live DBs may predate updated_at on question_bank (types/schema historically omit it).
+ALTER TABLE public.question_bank
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT now();
+
 -- Best-effort repair on question_bank (idempotent; only rows that still look mojibaked)
 UPDATE public.question_bank
 SET
