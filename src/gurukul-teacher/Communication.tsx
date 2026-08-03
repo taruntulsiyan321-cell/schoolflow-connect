@@ -353,6 +353,8 @@ export default function Communication() {
   const [showNewDm, setShowNewDm] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
   const [newForm, setNewForm] = useState({ contactId: "", message: "" });
+  /** True after first contacts fetch — liveTick must not flip back to full-page loading. */
+  const contactsLoadedRef = useRef(false);
 
   const selected = useMemo(
     () => contacts.find((c) => (c.conversationId || c.userId) === selectedKey) ?? null,
@@ -378,8 +380,9 @@ export default function Communication() {
   useEffect(() => {
     if (!ready || !ctx) return;
     let cancelled = false;
+    const isFirstLoad = !contactsLoadedRef.current;
     (async () => {
-      setLoading(true);
+      if (isFirstLoad) setLoading(true);
       try {
         const list = await reloadContacts();
         if (cancelled) return;
@@ -390,7 +393,10 @@ export default function Communication() {
           toast.error(e instanceof Error ? e.message : "Could not load messages");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          contactsLoadedRef.current = true;
+          setLoading(false);
+        }
       }
     })();
     return () => {
@@ -570,7 +576,7 @@ export default function Communication() {
     }
   }
 
-  if (loading) {
+  if (loading && !contactsLoadedRef.current) {
     return (
       <div className="flex items-center justify-center py-16 text-[#78788c] text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading messages…

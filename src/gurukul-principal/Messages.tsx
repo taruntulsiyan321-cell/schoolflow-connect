@@ -71,6 +71,8 @@ export default function PrincipalMessages() {
   const [newForm, setNewForm] = useState({ contactId: "", message: "" });
   const fileRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  /** True after first contacts fetch — liveTick must not flip back to full-page loading. */
+  const contactsLoadedRef = useRef(false);
 
   const selected = useMemo(
     () => contacts.find((c) => (c.conversationId || c.userId) === selectedKey) ?? null,
@@ -94,8 +96,9 @@ export default function PrincipalMessages() {
   useEffect(() => {
     if (!ready || !ctx) return;
     let cancelled = false;
+    const isFirstLoad = !contactsLoadedRef.current;
     (async () => {
-      setLoading(true);
+      if (isFirstLoad) setLoading(true);
       try {
         const [{ data: classRows }, list] = await Promise.all([
           supabase
@@ -116,7 +119,10 @@ export default function PrincipalMessages() {
           toast.error(e instanceof Error ? e.message : "Could not load messages");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          contactsLoadedRef.current = true;
+          setLoading(false);
+        }
       }
     })();
     return () => {
@@ -300,7 +306,7 @@ export default function PrincipalMessages() {
     }
   }
 
-  if (loading) {
+  if (loading && !contactsLoadedRef.current) {
     return (
       <div style={{ minHeight: 420, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--text-muted)", fontSize: 13 }}>
         <Loader2 size={16} className="animate-spin" /> Loading messages…
