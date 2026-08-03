@@ -127,13 +127,8 @@ export default function Timetable() {
   );
 
   function getCurrentPeriod() {
-    return periods.findIndex((p) => {
-      if (!p.time.startsWith("Period ")) return false;
-      const n = parseInt(p.time.replace("Period ", ""), 10);
-      const hour = new Date().getHours();
-      const approxStart = 7 + n;
-      return hour === approxStart;
-    });
+    // Period rows are labeled "Period N" without wall-clock times — do not invent a NOW slot.
+    return -1;
   }
   const currentPeriodIdx = getCurrentPeriod();
 

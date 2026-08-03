@@ -10,9 +10,9 @@ import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   RotateCcw, Brain, CheckCircle2, XCircle, AlertCircle,
-  ChevronRight, ChevronDown, Flame, History, Bookmark,
+  ChevronRight, Flame, History, Bookmark,
   Play, Layers, RefreshCw, Calendar,
-  TrendingUp, Zap, FileText, BookOpen,
+  Zap, FileText, BookOpen,
 } from "lucide-react";
 
 type RevView = "overview" | "session" | "results";
@@ -217,8 +217,6 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   const [score, setScore] = useState(0);
   const [filter, setFilter] = useState<"all"|"due"|"upcoming">("all");
   const [subjectTab, setSubjectTab] = useState("all");
-  const [showHistory, setShowHistory] = useState(false);
-  const [showNotes, setShowNotes] = useState(false);
   const [completingId, setCompletingId] = useState<string | null>(null);
 
   const REVISION_ITEMS = useMemo(
@@ -286,7 +284,6 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     );
   }
 
-  if (view === "flashcards") return <FlashcardView cards={FLASHCARDS} onDone={() => setView("overview")}/>;
   if (view === "session" && activeItem) {
     return (
       <RevisionSession
@@ -353,55 +350,40 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
 
       {/* Quick actions */}
       <div className="grid sm:grid-cols-3 gap-3">
-        <button onClick={() => setView("flashcards")}
-          className="p-4 rounded-2xl border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10 transition-all text-left group">
-          <Layers className="w-5 h-5 text-cyan-400 mb-2 group-hover:scale-110 transition-transform"/>
+        <div
+          className="p-4 rounded-2xl border border-white/7 bg-white/[0.02] text-left opacity-60"
+          title="Flashcards are not available yet"
+        >
+          <Layers className="w-5 h-5 text-[#78788c] mb-2"/>
           <div className="text-sm font-bold text-white">Flashcards</div>
-          <div className="text-xs text-[#78788c] mt-0.5">{FLASHCARDS.length} cards ready</div>
-        </button>
-        <button onClick={() => {
+          <div className="text-xs text-[#78788c] mt-0.5">Not available yet</div>
+        </div>
+        <button
+          type="button"
+          disabled={dueNow === 0}
+          onClick={() => {
           const due = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today")[0];
           if (due) openPractice(due);
+          else toast.message("No items due — open any queue card to practice.");
         }}
-          className="p-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 transition-all text-left group">
+          className="p-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 transition-all text-left group disabled:opacity-50 disabled:pointer-events-none">
           <Zap className="w-5 h-5 text-violet-400 mb-2 group-hover:scale-110 transition-transform"/>
           <div className="text-sm font-bold text-white">Quick Revision</div>
           <div className="text-xs text-[#78788c] mt-0.5">
-            {dueNow > 0 ? `Practice ${dueNow} due item${dueNow === 1 ? "" : "s"}` : "No items due"}
+            {dueNow > 0
+              ? `Opens first of ${dueNow} due item${dueNow === 1 ? "" : "s"} in Practice`
+              : "No items due"}
           </div>
         </button>
-        <button onClick={() => setShowNotes(n => !n)}
-          className="p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 transition-all text-left group">
-          <FileText className="w-5 h-5 text-amber-400 mb-2 group-hover:scale-110 transition-transform"/>
+        <div
+          className="p-4 rounded-2xl border border-white/7 bg-white/[0.02] text-left opacity-60"
+          title="Revision notes are not available yet"
+        >
+          <FileText className="w-5 h-5 text-[#78788c] mb-2"/>
           <div className="text-sm font-bold text-white">My Notes</div>
-          <div className="text-xs text-[#78788c] mt-0.5">{NOTES.length} subject summaries</div>
-        </button>
+          <div className="text-xs text-[#78788c] mt-0.5">Not available yet</div>
+        </div>
       </div>
-
-      {/* Notes panel */}
-      {showNotes && (
-        <GlassCard className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-4 rounded-full bg-amber-400"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Revision Notes</span>
-          </div>
-          <div className="space-y-3">
-            {NOTES.length === 0 ? (
-              <p className="text-xs text-[#78788c]">No revision notes yet.</p>
-            ) : (
-              NOTES.map((n, i) => (
-              <div key={i} className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/15">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-bold text-white">{n.title}</span>
-                  <span className="text-[10px] text-[#78788c]">Updated {n.updated}</span>
-                </div>
-                <p className="text-xs text-[#78788c] leading-relaxed">{n.content}</p>
-              </div>
-              ))
-            )}
-          </div>
-        </GlassCard>
-      )}
 
       {/* AI Schedule */}
       <GlassCard className="p-5">
@@ -497,38 +479,13 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
 
       {/* History */}
       <div>
-        <button onClick={() => setShowHistory(h => !h)}
-          className="flex items-center gap-2 text-xs text-[#78788c] hover:text-white transition-colors mb-3 group">
-          <History className="w-3.5 h-3.5 group-hover:text-white"/>
-          Revision History {showHistory ? <ChevronDown className="w-3.5 h-3.5"/> : <ChevronRight className="w-3.5 h-3.5"/>}
-        </button>
-        {showHistory && (
-          <div className="space-y-2">
-            {HISTORY.length === 0 ? (
-              <GlassCard className="p-6 text-center">
-                <p className="text-xs text-[#78788c]">No revision history yet.</p>
-              </GlassCard>
-            ) : (
-              HISTORY.map(h => (
-              <GlassCard key={h.id} className="p-4 flex items-center gap-4">
-                <div className="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-4 h-4 text-violet-400"/>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white">{displayConcept(h.concept)}</div>
-                  <div className="text-[11px] text-[#78788c]">{h.subject} · {h.date} · {h.duration}</div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-lg font-black tabular-nums text-violet-400">{h.score}%</span>
-                  <button className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#78788c] hover:text-white transition-all">
-                    <RotateCcw className="w-3.5 h-3.5"/>
-                  </button>
-                </div>
-              </GlassCard>
-              ))
-            )}
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-xs text-[#78788c] mb-3">
+          <History className="w-3.5 h-3.5"/>
+          Revision History
+        </div>
+        <GlassCard className="p-6 text-center">
+          <p className="text-xs text-[#78788c]">Revision history is not stored yet — completed items leave the queue above.</p>
+        </GlassCard>
       </div>
     </div>
   );

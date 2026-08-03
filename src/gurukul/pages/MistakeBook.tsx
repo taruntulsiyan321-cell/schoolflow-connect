@@ -705,8 +705,15 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           <h1 className="text-3xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>Mistake Book</h1>
           <p className="text-[#78788c] text-sm mt-1">Every mistake you've made — automatically collected and explained.</p>
         </div>
-        <button onClick={() => { setPracticeIds(mistakes.filter(m => !m.resolved).map(m => m.id)); setView("practice"); }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-bold hover:bg-rose-500/30 transition-all">
+        <button
+          type="button"
+          disabled={unresolved === 0}
+          onClick={() => {
+            if (unresolved === 0) return;
+            setPracticeIds(mistakes.filter(m => !m.resolved).map(m => m.id));
+            setView("practice");
+          }}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-sm font-bold hover:bg-rose-500/30 transition-all disabled:opacity-40 disabled:pointer-events-none">
           <Play className="w-3.5 h-3.5"/> Practice All
         </button>
       </div>

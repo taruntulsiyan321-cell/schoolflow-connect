@@ -102,9 +102,9 @@ export default function Analysis() {
   const { ctx, ready: academicReady, studentId, classId } = useAcademicContext();
   const liveVersion = useAcademicLive(["marks", "examination", "profile"]);
   const { data: analysis, loading: analysisLoading, error: analysisError } = useAnalysisPageData(academicReady);
-  const { data: charts, loading: chartsLoading } = useStudentPerformanceCharts(academicReady);
-  const { data: snapshot, loading: snapshotLoading } = useStudentAcademicSnapshot(academicReady);
-  const { items: mastery, loading: masteryLoading } = useConceptMastery(academicReady);
+  const { data: charts, loading: chartsLoading, error: chartsError } = useStudentPerformanceCharts(academicReady);
+  const { data: snapshot, loading: snapshotLoading, error: snapshotError } = useStudentAcademicSnapshot(academicReady);
+  const { items: mastery, loading: masteryLoading, error: masteryError } = useConceptMastery(academicReady);
   const [marks, setMarks] = useState<MarksRecord[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
 
@@ -135,6 +135,13 @@ export default function Analysis() {
   }, [academicReady, ctx, studentId, classId, liveVersion]);
 
   const loading = analysisLoading || chartsLoading || snapshotLoading || masteryLoading;
+  const loadError = analysisError || chartsError || snapshotError || masteryError;
+
+  useEffect(() => {
+    if (loadError) {
+      toast.error(loadError);
+    }
+  }, [loadError]);
 
   const testResults = useMemo(() => {
     const examById = new Map(exams.map((e) => [e.id, e]));
@@ -171,6 +178,10 @@ export default function Analysis() {
     const studyMinutes = heatmap.reduce((s, d) => s + (d.minutes ?? 0), 0);
     // Accuracy + study streak: same shell SSOT as Home (Progression + snapshot) — not mastery recompute.
     const accuracy = Math.round(student.accuracy);
+    const examAvg =
+      testResults.length > 0
+        ? Math.round(testResults.reduce((s, t) => s + t.score, 0) / testResults.length)
+        : null;
     return {
       accuracy,
       totalQuestions,
@@ -178,14 +189,15 @@ export default function Analysis() {
       incorrect,
       practiceCompleted: snapshot?.self_practice?.sessions_completed ?? analysis?.recent_sessions.length ?? 0,
       testsCompleted: testResults.length,
-      avgScore: accuracy,
+      avgScore: examAvg ?? accuracy,
+      avgScoreIsExam: examAvg != null,
       studyHours: Math.round(studyMinutes / 60),
       streak: student.streak,
       rank: analysis?.class_rank ?? student.rank ?? 0,
       totalStudents: analysis?.class_size ?? student.totalStudents ?? 0,
       examReadiness: snapshot?.exam_readiness?.score ?? 0,
     };
-  }, [analysis, snapshot, testResults.length, student.accuracy, student.streak, student.rank, student.totalStudents]);
+  }, [analysis, snapshot, testResults, student.accuracy, student.streak, student.rank, student.totalStudents]);
 
   const scoreTrend = useMemo(() => {
     const trend = charts?.practice_trend ?? [];
@@ -468,7 +480,7 @@ export default function Analysis() {
     if (weakTopic) {
       items.push({
         label: "Suggested priority today",
-        value: weakTopic.topic || weakTopic.chapter || weakTopic.subject,
+        value: displayTopic(weakTopic.topic) || displayChapter(weakTopic.chapter) || displaySubject(weakTopic.subject),
         sub: `${Math.round(weakTopic.accuracy)}% accuracy · needs review`,
         color: "#4b9fd4",
         icon: <ChevronRight className="w-4 h-4" />,
@@ -582,8 +594,21 @@ export default function Analysis() {
     );
   }
 
+  if (!academicReady) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <p className="text-sm text-[#78788c]">No student profile linked to this account.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-[#c08a3a]/30 bg-[#c08a3a]/10 px-4 py-2 text-xs text-[#c08a3a]">
+          Some analysis data failed to load: {loadError}. Showing available stats as zeros where missing.
+        </div>
+      )}
       {/* ── 3 Questions bar ─────────────── */}
       <div className="grid sm:grid-cols-3 gap-3">
         {questionCards.map((item) => (
@@ -629,7 +654,7 @@ export default function Analysis() {
               { label: "Questions solved",   value: overview.totalQuestions.toLocaleString(), color: "#e8eaf0" },
               { label: "Correct answers",    value: overview.correct.toLocaleString(),        color: "#4b9fd4" },
               { label: "Incorrect answers",  value: overview.incorrect.toLocaleString(),      color: "#cc5069" },
-              { label: "Average score",      value: `${overview.avgScore}%`,                  color: "#c08a3a" },
+              { label: overview.avgScoreIsExam ? "Average score" : "Accuracy", value: `${overview.avgScore}%`, color: "#c08a3a" },
               { label: "Practice sessions",  value: overview.practiceCompleted,               color: "#e8eaf0" },
               { label: "Tests completed",    value: overview.testsCompleted,                  color: "#e8eaf0" },
               { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "#6882e8" },

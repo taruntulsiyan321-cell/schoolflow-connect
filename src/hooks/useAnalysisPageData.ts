@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicLive } from "@/academic";
+import { ProgressionService, resolveStudentServiceContext, useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
@@ -108,12 +108,19 @@ export function useAnalysisPageData(enabled = true) {
           .not("finished_at", "is", null)
           .order("finished_at", { ascending: false })
           .limit(40),
-        supabase.rpc("rpc_leaderboard", {
-          _scope: "class",
-          _category: "xp",
-          _subject: undefined,
-          _limit: 200,
-        }),
+        (async () => {
+          try {
+            const ctx = await resolveStudentServiceContext();
+            return await ProgressionService.leaderboard(ctx, {
+              scope: "class",
+              period: "lifetime",
+              metric: "xp",
+              limit: 200,
+            });
+          } catch {
+            return { rows: [] as { user_id: string; name: string; value: number }[] };
+          }
+        })(),
         supabase.rpc("rpc_student_concept_mastery"),
         supabase
           .from("students")
@@ -134,26 +141,20 @@ export function useAnalysisPageData(enabled = true) {
       let class_size = 0;
       let student_class: string | null = null;
 
-      if (Array.isArray(rankRes.data)) {
-        const rows = rankRes.data as {
-          user_id: string;
-          full_name: string;
-          roll_number: string | null;
-          score: number;
-          class_label?: string;
-        }[];
-        class_size = rows.length;
-        const idx = rows.findIndex((r) => r.user_id === user.id);
-        class_rank = idx >= 0 ? idx + 1 : null;
-        leaderboard_top = rows.slice(0, 5).map((r, i) => ({
-          user_id: r.user_id,
-          full_name: r.full_name,
-          roll_number: r.roll_number ?? null,
-          score: Number(r.score) || 0,
-          rank: i + 1,
-        }));
-        if (rows[0]?.class_label) {
-          student_class = rows[0].class_label;
+      {
+        const lb = rankRes as { rows?: { user_id: string; name: string; value: number }[] };
+        const rows = Array.isArray(lb?.rows) ? lb.rows : [];
+        if (rows.length) {
+          class_size = rows.length;
+          const idx = rows.findIndex((r) => r.user_id === user.id);
+          class_rank = idx >= 0 ? idx + 1 : null;
+          leaderboard_top = rows.slice(0, 5).map((r, i) => ({
+            user_id: r.user_id,
+            full_name: r.name,
+            roll_number: null,
+            score: Number(r.value) || 0,
+            rank: i + 1,
+          }));
         }
       }
 
