@@ -2,6 +2,80 @@
 -- APPLY FEATURED BATTLES (ordered Critical stack) — paste in Supabase SQL editor
 -- =============================================================================
 
+-- >>> Prerequisite: 20260802340000 — _pick_featured_subject (used by ensure/seed)
+CREATE OR REPLACE FUNCTION public._pick_featured_subject(_class_id uuid, _grade int)
+RETURNS text
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _stream text;
+  _subj text;
+BEGIN
+  SELECT lower(nullif(trim(s.stream), '')) INTO _stream
+  FROM public.classes c
+  JOIN public.schools s ON s.id = c.school_id
+  WHERE c.id = _class_id;
+
+  -- Prefer subjects that actually have bank questions for this class level
+  IF _stream = 'commerce' THEN
+    SELECT q.subject INTO _subj
+    FROM public.question_bank q
+    WHERE q.is_approved
+      AND lower(q.subject) IN ('accountancy', 'business studies', 'economics', 'mathematics', 'english', 'hindi')
+      AND (_grade IS NULL OR q.class_level IS NULL OR q.class_level = _grade)
+    GROUP BY q.subject
+    ORDER BY
+      CASE lower(q.subject)
+        WHEN 'accountancy' THEN 1
+        WHEN 'business studies' THEN 2
+        WHEN 'economics' THEN 3
+        WHEN 'mathematics' THEN 4
+        WHEN 'english' THEN 5
+        ELSE 6
+      END,
+      count(*) DESC
+    LIMIT 1;
+  ELSIF _stream = 'science' THEN
+    SELECT q.subject INTO _subj
+    FROM public.question_bank q
+    WHERE q.is_approved
+      AND lower(q.subject) IN ('physics', 'chemistry', 'biology', 'mathematics', 'english', 'hindi')
+      AND (_grade IS NULL OR q.class_level IS NULL OR q.class_level = _grade)
+    GROUP BY q.subject
+    ORDER BY
+      CASE lower(q.subject)
+        WHEN 'physics' THEN 1
+        WHEN 'chemistry' THEN 2
+        WHEN 'mathematics' THEN 3
+        WHEN 'biology' THEN 4
+        ELSE 5
+      END,
+      count(*) DESC
+    LIMIT 1;
+  END IF;
+
+  IF _subj IS NOT NULL THEN
+    RETURN _subj;
+  END IF;
+
+  -- Any approved subject with questions for this grade
+  SELECT q.subject INTO _subj
+  FROM public.question_bank q
+  WHERE q.is_approved
+    AND (_grade IS NULL OR q.class_level IS NULL OR q.class_level = _grade)
+  GROUP BY q.subject
+  ORDER BY count(*) DESC
+  LIMIT 1;
+
+  RETURN COALESCE(_subj, 'Mathematics');
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public._pick_featured_subject(uuid, int) TO authenticated;
+
 -- >>> 20260803200000_featured_battle_period_refresh.sql
 -- Featured battles: period refresh + playable ensure (Daily / Weekly / NCERT).
 -- Fixes: stale live rows never expire; empty shells unplayable for classmates;
