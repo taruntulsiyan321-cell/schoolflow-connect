@@ -11,6 +11,7 @@ import {
   buildRuleConceptReport,
 } from "@/lib/conceptReportFallback";
 import { AlertTriangle, CheckCircle2, Loader2, Sparkles, Target, Timer } from "lucide-react";
+import { displayConcept } from "@/lib/academicDisplay";
 import "@/components/student/analytics/wisdom/wisdom-analytics.css";
 
 type Props = {
@@ -201,7 +202,7 @@ export function ConceptRecoveryReport({
           <div className="flex flex-wrap gap-2">
             {weak.map((w, i) => (
               <Badge key={i} variant="outline" className="rounded-full bg-warning/10 border-warning/30">
-                {w.concept} · {w.accuracy}%
+                {displayConcept(w.concept)} · {w.accuracy}%
               </Badge>
             ))}
           </div>
@@ -213,7 +214,7 @@ export function ConceptRecoveryReport({
           <h4 className="text-sm font-medium mb-2 text-accent">Strong concepts</h4>
           <div className="flex flex-wrap gap-2">
             {strong.map((s, i) => (
-              <Badge key={i} className="rounded-full bg-accent/15 text-accent border-0">{s.concept} · {s.accuracy}%</Badge>
+              <Badge key={i} className="rounded-full bg-accent/15 text-accent border-0">{displayConcept(s.concept)} · {s.accuracy}%</Badge>
             ))}
           </div>
         </div>

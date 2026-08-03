@@ -5,9 +5,9 @@
  */
 
 import { normalizeSubjectName } from "@/lib/curriculumScope";
-import { displaySubject } from "@/lib/academicDisplay";
+import { displaySubject, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
 
-/** Bare labels that must never appear as invented analytics taxonomy. */
+/** @deprecated Prefer isPlaceholderAcademicLabel — kept as alias for older call sites. */
 export const GENERIC_ACADEMIC_LABELS = new Set([
   "subject",
   "topic",
@@ -23,10 +23,7 @@ export const GENERIC_ACADEMIC_LABELS = new Set([
 ]);
 
 export function isGenericAcademicLabel(raw: string | null | undefined): boolean {
-  if (raw == null) return true;
-  const t = String(raw).trim().toLowerCase();
-  if (!t) return true;
-  return GENERIC_ACADEMIC_LABELS.has(t);
+  return isPlaceholderAcademicLabel(raw);
 }
 
 /** Prefer a real label; never invent Subject/Topic/Daily/General. */

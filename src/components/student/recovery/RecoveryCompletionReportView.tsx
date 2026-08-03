@@ -7,6 +7,7 @@ import {
   formatDelta,
   deltaPositive,
 } from "@/lib/recoveryCompletionReport";
+import { displayChapter, displayConcept, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
   ArrowRight,
   Award,
@@ -84,8 +85,8 @@ export function RecoveryCompletionReportView({ report }: Props) {
             You&apos;re getting better.
           </h1>
           <p className="text-primary-foreground/75 mt-2 text-sm sm:text-base">
-            {r.concept} · {r.subject}
-            {r.chapter ? ` · ${r.chapter}` : ""}
+            {displayConcept(r.concept)} · {displaySubject(r.subject)}
+            {r.chapter ? ` · ${displayChapter(r.chapter)}` : ""}
           </p>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-8">
@@ -148,7 +149,12 @@ export function RecoveryCompletionReportView({ report }: Props) {
         <p className="text-sm text-muted-foreground mb-4">Every skill you practiced — and how it grew.</p>
         <div className="rc-card p-5 sm:p-6 space-y-5">
           {r.conceptImprovements.map((c) => (
-            <ConceptProgressBar key={c.name} name={c.name} before={c.before} after={c.after} />
+            <ConceptProgressBar
+              key={c.name}
+              name={displayConcept(c.name) || c.name}
+              before={c.before}
+              after={c.after}
+            />
           ))}
         </div>
       </section>
@@ -259,7 +265,7 @@ export function RecoveryCompletionReportView({ report }: Props) {
                 r.conceptStatus.mastered.map((c) => (
                   <li key={c} className="flex items-start gap-2">
                     <span className="text-emerald-600">✓</span>
-                    <span>{c}</span>
+                    <span>{displayConcept(c) || c}</span>
                   </li>
                 ))
               ) : (
@@ -276,7 +282,7 @@ export function RecoveryCompletionReportView({ report }: Props) {
                 r.conceptStatus.improving.map((c) => (
                   <li key={c} className="flex items-start gap-2">
                     <span className="text-amber-600">⚠</span>
-                    <span>{c}</span>
+                    <span>{displayConcept(c) || c}</span>
                   </li>
                 ))
               ) : (
@@ -293,7 +299,7 @@ export function RecoveryCompletionReportView({ report }: Props) {
                 r.conceptStatus.needsRecovery.map((c) => (
                   <li key={c} className="flex items-start gap-2">
                     <span className="text-red-500">✕</span>
-                    <span>{c}</span>
+                    <span>{displayConcept(c) || c}</span>
                   </li>
                 ))
               ) : (
@@ -313,7 +319,7 @@ export function RecoveryCompletionReportView({ report }: Props) {
             <div className="space-y-3">
               {r.successHistory.map((h) => (
                 <div key={h.topic + h.completedAt} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
-                  <span className="font-medium text-sm">{h.topic}</span>
+                  <span className="font-medium text-sm">{displayTopic(h.topic) || displayConcept(h.topic) || h.topic}</span>
                   <Badge className="bg-emerald-500/15 text-emerald-800 border-0">+{h.gain}% mastery</Badge>
                 </div>
               ))}

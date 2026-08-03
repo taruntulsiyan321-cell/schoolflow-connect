@@ -72,11 +72,11 @@ export function UsersDirectory() {
   const filtered = rows.filter(r => !q || r.email?.toLowerCase().includes(q.toLowerCase()) || r.phone?.includes(q));
   return (
     <>
-      <PageHeader title="User Management" subtitle={`${rows.length} registered users Â· assign or revoke roles`} />
+      <PageHeader title="User Management" subtitle={`${rows.length} registered users · assign or revoke roles`} />
       <div className="flex gap-3 mb-4">
-        <Input placeholder="Search by email or phoneâ€¦" value={q} onChange={e => setQ(e.target.value)} />
+        <Input placeholder="Search by email or phone..." value={q} onChange={e => setQ(e.target.value)} />
       </div>
-      {loading ? <p className="text-muted-foreground text-center py-8">Loadingâ€¦</p> : (
+      {loading ? <p className="text-muted-foreground text-center py-8">Loading...</p> : (
         <div className="space-y-2">
           {filtered.map(u => {
             const available = ALL_ROLES.filter(r => !(u.roles ?? []).includes(r));
@@ -264,7 +264,7 @@ export function AttendanceOverview() {
       </div>
 
       {loading ? (
-        <p className="text-muted-foreground text-center py-8">Loading attendance summaryâ€¦</p>
+        <p className="text-muted-foreground text-center py-8">Loading attendance summary...</p>
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
           {(summary?.classes ?? []).map((c) => (
@@ -288,8 +288,8 @@ export function AttendanceOverview() {
                 </div>
               </div>
               <div className="text-xs text-muted-foreground mb-3">
-                Present {c.present} Â· Absent {c.absent} Â· Late {c.late} Â· Half {c.halfDay} Â· of{" "}
-                {c.totalStudents} Â· marked {c.marked}
+                Present {c.present} · Absent {c.absent} · Late {c.late} · Half {c.halfDay} · of{" "}
+                {c.totalStudents} · marked {c.marked}
               </div>
               <div className="flex gap-2">
                 <Button
@@ -330,7 +330,7 @@ export function AttendanceOverview() {
         <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Edit Attendance Â· {editClass?.className}-{editClass?.section} Â· {date}
+              Edit Attendance · {editClass?.className}-{editClass?.section} · {date}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2 my-2">
@@ -338,7 +338,7 @@ export function AttendanceOverview() {
               <div key={s.id} className="flex items-center justify-between p-2 border rounded-lg">
                 <div>
                   <div className="text-sm font-medium">{s.fullName}</div>
-                  <div className="text-xs text-muted-foreground">Roll {s.rollNumber ?? "â€”"}</div>
+                  <div className="text-xs text-muted-foreground">Roll {s.rollNumber ?? "—"}</div>
                 </div>
                 <Select
                   value={editMarks[s.id] ?? "present"}
@@ -406,7 +406,7 @@ export function ReportsPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!stats) return <p className="text-muted-foreground text-center py-8">Loadingâ€¦</p>;
+  if (!stats) return <p className="text-muted-foreground text-center py-8">Loading...</p>;
   return (
     <>
       <PageHeader title="Reports" subtitle="Operational and academic snapshot"
@@ -480,13 +480,13 @@ export function TimetablePage({ title = "Timetable" }: { title?: string }) {
 
   return (
     <>
-      <PageHeader title={title} subtitle="Weekly class timetable â€” shared with the whole class" />
+      <PageHeader title={title} subtitle="Weekly class timetable — shared with the whole class" />
       <Card className="p-4 mb-4 flex items-center justify-between gap-3 flex-wrap">
         <Select value={classId} onValueChange={setClassId}>
           <SelectTrigger className="max-w-xs"><SelectValue placeholder="Pick a class" /></SelectTrigger>
           <SelectContent>{classes.map(c => <SelectItem key={c.id} value={c.id}>{classLabel(c)}</SelectItem>)}</SelectContent>
         </Select>
-        <Button onClick={save} disabled={saving || !dirty}>{saving ? "Savingâ€¦" : dirty ? "Save timetable" : "Saved"}</Button>
+        <Button onClick={save} disabled={saving || !dirty}>{saving ? "Saving..." : dirty ? "Save timetable" : "Saved"}</Button>
       </Card>
       {classId && (
         <Card className="p-4 overflow-x-auto">
@@ -501,7 +501,7 @@ export function TimetablePage({ title = "Timetable" }: { title?: string }) {
                   {PERIODS.map(p => (
                     <td key={p} className="p-1">
                       <Input className="h-8 text-xs min-w-[80px]"
-                        placeholder={p === "Lunch" ? "â€”" : "Subject"}
+                        placeholder={p === "Lunch" ? "—" : "Subject"}
                         value={grid[`${d}-${p}`] || ""}
                         onChange={e => update(d, p, e.target.value)} />
                     </td>
@@ -614,7 +614,7 @@ export function AppSettingsPage() {
 
   return (
     <>
-      <PageHeader title="App Settings" subtitle="Branding, locale and modules â€” shared across the school" />
+      <PageHeader title="App Settings" subtitle="Branding, locale and modules — shared across the school" />
       <Card className="p-5 max-w-2xl space-y-4">
         <div><Label>School name</Label><Input value={settings.schoolName} disabled={loading} onChange={e => setSettings({ ...settings, schoolName: e.target.value })} /></div>
         <div className="grid grid-cols-2 gap-3">
@@ -634,7 +634,7 @@ export function AppSettingsPage() {
           ))}
         </div>
         <Button onClick={save} disabled={loading || saving} className="bg-gradient-primary text-primary-foreground">
-          {saving ? "Savingâ€¦" : "Save settings"}
+          {saving ? "Saving..." : "Save settings"}
         </Button>
       </Card>
     </>
@@ -665,7 +665,7 @@ export function SystemPage() {
           <Database className="w-6 h-6" />
           <div>
             <div className="font-semibold">Database connected</div>
-            <div className="text-xs opacity-80">Lovable Cloud Â· live</div>
+            <div className="text-xs opacity-80">Lovable Cloud · live</div>
           </div>
         </div>
       </Card>
@@ -722,7 +722,7 @@ export function ProfilePage() {
         <div><Label>Full name</Label><Input value={name} onChange={e => setName(e.target.value)} /></div>
         <div><Label>Email</Label><Input value={user?.email ?? ""} disabled /></div>
         <div><Label>Phone</Label><Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Contact number" /></div>
-        <Button onClick={save} disabled={saving} className="bg-gradient-primary text-primary-foreground">{saving ? "Savingâ€¦" : "Save"}</Button>
+        <Button onClick={save} disabled={saving} className="bg-gradient-primary text-primary-foreground">{saving ? "Saving..." : "Save"}</Button>
       </Card>
     </>
   );
@@ -778,9 +778,9 @@ export function StudentsDirectory() {
           <Card key={r.id} className="p-4 flex items-center justify-between">
             <div>
               <div className="font-semibold">{r.full_name}</div>
-              <div className="text-xs text-muted-foreground">Adm# {r.admission_number} Â· {r.classes ? `Class ${r.classes.name}-${r.classes.section}` : "Unassigned"}</div>
+              <div className="text-xs text-muted-foreground">Adm# {r.admission_number} · {r.classes ? `Class ${r.classes.name}-${r.classes.section}` : "Unassigned"}</div>
             </div>
-            <Badge variant="outline">{r.parent_mobile || "â€”"}</Badge>
+            <Badge variant="outline">{r.parent_mobile || "—"}</Badge>
           </Card>
         ))}
         {filtered.length === 0 && <p className="text-muted-foreground text-center py-8">No students.</p>}
@@ -857,8 +857,8 @@ export function TeachersDirectory() {
             <div>
               <div className="font-semibold">{r.full_name}</div>
               <div className="text-xs text-muted-foreground">
-                {r.subject || "â€”"} Â· {r.mobile || "no mobile"}
-                {r.class_teacher && <> Â· Class teacher of {r.class_teacher.name}-{r.class_teacher.section}</>}
+                {r.subject || "—"} · {r.mobile || "no mobile"}
+                {r.class_teacher && <> · Class teacher of {r.class_teacher.name}-{r.class_teacher.section}</>}
               </div>
             </div>
             {r.is_class_teacher && <Badge>Class Teacher</Badge>}
@@ -884,7 +884,7 @@ export function PerformancePage() {
         const examMarks = marks?.filter(m => m.exam_id === e.id) ?? [];
         examMarks.forEach(m => {
           const k = e.class_id;
-          if (!byClass[k]) byClass[k] = { total: 0, out: 0, name: e.classes ? `${e.classes.name}-${e.classes.section}` : "â€”" };
+          if (!byClass[k]) byClass[k] = { total: 0, out: 0, name: e.classes ? `${e.classes.name}-${e.classes.section}` : "—" };
           byClass[k].total += Number(m.marks_obtained);
           byClass[k].out += Number(e.max_marks);
         });
@@ -928,7 +928,7 @@ export function FeesOverview() {
       });
     });
   }, []);
-  if (!stats) return <p className="text-muted-foreground text-center py-8">Loadingâ€¦</p>;
+  if (!stats) return <p className="text-muted-foreground text-center py-8">Loading...</p>;
   const rate = stats.totalDue ? Math.round((stats.totalPaid / stats.totalDue) * 100) : 0;
   return (
     <>
@@ -964,7 +964,7 @@ export function ActivityLogPage() {
           <Card key={r.id} className="p-4 flex items-center justify-between">
             <div>
               <div className="font-medium">{r.action}</div>
-              <div className="text-xs text-muted-foreground">{r.entity || "system"} Â· {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</div>
+              <div className="text-xs text-muted-foreground">{r.entity || "system"} · {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}</div>
             </div>
             <Activity className="w-4 h-4 text-muted-foreground" />
           </Card>

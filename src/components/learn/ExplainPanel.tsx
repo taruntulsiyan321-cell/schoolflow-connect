@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Loader2, Brain, Lightbulb, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { invokeEdgeFunction } from "@/lib/edgeFunction";
+import { displayConcept, fixMojibake } from "@/lib/academicDisplay";
 
 export type Explanation = {
   summary: string;
@@ -254,16 +255,16 @@ export function ExplainPanel(props: Props) {
           {data && !loading && (
             <div className="space-y-3 text-sm">
               {data.summary && (
-                <p className="font-medium text-foreground">{data.summary}</p>
+                <p className="font-medium text-foreground">{fixMojibake(data.summary)}</p>
               )}
               {data.why_wrong && (
-                <Row icon={<AlertTriangle className="w-4 h-4 text-warning" />} label={wasCorrect ? "Why it's right" : "Where it went wrong"} text={data.why_wrong} />
+                <Row icon={<AlertTriangle className="w-4 h-4 text-warning" />} label={wasCorrect ? "Why it's right" : "Where it went wrong"} text={fixMojibake(data.why_wrong)} />
               )}
               {data.concept && (
-                <Row icon={<Brain className="w-4 h-4 text-primary" />} label="Core concept" text={data.concept} />
+                <Row icon={<Brain className="w-4 h-4 text-primary" />} label="Core concept" text={displayConcept(data.concept) || fixMojibake(data.concept)} />
               )}
               {data.how_to_improve && (
-                <Row icon={<Lightbulb className="w-4 h-4 text-accent" />} label="How to improve" text={data.how_to_improve} />
+                <Row icon={<Lightbulb className="w-4 h-4 text-accent" />} label="How to improve" text={fixMojibake(data.how_to_improve)} />
               )}
             </div>
           )}

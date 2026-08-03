@@ -645,7 +645,7 @@ export default function RecoverySession() {
 
               <Link to={`/student/practice/math12/session?chapter=${encodeURIComponent(assignment.chapter)}&count=10`}>
 
-                Practice {assignment.chapter}
+                Practice {displayChapter(assignment.chapter)}
 
               </Link>
 

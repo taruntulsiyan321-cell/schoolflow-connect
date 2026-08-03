@@ -6,6 +6,7 @@ import {
   buildMilestones,
   masteryLevel,
 } from "@/components/student/analytics/wisdom/analyticsDerived";
+import { displayChapter, displayConcept, displaySubject } from "@/lib/academicDisplay";
 import { GitBranch, History } from "lucide-react";
 
 type Props = {
@@ -62,9 +63,9 @@ export function MasterySection({
                 >
                   <div className="flex justify-between items-start gap-2 mb-2">
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[var(--wa-on-surface)] truncate">{c.concept}</p>
+                      <p className="text-sm font-semibold text-[var(--wa-on-surface)] truncate">{displayConcept(c.concept)}</p>
                       <p className="wa-label text-[10px] truncate">
-                        {c.subject}{c.chapter ? ` · ${c.chapter}` : ""}
+                        {displaySubject(c.subject)}{c.chapter ? ` · ${displayChapter(c.chapter)}` : ""}
                       </p>
                     </div>
                     <span className="text-lg font-bold tabular-nums text-[var(--wa-primary)] shrink-0">

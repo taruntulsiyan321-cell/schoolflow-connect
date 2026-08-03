@@ -157,7 +157,9 @@ export function AnalyticsStudio({ data, charts }: Props) {
     })();
 
   const topGap = topicGaps[0];
-  const focusTitle = topGap ? `Focus on ${topGap.topic}` : displayInsights?.headline ?? "Keep practising";
+  const focusTitle = topGap
+    ? `Focus on ${displayTopic(preferRealAcademicLabel(topGap.topic, topGap.chapter)) || preferRealAcademicLabel(topGap.topic, topGap.chapter)}`
+    : displayInsights?.headline ?? "Keep practising";
   const focusBody =
     topGap?.fix_hint ??
     displayInsights?.today_focus ??
@@ -367,7 +369,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
           </div>
           <div className="rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3">
             <p className="wa-label text-amber-800">Most repeated mistake</p>
-            <p className="font-bold text-amber-950">{mostRepeated?.topic ?? weakness}</p>
+            <p className="font-bold text-amber-950">{mostRepeated?.topic ? displayTopic(mostRepeated.topic) : weakness}</p>
           </div>
         </div>
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -550,7 +552,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
 
       {!pageLoading && pageData?.recent_sessions?.[0] && (
         <p className="text-center text-xs text-[var(--wa-on-surface-variant)]">
-          Latest session: {pageData.recent_sessions[0].chapter} · {pageData.recent_sessions[0].accuracy_pct}% · {formatLastSeen(pageData.recent_sessions[0].finished_at)}
+          Latest session: {displayChapter(pageData.recent_sessions[0].chapter) || "—"} · {pageData.recent_sessions[0].accuracy_pct}% · {formatLastSeen(pageData.recent_sessions[0].finished_at)}
         </p>
       )}
     </div>

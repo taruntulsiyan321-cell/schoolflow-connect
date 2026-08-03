@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader, StatCard } from "@/components/ui-bits";
 import { Progress } from "@/components/ui/progress";
 import { ClipboardCheck, NotebookPen, Trophy, Wallet, Bell, TrendingUp, AlertTriangle, Flame, Shield } from "lucide-react";
+import { displayConcept, displaySubject } from "@/lib/academicDisplay";
 
 type ChildInsight = {
   id: string;
@@ -216,7 +217,7 @@ export default function ParentInsights() {
                     {(concepts.weak_areas ?? []).length > 0 && (
                       <ul className="text-sm space-y-1">
                         {(concepts.weak_areas ?? []).map((w, i) => (
-                          <li key={i}>{w.subject} — {w.concept} ({Math.round(w.mastery_score)}% mastery)</li>
+                          <li key={i}>{displaySubject(w.subject)} — {displayConcept(w.concept)} ({Math.round(w.mastery_score)}% mastery)</li>
                         ))}
                       </ul>
                     )}
