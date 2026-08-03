@@ -200,11 +200,13 @@ export const ENTITY_REGISTRY: Record<AcademicEntityKey, EntityMapping> = {
   student_doubt: {
     key: "student_doubt",
     table: "community_doubts",
+    notes: "Class doubt portal; first answer solves via DB trigger; attachments in community_doubt_attachments",
     tenantScoped: true,
   },
   teacher_reply: {
     key: "teacher_reply",
     table: "community_doubt_answers",
+    notes: "Answers from teacher or classmates; teacher visibility gated by teacher_classes",
     tenantScoped: true,
   },
   learning_resource: {

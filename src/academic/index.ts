@@ -116,6 +116,13 @@ export {
 export type { StudentXpRow } from "./services/xpService";
 export type { EarnedBadgeRow } from "./services/badgeService";
 export type {
+  DoubtRow,
+  DoubtAnswerRow,
+  DoubtAttachmentRow,
+  DoubtStatus,
+} from "./services/doubtService";
+
+export type {
   ProgressionSnapshot,
   ProgressionApplyResult,
   TeacherProgressionInsights,
@@ -160,6 +167,18 @@ export type {
 export type { StudentHomeworkRow, SchoolHomeworkSummary, HomeworkClassStatsRow } from "./services/homeworkService";
 export type { ClassTimetableSnapshot } from "./services/timetableService";
 export type { LearningResourceRow } from "./services/resourceService";
+export type {
+  DoubtStatus,
+  DoubtRow,
+  DoubtAnswerRow,
+  DoubtAttachmentRow,
+} from "./services/doubtService";
+export {
+  uploadDoubtAttachment,
+  signedDoubtUrl,
+  DOUBT_FILE_ACCEPT,
+  type DoubtUploadMeta,
+} from "./storage/doubtFileUpload";
 
 export { AnalyticsService, AiSummaryService, AuditReadService } from "./services/readServices";
 

@@ -2037,10 +2037,13 @@ export type Database = {
           image_url: string | null
           last_activity_at: string
           school_id: string | null
+          solved_at: string | null
+          solved_by_answer_id: string | null
           status: string
           student_id: string | null
           student_name: string
           subject: string
+          subject_id: string | null
           teacher_answered: boolean
           title: string
           updated_at: string
@@ -2061,10 +2064,13 @@ export type Database = {
           image_url?: string | null
           last_activity_at?: string
           school_id?: string | null
+          solved_at?: string | null
+          solved_by_answer_id?: string | null
           status?: string
           student_id?: string | null
           student_name?: string
           subject?: string
+          subject_id?: string | null
           teacher_answered?: boolean
           title: string
           updated_at?: string
@@ -2085,10 +2091,13 @@ export type Database = {
           image_url?: string | null
           last_activity_at?: string
           school_id?: string | null
+          solved_at?: string | null
+          solved_by_answer_id?: string | null
           status?: string
           student_id?: string | null
           student_name?: string
           subject?: string
+          subject_id?: string | null
           teacher_answered?: boolean
           title?: string
           updated_at?: string
@@ -2102,6 +2111,102 @@ export type Database = {
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_doubts_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_doubts_solved_by_answer_id_fkey"
+            columns: ["solved_by_answer_id"]
+            isOneToOne: false
+            referencedRelation: "community_doubt_answers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_doubt_attachments: {
+        Row: {
+          created_at: string
+          doubt_id: string
+          file_name: string
+          file_size_bytes: number | null
+          file_type: string | null
+          id: string
+          school_id: string | null
+          storage_path: string
+        }
+        Insert: {
+          created_at?: string
+          doubt_id: string
+          file_name: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          id?: string
+          school_id?: string | null
+          storage_path: string
+        }
+        Update: {
+          created_at?: string
+          doubt_id?: string
+          file_name?: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          id?: string
+          school_id?: string | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_doubt_attachments_doubt_id_fkey"
+            columns: ["doubt_id"]
+            isOneToOne: false
+            referencedRelation: "community_doubts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_doubt_answer_attachments: {
+        Row: {
+          answer_id: string
+          created_at: string
+          file_name: string
+          file_size_bytes: number | null
+          file_type: string | null
+          id: string
+          school_id: string | null
+          storage_path: string
+        }
+        Insert: {
+          answer_id: string
+          created_at?: string
+          file_name: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          id?: string
+          school_id?: string | null
+          storage_path: string
+        }
+        Update: {
+          answer_id?: string
+          created_at?: string
+          file_name?: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          id?: string
+          school_id?: string | null
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_doubt_answer_attachments_answer_id_fkey"
+            columns: ["answer_id"]
+            isOneToOne: false
+            referencedRelation: "community_doubt_answers"
             referencedColumns: ["id"]
           },
         ]
@@ -5862,6 +5967,7 @@ export type Database = {
           _concept: string
           _image_url?: string
           _subject: string
+          _subject_id?: string
           _title: string
         }
         Returns: string

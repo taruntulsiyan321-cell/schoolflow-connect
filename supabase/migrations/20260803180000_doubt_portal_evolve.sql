@@ -383,12 +383,82 @@ BEGIN
   RETURN _id;
 END $$;
 
--- ── 6. RLS — student class-only; teacher class+subject ───────────────────────
+-- 4b. Atomic first-answer -> solved trigger (after RPC DROPs so function is not wiped)
+DROP TRIGGER IF EXISTS community_answers_first_solves ON public.community_doubt_answers;
+DROP TRIGGER IF EXISTS community_doubt_answers_first_solves ON public.community_doubt_answers;
+DROP FUNCTION IF EXISTS public.tg_community_doubt_first_answer_solves();
+
+CREATE OR REPLACE FUNCTION public.tg_community_doubt_first_answer_solves()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _first_solve boolean := false;
+  _author uuid;
+BEGIN
+  -- Race-safe: only the first answer matching open/unsolved wins the UPDATE
+  UPDATE public.community_doubts
+  SET
+    status = 'solved',
+    solved_at = COALESCE(solved_at, now()),
+    solved_by_answer_id = COALESCE(solved_by_answer_id, NEW.id),
+    accepted_answer_id = COALESCE(accepted_answer_id, NEW.id),
+    answer_count = GREATEST(COALESCE(answer_count, 0), 0) + 1,
+    teacher_answered = teacher_answered OR (NEW.author_role IN ('teacher', 'admin', 'principal')),
+    last_activity_at = now(),
+    updated_at = now()
+  WHERE id = NEW.doubt_id
+    AND status IN ('open', 'unsolved');
+
+  IF FOUND THEN
+    _first_solve := true;
+  ELSE
+    UPDATE public.community_doubts
+    SET
+      answer_count = GREATEST(COALESCE(answer_count, 0), 0) + 1,
+      teacher_answered = teacher_answered OR (NEW.author_role IN ('teacher', 'admin', 'principal')),
+      last_activity_at = now(),
+      updated_at = now()
+    WHERE id = NEW.doubt_id;
+  END IF;
+
+  IF _first_solve THEN
+    SELECT user_id INTO _author FROM public.community_doubts WHERE id = NEW.doubt_id;
+    IF _author IS NOT NULL AND _author IS DISTINCT FROM NEW.user_id THEN
+      BEGIN
+        PERFORM public._notify(
+          _author,
+          'doubt',
+          'Your doubt was answered',
+          left(NEW.body, 120),
+          'message-circle',
+          '/student/doubts'
+        );
+      EXCEPTION WHEN undefined_function OR others THEN
+        NULL;
+      END;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END $$;
+
+CREATE TRIGGER community_answers_first_solves
+  AFTER INSERT ON public.community_doubt_answers
+  FOR EACH ROW
+  EXECUTE FUNCTION public.tg_community_doubt_first_answer_solves();
+
+-- ── 6. RLS — student class-only; teacher class+subject; NO client UPDATE/DELETE ─
 DROP POLICY IF EXISTS "community doubts read" ON public.community_doubts;
 DROP POLICY IF EXISTS "community doubts school read" ON public.community_doubts;
 DROP POLICY IF EXISTS "community doubts student class read" ON public.community_doubts;
 DROP POLICY IF EXISTS "community doubts teacher subject read" ON public.community_doubts;
+DROP POLICY IF EXISTS "community doubts teacher assignment read" ON public.community_doubts;
+DROP POLICY IF EXISTS "community doubts staff school read" ON public.community_doubts;
 DROP POLICY IF EXISTS "community doubts insert student" ON public.community_doubts;
+DROP POLICY IF EXISTS "community doubts student insert" ON public.community_doubts;
 DROP POLICY IF EXISTS "community doubts owner update" ON public.community_doubts;
 DROP POLICY IF EXISTS "community doubts no delete" ON public.community_doubts;
 
@@ -414,35 +484,13 @@ CREATE POLICY "community doubts insert student" ON public.community_doubts
     AND public.has_role(auth.uid(), 'student'::public.app_role)
   );
 
--- Trigger / author may update solved fields; no client reopen/delete path
-CREATE POLICY "community doubts owner update" ON public.community_doubts
-  FOR UPDATE TO authenticated
-  USING (
-    user_id = auth.uid()
-    OR public.teacher_teaches_class_subject(auth.uid(), class_id, subject, subject_id)
-    OR (
-      public.same_school(school_id)
-      AND (
-        public.has_role(auth.uid(), 'admin'::public.app_role)
-        OR public.has_role(auth.uid(), 'principal'::public.app_role)
-      )
-    )
-  )
-  WITH CHECK (
-    user_id = auth.uid()
-    OR public.teacher_teaches_class_subject(auth.uid(), class_id, subject, subject_id)
-    OR (
-      public.same_school(school_id)
-      AND (
-        public.has_role(auth.uid(), 'admin'::public.app_role)
-        OR public.has_role(auth.uid(), 'principal'::public.app_role)
-      )
-    )
-  );
+-- Intentionally no UPDATE/DELETE policies: content is immutable; solve trigger is SECURITY DEFINER.
 
 DROP POLICY IF EXISTS "community answers read" ON public.community_doubt_answers;
 DROP POLICY IF EXISTS "community answers school read" ON public.community_doubt_answers;
+DROP POLICY IF EXISTS "community answers visible read" ON public.community_doubt_answers;
 DROP POLICY IF EXISTS "community answers insert" ON public.community_doubt_answers;
+DROP POLICY IF EXISTS "community answers insert visible" ON public.community_doubt_answers;
 DROP POLICY IF EXISTS "community answers owner update" ON public.community_doubt_answers;
 
 CREATE POLICY "community answers school read" ON public.community_doubt_answers
@@ -475,33 +523,6 @@ CREATE POLICY "community answers insert" ON public.community_doubt_answers
         AND (
           d.class_id = public.student_class_id(auth.uid())
           OR public.teacher_teaches_class_subject(auth.uid(), d.class_id, d.subject, d.subject_id)
-        )
-    )
-  );
-
-CREATE POLICY "community answers owner update" ON public.community_doubt_answers
-  FOR UPDATE TO authenticated
-  USING (
-    user_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM public.community_doubts d
-      WHERE d.id = community_doubt_answers.doubt_id
-        AND (
-          public.teacher_teaches_class_subject(auth.uid(), d.class_id, d.subject, d.subject_id)
-          OR public.has_role(auth.uid(), 'admin'::public.app_role)
-          OR public.has_role(auth.uid(), 'principal'::public.app_role)
-        )
-    )
-  )
-  WITH CHECK (
-    user_id = auth.uid()
-    OR EXISTS (
-      SELECT 1 FROM public.community_doubts d
-      WHERE d.id = community_doubt_answers.doubt_id
-        AND (
-          public.teacher_teaches_class_subject(auth.uid(), d.class_id, d.subject, d.subject_id)
-          OR public.has_role(auth.uid(), 'admin'::public.app_role)
-          OR public.has_role(auth.uid(), 'principal'::public.app_role)
         )
     )
   );
@@ -647,26 +668,7 @@ CREATE POLICY "doubt attachments storage upload" ON storage.objects
     )
   );
 
-CREATE POLICY "doubt attachments storage update" ON storage.objects
-  FOR UPDATE TO authenticated
-  USING (
-    bucket_id = 'doubt-attachments'
-    AND (storage.foldername(name))[1] = public.get_my_school_id()::text
-    AND (storage.foldername(name))[3] = auth.uid()::text
-  )
-  WITH CHECK (
-    bucket_id = 'doubt-attachments'
-    AND (storage.foldername(name))[1] = public.get_my_school_id()::text
-    AND (storage.foldername(name))[3] = auth.uid()::text
-  );
-
-CREATE POLICY "doubt attachments storage delete" ON storage.objects
-  FOR DELETE TO authenticated
-  USING (
-    bucket_id = 'doubt-attachments'
-    AND (storage.foldername(name))[1] = public.get_my_school_id()::text
-    AND (storage.foldername(name))[3] = auth.uid()::text
-  );
+-- No storage UPDATE/DELETE: attachments are append-only for this version.
 
 -- Keep legacy doubt-images readable for old image_url rows
 DROP POLICY IF EXISTS "doubt images read" ON storage.objects;
@@ -756,6 +758,10 @@ BEGIN
 
   RETURN _result;
 END $$;
+
+GRANT EXECUTE ON FUNCTION public.rpc_create_community_doubt(text, text, text, text, text, text, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rpc_add_community_answer(uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.rpc_teacher_doubt_dashboard() TO authenticated;
 
 GRANT EXECUTE ON FUNCTION public.rpc_create_community_doubt(text, text, text, text, text, text, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_add_community_answer(uuid, text, text) TO authenticated;

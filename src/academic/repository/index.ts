@@ -12,6 +12,7 @@ export {
   type ClassStudentRow,
   resolveTeacherId,
   listAssignedClassesForTeacher,
+  listTeacherClassSubjectPairs,
   listSubjectsForClass,
   assertTeacherOwnsClass,
   listStudentsForClass,

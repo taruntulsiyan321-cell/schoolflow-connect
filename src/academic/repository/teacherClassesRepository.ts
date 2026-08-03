@@ -130,6 +130,52 @@ export async function listAssignedClassesForTeacher(
   );
 }
 
+/** Distinct class+subject pairs for a teacher (from teacher_classes only). */
+export async function listTeacherClassSubjectPairs(
+  ctx: RepoContext,
+  teacherUserId: string,
+): Promise<{ classId: string; className: string; section: string; subject: string; subjectId: string | null }[]> {
+  const schoolId = schoolIdOf(ctx);
+  const teacherId = await resolveTeacherId(ctx, teacherUserId);
+  const { data, error } = await (getClient(ctx) as any)
+    .from("teacher_classes")
+    .select("class_id, subject, subject_id, classes(id, name, section)")
+    .eq("teacher_id", teacherId)
+    .eq("school_id", schoolId);
+  throwIfError(error, "Failed to load teacher class-subject pairs");
+
+  const out: {
+    classId: string;
+    className: string;
+    section: string;
+    subject: string;
+    subjectId: string | null;
+  }[] = [];
+  const seen = new Set<string>();
+  for (const row of (data ?? []) as Array<{
+    class_id: string;
+    subject: string | null;
+    subject_id?: string | null;
+    classes: { id: string; name: string; section: string } | null;
+  }>) {
+    const subject = String(row.subject ?? "").trim();
+    if (!subject || !row.classes?.id) continue;
+    const key = `${row.class_id}::${subject.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      classId: row.class_id,
+      className: row.classes.name,
+      section: row.classes.section,
+      subject,
+      subjectId: row.subject_id ? String(row.subject_id) : null,
+    });
+  }
+  return out.sort((a, b) =>
+    `${a.className}-${a.section}-${a.subject}`.localeCompare(`${b.className}-${b.section}-${b.subject}`),
+  );
+}
+
 /** Distinct subjects mapped to a class via teacher_classes. */
 export async function listSubjectsForClass(
   ctx: RepoContext,

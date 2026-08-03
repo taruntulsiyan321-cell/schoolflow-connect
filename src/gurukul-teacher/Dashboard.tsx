@@ -195,10 +195,8 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
 
         let open = 0;
         try {
-          const doubts = await DoubtService.list(ctx);
-          open = (doubts as { status?: string }[]).filter(
-            (d) => d.status === "unsolved",
-          ).length;
+          const doubts = await DoubtService.list(ctx, { status: "open" });
+          open = doubts.length;
         } catch {
           open = 0;
         }
