@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Gurukul Academic Engine
  *
  * Phase 1 (this package): schema contracts, ownership, events, tenant helpers, validation.
@@ -136,6 +136,7 @@ export type {
   ChatContact,
   ChatMessage,
   ChatAttachment,
+  ChatSearchHit,
 } from "./services/messageService";
 
 export { AcademicLiveProvider, useAcademicLive, useAcademicLiveBump, broadcastAcademicWrite } from "./live";
