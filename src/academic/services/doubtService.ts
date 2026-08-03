@@ -226,6 +226,8 @@ export const DoubtService = {
       title?: string;
       chapter?: string;
       concept?: string;
+      /** Legacy single image URL (community portal / doubt-images). Prefer attachments. */
+      imageUrl?: string | null;
       attachments?: DoubtUploadMeta[];
     },
   ) {
@@ -246,7 +248,7 @@ export const DoubtService = {
         _concept: args.concept ?? "",
         _title: args.title?.trim() || body.slice(0, 80),
         _body: body,
-        _image_url: null,
+        _image_url: args.imageUrl ?? null,
         _subject_id: args.subjectId ?? null,
       } as never,
     );
@@ -288,6 +290,8 @@ export const DoubtService = {
     args: {
       doubtId: string;
       content: string;
+      /** Legacy single image URL. Prefer attachments. */
+      imageUrl?: string | null;
       attachments?: DoubtUploadMeta[];
     },
   ) {
@@ -307,7 +311,7 @@ export const DoubtService = {
       {
         _doubt_id: args.doubtId,
         _body: body,
-        _image_url: null,
+        _image_url: args.imageUrl ?? null,
       } as never,
     );
     throwIfError(error, "Failed to reply to doubt");
