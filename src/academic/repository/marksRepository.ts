@@ -150,6 +150,25 @@ export async function listExamsForClass(
   return (data ?? []).map((r) => mapExam(r as ExamRow));
 }
 
+/** School-wide exam schedules for admin/principal monitors. */
+export async function listExamsForSchool(
+  ctx: RepoContext,
+  page?: PageParams,
+): Promise<ExamRecord[]> {
+  const schoolId = schoolIdOf(ctx);
+  const { limit, offset } = normalizePage(page);
+
+  const { data, error } = await getClient(ctx)
+    .from("exams")
+    .select("*")
+    .eq("school_id", schoolId)
+    .order("exam_date", { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  throwIfError(error, "Failed to list school exams");
+  return (data ?? []).map((r) => mapExam(r as ExamRow));
+}
+
 /** Exams with results published — for student/parent result consumers. */
 export async function listPublishedResultsForClass(
   ctx: RepoContext,

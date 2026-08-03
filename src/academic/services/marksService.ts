@@ -7,6 +7,7 @@ import {
 import {
   getExam,
   listExamsForClass,
+  listExamsForSchool,
   listPublishedResultsForClass,
   listMarksForExam,
   listMarksForStudent,
@@ -56,6 +57,18 @@ export const MarksService = {
     // Teachers/operators see all schedules; students/parents see schedules too
     // (results visibility is gated separately via listForStudent / listPublishedResultsForClass).
     return listExamsForClass(toRepoContext(ctx), classId, page);
+  },
+
+  /** School-wide exam monitor for admin/principal. */
+  async listForSchool(
+    ctx: ServiceContext,
+    page?: PageParams,
+  ): Promise<ExamRecord[]> {
+    assertCanConsume(ctx, "examination");
+    if (!isSchoolOperator(ctx.role)) {
+      throw new ForbiddenError("Only school operators may list school-wide exams");
+    }
+    return listExamsForSchool(toRepoContext(ctx), page);
   },
 
   /** Exams with results_published_at set — for result consumers. */
