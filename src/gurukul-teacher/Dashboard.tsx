@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BookOpen,
   ClipboardList,
@@ -10,6 +10,7 @@ import {
   Loader2,
   PenLine,
   MessageCircle,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "./shared";
 import type { TeacherPageKey } from "./nav";
@@ -130,6 +131,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
   const [pendingMarksEntry, setPendingMarksEntry] = useState(0);
   const [doubtsOpen, setDoubtsOpen] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const loadedRef = useRef(false);
 
   const openTab = (tab: TeacherClassTab) => {
     goTeacherClassTab(tab);
@@ -137,10 +139,25 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
   };
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!ready) return;
+    if (!ctx) {
+      setLoading(false);
+      setError("Academic session unavailable. Sign out and back in, or ask admin to link your teacher account.");
+      setClassCount(0);
+      setClassNames([]);
+      setCtClasses(0);
+      setAttendancePending(0);
+      setAcademicWorkAwaitingReview(0);
+      setTestsCount(0);
+      setUpcomingExams(0);
+      setPendingMarksEntry(0);
+      setDoubtsOpen(0);
+      return;
+    }
     let cancelled = false;
+    const isFirst = !loadedRef.current;
     (async () => {
-      setLoading(true);
+      if (isFirst) setLoading(true);
       try {
         const classes = await AttendanceService.listAssignedClasses(ctx);
         const todayDate = todayIsoDate();
@@ -150,6 +167,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         let pendingMarks = 0;
         let attPending = 0;
         let ct = 0;
+        const partialErrors: string[] = [];
 
         for (const c of classes) {
           if (c.isClassTeacher) {
@@ -158,7 +176,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
               const existing = await AttendanceService.listForClassDate(ctx, c.id, todayDate);
               if (!existing.length) attPending += 1;
             } catch {
-              /* ignore */
+              partialErrors.push("attendance");
             }
           }
 
@@ -166,7 +184,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             const hw = await HomeworkService.listForClassWithStats(ctx, c.id, { limit: 100 });
             for (const h of hw) awReview += h.awaitingReview;
           } catch {
-            /* ignore */
+            partialErrors.push("homework");
           }
 
           try {
@@ -179,7 +197,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
               return st === "draft" || st === "scheduled";
             }).length;
           } catch {
-            /* ignore */
+            partialErrors.push("tests");
           }
 
           try {
@@ -189,7 +207,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
               if (!e.marksLocked) pendingMarks += 1;
             }
           } catch {
-            /* ignore */
+            partialErrors.push("exams");
           }
         }
 
@@ -198,6 +216,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           const doubts = await DoubtService.list(ctx, { status: "open" });
           open = doubts.length;
         } catch {
+          partialErrors.push("doubts");
           open = 0;
         }
 
@@ -211,7 +230,13 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         setUpcomingExams(upcoming);
         setPendingMarksEntry(pendingMarks);
         setDoubtsOpen(open);
-        setError(null);
+        const unique = [...new Set(partialErrors)];
+        setError(
+          unique.length
+            ? `Some dashboard counts may be incomplete (${unique.join(", ")} failed to load).`
+            : null,
+        );
+        loadedRef.current = true;
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load dashboard");
       } finally {
@@ -287,10 +312,16 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             onClick={() => setPage("doubts")}
           />
           <QuickAction
-            icon={<MessageCircle className="w-5 h-5" />}
+            icon={<Megaphone className="w-5 h-5" />}
             label="Announcements"
             color="#78788c"
             onClick={() => setPage("announcements")}
+          />
+          <QuickAction
+            icon={<MessageCircle className="w-5 h-5" />}
+            label="Communication"
+            color="#6366f1"
+            onClick={() => setPage("communication")}
           />
           <QuickAction
             icon={<FileText className="w-5 h-5" />}

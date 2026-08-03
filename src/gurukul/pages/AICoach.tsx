@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
@@ -300,6 +301,21 @@ function Sidebar({
 }) {
   const [search,  setSearch]  = useState("");
   const [menuFor, setMenuFor] = useState<string|null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+
+  useEffect(() => {
+    if (!menuFor) return;
+    const close = () => { setMenuFor(null); setMenuPos(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", close);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [menuFor]);
 
   const filtered = convos.filter(c =>
     search === "" || c.title.toLowerCase().includes(search.toLowerCase())
@@ -310,6 +326,8 @@ function Sidebar({
   // Group rest by date
   const groups: Record<string, Conversation[]> = {};
   rest.forEach(c => { (groups[c.date] ??= []).push(c); });
+
+  const activeMenuConvo = menuFor ? convos.find((c) => c.id === menuFor) : null;
 
   function ConvoItem({ c }: { c: Conversation }) {
     const isActive = c.id === activeId;
@@ -330,32 +348,23 @@ function Sidebar({
           <div className="text-[10px] text-[#78788c] truncate">{c.preview}</div>
         </div>
 
-        {/* Context menu button */}
-        <button onClick={e => { e.stopPropagation(); setMenuFor(menuFor===c.id?null:c.id); }}
+        {/* Context menu button — menu is portaled (overflow-hidden sidebar clips absolute menus) */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (menuFor === c.id) {
+              setMenuFor(null);
+              setMenuPos(null);
+              return;
+            }
+            const r = e.currentTarget.getBoundingClientRect();
+            setMenuPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
+            setMenuFor(c.id);
+          }}
           className="w-6 h-6 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/8 opacity-0 group-hover:opacity-100 transition-all shrink-0">
           <MoreHorizontal className="w-3.5 h-3.5"/>
         </button>
-
-        {/* Dropdown */}
-        {menuFor === c.id && (
-          <div className="absolute right-2 top-8 z-30 bg-[#131316] border border-white/10 rounded-xl shadow-xl py-1 min-w-[140px]"
-            onClick={e => e.stopPropagation()}>
-            {[
-              { icon:<Pin className="w-3 h-3"/>,   label:c.pinned?"Unpin":"Pin",    action:()=>{ onPin(c.id); setMenuFor(null); } },
-              { icon:<Star className="w-3 h-3"/>,  label:c.starred?"Unstar":"Star", action:()=>{ onStar(c.id); setMenuFor(null); } },
-              { icon:<Edit3 className="w-3 h-3"/>, label:"Rename",                  action:()=>{ onRename(c.id); setMenuFor(null); } },
-              { icon:<Trash2 className="w-3 h-3"/>,label:"Delete",                  action:()=>{ onDelete(c.id); setMenuFor(null); }, danger:true },
-            ].map(item => (
-              <button key={item.label} onClick={item.action}
-                className={cn(
-                  "w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
-                  (item as any).danger ? "text-rose-400 hover:bg-rose-400/10" : "text-[#a0a0b0] hover:text-white hover:bg-white/5"
-                )}>
-                {item.icon} {item.label}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
     );
   }
@@ -395,7 +404,7 @@ function Sidebar({
       </div>
 
       {/* Conversation list */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-none" onClick={() => setMenuFor(null)}>
+      <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-none" onClick={() => { setMenuFor(null); setMenuPos(null); }}>
         {pinned.length > 0 && (
           <div>
             <div className="px-3 py-1.5 text-[9px] uppercase tracking-[0.15em] text-[#78788c]/60">Pinned</div>
@@ -412,6 +421,34 @@ function Sidebar({
           <div className="text-center py-8 text-xs text-[#78788c]">No conversations found</div>
         )}
       </div>
+
+      {activeMenuConvo && menuPos && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed z-overlay bg-[#131316] border border-white/10 rounded-xl shadow-xl py-1 min-w-[140px]"
+          style={{ top: menuPos.top, right: menuPos.right }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {[
+            { icon: <Pin className="w-3 h-3"/>, label: activeMenuConvo.pinned ? "Unpin" : "Pin", action: () => { onPin(activeMenuConvo.id); setMenuFor(null); setMenuPos(null); } },
+            { icon: <Star className="w-3 h-3"/>, label: activeMenuConvo.starred ? "Unstar" : "Star", action: () => { onStar(activeMenuConvo.id); setMenuFor(null); setMenuPos(null); } },
+            { icon: <Edit3 className="w-3 h-3"/>, label: "Rename", action: () => { onRename(activeMenuConvo.id); setMenuFor(null); setMenuPos(null); } },
+            { icon: <Trash2 className="w-3 h-3"/>, label: "Delete", action: () => { onDelete(activeMenuConvo.id); setMenuFor(null); setMenuPos(null); }, danger: true },
+          ].map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={item.action}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
+                item.danger ? "text-rose-400 hover:bg-rose-400/10" : "text-[#a0a0b0] hover:text-white hover:bg-white/5",
+              )}
+            >
+              {item.icon} {item.label}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

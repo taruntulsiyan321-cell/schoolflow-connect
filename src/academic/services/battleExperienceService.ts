@@ -203,6 +203,7 @@ export const BattleExperienceService = {
     }
 
     const row = (data ?? {}) as Record<string, unknown>;
+    afterExperienceWrite(ctx, ["battle", "xp", "profile"]);
     return {
       isCorrect: Boolean(row.is_correct),
       points: Number(row.points ?? 0),

@@ -51,22 +51,31 @@ export default function BattleMonitor() {
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!id) return;
-    const { data: res, error: err } = await (supabase as any).rpc("rpc_battle_monitor", { _battle_id: id });
-    if (err) { setError(err.message); setLoading(false); return; }
-    setData(res as Monitor);
-    setError(null);
-    setLoading(false);
-    const { data: reps } = await (supabase as any).rpc("rpc_teacher_battle_reports", { _battle_id: id });
-    setReports((reps ?? []) as ReportRow[]);
-  }, [id]);
+    if (!id || !academicReady || !ctx) return;
+    try {
+      const res = await BattleExperienceService.getMonitor(ctx, id);
+      setData(res as Monitor);
+      setError(null);
+      setLoading(false);
+      try {
+        const reps = await BattleExperienceService.listTeacherReports(ctx, id);
+        setReports((reps ?? []) as ReportRow[]);
+      } catch {
+        /* reports optional while monitor is live */
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load monitor");
+      setLoading(false);
+    }
+  }, [id, academicReady, ctx]);
 
   // Initial + poll every 3s
   useEffect(() => {
-    refresh();
-    const poll = setInterval(refresh, 3000);
+    if (!academicReady || !ctx || !id) return;
+    void refresh();
+    const poll = setInterval(() => void refresh(), 3000);
     return () => clearInterval(poll);
-  }, [refresh]);
+  }, [refresh, academicReady, ctx, id]);
 
   // Realtime nudge on participant changes for snappier updates
   useEffect(() => {
@@ -292,7 +301,7 @@ export default function BattleMonitor() {
             {reports.map((r) => (
               <Link
                 key={r.participant_id}
-                to={`/teacher/battleground/report/${id}/${r.participant_id}`}
+                to={`/teacher/battleground/monitor/${id}/report/${r.participant_id}`}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors",
                   r.expired && "opacity-60",

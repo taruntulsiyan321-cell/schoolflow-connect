@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Megaphone, Plus, Edit2, Trash2, X, Save, Clock, Check, Paperclip, Calendar,
 } from "lucide-react";
@@ -136,6 +136,7 @@ export default function Announcements() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loadedRef = useRef(false);
 
   const showFlash = (msg: string) => {
     setFlash(msg);
@@ -154,14 +155,16 @@ export default function Announcements() {
   useEffect(() => {
     if (!ready || !ctx) return;
     let cancelled = false;
+    const isFirst = !loadedRef.current;
     (async () => {
-      setLoading(true);
+      if (isFirst) setLoading(true);
       setError(null);
       try {
         const assigned = await AttendanceService.listAssignedClasses(ctx);
         if (cancelled) return;
         setClasses(assigned);
         await reload(assigned);
+        loadedRef.current = true;
       } catch (e) {
         if (!cancelled) {
           setClasses([]);

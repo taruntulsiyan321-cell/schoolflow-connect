@@ -148,7 +148,14 @@ export default function MyClasses() {
   const [classError, setClassError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!ready) return;
+    if (!ctx) {
+      setLoadingClasses(false);
+      setClassError("Academic session unavailable. Sign out and back in, or ask admin to link your teacher account.");
+      setLiveClasses([]);
+      setSelectedClass(null);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoadingClasses(true);

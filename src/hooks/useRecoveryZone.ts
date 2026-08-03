@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAcademicLive } from "@/academic";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { isGenericAcademicLabel } from "@/lib/qualityGuards";
 
 export type RecoveryAssignment = {
@@ -13,6 +14,8 @@ export type RecoveryAssignment = {
   question_count: number;
   questions_completed: number;
   created_at: string;
+  /** From recovery_assignments.source_type when available. */
+  source_type?: string | null;
 };
 
 export type WeakConcept = {
@@ -59,9 +62,10 @@ export function useRecoveryZone(enabled = true) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const liveVersion = useAcademicLive(["profile", "xp"]);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   const reload = async () => {
-    setLoading(true);
+    beginLoading(setLoading);
     setError(null);
     const [{ data: zone, error: err }, completedRes] = await Promise.all([
       (supabase as any).rpc("rpc_student_recovery_zone"),
@@ -84,7 +88,24 @@ export function useRecoveryZone(enabled = true) {
       };
       const weak_concepts = (base.weak_concepts ?? []).filter(hasUsableRecoveryLabels);
       const mastery = (base.mastery ?? []).filter(hasUsableRecoveryLabels);
-      const open_assignments = (base.open_assignments ?? []).filter(hasUsableRecoveryLabels);
+      let open_assignments = (base.open_assignments ?? []).filter(hasUsableRecoveryLabels);
+      // RPC may omit source_type — enrich from table so source filters work.
+      if (open_assignments.length > 0 && open_assignments.some((a) => !a.source_type)) {
+        const { data: srcRows } = await supabase
+          .from("recovery_assignments")
+          .select("id, source_type")
+          .in(
+            "id",
+            open_assignments.map((a) => a.id),
+          );
+        if (srcRows?.length) {
+          const byId = new Map(srcRows.map((r) => [r.id, r.source_type as string | null]));
+          open_assignments = open_assignments.map((a) => ({
+            ...a,
+            source_type: a.source_type ?? byId.get(a.id) ?? null,
+          }));
+        }
+      }
       // Prefer RPC recent_completed when present; fallback client select if older RPC.
       const fromRpc = Array.isArray(base.recent_completed) ? base.recent_completed : null;
       const recent_completed: RecentCompletedRecovery[] =
@@ -121,13 +142,17 @@ export function useRecoveryZone(enabled = true) {
         recent_completed,
       });
     }
-    setLoading(false);
+    endLoading(setLoading);
   };
 
   useEffect(() => {
-    if (!enabled) return;
-    reload();
+    if (!enabled) {
+      setLoading(false);
+      setError(null);
+      return;
+    }
+    void reload();
   }, [enabled, liveVersion]);
 
-  return { data, loading, error, reload };
+  return { data, loading: enabled ? showLoading(loading) : false, error, reload };
 }

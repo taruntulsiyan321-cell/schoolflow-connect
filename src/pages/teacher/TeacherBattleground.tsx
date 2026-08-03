@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { BattleExperienceService } from "@/academic";
+import {
+  AttendanceService,
+  BattleExperienceService,
+  useAcademicLive,
+} from "@/academic";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,11 +27,13 @@ type QuestionDraft = {
 };
 
 export default function TeacherBattleground() {
-  const { user } = useAuth();
   const nav = useNavigate();
+  const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["battle", "profile"]);
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [classId, setClassId] = useState("");
   const [battles, setBattles] = useState<Record<string, unknown>[]>([]);
+  const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState("Class Quiz Battle");
   const [subject, setSubject] = useState("Mathematics");
   const [topic, setTopic] = useState("");
@@ -39,41 +43,53 @@ export default function TeacherBattleground() {
   ]);
   const [quickDifficulty, setQuickDifficulty] = useState("medium");
   const [quickBusy, setQuickBusy] = useState(false);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    const isFirst = !loadedRef.current;
     (async () => {
-      const { data: t } = await supabase.from("teachers").select("id, class_teacher_of").eq("user_id", user.id).maybeSingle();
-      if (!t) return;
-
-      const options: ClassOption[] = [];
-      if (t.class_teacher_of) {
-        const { data: c } = await supabase.from("classes").select("id,name,section").eq("id", t.class_teacher_of).maybeSingle();
-        if (c) options.push({ id: c.id, label: `${c.name}-${c.section} (class teacher)` });
-      }
-      const { data: tc } = await supabase.from("teacher_classes").select("class_id, classes(id,name,section)").eq("teacher_id", t.id);
-      (tc ?? []).forEach((row: { class_id: string; classes?: { id: string; name: string; section: string } | null }) => {
-        const c = row.classes;
-        if (c && !options.some((o) => o.id === c.id)) {
-          options.push({ id: c.id, label: `${c.name}-${c.section}` });
+      if (isFirst) setLoading(true);
+      try {
+        const assigned = await AttendanceService.listAssignedClasses(ctx);
+        if (cancelled) return;
+        const options: ClassOption[] = assigned.map((c) => ({
+          id: c.id,
+          label: `${c.name}-${c.section}${c.isClassTeacher ? " (class teacher)" : ""}`,
+        }));
+        setClasses(options);
+        setClassId((prev) =>
+          prev && options.some((o) => o.id === prev) ? prev : options[0]?.id ?? "",
+        );
+        const classIds = options.map((o) => o.id);
+        const list = classIds.length
+          ? await BattleExperienceService.listCreatedByTeacher(ctx, {
+              classIds,
+              limit: 12,
+            })
+          : [];
+        if (!cancelled) setBattles(list);
+      } catch (e) {
+        if (!cancelled) {
+          setClasses([]);
+          setBattles([]);
+          toast({
+            title: e instanceof Error ? e.message : "Could not load battleground",
+            variant: "destructive",
+          });
         }
-      });
-      setClasses(options);
-      if (options[0]) setClassId(options[0].id);
-
-      const classIds = options.map((o) => o.id);
-      if (classIds.length) {
-        const { data: b } = await supabase
-          .from("battles")
-          .select("*")
-          .in("class_id", classIds)
-          .eq("creator_user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(12);
-        setBattles(b ?? []);
+      } finally {
+        if (!cancelled) {
+          loadedRef.current = true;
+          setLoading(false);
+        }
       }
     })();
-  }, [user]);
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, liveVersion]);
 
   const updateQ = (i: number, patch: Partial<QuestionDraft>) =>
     setQuestions((qs) => qs.map((q, idx) => (idx === i ? { ...q, ...patch } : q)));
@@ -145,6 +161,14 @@ export default function TeacherBattleground() {
       setQuickBusy(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="teacher-premium tp-shell flex items-center justify-center py-20 text-muted-foreground gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading battleground…
+      </div>
+    );
+  }
 
   return (
     <div className="teacher-premium tp-shell space-y-5">
@@ -326,8 +350,9 @@ export default function TeacherBattleground() {
             </Button>
           </div>
 
-          <Button onClick={create} size="lg" className="w-full btn-cta">
-            <Sword className="w-5 h-5 mr-2" /> Publish battle
+          <Button onClick={create} size="lg" className="w-full btn-cta" disabled={quickBusy}>
+            {quickBusy ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <Sword className="w-5 h-5 mr-2" />}
+            Publish battle
           </Button>
 
           {battles.length > 0 && (

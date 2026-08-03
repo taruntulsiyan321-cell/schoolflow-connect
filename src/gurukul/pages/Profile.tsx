@@ -10,6 +10,7 @@ import { useStudentBadges } from "@/hooks/useStudentBadges";
 import { getBadge, TIER_CLASS } from "@/lib/badges";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 function formatEarnedDate(iso: string) {
   try {
@@ -60,13 +61,14 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
   );
 
   const liveVersion = useAcademicLive(["xp", "achievements", "profile"]);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   const loadProfile = useCallback(async () => {
     if (!ready || !ctx || !studentId) {
-      setLoading(false);
+      endLoading(setLoading);
       return;
     }
-    setLoading(true);
+    beginLoading(setLoading);
     try {
       const settled = await Promise.allSettled([
         supabase
@@ -118,9 +120,9 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     } catch {
       /* empty */
     } finally {
-      setLoading(false);
+      endLoading(setLoading);
     }
-  }, [ready, ctx, studentId, user?.id]);
+  }, [ready, ctx, studentId, user?.id, beginLoading, endLoading]);
 
   useEffect(() => {
     void loadProfile();
@@ -134,7 +136,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
     return () => window.removeEventListener("student-xp-updated", onXp);
   }, [loadProfile]);
 
-  if (loading) {
+  if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…

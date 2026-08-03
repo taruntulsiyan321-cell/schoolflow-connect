@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { BattleReportView } from "@/components/battleground/BattleReportView";
 
 export default function BattleTeacherReport() {
-  const { participantId, battleId } = useParams<{ participantId: string; battleId: string }>();
+  const { participantId, id: battleId } = useParams<{ participantId: string; id: string }>();
 
   if (!participantId) {
     return <p className="text-muted-foreground text-center py-8">Invalid report link.</p>;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   ChevronRight,
@@ -53,10 +53,10 @@ export {
 } from "./LiveHomeworkPanels";
 
 type LiveStudent = ClassStudentRow & {
-  attendancePct: number;
-  examsAvgPct: number;
-  homeworkCompletionPct: number;
-  testsAvgPct: number;
+  attendancePct: number | null;
+  examsAvgPct: number | null;
+  homeworkCompletionPct: number | null;
+  testsAvgPct: number | null;
 };
 
 const MANUAL_QUESTION_KINDS: { value: ManualQuestionKind; label: string }[] = [
@@ -120,6 +120,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   const [selected, setSelected] = useState<LiveStudent | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedRef = useRef(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [homeworkRows, setHomeworkRows] = useState<StudentHomeworkRow[]>([]);
@@ -133,10 +134,15 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
 
   useEffect(() => {
+    loadedRef.current = false;
+  }, [classId]);
+
+  useEffect(() => {
     if (!ready || !ctx || !classId) return;
     let cancelled = false;
+    const isFirst = !loadedRef.current;
     (async () => {
-      setLoading(true);
+      if (isFirst) setLoading(true);
       setError(null);
       try {
         const settled = await Promise.allSettled([
@@ -145,7 +151,8 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         ]);
         if (cancelled) return;
         const students = settled[0].status === "fulfilled" ? settled[0].value : [];
-        const profiles = settled[1].status === "fulfilled" ? settled[1].value : [];
+        const profilesOk = settled[1].status === "fulfilled";
+        const profiles = profilesOk ? settled[1].value : [];
         if (settled[0].status === "rejected") {
           throw settled[0].reason instanceof Error
             ? settled[0].reason
@@ -157,13 +164,19 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             const p = byId.get(s.id);
             return {
               ...s,
-              attendancePct: Math.round(p?.attendancePct ?? 0),
-              examsAvgPct: Math.round(p?.examsAvgPct ?? 0),
-              homeworkCompletionPct: Math.round(p?.homeworkCompletionPct ?? 0),
-              testsAvgPct: Math.round(p?.testsAvgPct ?? 0),
+              attendancePct: p ? Math.round(p.attendancePct) : null,
+              examsAvgPct: p ? Math.round(p.examsAvgPct) : null,
+              homeworkCompletionPct: p ? Math.round(p.homeworkCompletionPct) : null,
+              testsAvgPct: p ? Math.round(p.testsAvgPct) : null,
             };
           }),
         );
+        setError(
+          profilesOk
+            ? null
+            : "Academic profiles failed to load — student percentages shown as —.",
+        );
+        loadedRef.current = true;
       } catch (e) {
         if (!cancelled) setError(errMsg(e, "Failed to load students"));
       } finally {
@@ -281,7 +294,8 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
 
   const homeworkHabit = useMemo(() => {
     if (!homeworkRows.length) return "No homework assigned yet";
-    const rate = selected?.homeworkCompletionPct ?? 0;
+    const rate = selected?.homeworkCompletionPct;
+    if (rate == null) return "Homework metrics unavailable";
     if (pendingHomework.length >= 3) return "Often leaves homework incomplete";
     if (rate >= 85) return "Submits homework regularly";
     if (rate >= 50) return "Inconsistent homework submissions";
@@ -300,10 +314,10 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     }
     const answers: string[] = [];
     const actions: string[] = [];
-    const att = selected.attendancePct;
-    const hw = selected.homeworkCompletionPct;
-    const testsAvg = selected.testsAvgPct;
-    const examsAvg = selected.examsAvgPct;
+    const att = selected.attendancePct ?? 0;
+    const hw = selected.homeworkCompletionPct ?? 0;
+    const testsAvg = selected.testsAvgPct ?? 0;
+    const examsAvg = selected.examsAvgPct ?? 0;
     const scores = [att, hw, testsAvg, examsAvg].filter((n) => n > 0);
     const avg = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
 
@@ -462,13 +476,17 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               {[
                 {
                   label: "Attendance",
-                  value: `${selected.attendancePct}%`,
-                  warn: selected.attendancePct < 75,
+                  value: selected.attendancePct == null ? "—" : `${selected.attendancePct}%`,
+                  warn: selected.attendancePct != null && selected.attendancePct < 75,
                 },
                 {
                   label: "Homework",
-                  value: `${selected.homeworkCompletionPct}%`,
-                  warn: selected.homeworkCompletionPct < 50,
+                  value:
+                    selected.homeworkCompletionPct == null
+                      ? "—"
+                      : `${selected.homeworkCompletionPct}%`,
+                  warn:
+                    selected.homeworkCompletionPct != null && selected.homeworkCompletionPct < 50,
                 },
                 {
                   label: "Pending HW",
@@ -477,10 +495,14 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 },
                 {
                   label: "Tests / Exams",
-                  value: `${selected.testsAvgPct || "—"} / ${selected.examsAvgPct || "—"}`,
+                  value: `${selected.testsAvgPct ?? "—"} / ${selected.examsAvgPct ?? "—"}`,
                   warn:
-                    (selected.testsAvgPct > 0 && selected.testsAvgPct < 40) ||
-                    (selected.examsAvgPct > 0 && selected.examsAvgPct < 40),
+                    (selected.testsAvgPct != null &&
+                      selected.testsAvgPct > 0 &&
+                      selected.testsAvgPct < 40) ||
+                    (selected.examsAvgPct != null &&
+                      selected.examsAvgPct > 0 &&
+                      selected.examsAvgPct < 40),
                 },
               ].map((m) => (
                 <div
@@ -692,9 +714,9 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       <div className="space-y-2">
         {filtered.map((s) => {
           const flag =
-            s.attendancePct < 75 ||
-            s.homeworkCompletionPct < 50 ||
-            (s.testsAvgPct > 0 && s.testsAvgPct < 40);
+            (s.attendancePct != null && s.attendancePct < 75) ||
+            (s.homeworkCompletionPct != null && s.homeworkCompletionPct < 50) ||
+            (s.testsAvgPct != null && s.testsAvgPct > 0 && s.testsAvgPct < 40);
           return (
             <button
               key={s.id}
@@ -717,7 +739,9 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                   )}
                 </div>
                 <div className="text-[10px] text-[#78788c] mt-0.5">
-                  Roll {s.rollNumber ?? "—"} · Att {s.attendancePct}% · HW {s.homeworkCompletionPct}%
+                  Roll {s.rollNumber ?? "—"} · Att{" "}
+                  {s.attendancePct == null ? "—" : `${s.attendancePct}%`} · HW{" "}
+                  {s.homeworkCompletionPct == null ? "—" : `${s.homeworkCompletionPct}%`}
                 </div>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-[#46465a] group-hover:text-white" />
@@ -781,6 +805,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   const [tests, setTests] = useState<TestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedRef = useRef(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [builderOpen, setBuilderOpen] = useState(false);
@@ -809,12 +834,14 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
   const reload = async () => {
     if (!ctx) return;
-    setLoading(true);
+    const quiet = loadedRef.current;
+    if (!quiet) setLoading(true);
     try {
       await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
       const t = await TestService.listForClass(ctx, classId);
       setTests((t ?? []) as TestRow[]);
       setError(null);
+      loadedRef.current = true;
     } catch (err) {
       setError(errMsg(err, "Failed to load tests"));
     } finally {
@@ -823,10 +850,17 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   };
 
   useEffect(() => {
+    loadedRef.current = false;
     if (!ready || !ctx) return;
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, classId, liveVersion]);
+  }, [ready, ctx, classId]);
+
+  useEffect(() => {
+    if (!ready || !ctx || !loadedRef.current) return;
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveVersion]);
 
   useEffect(() => {
     if (!ready || !ctx || step !== "library") return;
@@ -1787,6 +1821,7 @@ export function LiveExamsMarksTab({
   const [pending, setPending] = useState<ExamRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedRef = useRef(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1807,7 +1842,8 @@ export function LiveExamsMarksTab({
 
   const reload = async () => {
     if (!ctx) return;
-    setLoading(true);
+    const quiet = loadedRef.current;
+    if (!quiet) setLoading(true);
     try {
       const [g, p] = await Promise.all([
         MarksService.listExamGroupsForClass(ctx, classId),
@@ -1816,6 +1852,7 @@ export function LiveExamsMarksTab({
       setGroups(g);
       setPending(p);
       setError(null);
+      loadedRef.current = true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load exams");
     } finally {
@@ -1824,10 +1861,17 @@ export function LiveExamsMarksTab({
   };
 
   useEffect(() => {
+    loadedRef.current = false;
     if (!ready || !ctx) return;
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, classId, liveVersion]);
+  }, [ready, ctx, classId]);
+
+  useEffect(() => {
+    if (!ready || !ctx || !loadedRef.current) return;
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveVersion]);
 
   const showFlash = (msg: string) => {
     setFlash(msg);
@@ -2368,12 +2412,18 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   const [progression, setProgression] = useState<TeacherProgressionInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedRef = useRef(false);
+
+  useEffect(() => {
+    loadedRef.current = false;
+  }, [classId]);
 
   useEffect(() => {
     if (!ready || !ctx) return;
     let cancelled = false;
+    const isFirst = !loadedRef.current;
     (async () => {
-      setLoading(true);
+      if (isFirst) setLoading(true);
       try {
         const settled = await Promise.allSettled([
           AnalyticsService.forClass(ctx, classId),
@@ -2422,6 +2472,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         if (settled[6].status === "rejected") errs.push(errMsg(settled[6].reason, "Pending marks"));
         if (settled[7].status === "rejected") errs.push(errMsg(settled[7].reason, "Progression"));
         setError(errs.length ? errs.join(" · ") : null);
+        loadedRef.current = true;
       } catch (e) {
         if (!cancelled) setError(errMsg(e, "Failed to load insights"));
       } finally {

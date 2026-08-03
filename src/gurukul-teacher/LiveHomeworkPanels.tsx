@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2, Plus, Save, Send, Archive, Copy, Eye, CheckCircle2, RotateCcw, CalendarClock,
 } from "lucide-react";
@@ -42,6 +42,7 @@ export function LiveAcademicWorkTab({
   const [items, setItems] = useState<StatsRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedRef = useRef(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
@@ -66,12 +67,14 @@ export function LiveAcademicWorkTab({
 
   const reload = async () => {
     if (!ctx) return;
-    setLoading(true);
+    const quiet = loadedRef.current;
+    if (!quiet) setLoading(true);
     try {
       await HomeworkService.publishDueScheduled(ctx).catch(() => 0);
       const list = await HomeworkService.listForClassWithStats(ctx, classId, { limit: 100 });
       setItems(list);
       setError(null);
+      loadedRef.current = true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -80,10 +83,17 @@ export function LiveAcademicWorkTab({
   };
 
   useEffect(() => {
+    loadedRef.current = false;
     if (!ready || !ctx) return;
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx, classId, liveVersion]);
+  }, [ready, ctx, classId]);
+
+  useEffect(() => {
+    if (!ready || !ctx || !loadedRef.current) return;
+    void reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveVersion]);
 
   const filtered = useMemo(() => {
     return items.filter((h) => {

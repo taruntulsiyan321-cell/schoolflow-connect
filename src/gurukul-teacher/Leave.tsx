@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Calendar, Check, Clock, X, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { LeaveService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -40,6 +40,7 @@ export default function Leave() {
   const [applying, setApplying] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const loadedRef = useRef(false);
   const [form, setForm] = useState({
     leaveType: "casual" as (typeof leaveTypes)[number],
     fromDate: "",
@@ -55,8 +56,9 @@ export default function Leave() {
   useEffect(() => {
     if (!ready || !ctx) return;
     let cancelled = false;
+    const isFirst = !loadedRef.current;
     (async () => {
-      setLoading(true);
+      if (isFirst) setLoading(true);
       setError(null);
       try {
         const rows = await LeaveService.listMine(ctx);
@@ -73,6 +75,7 @@ export default function Leave() {
             appliedAt: r.createdAt.slice(0, 10),
           })),
         );
+        loadedRef.current = true;
       } catch (e) {
         if (!cancelled) {
           setRequests([]);
