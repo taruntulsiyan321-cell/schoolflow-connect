@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -16,14 +16,15 @@ import {
   PrincipalTeachersLive,
   PrincipalHomeworkLive,
 } from './PrincipalLiveAcademic'
+import PrincipalMessages from './Messages'
 import {
   AnnouncementService,
+  MessageService,
   useAcademicLive,
   type TeacherAnnouncementRow,
   type AnnouncementStatus,
 } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
-import ChatPage from '@/pages/shared/ChatPage'
 import PrincipalClasses from '@/pages/principal/PrincipalClasses'
 import PrincipalClassDetail from '@/pages/principal/PrincipalClassDetail'
 import {
@@ -309,7 +310,7 @@ function AnnouncementsPage() {
 }
 
 function MessagesPage() {
-  return <ChatPage userRole="principal" />
+  return <PrincipalMessages />
 }
 
 function SettingsPage() {
@@ -417,9 +418,31 @@ export default function PrincipalApp() {
   const location = useLocation()
   const { signOut, profile, school } = useAuth()
   const { items: notifItems, unread: unreadNotif, loading: notifLoading } = useNotifications()
+  const { ctx, ready } = useAcademicContext()
+  const messageLive = useAcademicLive('message')
   const page = useMemo(() => principalPathToPage(location.pathname), [location.pathname])
   const setPage = (p: PrincipalPageKey) => navigate(PRINCIPAL_PAGE_PATH[p])
   const [notifOpen, setNotifOpen] = useState(false)
+  const [unreadMsg, setUnreadMsg] = useState(0)
+
+  useEffect(() => {
+    if (!ready || !ctx) {
+      setUnreadMsg(0)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const n = await MessageService.countUnread(ctx)
+        if (!cancelled) setUnreadMsg(n)
+      } catch {
+        if (!cancelled) setUnreadMsg(0)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [ready, ctx, messageLive, page])
 
   const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   const displayName = profile?.fullName?.trim() || 'Principal'
@@ -468,7 +491,12 @@ export default function PrincipalApp() {
                 }}
               >
                 <Icon size={15} />
-                {label}
+                <span style={{ flex: 1 }}>{label}</span>
+                {key === 'messages' && unreadMsg > 0 && (
+                  <span style={{ minWidth: 16, height: 16, borderRadius: 999, background: '#f43f5e', color: '#fff', fontSize: 9, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                    {unreadMsg > 9 ? '9+' : unreadMsg}
+                  </span>
+                )}
               </button>
             )
           })}

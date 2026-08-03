@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, HelpCircle, MessageCircle, Megaphone,
@@ -22,6 +22,8 @@ import Leave from "./Leave";
 import TeacherProfile from "./Profile";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
 import { useAuth } from "@/hooks/useAuth";
+import { MessageService, useAcademicLive } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import QuestionBankPage from "@/pages/shared/QuestionBankPage";
 import TeacherBattleground from "@/pages/teacher/TeacherBattleground";
 import BattleMonitor from "@/pages/teacher/BattleMonitor";
@@ -68,6 +70,7 @@ function Sidebar({
   displayName,
   employeeId,
   initials,
+  unreadMsg = 0,
 }: {
   page: TeacherPageKey;
   setPage: (p: TeacherPageKey) => void;
@@ -79,6 +82,7 @@ function Sidebar({
   displayName: string;
   employeeId: string;
   initials: string;
+  unreadMsg?: number;
 }) {
   return (
     <aside className={cn(
@@ -131,8 +135,13 @@ function Sidebar({
               </div>
               {(!collapsed || mobile) && (
                 <>
-                  <span className="text-xs font-semibold truncate">{item.label}</span>
-                  {active && <div className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] ml-auto shrink-0" />}
+                  <span className="text-xs font-semibold truncate flex-1">{item.label}</span>
+                  {item.key === "communication" && unreadMsg > 0 && (
+                    <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center">
+                      {unreadMsg > 9 ? "9+" : unreadMsg}
+                    </span>
+                  )}
+                  {active && unreadMsg === 0 && <div className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] ml-auto shrink-0" />}
                 </>
               )}
             </button>
@@ -172,10 +181,32 @@ export default function TeacherApp() {
   const location = useLocation();
   const { signOut } = useAuth();
   const identity = useTeacherIdentity();
+  const { ctx, ready } = useAcademicContext();
+  const messageLive = useAcademicLive("message");
   const page = useMemo(() => teacherPathToPage(location.pathname), [location.pathname]);
   const setPage = (p: TeacherPageKey) => navigate(TEACHER_PAGE_PATH[p]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [unreadMsg, setUnreadMsg] = useState(0);
+
+  useEffect(() => {
+    if (!ready || !ctx) {
+      setUnreadMsg(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const n = await MessageService.countUnread(ctx);
+        if (!cancelled) setUnreadMsg(n);
+      } catch {
+        if (!cancelled) setUnreadMsg(0);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, messageLive, page]);
 
   const displayName = identity.name || "Teacher";
   const employeeId = identity.employeeId || "—";
@@ -193,6 +224,7 @@ export default function TeacherApp() {
     employeeId,
     initials,
     onSignOut: handleSignOut,
+    unreadMsg,
   };
 
   return (
