@@ -233,7 +233,7 @@ export default function AdminApp() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-white/7 bg-[#0a0a0c]/80 backdrop-blur-xl">
+        <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-white/7 bg-[#0a0a0c]/80 backdrop-blur-xl">
           <button
             onClick={() => setMobileOpen(true)}
             className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#78788c] hover:text-white"

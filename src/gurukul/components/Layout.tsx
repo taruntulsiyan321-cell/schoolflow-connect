@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
@@ -127,6 +128,7 @@ export default function Layout({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const handleSignOut = async () => {
     await signOut();
@@ -147,16 +149,24 @@ export default function Layout({
     }));
   }, [page]);
 
-  // Close profile dropdown on outside click
+  // Close profile dropdown on outside click (menu is portaled to body)
   useEffect(() => {
+    if (!profileOpen) return;
     function handle(e: MouseEvent) {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false);
-      }
+      const t = e.target as Node;
+      if (profileRef.current?.contains(t) || profileMenuRef.current?.contains(t)) return;
+      setProfileOpen(false);
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setProfileOpen(false);
     }
     document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, []);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handle);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [profileOpen]);
 
   function toggleGroup(key: string) {
     setOpenGroups(g => ({ ...g, [key]: !g[key] }));
@@ -352,8 +362,8 @@ export default function Layout({
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Top header */}
-        <header className="shrink-0 border-b border-white/5 bg-[#0d0d0f]/80 backdrop-blur-xl">
+        {/* Top header — z-40 so backdrop-blur stacking context sits above <main> */}
+        <header className="relative z-40 shrink-0 border-b border-white/5 bg-[#0d0d0f]/80 backdrop-blur-xl">
           <div className="h-14 px-4 sm:px-6 flex items-center gap-3">
             {/* Mobile hamburger */}
             <button className="md:hidden text-[#78788c] hover:text-white" onClick={() => setMobileOpen(true)}>
@@ -407,7 +417,7 @@ export default function Layout({
                 </button>
               )}
 
-              {/* Profile avatar — opens dropdown */}
+              {/* Profile avatar — opens dropdown (portaled to body) */}
               <div className="relative" ref={profileRef}>
                 <button
                   onClick={() => setProfileOpen(o => !o)}
@@ -416,13 +426,19 @@ export default function Layout({
                     profileOpen ? "ring-[#3b5bdb]" : "ring-transparent hover:ring-white/20",
                     page === "profile" && "ring-[#3b5bdb]"
                   )}
-                  style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
+                  style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}
+                  aria-haspopup="menu"
+                  aria-expanded={profileOpen}
+                >
                   {student.avatar}
                 </button>
 
-                {/* Dropdown */}
-                {profileOpen && (
-                  <div className="fixed right-4 top-14 mt-0 w-64 z-[100] rounded-2xl border border-white/10 bg-[#131316]/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden">
+                {profileOpen && createPortal(
+                  <div
+                    ref={profileMenuRef}
+                    role="menu"
+                    className="fixed right-4 top-14 mt-0 w-64 z-overlay rounded-2xl border border-white/10 bg-[#131316]/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
+                  >
                     {/* User info */}
                     <div className="px-4 py-4 border-b border-white/5">
                       <div className="flex items-center gap-3">
@@ -496,7 +512,8 @@ export default function Layout({
                         Sign out
                       </button>
                     </div>
-                  </div>
+                  </div>,
+                  document.body,
                 )}
               </div>
             </div>
