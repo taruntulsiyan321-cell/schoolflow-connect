@@ -5,7 +5,6 @@
 -- =============================================================================
 
 -- 1. Teacher class+subject helper (mirrors teacherAssignedToClassSubject)
--- DROP first: arg order/return must stay recreatable across APPLY re-runs
 DROP FUNCTION IF EXISTS public.teacher_teaches_class_subject(uuid, uuid, uuid);
 DROP FUNCTION IF EXISTS public.teacher_teaches_class_subject(uuid, uuid, uuid, text);
 DROP FUNCTION IF EXISTS public.teacher_teaches_class_subject(uuid, uuid, text, uuid);
@@ -60,7 +59,6 @@ ALTER TABLE public.community_doubts
   ADD COLUMN IF NOT EXISTS solved_at timestamptz,
   ADD COLUMN IF NOT EXISTS solved_by_answer_id uuid;
 
--- Backfill subject_id from legacy subject text via public.subjects
 UPDATE public.community_doubts d
 SET subject_id = s.id
 FROM public.subjects s
@@ -83,7 +81,6 @@ WHERE d.subject_id IS NULL
     LIMIT 1
   );
 
--- Status: keep legacy values readable; prefer open|solved going forward
 DO $$
 BEGIN
   ALTER TABLE public.community_doubts DROP CONSTRAINT IF EXISTS community_doubts_status_check;
@@ -98,7 +95,6 @@ ALTER TABLE public.community_doubts
   ADD CONSTRAINT community_doubts_status_check
   CHECK (status IN ('open', 'solved', 'unsolved', 'teacher_answered', 'community_solved'));
 
--- Backfill open/solved from legacy statuses
 UPDATE public.community_doubts
 SET status = 'open'
 WHERE status = 'unsolved';
@@ -136,7 +132,6 @@ CREATE INDEX IF NOT EXISTS community_doubts_class_subject_idx
 CREATE INDEX IF NOT EXISTS community_doubts_status_open_idx
   ON public.community_doubts (class_id, status, created_at DESC);
 
--- FK for solved_by_answer_id (circular — add after answers table exists)
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -152,7 +147,10 @@ EXCEPTION WHEN others THEN
   RAISE NOTICE 'solved_by_answer_id FK deferred/skipped: %', SQLERRM;
 END $$;
 
--- ── 3. Multi-attachment tables ───────────────────────────────────────────────
+ALTER TABLE public.community_doubt_answers
+  ADD COLUMN IF NOT EXISTS school_id uuid REFERENCES public.schools(id) ON DELETE CASCADE;
+
+-- 3. Multi-attachment tables
 CREATE TABLE IF NOT EXISTS public.community_doubt_attachments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id uuid REFERENCES public.schools(id) ON DELETE CASCADE,
@@ -161,6 +159,7 @@ CREATE TABLE IF NOT EXISTS public.community_doubt_attachments (
   file_name text NOT NULL,
   file_type text,
   file_size_bytes bigint,
+  created_by uuid,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -172,8 +171,14 @@ CREATE TABLE IF NOT EXISTS public.community_doubt_answer_attachments (
   file_name text NOT NULL,
   file_type text,
   file_size_bytes bigint,
+  created_by uuid,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.community_doubt_attachments
+  ADD COLUMN IF NOT EXISTS created_by uuid;
+ALTER TABLE public.community_doubt_answer_attachments
+  ADD COLUMN IF NOT EXISTS created_by uuid;
 
 CREATE INDEX IF NOT EXISTS community_doubt_attachments_doubt_idx
   ON public.community_doubt_attachments (doubt_id);
@@ -183,73 +188,7 @@ CREATE INDEX IF NOT EXISTS community_doubt_answer_attachments_answer_idx
 ALTER TABLE public.community_doubt_attachments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.community_doubt_answer_attachments ENABLE ROW LEVEL SECURITY;
 
--- 4. Atomic first-answer -> solved trigger
-DROP TRIGGER IF EXISTS community_answers_first_solves ON public.community_doubt_answers;
-DROP FUNCTION IF EXISTS public.tg_community_doubt_first_answer_solves();
-
-CREATE OR REPLACE FUNCTION public.tg_community_doubt_first_answer_solves()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  _first_solve boolean := false;
-  _author uuid;
-BEGIN
-  -- Race-safe: only the first answer matching open/unsolved wins the UPDATE
-  UPDATE public.community_doubts
-  SET
-    status = 'solved',
-    solved_at = COALESCE(solved_at, now()),
-    solved_by_answer_id = COALESCE(solved_by_answer_id, NEW.id),
-    accepted_answer_id = COALESCE(accepted_answer_id, NEW.id),
-    answer_count = GREATEST(COALESCE(answer_count, 0), 0) + 1,
-    teacher_answered = teacher_answered OR (NEW.author_role IN ('teacher', 'admin', 'principal')),
-    last_activity_at = now(),
-    updated_at = now()
-  WHERE id = NEW.doubt_id
-    AND status IN ('open', 'unsolved');
-
-  IF FOUND THEN
-    _first_solve := true;
-  ELSE
-    -- Subsequent answers: bump count / activity only (do not unsolve or reassign solver)
-    UPDATE public.community_doubts
-    SET
-      answer_count = GREATEST(COALESCE(answer_count, 0), 0) + 1,
-      teacher_answered = teacher_answered OR (NEW.author_role IN ('teacher', 'admin', 'principal')),
-      last_activity_at = now(),
-      updated_at = now()
-    WHERE id = NEW.doubt_id;
-  END IF;
-
-  -- One-liner: notify doubt author on first answer (existing notifications helper)
-  IF _first_solve THEN
-    SELECT user_id INTO _author FROM public.community_doubts WHERE id = NEW.doubt_id;
-    IF _author IS NOT NULL AND _author IS DISTINCT FROM NEW.user_id THEN
-      PERFORM public._notify(
-        _author,
-        'doubt',
-        'Your doubt was answered',
-        left(NEW.body, 120),
-        'message-circle',
-        '/student/doubts'
-      );
-    END IF;
-  END IF;
-
-  RETURN NEW;
-END $$;
-
-DROP TRIGGER IF EXISTS community_answers_first_solves ON public.community_doubt_answers;
-CREATE TRIGGER community_answers_first_solves
-  AFTER INSERT ON public.community_doubt_answers
-  FOR EACH ROW
-  EXECUTE FUNCTION public.tg_community_doubt_first_answer_solves();
-
--- 5. RPCs - create / answer (attachments via service inserts; trigger solves)
--- DROP old signatures before recreate (return type / arity changes)
+-- 4. RPCs (DROP old signatures first; trigger created AFTER this so it is not wiped)
 DROP FUNCTION IF EXISTS public.rpc_create_community_doubt(text, text, text, text, text, text);
 DROP FUNCTION IF EXISTS public.rpc_create_community_doubt(text, text, text, text, text, text, uuid);
 DROP FUNCTION IF EXISTS public.rpc_add_community_answer(uuid, text, text);
@@ -351,7 +290,6 @@ BEGIN
 
   _role := public._community_user_role(_uid);
 
-  -- Visibility gate (SECURITY DEFINER bypasses RLS)
   IF _role = 'student' THEN
     IF public.student_class_id(_uid) IS DISTINCT FROM _d.class_id THEN
       RAISE EXCEPTION 'Not allowed to answer this doubt';
@@ -378,12 +316,11 @@ BEGIN
   )
   RETURNING id INTO _id;
 
-  -- Status / answer_count handled by tg_community_doubt_first_answer_solves
   PERFORM public._community_refresh_reputation(_uid);
   RETURN _id;
 END $$;
 
--- 4b. Atomic first-answer -> solved trigger (after RPC DROPs so function is not wiped)
+-- 5. Atomic first-answer -> solved trigger (AFTER RPC drops so function is not wiped)
 DROP TRIGGER IF EXISTS community_answers_first_solves ON public.community_doubt_answers;
 DROP TRIGGER IF EXISTS community_doubt_answers_first_solves ON public.community_doubt_answers;
 DROP FUNCTION IF EXISTS public.tg_community_doubt_first_answer_solves();
@@ -398,7 +335,6 @@ DECLARE
   _first_solve boolean := false;
   _author uuid;
 BEGIN
-  -- Race-safe: only the first answer matching open/unsolved wins the UPDATE
   UPDATE public.community_doubts
   SET
     status = 'solved',
@@ -450,7 +386,7 @@ CREATE TRIGGER community_answers_first_solves
   FOR EACH ROW
   EXECUTE FUNCTION public.tg_community_doubt_first_answer_solves();
 
--- ── 6. RLS — student class-only; teacher class+subject; NO client UPDATE/DELETE ─
+-- 6. RLS — student class-only; teacher class+subject; NO client UPDATE/DELETE
 DROP POLICY IF EXISTS "community doubts read" ON public.community_doubts;
 DROP POLICY IF EXISTS "community doubts school read" ON public.community_doubts;
 DROP POLICY IF EXISTS "community doubts student class read" ON public.community_doubts;
@@ -483,8 +419,6 @@ CREATE POLICY "community doubts insert student" ON public.community_doubts
     AND class_id = public.student_class_id(auth.uid())
     AND public.has_role(auth.uid(), 'student'::public.app_role)
   );
-
--- Intentionally no UPDATE/DELETE policies: content is immutable; solve trigger is SECURITY DEFINER.
 
 DROP POLICY IF EXISTS "community answers read" ON public.community_doubt_answers;
 DROP POLICY IF EXISTS "community answers school read" ON public.community_doubt_answers;
@@ -527,9 +461,11 @@ CREATE POLICY "community answers insert" ON public.community_doubt_answers
     )
   );
 
--- Attachment RLS mirrors parent doubt visibility
 DROP POLICY IF EXISTS "doubt attachments read" ON public.community_doubt_attachments;
 DROP POLICY IF EXISTS "doubt attachments insert" ON public.community_doubt_attachments;
+DROP POLICY IF EXISTS "community doubt attachments read" ON public.community_doubt_attachments;
+DROP POLICY IF EXISTS "community doubt attachments insert" ON public.community_doubt_attachments;
+
 CREATE POLICY "doubt attachments read" ON public.community_doubt_attachments
   FOR SELECT TO authenticated
   USING (
@@ -563,6 +499,9 @@ CREATE POLICY "doubt attachments insert" ON public.community_doubt_attachments
 
 DROP POLICY IF EXISTS "doubt answer attachments read" ON public.community_doubt_answer_attachments;
 DROP POLICY IF EXISTS "doubt answer attachments insert" ON public.community_doubt_answer_attachments;
+DROP POLICY IF EXISTS "community answer attachments read" ON public.community_doubt_answer_attachments;
+DROP POLICY IF EXISTS "community answer attachments insert" ON public.community_doubt_answer_attachments;
+
 CREATE POLICY "doubt answer attachments read" ON public.community_doubt_answer_attachments
   FOR SELECT TO authenticated
   USING (
@@ -601,7 +540,7 @@ CREATE POLICY "doubt answer attachments insert" ON public.community_doubt_answer
     )
   );
 
--- ── 7. Storage: private doubt-attachments bucket ─────────────────────────────
+-- 7. Storage: private doubt-attachments bucket
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'doubt-attachments',
@@ -627,7 +566,6 @@ SET
   file_size_limit = EXCLUDED.file_size_limit,
   allowed_mime_types = EXCLUDED.allowed_mime_types;
 
--- Path: {school_id}/{class_id}/{user_id}/...
 DROP POLICY IF EXISTS "doubt attachments storage read" ON storage.objects;
 DROP POLICY IF EXISTS "doubt attachments storage upload" ON storage.objects;
 DROP POLICY IF EXISTS "doubt attachments storage update" ON storage.objects;
@@ -668,9 +606,6 @@ CREATE POLICY "doubt attachments storage upload" ON storage.objects
     )
   );
 
--- No storage UPDATE/DELETE: attachments are append-only for this version.
-
--- Keep legacy doubt-images readable for old image_url rows
 DROP POLICY IF EXISTS "doubt images read" ON storage.objects;
 CREATE POLICY "doubt images read" ON storage.objects
   FOR SELECT TO authenticated
@@ -684,7 +619,7 @@ CREATE POLICY "doubt images upload own" ON storage.objects
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
--- ── 8. Realtime ──────────────────────────────────────────────────────────────
+-- 8. Realtime
 DO $$
 BEGIN
   IF NOT EXISTS (
@@ -699,21 +634,8 @@ BEGIN
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.community_doubt_answers;
   END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables
-    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'community_doubt_attachments'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.community_doubt_attachments;
-  END IF;
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_publication_tables
-    WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'community_doubt_answer_attachments'
-  ) THEN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.community_doubt_answer_attachments;
-  END IF;
 END $$;
 
--- Teacher dashboard RPC: scope to class+subject assignments
 CREATE OR REPLACE FUNCTION public.rpc_teacher_doubt_dashboard()
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -758,10 +680,6 @@ BEGIN
 
   RETURN _result;
 END $$;
-
-GRANT EXECUTE ON FUNCTION public.rpc_create_community_doubt(text, text, text, text, text, text, uuid) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.rpc_add_community_answer(uuid, text, text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.rpc_teacher_doubt_dashboard() TO authenticated;
 
 GRANT EXECUTE ON FUNCTION public.rpc_create_community_doubt(text, text, text, text, text, text, uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.rpc_add_community_answer(uuid, text, text) TO authenticated;
