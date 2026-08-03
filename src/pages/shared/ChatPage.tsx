@@ -117,6 +117,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  /** True after the first contacts fetch settles — live/realtime refreshes must not flip loading. */
+  const contactsLoadedRef = useRef(false);
 
   const reloadContacts = async () => {
     if (!ctx) return;
@@ -131,8 +133,11 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   useEffect(() => {
     if (!user || !ready || !ctx) return;
     let cancelled = false;
+    // liveVersion (AcademicLive message bumps / focus / poll) re-runs this effect.
+    // Only show the full-page spinner on the genuine first load — never wipe an already-rendered list.
+    const isFirstLoad = !contactsLoadedRef.current;
     (async () => {
-      setLoading(true);
+      if (isFirstLoad) setLoading(true);
       try {
         const [list, allowed] = await Promise.all([
           MessageService.listContacts(ctx),
@@ -149,7 +154,10 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
           toast.error(e instanceof Error ? e.message : "Could not load contacts");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          contactsLoadedRef.current = true;
+          setLoading(false);
+        }
       }
     })();
     return () => {
@@ -347,7 +355,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   const filtered = MessageService.searchContacts(contacts, search);
   const showMobileChat = !!selectedContact;
 
-  if (loading || !ready) {
+  // Keep list mounted once we have contacts even if a stray loading flip occurs.
+  if (!ready || (loading && !contactsLoadedRef.current)) {
     return (
       <div className="chat-panel max-w-5xl mx-auto py-12 text-center text-muted-foreground">
         Loading conversations…
