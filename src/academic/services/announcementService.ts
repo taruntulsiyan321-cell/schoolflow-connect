@@ -33,6 +33,7 @@ export type TeacherAnnouncementRow = {
   scheduledFor?: string;
   publishedAt?: string;
   hasAttachment: boolean;
+  attachmentUrl?: string | null;
   attachmentName?: string;
   priority: AnnouncementPriority;
 };
@@ -76,6 +77,18 @@ function uiAudience(db: string | null | undefined): NoticeAudience {
   return "class";
 }
 
+function attachmentLabelFromUrl(url: string): string {
+  try {
+    const base = decodeURIComponent(new URL(url).pathname.split("/").pop() || "");
+    const cleaned = base.replace(/^\d+-/, "").trim();
+    if (cleaned) return cleaned;
+  } catch {
+    /* not a full URL — fall through */
+  }
+  const tail = url.split("/").pop()?.split("?")[0]?.trim();
+  return tail || "Attachment";
+}
+
 function mapNotice(row: NoticeRow): TeacherAnnouncementRow {
   const status = uiStatus(row.status);
   const publishedAt =
@@ -86,6 +99,7 @@ function mapNotice(row: NoticeRow): TeacherAnnouncementRow {
     status === "scheduled" && row.published_at
       ? row.published_at.slice(0, 16)
       : undefined;
+  const attachmentUrl = row.attachment_url?.trim() || null;
   return {
     id: row.id,
     title: row.title,
@@ -97,8 +111,9 @@ function mapNotice(row: NoticeRow): TeacherAnnouncementRow {
     status,
     scheduledFor,
     publishedAt,
-    hasAttachment: Boolean(row.attachment_url),
-    attachmentName: row.attachment_url ? "Attachment" : undefined,
+    hasAttachment: Boolean(attachmentUrl),
+    attachmentUrl,
+    attachmentName: attachmentUrl ? attachmentLabelFromUrl(attachmentUrl) : undefined,
     priority: uiPriority(row.priority),
   };
 }

@@ -8,6 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { GlassCard, cn } from "@/gurukul/components/shared";
+import { toast } from "sonner";
 
 const PRIORITY_STYLES: Record<
   AnnouncementPriority,
@@ -43,7 +44,11 @@ export default function Notices() {
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ready || !ctx) return;
+    if (!ready || !ctx) {
+      setLoading(false);
+      setRows([]);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -56,7 +61,9 @@ export default function Notices() {
       } catch (e) {
         if (!cancelled) {
           setRows([]);
-          setError(e instanceof Error ? e.message : "Failed to load notices");
+          const msg = e instanceof Error ? e.message : "Failed to load notices";
+          setError(msg);
+          toast.error(msg);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -71,6 +78,15 @@ export default function Notices() {
     () => rows.find((r) => r.id === selected) ?? null,
     [rows, selected],
   );
+
+  const openAttachment = (notice: TeacherAnnouncementRow) => {
+    const url = notice.attachmentUrl?.trim();
+    if (!url) {
+      toast.info("No attachment link is available for this notice.");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   if (loading) {
     return (
@@ -182,10 +198,20 @@ export default function Notices() {
                 {detail.body}
               </div>
               {detail.hasAttachment && (
-                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20 text-xs font-semibold text-[#a5b4fc]">
+                <button
+                  type="button"
+                  onClick={() => openAttachment(detail)}
+                  disabled={!detail.attachmentUrl}
+                  title={
+                    detail.attachmentUrl
+                      ? "Open attachment"
+                      : "Attachment link is missing"
+                  }
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20 text-xs font-semibold text-[#a5b4fc] hover:bg-[#6366f1]/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
                   <Paperclip className="w-3.5 h-3.5" />
                   {detail.attachmentName ?? "Attachment"}
-                </div>
+                </button>
               )}
             </GlassCard>
           )}

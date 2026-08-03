@@ -113,6 +113,15 @@ function guessMime(ext: string): string | undefined {
   return map[ext];
 }
 
+/** Public URL for a path stored under the academic-files bucket (or passthrough http(s)). */
+export function publicAcademicFileUrl(storagePath: string): string | null {
+  const trimmed = storagePath.trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(trimmed);
+  return data?.publicUrl ?? null;
+}
+
 export function attachmentFromLink(url: string, name?: string): HomeworkAttachmentMeta {
   const trimmed = url.trim();
   if (!/^https?:\/\//i.test(trimmed)) {

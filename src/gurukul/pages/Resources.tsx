@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { FileText, Video, Download, Search, Loader2, ExternalLink } from "lucide-react";
 import { ResourceService, type LearningResourceRow } from "@/academic";
+import { publicAcademicFileUrl } from "@/academic/storage/academicFileUpload";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
 
@@ -12,6 +13,12 @@ function formatDate(iso: string | null) {
   } catch {
     return "—";
   }
+}
+
+function resolveResourceUrl(r: LearningResourceRow): string | null {
+  if (r.url?.trim()) return r.url.trim();
+  if (r.storagePath?.trim()) return publicAcademicFileUrl(r.storagePath);
+  return null;
 }
 
 export default function Resources() {
@@ -58,8 +65,9 @@ export default function Resources() {
   );
 
   const openResource = (r: LearningResourceRow) => {
-    if (r.url) {
-      window.open(r.url, "_blank", "noopener,noreferrer");
+    const url = resolveResourceUrl(r);
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
       return;
     }
     toast.info("No download link available for this material yet.");
@@ -87,6 +95,7 @@ export default function Resources() {
           <div className="space-y-2">
             {filtered.map((r) => {
               const col = subjectColor[r.subject] ?? "#78788c";
+              const hasLink = Boolean(resolveResourceUrl(r));
               return (
                 <button
                   key={r.id}
@@ -110,7 +119,7 @@ export default function Resources() {
                     </div>
                   </div>
                   <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                    {r.url ? (
+                    {hasLink ? (
                       <ExternalLink className="w-4 h-4 text-[#78788c]" />
                     ) : (
                       <Download className="w-4 h-4 text-[#78788c]" />
