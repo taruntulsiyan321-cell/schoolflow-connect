@@ -9,6 +9,7 @@ import { isGenericAcademicLabel } from "@/lib/qualityGuards";
 import type { AiActorRole, AiClientRequest, AiGatewayResponse } from "./envelope";
 import { mapIntentToCapability } from "./intentMapper";
 import { getCapability } from "./capabilityCatalog";
+import { dedupeSubjects, isPlaceholderLabel } from "./novaContextBuilder";
 
 /** Shown when generative path is down (402 / kill switch / missing key). */
 export const AI_BILLING_UNAVAILABLE_MSG =
@@ -363,13 +364,14 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
           Number(eie?.total_tracked ?? 0) > 0
             ? `Mastery **${eie?.avg_mastery ?? 0}%**`
             : `Mastery **not tracked yet**`;
-        const classBit = studentProfile?.class_label
-          ? `Class **${studentProfile.class_label}**`
-          : null;
-        const subjectsBit =
-          Array.isArray(studentProfile?.subjects) && studentProfile!.subjects!.length
-            ? `Subjects: ${studentProfile!.subjects!.slice(0, 5).join(", ")}`
+        const classBit =
+          studentProfile?.class_label && !isPlaceholderLabel(studentProfile.class_label)
+            ? `Class **${studentProfile.class_label}**`
             : null;
+        const cleanSubjects = dedupeSubjects(studentProfile?.subjects ?? [], 5);
+        const subjectsBit = cleanSubjects.length
+          ? `Subjects: ${cleanSubjects.join(", ")}`
+          : null;
         const extras = [
           Number(mistakes?.open_count ?? 0) > 0 ? `Mistakes open **${mistakes!.open_count}**` : null,
           Number(recovery?.pending_count ?? 0) > 0 ? `Recovery **${recovery!.pending_count}**` : null,

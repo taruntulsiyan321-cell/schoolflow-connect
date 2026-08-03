@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   Search,
   Check,
@@ -104,6 +104,7 @@ export default function Doubts() {
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [replyFiles, setReplyFiles] = useState<Record<string, File[]>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const loadedRef = useRef(false);
 
   const teacherTag = teacherInitials(identity.name, "T");
 
@@ -126,8 +127,9 @@ export default function Doubts() {
   useEffect(() => {
     if (!ready || !ctx) return;
     let cancelled = false;
+    const isFirst = !loadedRef.current;
     (async () => {
-      setLoading(true);
+      if (isFirst) setLoading(true);
       setError(null);
       try {
         const selected =
@@ -173,7 +175,10 @@ export default function Doubts() {
             }
           }),
         );
-        if (!cancelled) setDoubts(mapped);
+        if (!cancelled) {
+          setDoubts(mapped);
+          loadedRef.current = true;
+        }
       } catch (e) {
         if (!cancelled) {
           setDoubts([]);
@@ -384,7 +389,7 @@ export default function Doubts() {
                       {status}
                     </span>
                     <span className="text-[9px] text-[#46465a]">
-                      {className} {section} · {row.subject || "General"}
+                      {className} {section} · {row.subject || "—"}
                     </span>
                   </div>
                   <div className="text-[10px] text-[#b0b0c0] mt-1 line-clamp-2 leading-relaxed">

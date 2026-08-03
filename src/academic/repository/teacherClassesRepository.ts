@@ -1,5 +1,6 @@
 import { getClient, schoolIdOf, throwIfError, type RepoContext } from "./base";
 import { NotFoundError, TenantViolationError } from "./errors";
+import { isPlaceholderLabel } from "../ai/novaContextBuilder";
 
 export interface AssignedClass {
   id: string;
@@ -139,7 +140,7 @@ export async function listTeacherClassSubjectPairs(
   const teacherId = await resolveTeacherId(ctx, teacherUserId);
   const { data, error } = await (getClient(ctx) as any)
     .from("teacher_classes")
-    .select("class_id, subject, subject_id, classes(id, name, section)")
+    .select("class_id, subject, subject_id, classes(id, name, section), subjects(name)")
     .eq("teacher_id", teacherId)
     .eq("school_id", schoolId);
   throwIfError(error, "Failed to load teacher class-subject pairs");
@@ -157,8 +158,13 @@ export async function listTeacherClassSubjectPairs(
     subject: string | null;
     subject_id?: string | null;
     classes: { id: string; name: string; section: string } | null;
+    subjects?: { name?: string } | { name?: string }[] | null;
   }>) {
-    const subject = String(row.subject ?? "").trim();
+    const joined = row.subjects;
+    const joinedName = Array.isArray(joined)
+      ? String(joined[0]?.name ?? "").trim()
+      : String(joined?.name ?? "").trim();
+    const subject = String(row.subject ?? "").trim() || joinedName;
     if (!subject || !row.classes?.id) continue;
     const key = `${row.class_id}::${subject.toLowerCase()}`;
     if (seen.has(key)) continue;
@@ -196,7 +202,7 @@ export async function listSubjectsForClass(
       ? String(joined[0]?.name ?? "").trim()
       : String(joined?.name ?? "").trim();
     const subject = String(row.subject ?? "").trim() || joinedName;
-    if (!subject) continue;
+    if (!subject || isPlaceholderLabel(subject)) continue;
     const key = subject.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);

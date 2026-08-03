@@ -480,7 +480,8 @@ export async function projectStudentProgression(
     schoolId: ctx.schoolId,
     xp: snap?.xp ?? 0,
     level: snap?.level ?? 1,
-    league: snap?.league?.label ?? snap?.league?.code ?? "Bronze",
+    // Never invent Bronze when progression is missing — omit/empty for Nova facts.
+    league: snap?.league?.label ?? snap?.league?.code ?? "",
     reputation: snap?.reputation ?? 0,
     study_streak: snap?.study_streak ?? 0,
     badges_earned: snap?.badges?.length ?? 0,
