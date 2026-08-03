@@ -739,9 +739,9 @@ export const BattleExperienceService = {
   },
 
   /**
-   * Battleground home warm: rotate/seed featured windows, then ensure
-   * Daily/Weekly/NCERT for the caller so cards populate without tap.
-   * Teacher id is peeked from manual public only (not created).
+   * Battleground home warm: expire stale windows + seed Daily/Weekly/NCERT
+   * so Featured cards populate without tap. Prefer class-scoped ensure-all
+   * (no auto-join). Teacher is peeked from live teacher-hosted battles.
    */
   async ensureFeaturedAll(ctx: ServiceContext): Promise<{
     daily: string | null;
@@ -751,10 +751,31 @@ export const BattleExperienceService = {
   }> {
     assertCanOwn(ctx, "battle");
     const client = getClient(toRepoContext(ctx));
-    const empty = { daily: null as string | null, weekly: null as string | null, ncert: null as string | null, teacher: null as string | null };
+    const empty = {
+      daily: null as string | null,
+      weekly: null as string | null,
+      ncert: null as string | null,
+      teacher: null as string | null,
+    };
 
-    // Close expired + seed current-window shells (cron-safe; ignore if not migrated yet)
-    await client.rpc("rpc_refresh_featured_battles").then(
+    const { data, error } = await client.rpc("rpc_ensure_featured_battles_all" as never);
+    if (!error && data && typeof data === "object") {
+      const row = data as Record<string, unknown>;
+      afterExperienceWrite(ctx, ["battle"]);
+      return {
+        daily: typeof row.daily === "string" ? row.daily : null,
+        weekly: typeof row.weekly === "string" ? row.weekly : null,
+        ncert: typeof row.ncert === "string" ? row.ncert : null,
+        teacher: typeof row.teacher === "string" ? row.teacher : null,
+      };
+    }
+
+    // Fallbacks when ensure-all not applied yet
+    await client.rpc("rpc_refresh_featured_battles" as never).then(
+      () => undefined,
+      () => undefined,
+    );
+    await client.rpc("rpc_rotate_featured_battles" as never).then(
       () => undefined,
       () => undefined,
     );
@@ -767,17 +788,16 @@ export const BattleExperienceService = {
       if (r.status === "fulfilled") out[k] = r.value;
     });
 
-    // Peek teacher challenge without joining unless ensure('teacher') is used on tap
     if (ctx.classId) {
       const { data: teacherBattles } = await client
         .from("battles")
         .select("id, creator_user_id")
-        .eq("source", "manual")
+        .in("source", ["manual", "custom", "bank"])
         .eq("is_public", true)
         .eq("class_id", ctx.classId)
         .in("status", ["live", "scheduled"])
         .order("starts_at", { ascending: false })
-        .limit(8);
+        .limit(12);
       if (teacherBattles?.length) {
         const creatorIds = [...new Set(teacherBattles.map((b) => b.creator_user_id).filter(Boolean))];
         if (creatorIds.length) {

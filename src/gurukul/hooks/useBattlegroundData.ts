@@ -578,26 +578,9 @@ export function useBattlegroundData(enabled = true) {
         toast({ title: "Could not load featured battles", description: featuredErr.message, variant: "destructive" });
       }
 
-      const now = new Date();
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      // Match Postgres date_trunc('week') default (Monday) in most TZ configs
-      const day = now.getDay(); // 0 Sun … 6 Sat
-      const mondayOffset = day === 0 ? -6 : 1 - day;
-      const startOfWeek = new Date(startOfToday);
-      startOfWeek.setDate(startOfToday.getDate() + mondayOffset);
-
-      const featuredRows = ((featuredRaw || []) as BattleRow[]).filter((b) => {
-        const src = b.source || "";
-        const starts = new Date(b.starts_at);
-        if (src === "featured_daily" || src === "featured_ncert") {
-          return starts >= startOfToday;
-        }
-        if (src === "featured_weekly") {
-          return starts >= startOfWeek;
-        }
-        // beat_topper / other featured_*: keep live rows for this class
-        return true;
-      });
+      const featuredRows = ((featuredRaw || []) as BattleRow[]).filter((b) =>
+        isCurrentPeriodFeatured(b.source, b.starts_at),
+      );
 
       // Teacher Challenge card: latest teacher-hosted public battle (custom/manual/bank)
       let teacherRows: BattleRow[] = [];
@@ -695,7 +678,10 @@ export function useBattlegroundData(enabled = true) {
           myScore: p.score ?? undefined,
           theirScore: undefined,
           result,
-          timeLeft: status === "live" ? timeLeftLabel(b.starts_at, b.duration_sec) : undefined,
+          timeLeft:
+            status === "live"
+              ? featuredWindowLabel(b.source, b.starts_at) || timeLeftLabel(b.starts_at, b.duration_sec)
+              : undefined,
           startsIn: status === "upcoming" ? startsInLabel(b.starts_at) : undefined,
           date: status === "completed" ? formatRelativeDate(p.finished_at || b.starts_at) : undefined,
           xpReward,
@@ -704,6 +690,7 @@ export function useBattlegroundData(enabled = true) {
           participantId: p.id,
           battleCode: b.battle_code ?? null,
           source: b.source ?? null,
+          startsAt: b.starts_at ?? null,
           chapter: b.chapter ?? null,
           difficulty: b.difficulty ?? null,
         });
@@ -777,6 +764,7 @@ export function useBattlegroundData(enabled = true) {
           featured: (b.source || "").startsWith("featured_"),
           battleCode: b.battle_code ?? null,
           source: b.source ?? null,
+          startsAt: b.starts_at ?? null,
           chapter: b.chapter ?? null,
           difficulty: b.difficulty ?? null,
           inviteId: inv.id,
@@ -862,12 +850,16 @@ export function useBattlegroundData(enabled = true) {
           players: 0,
           maxPlayers: b.mode === "lobby" ? 40 : 20,
           startsIn: status === "upcoming" ? startsInLabel(b.starts_at) : undefined,
-          timeLeft: status === "live" ? timeLeftLabel(b.starts_at, b.duration_sec) : undefined,
+          timeLeft:
+            status === "live"
+              ? featuredWindowLabel(b.source, b.starts_at) || timeLeftLabel(b.starts_at, b.duration_sec)
+              : undefined,
           xpReward: 0, // not played yet — no real XP earned
           featured: isFeatured,
           hot: status === "live" && isFeatured,
           battleCode: b.battle_code ?? null,
           source: b.source ?? null,
+          startsAt: b.starts_at ?? null,
           chapter: b.chapter ?? null,
           difficulty: b.difficulty ?? null,
         });
