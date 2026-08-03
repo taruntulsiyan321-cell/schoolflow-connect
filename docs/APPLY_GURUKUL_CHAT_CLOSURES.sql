@@ -1,9 +1,16 @@
 -- =============================================================================
--- Gurukul Chat MVP — SSOT closures (read receipts + list/open/search RPCs)
--- Apply after 20260803161000_gurukul_chat_mvp.sql (+ security hardening if used)
--- Idempotent. DROP FUNCTION before recreate avoids 42P13 when OUT/return types change.
+-- APPLY_GURUKUL_CHAT_CLOSURES.sql
+-- Paste into Supabase SQL Editor as UTF-8 AFTER APPLY_GURUKUL_CHAT_SECURITY.sql
+-- (or after MVP if SECURITY was already applied). Idempotent.
+--
+-- Adds SSOT closures not in the origin MVP paste:
+--   * message_read_receipts + RLS + realtime
+--   * chat_participants.school_id / unread_count
+--   * rpc_mark_conversation_read (receipts + unread clear)
+--   * rpc_list_conversations / rpc_open_conversation / rpc_search_chat
+--   * rpc_create_class_group / rpc_create_teacher_group aliases
+-- DROP FUNCTION before recreate avoids 42P13 when OUT/return types change.
 -- =============================================================================
-
 -- ── 1. Read receipts ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.message_read_receipts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1105,6 +1105,7 @@ ALTER TABLE public.chat_participants
   ADD COLUMN IF NOT EXISTS unread_count integer NOT NULL DEFAULT 0;
 
 -- ── 2. Mark read writes receipts ─────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.rpc_mark_conversation_read(uuid);
 CREATE OR REPLACE FUNCTION public.rpc_mark_conversation_read(_conversation_id uuid)
 RETURNS integer
 LANGUAGE plpgsql
@@ -1171,6 +1172,7 @@ REVOKE EXECUTE ON FUNCTION public.rpc_mark_conversation_read(uuid) FROM anon, pu
 GRANT EXECUTE ON FUNCTION public.rpc_mark_conversation_read(uuid) TO authenticated;
 
 -- ── 3. List conversations (searchable inbox) ─────────────────────────────────
+DROP FUNCTION IF EXISTS public.rpc_list_conversations(text, int);
 CREATE OR REPLACE FUNCTION public.rpc_list_conversations(
   _search text DEFAULT NULL,
   _limit int DEFAULT 50
@@ -1211,6 +1213,7 @@ REVOKE EXECUTE ON FUNCTION public.rpc_list_conversations(text, int) FROM anon, p
 GRANT EXECUTE ON FUNCTION public.rpc_list_conversations(text, int) TO authenticated;
 
 -- ── 4. Open thread (messages + mark read) ────────────────────────────────────
+DROP FUNCTION IF EXISTS public.rpc_open_conversation(uuid, timestamptz, int);
 CREATE OR REPLACE FUNCTION public.rpc_open_conversation(
   _conversation_id uuid,
   _before timestamptz DEFAULT NULL,
@@ -1308,6 +1311,7 @@ REVOKE EXECUTE ON FUNCTION public.rpc_open_conversation(uuid, timestamptz, int) 
 GRANT EXECUTE ON FUNCTION public.rpc_open_conversation(uuid, timestamptz, int) TO authenticated;
 
 -- ── 5. Search chats ──────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS public.rpc_search_chat(text, int);
 CREATE OR REPLACE FUNCTION public.rpc_search_chat(
   _query text,
   _limit int DEFAULT 40
@@ -1371,6 +1375,9 @@ REVOKE EXECUTE ON FUNCTION public.rpc_search_chat(text, int) FROM anon, public;
 GRANT EXECUTE ON FUNCTION public.rpc_search_chat(text, int) TO authenticated;
 
 -- ── 6. Create-group aliases (product naming) ─────────────────────────────────
+DROP FUNCTION IF EXISTS public.rpc_create_class_group();
+DROP FUNCTION IF EXISTS public.rpc_create_class_group(uuid, text);
+DROP FUNCTION IF EXISTS public.rpc_create_teacher_group(text);
 CREATE OR REPLACE FUNCTION public.rpc_create_class_group(
   _class_id uuid,
   _title text DEFAULT NULL

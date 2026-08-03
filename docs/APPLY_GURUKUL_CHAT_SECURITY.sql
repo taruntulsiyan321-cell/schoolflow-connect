@@ -1,6 +1,8 @@
 -- =============================================================================
 -- APPLY_GURUKUL_CHAT_SECURITY.sql
 -- Paste AFTER APPLY_GURUKUL_CHAT_MVP.sql (idempotent).
+-- Then paste APPLY_GURUKUL_CHAT_CLOSURES.sql for read receipts / list-open-search RPCs
+-- (unless those closures were already included in a newer MVP paste).
 --
 -- Closes Chat MVP attack paths:
 --   A. Cross-school read/write (NULL school_id bypass, foreign tenant contacts)
