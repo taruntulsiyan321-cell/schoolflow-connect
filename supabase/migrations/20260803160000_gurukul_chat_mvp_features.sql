@@ -414,24 +414,24 @@ BEGIN
   SELECT _conv_id, t.user_id
   FROM public.teachers t
   WHERE t.class_teacher_of = _class_id AND t.user_id IS NOT NULL
-  ON CONFLICT (conversation_id, user_id) DO NOTHING;
+  ON CONFLICT DO NOTHING;
 
   INSERT INTO public.chat_participants (conversation_id, user_id)
   SELECT _conv_id, s.user_id
   FROM public.students s
   WHERE s.class_id = _class_id AND s.user_id IS NOT NULL AND s.school_id = _school
-  ON CONFLICT (conversation_id, user_id) DO NOTHING;
+  ON CONFLICT DO NOTHING;
 
   INSERT INTO public.chat_participants (conversation_id, user_id)
   SELECT _conv_id, ur.user_id
   FROM public.user_roles ur
   JOIN public.profiles p ON p.id = ur.user_id
   WHERE p.school_id = _school AND ur.role IN ('principal', 'admin')
-  ON CONFLICT (conversation_id, user_id) DO NOTHING;
+  ON CONFLICT DO NOTHING;
 
   INSERT INTO public.chat_participants (conversation_id, user_id)
   VALUES (_conv_id, _uid)
-  ON CONFLICT (conversation_id, user_id) DO NOTHING;
+  ON CONFLICT DO NOTHING;
 
   conversation_id := _conv_id;
   name := _name;

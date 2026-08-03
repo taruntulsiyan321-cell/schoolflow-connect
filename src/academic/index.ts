@@ -132,7 +132,11 @@ export type {
   AnnouncementStatus,
 } from "./services/announcementService";
 export type { LeaveRequestRow } from "./services/leaveService";
-export type { ChatContact, ChatMessage } from "./services/messageService";
+export type {
+  ChatContact,
+  ChatMessage,
+  ChatAttachment,
+} from "./services/messageService";
 
 export { AcademicLiveProvider, useAcademicLive, useAcademicLiveBump, broadcastAcademicWrite } from "./live";
 export {

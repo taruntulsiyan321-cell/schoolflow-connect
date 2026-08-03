@@ -5,6 +5,7 @@ import { cn } from "./shared";
 import {
   AttendanceService,
   MessageService,
+  useAcademicLive,
   type AssignedClass,
   type ChatContact,
   type ChatMessage,
@@ -211,6 +212,7 @@ function ChatView({
 export default function Communication() {
   const navigate = useNavigate();
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["message"]);
   const identity = useTeacherIdentity();
   const [assignedClasses, setAssignedClasses] = useState<AssignedClass[]>([]);
   const [contacts, setContacts] = useState<ChatContact[]>([]);
@@ -225,7 +227,7 @@ export default function Communication() {
     if (!ready || !ctx) return;
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      if (contacts.length === 0) setLoading(true);
       try {
         const [classes, list] = await Promise.all([
           AttendanceService.listAssignedClasses(ctx),
@@ -247,7 +249,8 @@ export default function Communication() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- contacts.length gates spinner only
+  }, [ready, ctx, liveVersion]);
 
   useEffect(() => {
     if (!ready || !ctx || !selectedId) {
@@ -300,6 +303,11 @@ export default function Communication() {
             (mapped.senderId === selectedId && mapped.receiverId === ctx.userId))
         ) {
           setMessages((prev) => (prev.find((m) => m.id === mapped.id) ? prev : [...prev, mapped]));
+          if (mapped.receiverId === ctx.userId) {
+            void MessageService.markThreadRead(ctx, mapped.senderId).catch((e) => {
+              toast.error(e instanceof Error ? e.message : "Could not mark message read");
+            });
+          }
         } else if (mapped.receiverId === ctx.userId) {
           setContacts((prev) =>
             prev.map((c) =>
@@ -319,7 +327,7 @@ export default function Communication() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [ctx?.userId, selectedId]);
+  }, [ctx, selectedId]);
 
   const selected = contacts.find((c) => c.userId === selectedId) ?? null;
 

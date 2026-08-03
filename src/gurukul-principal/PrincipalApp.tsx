@@ -23,6 +23,7 @@ import {
   type AnnouncementStatus,
 } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
+import ChatPage from '@/pages/shared/ChatPage'
 import PrincipalClasses from '@/pages/principal/PrincipalClasses'
 import PrincipalClassDetail from '@/pages/principal/PrincipalClassDetail'
 import {
@@ -308,15 +309,7 @@ function AnnouncementsPage() {
 }
 
 function MessagesPage() {
-  return (
-    <Card style={{ minHeight: 420, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, textAlign: 'center' }}>
-      <MessageSquare size={28} color="var(--text-muted)" />
-      <div style={{ fontSize: 15, fontWeight: 700 }}>No conversations</div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 360 }}>
-        Direct messaging is not connected yet. School notices appear under Announcements; academic alerts under Notifications.
-      </div>
-    </Card>
-  )
+  return <ChatPage userRole="principal" />
 }
 
 function SettingsPage() {

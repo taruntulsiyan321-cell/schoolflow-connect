@@ -21,7 +21,7 @@ async function getAccessToken(serviceAccount: any): Promise<string> {
   const unsigned = `${enc(header)}.${enc(claim)}`;
 
   const pem = serviceAccount.private_key.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
-  const der = Uint8Array.from(atob(pem), c => c.charCodeAt(0));
+  const der = Uint8Array.from(atob(pem), (c) => c.charCodeAt(0));
   const key = await crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
   const sig = new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned)));
   const b64 = btoa(String.fromCharCode(...sig)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
@@ -37,6 +37,22 @@ async function getAccessToken(serviceAccount: any): Promise<string> {
   return data.access_token;
 }
 
+async function sendToTokens(sa: any, tokens: string[], title: string, body: string): Promise<number> {
+  if (tokens.length === 0) return 0;
+  const accessToken = await getAccessToken(sa);
+  const projectId = sa.project_id;
+  let sent = 0;
+  for (const token of tokens) {
+    const r = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: { token, notification: { title, body } } }),
+    });
+    if (r.ok) sent++;
+  }
+  return sent;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
@@ -45,8 +61,6 @@ Deno.serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: userData } = await supabase.auth.getUser(auth.replace("Bearer ", ""));
     if (!userData.user) return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: corsHeaders });
-    const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", userData.user.id).eq("role", "admin").maybeSingle();
-    if (!roleRow) return new Response(JSON.stringify({ error: "Admin only" }), { status: 403, headers: corsHeaders });
 
     const { data: callerProfile } = await supabase
       .from("profiles")
@@ -61,12 +75,46 @@ Deno.serve(async (req) => {
     }
     const schoolId = callerProfile.school_id as string;
 
-    const { title, body, audience = "all", class_id } = await req.json();
+    const payload = await req.json();
+    const { title, body, audience = "all", class_id, user_id } = payload;
     if (!title || !body) return new Response(JSON.stringify({ error: "title & body required" }), { status: 400, headers: corsHeaders });
 
     const saJson = Deno.env.get("FCM_SERVICE_ACCOUNT_JSON");
     if (!saJson) throw new Error("FCM_SERVICE_ACCOUNT_JSON secret not configured");
     const sa = JSON.parse(saJson);
+
+    // Peer DM push: any authenticated school member may notify one same-school user
+    if (audience === "user") {
+      if (!user_id || user_id === userData.user.id) {
+        return new Response(JSON.stringify({ error: "user_id required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: target } = await supabase
+        .from("profiles")
+        .select("id, school_id, is_active")
+        .eq("id", user_id)
+        .maybeSingle();
+      if (!target || target.school_id !== schoolId || target.is_active === false) {
+        return new Response(JSON.stringify({ error: "Target outside school" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      // Prefer recent DM evidence; allow same-school notify as MVP fallback
+      const { data: recent } = await supabase
+        .from("messages")
+        .select("id")
+        .eq("sender_id", userData.user.id)
+        .eq("receiver_id", user_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!recent) {
+        return new Response(JSON.stringify({ error: "No message to notify" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const { data: tokens } = await supabase.from("device_tokens").select("token").eq("user_id", user_id);
+      const sent = await sendToTokens(sa, (tokens ?? []).map((t) => t.token), title, body);
+      return new Response(JSON.stringify({ success: true, sent }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const { data: roleRow } = await supabase.from("user_roles").select("role").eq("user_id", userData.user.id).eq("role", "admin").maybeSingle();
+    if (!roleRow) return new Response(JSON.stringify({ error: "Admin only" }), { status: 403, headers: corsHeaders });
 
     // Resolve target user_ids by audience — always scoped to caller's school
     let userIds: string[] = [];
@@ -104,19 +152,7 @@ Deno.serve(async (req) => {
     if (userIds.length === 0) return new Response(JSON.stringify({ success: true, sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { data: tokens } = await supabase.from("device_tokens").select("token").in("user_id", userIds);
-    const tokenList = (tokens ?? []).map(t => t.token);
-
-    const accessToken = await getAccessToken(sa);
-    const projectId = sa.project_id;
-    let sent = 0;
-    for (const token of tokenList) {
-      const r = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ message: { token, notification: { title, body } } }),
-      });
-      if (r.ok) sent++;
-    }
+    const sent = await sendToTokens(sa, (tokens ?? []).map((t) => t.token), title, body);
     return new Response(JSON.stringify({ success: true, sent }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error(e);

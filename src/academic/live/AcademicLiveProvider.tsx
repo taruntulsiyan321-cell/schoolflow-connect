@@ -45,8 +45,8 @@ const ACADEMIC_NOTIF_TYPES = new Set([
   "xp",
   "doubt",
   "leave",
+  "message",
 ]);
-
 /**
  * Mount once under AuthProvider. Subscribes to school academic tables + bus,
  * drains pending sync events, and bumps a shared version so every portal refetches.
@@ -236,6 +236,26 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
           filter: `user_id=eq.${user.id}`,
         },
         onTable(["xp", "profile"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        onTable(["message", "profile"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `sender_id=eq.${user.id}`,
+        },
+        onTable(["message"]),
       )
       .on(
         "postgres_changes",

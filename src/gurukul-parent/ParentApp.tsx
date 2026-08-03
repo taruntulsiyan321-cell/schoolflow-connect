@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, Bell, MessageSquare, User,
@@ -23,6 +23,9 @@ import TestResults from "./TestResults";
 import { useParentLiveChildren } from "./ParentLiveAttendance";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { MessageService, useAcademicLive } from "@/academic";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toast } from "sonner";
 
 export type { ParentPageKey } from "./nav";
 
@@ -251,14 +254,37 @@ export default function ParentApp() {
   const location = useLocation();
   const { signOut, profile } = useAuth();
   const { unread: unreadNotif } = useNotifications();
+  const { ctx, ready } = useAcademicContext();
+  const liveMsg = useAcademicLive(["message"]);
+  const [unreadMsg, setUnreadMsg] = useState(0);
   const page = useMemo(() => parentPathToPage(location.pathname), [location.pathname]);
   const setPage = (p: ParentPageKey) => navigate(PARENT_PAGE_PATH[p]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeChildId, setActiveChildId] = useState("");
-  const unreadMsg = 0;
   const parentName = profile?.fullName ?? "";
   const initials = initialsFromName(parentName.trim() || "Parent");
+
+  useEffect(() => {
+    if (!ready || !ctx) {
+      setUnreadMsg(0);
+      return;
+    }
+    let cancelled = false;
+    void MessageService.countUnread(ctx)
+      .then((n) => {
+        if (!cancelled) setUnreadMsg(n);
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setUnreadMsg(0);
+          toast.error(e instanceof Error ? e.message : "Could not load unread messages");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, liveMsg, page]);
 
   const handleSignOut = async () => {
     await signOut();

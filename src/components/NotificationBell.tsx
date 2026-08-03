@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Bell, Award, Swords, Trophy, Wallet, NotebookPen, CheckCheck, Sparkles } from "lucide-react";
+import { Bell, Award, Swords, Trophy, Wallet, NotebookPen, CheckCheck, Sparkles, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,6 +9,7 @@ import { useNotifications, type AppNotification } from "@/hooks/useNotifications
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   award: Award, badge: Award, swords: Swords, invite: Swords,
   trophy: Trophy, leaderboard: Trophy, fee: Wallet, homework: NotebookPen, general: Sparkles,
+  message: MessageSquare, "message-square": MessageSquare, chat: MessageSquare,
 };
 
 function timeAgo(iso: string) {

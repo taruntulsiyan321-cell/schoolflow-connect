@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import {
   Bell, Award, Swords, Trophy, Wallet, NotebookPen, Sparkles,
-  CheckCheck, Trash2, Loader2,
+  CheckCheck, Trash2, Loader2, MessageSquare,
 } from "lucide-react";
 import { GlassCard, cn } from "@/gurukul/components/shared";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
@@ -16,6 +16,9 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   fee: Wallet,
   homework: NotebookPen,
   general: Sparkles,
+  message: MessageSquare,
+  "message-square": MessageSquare,
+  chat: MessageSquare,
 };
 
 function timeAgo(iso: string) {

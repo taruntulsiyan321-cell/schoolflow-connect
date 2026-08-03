@@ -2,13 +2,14 @@ import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui-bits";
-import { Bell, Award, Swords, Trophy, Wallet, NotebookPen, Sparkles, CheckCheck, Trash2 } from "lucide-react";
+import { Bell, Award, Swords, Trophy, Wallet, NotebookPen, Sparkles, CheckCheck, Trash2, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNotifications, type AppNotification } from "@/hooks/useNotifications";
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   award: Award, badge: Award, swords: Swords, invite: Swords,
   trophy: Trophy, leaderboard: Trophy, fee: Wallet, homework: NotebookPen, general: Sparkles,
+  message: MessageSquare, "message-square": MessageSquare, chat: MessageSquare,
 };
 
 function timeAgo(iso: string) {

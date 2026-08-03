@@ -1,0 +1,23 @@
+﻿-- =============================================================================
+-- APPLY_GURUKUL_CHAT_LIVE_SYNC.sql
+-- Live sync / notifications for Gurukul Chat are included in the Chat MVP apply:
+--   docs/APPLY_GURUKUL_CHAT_MVP.sql
+--   (or migration supabase/migrations/20260803161000_gurukul_chat_mvp.sql)
+--
+-- That apply covers:
+--   * messages.school_id + RLS tenant checks
+--   * get_chat_contacts (school-scoped DM matrix)
+--   * rpc_send_* / rpc_mark_* / get_chat_unread_total
+--   * AFTER INSERT notify via _notify(type='message')
+--   * supabase_realtime publication for messages (+ chat tables)
+--
+-- Client live layer (already in app):
+--   AcademicDomain "message", AcademicLiveProvider postgres_changes on messages,
+--   MessageService.broadcastAcademicWrite(["message"]), ChatPage / teacher /
+--   principal / parent panels refetch via useAcademicLive(["message"]).
+--
+-- Paste the Chat MVP APPLY into Supabase SQL Editor (UTF-8). Idempotent.
+-- =============================================================================
+
+-- No additional statements — apply Chat MVP SQL for server-side fan-out.
+SELECT 1;

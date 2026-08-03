@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/auth";
 import { AcademicLiveProvider } from "@/academic/live";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PushNotificationsBootstrap } from "@/components/PushNotificationsBootstrap";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -36,6 +37,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <PushNotificationsBootstrap />
           <AcademicLiveProvider>
             <Suspense fallback={<RouteFallback />}>
               <Routes>

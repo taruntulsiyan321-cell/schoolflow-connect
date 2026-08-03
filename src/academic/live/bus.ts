@@ -15,6 +15,7 @@ export type AcademicDomain =
   | "battle"
   | "achievements"
   | "doubt"
+  | "message"
   | "all";
 
 export type AcademicChangeDetail = {
@@ -67,6 +68,7 @@ export function domainsFromNotificationType(type: string | null | undefined): Ac
   if (t.includes("battle") || t.includes("arena")) return ["battle", "xp", "profile"];
   if (t.includes("badge") || t.includes("achievement")) return ["achievements", "xp"];
   if (t.includes("doubt")) return ["doubt", "profile"];
+  if (t.includes("message") || t.includes("chat")) return ["message"];
   if (t.includes("leave")) return ["profile"];
   if (t.includes("xp") || t.includes("practice")) return ["xp", "profile"];
   return ["all"];
