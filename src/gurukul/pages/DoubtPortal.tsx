@@ -164,6 +164,8 @@ export default function DoubtPortal() {
   const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
 
   const [subjects, setSubjects] = useState<{ subject: string; subjectId: string | null }[]>([]);
+  const [subjectsError, setSubjectsError] = useState<string | null>(null);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Ask form
@@ -187,23 +189,33 @@ export default function DoubtPortal() {
     if (!ready || !ctx) return;
     let cancelled = false;
     (async () => {
+      setSubjectsLoading(true);
+      setSubjectsError(null);
       try {
         const list = await DoubtService.listSubjectsForStudentClass(ctx);
-        if (!cancelled) {
-          setSubjects(list);
-          if (!askSubject && list[0]) {
-            setAskSubject(list[0].subject);
-            setAskSubjectId(list[0].subjectId);
-          }
-        }
-      } catch {
-        if (!cancelled) setSubjects([]);
+        if (cancelled) return;
+        setSubjects(list);
+        setAskSubject((prev) =>
+          prev && list.some((s) => s.subject === prev) ? prev : (list[0]?.subject ?? ""),
+        );
+      } catch (e) {
+        if (cancelled) return;
+        const msg = e instanceof Error ? e.message : "Could not load class subjects";
+        setSubjects([]);
+        setSubjectsError(msg);
+        toast.error(msg);
+      } finally {
+        if (!cancelled) setSubjectsLoading(false);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx]);
+  }, [ready, ctx, classId]);
+
+  useEffect(() => {
+    setAskSubjectId(subjects.find((s) => s.subject === askSubject)?.subjectId ?? null);
+  }, [subjects, askSubject]);
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -370,7 +382,7 @@ export default function DoubtPortal() {
     e.target.value = "";
   }
 
-  if (!ready || loading) {
+  if (!ready) {
     return (
       <div className="flex items-center justify-center py-16 text-sm text-[#78788c] gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading doubts…
@@ -418,15 +430,33 @@ export default function DoubtPortal() {
                 setAskSubject(sub);
                 setAskSubjectId(subjects.find((s) => s.subject === sub)?.subjectId ?? null);
               }}
-              className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none"
+              disabled={subjectsLoading || !!subjectsError || subjects.length === 0}
+              className="mt-1 w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2.5 text-sm text-white outline-none disabled:opacity-60"
             >
-              {subjects.length === 0 && <option value="">No subjects mapped yet</option>}
+              {subjectsLoading && <option value="">Loading subjects…</option>}
+              {!subjectsLoading && subjectsError && (
+                <option value="">Could not load subjects</option>
+              )}
+              {!subjectsLoading && !subjectsError && subjects.length === 0 && (
+                <option value="">No subjects mapped yet</option>
+              )}
               {subjects.map((s) => (
-                <option key={s.subject} value={s.subject}>
+                <option key={s.subject} value={s.subject} className="bg-[#12121a] text-white">
                   {s.subject}
                 </option>
               ))}
             </select>
+            {subjectsError && (
+              <p className="mt-1.5 text-[11px] text-[#cc5069] flex items-start gap-1.5">
+                <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
+                {subjectsError}
+              </p>
+            )}
+            {!subjectsLoading && !subjectsError && subjects.length === 0 && (
+              <p className="mt-1.5 text-[11px] text-amber-400/90">
+                Ask admin to assign Teacher–Class–Subject for your class.
+              </p>
+            )}
           </div>
           <div>
             <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wide">Your doubt</label>
@@ -451,7 +481,7 @@ export default function DoubtPortal() {
           </div>
           <button
             type="button"
-            disabled={asking || !askBody.trim() || !askSubject}
+            disabled={asking || subjectsLoading || !!subjectsError || !askBody.trim() || !askSubject}
             onClick={() => void submitAsk()}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#3b5bdb] text-white text-sm font-bold py-2.5 disabled:opacity-40"
           >
@@ -644,9 +674,9 @@ export default function DoubtPortal() {
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
             className="bg-transparent text-xs text-white outline-none"
           >
-            <option value="all">All status</option>
-            <option value="open">Open</option>
-            <option value="solved">Solved</option>
+            <option value="all" className="bg-[#12121a] text-white">All status</option>
+            <option value="open" className="bg-[#12121a] text-white">Open</option>
+            <option value="solved" className="bg-[#12121a] text-white">Solved</option>
           </select>
         </div>
         <select
@@ -654,9 +684,9 @@ export default function DoubtPortal() {
           onChange={(e) => setSubjectFilter(e.target.value)}
           className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
         >
-          <option value="all">All subjects</option>
+          <option value="all" className="bg-[#12121a] text-white">All subjects</option>
           {subjects.map((s) => (
-            <option key={s.subject} value={s.subject}>
+            <option key={s.subject} value={s.subject} className="bg-[#12121a] text-white">
               {s.subject}
             </option>
           ))}
@@ -666,10 +696,17 @@ export default function DoubtPortal() {
           onChange={(e) => setScopeFilter(e.target.value as ScopeFilter)}
           className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
         >
-          <option value="all">Whole class</option>
-          <option value="mine">Mine</option>
+          <option value="all" className="bg-[#12121a] text-white">Whole class</option>
+          <option value="mine" className="bg-[#12121a] text-white">Mine</option>
         </select>
       </div>
+
+      {subjectsError && (
+        <p className="text-[11px] text-[#cc5069] flex items-center gap-1.5">
+          <AlertCircle className="w-3 h-3 shrink-0" />
+          Subjects unavailable: {subjectsError}
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <GlassCard className="p-10 text-center space-y-2">

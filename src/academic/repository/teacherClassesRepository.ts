@@ -184,14 +184,18 @@ export async function listSubjectsForClass(
   const schoolId = schoolIdOf(ctx);
   const { data, error } = await getClient(ctx)
     .from("teacher_classes")
-    .select("subject, subject_id")
+    .select("subject, subject_id, subjects(name)")
     .eq("school_id", schoolId)
     .eq("class_id", classId);
   throwIfError(error, "Failed to list class subjects");
   const seen = new Set<string>();
   const out: { subject: string; subjectId: string | null }[] = [];
   for (const row of data ?? []) {
-    const subject = String(row.subject ?? "").trim();
+    const joined = row.subjects as { name?: string } | { name?: string }[] | null;
+    const joinedName = Array.isArray(joined)
+      ? String(joined[0]?.name ?? "").trim()
+      : String(joined?.name ?? "").trim();
+    const subject = String(row.subject ?? "").trim() || joinedName;
     if (!subject) continue;
     const key = subject.toLowerCase();
     if (seen.has(key)) continue;
