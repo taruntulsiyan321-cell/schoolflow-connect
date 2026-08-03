@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
 import { GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { ChevronLeft, ChevronRight, CalendarDays, BookOpen, ClipboardList, AlertCircle, Star, Loader2 } from "lucide-react";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -50,16 +51,17 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
       setCalendarEvents([]);
-      setLoading(false);
+      endLoading(setLoading);
       return;
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      beginLoading(setLoading);
       try {
         const settled = await Promise.allSettled([
           HomeworkService.listForStudent(ctx, studentId),
@@ -133,7 +135,7 @@ export default function Calendar() {
           });
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) endLoading(setLoading);
       }
     })();
     return () => {
@@ -182,7 +184,7 @@ export default function Calendar() {
     [calendarEvents],
   );
 
-  if (loading) {
+  if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-16 text-[#78788c]">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />

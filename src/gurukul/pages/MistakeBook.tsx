@@ -13,6 +13,7 @@ import {
   RotateCcw, RefreshCw, Zap, Star, TrendingUp, Clock,
   Play, History, BarChart2, SortAsc, Eye,
 } from "lucide-react";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 type MBView = "list" | "practice" | "results";
 
@@ -424,6 +425,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [rows, setRows] = useState<MistakeRow[]>([]);
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"date"|"frequency"|"subject">("date");
@@ -471,12 +473,12 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   useEffect(() => {
     if (!academicReady || !ctx || !user) {
       setRows([]);
-      setLoading(false);
+      endLoading(setLoading);
       return;
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      beginLoading(setLoading);
       setLoadError(null);
       const { data, error } = await supabase
         .from("student_mistakes")
@@ -510,7 +512,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           })),
         );
       }
-      setLoading(false);
+      endLoading(setLoading);
     })();
     return () => { cancelled = true; };
   }, [academicReady, ctx, user, liveVersion]);
@@ -596,7 +598,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     }
   }
 
-  if (loading) {
+  if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-24">
         <AlertCircle className="w-6 h-6 text-rose-400 animate-spin"/>

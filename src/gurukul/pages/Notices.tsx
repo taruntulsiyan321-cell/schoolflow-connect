@@ -7,6 +7,7 @@ import {
   type TeacherAnnouncementRow,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { GlassCard, cn } from "@/gurukul/components/shared";
 import { toast } from "sonner";
 
@@ -40,18 +41,19 @@ export default function Notices() {
   const liveVersion = useAcademicLive(["profile"]);
   const [rows, setRows] = useState<TeacherAnnouncementRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready || !ctx) {
-      setLoading(false);
+      endLoading(setLoading);
       setRows([]);
       return;
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      beginLoading(setLoading);
       try {
         const list = await AnnouncementService.listPublishedForStudent(ctx);
         if (!cancelled) {
@@ -66,7 +68,7 @@ export default function Notices() {
           toast.error(msg);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) endLoading(setLoading);
       }
     })();
     return () => {
@@ -88,7 +90,7 @@ export default function Notices() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
-  if (loading) {
+  if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading notices…

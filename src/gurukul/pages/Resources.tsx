@@ -5,6 +5,7 @@ import { ResourceService, type LearningResourceRow } from "@/academic";
 import { publicAcademicFileUrl } from "@/academic/storage/academicFileUpload";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
@@ -26,16 +27,17 @@ export default function Resources() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<LearningResourceRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   useEffect(() => {
     if (!ready || !ctx) {
-      setLoading(false);
+      endLoading(setLoading);
       setRows([]);
       return;
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      beginLoading(setLoading);
       try {
         const list = await ResourceService.listForStudent(ctx, { classId: classId ?? null });
         if (!cancelled) setRows(list);
@@ -45,7 +47,7 @@ export default function Resources() {
           toast.error(e instanceof Error ? e.message : "Failed to load resources");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) endLoading(setLoading);
       }
     })();
     return () => {

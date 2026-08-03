@@ -4,6 +4,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
 import { GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { Clock, MapPin, User, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 const PERIODS = ["1", "2", "3", "4", "Lunch", "5", "6", "7"] as const;
 const DAY_MAP = [
@@ -69,16 +70,17 @@ export default function Timetable() {
   const [timetable, setTimetable] = useState<DaySchedule[]>([]);
   const [classLabel, setClassLabel] = useState("");
   const [loading, setLoading] = useState(true);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
   const [hasTimetable, setHasTimetable] = useState(false);
 
   useEffect(() => {
     if (!ready || !ctx) {
-      setLoading(false);
+      endLoading(setLoading);
       return;
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      beginLoading(setLoading);
       try {
         const snap = await TimetableService.forClass(ctx, classId);
         if (cancelled) return;
@@ -102,7 +104,7 @@ export default function Timetable() {
           variant: "destructive",
         });
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) endLoading(setLoading);
       }
     })();
     return () => {
@@ -135,7 +137,7 @@ export default function Timetable() {
   }
   const currentPeriodIdx = getCurrentPeriod();
 
-  if (loading) {
+  if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-16 text-[#78788c]">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />

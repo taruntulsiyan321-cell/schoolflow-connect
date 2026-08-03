@@ -23,6 +23,7 @@ export default function Leaderboard() {
   const { ctx, ready } = useAcademicContext();
   const liveVersion = useAcademicLive(["xp", "profile"]);
   const loadedRef = useRef(false);
+  const periodRef = useRef(period);
   const [rows, setRows] = useState<LbRow[]>([]);
   const [period, setPeriod] = useState<"lifetime" | "weekly" | "monthly">("lifetime");
   const [loading, setLoading] = useState(true);

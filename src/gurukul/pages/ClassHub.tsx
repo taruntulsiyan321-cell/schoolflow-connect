@@ -14,6 +14,7 @@ import {
   useAcademicLive,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toast } from "@/hooks/use-toast";
 
 type Props = { setPage: (p: PageKey) => void };
@@ -83,6 +84,7 @@ export default function ClassHub({ setPage }: Props) {
   const [hwTotal, setHwTotal] = useState(0);
   const [hwPct, setHwPct] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
@@ -91,12 +93,12 @@ export default function ClassHub({ setPage }: Props) {
       setHwPending(0);
       setHwTotal(0);
       setHwPct(0);
-      setLoading(false);
+      endLoading(setLoading);
       return;
     }
     let cancelled = false;
     (async () => {
-      setLoading(true);
+      beginLoading(setLoading);
       try {
         const settled = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
@@ -135,7 +137,7 @@ export default function ClassHub({ setPage }: Props) {
           });
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) endLoading(setLoading);
       }
     })();
     return () => {
@@ -245,7 +247,7 @@ export default function ClassHub({ setPage }: Props) {
     },
   ];
 
-  if (loading) {
+  if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading class hub…

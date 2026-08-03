@@ -343,13 +343,27 @@ export const DoubtService = {
       throwIfError(attErr, "Failed to save answer attachments");
     }
 
-    await emitEvent(toRepoContext(ctx), {
-      eventType: "doubt.replied",
-      entityType: ctx.role === "teacher" ? "teacher_reply" : "student_doubt",
-      entityId: answerId,
-      payload: { doubtId: args.doubtId },
-    }).catch(() => undefined);
+    let askerStudentId: string | null = ctx.studentId ?? null;
+    try {
+      const doubt = await this.get(ctx, args.doubtId);
+      askerStudentId = doubt?.student_id ?? askerStudentId;
+    } catch {
+      // Keep reply success even if owner lookup fails; still emit with best-effort id.
+    }
+
+    try {
+      await emitEvent(toRepoContext(ctx), {
+        eventType: "doubt.replied",
+        entityType: ctx.role === "teacher" ? "teacher_reply" : "student_doubt",
+        entityId: answerId,
+        studentId: askerStudentId,
+        payload: { doubtId: args.doubtId },
+      });
+    } catch (e) {
+      console.warn("[DoubtService.reply] emitEvent failed:", e);
+    }
     broadcastAcademicWrite(ctx.schoolId, ["doubt", "profile"], {
+      studentId: askerStudentId,
       source: "DoubtService.reply",
     });
     return answerId;

@@ -553,6 +553,16 @@ export const MessageService = {
     return mapMessage(m, attachments);
   },
 
+  /** Load attachment rows for realtime-hydrated messages (has_attachment but empty local list). */
+  async listAttachments(
+    ctx: ServiceContext,
+    messageIds: string[],
+  ): Promise<Map<string, ChatAttachment[]>> {
+    assertCanConsume(ctx, "message");
+    const client = getClient(toRepoContext(ctx));
+    return loadAttachments(client, messageIds.filter(Boolean));
+  },
+
   async sendFile(
     ctx: ServiceContext,
     opts: {

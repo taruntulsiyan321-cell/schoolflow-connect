@@ -110,6 +110,10 @@ function mapRealtimeMessage(raw: Record<string, unknown>): ChatMessage {
   };
 }
 
+function realtimeHasAttachment(raw: Record<string, unknown>): boolean {
+  return Boolean(raw.has_attachment);
+}
+
 function contactKey(c: ChatContact) {
   return c.conversationId || c.userId;
 }
@@ -247,6 +251,17 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
             }
             return [...prev, newMsg];
           });
+          // Realtime payload has no attachment rows — hydrate so peers/groups see files.
+          if (ctx && realtimeHasAttachment(raw) && !newMsg.deletedAt) {
+            const msgId = newMsg.id;
+            void MessageService.listAttachments(ctx, [msgId]).then((map) => {
+              const atts = map.get(msgId) ?? [];
+              if (!atts.length) return;
+              setMessages((prev) =>
+                prev.map((m) => (m.id === msgId ? { ...m, attachments: atts } : m)),
+              );
+            });
+          }
           if (ctx && open?.conversationId) {
             void MessageService.markConversationRead(ctx, open.conversationId);
           } else if (ctx && open && newMsg.receiverId === user.id) {

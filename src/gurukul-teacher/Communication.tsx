@@ -455,6 +455,7 @@ export default function Communication() {
           created_at: string;
           reply_to_id?: string | null;
           deleted_at?: string | null;
+          has_attachment?: boolean | null;
         };
         const mapped: ChatMessage = {
           id: row.id,
@@ -466,6 +467,7 @@ export default function Communication() {
           createdAt: row.created_at,
           replyToId: row.reply_to_id,
           deletedAt: row.deleted_at,
+          attachments: [],
         };
 
         const activeConv = selected?.conversationId;
@@ -479,6 +481,16 @@ export default function Communication() {
 
         if (inActiveConv) {
           setMessages((prev) => (prev.find((m) => m.id === mapped.id) ? prev : [...prev, mapped]));
+          if (row.has_attachment && !row.deleted_at) {
+            const msgId = mapped.id;
+            void MessageService.listAttachments(ctx, [msgId]).then((map) => {
+              const atts = map.get(msgId) ?? [];
+              if (!atts.length) return;
+              setMessages((prev) =>
+                prev.map((m) => (m.id === msgId ? { ...m, attachments: atts } : m)),
+              );
+            });
+          }
         } else if (mapped.receiverId === ctx.userId || (mapped.conversationId && mapped.senderId !== ctx.userId)) {
           void reloadContacts().catch(() => undefined);
         }

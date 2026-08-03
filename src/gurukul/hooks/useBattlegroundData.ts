@@ -16,6 +16,7 @@ import {
   formatBattleStatus,
   motivationCard,
 } from "@/lib/battlegroundHelpers";
+import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 export type DesignBattleType = "1v1" | "team" | "class";
 
@@ -244,6 +245,7 @@ export function useBattlegroundData(enabled = true) {
     classId: academicClassId,
   } = useAcademicContext();
   const [loading, setLoading] = useState(true);
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
   const [xp, setXp] = useState<{
     xp: number;
     level: number;
@@ -273,7 +275,8 @@ export function useBattlegroundData(enabled = true) {
 
   const reload = useCallback(async () => {
     if (!enabled || !user || !academicReady || !academicCtx) return;
-    setLoading(true);
+    // Soft refresh after first paint — live battle/xp bumps must not blank the arena.
+    if (!battles.length && !history.length && !xp) beginLoading(setLoading);
     setError(null);
     try {
       // Warm featured: refresh period windows + ensure Daily/Weekly/NCERT (populate cards without tap).
@@ -886,9 +889,9 @@ export function useBattlegroundData(enabled = true) {
       setError(msg);
       toast({ title: "Battleground load failed", description: msg, variant: "destructive" });
     } finally {
-      setLoading(false);
+      endLoading(setLoading);
     }
-  }, [enabled, user, academicReady, academicCtx, academicClassId]);
+  }, [enabled, user, academicReady, academicCtx, academicClassId, beginLoading, endLoading]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -971,7 +974,7 @@ export function useBattlegroundData(enabled = true) {
   }, [xp, history, accuracy, battleAccuracy, classRank, schoolRank]);
 
   return {
-    loading,
+    loading: showLoading(loading),
     error,
     xp,
     classRank,
