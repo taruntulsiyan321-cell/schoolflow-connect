@@ -13,9 +13,10 @@
 -- =============================================================================
 
 -- 1. Teacher class+subject helper (mirrors teacherAssignedToClassSubject)
+-- Drop unused overloads only. Do NOT DROP (uuid,uuid,text,uuid) — RLS policies
+-- depend on it (2BP01). Replace body in place via CREATE OR REPLACE.
 DROP FUNCTION IF EXISTS public.teacher_teaches_class_subject(uuid, uuid, uuid);
 DROP FUNCTION IF EXISTS public.teacher_teaches_class_subject(uuid, uuid, uuid, text);
-DROP FUNCTION IF EXISTS public.teacher_teaches_class_subject(uuid, uuid, text, uuid);
 
 CREATE OR REPLACE FUNCTION public.teacher_teaches_class_subject(
   _user_id uuid,
