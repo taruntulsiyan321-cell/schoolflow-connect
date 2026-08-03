@@ -2,8 +2,13 @@ import { supabase } from "@/integrations/supabase/client";
 
 const BUCKET = "chat-attachments";
 const MAX_BYTES = 10 * 1024 * 1024;
+/** Fresh signed URL TTL for reads (object stays; URL is ephemeral). */
+const SIGN_TTL_SEC = 60 * 60;
 
 const ALLOWED_EXT = new Set(["pdf", "png", "jpg", "jpeg", "gif", "webp", "heic", "doc", "docx", "txt"]);
+
+export const CHAT_FILE_ACCEPT =
+  ".pdf,.png,.jpg,.jpeg,.gif,.webp,.heic,.doc,.docx,.txt,image/*,application/pdf";
 
 function safeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120);
@@ -11,13 +16,53 @@ function safeFileName(name: string): string {
 
 export type ChatUploadMeta = {
   name: string;
+  /** Durable storage ref (`chat-attachments/{school}/{user}/…`), not a short-lived signed URL. */
   url: string;
   mimeType?: string;
   sizeBytes?: number;
 };
 
+/** Persistable ref that passes `chat_attachment_url_allowed`. */
+export function toDurableChatAttachmentRef(objectPath: string): string {
+  const cleaned = objectPath.replace(/^\/+/, "");
+  return cleaned.startsWith(`${BUCKET}/`) ? cleaned : `${BUCKET}/${cleaned}`;
+}
+
+/** Extract bucket-relative object path from a durable ref or legacy signed/public URL. */
+export function extractChatStoragePath(stored: string): string | null {
+  const u = stored.trim();
+  if (!u) return null;
+
+  if (!u.includes("://")) {
+    if (u.startsWith(`${BUCKET}/`)) return u.slice(BUCKET.length + 1);
+    // schoolId/userId/...
+    if (/^[0-9a-f-]{36}\/[0-9a-f-]{36}\//i.test(u)) return u;
+    return null;
+  }
+
+  const fromPath = u.match(/\/chat-attachments\/([^?]+)/i);
+  if (fromPath?.[1]) {
+    try {
+      return decodeURIComponent(fromPath[1]);
+    } catch {
+      return fromPath[1];
+    }
+  }
+  return null;
+}
+
+/** Turn a durable ref or legacy URL into a usable short-lived signed URL. */
+export async function resolveChatAttachmentUrl(stored: string): Promise<string> {
+  const path = extractChatStoragePath(stored);
+  if (!path) return stored;
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, SIGN_TTL_SEC);
+  if (error || !data?.signedUrl) return stored;
+  return data.signedUrl;
+}
+
 /**
  * Upload a chat attachment under `{schoolId}/{userId}/...`.
+ * Returns a durable path ref for DB storage (re-sign on read).
  * Storage RLS rejects any other path prefix.
  */
 export async function uploadChatAttachment(
@@ -55,24 +100,9 @@ export async function uploadChatAttachment(
     throw new Error(msg);
   }
 
-  const { data: signed, error: signErr } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(path, 60 * 60 * 24 * 7);
-  if (signErr || !signed?.signedUrl) {
-    // Fallback path string that still encodes school/user for RPC validation
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    if (!data?.publicUrl) throw new Error("Failed to resolve uploaded file URL");
-    return {
-      name: file.name,
-      url: data.publicUrl,
-      mimeType: file.type || undefined,
-      sizeBytes: file.size,
-    };
-  }
-
   return {
     name: file.name,
-    url: signed.signedUrl,
+    url: toDurableChatAttachmentRef(path),
     mimeType: file.type || undefined,
     sizeBytes: file.size,
   };

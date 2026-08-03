@@ -96,13 +96,13 @@ function mapMessage(m: DbMessage, attachments: ChatAttachment[] = [], replyPrevi
     senderId: m.sender_id,
     receiverId: m.receiver_id,
     conversationId: m.conversation_id ?? null,
-    content: m.deleted_at ? "Message deleted" : m.content,
+    content: m.deleted_at ? "Message deleted" : fixUtf8Content(m.content),
     isRead: m.is_read,
     createdAt: m.created_at,
     replyToId: m.reply_to_id ?? null,
     deletedAt: m.deleted_at ?? null,
     attachments: m.deleted_at ? [] : attachments,
-    replyPreview: m.deleted_at ? null : replyPreview ?? null,
+    replyPreview: m.deleted_at ? null : replyPreview != null ? fixUtf8Content(replyPreview) : null,
   };
 }
 
@@ -117,24 +117,28 @@ async function loadAttachments(
     .select("id, message_id, name, url, mime_type, size_bytes")
     .in("message_id", messageIds);
   if (error || !data) return map;
-  for (const row of data as {
+  const { resolveChatAttachmentUrl } = await import("../storage/chatFileUpload");
+  const rows = data as {
     id: string;
     message_id: string;
     name: string;
     url: string;
     mime_type: string | null;
     size_bytes: number | null;
-  }[]) {
-    const list = map.get(row.message_id) ?? [];
-    list.push({
-      id: row.id,
-      name: row.name,
-      url: row.url,
-      mimeType: row.mime_type,
-      sizeBytes: row.size_bytes,
-    });
-    map.set(row.message_id, list);
-  }
+  }[];
+  await Promise.all(
+    rows.map(async (row) => {
+      const list = map.get(row.message_id) ?? [];
+      list.push({
+        id: row.id,
+        name: row.name,
+        url: await resolveChatAttachmentUrl(row.url),
+        mimeType: row.mime_type,
+        sizeBytes: row.size_bytes,
+      });
+      map.set(row.message_id, list);
+    }),
+  );
   return map;
 }
 
@@ -471,8 +475,21 @@ export const MessageService = {
       _conversation_id: conversationId,
     } as never);
     if (error) {
-      // Soft-fail until SQL applied
-      return;
+      // Fallback when RPC missing / transient — still clear unread + refresh badges.
+      const { error: fallbackErr } = await client
+        .from("messages")
+        .update({ is_read: true })
+        .eq("conversation_id", conversationId)
+        .eq("receiver_id", ctx.userId)
+        .eq("is_read", false);
+      if (fallbackErr) {
+        console.warn(
+          "[MessageService.markConversationRead] RPC + fallback failed:",
+          error.message,
+          fallbackErr.message,
+        );
+        return;
+      }
     }
     broadcastAcademicWrite(ctx.schoolId, ["message"], {
       source: "MessageService.markConversationRead",
@@ -546,9 +563,20 @@ export const MessageService = {
       notifyReceiverPush(m.receiver_id, "New message", preview);
     }
 
-    const attachments = att?.url
-      ? [{ name: att.name, url: att.url, mimeType: att.mimeType, sizeBytes: att.sizeBytes }]
-      : await loadAttachments(client, [m.id]).then((map) => map.get(m.id) ?? []);
+    let attachments: ChatAttachment[] = [];
+    if (att?.url) {
+      const { resolveChatAttachmentUrl } = await import("../storage/chatFileUpload");
+      attachments = [
+        {
+          name: att.name,
+          url: await resolveChatAttachmentUrl(att.url),
+          mimeType: att.mimeType,
+          sizeBytes: att.sizeBytes,
+        },
+      ];
+    } else {
+      attachments = await loadAttachments(client, [m.id]).then((map) => map.get(m.id) ?? []);
+    }
 
     return mapMessage(m, attachments);
   },

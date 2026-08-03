@@ -8,15 +8,11 @@ import {
   MessageService,
   useAcademicLive,
   type AssignedClass,
-  type ChatAttachment,
   type ChatContact,
   type ChatMessage,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import {
-  ACADEMIC_FILE_ACCEPT,
-  uploadAcademicFile,
-} from "@/academic/storage/academicFileUpload";
+import { CHAT_FILE_ACCEPT } from "@/academic/storage/chatFileUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
 import { toast } from "sonner";
@@ -128,6 +124,7 @@ function ChatView({
   myUserId,
   myName,
   onSend,
+  onSendFile,
   onDelete,
   sending,
 }: {
@@ -135,7 +132,8 @@ function ChatView({
   messages: ChatMessage[];
   myUserId: string;
   myName: string;
-  onSend: (text: string, opts?: { replyToId?: string; attachment?: ChatAttachment }) => Promise<void>;
+  onSend: (text: string, opts?: { replyToId?: string }) => Promise<void>;
+  onSendFile: (file: File, opts?: { caption?: string; replyToId?: string }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   sending: boolean;
 }) {
@@ -164,18 +162,11 @@ function ChatView({
     if (!file) return;
     setUploading(true);
     try {
-      const meta = await uploadAcademicFile(file);
-      await onSend(input.trim(), {
-        replyToId: replyTo?.id,
-        attachment: {
-          name: meta.name,
-          url: meta.url,
-          mimeType: meta.mimeType,
-          sizeBytes: meta.sizeBytes,
-        },
-      });
+      const caption = input.trim();
+      const replyId = replyTo?.id;
       setInput("");
       setReplyTo(null);
+      await onSendFile(file, { caption, replyToId: replyId });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -300,7 +291,7 @@ function ChatView({
           <input
             ref={fileRef}
             type="file"
-            accept={ACADEMIC_FILE_ACCEPT}
+            accept={CHAT_FILE_ACCEPT}
             className="hidden"
             onChange={(e) => void onPickFile(e.target.files?.[0] ?? null)}
           />
@@ -438,7 +429,7 @@ export default function Communication() {
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, selectedKey, selected?.conversationId, selected?.userId]);
+  }, [ready, ctx, selectedKey, selected?.conversationId, selected?.userId, liveTick]);
 
   useEffect(() => {
     if (!ctx?.userId) return;
@@ -483,13 +474,15 @@ export default function Communication() {
           setMessages((prev) => (prev.find((m) => m.id === mapped.id) ? prev : [...prev, mapped]));
           if (row.has_attachment && !row.deleted_at) {
             const msgId = mapped.id;
-            void MessageService.listAttachments(ctx, [msgId]).then((map) => {
-              const atts = map.get(msgId) ?? [];
-              if (!atts.length) return;
-              setMessages((prev) =>
-                prev.map((m) => (m.id === msgId ? { ...m, attachments: atts } : m)),
-              );
-            });
+            void MessageService.listAttachments(ctx, [msgId])
+              .then((map) => {
+                const atts = map.get(msgId) ?? [];
+                if (!atts.length) return;
+                setMessages((prev) =>
+                  prev.map((m) => (m.id === msgId ? { ...m, attachments: atts } : m)),
+                );
+              })
+              .catch(() => undefined);
           }
         } else if (mapped.receiverId === ctx.userId || (mapped.conversationId && mapped.senderId !== ctx.userId)) {
           void reloadContacts().catch(() => undefined);
@@ -501,14 +494,13 @@ export default function Communication() {
     };
   }, [ctx?.userId, selectedKey, selected?.conversationId, selected?.userId]);
 
-  async function handleSend(text: string, opts?: { replyToId?: string; attachment?: ChatAttachment }) {
+  async function handleSend(text: string, opts?: { replyToId?: string }) {
     if (!ctx || !selected) return;
     setSending(true);
     try {
       const msg = await MessageService.send(ctx, selected.userId, text, {
         conversationId: selected.conversationId ?? (isGroup(selected) ? selected.userId : null),
         replyToId: opts?.replyToId,
-        attachment: opts?.attachment,
       });
       setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
       setContacts((prev) =>
@@ -516,7 +508,7 @@ export default function Communication() {
           (c.conversationId || c.userId) === selectedKey
             ? {
                 ...c,
-                lastMessage: text || opts?.attachment?.name || "Attachment",
+                lastMessage: text || "Message",
                 lastTime: msg.createdAt,
                 conversationId: msg.conversationId || c.conversationId,
               }
@@ -525,6 +517,38 @@ export default function Communication() {
       );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not send");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleSendFile(file: File, opts?: { caption?: string; replyToId?: string }) {
+    if (!ctx || !selected) return;
+    setSending(true);
+    try {
+      const msg = await MessageService.sendFile(ctx, {
+        receiverId: selected.userId,
+        file,
+        conversationId: selected.conversationId ?? (isGroup(selected) ? selected.userId : null),
+        caption: opts?.caption,
+        replyToId: opts?.replyToId,
+      });
+      setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      setContacts((prev) =>
+        prev.map((c) =>
+          (c.conversationId || c.userId) === selectedKey
+            ? {
+                ...c,
+                lastMessage: opts?.caption || file.name || "Attachment",
+                lastTime: msg.createdAt,
+                conversationId: msg.conversationId || c.conversationId,
+              }
+            : c,
+        ),
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not send file");
+      throw e;
     } finally {
       setSending(false);
     }
@@ -650,6 +674,7 @@ export default function Communication() {
             myUserId={ctx.userId}
             myName={identity.name || "Teacher"}
             onSend={handleSend}
+            onSendFile={handleSendFile}
             onDelete={handleDelete}
             sending={sending}
           />
