@@ -157,10 +157,10 @@ export function LeaderboardPanel({ embedded = false }: Props) {
         }
       }
 
-      if (meta.mode === "rpc" || meta.mode === "progression") {
+      if (meta.mode === "rpc") {
         const { data, error } = await supabase.rpc("rpc_leaderboard", {
           _scope: scope,
-          _category: category === "weekly" || category === "monthly" ? "xp" : category,
+          _category: category,
           _subject: category === "subject" ? subject : undefined,
           _limit: 100,
         });
@@ -174,11 +174,10 @@ export function LeaderboardPanel({ embedded = false }: Props) {
           classLabel: r.class_label,
           score: Number(r.score) || 0,
           label:
-            category === "xp" || category === "weekly" || category === "monthly" ? `${Number(r.score)} XP`
-            : category === "streak" ? `${Number(r.score)}-day study streak`
-            : category === "wins" ? `${Number(r.score)} wins`
+            category === "wins" ? `${Number(r.score)} wins`
             : category === "marks" || category === "attendance" || category === "homework" ? `${Number(r.score)}%`
             : category === "dpp" ? `${Number(r.score)}% avg`
+            : category === "subject" ? `${Number(r.score)} pts`
             : `${Number(r.score)} pts`,
         }));
         const bm: Record<string, string | null> = {};

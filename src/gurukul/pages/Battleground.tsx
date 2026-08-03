@@ -2275,11 +2275,15 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
   );
 
   const me: MeInfo = useMemo(() => {
-    // Shared chrome SSOT: shell profile (Progression + snapshot) when ready.
+    // Shared chrome SSOT: shell profile (ProgressionService) when ready —
+    // same XP / study streak / league label as Home + Profile.
     const xp = shellReady ? profile.xp : data.stats.xp;
     const wins = data.stats.wins;
     const total = data.stats.totalBattles;
-    const league = toLeagueName(leagueFromCodeOrXp(data.stats.leagueCode, xp));
+    const league =
+      shellReady && profile.league
+        ? profile.league
+        : toLeagueName(leagueFromCodeOrXp(data.stats.leagueCode, xp));
     const engineNext =
       data.stats.nextLeagueRemaining != null && data.stats.nextLeagueLabel
         ? {

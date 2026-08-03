@@ -187,7 +187,7 @@ export const ENTITY_REGISTRY: Record<AcademicEntityKey, EntityMapping> = {
   student_xp: {
     key: "student_xp",
     table: "student_xp",
-    notes: "Experience rollup written by battle/practice RPCs; UI reads via XpService only",
+    notes: "Experience rollup; UI reads XP/level/streak/league via ProgressionService only (equip via XpService)",
     tenantScoped: false,
   },
   student_badge: {

@@ -1063,25 +1063,58 @@ export async function loadLeaderboardEntries(
   myUserId: string | undefined,
   period: "daily" | "weekly" | "monthly" | "overall" = "overall",
 ): Promise<DesignLbEntry[]> {
-  // rpc_leaderboard categories: xp | wins | streak | weekly | monthly | subject
-  // No true "daily" — map daily → weekly battle score (closest supported period).
-  const rpcScope = scope === "subject" ? "school" : scope === "section" ? "class" : scope;
-  let category = "xp";
-  if (scope === "subject") category = "subject";
-  else if (period === "weekly" || period === "daily") category = "weekly";
-  else if (period === "monthly") category = "monthly";
-  else category = "xp";
+  /**
+   * XP rankings SSOT: ProgressionService → rpc_progression_leaderboard
+   * (same lifetime XP as Home / Profile / Rankings). Never use legacy
+   * rpc_leaderboard weekly/monthly battle-score categories for XP boards —
+   * those diverge from progression history XP.
+   *
+   * Subject boards remain battle-score (not progression XP).
+   */
+  if (scope === "subject") {
+    const { data, error } = await supabase.rpc("rpc_leaderboard", {
+      _scope: "school",
+      _category: "subject",
+      _subject: subject,
+      _limit: 50,
+    });
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    return rows.map((r: { user_id?: string; full_name?: string; score?: number }, i: number) => {
+      const name = r.full_name || "Student";
+      const uid = r.user_id || String(i);
+      return {
+        rank: i + 1,
+        name,
+        avatar: initials(name),
+        color: colorFor(uid),
+        xp: Number(r.score) || 0,
+        streak: 0,
+        accuracy: 0,
+        you: !!myUserId && r.user_id === myUserId,
+      };
+    });
+  }
 
-  const { data, error } = await supabase.rpc("rpc_leaderboard", {
-    _scope: rpcScope,
-    _category: category,
-    _subject: scope === "subject" ? subject : undefined,
-    _limit: 50,
+  const { ProgressionService, resolveStudentServiceContext } = await import("@/academic");
+  const ctx = await resolveStudentServiceContext();
+  const progScope = scope === "section" ? "class" : scope;
+  const progPeriod =
+    period === "weekly" || period === "daily"
+      ? "weekly"
+      : period === "monthly"
+        ? "monthly"
+        : "lifetime";
+
+  const lb = await ProgressionService.leaderboard(ctx, {
+    scope: progScope,
+    period: progPeriod,
+    metric: "xp",
+    limit: 50,
   });
-  if (error) throw error;
 
-  const rows = Array.isArray(data) ? data : [];
-  const uids = rows.map((r: { user_id?: string }) => r.user_id).filter(Boolean) as string[];
+  // Battle Q&A accuracy only (not XP/level/streak/league) — optional Acc column.
+  const uids = lb.rows.map((r) => r.user_id).filter(Boolean);
   const accMap: Record<string, number> = {};
   if (uids.length) {
     const { data: xpRows } = await supabase
@@ -1093,26 +1126,17 @@ export async function loadLeaderboardEntries(
     }
   }
 
-  return rows.map((r: {
-    user_id?: string;
-    full_name?: string;
-    score?: number;
-    detail?: string;
-    equipped_badge?: string;
-  }, i: number) => {
-    const name = r.full_name || "Student";
+  return lb.rows.map((r, i) => {
+    const name = r.name || "Student";
     const uid = r.user_id || String(i);
-    const streakMatch = typeof r.detail === "string" ? r.detail.match(/(\d+)\s*-?\s*day/i) || r.detail.match(/(\d+)/) : null;
-    const accFromDetail =
-      typeof r.detail === "string" ? r.detail.match(/(\d+)\s*%?\s*acc/i) : null;
     return {
       rank: i + 1,
       name,
       avatar: initials(name),
       color: colorFor(uid),
-      xp: r.score ?? 0,
-      streak: streakMatch ? Number(streakMatch[1]) : 0,
-      accuracy: accFromDetail ? Number(accFromDetail[1]) : (accMap[uid] ?? 0),
+      xp: Number(r.value) || 0,
+      streak: 0,
+      accuracy: accMap[uid] ?? 0,
       you: !!myUserId && r.user_id === myUserId,
     };
   });

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { ProgressionService, useAcademicContext } from "@/academic";
 import { Crown, Loader2, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
@@ -10,7 +10,6 @@ type Row = {
   user_id: string;
   full_name: string;
   score: number;
-  equipped_badge?: string | null;
 };
 
 function initials(name: string) {
@@ -22,28 +21,53 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+/** Class XP podium — ProgressionService lifetime XP (same SSOT as Home / Rankings). */
 export function ArenaLeaderboard() {
   const { user } = useAuth();
+  const { ctx, ready } = useAcademicContext();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!ready || !ctx) {
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc("rpc_leaderboard", {
-        _scope: "class",
-        _category: "xp",
-        _limit: 8,
-      });
-      if (error) {
-        toast({ title: "Could not load leaderboard", description: error.message, variant: "destructive" });
-        setRows([]);
-      } else {
-        setRows((data ?? []) as Row[]);
+      try {
+        const lb = await ProgressionService.leaderboard(ctx, {
+          scope: "class",
+          period: "lifetime",
+          metric: "xp",
+          limit: 8,
+        });
+        if (cancelled) return;
+        setRows(
+          lb.rows.map((r) => ({
+            user_id: r.user_id,
+            full_name: r.name || "Student",
+            score: Number(r.value) || 0,
+          })),
+        );
+      } catch (e) {
+        if (!cancelled) {
+          toast({
+            title: "Could not load leaderboard",
+            description: e instanceof Error ? e.message : "Try again",
+            variant: "destructive",
+          });
+          setRows([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     })();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx]);
 
   const top3 = rows.slice(0, 3);
   const rest = rows.slice(3, 5);
@@ -66,7 +90,7 @@ export function ArenaLeaderboard() {
     return (
       <div className="ba-leaderboard-panel p-5 text-center space-y-2">
         <Trophy className="w-8 h-8 mx-auto text-[var(--ba-secondary-fixed)] opacity-80" />
-        <p className="text-sm text-white/75">No class rankings yet. Win a battle to appear here.</p>
+        <p className="text-sm text-white/75">No class rankings yet. Earn XP to appear here.</p>
         <Link to="/student/battleground" className="ba-label text-[var(--ba-secondary-fixed)] hover:underline">
           View arena
         </Link>
@@ -85,7 +109,7 @@ export function ArenaLeaderboard() {
 
       {top3.length > 0 && (
         <div className="flex justify-around items-end pt-2 pb-3 border-b border-white/10">
-          {podiumOrder.map((r, i) => {
+          {podiumOrder.map((r) => {
             const rank = top3.indexOf(r) + 1;
             const isFirst = rank === 1;
             return (
@@ -152,7 +176,7 @@ export function ArenaLeaderboard() {
       </div>
 
       <Link
-        to="/student/battleground"
+        to="/student/leaderboard"
         className="block text-center ba-label text-[var(--ba-secondary-fixed)] hover:underline pt-1"
       >
         Full rankings

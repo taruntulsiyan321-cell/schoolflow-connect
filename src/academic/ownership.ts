@@ -164,7 +164,7 @@ export const ENTITY_OWNERSHIP: Record<AcademicEntityKey, EntityOwnership> = {
     entity: "student_xp",
     owners: ["student", "admin"],
     consumers: ["student", "teacher", "parent", "principal", "admin"],
-    description: "XP/level/streaks — writes via battle/practice RPCs + limited equip; UI never invents totals",
+    description: "XP/level/study streak/league — UI via ProgressionService; writes via progression/battle RPCs + equip",
   },
   student_badge: {
     entity: "student_badge",

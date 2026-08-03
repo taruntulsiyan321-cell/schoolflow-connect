@@ -37,20 +37,45 @@ export type StudentXpRow = {
 };
 
 /**
- * XpService — read student experience; no arbitrary XP writes from the client.
- * Battle/practice RPCs own XP mutations; equip badge is the only intentional client write.
+ * XpService — badge equip + batch equipped reads only.
+ * XP / level / streak / league UI must use ProgressionService.getSnapshot /
+ * ProgressionService.leaderboard (rpc_get_student_progression /
+ * rpc_progression_leaderboard). Do not invent totals from raw student_xp.
  */
 export const XpService = {
+  /**
+   * @deprecated Prefer ProgressionService.getSnapshot for XP/level/streak/league.
+   * Kept for callers that need a flat row shape; delegates to ProgressionService.
+   */
   async getForUser(ctx: ServiceContext, userId?: string | null): Promise<StudentXpRow | null> {
     assertCanConsume(ctx, "student_xp");
-    const uid = userId ?? ctx.userId;
-    const { data, error } = await getClient(toRepoContext(ctx))
-      .from("student_xp")
-      .select("*")
-      .eq("user_id", uid)
-      .maybeSingle();
-    throwIfError(error, "Failed to load student XP");
-    return (data as StudentXpRow | null) ?? null;
+    const { ProgressionService } = await import("./progressionService");
+    const snap = await ProgressionService.getSnapshot(ctx, userId);
+    return {
+      user_id: snap.user_id,
+      xp: snap.xp,
+      level: snap.level,
+      current_streak: snap.battleground.win_streak,
+      longest_streak: snap.battleground.best_win_streak,
+      total_battles: snap.battleground.total_battles,
+      wins: snap.battleground.wins,
+      win_streak: snap.battleground.win_streak,
+      best_win_streak: snap.battleground.best_win_streak,
+      total_correct: snap.battleground.total_correct,
+      total_answered: snap.battleground.total_answered,
+      best_score: snap.battleground.best_score,
+      equipped_badge: snap.equipped_badge,
+      league_code: snap.league?.code ?? null,
+      highest_league_code: snap.highest_league || null,
+      reputation: snap.reputation,
+      study_streak: snap.study_streak,
+      study_longest_streak: snap.study_longest_streak,
+      study_week_streak: snap.study_week_streak,
+      study_month_streak: snap.study_month_streak,
+      demotion_warning_at: snap.demotion_warning_at,
+      featured_badges: snap.featured_badges,
+      streak_protection_tokens: snap.streak_protection_tokens,
+    };
   },
 
   async getEquippedBadge(ctx: ServiceContext, userId?: string | null): Promise<string | null> {

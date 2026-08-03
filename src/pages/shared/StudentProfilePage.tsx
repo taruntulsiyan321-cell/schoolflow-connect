@@ -77,16 +77,8 @@ export default function StudentProfilePage() {
         const i = lb.rows.findIndex((r) => r.user_id === user.id);
         setClassRank(i >= 0 ? i + 1 : null);
       } catch {
-        const { data: lb } = await supabase.rpc("rpc_leaderboard", {
-          _scope: "class",
-          _category: "xp",
-          _subject: undefined,
-          _limit: 200,
-        });
-        if (Array.isArray(lb)) {
-          const i = lb.findIndex((r: any) => r.user_id === user.id);
-          setClassRank(i >= 0 ? i + 1 : null);
-        }
+        // No legacy rpc_leaderboard fallback — that path can diverge from Progression SSOT.
+        setClassRank(null);
       }
 
       if (s) {

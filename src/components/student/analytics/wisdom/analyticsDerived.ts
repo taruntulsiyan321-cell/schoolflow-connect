@@ -3,6 +3,7 @@ import type { PracticeSessionSummary } from "@/hooks/useAnalysisPageData";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { SubjectChartPoint } from "@/hooks/useStudentPerformanceCharts";
 import type { MistakeTopicAggregate, TopicGapInsight } from "@/lib/analyticsInsights";
+import { displayChapter, displaySubject } from "@/lib/academicDisplay";
 
 export type HeatmapLevel = "mastered" | "proficient" | "learning" | "review";
 
@@ -85,7 +86,7 @@ export function buildPersonalBests(
   if (bestSession && bestSession.accuracy_pct >= 70) {
     items.push({
       kind: "RECORD",
-      title: `${bestSession.accuracy_pct}% in ${bestSession.chapter || bestSession.subject}`,
+      title: `${bestSession.accuracy_pct}% in ${displayChapter(bestSession.chapter) || displaySubject(bestSession.subject) || "practice"}`,
       icon: "target",
     });
   }
@@ -99,7 +100,7 @@ export function buildPersonalBests(
       icon: "timer",
     });
   }
-  const streak = data.xp?.study_streak ?? data.xp?.current_streak ?? 0;
+  const streak = data.xp?.study_streak ?? 0;
   if (streak >= 3) {
     items.push({
       kind: "STREAK",

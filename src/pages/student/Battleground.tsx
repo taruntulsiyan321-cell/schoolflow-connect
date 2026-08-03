@@ -665,7 +665,7 @@ export function BattleRoom() {
 function Achievements() {
   const { user } = useAuth();
   const [badges, setBadges] = useState<any[]>([]);
-  const [xp, setXp] = useState<any>({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
+  const [xp, setXp] = useState<any>({ xp: 0, level: 1, study_streak: 0, win_streak: 0, total_battles: 0, wins: 0 });
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     if (!user) return;
@@ -681,7 +681,8 @@ function Achievements() {
         setXp({
           xp: snap.xp,
           level: snap.level,
-          current_streak: snap.study_streak,
+          study_streak: snap.study_streak,
+          win_streak: snap.battleground.win_streak,
           total_battles: snap.battleground.total_battles,
           wins: snap.battleground.wins,
           xp_into_level: snap.xp_into_level,
@@ -690,7 +691,7 @@ function Achievements() {
         });
         setBadges(badgeList);
       } catch {
-        setXp({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
+        setXp({ xp: 0, level: 1, study_streak: 0, win_streak: 0, total_battles: 0, wins: 0 });
         setBadges([]);
       } finally {
         setLoading(false);
@@ -720,7 +721,7 @@ function Achievements() {
         <div className="flex-1 min-w-[220px]">
           <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">Achievements</div>
           <h1 className="text-2xl font-semibold mt-1 text-white">{earnedCount} / {totalBadges} badges</h1>
-          <div className="text-sm text-white/75">{xp.wins} wins · {xp.total_battles} battles · {xp.current_streak} day streak</div>
+          <div className="text-sm text-white/75">{xp.wins} wins · {xp.total_battles} battles · {xp.study_streak} day study streak</div>
           <div className="mt-3 max-w-sm">
             <div className="h-2 rounded-full bg-white/20 overflow-hidden">
               <div className="h-full rounded-full bg-primary transition-all duration-700" style={{ width: `${pct}%` }} />
@@ -759,7 +760,15 @@ function Achievements() {
 // =================== MY STATS ===================
 function MyStats() {
   const { user } = useAuth();
-  const [xp, setXp] = useState<any>({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
+  const [xp, setXp] = useState<any>({
+    xp: 0,
+    level: 1,
+    study_streak: 0,
+    win_streak: 0,
+    best_win_streak: 0,
+    total_battles: 0,
+    wins: 0,
+  });
   const [history, setHistory] = useState<any[]>([]);
   const [marks, setMarks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -775,7 +784,8 @@ function MyStats() {
         setXp({
           xp: snap.xp,
           level: snap.level,
-          current_streak: snap.study_streak,
+          study_streak: snap.study_streak,
+          win_streak: snap.battleground.win_streak,
           total_battles: snap.battleground.total_battles,
           wins: snap.battleground.wins,
           best_win_streak: snap.battleground.best_win_streak,
@@ -784,7 +794,15 @@ function MyStats() {
           level_progress_pct: snap.level_progress_pct,
         });
       } catch {
-        setXp({ xp: 0, level: 1, current_streak: 0, total_battles: 0, wins: 0 });
+        setXp({
+          xp: 0,
+          level: 1,
+          study_streak: 0,
+          win_streak: 0,
+          best_win_streak: 0,
+          total_battles: 0,
+          wins: 0,
+        });
       }
       const { data: parts, error: histErr } = await supabase
         .from("battle_participants")
@@ -900,7 +918,7 @@ function MyStats() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-4"><div className="text-2xl font-semibold text-accent">{analytics.accuracy}%</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Battle accuracy</div></Card>
         <Card className="p-4"><div className="text-2xl font-semibold text-primary">{analytics.avgScore}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Avg score</div></Card>
-        <Card className="p-4"><div className="text-2xl font-semibold text-warning">{xp.best_win_streak ?? xp.current_streak ?? 0}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Best streak</div></Card>
+        <Card className="p-4"><div className="text-2xl font-semibold text-warning">{xp.best_win_streak ?? 0}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Best win streak</div></Card>
         <Card className="p-4"><div className="text-2xl font-semibold">{analytics.activeDays}</div><div className="text-[11px] uppercase tracking-wide text-muted-foreground">Active days</div></Card>
       </div>
 
