@@ -1282,12 +1282,23 @@ export const PracticeService = {
     if (!attempts.length) return { score: 0, masteredIds: [], sessionId: null, persisted: false };
     const correctN = attempts.filter((a) => a.selectedIndex === a.correctIndex).length;
     const score = Math.round((100 * correctN) / attempts.length);
-    const subject = attempts[0]?.subject || "Practice";
-    const chapter = attempts[0]?.chapter || attempts[0]?.concept || "Mistake Book";
+    const subjectRaw = attempts[0]?.subject?.trim() || "";
+    const chapterRaw =
+      attempts[0]?.chapter?.trim() ||
+      attempts[0]?.concept?.trim() ||
+      "";
+    const subject =
+      subjectRaw && !isPlaceholderAcademicLabel(subjectRaw) ? subjectRaw : "";
+    const chapter =
+      chapterRaw && !isPlaceholderAcademicLabel(chapterRaw) ? chapterRaw : null;
+    if (!subject) {
+      console.warn("mistake retry start: missing real subject");
+      return { score, masteredIds: [], sessionId: null, persisted: false };
+    }
     let sessionId: string | null = null;
     try {
       sessionId = (await this.start(ctx, {
-        _subject: subject, _chapter: String(chapter), _count: attempts.length, _practice_mode: "incorrect",
+        _subject: subject, _chapter: chapter, _count: attempts.length, _practice_mode: "incorrect",
       })) as string;
     } catch (e) {
       console.warn("mistake retry start:", e instanceof Error ? e.message : e);

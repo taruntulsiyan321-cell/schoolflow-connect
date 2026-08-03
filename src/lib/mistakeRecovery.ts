@@ -204,7 +204,7 @@ export async function generateRecoveryQuestionsFromMistakes(
   const count = Math.min(assign.question_count ?? maxBySeverity, mistakes.length, maxBySeverity);
 
   const { questions, error } = await generateAiPracticeQuestions({
-    subject: assign.subject ?? "Mathematics",
+    subject: assign.subject ?? "",
     chapter: assign.chapter ?? "",
     topic: concept,
     difficulty: assign.severity === "severe" ? "easy" : "medium",

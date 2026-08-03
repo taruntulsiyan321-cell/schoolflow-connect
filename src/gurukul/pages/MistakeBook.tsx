@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
-import { displayChapter, displayTopic } from "@/lib/academicDisplay";
+import { displayChapter, displayTopic, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
 import { GlassCard, SubjectBadge, DifficultyBadge, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
   AlertCircle, Brain, Search, Filter, Bookmark, BookmarkCheck,
@@ -196,7 +196,9 @@ function MistakeCard({
             <p className="text-sm font-semibold text-white leading-snug">{mistake.question}</p>
             <div className="text-[11px] text-[#78788c] mt-1">{displayChapter(mistake.chapter)} · {displayTopic(mistake.topic)} · {mistake.date}</div>
           </div>
-          <button onClick={() => onToggleBookmark(mistake.id)} className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 transition-all">
+          <button onClick={() => onToggleBookmark(mistake.id)}
+            title={mistake.bookmarked ? "Remove device bookmark" : "Save on this device only"}
+            className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 transition-all">
             {mistake.bookmarked
               ? <BookmarkCheck className="w-4 h-4 text-amber-400 fill-amber-400"/>
               : <Bookmark className="w-4 h-4 text-[#78788c]"/>}
@@ -521,7 +523,13 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     () =>
       dedupeMistakes(
         rows
-          .filter((r) => isSubjectAllowedForScope(r.subject, stream, classLevel))
+          .filter(
+            (r) =>
+              isSubjectAllowedForScope(r.subject, stream, classLevel) &&
+              !isPlaceholderAcademicLabel(r.subject) &&
+              !isPlaceholderAcademicLabel(r.concept ?? r.topic) &&
+              !isPlaceholderAcademicLabel(r.chapter),
+          )
           .map((r) => mapRowToMistake(r, bookmarks.has(r.id))),
       ),
     [rows, bookmarks, stream, classLevel],
@@ -723,7 +731,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         {[
           { label:"Total Mistakes",  value:mistakes.length, color:"#cc5069", icon:<AlertCircle className="w-4 h-4"/> },
           { label:"Unresolved",      value:unresolved,      color:"#c08a3a", icon:<XCircle className="w-4 h-4"/> },
-          { label:"Bookmarked",      value:bookmarked,      color:"#c08a3a", icon:<Bookmark className="w-4 h-4 fill-amber-400"/> },
+          { label:"Saved here",      value:bookmarked,      color:"#c08a3a", icon:<Bookmark className="w-4 h-4 fill-amber-400"/> },
           { label:"Repeated ×3+",   value:repeated,        color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/> },
         ].map(s => (
           <GlassCard key={s.label} className="p-4">

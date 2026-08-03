@@ -53,7 +53,16 @@ import {
 } from "@/lib/recoverySessionSnapshot";
 
 import { loadMath12TemplatePractice } from "@/lib/templatePracticeLoader";
-import { displayChapter, displayConcept, displaySubject } from "@/lib/academicDisplay";
+
+const RECOVERY_Q_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isRecoveryQuestionUuid(id: string | undefined | null): boolean {
+  return !!id && RECOVERY_Q_UUID_RE.test(id);
+}
+
+
+import { displayChapter, displayConcept, displaySubject, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
 
 
 
@@ -275,6 +284,8 @@ export default function RecoverySession() {
 
   const startedAtRef = useRef(new Date().toISOString());
 
+  const recoveryPracticeSessionRef = useRef<string | null>(null);
+
 
 
   useEffect(() => {
@@ -337,7 +348,8 @@ export default function RecoverySession() {
 
 
 
-      const isMath = (assign?.subject ?? "Mathematics").toLowerCase().includes("math");
+      const assignSubject = assign?.subject && !isPlaceholderAcademicLabel(assign.subject) ? assign.subject : null;
+      const isMath = (assignSubject ?? "").toLowerCase().includes("math");
 
       if (isMath && assign) {
 
@@ -361,14 +373,16 @@ export default function RecoverySession() {
 
       setAiLoading(true);
 
+      if (!assignSubject) {
+        setLoadError("Recovery assignment is missing a real subject.");
+        setLoading(false);
+        return;
+      }
+
       const mistakes = await fetchMistakesForRecovery({
-
-        subject: assign?.subject ?? "Mathematics",
-
-        chapter: assign?.chapter,
-
-        concept: assign?.concept,
-
+        subject: assignSubject,
+        chapter: assign?.chapter && !isPlaceholderAcademicLabel(assign.chapter) ? assign.chapter : undefined,
+        concept: assign?.concept && !isPlaceholderAcademicLabel(assign.concept) ? assign.concept : undefined,
       });
 
 
@@ -434,11 +448,20 @@ export default function RecoverySession() {
 
 
   const finishSession = async (snapshots: RecoveryAttemptSnapshot[]) => {
-
     if (!id || !assignment) return;
-
     const correct = snapshots.filter((s) => s.isCorrect).length;
-
+    const subject =
+      assignment.subject && !isPlaceholderAcademicLabel(assignment.subject)
+        ? assignment.subject
+        : null;
+    const concept =
+      (assignment.concept && !isPlaceholderAcademicLabel(assignment.concept) && assignment.concept) ||
+      (assignment.chapter && !isPlaceholderAcademicLabel(assignment.chapter) && assignment.chapter) ||
+      null;
+    if (!subject || !concept) {
+      toast.error("Recovery assignment is missing a real subject or concept — cannot complete.");
+      return;
+    }
     try {
       const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
       const ctx = await resolveStudentServiceContext();
@@ -448,30 +471,22 @@ export default function RecoverySession() {
         questionsCorrect: correct,
       });
     } catch (e) {
-      console.warn("complete recovery:", e instanceof Error ? e.message : e);
+      toast.error(e instanceof Error ? e.message : "Could not complete recovery — try again");
+      return;
     }
-
     persistRecoveryResult(nav, {
-
       assignmentId: id,
-
-      subject: assignment.subject ?? "Mathematics",
-
-      chapter: assignment.chapter ?? undefined,
-
-      concept: assignment.concept ?? "Recovery",
-
+      subject,
+      chapter:
+        assignment.chapter && !isPlaceholderAcademicLabel(assignment.chapter)
+          ? assignment.chapter
+          : undefined,
+      concept,
       severity: assignment.severity,
-
       attempts: snapshots,
-
       startedAt: startedAtRef.current,
-
     });
-
   };
-
-
 
   const submit = async (optionIndex: number) => {
 
@@ -516,51 +531,94 @@ export default function RecoverySession() {
     setAttemptSnapshots(snapshots);
 
     if (id && assignment) {
-      writeRecoveryResultState({
-        assignmentId: id,
-        subject: assignment.subject ?? "Mathematics",
-        chapter: assignment.chapter ?? undefined,
-        concept: assignment.concept ?? "Recovery",
-        severity: assignment.severity,
-        attempts: snapshots,
-        startedAt: startedAtRef.current,
-      });
+      const subject =
+        assignment.subject && !isPlaceholderAcademicLabel(assignment.subject)
+          ? assignment.subject
+          : null;
+      const concept =
+        (assignment.concept && !isPlaceholderAcademicLabel(assignment.concept) && assignment.concept) ||
+        (assignment.chapter && !isPlaceholderAcademicLabel(assignment.chapter) && assignment.chapter) ||
+        null;
+      if (subject && concept) {
+        writeRecoveryResultState({
+          assignmentId: id,
+          subject,
+          chapter:
+            assignment.chapter && !isPlaceholderAcademicLabel(assignment.chapter)
+              ? assignment.chapter
+              : undefined,
+          concept,
+          severity: assignment.severity,
+          attempts: snapshots,
+          startedAt: startedAtRef.current,
+        });
+      }
     }
 
-    if (current.ai_generated) {
-
-      try {
-        const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
-        const ctx = await resolveStudentServiceContext();
+    try {
+      const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
+      const ctx = await resolveStudentServiceContext();
+      if (isRecoveryQuestionUuid(current.id)) {
         await PracticeService.submitRecoveryAnswer(ctx, {
           questionId: current.id,
           studentAnswer: { selected_index: optionIndex, text: current.options[optionIndex] },
           isCorrect: ok,
         });
-      } catch {
-
-        /* best-effort for AI questions */
-
+      } else {
+        // Template / AI synthetic ids are not recovery_assignment_questions UUIDs —
+        // persist via a recovery practice session so attempts stay in SSOT.
+        if (!recoveryPracticeSessionRef.current) {
+          const subject =
+            assignment?.subject && !isPlaceholderAcademicLabel(assignment.subject)
+              ? assignment.subject
+              : "";
+          const chapter =
+            (assignment?.chapter && !isPlaceholderAcademicLabel(assignment.chapter) && assignment.chapter) ||
+            (assignment?.concept && !isPlaceholderAcademicLabel(assignment.concept) && assignment.concept) ||
+            null;
+          if (!subject || !chapter) {
+            toast.error("Cannot save answer — assignment missing subject/chapter");
+          } else {
+            recoveryPracticeSessionRef.current = (await PracticeService.start(ctx, {
+              _subject: subject,
+              _chapter: String(chapter),
+              _count: Math.max(questions.length, snapshots.length),
+              _practice_mode: "recovery",
+            })) as string;
+          }
+        }
+        const sid = recoveryPracticeSessionRef.current;
+        if (sid) {
+          await PracticeService.recordAttempt(ctx, {
+            sessionId: sid,
+            bankQuestionId: null,
+            generatedQuestion: {
+              question: current.question_text,
+              options: current.options,
+              explanation: current.explanation ?? "",
+              recovery_synthetic_id: current.id,
+              subject: assignment?.subject,
+              chapter: assignment?.chapter,
+              concept: assignment?.concept,
+            },
+            selectedAnswer: { selected_index: optionIndex, text: current.options[optionIndex] },
+            correctAnswer: { correct_index: correctIdx },
+            isCorrect: ok,
+            score: ok ? 1 : 0,
+            subject: assignment?.subject,
+            chapter: assignment?.chapter ?? undefined,
+            concept: assignment?.concept ?? undefined,
+            practiceMode: "recovery",
+            source: "recovery",
+            sourceId: id,
+          });
+        }
       }
-
-    } else if (!current.id.startsWith("recovery-tpl-")) {
-
-      try {
-        const { PracticeService, resolveStudentServiceContext } = await import("@/academic");
-        const ctx = await resolveStudentServiceContext();
-        await PracticeService.submitRecoveryAnswer(ctx, {
-          questionId: current.id,
-          studentAnswer: { selected_index: optionIndex, text: current.options[optionIndex] },
-          isCorrect: ok,
-        });
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not save recovery answer");
-      }
-
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not save recovery answer");
     }
 
   };
-
 
 
   const next = async () => {

@@ -229,7 +229,7 @@ function RecoverySession({ topic, onBack }: { topic: RecoveryTopic; onBack: () =
             </Link>
           ) : (
             <Link
-              to={`/student/practice?chapter=${encodeURIComponent(topic.chapter !== "—" ? topic.chapter : topic.concept)}`}
+              to={`/student/practice?chapter=${encodeURIComponent(topic.chapter !== "—" ? topic.chapter : topic.concept)}&subject=${encodeURIComponent(topic.subject)}`}
               className="px-4 py-2 rounded-xl bg-[#3b5bdb]/20 border border-[#3b5bdb]/30 text-[#4b9fd4] text-sm font-semibold hover:bg-[#3b5bdb]/30 transition-all"
             >
               Go to Practice
@@ -444,7 +444,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
       });
       setSearchParams({}, { replace: true });
       if (assignmentId) navigate(`/student/recovery/${assignmentId}`);
-      else navigate(`/student/practice?chapter=${encodeURIComponent(chapter || concept)}`);
+      else navigate(`/student/practice?chapter=${encodeURIComponent(chapter || concept)}&subject=${encodeURIComponent(subject)}`);
     })();
   }, [academicReady, ctx, loading, data, TOPICS, searchParams, navigate, setSearchParams]);
 
@@ -470,7 +470,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
       }
       // No bank questions for this concept — open practice for the chapter.
       navigate(
-        `/student/practice?chapter=${encodeURIComponent(topic.chapter !== "—" ? topic.chapter : topic.concept)}`,
+        `/student/practice?chapter=${encodeURIComponent(topic.chapter !== "—" ? topic.chapter : topic.concept)}&subject=${encodeURIComponent(topic.subject)}`,
       );
       void reload();
     } finally {

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { CLASS12_MATH_CHAPTERS } from "@/engines/class12Math/types";
+import { toast } from "sonner";
 import {
   Atom,
   Beaker,
@@ -189,9 +189,6 @@ export default function PracticeHubPage() {
   const topicsPracticed = new Set(
     mastery.map((m) => `${m.subject}:${m.chapter ?? m.concept}`),
   ).size;
-  const goalTotal = 20;
-  const goalDone = Math.min(goalTotal, questionsToday);
-  const goalPct = Math.round((goalDone / goalTotal) * 100);
 
   const subjects = useMemo(() => {
     const names =
@@ -291,8 +288,12 @@ export default function PracticeHubPage() {
       nav("/student/revision");
       return;
     }
-    const ch = chapter ?? CLASS12_MATH_CHAPTERS[0];
+    const ch = preferRealAcademicLabel(chapter, focusTopic?.topic);
     const n = count ?? QUESTION_SETS.find((q) => q.id === questionSet)?.count ?? 10;
+    if (!ch) {
+      toast.message("Pick a weak/strong topic first — Start needs a real chapter.");
+      return;
+    }
     if (selectedSubject === "Mathematics" || selectedSubject === "Math") {
       nav(`/student/practice/math12/session?chapter=${encodeURIComponent(ch)}&count=${n}&difficulty=${encodeURIComponent(difficulty)}`);
       return;
@@ -322,7 +323,7 @@ export default function PracticeHubPage() {
                   { label: "Accuracy", value: loading ? "…" : `${overallAccuracy}%` },
                   { label: "Questions today", value: loading ? "…" : questionsToday },
                   { label: "Topics practiced", value: loading ? "…" : topicsPracticed },
-                  { label: "Daily goal", value: `${goalDone}/${goalTotal}` },
+                  { label: "Daily goal", value: "—" },
                 ].map((s) => (
                   <div
                     key={s.label}
@@ -336,12 +337,12 @@ export default function PracticeHubPage() {
 
               <div className="mt-6 max-w-md">
                 <div className="flex justify-between text-xs text-primary-foreground/75 mb-2">
-                  <span>Daily goal progress</span>
-                  <span className="font-semibold">{goalPct}%</span>
+                  <span>Activity today</span>
+                  <span className="font-semibold">{loading ? "…" : questionsToday}</span>
                 </div>
-                <Progress value={goalPct} className="h-2.5 bg-white/15 [&>div]:bg-[#e8c468]" />
+                <Progress value={0} className="h-2.5 bg-white/15 [&>div]:bg-[#e8c468]" />
                 <p className="text-xs text-primary-foreground/60 mt-2">
-                  {Math.max(0, goalTotal - goalDone)} more activity points to hit today&apos;s target
+                  {loading ? "…" : `${questionsToday} practice activity point${questionsToday === 1 ? "" : "s"} today — no daily goal configured`}
                 </p>
               </div>
             </div>
