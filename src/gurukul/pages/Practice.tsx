@@ -856,6 +856,7 @@ function ConfigView({
   }
 
   if (modeKey === "difficulty") {
+    const levelOnly = DIFFICULTIES.filter((d) => d.key !== "mixed");
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
@@ -885,7 +886,7 @@ function ConfigView({
                 {topics.length > 0 ? "4. Difficulty" : "3. Difficulty"}
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
-                {DIFFICULTIES.map(d => (
+                {levelOnly.map(d => (
                   <button key={d.key} type="button" onClick={() => setSelDifficulty(d.key)}
                     className={cn(
                       "p-4 rounded-2xl border text-left transition-all",
@@ -1253,6 +1254,8 @@ function Session({
   const [timeLeft,  setTimeLeft]  = useState(config.timeLimitSec ?? 0);
   const [finishing, setFinishing] = useState(false);
   const [hintRevealed, setHintRevealed] = useState(false);
+  /** Prior attempts already on the session (resume) — progress UI must include these. */
+  const [priorCount, setPriorCount] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const correctRef = useRef(0);
@@ -1283,6 +1286,11 @@ function Session({
       try {
         if (!ctx || !academicReady) {
           setLoadError("Academic context not ready. Try again in a moment.");
+          return;
+        }
+
+        if (!config.resumeSessionId && classUnresolved) {
+          setLoadError(classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG);
           return;
         }
 
@@ -1382,6 +1390,7 @@ function Session({
           setCorrect(priorCorrect);
           setAttempted(priorAttempted);
           setSkipped(priorSkipped);
+          setPriorCount(priorLog.length);
           attemptNumberRef.current = priorLog.length;
           // Honest timed resume: remaining = persisted limit − elapsed attempt time (never invent 15m).
           const limitSec =
@@ -1415,6 +1424,7 @@ function Session({
           startedAtRef.current = new Date().toISOString();
           questionStartRef.current = Date.now();
           attemptNumberRef.current = 0;
+          setPriorCount(0);
         }
 
         questionStartRef.current = Date.now();
@@ -1486,6 +1496,23 @@ function Session({
             };
           })
           .filter((x): x is BankQuestion => x !== null);
+        // Empty new session → finish immediately so Resume is not polluted with 0-question shells.
+        if (
+          mapped.length === 0 &&
+          !config.resumeSessionId &&
+          sessionIdRef.current &&
+          ctx
+        ) {
+          try {
+            await PracticeService.finish(ctx, {
+              _session_id: sessionIdRef.current,
+              _attempts: [],
+            });
+          } catch {
+            /* best-effort; empty UI still shown */
+          }
+          sessionIdRef.current = null;
+        }
         setQs(mapped);
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : "Could not start practice");
@@ -1777,6 +1804,8 @@ function Session({
   const timed   = config.timeLimitSec !== null;
   const mm      = Math.floor(timeLeft / 60).toString().padStart(2,"0");
   const ss      = (timeLeft % 60).toString().padStart(2,"0");
+  const displayTotal = priorCount + qs.length;
+  const displayIndex = priorCount + idx + 1;
 
   if (loadingQs) {
     return (
@@ -1849,7 +1878,7 @@ function Session({
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-[#78788c]">{config.label} · Q{idx+1} of {qs.length}</span>
+            <span className="text-xs text-[#78788c]">{config.label} · Q{displayIndex} of {displayTotal}</span>
             <div className="flex items-center gap-3">
               {timed && (
                 <div className={cn(
@@ -1862,7 +1891,7 @@ function Session({
               <span className="text-xs text-[#78788c]">{correct}/{attempted} correct</span>
             </div>
           </div>
-          <ProgressBar value={idx} max={qs.length} color="#3b5bdb" height="h-1"/>
+          <ProgressBar value={priorCount + idx} max={Math.max(displayTotal, 1)} color="#3b5bdb" height="h-1"/>
         </div>
       </div>
 
@@ -2186,7 +2215,6 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     historyFilters.subject,
     historyFilters.practiceType,
     historyFilters.date,
-    historyFilters.search,
   ]);
 
   const streak = student.streak;

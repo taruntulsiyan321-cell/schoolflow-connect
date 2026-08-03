@@ -7,7 +7,8 @@ import {
   TrendingUp, AlertTriangle, Swords, Star, Loader2,
 } from "lucide-react";
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from "recharts";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
@@ -147,6 +148,19 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
 
   const loading = snapLoading || chartsLoading;
   const loadError = snapError || chartsError;
+  const hasLiveData = Boolean(snapshot || charts);
+  const initialLoading = loading && !hasLiveData;
+  const toastedError = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!loadError) {
+      toastedError.current = null;
+      return;
+    }
+    if (toastedError.current === loadError) return;
+    toastedError.current = loadError;
+    toast.error(loadError);
+  }, [loadError]);
 
   const mission = useMemo(() => buildMission(snapshot), [snapshot]);
 
@@ -213,8 +227,37 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   const levelLabel = shellReady ? `Lv.${student.level}` : "—";
   const streakLabel = shellReady ? `${student.streak}-day streak` : "…";
 
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 text-[#78788c] text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading home…
+      </div>
+    );
+  }
+
+  if (loadError && !hasLiveData) {
+    return (
+      <div className="rounded-2xl border border-[#cc5069]/25 bg-[#cc5069]/08 p-6 text-center space-y-3">
+        <p className="text-sm font-semibold text-white">Could not load home data</p>
+        <p className="text-xs text-[#78788c]">{loadError}</p>
+        <button
+          type="button"
+          onClick={() => { void reloadSnap(); void reloadCharts(); }}
+          className="text-xs font-bold text-[#3b5bdb] hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {loadError && (
+        <div className="rounded-xl border border-[#c08a3a]/30 bg-[#c08a3a]/10 px-4 py-2 text-xs text-[#c08a3a]">
+          Some live stats failed to refresh: {loadError}
+        </div>
+      )}
       {/* Hero */}
       <GlassCard glow="blue" className="p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
@@ -422,12 +465,16 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               <Trophy className="w-7 h-7 text-amber-400"/>
             </div>
             <div className="text-4xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>
-              {student.rank > 0 ? `#${student.rank}` : "?"}
+              {shellReady && student.rank > 0 ? `#${student.rank}` : "—"}
             </div>
             <div className="text-[#78788c] text-sm">
-              {student.totalStudents > 0 ? `of ${student.totalStudents} students` : "Rankings unavailable"}
+              {shellReady && student.totalStudents > 0
+                ? `of ${student.totalStudents} students`
+                : shellReady
+                  ? "Not ranked yet"
+                  : "Loading rank…"}
             </div>
-            {student.rank > 0 && (
+            {shellReady && student.rank > 0 && (
               <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-semibold">
                 <Star className="w-4 h-4"/>Class rank
               </div>
