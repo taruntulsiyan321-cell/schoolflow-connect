@@ -139,9 +139,10 @@ async function loadAttachments(
 }
 
 /**
- * MessageService ΓÇö school chat SSOT (DM + class/teacher groups).
+ * MessageService — school chat SSOT (DM + class/teacher groups).
  */
 export const MessageService = {
+  /** Existing threads only (inbox / rpc_list_conversations) — WhatsApp-style chat list. */
   async listConversations(ctx: ServiceContext, search?: string): Promise<ChatContact[]> {
     assertCanConsume(ctx, "message");
     const client = getClient(toRepoContext(ctx));
@@ -167,19 +168,80 @@ export const MessageService = {
         classId: r.class_id,
       }));
     }
-    const all = await this.listContacts(ctx);
+
+    const { data: inbox, error: inboxErr } = await client.rpc("get_chat_inbox" as never);
+    if (!inboxErr && Array.isArray(inbox)) {
+      const mapped = (inbox as InboxRow[]).map((r) => ({
+        userId: r.peer_user_id || r.conversation_id,
+        name: r.title || "Chat",
+        role:
+          r.kind === "class_group"
+            ? "class_group"
+            : r.kind === "teacher_group"
+              ? "teacher_group"
+              : r.peer_role || "user",
+        unread: r.unread ?? 0,
+        lastMessage: r.last_message ?? undefined,
+        lastTime: r.last_time ?? undefined,
+        conversationId: r.conversation_id,
+        kind: r.kind as ChatContact["kind"],
+        classId: r.class_id,
+      }));
+      const q = (search || "").trim().toLowerCase();
+      if (!q) return mapped;
+      return mapped.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.lastMessage || "").toLowerCase().includes(q),
+      );
+    }
+
+    // Legacy fallback: peers that already exchanged messages
+    const merged = await this.listContacts(ctx);
+    const withHistory = merged.filter((c) => Boolean(c.lastMessage || c.conversationId));
     const q = (search || "").trim().toLowerCase();
-    if (!q) return all;
-    return all.filter(
+    if (!q) return withHistory;
+    return withHistory.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         (c.lastMessage || "").toLowerCase().includes(q),
     );
   },
 
+  /**
+   * All matrix-allowed DM peers from get_chat_contacts (same-class classmates,
+   * allowed teachers, principal — includes peers with 0 messages; no groups).
+   */
+  async listDirectory(ctx: ServiceContext): Promise<ChatContact[]> {
+    assertCanConsume(ctx, "message");
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("get_chat_contacts" as never);
+    throwIfError(error, "Failed to load chat directory");
+    return ((data as { user_id: string; name?: string; role?: string }[] | null) ?? []).map((u) => ({
+      userId: u.user_id,
+      name: u.name || "Unknown",
+      role: u.role || "user",
+      unread: 0,
+      kind: "dm" as const,
+    }));
+  },
+
+  /** Alias for New Chat pickers — same as listDirectory. */
+  async listAllowedContacts(ctx: ServiceContext): Promise<ChatContact[]> {
+    return this.listDirectory(ctx);
+  },
+
+  /**
+   * Inbox (DMs + groups) merged with the full allowed-peer directory so New Chat
+   * can pick anyone in get_chat_contacts even before the first message.
+   * Prefer listConversations + listDirectory for WhatsApp-style split UI.
+   */
   async listContacts(ctx: ServiceContext): Promise<ChatContact[]> {
     assertCanConsume(ctx, "message");
     const client = getClient(toRepoContext(ctx));
+
+    // Directory is SSOT for who may be messaged — never soft-skip on failure.
+    const directory = await this.listDirectory(ctx);
 
     const { data: inbox, error: inboxErr } = await client.rpc("get_chat_inbox" as never);
     if (!inboxErr && Array.isArray(inbox)) {
@@ -200,40 +262,27 @@ export const MessageService = {
         kind: r.kind as ChatContact["kind"],
         classId: r.class_id,
       }));
-      // Merge allowed DM contacts that have no conversation yet
-      const { data: allowedUsers } = await client.rpc("get_chat_contacts" as never);
       const have = new Set(mapped.map((c) => c.userId));
-      for (const u of (allowedUsers as { user_id: string; name?: string; role?: string }[] | null) ?? []) {
-        if (have.has(u.user_id)) continue;
-        mapped.push({
-          userId: u.user_id,
-          name: u.name || "Unknown",
-          role: u.role || "user",
-          unread: 0,
-          kind: "dm",
-        });
+      for (const u of directory) {
+        if (have.has(u.userId)) continue;
+        mapped.push(u);
       }
       mapped.sort((a, b) => {
         if (a.unread !== b.unread) return b.unread - a.unread;
-        return (b.lastTime || "") > (a.lastTime || "") ? 1 : -1;
+        const aT = a.lastTime || "";
+        const bT = b.lastTime || "";
+        if (aT !== bT) return bT > aT ? 1 : -1;
+        return a.name.localeCompare(b.name);
       });
       return mapped;
     }
 
-    // Fallback: legacy contacts + messages (pre-MVP SQL)
-    const { data: allowedUsers, error } = await client.rpc("get_chat_contacts" as never);
-    throwIfError(error ?? inboxErr, "Failed to load chat contacts");
+    // Fallback: directory + legacy pairwise messages (pre-MVP SQL / inbox RPC missing)
+    if (inboxErr) {
+      console.warn("[MessageService] get_chat_inbox unavailable, using directory + legacy messages:", inboxErr.message);
+    }
 
-    const contactList: ChatContact[] = ((allowedUsers as { user_id: string; name?: string; role?: string }[] | null) ?? []).map(
-      (u) => ({
-        userId: u.user_id,
-        name: u.name || "Unknown",
-        role: u.role || "user",
-        unread: 0,
-        kind: "dm" as const,
-      }),
-    );
-
+    const contactList: ChatContact[] = directory.map((c) => ({ ...c }));
     if (contactList.length === 0) return contactList;
 
     const { data: received, error: recvErr } = await client
@@ -270,10 +319,47 @@ export const MessageService = {
 
     contactList.sort((a, b) => {
       if (a.unread !== b.unread) return b.unread - a.unread;
-      return (b.lastTime || "") > (a.lastTime || "") ? 1 : -1;
+      const aT = a.lastTime || "";
+      const bT = b.lastTime || "";
+      if (aT !== bT) return bT > aT ? 1 : -1;
+      return a.name.localeCompare(b.name);
     });
 
     return contactList;
+  },
+
+  /**
+   * Create (or reuse) a DM conversation with an allowed peer.
+   * Safe to call before the first message — New Chat → select contact.
+   */
+  async ensureDm(ctx: ServiceContext, peerUserId: string): Promise<ChatContact> {
+    assertCanOwn(ctx, "message");
+    if (!peerUserId || peerUserId === ctx.userId) {
+      throw new Error("Invalid chat peer");
+    }
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_ensure_dm" as never, {
+      _peer_user_id: peerUserId,
+    } as never);
+    throwIfError(error, "Failed to start chat");
+    if (!data) throw new Error("Failed to start chat");
+    const row = (Array.isArray(data) ? data[0] : data) as {
+      id: string;
+      title?: string;
+      kind?: string;
+    };
+    if (!row?.id) throw new Error("Failed to start chat");
+
+    broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.ensureDm" });
+
+    return {
+      userId: peerUserId,
+      conversationId: row.id,
+      name: row.title || "Chat",
+      role: "user",
+      kind: "dm",
+      unread: 0,
+    };
   },
 
   async countUnread(ctx: ServiceContext): Promise<number> {
@@ -295,18 +381,26 @@ export const MessageService = {
     return this.listThread(ctx, conversationId, conversationId);
   },
 
+  /** DM peers only (no class/teacher groups) — for New Chat pickers. */
+  dmContactsOnly(contacts: ChatContact[]): ChatContact[] {
+    return contacts.filter(
+      (c) => c.kind !== "class_group" && c.kind !== "teacher_group" && c.role !== "class_group" && c.role !== "teacher_group",
+    );
+  },
+
   async listThread(ctx: ServiceContext, peerUserId: string, conversationId?: string | null): Promise<ChatMessage[]> {
     assertCanConsume(ctx, "message");
     const client = getClient(toRepoContext(ctx));
 
     let convId = conversationId ?? null;
-    if (!convId) {
-      const { data: ensured } = await client.rpc("rpc_ensure_dm" as never, {
-        _peer_user_id: peerUserId,
-      } as never);
-      if (ensured) {
-        const row = (Array.isArray(ensured) ? ensured[0] : ensured) as { id?: string };
-        convId = row?.id ?? null;
+    // New chat / directory peer: mint DM so the empty thread is real before first send.
+    if (!convId && peerUserId && peerUserId !== ctx.userId) {
+      try {
+        const dm = await this.ensureDm(ctx, peerUserId);
+        convId = dm.conversationId ?? null;
+      } catch (e) {
+        // Soft-fallback to legacy pairwise read if ensure RPC not applied yet
+        console.warn("[MessageService] ensureDm on open skipped:", e);
       }
     }
 
@@ -414,10 +508,22 @@ export const MessageService = {
     const att = opts?.attachment;
     if (!body && !att?.url) throw new Error("Message cannot be empty");
 
+    // First send without a prior thread: ensure DM so rpc_send always has a conversation.
+    let conversationId = opts?.conversationId ?? null;
+    if (!conversationId) {
+      if (!receiverId || receiverId === ctx.userId) {
+        throw new Error("conversation or receiver required");
+      }
+      const dm = await this.ensureDm(ctx, receiverId);
+      conversationId = dm.conversationId ?? null;
+      if (!conversationId) throw new Error("Failed to start chat");
+    }
+
     const client = getClient(toRepoContext(ctx));
     const { data: rpcData, error: rpcErr } = await client.rpc("rpc_send_chat_message" as never, {
-      _conversation_id: opts?.conversationId ?? null,
-      _receiver_id: opts?.conversationId ? null : receiverId,
+      _conversation_id: conversationId,
+      // Conversation already ensured — peer resolved server-side from participants.
+      _receiver_id: null,
       _content: body,
       _reply_to_id: opts?.replyToId ?? null,
       _attachment_name: att?.name ?? null,
@@ -425,7 +531,7 @@ export const MessageService = {
       _attachment_mime: att?.mimeType ?? null,
       _attachment_size: att?.sizeBytes ?? null,
     } as never);
-    // Never fall back to raw INSERT ΓÇö that bypassed DM / class / school checks.
+    // Never fall back to raw INSERT — that bypassed DM / class / school checks.
     throwIfError(rpcErr, "Failed to send message");
     if (!rpcData) throw new Error("Failed to send message");
     const m = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as DbMessage;

@@ -5811,10 +5811,25 @@ export type Database = {
         Args: never
         Returns: {
           name: string
-          role: Database["public"]["Enums"]["app_role"]
+          role: string
           user_id: string
         }[]
       }
+      get_chat_inbox: {
+        Args: never
+        Returns: {
+          class_id: string | null
+          conversation_id: string
+          kind: string
+          last_message: string | null
+          last_time: string | null
+          peer_role: string | null
+          peer_user_id: string | null
+          title: string
+          unread: number
+        }[]
+      }
+      get_chat_unread_total: { Args: never; Returns: number }
       get_my_school_id: { Args: never; Returns: string }
       get_teacher_directory: {
         Args: never
@@ -6008,6 +6023,54 @@ export type Database = {
         }
         Returns: string
       }
+      rpc_create_teacher_group: {
+        Args: { _title?: string }
+        Returns: {
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          dm_key: string | null
+          id: string
+          kind: string
+          school_id: string
+          title: string
+          updated_at: string
+        }
+      }
+      rpc_delete_chat_message: {
+        Args: { _message_id: string }
+        Returns: {
+          content: string
+          conversation_id: string | null
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          has_attachment: boolean | null
+          id: string
+          is_read: boolean
+          receiver_id: string | null
+          reply_to_id: string | null
+          school_id: string | null
+          sender_id: string
+        }
+      }
+      rpc_delete_message: {
+        Args: { _message_id: string }
+        Returns: {
+          content: string
+          conversation_id: string | null
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          has_attachment: boolean | null
+          id: string
+          is_read: boolean
+          receiver_id: string | null
+          reply_to_id: string | null
+          school_id: string | null
+          sender_id: string
+        }
+      }
       rpc_dpp_pick_from_bank: {
         Args: { _count?: number; _difficulty?: string; _dpp_id: string }
         Returns: number
@@ -6021,7 +6084,49 @@ export type Database = {
         Args: { _participant_id: string }
         Returns: Json
       }
+      rpc_ensure_class_group: {
+        Args: { _class_id: string }
+        Returns: {
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          dm_key: string | null
+          id: string
+          kind: string
+          school_id: string
+          title: string
+          updated_at: string
+        }
+      }
+      rpc_ensure_dm: {
+        Args: { _peer_user_id: string }
+        Returns: {
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          dm_key: string | null
+          id: string
+          kind: string
+          school_id: string
+          title: string
+          updated_at: string
+        }
+      }
       rpc_ensure_featured_battle: { Args: { _kind: string }; Returns: string }
+      rpc_ensure_teacher_group: {
+        Args: never
+        Returns: {
+          class_id: string | null
+          created_at: string
+          created_by: string | null
+          dm_key: string | null
+          id: string
+          kind: string
+          school_id: string
+          title: string
+          updated_at: string
+        }
+      }
       rpc_finish_battle: {
         Args: { _participant_id: string }
         Returns: undefined
@@ -6068,8 +6173,30 @@ export type Database = {
           user_id: string
         }[]
       }
+      rpc_list_conversations: {
+        Args: { _limit?: number; _search?: string }
+        Returns: {
+          class_id: string | null
+          conversation_id: string
+          kind: string
+          last_message: string | null
+          last_time: string | null
+          peer_role: string | null
+          peer_user_id: string | null
+          title: string
+          unread: number
+        }[]
+      }
       rpc_mark_best_community_answer: {
         Args: { _answer_id: string }
+        Returns: undefined
+      }
+      rpc_mark_conversation_read: {
+        Args: { _conversation_id: string }
+        Returns: undefined
+      }
+      rpc_mark_messages_read: {
+        Args: { _peer_user_id: string }
         Returns: undefined
       }
       rpc_mirror_battle_answer: {
@@ -6172,6 +6299,42 @@ export type Database = {
       rpc_save_practice_session: {
         Args: { _session_id: string; _snapshot?: Json }
         Returns: Json
+      }
+      rpc_search_chat: {
+        Args: { _query: string }
+        Returns: {
+          conversation_id: string | null
+          created_at: string | null
+          peer_user_id: string | null
+          snippet: string
+          title: string
+        }[]
+      }
+      rpc_send_chat_message: {
+        Args: {
+          _attachment_mime?: string
+          _attachment_name?: string
+          _attachment_size?: number
+          _attachment_url?: string
+          _content?: string
+          _conversation_id?: string
+          _receiver_id?: string
+          _reply_to_id?: string
+        }
+        Returns: {
+          content: string
+          conversation_id: string | null
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          has_attachment: boolean | null
+          id: string
+          is_read: boolean
+          receiver_id: string | null
+          reply_to_id: string | null
+          school_id: string | null
+          sender_id: string
+        }
       }
       rpc_set_featured_badges: {
         Args: { _badges: string[] }
