@@ -657,6 +657,12 @@ export default function DoubtPortal() {
         </button>
       </div>
 
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-sm text-[#78788c] gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading doubts…
+        </div>
+      ) : (
+      <>
       <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex-1 min-w-48">
           <Search className="w-3.5 h-3.5 text-[#46465a] shrink-0" />
@@ -772,6 +778,8 @@ export default function DoubtPortal() {
             );
           })}
         </div>
+      )}
+      </>
       )}
     </div>
   );
