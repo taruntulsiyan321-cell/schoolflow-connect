@@ -6113,9 +6113,9 @@ export type Database = {
         }
       }
       rpc_ensure_featured_battle: { Args: { _kind: string }; Returns: string }
-      rpc_refresh_featured_battles: { Args: never; Returns: Json }
-      rpc_rotate_featured_battles: { Args: never; Returns: Json }
       rpc_ensure_featured_battles_all: { Args: never; Returns: Json }
+      rpc_rotate_featured_battles: { Args: never; Returns: Json }
+      rpc_refresh_featured_battles: { Args: never; Returns: Json }
       rpc_ensure_teacher_group: {
         Args: never
         Returns: {

@@ -26,6 +26,7 @@ Order matters:
 | `20260802520000_parent_dpps_read_rls.sql` | `docs/APPLY_PARENT_DPPS_RLS.sql` |
 | `20260802540000_supervisor_d_tenant_isolation_closures.sql` | `docs/APPLY_SUPERVISOR_D_TENANT_ISOLATION.sql` |
 | `20260802551000_qa_auditor_db_api_auth_closures.sql` | `docs/APPLY_QA_AUDITOR_DB_API_AUTH.sql` |
+| `20260803220000_featured_battles_refresh.sql` | `docs/APPLY_FEATURED_BATTLES_REFRESH.sql` |
 
 `npm run db:migrate` applies all files on/after `20260509000000`. Use `db:migrate:all` for the full folder. Prefer unique `YYYYMMDDHHMMSS` prefixes (avoid duplicate timestamps).
 

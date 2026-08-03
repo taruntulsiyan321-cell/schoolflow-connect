@@ -3,11 +3,13 @@
 -- Idempotent featured battle rotation for Battleground.
 --
 -- Paste into Supabase SQL editor (or apply via migration
--- 20260803200000_featured_battles_refresh.sql).
+-- 20260803220000_featured_battles_refresh.sql).
 --
 -- Provides:
 --   * rpc_refresh_featured_battles() — close expired daily/ncert/weekly,
 --     seed current-window challenges per class (safe to run often)
+--   * rpc_rotate_featured_battles() — close-only compat helper
+--   * rpc_ensure_featured_battles_all() — caller warm for Daily/Weekly/NCERT
 --   * Optional pg_cron hourly job when extension is available
 --
 -- Wire: existing battles.source featured_daily | featured_weekly | featured_ncert
@@ -15,7 +17,7 @@
 -- beat_topper / teacher remain on-demand via rpc_ensure_featured_battle.
 -- =============================================================================
 
--- ── 1. System creator for class-scoped featured inserts ─────────────────────
+-- â”€â”€ 1. System creator for class-scoped featured inserts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE OR REPLACE FUNCTION public._featured_system_creator(_class_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -60,7 +62,7 @@ BEGIN
 END;
 $$;
 
--- ── 2. Fill questions without auth.uid() (cron / refresh path) ──────────────
+-- â”€â”€ 2. Fill questions without auth.uid() (cron / refresh path) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE OR REPLACE FUNCTION public._fill_featured_battle_questions(_battle_id uuid, _count int DEFAULT 10)
 RETURNS int
 LANGUAGE plpgsql
@@ -116,7 +118,7 @@ BEGIN
 END;
 $$;
 
--- ── 3. Seed one featured kind for a class (current window) ──────────────────
+-- â”€â”€ 3. Seed one featured kind for a class (current window) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE OR REPLACE FUNCTION public._seed_featured_battle_for_class(_class_id uuid, _kind text)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -245,7 +247,7 @@ BEGIN
 END;
 $$;
 
--- ── 4. rpc_refresh_featured_battles — close expired + seed current ──────────
+-- â”€â”€ 4. rpc_refresh_featured_battles â€” close expired + seed current â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE OR REPLACE FUNCTION public.rpc_refresh_featured_battles()
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -330,7 +332,7 @@ GRANT EXECUTE ON FUNCTION public._featured_system_creator(uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public._fill_featured_battle_questions(uuid, int) TO service_role;
 GRANT EXECUTE ON FUNCTION public._seed_featured_battle_for_class(uuid, text) TO service_role;
 
--- ── 4b. Compat: close-only rotate (no updated_at — battles has none) ────────
+-- â”€â”€ 4b. Compat: close-only rotate (no updated_at â€” battles has none) â”€â”€â”€â”€â”€â”€â”€â”€
 CREATE OR REPLACE FUNCTION public.rpc_rotate_featured_battles()
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -450,7 +452,7 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.rpc_ensure_featured_battles_all() TO authenticated;
 
--- ── 5. Optional pg_cron (hourly) — no-op if extension unavailable ───────────
+-- â”€â”€ 5. Optional pg_cron (hourly) â€” no-op if extension unavailable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 DO $$
 BEGIN
   CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA extensions;
