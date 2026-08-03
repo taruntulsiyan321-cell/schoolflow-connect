@@ -221,7 +221,7 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
     answered_at: opts.answeredAt ?? new Date().toISOString(),
     hint_used: opts.hintUsed ?? false,
   };
-  const currentRpc = await supabase.rpc("rpc_record_question_attempt", {
+  const { error } = await supabase.rpc("rpc_record_question_attempt", {
     _correct_answer: correctAnswer,
     _generated_question: generatedQuestion,
     _is_correct: skipped ? false : opts.isCorrect,
@@ -235,39 +235,8 @@ export async function recordPracticeAttemptBestEffort(opts: RecordPracticeAttemp
     _hint_used: opts.hintUsed ?? false,
     _source: opts.source ?? "practice",
     _meta: meta,
-  } as any);
-  if (!currentRpc.error) return { ok: true as const };
+  });
+  if (!error) return { ok: true as const };
 
-  const withHint = await supabase.rpc("rpc_record_question_attempt", {
-    _correct_answer: correctAnswer,
-    _generated_question: generatedQuestion,
-    _is_correct: skipped ? false : opts.isCorrect,
-    _selected_answer: selectedAnswer,
-    _session_id: opts.sessionId,
-    _score: score,
-    _skipped: skipped,
-    _template_id: opts.templateId ?? null,
-    _time_taken_ms: opts.timeTakenMs ?? null,
-    _bank_question_id: bankQuestionId,
-    _hint_used: opts.hintUsed ?? false,
-    _source: opts.source ?? "practice",
-  } as any);
-  if (!withHint.error) return { ok: true as const };
-
-  // Legacy migration signature (no bank_question_id arg) — still no client table insert.
-  const legacyRpc = await supabase.rpc("rpc_record_question_attempt", {
-    _session_id: opts.sessionId,
-    _template_id: opts.templateId ?? null,
-    _generated_question: generatedQuestion,
-    _correct_answer: correctAnswer,
-    _selected_answer: selectedAnswer,
-    _is_correct: skipped ? false : opts.isCorrect,
-    _score: score,
-  } as any);
-  if (!legacyRpc.error) return { ok: true as const };
-
-  return {
-    ok: false as const,
-    error: legacyRpc.error ?? withHint.error ?? currentRpc.error,
-  };
+  return { ok: false as const, error };
 }

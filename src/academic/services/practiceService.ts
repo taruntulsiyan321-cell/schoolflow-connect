@@ -228,7 +228,9 @@ export const PracticeService = {
       answered_at: args.answeredAt ?? new Date().toISOString(),
       hint_used: args.hintUsed ?? false,
     };
-    const payload = {
+    // Single canonical RPC — do not omit optional args; PostgREST overload
+    // disambiguation breaks if multiple signatures share a named-arg prefix.
+    const { data, error } = await client.rpc("rpc_record_question_attempt", {
       _correct_answer: args.correctAnswer,
       _generated_question: generatedQuestion,
       _is_correct: skipped ? false : args.isCorrect,
@@ -242,56 +244,9 @@ export const PracticeService = {
       _hint_used: args.hintUsed ?? false,
       _source: args.source ?? "practice",
       _meta: meta,
-    };
-    const { data, error } = await client.rpc("rpc_record_question_attempt", payload as never);
-    if (!error) return data as string;
-
-    // Mid-migration: hint+source, no meta.
-    const withHint = await client.rpc("rpc_record_question_attempt", {
-      _correct_answer: args.correctAnswer,
-      _generated_question: generatedQuestion,
-      _is_correct: skipped ? false : args.isCorrect,
-      _selected_answer: args.selectedAnswer,
-      _session_id: args.sessionId,
-      _score: args.score ?? (skipped ? 0 : args.isCorrect ? 1 : 0),
-      _skipped: skipped,
-      _template_id: args.templateId ?? null,
-      _time_taken_ms: args.timeTakenMs ?? null,
-      _bank_question_id: args.bankQuestionId ?? null,
-      _hint_used: args.hintUsed ?? false,
-      _source: args.source ?? "practice",
-    } as never);
-    if (!withHint.error) return withHint.data as string;
-
-    // Mid-migration signature (bank id, no hint/source).
-    const withBank = await client.rpc("rpc_record_question_attempt", {
-      _correct_answer: args.correctAnswer,
-      _generated_question: generatedQuestion,
-      _is_correct: skipped ? false : args.isCorrect,
-      _selected_answer: args.selectedAnswer,
-      _session_id: args.sessionId,
-      _score: args.score ?? (skipped ? 0 : args.isCorrect ? 1 : 0),
-      _skipped: skipped,
-      _template_id: args.templateId ?? null,
-      _time_taken_ms: args.timeTakenMs ?? null,
-      _bank_question_id: args.bankQuestionId ?? null,
-    } as never);
-    if (!withBank.error) return withBank.data as string;
-
-    // Pre-grading-migration signature (no bank_question_id).
-    const legacy = await client.rpc("rpc_record_question_attempt", {
-      _correct_answer: args.correctAnswer,
-      _generated_question: generatedQuestion,
-      _is_correct: skipped ? false : args.isCorrect,
-      _selected_answer: args.selectedAnswer,
-      _session_id: args.sessionId,
-      _score: args.score ?? (skipped ? 0 : args.isCorrect ? 1 : 0),
-      _skipped: skipped,
-      _template_id: args.templateId ?? null,
-      _time_taken_ms: args.timeTakenMs ?? null,
-    } as never);
-    throwIfError(legacy.error ?? withBank.error ?? withHint.error ?? error, "Failed to record practice attempt");
-    return legacy.data as string;
+    });
+    throwIfError(error, "Failed to record practice attempt");
+    return data as string;
   },
 
   async getSession(ctx: ServiceContext, sessionId: string) {

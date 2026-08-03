@@ -6041,57 +6041,24 @@ export type Database = {
         }
         Returns: string
       }
-      rpc_record_question_attempt:
-        | {
-            Args: {
-              _bank_question_id?: string
-              _correct_answer: Json
-              _generated_question: Json
-              _is_correct: boolean
-              _score?: number
-              _selected_answer: Json
-              _session_id: string
-              _skipped?: boolean
-              _template_id?: string
-              _time_taken_ms?: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _bank_question_id?: string
-              _correct_answer: Json
-              _generated_question: Json
-              _hint_used?: boolean
-              _is_correct: boolean
-              _score?: number
-              _selected_answer: Json
-              _session_id: string
-              _skipped?: boolean
-              _source?: string
-              _template_id?: string
-              _time_taken_ms?: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              _bank_question_id?: string
-              _correct_answer: Json
-              _generated_question: Json
-              _hint_used?: boolean
-              _is_correct: boolean
-              _meta?: Json
-              _score?: number
-              _selected_answer: Json
-              _session_id: string
-              _skipped?: boolean
-              _source?: string
-              _template_id?: string
-              _time_taken_ms?: number
-            }
-            Returns: string
-          }
+      rpc_record_question_attempt: {
+        Args: {
+          _bank_question_id?: string
+          _correct_answer: Json
+          _generated_question: Json
+          _hint_used?: boolean
+          _is_correct: boolean
+          _meta?: Json
+          _score?: number
+          _selected_answer: Json
+          _session_id: string
+          _skipped?: boolean
+          _source?: string
+          _template_id?: string
+          _time_taken_ms?: number
+        }
+        Returns: string
+      }
       rpc_save_battle_ai_insights: {
         Args: { _insights: Json; _participant_id: string }
         Returns: undefined

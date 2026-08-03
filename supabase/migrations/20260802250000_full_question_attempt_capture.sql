@@ -160,6 +160,7 @@ GRANT EXECUTE ON FUNCTION public.rpc_start_practice_session(text, text, int, tex
 -- ── 4) Record attempt — full intelligence via optional _meta jsonb ───────────
 DROP FUNCTION IF EXISTS public.rpc_record_question_attempt(jsonb, jsonb, boolean, jsonb, uuid, numeric, boolean, uuid, int, uuid, boolean, text, jsonb);
 DROP FUNCTION IF EXISTS public.rpc_record_question_attempt(jsonb, jsonb, boolean, jsonb, uuid, numeric, boolean, uuid, int, uuid, boolean, text);
+DROP FUNCTION IF EXISTS public.rpc_record_question_attempt(jsonb, jsonb, boolean, jsonb, uuid, numeric, boolean, uuid, int, uuid);
 
 CREATE OR REPLACE FUNCTION public.rpc_record_question_attempt(
   _correct_answer jsonb,
@@ -447,69 +448,10 @@ GRANT EXECUTE ON FUNCTION public.rpc_record_question_attempt(
   jsonb, jsonb, boolean, jsonb, uuid, numeric, boolean, uuid, int, uuid, boolean, text, jsonb
 ) TO authenticated;
 
--- 12-arg overload (hint+source, no meta)
-CREATE OR REPLACE FUNCTION public.rpc_record_question_attempt(
-  _correct_answer jsonb,
-  _generated_question jsonb,
-  _is_correct boolean,
-  _selected_answer jsonb,
-  _session_id uuid,
-  _score numeric DEFAULT 0,
-  _skipped boolean DEFAULT false,
-  _template_id uuid DEFAULT NULL,
-  _time_taken_ms int DEFAULT NULL,
-  _bank_question_id uuid DEFAULT NULL,
-  _hint_used boolean DEFAULT false,
-  _source text DEFAULT 'practice'
-)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN public.rpc_record_question_attempt(
-    _correct_answer, _generated_question, _is_correct, _selected_answer,
-    _session_id, _score, _skipped, _template_id, _time_taken_ms, _bank_question_id,
-    _hint_used, _source, '{}'::jsonb
-  );
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.rpc_record_question_attempt(
-  jsonb, jsonb, boolean, jsonb, uuid, numeric, boolean, uuid, int, uuid, boolean, text
-) TO authenticated;
-
--- 10-arg overload (bank id only)
-CREATE OR REPLACE FUNCTION public.rpc_record_question_attempt(
-  _correct_answer jsonb,
-  _generated_question jsonb,
-  _is_correct boolean,
-  _selected_answer jsonb,
-  _session_id uuid,
-  _score numeric DEFAULT 0,
-  _skipped boolean DEFAULT false,
-  _template_id uuid DEFAULT NULL,
-  _time_taken_ms int DEFAULT NULL,
-  _bank_question_id uuid DEFAULT NULL
-)
-RETURNS uuid
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  RETURN public.rpc_record_question_attempt(
-    _correct_answer, _generated_question, _is_correct, _selected_answer,
-    _session_id, _score, _skipped, _template_id, _time_taken_ms, _bank_question_id,
-    false, 'practice', '{}'::jsonb
-  );
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.rpc_record_question_attempt(
-  jsonb, jsonb, boolean, jsonb, uuid, numeric, boolean, uuid, int, uuid
-) TO authenticated;
+-- NOTE: Do NOT add 10/12-arg wrapper overloads. PostgREST cannot disambiguate
+-- named-arg calls across overlapping optional signatures. See
+-- 20260802630000_unify_rpc_record_question_attempt.sql and
+-- docs/APPLY_RPC_RECORD_QUESTION_ATTEMPT_UNIFY.sql.
 
 -- ── 5) Finish — batch missing attempts + session aggregates ──────────────────
 CREATE OR REPLACE FUNCTION public.rpc_finish_practice_session(
