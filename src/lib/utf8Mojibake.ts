@@ -3,6 +3,8 @@
  * Kept as a thin alias so parallel supervisors do not diverge on APIs.
  */
 export {
+  isCleanAcademicLabel,
+  looksLikeUnresolvedMojibake,
   looksLikeUtf8Mojibake,
   repairUtf8Mojibake,
   UTF8_MOJIBAKE_SIGNATURE,

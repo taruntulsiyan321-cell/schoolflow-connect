@@ -20,6 +20,7 @@ import {
 } from "@/lib/curriculumScope";
 import {
   academicLabelMatches,
+  academicMatchKey,
   displayChapter,
   displayConcept,
   displaySubject,
@@ -27,6 +28,10 @@ import {
   toPresentedTerm,
   type TaxonomyTermRef,
 } from "@/lib/academicPresentation";
+import {
+  isCleanAcademicLabel,
+  looksLikeUnresolvedMojibake,
+} from "@/lib/utf8MojibakeRepair";
 import { WEAK_CONCEPT_THRESHOLD } from "../eie/masteryBands";
 
 export type { CurriculumScope };
@@ -607,10 +612,25 @@ export const PracticeService = {
       if (!raw) continue;
       const term = toPresentedTerm(raw, "chapter");
       if (!term) continue;
-      const key = term.displayName.toLowerCase();
-      if (!seen.has(key)) seen.set(key, { id: raw, displayName: term.displayName });
+      // Never surface unresolved mojibake chips (à¤… / OCR-lookalike äèµ…).
+      if (looksLikeUnresolvedMojibake(term.displayName)) continue;
+      // Dedupe clean + corrupt + em-dash/hyphen variants of the same chapter.
+      const key = academicMatchKey(term.displayName) || term.displayName.toLowerCase();
+      if (!key) continue;
+      const existing = seen.get(key);
+      if (!existing) {
+        // Prefer a clean Devanagari/Latin DB id so session filters hit repaired rows.
+        seen.set(key, {
+          id: isCleanAcademicLabel(raw) ? raw : term.displayName,
+          displayName: term.displayName,
+        });
+        continue;
+      }
+      if (!isCleanAcademicLabel(existing.id) && isCleanAcademicLabel(raw)) {
+        seen.set(key, { id: raw, displayName: term.displayName });
+      }
     }
-    return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, "hi"));
   },
 
   /** Unique topics/concepts for subject (+ optional chapter). */
@@ -651,11 +671,23 @@ export const PracticeService = {
         if (!raw) continue;
         const term = toPresentedTerm(raw, "concept");
         if (!term) continue;
-        const key = term.displayName.toLowerCase();
-        if (!seen.has(key)) seen.set(key, { id: raw, displayName: term.displayName });
+        if (looksLikeUnresolvedMojibake(term.displayName)) continue;
+        const key = academicMatchKey(term.displayName) || term.displayName.toLowerCase();
+        if (!key) continue;
+        const existing = seen.get(key);
+        if (!existing) {
+          seen.set(key, {
+            id: isCleanAcademicLabel(raw) ? raw : term.displayName,
+            displayName: term.displayName,
+          });
+          continue;
+        }
+        if (!isCleanAcademicLabel(existing.id) && isCleanAcademicLabel(raw)) {
+          seen.set(key, { id: raw, displayName: term.displayName });
+        }
       }
     }
-    return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName));
+    return [...seen.values()].sort((a, b) => a.displayName.localeCompare(b.displayName, "hi"));
   },
 
   /** Weak concepts from concept_mastery (honest empty if none tracked). */

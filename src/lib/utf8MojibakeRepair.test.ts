@@ -85,3 +85,28 @@ describe("end-to-end Hindi chapter presentation hop", () => {
     );
   });
 });
+
+describe("mixed C1 + CP1252 Hindi (PG WIN1252/LATIN1 gap)", () => {
+  it("recovers व्याकरण - काल (virama U+008D + bullet U+2022)", () => {
+    const moji = asCp1252Mojibake("व्याकरण - काल");
+    // Must contain both a C1 control (from 0x8D) and a CP1252 special (• from 0x95)
+    expect([...moji].some((ch) => {
+      const cp = ch.codePointAt(0)!;
+      return cp >= 0x80 && cp <= 0x9f;
+    })).toBe(true);
+    expect(moji.includes("\u2022")).toBe(true);
+    expect(repairUtf8Mojibake(moji)).toBe("व्याकरण - काल");
+    expect(displayChapter(moji)).toBe("व्याकरण - काल");
+  });
+
+  it("recovers आलो आँधारि (chandrabindu U+0081 + dagger specials)", () => {
+    const moji = asCp1252Mojibake("आलो आँधारि");
+    expect(repairUtf8Mojibake(moji)).toBe("आलो आँधारि");
+  });
+
+  it("recovers कबीर के पद and latin1-form seeds", () => {
+    expect(repairUtf8Mojibake(asCp1252Mojibake("कबीर के पद"))).toBe("कबीर के पद");
+    const latin1 = Buffer.from("कबीर के पद", "utf8").toString("latin1");
+    expect(repairUtf8Mojibake(latin1)).toBe("कबीर के पद");
+  });
+});

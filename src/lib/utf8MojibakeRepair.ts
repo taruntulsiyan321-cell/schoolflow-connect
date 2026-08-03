@@ -1,9 +1,17 @@
 /**
- * Reverse UTF-8-as-Windows-1252 (CP1252) mojibake.
+ * Reverse UTF-8-as-Windows-1252 (CP1252) / Latin-1 mojibake.
  *
  * Root cause (proven Inv5+Inv6): valid UTF-8 (Devanagari / punctuation / Greek / math)
  * was interpreted as CP1252 at import and stored as those Unicode codepoints.
  * Example: bytes of `आलो` → display `à¤†à¤²à¥‹`. Clean DB π is fine; some demo stems still have Â°/âˆš.
+ *
+ * Critical PG gap (Hindi Practice chips 2026-08-03):
+ *   Chapters with virama/chandrabindu (व्याकरण, आलो आँधारि) produce MIXED mojibake:
+ *   CP1252 specials (U+2022 •, U+2020 †) AND C1 controls (U+008D / U+0081).
+ *   `convert_to(WIN1252)` fails on C1; `convert_to(LATIN1)` fails on •/† — SQL returned
+ *   the garbled string unchanged. This JS path maps both, so UI can still render clean Hindi.
+ *
+ * Screenshot OCR often renders `à¤µ` as `äèµ` / `äèµ¾¥` — same class, not a new encoding.
  *
  * Safe: only runs when classic mojibake signatures are present.
  * Never re-decodes clean Devanagari / clean π.
@@ -38,6 +46,24 @@ export const UTF8_MOJIBAKE_SIGNATURE =
 export function looksLikeUtf8Mojibake(text: string | null | undefined): boolean {
   if (text == null || text === "") return false;
   return UTF8_MOJIBAKE_SIGNATURE.test(String(text));
+}
+
+/**
+ * True when text still looks like unresolved Devanagari/Western UTF-8 mojibake
+ * after attempted repair — never show these as Practice chapter chips.
+ */
+export function looksLikeUnresolvedMojibake(text: string | null | undefined): boolean {
+  if (text == null || text === "") return false;
+  return looksLikeUtf8Mojibake(text);
+}
+
+/** Prefer a stored label that is already clean Devanagari / Latin (not mojibake). */
+export function isCleanAcademicLabel(text: string | null | undefined): boolean {
+  if (text == null) return false;
+  const s = String(text).trim();
+  if (!s) return false;
+  if (looksLikeUtf8Mojibake(s)) return false;
+  return true;
 }
 
 function mojibakeToCp1252Bytes(moj: string): Uint8Array | null {

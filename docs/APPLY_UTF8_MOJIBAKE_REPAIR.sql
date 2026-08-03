@@ -2,20 +2,61 @@
 -- APPLY_UTF8_MOJIBAKE_REPAIR.sql  (CANONICAL — Meta-Supervisor 3)
 -- Paste into Supabase SQL Editor with UTF-8. Idempotent.
 --
--- ROOT CAUSE (proven live DB 2026-08-02):
+-- ROOT CAUSE (proven live DB 2026-08-02; Hindi chip gap 2026-08-03):
 --   Repo seeds store valid UTF-8 (chapter आलो आँधारि, symbol π).
 --   seed_rbse_commerce_v1 was applied with UTF-8 misread as WIN1252 →
 --   stored as à¤… / Ï€. full_v1 + taxonomy already clean.
---   Presentation Western char-maps passed Devanagari mojibake through.
+--   Mixed C1+CP1252 mojibake (व्याकरण) breaks naive WIN1252→LATIN1 fallback —
+--   see APPLY_HINDI_CHAPTER_MOJIBAKE_REPAIR.sql for taxonomy align + dedupe.
 --
 -- ONE STRATEGY (do NOT delete seed batches; do NOT use APPLY_DEVANAGARI_*):
---   convert_from(convert_to(s, 'WIN1252'), 'UTF8') on signature-matched text.
+--   Normalize CP1252 glyphs → LATIN1→UTF8 (handles mixed mojibake); WIN1252/LATIN1 fallbacks.
 --
 -- Verify:
 --   SELECT count(*) FROM question_bank WHERE chapter ~ 'à¤|à¥';  -- expect 0
 --   SELECT DISTINCT chapter FROM question_bank
 --     WHERE subject ILIKE 'Hindi' AND chapter LIKE '%आलो%';  -- आलो आँधारि
 -- =============================================================================
+
+CREATE OR REPLACE FUNCTION public._normalize_cp1252_mojibake_to_latin1(t text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+AS $$
+DECLARE
+  s text := coalesce(t, '');
+BEGIN
+  IF s = '' THEN RETURN s; END IF;
+  s := replace(s, U&'\20AC', CHR(128));
+  s := replace(s, U&'\201A', CHR(130));
+  s := replace(s, U&'\0192', CHR(131));
+  s := replace(s, U&'\201E', CHR(132));
+  s := replace(s, U&'\2026', CHR(133));
+  s := replace(s, U&'\2020', CHR(134));
+  s := replace(s, U&'\2021', CHR(135));
+  s := replace(s, U&'\02C6', CHR(136));
+  s := replace(s, U&'\2030', CHR(137));
+  s := replace(s, U&'\0160', CHR(138));
+  s := replace(s, U&'\2039', CHR(139));
+  s := replace(s, U&'\0152', CHR(140));
+  s := replace(s, U&'\017D', CHR(142));
+  s := replace(s, U&'\2018', CHR(145));
+  s := replace(s, U&'\2019', CHR(146));
+  s := replace(s, U&'\201C', CHR(147));
+  s := replace(s, U&'\201D', CHR(148));
+  s := replace(s, U&'\2022', CHR(149));
+  s := replace(s, U&'\2013', CHR(150));
+  s := replace(s, U&'\2014', CHR(151));
+  s := replace(s, U&'\02DC', CHR(152));
+  s := replace(s, U&'\2122', CHR(153));
+  s := replace(s, U&'\0161', CHR(154));
+  s := replace(s, U&'\203A', CHR(155));
+  s := replace(s, U&'\0153', CHR(156));
+  s := replace(s, U&'\017E', CHR(158));
+  s := replace(s, U&'\0178', CHR(159));
+  RETURN s;
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public._repair_utf8_mojibake(t text)
 RETURNS text
@@ -24,28 +65,54 @@ IMMUTABLE
 AS $$
 DECLARE
   s text := coalesce(t, '');
+  normalized text;
   repaired text;
+  candidate text;
 BEGIN
   IF s = '' THEN RETURN s; END IF;
   IF s !~ 'à¤|à¥|â€|Ã.|Î.|Ï.|Â[°·¹²³½¼¾]|âˆ.' THEN RETURN s; END IF;
+
+  repaired := NULL;
+
   BEGIN
-    repaired := convert_from(convert_to(s, 'WIN1252'), 'UTF8');
+    normalized := public._normalize_cp1252_mojibake_to_latin1(s);
+    candidate := convert_from(convert_to(normalized, 'LATIN1'), 'UTF8');
+    IF candidate IS NOT NULL AND candidate <> '' AND candidate <> s AND candidate !~ 'à¤|à¥' THEN
+      repaired := candidate;
+    END IF;
   EXCEPTION WHEN others THEN
-    BEGIN
-      repaired := convert_from(convert_to(s, 'LATIN1'), 'UTF8');
-    EXCEPTION WHEN others THEN
-      RETURN s;
-    END;
+    repaired := NULL;
   END;
-  IF repaired IS NULL OR repaired = '' OR repaired = s OR repaired ~ 'à¤|à¥' THEN
-    RETURN s;
+
+  IF repaired IS NULL THEN
+    BEGIN
+      candidate := convert_from(convert_to(s, 'WIN1252'), 'UTF8');
+      IF candidate IS NOT NULL AND candidate <> '' AND candidate <> s AND candidate !~ 'à¤|à¥' THEN
+        repaired := candidate;
+      END IF;
+    EXCEPTION WHEN others THEN
+      repaired := NULL;
+    END;
   END IF;
+
+  IF repaired IS NULL THEN
+    BEGIN
+      candidate := convert_from(convert_to(s, 'LATIN1'), 'UTF8');
+      IF candidate IS NOT NULL AND candidate <> '' AND candidate <> s AND candidate !~ 'à¤|à¥' THEN
+        repaired := candidate;
+      END IF;
+    EXCEPTION WHEN others THEN
+      repaired := NULL;
+    END;
+  END IF;
+
+  IF repaired IS NULL THEN RETURN s; END IF;
   RETURN repaired;
 END;
 $$;
 
 COMMENT ON FUNCTION public._repair_utf8_mojibake(text) IS
-  'Canonical UTF-8-as-WIN1252 reverse (Hindi + π). Idempotent. Meta3 SSOT.';
+  'Canonical UTF-8-as-CP1252/Latin-1 reverse (Hindi mixed C1+CP1252 + π). Idempotent.';
 
 DROP FUNCTION IF EXISTS public._repair_cp1252_mojibake(text);
 

@@ -11,6 +11,8 @@
 import { repairUtf8Mojibake } from "@/lib/utf8MojibakeRepair";
 
 export {
+  isCleanAcademicLabel,
+  looksLikeUnresolvedMojibake,
   looksLikeUtf8Mojibake,
   repairUtf8Mojibake,
   UTF8_MOJIBAKE_SIGNATURE,

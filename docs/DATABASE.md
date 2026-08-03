@@ -21,6 +21,7 @@ Order matters:
 | Migration | Clipboard APPLY |
 |-----------|-----------------|
 | `20260802430000_unify_utf8_mojibake_repair.sql` | `docs/APPLY_UTF8_MOJIBAKE_REPAIR.sql` (prefer over Devanagari-only APPLY) |
+| `20260803140000_hindi_chapter_mojibake_repair.sql` | `docs/APPLY_HINDI_CHAPTER_MOJIBAKE_REPAIR.sql` (Hindi CHAPTER chips; mixed C1+CP1252) |
 | `20260802510000_auth_tenant_security_hardening.sql` | `docs/APPLY_AUTH_TENANT_HARDENING.sql` |
 | `20260802520000_parent_dpps_read_rls.sql` | `docs/APPLY_PARENT_DPPS_RLS.sql` |
 | `20260802540000_supervisor_d_tenant_isolation_closures.sql` | `docs/APPLY_SUPERVISOR_D_TENANT_ISOLATION.sql` |
