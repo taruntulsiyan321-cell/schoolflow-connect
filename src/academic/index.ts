@@ -136,6 +136,7 @@ export type {
   ChatContact,
   ChatMessage,
   ChatAttachment,
+  ChatSearchHit,
 } from "./services/messageService";
 
 export { AcademicLiveProvider, useAcademicLive, useAcademicLiveBump, broadcastAcademicWrite } from "./live";
