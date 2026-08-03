@@ -277,7 +277,7 @@ export function useBattlegroundData(enabled = true) {
     setError(null);
     try {
       // Warm featured: refresh period windows + ensure Daily/Weekly/NCERT (populate cards without tap).
-      // Teacher peeks from manual public. Do not block forever — soft-fail leaves Tap to open.
+      // Teacher peeks from live teacher-hosted custom/manual/bank. Soft-fail leaves Tap to open.
       try {
         const { BattleExperienceService } = await import("@/academic");
         await BattleExperienceService.ensureFeaturedAll(academicCtx);
