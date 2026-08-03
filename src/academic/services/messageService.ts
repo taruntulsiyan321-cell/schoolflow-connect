@@ -1,7 +1,24 @@
-import { invokeEdgeFunction } from "@/lib/edgeFunction";
-import { broadcastAcademicWrite } from "../live";
+﻿import {
+  assertCanOwn,
+  assertCanConsume,
+  toRepoContext,
+  type ServiceContext,
+} from "./context";
 import { getClient, throwIfError } from "../repository/base";
-import { assertCanConsume, assertCanOwn, toRepoContext, type ServiceContext } from "./context";
+import { broadcastAcademicWrite } from "../live";
+import { invokeEdgeFunction } from "@/lib/edgeFunction";
+
+/** Best-effort FCM for DM receivers (native tokens). Never blocks the send path. */
+function notifyReceiverPush(receiverId: string, title: string, body: string): void {
+  void invokeEdgeFunction("send-push", {
+    audience: "user",
+    user_id: receiverId,
+    title,
+    body,
+  }).then((res) => {
+    if (res.error) console.warn("[MessageService] push notify skipped:", res.error);
+  });
+}
 
 export type ChatContact = {
   userId: string;
@@ -10,27 +27,20 @@ export type ChatContact = {
   unread: number;
   lastMessage?: string;
   lastTime?: string;
+  avatarUrl?: string | null;
+  /** Present when backed by chat_conversations */
   conversationId?: string;
   kind?: "dm" | "class_group" | "teacher_group";
   classId?: string | null;
-  avatarUrl?: string | null;
 };
 
 export type ChatAttachment = {
-  url: string;
+  id?: string;
   name: string;
-  mimeType?: string;
-  sizeBytes?: number;
+  url: string;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
 };
-
-export type ChatSearchHit = {
-  conversationId?: string | null;
-  peerUserId?: string | null;
-  title: string;
-  snippet: string;
-  createdAt?: string | null;
-};
-
 
 export type ChatMessage = {
   id: string;
@@ -42,18 +52,19 @@ export type ChatMessage = {
   createdAt: string;
   replyToId?: string | null;
   deletedAt?: string | null;
-  replyPreview?: string | null;
-  attachment?: ChatAttachment | null;
-  /** @deprecated Compatibility for older chat views. */
   attachments?: ChatAttachment[];
+  /** Resolved reply preview (optional) */
+  replyPreview?: string | null;
 };
 
-type SendMessageInput = {
-  receiverId?: string;
-  conversationId?: string;
-  content: string;
-  replyToId?: string;
+export type ChatSearchHit = {
+  conversationId?: string | null;
+  peerUserId?: string | null;
+  title: string;
+  snippet: string;
+  createdAt?: string | null;
 };
+
 type DbMessage = {
   id: string;
   sender_id: string;
@@ -64,416 +75,554 @@ type DbMessage = {
   created_at: string;
   reply_to_id?: string | null;
   deleted_at?: string | null;
-  attachment_url?: string | null;
-  attachment_name?: string | null;
-  attachment_mime?: string | null;
+  has_attachment?: boolean | null;
 };
-type ContactRow = {
-  user_id: string;
-  name: string | null;
-  role: string | null;
-  photo_url: string | null;
-};
-type GroupRow = {
+
+type InboxRow = {
   conversation_id: string;
-  name: string | null;
   kind: string;
-  unread: number | null;
+  title: string;
+  class_id: string | null;
+  peer_user_id: string | null;
+  peer_role: string | null;
+  unread: number;
   last_message: string | null;
   last_time: string | null;
 };
-type CreatedGroup = {
-  conversation_id?: string;
-  id?: string;
-  name?: string | null;
-  title?: string | null;
-  class_id?: string | null;
-};
 
-const MESSAGE_COLUMNS =
-  "id, sender_id, receiver_id, conversation_id, content, is_read, created_at, reply_to_id, deleted_at, attachment_url, attachment_name, attachment_mime";
-
-function notifyReceiverPush(receiverId: string, body: string): void {
-  void invokeEdgeFunction("send-push", {
-    audience: "user",
-    user_id: receiverId,
-    title: "New message",
-    body,
-  }).then(({ error }) => {
-    if (error) console.warn("[MessageService] push notify skipped:", error);
-  });
-}
-
-function first<T>(data: unknown): T | null {
-  return Array.isArray(data) ? (data[0] as T | undefined) ?? null : (data as T | null);
-}
-
-function mapMessage(row: DbMessage, replyPreview?: string | null): ChatMessage {
-  const attachment: ChatAttachment | null =
-    row.attachment_url && !row.deleted_at
-      ? {
-          url: row.attachment_url,
-          name: row.attachment_name || "Attachment",
-          mimeType: row.attachment_mime || undefined,
-        }
-      : null;
+function mapMessage(m: DbMessage, attachments: ChatAttachment[] = [], replyPreview?: string | null): ChatMessage {
   return {
-    id: row.id,
-    senderId: row.sender_id,
-    receiverId: row.receiver_id,
-    conversationId: row.conversation_id ?? null,
-    content: row.deleted_at ? "" : row.content,
-    isRead: row.is_read,
-    createdAt: row.created_at,
-    replyToId: row.reply_to_id ?? null,
-    deletedAt: row.deleted_at ?? null,
-    replyPreview: row.deleted_at ? null : replyPreview ?? null,
-    attachment,
-    attachments: attachment ? [attachment] : [],
+    id: m.id,
+    senderId: m.sender_id,
+    receiverId: m.receiver_id,
+    conversationId: m.conversation_id ?? null,
+    content: m.deleted_at ? "Message deleted" : m.content,
+    isRead: m.is_read,
+    createdAt: m.created_at,
+    replyToId: m.reply_to_id ?? null,
+    deletedAt: m.deleted_at ?? null,
+    attachments: m.deleted_at ? [] : attachments,
+    replyPreview: m.deleted_at ? null : replyPreview ?? null,
   };
 }
 
-function mapThread(rows: DbMessage[]): ChatMessage[] {
-  const byId = new Map(rows.map((row) => [row.id, row]));
-  return rows.map((row) =>
-    mapMessage(row, row.reply_to_id ? byId.get(row.reply_to_id)?.content ?? null : null),
-  );
-}
-
-function sortContacts(rows: ChatContact[]): ChatContact[] {
-  return rows.sort((a, b) =>
-    a.unread !== b.unread
-      ? b.unread - a.unread
-      : (b.lastTime || "").localeCompare(a.lastTime || ""),
-  );
-}
-
-function validateDestination(receiverId?: string | null, conversationId?: string | null): void {
-  if ((receiverId ? 1 : 0) + (conversationId ? 1 : 0) !== 1) {
-    throw new Error("Choose either a direct-message receiver or a group conversation");
+async function loadAttachments(
+  client: ReturnType<typeof getClient>,
+  messageIds: string[],
+): Promise<Map<string, ChatAttachment[]>> {
+  const map = new Map<string, ChatAttachment[]>();
+  if (messageIds.length === 0) return map;
+  const { data, error } = await client
+    .from("message_attachments" as never)
+    .select("id, message_id, name, url, mime_type, size_bytes")
+    .in("message_id", messageIds);
+  if (error || !data) return map;
+  for (const row of data as {
+    id: string;
+    message_id: string;
+    name: string;
+    url: string;
+    mime_type: string | null;
+    size_bytes: number | null;
+  }[]) {
+    const list = map.get(row.message_id) ?? [];
+    list.push({
+      id: row.id,
+      name: row.name,
+      url: row.url,
+      mimeType: row.mime_type,
+      sizeBytes: row.size_bytes,
+    });
+    map.set(row.message_id, list);
   }
+  return map;
 }
 
-function isMissingRpc(error: { code?: string; message?: string } | null): boolean {
-  return Boolean(
-    error &&
-      (error.code === "PGRST202" ||
-        /function .* does not exist|could not find the function/i.test(error.message || "")),
-  );
-}
-
-function groupContact(
-  row: CreatedGroup,
-  kind: "class_group" | "teacher_group",
-): ChatContact {
-  const id = row.conversation_id || row.id;
-  if (!id) throw new Error("Chat group RPC returned no conversation");
-  return {
-    userId: id,
-    conversationId: id,
-    name: row.name || row.title || (kind === "class_group" ? "Class Group" : "Teacher Group"),
-    role: kind,
-    kind,
-    classId: row.class_id ?? null,
-    unread: 0,
-  };
-}
-
-async function sendRpc(
-  ctx: ServiceContext,
-  input: SendMessageInput,
-  attachment: ChatAttachment | null,
-): Promise<ChatMessage> {
-  assertCanOwn(ctx, "message");
-  const receiverId = input.receiverId || null;
-  const conversationId = input.conversationId || null;
-  validateDestination(receiverId, conversationId);
-  const content = input.content.trim();
-  if (!content && !attachment?.url) throw new Error("Message cannot be empty");
-
-  const client = getClient(toRepoContext(ctx));
-  const common = {
-    _content: content,
-    _reply_to_id: input.replyToId ?? null,
-    _attachment_url: attachment?.url ?? null,
-    _attachment_name: attachment?.name ?? null,
-    _attachment_mime: attachment?.mimeType ?? null,
-  };
-  const result = conversationId
-    ? await client.rpc("rpc_send_group_message" as never, {
-        _conversation_id: conversationId,
-        ...common,
-      } as never)
-    : await client.rpc("rpc_send_direct_message" as never, {
-        _receiver_id: receiverId,
-        ...common,
-      } as never);
-  throwIfError(result.error, "Failed to send message");
-  const row = first<DbMessage>(result.data);
-  if (!row?.id) throw new Error("Message RPC returned no message");
-
-  broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.sendMessage" });
-  if (receiverId) {
-    notifyReceiverPush(receiverId, (content || attachment?.name || "New message").slice(0, 160));
-  }
-  return mapMessage(row);
-}
-
+/**
+ * MessageService ΓÇö school chat SSOT (DM + class/teacher groups).
+ */
 export const MessageService = {
+  async listConversations(ctx: ServiceContext, search?: string): Promise<ChatContact[]> {
+    assertCanConsume(ctx, "message");
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_list_conversations" as never, {
+      _search: search ?? null,
+      _limit: 50,
+    } as never);
+    if (!error && Array.isArray(data)) {
+      return (data as any[]).map((r) => ({
+        userId: r.peer_user_id || r.conversation_id,
+        name: r.title || "Chat",
+        role:
+          r.kind === "class_group"
+            ? "class_group"
+            : r.kind === "teacher_group"
+              ? "teacher_group"
+              : r.peer_role || "user",
+        unread: r.unread ?? 0,
+        lastMessage: r.last_message ?? undefined,
+        lastTime: r.last_time ?? undefined,
+        conversationId: r.conversation_id,
+        kind: r.kind as ChatContact["kind"],
+        classId: r.class_id,
+      }));
+    }
+    const all = await this.listContacts(ctx);
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return all;
+    return all.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.lastMessage || "").toLowerCase().includes(q),
+    );
+  },
+
   async listContacts(ctx: ServiceContext): Promise<ChatContact[]> {
     assertCanConsume(ctx, "message");
     const client = getClient(toRepoContext(ctx));
-    const [contactsResult, groupsResult, messagesResult] = await Promise.all([
-      client.rpc("get_chat_contacts" as never),
-      client.rpc("get_chat_groups" as never),
-      client
-        .from("messages")
-        .select(MESSAGE_COLUMNS)
-        .or(`sender_id.eq.${ctx.userId},receiver_id.eq.${ctx.userId}`)
-        .is("conversation_id", null)
-        .order("created_at", { ascending: false }),
-    ]);
-    throwIfError(contactsResult.error, "Failed to load chat contacts");
-    throwIfError(groupsResult.error, "Failed to load chat groups");
-    throwIfError(messagesResult.error, "Failed to load direct message summaries");
 
-    const contacts = ((contactsResult.data as ContactRow[] | null) ?? []).map<ChatContact>(
-      (row) => ({
-        userId: row.user_id,
-        name: row.name || "Unknown",
-        role: row.role || "user",
+    const { data: inbox, error: inboxErr } = await client.rpc("get_chat_inbox" as never);
+    if (!inboxErr && Array.isArray(inbox)) {
+      const rows = inbox as InboxRow[];
+      const mapped: ChatContact[] = rows.map((r) => ({
+        userId: r.peer_user_id || r.conversation_id,
+        name: r.title || "Chat",
+        role:
+          r.kind === "class_group"
+            ? "class_group"
+            : r.kind === "teacher_group"
+              ? "teacher_group"
+              : r.peer_role || "user",
+        unread: r.unread ?? 0,
+        lastMessage: r.last_message ?? undefined,
+        lastTime: r.last_time ?? undefined,
+        conversationId: r.conversation_id,
+        kind: r.kind as ChatContact["kind"],
+        classId: r.class_id,
+      }));
+      // Merge allowed DM contacts that have no conversation yet
+      const { data: allowedUsers } = await client.rpc("get_chat_contacts" as never);
+      const have = new Set(mapped.map((c) => c.userId));
+      for (const u of (allowedUsers as { user_id: string; name?: string; role?: string }[] | null) ?? []) {
+        if (have.has(u.user_id)) continue;
+        mapped.push({
+          userId: u.user_id,
+          name: u.name || "Unknown",
+          role: u.role || "user",
+          unread: 0,
+          kind: "dm",
+        });
+      }
+      mapped.sort((a, b) => {
+        if (a.unread !== b.unread) return b.unread - a.unread;
+        return (b.lastTime || "") > (a.lastTime || "") ? 1 : -1;
+      });
+      return mapped;
+    }
+
+    // Fallback: legacy contacts + messages (pre-MVP SQL)
+    const { data: allowedUsers, error } = await client.rpc("get_chat_contacts" as never);
+    throwIfError(error ?? inboxErr, "Failed to load chat contacts");
+
+    const contactList: ChatContact[] = ((allowedUsers as { user_id: string; name?: string; role?: string }[] | null) ?? []).map(
+      (u) => ({
+        userId: u.user_id,
+        name: u.name || "Unknown",
+        role: u.role || "user",
         unread: 0,
-        kind: "dm",
-        avatarUrl: row.photo_url ?? null,
+        kind: "dm" as const,
       }),
     );
-    const byId = new Map(contacts.map((contact) => [contact.userId, contact]));
-    for (const row of (messagesResult.data as unknown as DbMessage[] | null) ?? []) {
-      const peerId = row.sender_id === ctx.userId ? row.receiver_id : row.sender_id;
-      const contact = peerId ? byId.get(peerId) : undefined;
+
+    if (contactList.length === 0) return contactList;
+
+    const { data: received, error: recvErr } = await client
+      .from("messages")
+      .select("sender_id, is_read, content, created_at")
+      .eq("receiver_id", ctx.userId)
+      .order("created_at", { ascending: false });
+    throwIfError(recvErr, "Failed to load received messages");
+
+    for (const m of received ?? []) {
+      const contact = contactList.find((c) => c.userId === m.sender_id);
       if (!contact) continue;
-      if (!contact.lastTime) {
-        const text = row.deleted_at ? "This message was deleted" : row.content;
-        contact.lastMessage = `${row.sender_id === ctx.userId ? "You: " : ""}${text}`;
-        contact.lastTime = row.created_at;
+      if (!m.is_read) contact.unread += 1;
+      if (!contact.lastMessage) {
+        contact.lastMessage = m.content;
+        contact.lastTime = m.created_at;
       }
-      if (row.receiver_id === ctx.userId && !row.is_read) contact.unread += 1;
     }
-    const groups = ((groupsResult.data as GroupRow[] | null) ?? []).map<ChatContact>((row) => {
-      const kind = row.kind === "teacher_group" ? "teacher_group" : "class_group";
-      return {
-        userId: row.conversation_id,
-        conversationId: row.conversation_id,
-        name: row.name || (kind === "class_group" ? "Class Group" : "Teacher Group"),
-        role: kind,
-        kind,
-        unread: row.unread ?? 0,
-        lastMessage: row.last_message ?? undefined,
-        lastTime: row.last_time ?? undefined,
-      };
+
+    const { data: sent, error: sentErr } = await client
+      .from("messages")
+      .select("receiver_id, content, created_at")
+      .eq("sender_id", ctx.userId)
+      .order("created_at", { ascending: false });
+    throwIfError(sentErr, "Failed to load sent messages");
+
+    for (const m of sent ?? []) {
+      const contact = contactList.find((c) => c.userId === m.receiver_id);
+      if (contact && (!contact.lastTime || m.created_at > contact.lastTime)) {
+        contact.lastMessage = `You: ${m.content}`;
+        contact.lastTime = m.created_at;
+      }
+    }
+
+    contactList.sort((a, b) => {
+      if (a.unread !== b.unread) return b.unread - a.unread;
+      return (b.lastTime || "") > (a.lastTime || "") ? 1 : -1;
     });
-    return sortContacts([...contacts, ...groups]);
-  },
 
-  async canCreateClassGroup(ctx: ServiceContext): Promise<boolean> {
-    assertCanConsume(ctx, "message");
-    return ctx.role === "teacher" || ctx.role === "principal" || ctx.role === "admin";
-  },
-
-  async listThread(
-    ctx: ServiceContext,
-    peerUserId: string,
-    compatibilityConversationId?: string | null,
-  ): Promise<ChatMessage[]> {
-    if (compatibilityConversationId) return this.listGroupThread(ctx, compatibilityConversationId);
-    assertCanConsume(ctx, "message");
-    const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client
-      .from("messages")
-      .select(MESSAGE_COLUMNS)
-      .or(
-        `and(sender_id.eq.${ctx.userId},receiver_id.eq.${peerUserId}),and(sender_id.eq.${peerUserId},receiver_id.eq.${ctx.userId})`,
-      )
-      .is("conversation_id", null)
-      .order("created_at", { ascending: true });
-    throwIfError(error, "Failed to load direct messages");
-    await this.markThreadRead(ctx, peerUserId);
-    return mapThread((data as unknown as DbMessage[] | null) ?? []);
-  },
-
-  async listGroupThread(ctx: ServiceContext, conversationId: string): Promise<ChatMessage[]> {
-    assertCanConsume(ctx, "message");
-    const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client
-      .from("messages")
-      .select(MESSAGE_COLUMNS)
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
-    throwIfError(error, "Failed to load group messages");
-    const { error: readError } = await client.rpc("rpc_mark_group_messages_read" as never, {
-      _conversation_id: conversationId,
-    } as never);
-    throwIfError(readError, "Failed to mark group messages read");
-    broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.listGroupThread" });
-    return mapThread((data as unknown as DbMessage[] | null) ?? []);
-  },
-
-  async markThreadRead(ctx: ServiceContext, peerUserId: string): Promise<void> {
-    assertCanOwn(ctx, "message");
-    const client = getClient(toRepoContext(ctx));
-    const { error } = await client.rpc("rpc_mark_messages_read" as never, {
-      _peer_user_id: peerUserId,
-    } as never);
-    throwIfError(error, "Failed to mark messages read");
-    broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.markThreadRead" });
-  },
-
-  async sendMessage(ctx: ServiceContext, input: SendMessageInput): Promise<ChatMessage> {
-    return sendRpc(ctx, input, null);
-  },
-
-  async sendFile(
-    ctx: ServiceContext,
-    input: {
-      receiverId?: string;
-      conversationId?: string;
-      file: File;
-      caption?: string;
-      replyToId?: string;
-    },
-  ): Promise<ChatMessage> {
-    assertCanOwn(ctx, "message");
-    validateDestination(input.receiverId, input.conversationId);
-    const { uploadChatAttachment } = await import("../storage/chatFileUpload");
-    const uploaded = await uploadChatAttachment(
-      input.file,
-      ctx.schoolId,
-      input.conversationId || input.receiverId || "dm",
-    );
-    return sendRpc(
-      ctx,
-      {
-        receiverId: input.receiverId,
-        conversationId: input.conversationId,
-        content: input.caption || "",
-        replyToId: input.replyToId,
-      },
-      {
-        url: uploaded.url,
-        name: uploaded.name,
-        mimeType: uploaded.mimeType,
-        sizeBytes: uploaded.sizeBytes,
-      },
-    );
-  },
-
-  async deleteMessage(ctx: ServiceContext, messageId: string): Promise<void> {
-    assertCanOwn(ctx, "message");
-    const client = getClient(toRepoContext(ctx));
-    const { error } = await client.rpc("rpc_delete_message" as never, {
-      _message_id: messageId,
-    } as never);
-    throwIfError(error, "Failed to delete message");
-    broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.deleteMessage" });
-  },
-
-  async createClassGroup(ctx: ServiceContext, classId?: string): Promise<ChatContact> {
-    if (classId) return this.ensureClassGroup(ctx, classId);`n    assertCanOwn(ctx, "message");
-    const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client.rpc("rpc_create_class_group" as never);
-    throwIfError(error, "Failed to create class group");
-    const contact = groupContact(first<CreatedGroup>(data) ?? {}, "class_group");
-    broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.createClassGroup" });
-    return contact;
-  },
-
-  async createTeacherGroup(ctx: ServiceContext): Promise<ChatContact> {
-    assertCanOwn(ctx, "message");
-    const client = getClient(toRepoContext(ctx));
-    let result = await client.rpc("rpc_create_teacher_group" as never);
-    if (result.error && isMissingRpc(result.error)) {
-      result = await client.rpc("rpc_ensure_teacher_group" as never);
-    }
-    if (result.error && isMissingRpc(result.error)) {
-      throw new Error("Teacher group RPC is unavailable. Apply the Gurukul chat migrations.");
-    }
-    throwIfError(result.error, "Failed to create teacher group");
-    const contact = groupContact(first<CreatedGroup>(result.data) ?? {}, "teacher_group");
-    broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.createTeacherGroup" });
-    return contact;
-  },
-
-  searchContacts(contacts: ChatContact[], query: string): ChatContact[] {
-    const value = query.trim().toLocaleLowerCase();
-    if (!value) return contacts;
-    return contacts.filter((contact) =>
-      `${contact.name} ${contact.role} ${contact.lastMessage || ""}`
-        .toLocaleLowerCase()
-        .includes(value),
-    );
+    return contactList;
   },
 
   async countUnread(ctx: ServiceContext): Promise<number> {
     assertCanConsume(ctx, "message");
     const client = getClient(toRepoContext(ctx));
     const { data, error } = await client.rpc("get_chat_unread_total" as never);
-    if (!error && Number.isFinite(Number(data))) return Number(data);
-    const [direct, groups] = await Promise.all([
-      client
+    if (!error && typeof data === "number") return data;
+
+    const { count, error: countErr } = await client
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("receiver_id", ctx.userId)
+      .eq("is_read", false);
+    throwIfError(countErr ?? error, "Failed to count unread messages");
+    return count ?? 0;
+  },
+
+  async openThread(ctx: ServiceContext, conversationId: string): Promise<ChatMessage[]> {
+    return this.listThread(ctx, conversationId, conversationId);
+  },
+
+  async listThread(ctx: ServiceContext, peerUserId: string, conversationId?: string | null): Promise<ChatMessage[]> {
+    assertCanConsume(ctx, "message");
+    const client = getClient(toRepoContext(ctx));
+
+    let convId = conversationId ?? null;
+    if (!convId) {
+      const { data: ensured } = await client.rpc("rpc_ensure_dm" as never, {
+        _peer_user_id: peerUserId,
+      } as never);
+      if (ensured) {
+        const row = (Array.isArray(ensured) ? ensured[0] : ensured) as { id?: string };
+        convId = row?.id ?? null;
+      }
+    }
+
+    let data: DbMessage[] | null = null;
+    if (convId) {
+      const res = await client
         .from("messages")
-        .select("id", { count: "exact", head: true })
+        .select("*")
+        .eq("conversation_id", convId)
+        .order("created_at", { ascending: true });
+      throwIfError(res.error, "Failed to load messages");
+      data = res.data as DbMessage[] | null;
+      await this.markConversationRead(ctx, convId);
+    } else {
+      const res = await client
+        .from("messages")
+        .select("*")
+        .or(
+          `and(sender_id.eq.${ctx.userId},receiver_id.eq.${peerUserId}),and(sender_id.eq.${peerUserId},receiver_id.eq.${ctx.userId})`,
+        )
+        .order("created_at", { ascending: true });
+      throwIfError(res.error, "Failed to load messages");
+      data = res.data as DbMessage[] | null;
+      await this.markThreadRead(ctx, peerUserId);
+    }
+
+    const rows = data ?? [];
+    const attMap = await loadAttachments(
+      client,
+      rows.filter((m) => m.has_attachment).map((m) => m.id),
+    );
+    const byId = new Map(rows.map((m) => [m.id, m]));
+    return rows.map((m) =>
+      mapMessage(
+        m,
+        attMap.get(m.id) ?? [],
+        m.reply_to_id ? byId.get(m.reply_to_id)?.content ?? null : null,
+      ),
+    );
+  },
+
+  async markThreadRead(ctx: ServiceContext, peerUserId: string): Promise<void> {
+    assertCanOwn(ctx, "message");
+    const client = getClient(toRepoContext(ctx));
+    const { error: rpcErr } = await client.rpc("rpc_mark_messages_read" as never, {
+      _peer_user_id: peerUserId,
+    } as never);
+
+    if (rpcErr) {
+      const { error } = await client
+        .from("messages")
+        .update({ is_read: true })
+        .eq("sender_id", peerUserId)
         .eq("receiver_id", ctx.userId)
-        .is("conversation_id", null)
-        .eq("is_read", false),
-      client.rpc("get_chat_groups" as never),
-    ]);
-    throwIfError(direct.error, "Failed to count unread direct messages");
-    const groupTotal = groups.error
-      ? 0
-      : ((groups.data as GroupRow[] | null) ?? []).reduce(
-          (sum, group) => sum + (group.unread ?? 0),
-          0,
-        );
-    return (direct.count ?? 0) + groupTotal;
+        .eq("is_read", false);
+      throwIfError(error, "Failed to mark messages read");
+    }
+
+    broadcastAcademicWrite(ctx.schoolId, ["message"], {
+      source: "MessageService.markThreadRead",
+    });
+  },
+
+  async markConversationRead(ctx: ServiceContext, conversationId: string): Promise<void> {
+    assertCanOwn(ctx, "message");
+    const client = getClient(toRepoContext(ctx));
+    const { error } = await client.rpc("rpc_mark_conversation_read" as never, {
+      _conversation_id: conversationId,
+    } as never);
+    if (error) {
+      // Soft-fail until SQL applied
+      return;
+    }
+    broadcastAcademicWrite(ctx.schoolId, ["message"], {
+      source: "MessageService.markConversationRead",
+    });
+  },
+
+  async reply(
+    ctx: ServiceContext,
+    receiverId: string,
+    content: string,
+    replyToId: string,
+    opts?: { conversationId?: string | null; attachment?: ChatAttachment | null },
+  ): Promise<ChatMessage> {
+    return this.send(ctx, receiverId, content, {
+      conversationId: opts?.conversationId,
+      replyToId,
+      attachment: opts?.attachment,
+    });
   },
 
   async send(
     ctx: ServiceContext,
     receiverId: string,
     content: string,
-    compatibility?: {
+    opts?: {
       conversationId?: string | null;
       replyToId?: string | null;
       attachment?: ChatAttachment | null;
     },
   ): Promise<ChatMessage> {
-    return sendRpc(
-      ctx,
-      {
-        receiverId: compatibility?.conversationId ? undefined : receiverId,
-        conversationId: compatibility?.conversationId ?? undefined,
-        content,
-        replyToId: compatibility?.replyToId ?? undefined,
+    assertCanOwn(ctx, "message");
+    const body = content.trim();
+    const att = opts?.attachment;
+    if (!body && !att?.url) throw new Error("Message cannot be empty");
+
+    const client = getClient(toRepoContext(ctx));
+    const { data: rpcData, error: rpcErr } = await client.rpc("rpc_send_chat_message" as never, {
+      _conversation_id: opts?.conversationId ?? null,
+      _receiver_id: opts?.conversationId ? null : receiverId,
+      _content: body,
+      _reply_to_id: opts?.replyToId ?? null,
+      _attachment_name: att?.name ?? null,
+      _attachment_url: att?.url ?? null,
+      _attachment_mime: att?.mimeType ?? null,
+      _attachment_size: att?.sizeBytes ?? null,
+    } as never);
+    // Never fall back to raw INSERT ΓÇö that bypassed DM / class / school checks.
+    throwIfError(rpcErr, "Failed to send message");
+    const m = (Array.isArray(rpcData) ? rpcData[0] : rpcData) as DbMessage;
+    if (!m?.id) throw new Error("Failed to send message");
+
+    broadcastAcademicWrite(ctx.schoolId, ["message"], {
+      source: "MessageService.send",
+    });
+
+    if (m.receiver_id) {
+      const preview = (body || att?.name || "New message").slice(0, 160);
+      notifyReceiverPush(m.receiver_id, "New message", preview);
+    }
+
+    const attachments = att?.url
+      ? [{ name: att.name, url: att.url, mimeType: att.mimeType, sizeBytes: att.sizeBytes }]
+      : await loadAttachments(client, [m.id]).then((map) => map.get(m.id) ?? []);
+
+    return mapMessage(m, attachments);
+  },
+
+  async sendFile(
+    ctx: ServiceContext,
+    opts: {
+      receiverId: string;
+      file: File;
+      conversationId?: string | null;
+      caption?: string;
+      replyToId?: string | null;
+    },
+  ): Promise<ChatMessage> {
+    assertCanOwn(ctx, "message");
+    if (!ctx.schoolId) throw new Error("Missing school context");
+    const { uploadChatAttachment } = await import("../storage/chatFileUpload");
+    const threadKey = opts.conversationId || opts.receiverId || "dm";
+    const uploaded = await uploadChatAttachment(opts.file, ctx.schoolId, threadKey);
+    return this.send(ctx, opts.receiverId, opts.caption || "", {
+      conversationId: opts.conversationId,
+      replyToId: opts.replyToId,
+      attachment: {
+        name: uploaded.name,
+        url: uploaded.url,
+        mimeType: uploaded.mimeType,
+        sizeBytes: uploaded.sizeBytes,
       },
-      compatibility?.attachment ?? null,
+    });
+  },
+
+  async deleteMessage(ctx: ServiceContext, messageId: string): Promise<void> {
+    assertCanOwn(ctx, "message");
+    const client = getClient(toRepoContext(ctx));
+    const { error } = await client.rpc("rpc_delete_chat_message" as never, {
+      _message_id: messageId,
+    } as never);
+    if (error) {
+      const { error: altErr } = await client.rpc("rpc_delete_message" as never, {
+        _message_id: messageId,
+      } as never);
+      throwIfError(altErr ?? error, "Failed to delete message");
+    }
+    broadcastAcademicWrite(ctx.schoolId, ["message"], {
+      source: "MessageService.deleteMessage",
+    });
+  },
+
+  async ensureClassGroup(ctx: ServiceContext, classId: string): Promise<ChatContact> {
+    assertCanOwn(ctx, "message");
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_ensure_class_group" as never, {
+      _class_id: classId,
+    } as never);
+    throwIfError(error, "Failed to create class group");
+    const row = (Array.isArray(data) ? data[0] : data) as {
+      id: string;
+      title: string;
+      class_id: string | null;
+      kind: string;
+    };
+    broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.ensureClassGroup" });
+    return {
+      userId: row.id,
+      conversationId: row.id,
+      name: row.title,
+      role: "class_group",
+      kind: "class_group",
+      classId: row.class_id,
+      unread: 0,
+    };
+  },
+
+  async ensureTeacherGroup(ctx: ServiceContext): Promise<ChatContact> {
+    assertCanOwn(ctx, "message");
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_ensure_teacher_group" as never);
+    throwIfError(error, "Failed to create teacher group");
+    const row = (Array.isArray(data) ? data[0] : data) as {
+      id: string;
+      title: string;
+      kind: string;
+    };
+    broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.ensureTeacherGroup" });
+    return {
+      userId: row.id,
+      conversationId: row.id,
+      name: row.title || "Teacher Group",
+      role: "teacher_group",
+      kind: "teacher_group",
+      unread: 0,
+    };
+  },
+
+  /** Client-side search over inbox rows (name / role / last message). */
+  searchContacts(contacts: ChatContact[], query: string): ChatContact[] {
+    const q = query.trim().toLowerCase();
+    if (!q) return contacts;
+    return contacts.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.role.toLowerCase().includes(q) ||
+        (c.lastMessage || "").toLowerCase().includes(q),
     );
   },
 
-  /** @deprecated Use createClassGroup. */
-  async ensureClassGroup(ctx: ServiceContext, classId?: string): Promise<ChatContact> {
-    if (classId) {
-      const client = getClient(toRepoContext(ctx));
-      const { data, error } = await client.rpc("rpc_ensure_class_group" as never, { _class_id: classId } as never);
-      throwIfError(error, "Failed to create class group");
-      const row = (Array.isArray(data) ? data[0] : data) as { id: string; title: string; class_id: string | null; kind: string };
-      broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.ensureClassGroup" });
-      return { userId: row.id, conversationId: row.id, name: row.title, role: "class_group", kind: "class_group", classId: row.class_id, unread: 0 };
-    }
-    return this.createClassGroup(ctx);
+  /** Optional server-side message body search (no-op until RPC applied). */
+  async search(ctx: ServiceContext, query: string): Promise<ChatSearchHit[]> {
+    assertCanConsume(ctx, "message");
+    const q = query.trim();
+    if (!q) return [];
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_search_chat" as never, { _query: q } as never);
+    if (error || !Array.isArray(data)) return [];
+    return (data as {
+      conversation_id?: string | null;
+      peer_user_id?: string | null;
+      title?: string;
+      snippet?: string;
+      created_at?: string | null;
+    }[]).map((r) => ({
+      conversationId: r.conversation_id ?? null,
+      peerUserId: r.peer_user_id ?? null,
+      title: r.title || "Chat",
+      snippet: r.snippet || "",
+      createdAt: r.created_at ?? null,
+    }));
   },
 
-  /** @deprecated Use createTeacherGroup. */
-  async ensureTeacherGroup(ctx: ServiceContext): Promise<ChatContact> {
-    return this.createTeacherGroup(ctx);
+  /** Students/parents never; class teachers + principal/admin yes. */
+  async canCreateClassGroup(ctx: ServiceContext): Promise<boolean> {
+    if (ctx.role === "student" || ctx.role === "parent") return false;
+    if (ctx.role === "principal" || ctx.role === "admin") return true;
+    if (ctx.role !== "teacher") return false;
+    const client = getClient(toRepoContext(ctx));
+    const { data } = await client
+      .from("teachers")
+      .select("class_teacher_of")
+      .eq("user_id", ctx.userId)
+      .maybeSingle();
+    return Boolean(data?.class_teacher_of);
+  },
+
+  /** Ensure Class Group when allowed (class_teacher_of or ctx.classId). */
+  async createClassGroup(ctx: ServiceContext, classIdArg?: string): Promise<ChatContact> {
+    const allowed = await this.canCreateClassGroup(ctx);
+    if (!allowed) throw new Error("Only class teachers or school admins can create a Class Group");
+    let classId = classIdArg ?? ctx.classId ?? null;
+    if (!classId) {
+      const client = getClient(toRepoContext(ctx));
+      const { data } = await client
+        .from("teachers")
+        .select("class_teacher_of")
+        .eq("user_id", ctx.userId)
+        .maybeSingle();
+      classId = data?.class_teacher_of ?? null;
+    }
+    if (!classId) throw new Error("No class available for Class Group");
+    return this.ensureClassGroup(ctx, classId);
+  },
+  async createTeacherGroup(ctx: ServiceContext, title?: string): Promise<ChatContact> {
+    assertCanOwn(ctx, "message");
+    if (ctx.role === "student" || ctx.role === "parent") {
+      throw new Error("Only teachers or principal can create a Teacher Group");
+    }
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_create_teacher_group" as never, {
+      _title: title ?? null,
+    } as never);
+    if (!error && data) {
+      const row = (Array.isArray(data) ? data[0] : data) as { id: string; title: string };
+      broadcastAcademicWrite(ctx.schoolId, ["message"], { source: "MessageService.createTeacherGroup" });
+      return {
+        userId: row.id,
+        conversationId: row.id,
+        name: row.title || "Teacher Group",
+        role: "teacher_group",
+        kind: "teacher_group",
+        unread: 0,
+      };
+    }
+    return this.ensureTeacherGroup(ctx);
   },
 };
