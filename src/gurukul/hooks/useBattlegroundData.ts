@@ -44,6 +44,8 @@ export type DesignBattleCard = {
   battleCode?: string | null;
   /** DB battles.source — e.g. featured_daily (preserved after question gen). */
   source?: string | null;
+  /** ISO starts_at — used to keep featured strip on the current day/week. */
+  startsAt?: string | null;
   chapter?: string | null;
   difficulty?: string | null;
   /** Pending battle_invites.id — Accept Challenge updates this row. */
@@ -135,6 +137,70 @@ function timeLeftLabel(startsAt: string, durationSec: number): string | undefine
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+/** Monday-start week key matching Postgres date_trunc('week', timestamptz). */
+function weekTruncKey(d: Date): number {
+  const day = (d.getDay() + 6) % 7; // Mon=0 … Sun=6
+  const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
+  return monday.getTime();
+}
+
+/**
+ * Period-scoped featured sources must only appear on the strip for the active
+ * day (daily/ncert) or week (weekly). beat_topper is always on-demand.
+ */
+export function isCurrentPeriodFeatured(
+  source: string | null | undefined,
+  startsAt: string | null | undefined,
+): boolean {
+  const src = (source || "").toLowerCase();
+  if (!src.startsWith("featured_")) return false;
+  if (src === "featured_beat_topper") return false;
+  if (!startsAt) return false;
+  const start = new Date(startsAt);
+  if (Number.isNaN(start.getTime())) return false;
+  const now = new Date();
+  if (src === "featured_daily" || src === "featured_ncert") {
+    return (
+      start.getFullYear() === now.getFullYear() &&
+      start.getMonth() === now.getMonth() &&
+      start.getDate() === now.getDate()
+    );
+  }
+  if (src === "featured_weekly") {
+    return weekTruncKey(start) === weekTruncKey(now);
+  }
+  return false;
+}
+
+/** Remaining window label for period-scoped featured (not per-question duration). */
+function featuredWindowLabel(source: string | null | undefined, startsAt: string): string | undefined {
+  const src = (source || "").toLowerCase();
+  const start = new Date(startsAt);
+  if (Number.isNaN(start.getTime())) return undefined;
+  const now = Date.now();
+  if (src === "featured_daily" || src === "featured_ncert") {
+    const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1).getTime();
+    const left = end - now;
+    if (left <= 0) return undefined;
+    const hrs = Math.floor(left / 3600000);
+    if (hrs >= 1) return `${hrs}h left today`;
+    const mins = Math.max(1, Math.floor(left / 60000));
+    return `${mins}m left today`;
+  }
+  if (src === "featured_weekly") {
+    const day = (start.getDay() + 6) % 7;
+    const monday = new Date(start.getFullYear(), start.getMonth(), start.getDate() - day);
+    const nextMonday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7).getTime();
+    const left = nextMonday - now;
+    if (left <= 0) return undefined;
+    const days = Math.floor(left / 86400000);
+    if (days >= 1) return `${days}d left this week`;
+    const hrs = Math.max(1, Math.floor(left / 3600000));
+    return `${hrs}h left this week`;
+  }
+  return undefined;
+}
+
 type BattleRow = {
   id: string;
   title: string;
@@ -210,6 +276,15 @@ export function useBattlegroundData(enabled = true) {
     setLoading(true);
     setError(null);
     try {
+      // Warm featured: refresh period windows + ensure Daily/Weekly/NCERT (populate cards without tap).
+      // Teacher peeks from manual public. Do not block forever — soft-fail leaves Tap to open.
+      try {
+        const { BattleExperienceService } = await import("@/academic");
+        await BattleExperienceService.ensureFeaturedAll(academicCtx);
+      } catch {
+        // Non-fatal
+      }
+
       const [stuRes, matesRes, snapRes] = await Promise.all([
         supabase.from("students").select("id, class_id, full_name").eq("user_id", user.id).maybeSingle(),
         supabase.rpc("rpc_classmates"),
@@ -487,16 +562,73 @@ export function useBattlegroundData(enabled = true) {
         toast({ title: "Could not load open battles", description: openErr.message, variant: "destructive" });
       }
 
-      // Featured sources
-      const { data: featuredRows, error: featuredErr } = await supabase
+      // Featured sources (current period only) + teacher manual public
+      let featuredQ = supabase
         .from("battles")
         .select("*")
         .like("source", "featured_%")
         .in("status", ["live", "scheduled"])
         .order("starts_at", { ascending: false })
-        .limit(10);
+        .limit(20);
+      if (academicClassId) {
+        featuredQ = featuredQ.eq("class_id", academicClassId);
+      }
+      const { data: featuredRaw, error: featuredErr } = await featuredQ;
       if (featuredErr) {
         toast({ title: "Could not load featured battles", description: featuredErr.message, variant: "destructive" });
+      }
+
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      // Match Postgres date_trunc('week') default (Monday) in most TZ configs
+      const day = now.getDay(); // 0 Sun … 6 Sat
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      const startOfWeek = new Date(startOfToday);
+      startOfWeek.setDate(startOfToday.getDate() + mondayOffset);
+
+      const featuredRows = ((featuredRaw || []) as BattleRow[]).filter((b) => {
+        const src = b.source || "";
+        const starts = new Date(b.starts_at);
+        if (src === "featured_daily" || src === "featured_ncert") {
+          return starts >= startOfToday;
+        }
+        if (src === "featured_weekly") {
+          return starts >= startOfWeek;
+        }
+        // beat_topper / other featured_*: keep live rows for this class
+        return true;
+      });
+
+      // Teacher Challenge card: latest teacher-hosted public battle (custom/manual/bank)
+      let teacherRows: BattleRow[] = [];
+      if (academicClassId) {
+        const { data: teacherBattles, error: teacherErr } = await supabase
+          .from("battles")
+          .select("*")
+          .in("source", ["manual", "custom", "bank"])
+          .eq("is_public", true)
+          .eq("class_id", academicClassId)
+          .in("status", ["live", "scheduled"])
+          .order("starts_at", { ascending: false })
+          .limit(12);
+        if (teacherErr) {
+          toast({ title: "Could not load teacher challenges", description: teacherErr.message, variant: "destructive" });
+        } else if (teacherBattles?.length) {
+          const creatorIds = [...new Set(teacherBattles.map((b) => b.creator_user_id).filter(Boolean))];
+          const teacherIdSet = new Set<string>();
+          if (creatorIds.length) {
+            const { data: roles } = await supabase
+              .from("user_roles")
+              .select("user_id")
+              .in("user_id", creatorIds)
+              .eq("role", "teacher");
+            for (const r of roles || []) teacherIdSet.add(r.user_id);
+          }
+          teacherRows = (teacherBattles as BattleRow[])
+            .filter((b) => teacherIdSet.has(b.creator_user_id))
+            .slice(0, 1)
+            .map((b) => ({ ...b, source: "featured_teacher" }));
+        }
       }
 
       const cards: DesignBattleCard[] = [];
@@ -708,11 +840,14 @@ export function useBattlegroundData(enabled = true) {
         }
       }
 
-      // Open / featured battles not yet joined
-      for (const b of [...(featuredRows || []), ...(openBattles || [])] as BattleRow[]) {
+      // Open / featured battles not yet joined (teacher tagged as featured_teacher for card match)
+      for (const b of [...featuredRows, ...teacherRows, ...(openBattles || [])] as BattleRow[]) {
         if (myBattleIds.has(b.id) && seen.has(b.id)) {
           const existing = cards.find((c) => c.id === b.id);
-          if (existing && (b.source || "").startsWith("featured_")) existing.featured = true;
+          if (existing && (b.source || "").startsWith("featured_")) {
+            existing.featured = true;
+            existing.source = b.source ?? existing.source;
+          }
           continue;
         }
         const isFeatured = (b.source || "").startsWith("featured_");
@@ -917,6 +1052,17 @@ export async function ensureFeatured(kind: "daily" | "weekly" | "ncert" | "beat_
   const { BattleExperienceService, resolveStudentServiceContext } = await import("@/academic");
   const ctx = await resolveStudentServiceContext();
   return BattleExperienceService.ensureFeatured(ctx, kind);
+}
+
+export async function ensureFeaturedAll(): Promise<{
+  daily: string | null;
+  weekly: string | null;
+  ncert: string | null;
+  teacher: string | null;
+}> {
+  const { BattleExperienceService, resolveStudentServiceContext } = await import("@/academic");
+  const ctx = await resolveStudentServiceContext();
+  return BattleExperienceService.ensureFeaturedAll(ctx);
 }
 
 export async function loadLeaderboardEntries(

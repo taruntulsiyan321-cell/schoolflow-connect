@@ -682,7 +682,14 @@ export const BattleExperienceService = {
       if (isEmptyQuestionBankError(msg)) {
         throw new Error(NO_BANK_MSG + " — featured challenges need questions in the bank first.");
       }
-      throw error;
+      // Beat the Topper / teacher: surface soft copy, not opaque RPC errors
+      if (kind === "beat_topper" && /topper|classmate|unlocks/i.test(msg)) {
+        throw new Error(msg.replace(/^.*?:\s*/, "").trim() || msg);
+      }
+      if (kind === "teacher" && /teacher-hosted|check back/i.test(msg)) {
+        throw new Error("No teacher-hosted challenge is live right now — check back soon.");
+      }
+      throw error instanceof Error ? error : new Error(msg);
     }
     if (!data) throw new Error("Featured battle unavailable");
     const battleId = data as string;
@@ -729,6 +736,65 @@ export const BattleExperienceService = {
 
     afterExperienceWrite(ctx, ["battle"]);
     return battleId;
+  },
+
+  /**
+   * Battleground home warm: rotate/seed featured windows, then ensure
+   * Daily/Weekly/NCERT for the caller so cards populate without tap.
+   * Teacher id is peeked from manual public only (not created).
+   */
+  async ensureFeaturedAll(ctx: ServiceContext): Promise<{
+    daily: string | null;
+    weekly: string | null;
+    ncert: string | null;
+    teacher: string | null;
+  }> {
+    assertCanOwn(ctx, "battle");
+    const client = getClient(toRepoContext(ctx));
+    const empty = { daily: null as string | null, weekly: null as string | null, ncert: null as string | null, teacher: null as string | null };
+
+    // Close expired + seed current-window shells (cron-safe; ignore if not migrated yet)
+    await client.rpc("rpc_refresh_featured_battles").then(
+      () => undefined,
+      () => undefined,
+    );
+
+    const kinds = ["daily", "weekly", "ncert"] as const;
+    const settled = await Promise.allSettled(kinds.map((k) => this.ensureFeatured(ctx, k)));
+    const out = { ...empty };
+    kinds.forEach((k, i) => {
+      const r = settled[i];
+      if (r.status === "fulfilled") out[k] = r.value;
+    });
+
+    // Peek teacher challenge without joining unless ensure('teacher') is used on tap
+    if (ctx.classId) {
+      const { data: teacherBattles } = await client
+        .from("battles")
+        .select("id, creator_user_id")
+        .eq("source", "manual")
+        .eq("is_public", true)
+        .eq("class_id", ctx.classId)
+        .in("status", ["live", "scheduled"])
+        .order("starts_at", { ascending: false })
+        .limit(8);
+      if (teacherBattles?.length) {
+        const creatorIds = [...new Set(teacherBattles.map((b) => b.creator_user_id).filter(Boolean))];
+        if (creatorIds.length) {
+          const { data: roles } = await client
+            .from("user_roles")
+            .select("user_id")
+            .in("user_id", creatorIds)
+            .eq("role", "teacher");
+          const teacherIds = new Set((roles || []).map((r) => r.user_id));
+          const hit = teacherBattles.find((b) => teacherIds.has(b.creator_user_id));
+          if (hit) out.teacher = hit.id;
+        }
+      }
+    }
+
+    afterExperienceWrite(ctx, ["battle"]);
+    return out;
   },
 
   async getBattle(ctx: ServiceContext, battleId: string) {
