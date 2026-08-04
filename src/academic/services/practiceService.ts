@@ -60,6 +60,37 @@ export type PracticeSessionRow = {
   time_limit_sec?: number | null;
 };
 
+/**
+ * Practice Engine V1 schema probes.
+ *
+ * The migration that adds question_records, question_bank.is_active and
+ * concept_mastery.confidence_score/classification is applied out of band, so
+ * this code has to run correctly both before and after it lands. Referencing a
+ * missing table or column fails the entire PostgREST request, which would take
+ * practice down completely — so every new-schema read probes once, caches the
+ * answer for the session, and degrades to the pre-migration behaviour.
+ *
+ * These flags can be deleted in phase 5, once the migration is guaranteed applied.
+ */
+const MISSING_SCHEMA_CODES = new Set([
+  "42703",    // undefined_column
+  "42P01",    // undefined_table
+  "42883",    // undefined_function
+  "PGRST202", // function not found in schema cache
+  "PGRST205", // table not found in schema cache
+]);
+
+function isMissingSchema(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: string; message?: string };
+  if (e.code && MISSING_SCHEMA_CODES.has(e.code)) return true;
+  return /does not exist|schema cache|could not find/i.test(String(e.message ?? ""));
+}
+
+let softDeleteAvailable: boolean | null = null;
+let questionRecordsAvailable: boolean | null = null;
+let confidenceAvailable: boolean | null = null;
+
 const PRACTICE_SESSION_LIST_SELECT =
   "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty, time_limit_sec";
 
@@ -727,20 +758,30 @@ export const PracticeService = {
     // Align with EIE / Nova / Recovery: mastery < WEAK_CONCEPT_THRESHOLD.
     const threshold = opts.threshold ?? WEAK_CONCEPT_THRESHOLD;
     const limit = opts.limit ?? 12;
-    const useSimple = opts.source === "simple";
+    // confidence_score/classification only exist once the Practice Engine
+    // migration is applied. Fall back to the legacy weighted score rather
+    // than erroring, so Weak Areas Practice still works either way.
+    const useSimple = opts.source === "simple" && confidenceAvailable !== false;
     const client = getClient(toRepoContext(ctx));
     const scoreColumn = useSimple ? "confidence_score" : "mastery_score";
-    let query = client
-      .from("concept_mastery")
-      .select(`subject, chapter, concept, ${scoreColumn}`)
-      .eq("user_id", ctx.userId);
-    query = useSimple
-      ? query.eq("classification", "weak")
-      : query.lt("mastery_score", threshold);
-    const { data, error } = await query
-      .order(scoreColumn, { ascending: true })
-      .limit(limit);
+    const runQuery = (simple: boolean) => {
+      let q = client
+        .from("concept_mastery")
+        .select(`subject, chapter, concept, ${simple ? "confidence_score" : "mastery_score"}`)
+        .eq("user_id", ctx.userId);
+      q = simple ? q.eq("classification", "weak") : q.lt("mastery_score", threshold);
+      return q.order(simple ? "confidence_score" : "mastery_score", { ascending: true }).limit(limit);
+    };
+    let { data, error } = await runQuery(useSimple);
+    if (error && useSimple && isMissingSchema(error)) {
+      confidenceAvailable = false;
+      ({ data, error } = await runQuery(false));
+    } else if (!error && opts.source === "simple") {
+      confidenceAvailable = true;
+    }
     throwIfError(error, "Failed to load weak concepts");
+    const effectiveScoreColumn =
+      useSimple && confidenceAvailable !== false ? scoreColumn : "mastery_score";
     const scope = await this.resolveCurriculumScope(ctx);
     return (data ?? [])
       .map((r) => {
@@ -759,10 +800,10 @@ export const PracticeService = {
               : null,
           concept: conceptRaw,
           concept_label: displayConcept(conceptRaw),
-          // Whichever column was selected; callers treat this as "the score".
+          // Whichever column was actually selected; callers treat this as "the score".
           mastery_score:
             Number(
-              (r as Record<string, unknown>)[scoreColumn] as number | undefined,
+              (r as Record<string, unknown>)[effectiveScoreColumn] as number | undefined,
             ) || 0,
         };
       })
@@ -791,6 +832,10 @@ export const PracticeService = {
     opts: { limit?: number } = {},
   ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
+    // question_records only exists once the Practice Engine migration is
+    // applied. Until then, an honest empty list — not an error — is correct:
+    // there is nowhere yet to have recorded a status.
+    if (questionRecordsAvailable === false) return [];
     const limit = Math.min(200, Math.max(1, opts.limit ?? 60));
     const client = getClient(toRepoContext(ctx));
     const { data, error } = await client
@@ -801,7 +846,14 @@ export const PracticeService = {
       .gt("attempt_count", 0)
       .order("last_practiced_date", { ascending: false })
       .limit(limit);
-    throwIfError(error, `Failed to load ${status} questions`);
+    if (error) {
+      if (isMissingSchema(error)) {
+        questionRecordsAvailable = false;
+        return [];
+      }
+      throwIfError(error, `Failed to load ${status} questions`);
+    }
+    questionRecordsAvailable = true;
     return (data ?? [])
       .map((r) => (r as { question_id: string }).question_id)
       .filter(Boolean);
@@ -836,6 +888,7 @@ export const PracticeService = {
     opts: { limit?: number } = {},
   ) {
     assertCanConsume(ctx, "practice");
+    if (questionRecordsAvailable === false) return [];
     const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
     const client = getClient(toRepoContext(ctx));
     const { data, error } = await client
@@ -846,7 +899,14 @@ export const PracticeService = {
       .gt("attempt_count", 0)
       .order("last_practiced_date", { ascending: false })
       .limit(limit);
-    throwIfError(error, "Failed to load mistake book");
+    if (error) {
+      if (isMissingSchema(error)) {
+        questionRecordsAvailable = false;
+        return [];
+      }
+      throwIfError(error, "Failed to load mistake book");
+    }
+    questionRecordsAvailable = true;
 
     const records = (data ?? []) as Array<{
       question_id: string;
@@ -913,6 +973,7 @@ export const PracticeService = {
     opts: { limit?: number; includeInactive?: boolean } = {},
   ) {
     assertCanConsume(ctx, "practice");
+    if (questionRecordsAvailable === false) return [];
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
     const client = getClient(toRepoContext(ctx));
     const { data, error } = await client
@@ -922,7 +983,14 @@ export const PracticeService = {
       .eq("bookmarked", true)
       .order("last_practiced_date", { ascending: false })
       .limit(limit * 2);
-    throwIfError(error, "Failed to load bookmarked questions");
+    if (error) {
+      if (isMissingSchema(error)) {
+        questionRecordsAvailable = false;
+        return [];
+      }
+      throwIfError(error, "Failed to load bookmarked questions");
+    }
+    questionRecordsAvailable = true;
     const ids = (data ?? [])
       .map((r) => (r as { question_id: string }).question_id)
       .filter(Boolean);
@@ -949,7 +1017,12 @@ export const PracticeService = {
       _question_id: questionId,
       _bookmarked: bookmarked,
     });
-    throwIfError(error, "Failed to update bookmark");
+    if (error) {
+      if (isMissingSchema(error)) {
+        throw new Error("Bookmarks aren't available yet — this school hasn't updated to the new Practice Engine.");
+      }
+      throwIfError(error, "Failed to update bookmark");
+    }
   },
   /** Approved bank questions for student practice sessions (honest empty if none). */
   async listBankQuestions(
@@ -996,42 +1069,55 @@ export const PracticeService = {
       return [];
     }
 
-    let query = client
-      .from("question_bank")
-      .select("id, subject, chapter, topic, concept, difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
-      .eq("is_approved", true)
-      .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
-      .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
-      .limit(Math.min(400, Math.max(80, limit * 8)));
+    const buildQuery = (applyActiveFilter: boolean) => {
+      let query = client
+        .from("question_bank")
+        .select("id, subject, chapter, topic, concept, difficulty, question, options, correct_index, explanation, exam_year, source, source_type, stream")
+        .eq("is_approved", true)
+        .or(`school_id.is.null,school_id.eq.${ctx.schoolId}`)
+        .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
+        .limit(Math.min(400, Math.max(80, limit * 8)));
 
-    if (!opts.includeInactive) {
-      query = query.eq("is_active", true);
-    }
-    if (byIds) {
-      query = query.in("id", opts.ids!);
-    }
-    if (classLevel != null && Number.isFinite(classLevel)) {
-      query = query.eq("class_level", classLevel);
-    }
-    if (scope.stream) {
-      query = query.or(`stream.eq.${scope.stream},stream.is.null`);
-    }
-    if (opts.subject && opts.subject !== "Mixed") {
-      query = query.ilike("subject", opts.subject);
-    }
-    // Chapter / topic / concept filters applied client-side with academicLabelMatches
-    // so display-cleaned labels still hit slug or mojibake-stored rows.
-    if (opts.difficulty && opts.difficulty !== "mixed") {
-      query = query.eq("difficulty", opts.difficulty);
-    }
-    if (opts.pyqOnly) {
-      query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
-    }
-    if (opts.examYear != null && Number.isFinite(opts.examYear)) {
-      query = query.eq("exam_year", opts.examYear);
-    }
+      if (applyActiveFilter) {
+        query = query.eq("is_active", true);
+      }
+      if (byIds) {
+        query = query.in("id", opts.ids!);
+      }
+      if (classLevel != null && Number.isFinite(classLevel)) {
+        query = query.eq("class_level", classLevel);
+      }
+      if (scope.stream) {
+        query = query.or(`stream.eq.${scope.stream},stream.is.null`);
+      }
+      if (opts.subject && opts.subject !== "Mixed") {
+        query = query.ilike("subject", opts.subject);
+      }
+      // Chapter / topic / concept filters applied client-side with academicLabelMatches
+      // so display-cleaned labels still hit slug or mojibake-stored rows.
+      if (opts.difficulty && opts.difficulty !== "mixed") {
+        query = query.eq("difficulty", opts.difficulty);
+      }
+      if (opts.pyqOnly) {
+        query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
+      }
+      if (opts.examYear != null && Number.isFinite(opts.examYear)) {
+        query = query.eq("exam_year", opts.examYear);
+      }
+      return query;
+    };
 
-    const { data, error } = await query;
+    // The soft-delete column only exists once the Practice Engine migration is
+    // applied. Filtering on a missing column fails the whole query, which would
+    // stop practice from starting, so probe once and fall back.
+    const wantActiveFilter = !opts.includeInactive && softDeleteAvailable !== false;
+    let { data, error } = await buildQuery(wantActiveFilter);
+    if (error && wantActiveFilter && isMissingSchema(error)) {
+      softDeleteAvailable = false;
+      ({ data, error } = await buildQuery(false));
+    } else if (!error && wantActiveFilter) {
+      softDeleteAvailable = true;
+    }
     throwIfError(error, "Failed to load practice questions");
     let rows = (data ?? []) as Array<{
       id: string;
