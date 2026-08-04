@@ -2248,7 +2248,9 @@ export type Database = {
         Row: {
           chapter: string | null
           class_level: number | null
+          classification: string | null
           concept: string
+          confidence_score: number | null
           correct_attempts: number
           id: string
           last_attempt_at: string | null
@@ -2267,6 +2269,7 @@ export type Database = {
           chapter?: string | null
           class_level?: number | null
           concept: string
+          confidence_score?: number | null
           correct_attempts?: number
           id?: string
           last_attempt_at?: string | null
@@ -2285,6 +2288,7 @@ export type Database = {
           chapter?: string | null
           class_level?: number | null
           concept?: string
+          confidence_score?: number | null
           correct_attempts?: number
           id?: string
           last_attempt_at?: string | null
@@ -3449,6 +3453,8 @@ export type Database = {
           correct_count: number
           created_at: string
           difficulty: string | null
+          ended_by_user: boolean | null
+          ended_normally: boolean | null
           finished_at: string | null
           id: string
           practice_mode: string | null
@@ -3475,6 +3481,8 @@ export type Database = {
           correct_count?: number
           created_at?: string
           difficulty?: string | null
+          ended_by_user?: boolean | null
+          ended_normally?: boolean | null
           finished_at?: string | null
           id?: string
           practice_mode?: string | null
@@ -3501,6 +3509,8 @@ export type Database = {
           correct_count?: number
           created_at?: string
           difficulty?: string | null
+          ended_by_user?: boolean | null
+          ended_normally?: boolean | null
           finished_at?: string | null
           id?: string
           practice_mode?: string | null
@@ -3978,6 +3988,80 @@ export type Database = {
           },
         ]
       }
+      question_records: {
+        Row: {
+          attempt_count: number
+          bookmarked: boolean
+          correct_count: number
+          created_at: string
+          current_status: string
+          id: string
+          last_practice_mode: string | null
+          last_practiced_date: string
+          last_selected_option: Json | null
+          last_session_id: string | null
+          last_time_taken_ms: number | null
+          question_id: string
+          question_source: string
+          school_id: string | null
+          skipped_count: number
+          student_id: string | null
+          updated_at: string
+          user_id: string
+          wrong_count: number
+        }
+        Insert: {
+          attempt_count?: number
+          bookmarked?: boolean
+          correct_count?: number
+          created_at?: string
+          current_status: string
+          id?: string
+          last_practice_mode?: string | null
+          last_practiced_date?: string
+          last_selected_option?: Json | null
+          last_session_id?: string | null
+          last_time_taken_ms?: number | null
+          question_id: string
+          question_source?: string
+          school_id?: string | null
+          skipped_count?: number
+          student_id?: string | null
+          updated_at?: string
+          user_id: string
+          wrong_count?: number
+        }
+        Update: {
+          attempt_count?: number
+          bookmarked?: boolean
+          correct_count?: number
+          created_at?: string
+          current_status?: string
+          id?: string
+          last_practice_mode?: string | null
+          last_practiced_date?: string
+          last_selected_option?: Json | null
+          last_session_id?: string | null
+          last_time_taken_ms?: number | null
+          question_id?: string
+          question_source?: string
+          school_id?: string | null
+          skipped_count?: number
+          student_id?: string | null
+          updated_at?: string
+          user_id?: string
+          wrong_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_records_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_bank: {
         Row: {
           board: string | null
@@ -3991,6 +4075,7 @@ export type Database = {
           exam_year: number | null
           explanation: string | null
           id: string
+          is_active: boolean
           is_approved: boolean
           options: Json
           question: string
@@ -4015,6 +4100,7 @@ export type Database = {
           exam_year?: number | null
           explanation?: string | null
           id?: string
+          is_active?: boolean
           is_approved?: boolean
           options: Json
           question: string
@@ -4039,6 +4125,7 @@ export type Database = {
           exam_year?: number | null
           explanation?: string | null
           id?: string
+          is_active?: boolean
           is_approved?: boolean
           options?: Json
           question?: string
@@ -6477,6 +6564,10 @@ export type Database = {
         Returns: Json
       }
       rpc_teacher_doubt_dashboard: { Args: never; Returns: Json }
+      rpc_toggle_question_bookmark: {
+        Args: { _bookmarked: boolean; _question_id: string }
+        Returns: boolean
+      }
       rpc_vote_community_answer: {
         Args: { _answer_id: string }
         Returns: number

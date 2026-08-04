@@ -320,12 +320,17 @@ export const PracticeService = {
     const client = getClient(toRepoContext(ctx));
     const limit = opts?.limit ?? 100;
 
+    // V1 retains one week of practice history. An explicit dateFrom from the
+    // caller still wins, so this is a default window and not a hard ceiling.
+    const defaultFrom = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const dateFrom = opts?.dateFrom || defaultFrom;
+
     // Prefer server RPC (filter/search/sort beyond client window).
     const rpc = await client.rpc("rpc_list_practice_history", {
       _limit: limit,
       _subject: opts?.subject?.trim() || null,
       _practice_mode: opts?.practiceMode?.trim() || null,
-      _date_from: opts?.dateFrom || null,
+      _date_from: dateFrom,
       _date_to: opts?.dateTo || null,
       _search: opts?.search?.trim() || null,
       _sort: opts?.sort || "finished_at_desc",
@@ -349,8 +354,8 @@ export const PracticeService = {
     if (opts?.practiceMode?.trim()) {
       q = q.eq("practice_mode", opts.practiceMode.trim());
     }
-    if (opts?.dateFrom) {
-      q = q.gte("finished_at", opts.dateFrom);
+    if (dateFrom) {
+      q = q.gte("finished_at", dateFrom);
     }
     if (opts?.dateTo) {
       q = q.lte("finished_at", opts.dateTo);
@@ -700,7 +705,17 @@ export const PracticeService = {
   /** Weak concepts from concept_mastery (honest empty if none tracked). */
   async listWeakConcepts(
     ctx: ServiceContext,
-    opts: { threshold?: number; limit?: number } = {},
+    opts: {
+      threshold?: number;
+      limit?: number;
+      /**
+       * "weighted" (default) reads the legacy mastery_score, so Recovery /
+       * Revision / Nova keep their existing numbers untouched.
+       * "simple" reads the Practice Engine's V1 confidence classification.
+       * Both live on concept_mastery — there is only ever one confidence table.
+       */
+      source?: "simple" | "weighted";
+    } = {},
   ): Promise<Array<{
     subject: string;
     chapter: string | null;
@@ -712,13 +727,18 @@ export const PracticeService = {
     // Align with EIE / Nova / Recovery: mastery < WEAK_CONCEPT_THRESHOLD.
     const threshold = opts.threshold ?? WEAK_CONCEPT_THRESHOLD;
     const limit = opts.limit ?? 12;
+    const useSimple = opts.source === "simple";
     const client = getClient(toRepoContext(ctx));
-    const { data, error } = await client
+    const scoreColumn = useSimple ? "confidence_score" : "mastery_score";
+    let query = client
       .from("concept_mastery")
-      .select("subject, chapter, concept, mastery_score")
-      .eq("user_id", ctx.userId)
-      .lt("mastery_score", threshold)
-      .order("mastery_score", { ascending: true })
+      .select(`subject, chapter, concept, ${scoreColumn}`)
+      .eq("user_id", ctx.userId);
+    query = useSimple
+      ? query.eq("classification", "weak")
+      : query.lt("mastery_score", threshold);
+    const { data, error } = await query
+      .order(scoreColumn, { ascending: true })
       .limit(limit);
     throwIfError(error, "Failed to load weak concepts");
     const scope = await this.resolveCurriculumScope(ctx);
@@ -739,7 +759,11 @@ export const PracticeService = {
               : null,
           concept: conceptRaw,
           concept_label: displayConcept(conceptRaw),
-          mastery_score: Number((r as { mastery_score: number }).mastery_score) || 0,
+          // Whichever column was selected; callers treat this as "the score".
+          mastery_score:
+            Number(
+              (r as Record<string, unknown>)[scoreColumn] as number | undefined,
+            ) || 0,
         };
       })
       .filter(
@@ -753,273 +777,106 @@ export const PracticeService = {
       .map(({ subjectRaw: _s, chapterRaw: _c, conceptRaw: _k, ...row }) => row);
   },
 
-  /** Unmastered mistakes + wrong attempts as practice-ready questions (honest empty if none). */
-  async listMistakeQuestions(
+  /**
+   * Question ids in a given current state, newest first.
+   *
+   * Reads question_records (current state), never question_attempts (the
+   * append-only audit log). That is what makes the Mistake Book self-clearing:
+   * answering a question correctly flips current_status, so it drops out here
+   * with no separate "mastered" bookkeeping.
+   */
+  async listQuestionIdsByStatus(
     ctx: ServiceContext,
+    status: "correct" | "wrong" | "skipped",
     opts: { limit?: number } = {},
-  ): Promise<Array<{
-    id: string;
-    subject: string;
-    chapter: string | null;
-    difficulty: string | null;
-    question: string;
-    options: unknown;
-    correct_index: number;
-    explanation: string | null;
-  }>> {
+  ): Promise<string[]> {
     assertCanConsume(ctx, "practice");
-    const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
+    const limit = Math.min(200, Math.max(1, opts.limit ?? 60));
     const client = getClient(toRepoContext(ctx));
-    const scope = await this.resolveCurriculumScope(ctx);
-
-    type OutRow = {
-      id: string;
-      subject: string;
-      chapter: string | null;
-      difficulty: string | null;
-      question: string;
-      options: unknown;
-      correct_index: number;
-      explanation: string | null;
-    };
-    const out: OutRow[] = [];
-    const seen = new Set<string>();
-
-    const pushRow = (row: OutRow) => {
-      if (!row.question) return;
-      const optsRaw = Array.isArray(row.options) ? row.options : [];
-      if (optsRaw.length < 2) return;
-      if (!isSubjectAllowedForScope(row.subject || "", scope.stream, scope.classLevel)) return;
-      const key = (row.id || row.question).toLowerCase();
-      if (seen.has(key)) return;
-      seen.add(key);
-      out.push({ ...row, options: optsRaw });
-    };
-
     const { data, error } = await client
-      .from("student_mistakes")
-      .select("id, subject, chapter, question_text, options, correct_answer, explanation, question_id")
+      .from("question_records")
+      .select("question_id")
       .eq("user_id", ctx.userId)
-      .eq("mastered", false)
-      .order("last_wrong_at", { ascending: false })
+      .eq("current_status", status)
+      .gt("attempt_count", 0)
+      .order("last_practiced_date", { ascending: false })
       .limit(limit);
-    throwIfError(error, "Failed to load incorrect questions");
-
-    const bankIds = Array.from(
-      new Set(
-        (data ?? [])
-          .map((r) => (r as { question_id?: string | null }).question_id)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    );
-    const difficultyByBank = new Map<string, string>();
-    if (bankIds.length > 0) {
-      const { data: bankRows } = await client
-        .from("question_bank")
-        .select("id, difficulty")
-        .in("id", bankIds);
-      for (const b of bankRows ?? []) {
-        const row = b as { id: string; difficulty: string | null };
-        if (row.difficulty) difficultyByBank.set(row.id, row.difficulty);
-      }
-    }
-
-    for (const row of data ?? []) {
-      const r = row as {
-        id: string;
-        subject: string;
-        chapter: string | null;
-        question_text: string;
-        options: unknown;
-        correct_answer: { correct_index?: number; indexes?: number[]; index?: number } | null;
-        explanation: string | null;
-        question_id: string | null;
-      };
-      let correctIndex = 0;
-      if (typeof r.correct_answer?.correct_index === "number") {
-        correctIndex = r.correct_answer.correct_index;
-      } else if (typeof r.correct_answer?.index === "number") {
-        correctIndex = r.correct_answer.index;
-      } else if (Array.isArray(r.correct_answer?.indexes) && r.correct_answer.indexes.length > 0) {
-        correctIndex = r.correct_answer.indexes[0];
-      }
-      pushRow({
-        id: r.question_id || r.id,
-        subject: r.subject || "",
-        chapter: r.chapter,
-        difficulty: (r.question_id && difficultyByBank.get(r.question_id)) || null,
-        question: r.question_text,
-        options: r.options,
-        correct_index: correctIndex,
-        explanation: r.explanation,
-      });
-    }
-
-    if (out.length < limit) {
-      const { data: attempts, error: attErr } = await client
-        .from("question_attempts")
-        .select("id, bank_question_id, subject, chapter, generated_question, correct_answer, is_correct, skipped")
-        .eq("user_id", ctx.userId)
-        .eq("is_correct", false)
-        .eq("skipped", false)
-        .order("created_at", { ascending: false })
-        .limit(limit * 3);
-      throwIfError(attErr, "Failed to load incorrect attempts");
-
-      for (const row of attempts ?? []) {
-        if (out.length >= limit) break;
-        const r = row as {
-          id: string;
-          bank_question_id?: string | null;
-          subject?: string | null;
-          chapter?: string | null;
-          generated_question?: {
-            question?: string;
-            options?: unknown;
-            explanation?: string;
-            bank_question_id?: string;
-            subject?: string;
-            chapter?: string;
-          } | null;
-          correct_answer?: { correct_index?: number; index?: number } | null;
-        };
-        const gq = r.generated_question ?? {};
-        const id = r.bank_question_id || gq.bank_question_id || r.id;
-        const correctIndex =
-          typeof r.correct_answer?.correct_index === "number"
-            ? r.correct_answer.correct_index
-            : typeof r.correct_answer?.index === "number"
-              ? r.correct_answer.index
-              : 0;
-        pushRow({
-          id,
-          subject: r.subject || gq.subject || "",
-          chapter: r.chapter ?? gq.chapter ?? null,
-          difficulty:
-            (typeof (gq as { difficulty?: string }).difficulty === "string"
-              ? (gq as { difficulty?: string }).difficulty
-              : null) || null,
-          question: String(gq.question ?? ""),
-          options: gq.options,
-          correct_index: correctIndex,
-          explanation: gq.explanation ?? null,
-        });
-      }
-    }
-
-    return out.slice(0, limit);
+    throwIfError(error, `Failed to load ${status} questions`);
+    return (data ?? [])
+      .map((r) => (r as { question_id: string }).question_id)
+      .filter(Boolean);
   },
 
-  /** Previously skipped questions from attempts (honest empty if none). */
+  /** Wrong questions as practice-ready bank rows (honest empty if none). */
+  async listMistakeQuestions(
+    ctx: ServiceContext,
+    opts: { limit?: number; includeInactive?: boolean } = {},
+  ) {
+    const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
+    const ids = await this.listQuestionIdsByStatus(ctx, "wrong", { limit: limit * 2 });
+    if (ids.length === 0) return [];
+    return this.listBankQuestions(ctx, {
+      ids: ids.slice(0, limit),
+      limit,
+      includeInactive: opts.includeInactive,
+    });
+  },
+
+  /** Previously skipped questions (honest empty if none). */
   async listSkippedBankQuestions(
     ctx: ServiceContext,
     opts: { limit?: number } = {},
-  ): Promise<Array<{
-    id: string;
-    subject: string;
-    chapter: string | null;
-    difficulty: string | null;
-    question: string;
-    options: unknown;
-    correct_index: number;
-    explanation: string | null;
-  }>> {
+  ) {
+    const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
+    const ids = await this.listQuestionIdsByStatus(ctx, "skipped", { limit: limit * 2 });
+    if (ids.length === 0) return [];
+    return this.listBankQuestions(ctx, { ids: ids.slice(0, limit), limit });
+  },
+
+  /** Bookmarked questions. Bookmarks are permanent and independent of status. */
+  async listBookmarkedQuestions(
+    ctx: ServiceContext,
+    opts: { limit?: number; includeInactive?: boolean } = {},
+  ) {
     assertCanConsume(ctx, "practice");
     const limit = Math.min(90, Math.max(1, opts.limit ?? 20));
     const client = getClient(toRepoContext(ctx));
-    const scope = await this.resolveCurriculumScope(ctx);
-    const { data: attempts, error } = await client
-      .from("question_attempts")
-      .select("id, bank_question_id, subject, chapter, generated_question, correct_answer")
+    const { data, error } = await client
+      .from("question_records")
+      .select("question_id")
       .eq("user_id", ctx.userId)
-      .eq("skipped", true)
-      .order("created_at", { ascending: false })
-      .limit(limit * 3);
-    throwIfError(error, "Failed to load skipped questions");
-
-    const ids: string[] = [];
-    const seenIds = new Set<string>();
-    const fallback: Array<{
-      id: string;
-      subject: string;
-      chapter: string | null;
-      difficulty: string | null;
-      question: string;
-      options: unknown;
-      correct_index: number;
-      explanation: string | null;
-    }> = [];
-    const seenFallback = new Set<string>();
-
-    for (const row of attempts ?? []) {
-      const r = row as {
-        id: string;
-        bank_question_id?: string | null;
-        subject?: string | null;
-        chapter?: string | null;
-        generated_question?: {
-          question?: string;
-          options?: unknown;
-          explanation?: string;
-          bank_question_id?: string;
-          subject?: string;
-          chapter?: string;
-        } | null;
-        correct_answer?: { correct_index?: number; index?: number } | null;
-      };
-      const bankId = r.bank_question_id || r.generated_question?.bank_question_id || null;
-      if (bankId) {
-        if (!seenIds.has(bankId)) {
-          seenIds.add(bankId);
-          ids.push(bankId);
-        }
-        continue;
-      }
-      const gq = r.generated_question ?? {};
-      const stem = String(gq.question ?? "").trim();
-      const optsRaw = Array.isArray(gq.options) ? gq.options : [];
-      if (!stem || optsRaw.length < 2) continue;
-      const subject = r.subject || gq.subject || "";
-      if (!subject || !isSubjectAllowedForScope(subject, scope.stream, scope.classLevel)) continue;
-      const key = stem.toLowerCase();
-      if (seenFallback.has(key)) continue;
-      seenFallback.add(key);
-      const correctIndex =
-        typeof r.correct_answer?.correct_index === "number"
-          ? r.correct_answer.correct_index
-          : typeof r.correct_answer?.index === "number"
-            ? r.correct_answer.index
-            : 0;
-      fallback.push({
-        id: r.id,
-        subject,
-        chapter: r.chapter ?? gq.chapter ?? null,
-        difficulty:
-          (typeof (gq as { difficulty?: string }).difficulty === "string"
-            ? (gq as { difficulty?: string }).difficulty
-            : null) || null,
-        question: stem,
-        options: optsRaw,
-        correct_index: correctIndex,
-        explanation: gq.explanation ?? null,
-      });
-    }
-
-    const fromBank = ids.length > 0
-      ? await this.listBankQuestions(ctx, { ids: ids.slice(0, limit), limit })
-      : [];
-
-    const merged = [...fromBank];
-    const seenMerge = new Set(fromBank.map((r) => r.id));
-    for (const row of fallback) {
-      if (merged.length >= limit) break;
-      if (seenMerge.has(row.id)) continue;
-      seenMerge.add(row.id);
-      merged.push(row);
-    }
-    return merged.slice(0, limit);
+      .eq("bookmarked", true)
+      .order("last_practiced_date", { ascending: false })
+      .limit(limit * 2);
+    throwIfError(error, "Failed to load bookmarked questions");
+    const ids = (data ?? [])
+      .map((r) => (r as { question_id: string }).question_id)
+      .filter(Boolean);
+    if (ids.length === 0) return [];
+    return this.listBankQuestions(ctx, {
+      ids: ids.slice(0, limit),
+      limit,
+      includeInactive: opts.includeInactive,
+    });
   },
 
+  /**
+   * Add or remove a bookmark. Only the student changes this — answering
+   * correctly must never clear it.
+   */
+  async toggleBookmark(
+    ctx: ServiceContext,
+    questionId: string,
+    bookmarked: boolean,
+  ): Promise<void> {
+    assertCanOwn(ctx, "practice_attempt");
+    const client = getClient(toRepoContext(ctx));
+    const { error } = await client.rpc("rpc_toggle_question_bookmark", {
+      _question_id: questionId,
+      _bookmarked: bookmarked,
+    });
+    throwIfError(error, "Failed to update bookmark");
+  },
   /** Approved bank questions for student practice sessions (honest empty if none). */
   async listBankQuestions(
     ctx: ServiceContext,
@@ -1037,6 +894,11 @@ export const PracticeService = {
       excludeIds?: string[];
       /** Match any of these chapter/concept/topic strings (weak-area mode). */
       weakTargets?: Array<{ subject?: string; chapter?: string | null; concept?: string }>;
+      /**
+       * Include soft-deleted (is_active=false) questions. Only for historical
+       * views such as the Mistake Book — never for generating new practice.
+       */
+      includeInactive?: boolean;
     } = {},
   ) {
     assertCanConsume(ctx, "practice");
@@ -1066,6 +928,9 @@ export const PracticeService = {
       .or(`board.eq.${scope.board},board.eq.both,board.is.null`)
       .limit(Math.min(400, Math.max(80, limit * 8)));
 
+    if (!opts.includeInactive) {
+      query = query.eq("is_active", true);
+    }
     if (byIds) {
       query = query.in("id", opts.ids!);
     }
