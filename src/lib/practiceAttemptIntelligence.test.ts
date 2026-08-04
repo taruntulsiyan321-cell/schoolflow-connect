@@ -163,8 +163,8 @@ describe("buildAttemptMeta", () => {
   });
 });
 
-describe("Practice mode catalog — removed modes", () => {
-  it("does not advertise removed friction modes in the hub catalog", async () => {
+describe("Practice mode catalog — exactly nine modes", () => {
+  it("advertises the nine Practice Engine V1 modes and nothing else", async () => {
     // Static check against source so UI regressions are caught without mounting React.
     const fs = await import("node:fs");
     const path = await import("node:path");
@@ -172,17 +172,42 @@ describe("Practice mode catalog — removed modes", () => {
       path.resolve(__dirname, "../gurukul/pages/Practice.tsx"),
       "utf8",
     );
-    expect(src).not.toMatch(/key:"qbank"/);
+
+    const required = [
+      "subject", "chapter", "topic", "custom",
+      "pyq", "weak", "incorrect", "skipped", "bookmarked",
+    ];
+    for (const key of required) {
+      expect(src).toMatch(new RegExp(`key:"${key}"`));
+    }
+
+    // Removed: a time limit is now a Custom Practice goal, not its own mode.
+    // Only the Mock Tests entry point is gone — the teacher test system it
+    // used is untouched.
+    const removed = ["daily", "teacher", "timed", "untimed", "mock", "qbank"];
+    for (const key of removed) {
+      expect(src).not.toMatch(new RegExp(`key:"${key}"`));
+    }
+
     expect(src).not.toMatch(/label:"Question Bank"/);
-    expect(src).not.toMatch(/label:"Custom Practice"/);
     expect(src).not.toMatch(/label:"Mixed Practice"/);
     expect(src).not.toMatch(/label:"Random Practice"/);
-    expect(src).toMatch(/key:"incorrect"/);
-    expect(src).toMatch(/key:"skipped"/);
-    expect(src).toMatch(/key:"weak"/);
-    expect(src).toMatch(/key:"daily"/);
-    expect(src).toMatch(/key:"pyq"/);
-    expect(src).toMatch(/key:"subject"/);
-    expect(src).toMatch(/INSTANT: ModeKey\[\] = \["daily", "weak", "incorrect", "skipped"\]/);
+    expect(src).toMatch(
+      /INSTANT: ModeKey\[\] = \["weak", "incorrect", "skipped", "bookmarked"\]/,
+    );
+  });
+
+  it("keeps the Custom Practice goal types mutually exclusive", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const src = fs.readFileSync(
+      path.resolve(__dirname, "../gurukul/pages/Practice.tsx"),
+      "utf8",
+    );
+    // Exactly one goal input is mounted at a time — a ternary on goalType,
+    // never two independently-rendered controls.
+    expect(src).toMatch(/goalType === "count" \? \(/);
+    expect(src).toMatch(/\[10, 20, 30, 50\]/);
+    expect(src).toMatch(/\[10, 20, 30, 45, 60\]/);
   });
 });

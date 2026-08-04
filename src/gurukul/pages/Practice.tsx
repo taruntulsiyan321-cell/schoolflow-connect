@@ -3,9 +3,8 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useAcademicContext, PracticeService, HomeworkService, TestService, TEST_KIND_LABELS, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
+import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
 import type { PracticeSessionRow } from "@/academic";
-import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
 import type { PracticeAttemptSnapshot } from "@/lib/practiceSessionSnapshot";
 import { buildPracticeAnalysisSnapshot } from "@/lib/practiceAnalysisSnapshot";
@@ -21,11 +20,11 @@ import type { AcademicTermRef } from "@/academic/services/practiceService";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
 import { MathText } from "@/components/MathText";
 import {
-  BookOpen, Clock, Target, ClipboardList,
-  Trophy, BarChart2, Search,
+  BookOpen, Clock, Target,
+  BarChart2, Search,
   ChevronRight, CheckCircle2, XCircle, ArrowLeft, Play, SkipForward,
   Flame, Layers,
-  Save, Bookmark, Timer, BookMarked, Lightbulb,
+  Save, Bookmark, BookMarked, Lightbulb,
   RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle, Filter,
 } from "lucide-react";
 
@@ -38,10 +37,9 @@ const CLASS_LEVEL_UNRESOLVED_MSG =
 type Phase   = "hub" | "config" | "session" | "feedback" | "summary";
 type Cat     = "all" | "content" | "source" | "type" | "targeted";
 type ModeKey =
-  | "daily" | "subject" | "chapter" | "topic"
-  | "teacher" | "pyq" | "timed" | "untimed"
-  | "difficulty" | "weak" | "incorrect" | "skipped"
-  | "bookmarked" | "mock";
+  | "subject" | "chapter" | "topic" | "custom"
+  | "pyq" | "weak" | "incorrect" | "skipped"
+  | "bookmarked";
 
 interface Mode {
   key: ModeKey; label: string; desc: string;
@@ -150,35 +148,29 @@ function formatDuration(startIso: string, endIso: string) {
 }
 
 // ── Static data ──────────────────────────────────────────────────────────────
+// Exactly nine modes. Daily, Teacher Assigned, Timed, Untimed and Mock Tests
+// were removed: a time limit is now a Custom Practice goal rather than its own
+// mode. Only the Mock Tests entry point is gone — the teacher test system it
+// used is untouched and still serves teacher-assigned tests elsewhere.
 const MODES: Mode[] = [
-  { key:"daily",      label:"Daily Practice",         desc:"A fresh practice set drawn from your class question bank",
-    icon:<Flame className="w-5 h-5"/>,      color:"#c08a3a", cat:"source",   badge:"Fresh set", instant:true, hot:true },
   { key:"subject",    label:"Subject Practice",       desc:"Practice questions from a subject of your choice",
     icon:<BookOpen className="w-5 h-5"/>,   color:"#3b5bdb", cat:"content",  badge:"By subject" },
   { key:"chapter",    label:"Chapter Practice",       desc:"Focus on a specific chapter to reinforce concepts",
     icon:<Layers className="w-5 h-5"/>,     color:"#4b9fd4", cat:"content",  badge:"Chapter" },
   { key:"topic",      label:"Topic Practice",         desc:"Drill down to a precise concept or sub-topic",
     icon:<Target className="w-5 h-5"/>,     color:"#6882e8", cat:"content",  badge:"By topic" },
-  { key:"teacher",    label:"Teacher Assigned",       desc:"Practice sets assigned by your teachers with due dates",
-    icon:<ClipboardList className="w-5 h-5"/>, color:"#c08a3a", cat:"source", badge:"Assigned" },
+  { key:"custom",     label:"Custom Practice",        desc:"Choose difficulty and either a question count or a time limit",
+    icon:<BarChart2 className="w-5 h-5"/>,  color:"#6882e8", cat:"type",    badge:"Your rules" },
   { key:"pyq",        label:"Previous Year Questions",desc:"Board and competitive exam questions from past years",
     icon:<FileText className="w-5 h-5"/>,   color:"#cc5069", cat:"source",  badge:"Past papers" },
-  { key:"timed",      label:"Timed Practice",         desc:"Solve questions against the clock — choose your time limit",
-    icon:<Timer className="w-5 h-5"/>,      color:"#cc5069", cat:"type",    badge:"Speed mode" },
-  { key:"untimed",    label:"Untimed Practice",       desc:"No time pressure — focus on understanding, not speed",
-    icon:<BookOpen className="w-5 h-5"/>,   color:"#4aa87a", cat:"type",    badge:"Relaxed mode" },
-  { key:"mock",       label:"Mock Tests",             desc:"Full-length exam simulation under real test conditions",
-    icon:<Trophy className="w-5 h-5"/>,     color:"#c08a3a", cat:"type",    badge:"Mock test" },
-  { key:"difficulty", label:"Difficulty-Based",       desc:"Subject → chapter → difficulty — real bank questions at your level",
-    icon:<BarChart2 className="w-5 h-5"/>,  color:"#6882e8", cat:"type",    badge:"Pick level" },
-  { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from concepts where your mastery is below 60%",
+  { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from concepts where your confidence is below 60%",
     icon:<TrendingDown className="w-5 h-5"/>, color:"#cc5069", cat:"targeted", badge:"Weak areas", instant:true, hot:true },
   { key:"incorrect",  label:"Incorrect Questions",    desc:"Reattempt questions you got wrong in previous sessions",
     icon:<XCircle className="w-5 h-5"/>,    color:"#cc5069", cat:"targeted", badge:"Retry wrong", instant:true },
   { key:"skipped",    label:"Skipped Questions",      desc:"Solve questions you chose to skip earlier",
     icon:<SkipForward className="w-5 h-5"/>, color:"#c08a3a", cat:"targeted", badge:"Skipped", instant:true },
-  { key:"bookmarked", label:"Bookmarked Questions",   desc:"Opens Mistake Book for mistakes you saved for review",
-    icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"Mistake Book" },
+  { key:"bookmarked", label:"Bookmarked Questions",   desc:"Questions you bookmarked — they stay until you remove them",
+    icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"Bookmarked", instant:true },
 ];
 
 const CATS: { key: Cat; label: string }[] = [
@@ -617,26 +609,17 @@ function ConfigView({
   const [selChapter,    setSelChapter]    = useState<string | null>(null);
   const [selTopic,      setSelTopic]      = useState<string | null>(null);
   const [selDifficulty, setSelDifficulty] = useState<string>(
-    modeKey === "difficulty" ? "medium" : "mixed",
+    modeKey === "custom" ? "medium" : "mixed",
   );
   const [qCount,        setQCount]        = useState(20);
-  const [timeLimitMin,  setTimeLimitMin]  = useState(15);
+  const [timeLimitMin,  setTimeLimitMin]  = useState(20);
+  // Custom Practice targets EITHER a question count OR a time limit, never
+  // both — picking one hides the other.
+  const [goalType,      setGoalType]      = useState<"count" | "time">("count");
+  const [pyqYear,       setPyqYear]       = useState<number | null>(null);
   const [chapters,      setChapters]      = useState<AcademicTermRef[]>([]);
   const [topics,        setTopics]        = useState<AcademicTermRef[]>([]);
   const [metaLoading,   setMetaLoading]   = useState(false);
-  const [teacherSets,   setTeacherSets]   = useState<StudentHomeworkRow[]>([]);
-  const [teacherLoading, setTeacherLoading] = useState(false);
-  const [mockTests, setMockTests] = useState<
-    { id: string; title: string; subject: string; questionCount: number; durationSec: number; testKind: string }[]
-  >([]);
-  const [mockLoading, setMockLoading] = useState(false);
-
-  // Difficulty-Based mode must start with a real level selected (not mixed).
-  useEffect(() => {
-    if (modeKey === "difficulty" && (selDifficulty === "mixed" || !selDifficulty)) {
-      setSelDifficulty("medium");
-    }
-  }, [modeKey, selDifficulty]);
 
   useEffect(() => {
     setSelChapter(null);
@@ -644,7 +627,7 @@ function ConfigView({
     setChapters([]);
     setTopics([]);
     if (!selSubject || !ctx || !academicReady) return;
-    if (!["chapter", "topic", "difficulty"].includes(modeKey)) return;
+    if (!["chapter", "topic", "custom"].includes(modeKey)) return;
     let cancelled = false;
     (async () => {
       setMetaLoading(true);
@@ -660,76 +643,12 @@ function ConfigView({
     return () => { cancelled = true; };
   }, [selSubject, ctx, academicReady, modeKey]);
 
-  useEffect(() => {
-    if (modeKey !== "teacher" || !ctx || !academicReady || !studentId) {
-      setTeacherSets([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setTeacherLoading(true);
-      try {
-        const rows = await HomeworkService.listForStudent(ctx, studentId);
-        if (!cancelled) setTeacherSets(rows);
-      } catch {
-        if (!cancelled) setTeacherSets([]);
-      } finally {
-        if (!cancelled) setTeacherLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [modeKey, ctx, academicReady, studentId]);
-
-  useEffect(() => {
-    if (modeKey !== "mock" || !ctx || !academicReady || !classId) {
-      setMockTests([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      setMockLoading(true);
-      try {
-        const rows = (await TestService.listForClass(ctx, classId)) as {
-          id: string;
-          title?: string;
-          subject?: string;
-          question_count?: number;
-          duration_sec?: number;
-          test_kind?: string;
-        }[];
-        // Prefer longer / exam-like kinds for mock simulation; fall back to all published.
-        const examLike = rows.filter((r) => {
-          const kind = String(r.test_kind ?? "class_test");
-          const dur = Number(r.duration_sec ?? 0);
-          return kind === "unit_test" || kind === "monthly_test" || dur >= 1800;
-        });
-        const pool = examLike.length > 0 ? examLike : rows;
-        if (!cancelled) {
-          setMockTests(
-            pool.map((r) => ({
-              id: r.id,
-              title: r.title ?? "Test",
-              subject: r.subject ?? "",
-              questionCount: Number(r.question_count ?? 0),
-              durationSec: Number(r.duration_sec ?? 0),
-              testKind: String(r.test_kind ?? "class_test"),
-            })),
-          );
-        }
-      } catch {
-        if (!cancelled) setMockTests([]);
-      } finally {
-        if (!cancelled) setMockLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [modeKey, ctx, academicReady, classId]);
 
   useEffect(() => {
     setSelTopic(null);
     setTopics([]);
     if (!selSubject || !ctx || !academicReady) return;
-    if (!["topic", "difficulty"].includes(modeKey)) return;
+    if (!["topic", "custom"].includes(modeKey)) return;
     let cancelled = false;
     (async () => {
       try {
@@ -746,6 +665,9 @@ function ConfigView({
   }, [selSubject, selChapter, ctx, academicReady, modeKey]);
 
   function handleStart() {
+    // Custom Practice is the only mode with a time goal, and it is exclusive
+    // with the question count.
+    const useTimeGoal = modeKey === "custom" && goalType === "time";
     onStart({
       mode: modeKey,
       label: mode.label,
@@ -753,8 +675,11 @@ function ConfigView({
       chapter: selChapter,
       topic: selTopic,
       difficulty: selDifficulty,
-      qCount,
-      timeLimitSec: modeKey === "timed" || modeKey === "mock" ? timeLimitMin * 60 : null,
+      // A time-goal session is bounded by the clock, so request a generous
+      // pool rather than a specific count.
+      qCount: useTimeGoal ? 50 : qCount,
+      timeLimitSec: useTimeGoal ? timeLimitMin * 60 : null,
+      pyqYear: modeKey === "pyq" ? pyqYear : null,
     });
   }
 
@@ -762,111 +687,28 @@ function ConfigView({
     ? classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG
     : "No subjects in the question bank yet for your class and board.";
 
-  if (modeKey === "teacher") {
-    return (
-      <ConfigShell mode={mode} onBack={onBack}>
-        {teacherLoading ? (
-          <p className="text-sm text-[#78788c] py-8 text-center">Loading teacher assignments…</p>
-        ) : teacherSets.length === 0 ? (
-          <EmptyConfig
-            title="No teacher assignments yet"
-            body="When your teacher assigns homework or practice, it will appear here."
-            actionLabel="Open Homework"
-            onAction={() => onNavigate?.("assignments")}
-          />
-        ) : (
-          <>
-            <div className="space-y-3">
-              {teacherSets.map((row) => {
-                const hw = row.homework;
-                const subj = subjects.find(s => s.name === hw.subject);
-                return (
-                  <button
-                    key={hw.id}
-                    type="button"
-                    onClick={() => onNavigate?.("assignments")}
-                    className="w-full text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-bold text-white truncate">{hw.title}</div>
-                        <div className="text-[11px] text-[#78788c] mt-1">
-                          {hw.dueDate ? `Due ${new Date(hw.dueDate).toLocaleDateString()}` : "No due date"}
-                          {" · "}{row.displayStatus}
-                        </div>
-                      </div>
-                      <StatusTag status={row.displayStatus === "graded" || row.displayStatus === "submitted" ? "completed" : row.displayStatus === "in_progress" ? "in-progress" : "not-started"} />
-                    </div>
-                    {subj && <div className="mt-2"><SubjectBadge subject={hw.subject} color={subj.color}/></div>}
-                  </button>
-                );
-              })}
-            </div>
-            <StartButton color={mode.color} label="Open in Homework" onStart={() => onNavigate?.("assignments")}/>
-          </>
-        )}
-      </ConfigShell>
-    );
-  }
-
-  if (modeKey === "mock") {
-    return (
-      <ConfigShell mode={mode} onBack={onBack}>
-        {mockLoading ? (
-          <div className="text-xs text-[#78788c] py-8 text-center">Loading published tests…</div>
-        ) : mockTests.length === 0 ? (
-          <EmptyConfig
-            title="No mock tests available"
-            body="Full-length mocks will show here once your school publishes unit/monthly or timed class tests. Try Timed Practice for a timed bank session."
-          />
-        ) : (
-          <div className="space-y-3">
-            {mockTests.map((t) => {
-              const mins = t.durationSec > 0 ? Math.round(t.durationSec / 60) : null;
-              const kindLabel =
-                TEST_KIND_LABELS[t.testKind as keyof typeof TEST_KIND_LABELS] ?? t.testKind;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => navigate(`/student/dpp/${t.id}/attempt`)}
-                  className="w-full text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-bold text-white truncate">{t.title}</div>
-                      <div className="text-[11px] text-[#78788c] mt-1">
-                        {displaySubject(t.subject) || "—"}
-                        {kindLabel ? ` · ${kindLabel}` : ""}
-                        {t.questionCount > 0 ? ` · ${t.questionCount} Qs` : ""}
-                        {mins != null ? ` · ${mins} min` : ""}
-                      </div>
-                    </div>
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#818cf8] shrink-0">
-                      <Play className="w-3 h-3" /> Start
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </ConfigShell>
-    );
-  }
-
-  if (modeKey === "difficulty") {
-    const levelOnly = DIFFICULTIES.filter((d) => d.key !== "mixed");
+  if (modeKey === "custom") {
+    // Subject / chapter / topic are all optional here — only difficulty and a
+    // goal are required.
+    const goalReady = goalType === "count" ? qCount > 0 : timeLimitMin > 0;
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
+          <SubjectPicker
+            selected={selSubject}
+            onSelect={setSelSubject}
+            subjects={subjects}
+            emptyMessage={subjectEmptyMsg}
+            allowAll
+            label="1. Subject (optional)"
+          />
           {selSubject && (
             <OptionChips
-              label={metaLoading ? "Loading chapters…" : "2. Chapter"}
+              label={metaLoading ? "Loading chapters…" : "2. Chapter (optional)"}
               options={chapters}
               selected={selChapter}
               onSelect={setSelChapter}
+              allowClear
               empty="No chapters in the bank for this subject yet."
             />
           )}
@@ -880,52 +722,118 @@ function ConfigView({
               empty="No topics tagged for this chapter yet."
             />
           )}
-          {selSubject && selChapter && (
-            <div>
-              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">
-                {topics.length > 0 ? "4. Difficulty" : "3. Difficulty"}
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {levelOnly.map(d => (
-                  <button key={d.key} type="button" onClick={() => setSelDifficulty(d.key)}
+
+          <div>
+            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">
+              Difficulty
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {DIFFICULTIES.map(d => (
+                <button key={d.key} type="button" onClick={() => setSelDifficulty(d.key)}
+                  className={cn(
+                    "p-4 rounded-2xl border text-left transition-all",
+                    selDifficulty === d.key ? "scale-[1.02]" : "border-white/7 hover:border-white/15"
+                  )}
+                  style={selDifficulty === d.key ? { borderColor:`${d.color}40`, background:`${d.color}10` } : {}}>
+                  <div className="text-sm font-black mb-1" style={{ color:selDifficulty===d.key?d.color:"white" }}>{d.label}</div>
+                  <div className="text-[11px] text-[#78788c]">{d.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">
+              Practice goal
+            </div>
+            <div className="flex gap-2 mb-4">
+              {([
+                { key: "count" as const, label: "Question count" },
+                { key: "time"  as const, label: "Time limit" },
+              ]).map(g => (
+                <button
+                  key={g.key}
+                  type="button"
+                  onClick={() => setGoalType(g.key)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
+                    goalType === g.key ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                  )}
+                  style={goalType === g.key ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Exactly one goal input is ever mounted. */}
+            {goalType === "count" ? (
+              <div className="flex gap-2 flex-wrap">
+                {[10, 20, 30, 50].map(n => (
+                  <button key={n} type="button" onClick={() => setQCount(n)}
                     className={cn(
-                      "p-4 rounded-2xl border text-left transition-all",
-                      selDifficulty === d.key ? "scale-[1.02]" : "border-white/7 hover:border-white/15"
+                      "px-5 py-3 rounded-xl text-sm font-black border transition-all",
+                      qCount === n ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
                     )}
-                    style={selDifficulty === d.key ? { borderColor:`${d.color}40`, background:`${d.color}10` } : {}}>
-                    <div className="text-sm font-black mb-1" style={{ color:selDifficulty===d.key?d.color:"white" }}>{d.label}</div>
-                    <div className="text-[11px] text-[#78788c]">{d.desc}</div>
+                    style={qCount === n ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
+                    {n} questions
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+            ) : (
+              <div className="flex gap-2 flex-wrap">
+                {[10, 20, 30, 45, 60].map(t => (
+                  <button key={t} type="button" onClick={() => setTimeLimitMin(t)}
+                    className={cn(
+                      "px-5 py-3 rounded-xl text-sm font-black border transition-all",
+                      timeLimitMin === t ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                    )}
+                    style={timeLimitMin === t ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
+                    {t} min
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <StartButton
           color={mode.color}
-          disabled={!selSubject || !selChapter || !selDifficulty || selDifficulty === "mixed"}
+          disabled={!selDifficulty || !goalReady}
           onStart={handleStart}
         />
       </ConfigShell>
     );
   }
 
-  if (modeKey === "timed") {
+  if (modeKey === "pyq") {
+    // Board and class come from the student's own profile; only subject and
+    // year are chosen here.
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 6 }, (_, i) => currentYear - 1 - i);
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject (optional)"/>
+          <p className="text-xs text-[#78788c]">Loads past-paper / exam-year tagged questions from the bank when available.</p>
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
           <div>
-            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Time Limit</div>
+            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Exam year (optional)</div>
             <div className="flex gap-2 flex-wrap">
-              {[5, 10, 15, 20, 30, 45, 60].map(t => (
-                <button key={t} onClick={() => setTimeLimitMin(t)}
+              <button type="button" onClick={() => setPyqYear(null)}
+                className={cn(
+                  "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
+                  pyqYear === null ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                )}
+                style={pyqYear === null ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
+                All years
+              </button>
+              {years.map(y => (
+                <button key={y} type="button" onClick={() => setPyqYear(y)}
                   className={cn(
-                    "px-4 py-2 rounded-xl text-xs font-bold transition-all",
-                    timeLimitMin === t ? "bg-[#cc5069] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
-                  )}>
-                  {t < 60 ? `${t}m` : "1h"}
+                    "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
+                    pyqYear === y ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                  )}
+                  style={pyqYear === y ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
+                  {y}
                 </button>
               ))}
             </div>
@@ -937,112 +845,6 @@ function ConfigView({
     );
   }
 
-  if (modeKey === "subject") {
-    return (
-      <ConfigShell mode={mode} onBack={onBack}>
-        <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="Choose subject"/>
-          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
-        </div>
-        <StartButton color={mode.color} disabled={!selSubject} onStart={handleStart}/>
-      </ConfigShell>
-    );
-  }
-
-  if (modeKey === "chapter") {
-    return (
-      <ConfigShell mode={mode} onBack={onBack}>
-        <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
-          {selSubject && (
-            <OptionChips
-              label={metaLoading ? "Loading chapters…" : "2. Chapter"}
-              options={chapters}
-              selected={selChapter}
-              onSelect={setSelChapter}
-              empty="No chapters in the bank for this subject yet."
-            />
-          )}
-          {selChapter && (
-            <div>
-              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Difficulty</div>
-              <div className="flex gap-2 flex-wrap">
-                {DIFFICULTIES.map(d => (
-                  <button key={d.key} onClick={() => setSelDifficulty(d.key)}
-                    className={cn(
-                      "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      selDifficulty === d.key ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
-                    )}
-                    style={selDifficulty === d.key ? { background:d.color } : {}}>
-                    {d.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
-        </div>
-        <StartButton color={mode.color} disabled={!selSubject || !selChapter} onStart={handleStart}/>
-      </ConfigShell>
-    );
-  }
-
-  if (modeKey === "topic") {
-    return (
-      <ConfigShell mode={mode} onBack={onBack}>
-        <div className="space-y-6">
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
-          {selSubject && (
-            <OptionChips
-              label="2. Chapter (optional)"
-              options={chapters}
-              selected={selChapter}
-              onSelect={setSelChapter}
-              allowClear
-              empty="No chapters yet — pick a topic below if available."
-            />
-          )}
-          {selSubject && (
-            <OptionChips
-              label="3. Topic / concept"
-              options={topics}
-              selected={selTopic}
-              onSelect={setSelTopic}
-              empty="No topics tagged in the bank for this selection yet."
-            />
-          )}
-          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
-        </div>
-        <StartButton color={mode.color} disabled={!selSubject || !selTopic} onStart={handleStart}/>
-      </ConfigShell>
-    );
-  }
-
-  if (modeKey === "pyq") {
-    return (
-      <ConfigShell mode={mode} onBack={onBack}>
-        <div className="space-y-6">
-          <p className="text-xs text-[#78788c]">Loads past-paper / exam-year tagged questions from the bank when available.</p>
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
-          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
-        </div>
-        <StartButton color={mode.color} onStart={handleStart}/>
-      </ConfigShell>
-    );
-  }
-
-  if (modeKey === "untimed") {
-    return (
-      <ConfigShell mode={mode} onBack={onBack}>
-        <div className="space-y-6">
-          <p className="text-xs text-[#78788c]">No countdown — focus on understanding.</p>
-          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
-          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
-        </div>
-        <StartButton color={mode.color} onStart={handleStart}/>
-      </ConfigShell>
-    );
-  }
 
   return (
     <ConfigShell mode={mode} onBack={onBack}>
@@ -1224,6 +1026,8 @@ interface SessionConfig {
   mode: ModeKey; label: string; subject: string;
   chapter?: string | null; topic?: string | null;
   difficulty: string; qCount: number; timeLimitSec: number | null;
+  /** Previous Year Questions only — restricts to one exam year. */
+  pyqYear?: number | null;
   /** When set, continue an unfinished practice_sessions row instead of starting new. */
   resumeSessionId?: string | null;
 }
@@ -1444,8 +1248,16 @@ function Session({
             const skip = new Set(excludeIds);
             rows = rows.filter((r) => !skip.has(r.id));
           }
+        } else if (config.mode === "bookmarked") {
+          rows = await PracticeService.listBookmarkedQuestions(ctx, { limit: remainingCount });
+          if (excludeIds.length) {
+            const skip = new Set(excludeIds);
+            rows = rows.filter((r) => !skip.has(r.id));
+          }
         } else if (config.mode === "weak") {
-          const weak = await PracticeService.listWeakConcepts(ctx, { threshold: WEAK_CONCEPT_THRESHOLD, limit: 12 });
+          // Practice Engine owns this mode, so it reads V1 confidence.
+          // Recovery/Revision/Nova keep reading the legacy weighted score.
+          const weak = await PracticeService.listWeakConcepts(ctx, { source: "simple", limit: 12 });
           if (weak.length === 0) {
             rows = [];
           } else {
@@ -1466,6 +1278,7 @@ function Session({
             difficulty: effectiveDifficulty,
             limit: remainingCount,
             pyqOnly: true,
+            examYear: config.pyqYear ?? null,
             ...bankOpts,
           });
         } else {
@@ -1791,11 +1604,30 @@ function Session({
   }
 
   function toggleBookmark() {
-    bookmarkedRef.current = bookmarkedRef.current.includes(idx)
-      ? bookmarkedRef.current.filter(x => x !== idx)
-      : [...bookmarkedRef.current, idx];
+    const nextOn = !bookmarkedRef.current.includes(idx);
+    bookmarkedRef.current = nextOn
+      ? [...bookmarkedRef.current, idx]
+      : bookmarkedRef.current.filter(x => x !== idx);
     setBookmarked([...bookmarkedRef.current]);
-    toast.message("Flagged for this session only — use Mistake Book to save mistakes for review.");
+
+    // Persist. Bookmarks are permanent — answering correctly never clears one.
+    const bankId = qs[idx]?.id;
+    if (!bankId || !ctx) {
+      toast.message(nextOn ? "Bookmarked for this session." : "Bookmark removed.");
+      return;
+    }
+    void PracticeService.toggleBookmark(ctx, bankId, nextOn)
+      .then(() => {
+        toast.success(nextOn ? "Bookmarked." : "Bookmark removed.");
+      })
+      .catch(() => {
+        // Roll the optimistic toggle back so the icon never lies about state.
+        bookmarkedRef.current = nextOn
+          ? bookmarkedRef.current.filter(x => x !== idx)
+          : [...bookmarkedRef.current, idx];
+        setBookmarked([...bookmarkedRef.current]);
+        toast.error("Could not save bookmark. Please try again.");
+      });
   }
 
   const q       = qs[idx];
@@ -1831,15 +1663,14 @@ function Session({
 
   if (qs.length === 0) {
     const emptyByMode: Partial<Record<ModeKey, string>> = {
-      weak: `No weak concepts tracked yet (mastery below ${WEAK_CONCEPT_THRESHOLD}%). Practice more, then return here — or open Recovery.`,
-      incorrect: "No incorrect questions saved yet. Mistakes from practice and tests will appear here.",
+      weak: `No weak concepts tracked yet (confidence below ${WEAK_CONCEPT_THRESHOLD}%). Finish a practice session, then return here — or open Recovery.`,
+      incorrect: "Nothing to retry — you have no questions currently marked wrong.",
       skipped: "You have not skipped any bank questions yet.",
       pyq: "No previous-year / exam-tagged questions in the bank for this filter yet.",
-      bookmarked: "Bookmarked practice questions are not stored yet — use Mistake Book for saved mistakes.",
+      bookmarked: "You have not bookmarked any questions yet. Bookmark one during practice and it stays until you remove it.",
       chapter: "No questions for this chapter in the bank yet.",
       topic: "No questions for this topic in the bank yet.",
-      teacher: "No teacher-assigned practice sets right now.",
-      mock: "No mock tests published yet.",
+      custom: "No questions match those filters yet. Try a different difficulty or clear a filter.",
     };
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
@@ -2219,14 +2050,14 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
 
   const streak = student.streak;
   const [phase,   setPhase]   = useState<Phase>("hub");
-  const [modeKey, setModeKey] = useState<ModeKey>("daily");
+  const [modeKey, setModeKey] = useState<ModeKey>("subject");
   const [config,  setConfig]  = useState<SessionConfig | null>(null);
   const [results, setResults] = useState<SessionResults | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkHandled = useRef(false);
 
   /** Instant modes skip config and load with mode-specific filters. */
-  const INSTANT: ModeKey[] = ["daily", "weak", "incorrect", "skipped"];
+  const INSTANT: ModeKey[] = ["weak", "incorrect", "skipped", "bookmarked"];
 
   /** Honor Revision/Recovery CTAs: /student/practice?chapter=&subject=&topic= */
   useEffect(() => {
@@ -2268,10 +2099,6 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   }, [searchParams, setSearchParams, phase]);
 
   function handleMode(key: ModeKey) {
-    if (key === "bookmarked") {
-      setPage?.("mistakebook");
-      return;
-    }
     setModeKey(key);
     if (INSTANT.includes(key)) {
       const mode = MODES.find(m => m.key === key)!;
@@ -2282,7 +2109,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         chapter: null,
         topic: null,
         difficulty: "mixed",
-        qCount: key === "daily" ? 15 : 20,
+        qCount: 20,
         timeLimitSec: null,
       });
       setPhase("session");

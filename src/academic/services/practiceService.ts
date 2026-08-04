@@ -889,6 +889,8 @@ export const PracticeService = {
       classLevel?: number | null;
       limit?: number;
       pyqOnly?: boolean;
+      /** Previous Year Questions — restrict to a single exam year. */
+      examYear?: number | null;
       ids?: string[];
       /** Skip these bank ids (session resume). */
       excludeIds?: string[];
@@ -950,6 +952,9 @@ export const PracticeService = {
     }
     if (opts.pyqOnly) {
       query = query.or("exam_year.not.is.null,source_type.ilike.%pyq%,source.ilike.%pyq%,source.ilike.%previous%");
+    }
+    if (opts.examYear != null && Number.isFinite(opts.examYear)) {
+      query = query.eq("exam_year", opts.examYear);
     }
 
     const { data, error } = await query;
