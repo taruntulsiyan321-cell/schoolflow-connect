@@ -217,7 +217,7 @@ export const aggregateWeakConceptsFromMistakes = aggregateMistakesByTopic;
 
 export function aggregatesToTopicGaps(aggregates: MistakeTopicAggregate[]): TopicGapInsight[] {
   return aggregates
-    .map((a) => {
+    .map((a): TopicGapInsight | null => {
       const topic = displayTopic(a.topic);
       const subject = displaySubject(a.subject);
       if (!topic || !subject) return null;
@@ -842,7 +842,7 @@ function normalizeGeminiInsights(
   aggregates: MistakeTopicAggregate[],
 ): AnalyticsInsights {
   const rawTopics: TopicGapInsight[] = ((data.weak_topics as TopicGapInsight[]) ?? [])
-    .map((w, i) => {
+    .map((w, i): TopicGapInsight | null => {
       const fallback = ruleFallback.weak_topics[i] ?? ruleFallback.weak_topics[0];
       const topic = displayTopic(w.topic || fallback?.topic || "");
       const subject = displaySubject(w.subject || fallback?.subject || "");

@@ -2285,9 +2285,11 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         : data.stats.xp;
     const wins = data.stats.wins;
     const total = data.stats.totalBattles;
-    const league =
-      shellReady && profile.league
-        ? profile.league
+    const league: LeagueName =
+      shellReady &&
+      profile.league &&
+      (["Bronze", "Silver", "Gold", "Platinum", "Diamond"] as string[]).includes(profile.league)
+        ? (profile.league as LeagueName)
         : toLeagueName(leagueFromCodeOrXp(data.stats.leagueCode, xp));
     const engineNext =
       data.stats.nextLeagueRemaining != null && data.stats.nextLeagueLabel

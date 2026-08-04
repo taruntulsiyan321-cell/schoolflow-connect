@@ -3126,27 +3126,54 @@ export type Database = {
       messages: {
         Row: {
           content: string
+          conversation_id: string | null
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          has_attachment: boolean
           id: string
           is_read: boolean
-          receiver_id: string
+          read_at: string | null
+          receiver_id: string | null
+          reply_to_id: string | null
+          school_id: string | null
           sender_id: string
+          subject: string | null
+          thread_id: string | null
         }
         Insert: {
           content: string
+          conversation_id?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          has_attachment?: boolean
           id?: string
           is_read?: boolean
-          receiver_id: string
+          read_at?: string | null
+          receiver_id?: string | null
+          reply_to_id?: string | null
+          school_id?: string | null
           sender_id: string
+          subject?: string | null
+          thread_id?: string | null
         }
         Update: {
           content?: string
+          conversation_id?: string | null
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          has_attachment?: boolean
           id?: string
           is_read?: boolean
-          receiver_id?: string
+          read_at?: string | null
+          receiver_id?: string | null
+          reply_to_id?: string | null
+          school_id?: string | null
           sender_id?: string
+          subject?: string | null
+          thread_id?: string | null
         }
         Relationships: []
       }
@@ -5830,6 +5857,10 @@ export type Database = {
         }[]
       }
       get_chat_unread_total: { Args: never; Returns: number }
+      get_my_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       get_my_school_id: { Args: never; Returns: string }
       get_teacher_directory: {
         Args: never
@@ -5961,6 +5992,14 @@ export type Database = {
           wins: number
           xp: number
         }[]
+      }
+      rpc_complete_recovery_assignment: {
+        Args: {
+          _assignment_id: string
+          _questions_completed?: number
+          _questions_correct?: number
+        }
+        Returns: Json
       }
       rpc_complete_revision: { Args: { _id: string }; Returns: undefined }
       rpc_create_class_battle: {
@@ -6190,6 +6229,49 @@ export type Database = {
           unread: number
         }[]
       }
+      rpc_list_practice_history: {
+        Args: {
+          _date_from?: string
+          _date_to?: string
+          _limit?: number
+          _practice_mode?: string
+          _search?: string
+          _sort?: string
+          _subject?: string
+        }
+        Returns: {
+          accuracy: number | null
+          analysis_snapshot: Json | null
+          board: string | null
+          chapter: string
+          class_level: number | null
+          correct_count: number
+          created_at: string
+          difficulty: string | null
+          finished_at: string | null
+          id: string
+          practice_mode: string | null
+          question_count: number
+          saved_at: string | null
+          school_id: string | null
+          score: number
+          skipped_count: number
+          stream: string | null
+          student_id: string | null
+          subject: string
+          time_limit_sec: number | null
+          total_time_ms: number | null
+          user_id: string
+          wrong_count: number
+          xp_earned: number
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "practice_sessions"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       rpc_mark_best_community_answer: {
         Args: { _answer_id: string }
         Returns: undefined
@@ -6406,6 +6488,15 @@ export type Database = {
         Args: { _class_id: string; _user_id: string }
         Returns: boolean
       }
+      teacher_teaches_class_subject: {
+        Args: {
+          _class_id: string
+          _subject?: string
+          _subject_id?: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       write_academic_audit: {
         Args: {
           _action: string
@@ -6427,7 +6518,13 @@ export type Database = {
         | "failed"
         | "skipped"
       academic_year_status: "planned" | "active" | "closed" | "archived"
-      app_role: "admin" | "teacher" | "student" | "parent" | "principal"
+      app_role:
+        | "admin"
+        | "teacher"
+        | "student"
+        | "parent"
+        | "principal"
+        | "super_admin"
       attendance_status: "present" | "absent" | "leave" | "late" | "half_day"
       badge_tier: "bronze" | "silver" | "gold" | "platinum"
       battle_status: "scheduled" | "live" | "finished" | "cancelled"
@@ -6581,7 +6678,14 @@ export const Constants = {
         "skipped",
       ],
       academic_year_status: ["planned", "active", "closed", "archived"],
-      app_role: ["admin", "teacher", "student", "parent", "principal"],
+      app_role: [
+        "admin",
+        "teacher",
+        "student",
+        "parent",
+        "principal",
+        "super_admin",
+      ],
       attendance_status: ["present", "absent", "leave", "late", "half_day"],
       badge_tier: ["bronze", "silver", "gold", "platinum"],
       battle_status: ["scheduled", "live", "finished", "cancelled"],

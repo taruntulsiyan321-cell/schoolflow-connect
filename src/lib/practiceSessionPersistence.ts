@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import type { PracticeAttemptSnapshot, PracticeSessionResultState } from "@/lib/practiceSessionSnapshot";
 export type { PracticeAttemptSnapshot };
 import { attemptsToFinishPayload, persistAndGoToPracticeResult } from "@/lib/practiceSessionSnapshot";
@@ -15,7 +16,7 @@ export type RecordPracticeAttemptOptions = {
   generatedQuestion: {
     question: string;
     options: string[];
-    values?: Record<string, unknown>;
+    values?: Record<string, Json>;
     session_seed?: number;
     explanation?: string;
   };

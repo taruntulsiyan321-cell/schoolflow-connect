@@ -383,7 +383,7 @@ export const AnnouncementService = {
     assertCanOwn(ctx, "announcement");
     await assertTeacherMayAnnounce(ctx, input.classId);
     const validation = validateAnnouncementContent(input.title, input.body);
-    if (!validation.ok) {
+    if (validation.ok === false) {
       throw new ValidationFailedError(validation.issues);
     }
 
@@ -436,7 +436,7 @@ export const AnnouncementService = {
     }
     await assertTeacherMayAnnounce(ctx, classId);
     const validation = validateAnnouncementContent(input.title, input.body);
-    if (!validation.ok) {
+    if (validation.ok === false) {
       throw new ValidationFailedError(validation.issues);
     }
 

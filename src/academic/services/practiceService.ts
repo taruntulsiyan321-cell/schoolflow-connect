@@ -5,6 +5,7 @@ import {
   type ServiceContext,
 } from "./context";
 import { assertStudentClassContext } from "./assertStudentContext";
+import type { Json } from "@/integrations/supabase/types";
 import { getClient, throwIfError } from "../repository/base";
 import { emitEvent } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
@@ -179,9 +180,9 @@ export const PracticeService = {
       sessionId: string;
       templateId?: string | null;
       bankQuestionId?: string | null;
-      generatedQuestion: Record<string, unknown>;
-      selectedAnswer: Record<string, unknown>;
-      correctAnswer: Record<string, unknown>;
+      generatedQuestion: Record<string, Json>;
+      selectedAnswer: Record<string, Json>;
+      correctAnswer: Record<string, Json>;
       isCorrect: boolean;
       score?: number;
       timeTakenMs?: number | null;

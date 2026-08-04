@@ -152,7 +152,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         if (cancelled) return;
         const students = settled[0].status === "fulfilled" ? settled[0].value : [];
         const profilesOk = settled[1].status === "fulfilled";
-        const profiles = profilesOk ? settled[1].value : [];
+        const profiles = settled[1].status === "fulfilled" ? settled[1].value : [];
         if (settled[0].status === "rejected") {
           throw settled[0].reason instanceof Error
             ? settled[0].reason
