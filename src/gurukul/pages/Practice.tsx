@@ -846,6 +846,87 @@ function ConfigView({
   }
 
 
+  if (modeKey === "subject") {
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        <div className="space-y-6">
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="Choose subject"/>
+          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+        </div>
+        <StartButton color={mode.color} disabled={!selSubject} onStart={handleStart}/>
+      </ConfigShell>
+    );
+  }
+
+  if (modeKey === "chapter") {
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        <div className="space-y-6">
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
+          {selSubject && (
+            <OptionChips
+              label={metaLoading ? "Loading chapters…" : "2. Chapter"}
+              options={chapters}
+              selected={selChapter}
+              onSelect={setSelChapter}
+              empty="No chapters in the bank for this subject yet."
+            />
+          )}
+          {selChapter && (
+            <div>
+              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Difficulty</div>
+              <div className="flex gap-2 flex-wrap">
+                {DIFFICULTIES.map(d => (
+                  <button key={d.key} onClick={() => setSelDifficulty(d.key)}
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
+                      selDifficulty === d.key ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                    )}
+                    style={selDifficulty === d.key ? { background:d.color } : {}}>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+        </div>
+        <StartButton color={mode.color} disabled={!selSubject || !selChapter} onStart={handleStart}/>
+      </ConfigShell>
+    );
+  }
+
+  if (modeKey === "topic") {
+    return (
+      <ConfigShell mode={mode} onBack={onBack}>
+        <div className="space-y-6">
+          <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
+          {selSubject && (
+            <OptionChips
+              label="2. Chapter (optional)"
+              options={chapters}
+              selected={selChapter}
+              onSelect={setSelChapter}
+              allowClear
+              empty="No chapters yet — pick a topic below if available."
+            />
+          )}
+          {selSubject && (
+            <OptionChips
+              label="3. Topic / concept"
+              options={topics}
+              selected={selTopic}
+              onSelect={setSelTopic}
+              empty="No topics tagged in the bank for this selection yet."
+            />
+          )}
+          <CountSlider value={qCount} onChange={setQCount} color={mode.color}/>
+        </div>
+        <StartButton color={mode.color} disabled={!selSubject || !selTopic} onStart={handleStart}/>
+      </ConfigShell>
+    );
+  }
+
   return (
     <ConfigShell mode={mode} onBack={onBack}>
       <div className="space-y-6">
