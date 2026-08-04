@@ -822,6 +822,80 @@ export const PracticeService = {
     });
   },
 
+  /**
+   * Mistake Book rows: every question currently answered wrong, with the
+   * student's own attempt stats attached.
+   *
+   * Derived, never separately maintained — a question leaves the Mistake Book
+   * only by being answered correctly, which flips current_status. Soft-deleted
+   * questions are included, because this is a historical review surface and
+   * retiring a question should not silently erase a student's record of it.
+   */
+  async listMistakeBook(
+    ctx: ServiceContext,
+    opts: { limit?: number } = {},
+  ) {
+    assertCanConsume(ctx, "practice");
+    const limit = Math.min(100, Math.max(1, opts.limit ?? 50));
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client
+      .from("question_records")
+      .select("question_id, wrong_count, attempt_count, last_selected_option, last_practiced_date")
+      .eq("user_id", ctx.userId)
+      .eq("current_status", "wrong")
+      .gt("attempt_count", 0)
+      .order("last_practiced_date", { ascending: false })
+      .limit(limit);
+    throwIfError(error, "Failed to load mistake book");
+
+    const records = (data ?? []) as Array<{
+      question_id: string;
+      wrong_count: number;
+      attempt_count: number;
+      last_selected_option: { selected_index?: number; index?: number } | null;
+      last_practiced_date: string;
+    }>;
+    if (records.length === 0) return [];
+
+    type BankRow = {
+      id: string;
+      subject: string;
+      chapter: string | null;
+      difficulty: string | null;
+      question: string;
+      options: unknown;
+      correct_index: number;
+      explanation: string | null;
+    };
+    const bank = (await this.listBankQuestions(ctx, {
+      ids: records.map((r) => r.question_id),
+      limit,
+      includeInactive: true,
+    })) as BankRow[];
+    const byId = new Map<string, BankRow>(bank.map((b) => [b.id, b]));
+
+    return records
+      .map((r) => {
+        const q = byId.get(r.question_id);
+        if (!q) return null;
+        const sel = r.last_selected_option;
+        const selectedIndex =
+          typeof sel?.selected_index === "number"
+            ? sel.selected_index
+            : typeof sel?.index === "number"
+              ? sel.index
+              : null;
+        return {
+          ...q,
+          wrong_count: r.wrong_count,
+          attempt_count: r.attempt_count,
+          selected_index: selectedIndex,
+          last_practiced_date: r.last_practiced_date,
+        };
+      })
+      .filter((r): r is NonNullable<typeof r> => r !== null);
+  },
+
   /** Previously skipped questions (honest empty if none). */
   async listSkippedBankQuestions(
     ctx: ServiceContext,

@@ -2062,6 +2062,16 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   /** Honor Revision/Recovery CTAs: /student/practice?chapter=&subject=&topic= */
   useEffect(() => {
     if (deepLinkHandled.current || phase !== "hub") return;
+
+    // ?mode=<instant mode> — used by Mistake Book's "Practice again".
+    const modeRaw = searchParams.get("mode");
+    if (modeRaw && (INSTANT as string[]).includes(modeRaw)) {
+      deepLinkHandled.current = true;
+      setSearchParams({}, { replace: true });
+      handleMode(modeRaw as ModeKey);
+      return;
+    }
+
     const chapterRaw = searchParams.get("chapter");
     const subjectRaw = searchParams.get("subject");
     const topicRaw = searchParams.get("topic");
