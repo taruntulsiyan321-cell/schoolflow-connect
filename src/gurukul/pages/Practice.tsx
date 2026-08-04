@@ -1164,16 +1164,25 @@ function Session({
   } | null>(null);
 
   useEffect(() => {
+    if (!ctx || !academicReady) {
+      // Academic context is still initializing — this is a normal ~1s state
+      // on every fresh mount, not a failure, so it must not flash an error.
+      // Leave loadingQs at its initial `true` (spinner keeps showing) and
+      // let this effect's own dependency array re-run it the instant
+      // ctx/academicReady resolve. Only if that genuinely never happens do
+      // we surface a real error, after a bounded wait.
+      const timeout = setTimeout(() => {
+        setLoadingQs(false);
+        setLoadError("Academic context not ready. Try again in a moment.");
+      }, 8000);
+      return () => clearTimeout(timeout);
+    }
+
     let cancelled = false;
     (async () => {
       setLoadingQs(true);
       setLoadError(null);
       try {
-        if (!ctx || !academicReady) {
-          setLoadError("Academic context not ready. Try again in a moment.");
-          return;
-        }
-
         if (!config.resumeSessionId && classUnresolved) {
           setLoadError(classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG);
           return;
