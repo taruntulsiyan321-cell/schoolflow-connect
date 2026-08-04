@@ -1,0 +1,34 @@
+-- =============================================================================
+-- practice_sessions.chapter -> nullable
+--
+-- Live regression report (2026-08-04): "Could not start practice — null value
+-- in column 'chapter' of relation 'practice_sessions' violates not-null
+-- constraint" on every instant-start mode (Weak Areas, Incorrect, Skipped,
+-- Bookmarked) and on Custom Practice with no chapter selected.
+--
+-- Root cause: practice_sessions.chapter has been NOT NULL since the table's
+-- original creation (20260611000000_question_template_engine.sql), and
+-- rpc_start_practice_session inserts _chapter with no fallback. Practice.tsx's
+-- client-side chapterForStart deliberately resolves to `null` for any mode
+-- that has no single chapter -- true for every instant mode already, not
+-- something introduced by the Phase 3 Custom Practice change, which only
+-- made a fifth mode hit the same pre-existing gap.
+--
+-- The read side already expects this: Practice.tsx displays session history
+-- with `row.chapter ? displayChapter(row.chapter) : practiceTypeLabel(...)`
+-- and `chapter: row.chapter ? ... : "—"` throughout -- the UI was built
+-- assuming a session can legitimately have no chapter. The schema just never
+-- had its constraint relaxed to match, so every code path relying on that
+-- design has been broken since it shipped.
+--
+-- Not fixed by defaulting to a placeholder like "Mixed": Weak Areas,
+-- Incorrect Questions, Bookmarked Questions and Skipped Questions can span
+-- many chapters or none at all -- a fabricated chapter label would be exactly
+-- the kind of placeholder data this app's own engineering rules forbid. NULL
+-- is the honest value here, not missing data.
+--
+-- rpc_start_practice_session needs no change: it already inserts whatever
+-- _chapter it's given; only the column itself was too strict.
+-- =============================================================================
+
+ALTER TABLE public.practice_sessions ALTER COLUMN chapter DROP NOT NULL;

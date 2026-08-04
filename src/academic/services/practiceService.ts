@@ -41,7 +41,10 @@ export type AcademicTermRef = TaxonomyTermRef;
 export type PracticeSessionRow = {
   id: string;
   subject: string;
-  chapter: string;
+  // Nullable: sessions with no single chapter (Weak Areas, Incorrect,
+  // Skipped, Bookmarked, and Custom Practice with no chapter chosen) are a
+  // real state, not missing data — see 20260804040000_practice_sessions_chapter_nullable.sql.
+  chapter: string | null;
   question_count: number;
   correct_count: number;
   score: number;

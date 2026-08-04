@@ -3448,7 +3448,7 @@ export type Database = {
           accuracy: number | null
           analysis_snapshot: Json | null
           board: string | null
-          chapter: string
+          chapter: string | null
           class_level: number | null
           correct_count: number
           created_at: string
@@ -3476,7 +3476,7 @@ export type Database = {
           accuracy?: number | null
           analysis_snapshot?: Json | null
           board?: string | null
-          chapter: string
+          chapter?: string | null
           class_level?: number | null
           correct_count?: number
           created_at?: string
@@ -3504,7 +3504,7 @@ export type Database = {
           accuracy?: number | null
           analysis_snapshot?: Json | null
           board?: string | null
-          chapter?: string
+          chapter?: string | null
           class_level?: number | null
           correct_count?: number
           created_at?: string
