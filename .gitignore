@@ -13,6 +13,12 @@ dist-ssr
 *.local
 supabase/.temp
 
+# Playwright — never commit a captured login session or its report/trace output.
+/e2e/.auth/
+/playwright-report/
+/test-results/
+/blob-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
