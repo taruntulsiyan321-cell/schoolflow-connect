@@ -14,6 +14,10 @@ import {
   type AiAnalyticsSummary,
   type BudgetForecast,
 } from "@/academic/ai";
+import {
+  fetchDecisionEngineRolloutSummary,
+  type DecisionEngineRolloutSummary,
+} from "@/academic/services/decisionEngineAnalytics";
 import { cn } from "./shared";
 
 function Stat({
@@ -40,6 +44,12 @@ export default function AiAnalyticsPanel() {
   const [forecast, setForecast] = useState<BudgetForecast | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Decision Engine rollout section has its own state, deliberately kept
+  // separate from the AI ledger's -- a failure here must not take down the
+  // rest of this (already-working) panel.
+  const [rollout, setRollout] = useState<DecisionEngineRolloutSummary | null>(null);
+  const [rolloutError, setRolloutError] = useState<string | null>(null);
+  const [rolloutLoading, setRolloutLoading] = useState(true);
 
   const load = async () => {
     if (!schoolId) {
@@ -92,8 +102,23 @@ export default function AiAnalyticsPanel() {
     }
   };
 
+  const loadRollout = async () => {
+    setRolloutLoading(true);
+    setRolloutError(null);
+    try {
+      const data = await fetchDecisionEngineRolloutSummary(supabase);
+      setRollout(data);
+    } catch (e) {
+      setRolloutError(e instanceof Error ? e.message : "Failed to load rollout summary");
+      setRollout(null);
+    } finally {
+      setRolloutLoading(false);
+    }
+  };
+
   useEffect(() => {
     void load();
+    void loadRollout();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [schoolId]);
 
@@ -114,10 +139,13 @@ export default function AiAnalyticsPanel() {
         </div>
         <button
           type="button"
-          onClick={() => void load()}
+          onClick={() => {
+            void load();
+            void loadRollout();
+          }}
           className="inline-flex items-center gap-2 rounded-lg bg-white/5 hover:bg-white/10 px-3 py-2 text-xs font-bold text-white"
         >
-          <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+          <RefreshCw className={cn("w-3.5 h-3.5", (loading || rolloutLoading) && "animate-spin")} />
           Refresh
         </button>
       </div>
@@ -214,6 +242,51 @@ export default function AiAnalyticsPanel() {
           </div>
         </>
       )}
+
+      <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
+        <div className="text-sm font-bold text-white mb-1">Decision Engine Rollout — Weak Areas V2</div>
+        <p className="text-[10px] text-[#5c5c70] mb-3">
+          The pilot flag is off for every real student today. Read-only health of the V1/V2 split,
+          for the separate decision of when to turn it on.
+        </p>
+        {rolloutLoading ? (
+          <div className="flex items-center gap-2 text-[#78788c] text-sm py-6 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading rollout summary…
+          </div>
+        ) : rolloutError ? (
+          <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            {rolloutError}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <Stat label="V1 uses (7d)" value={rollout?.weak_areas.v1_uses ?? 0} />
+            <Stat
+              label="V2 uses (7d)"
+              value={rollout?.weak_areas.v2_uses ?? 0}
+              hint={
+                rollout?.weak_areas.v2_failure_rate == null
+                  ? undefined
+                  : `Failure rate ${rollout.weak_areas.v2_failure_rate}%`
+              }
+            />
+            <Stat
+              label="Empty results"
+              value={rollout?.weak_areas.v2_empty_results ?? 0}
+              hint={
+                rollout?.weak_areas.v2_empty_result_rate == null
+                  ? undefined
+                  : `Empty rate ${rollout.weak_areas.v2_empty_result_rate}%`
+              }
+            />
+            <Stat
+              label="Students with recommendations"
+              value={`${rollout?.weak_areas.v2_students_with_recommendations ?? 0} / ${rollout?.weak_areas.v2_uses ?? 0}`}
+            />
+            <Stat label="Total recommendations" value={rollout?.weak_areas.v2_total_recommendations ?? 0} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

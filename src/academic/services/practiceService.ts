@@ -34,7 +34,7 @@ import {
   looksLikeUnresolvedMojibake,
 } from "@/lib/utf8MojibakeRepair";
 import { WEAK_CONCEPT_THRESHOLD } from "../eie/masteryBands";
-import { DecisionEngineService } from "./decisionEngineService";
+import { DecisionEngineService, type WeakAreaRecommendation } from "./decisionEngineService";
 import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 
 export type { CurriculumScope };
@@ -114,13 +114,35 @@ async function loadWeakConceptsFromDecisionEngineV2(
   concept_label: string;
   mastery_score: number;
 }>> {
-  const recs = await DecisionEngineService.getWeakAreasV2(ctx);
+  let recs: WeakAreaRecommendation[];
+  try {
+    recs = await DecisionEngineService.getWeakAreasV2(ctx);
+  } catch (err) {
+    // Rollout health fix: this call previously had no observable failure
+    // path at all -- a thrown error here meant execution never reached the
+    // emit below, so a v2 RPC failure was invisible everywhere except a
+    // client console.warn with no server-side trace. Record just enough to
+    // count/time failures (no raw message/stack -- that already exists in
+    // logs, and free-form strings make aggregation messy), then re-throw
+    // the exact same error unchanged. "No silent fallback" is preserved.
+    void emitEventBestEffort(toRepoContext(ctx), {
+      eventType: "practice.weak_areas.v2_failed",
+      entityType: "practice",
+      studentId: ctx.studentId ?? null,
+      payload: { error_type: err instanceof Error ? err.name : "UnknownError" },
+    });
+    throw err;
+  }
   const scope = await PracticeService.resolveCurriculumScope(ctx);
   void emitEventBestEffort(toRepoContext(ctx), {
     eventType: "practice.weak_areas.path_used",
     entityType: "practice",
     studentId: ctx.studentId ?? null,
-    payload: { path: "v2" },
+    // count = raw rpc_weak_areas_v2 row count, before curriculum-scope
+    // filtering/slicing below -- the truest "did the policy return
+    // anything" signal, and what empty-result-rate/recommendation-count
+    // observability is built from.
+    payload: { path: "v2", count: recs.length },
   });
   return recs
     .map((r) => {
