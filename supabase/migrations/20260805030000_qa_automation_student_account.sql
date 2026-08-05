@@ -5,14 +5,78 @@
 -- verification run harder to reason about (stale backlogs, ambiguous
 -- "before" counts, slow queue-paging).
 --
--- Reuses the existing _demo_upsert_auth_user() helper
--- (supabase/SEED_DEMO_DATA.sql) -- not redefined here. Clones school_id and
--- class_id from the current arjun.mehta student row rather than hardcoding
--- a class UUID, so this account is guaranteed to resolve to the same
--- board/stream/class (Class 11-A Commerce) Practice already works against,
--- regardless of which exact class row is live.
+-- Clones school_id and class_id from the current arjun.mehta student row
+-- rather than hardcoding a class UUID, so this account is guaranteed to
+-- resolve to the same board/stream/class (Class 11-A Commerce) Practice
+-- already works against, regardless of which exact class row is live.
 --
 -- Idempotent: fixed UUID + ON CONFLICT, safe to re-run.
+--
+-- _demo_upsert_auth_user() turned out NOT to be live (confirmed by running
+-- this migration: "function public._demo_upsert_auth_user(...) does not
+-- exist") despite being defined in supabase/SEED_DEMO_DATA.sql -- same
+-- silent hand-paste-migration gap this project has hit before (missing
+-- tables/functions from migrations that partially failed to apply). So
+-- this migration is now self-contained: it (re)creates the helper itself,
+-- verbatim from SEED_DEMO_DATA.sql, rather than assuming it already exists.
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE OR REPLACE FUNCTION public._demo_upsert_auth_user(
+  _id uuid,
+  _email text,
+  _password text,
+  _full_name text
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, extensions
+AS $helper$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = _id) THEN
+    INSERT INTO auth.users (
+      id, instance_id, aud, role, email, encrypted_password,
+      email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+      created_at, updated_at,
+      confirmation_token, email_change, email_change_token_new, recovery_token
+    ) VALUES (
+      _id,
+      '00000000-0000-0000-0000-000000000000',
+      'authenticated',
+      'authenticated',
+      lower(_email),
+      extensions.crypt(_password, extensions.gen_salt('bf')),
+      now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      jsonb_build_object('full_name', _full_name),
+      now(), now(),
+      '', '', '', ''
+    );
+  ELSE
+    UPDATE auth.users SET
+      email = lower(_email),
+      encrypted_password = extensions.crypt(_password, extensions.gen_salt('bf')),
+      email_confirmed_at = COALESCE(email_confirmed_at, now()),
+      raw_user_meta_data = jsonb_build_object('full_name', _full_name),
+      updated_at = now()
+    WHERE id = _id;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM auth.identities WHERE user_id = _id AND provider = 'email'
+  ) THEN
+    INSERT INTO auth.identities (
+      id, user_id, identity_data, provider, provider_id,
+      last_sign_in_at, created_at, updated_at
+    ) VALUES (
+      _id, _id,
+      jsonb_build_object('sub', _id::text, 'email', lower(_email)),
+      'email', _id::text,
+      now(), now(), now()
+    );
+  END IF;
+END;
+$helper$;
 
 DO $qa$
 DECLARE
