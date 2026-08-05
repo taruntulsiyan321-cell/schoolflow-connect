@@ -27,6 +27,30 @@ export interface WeakAreaRecommendation {
 }
 
 /**
+ * A single Learning Dimension reading for the Revision policy, per
+ * docs/GURUKUL_ACADEMIC_DECISION_ENGINE_SPEC.md §4/§6.3.
+ */
+export interface RevisionRecommendation {
+  subject: string;
+  chapter: string | null;
+  concept: string;
+  subconcept: string | null;
+  understanding: number | null;
+  evidenceStrength: number | null;
+  retention: number | null;
+  forgettingEventsCount: number;
+  priority: number;
+  /** Structured, not prose — the exact dimension values that justified this
+   * recommendation, per the Decision Engine document §7. */
+  reason: {
+    understanding: number | null;
+    evidence_strength: number | null;
+    retention: number | null;
+    forgetting_events_count: number;
+  };
+}
+
+/**
  * Decision Engine — Slice 1 ("Weak Areas, done right").
  *
  * This service reads only from rpc_weak_areas_v2, a read-only Policy that
@@ -74,6 +98,50 @@ export const DecisionEngineService = {
       evidenceStrength: row.evidence_strength,
       consistency: row.consistency,
       growthTrend: row.growth_trend,
+      priority: row.priority,
+      reason: row.reason,
+    }));
+  },
+
+  /**
+   * Decision Engine — Slice 2 ("Retention + Revision"). Same discipline as
+   * getWeakAreasV2: reads only rpc_revision_plan_v2, a read-only Policy
+   * reading only Learning Dimensions (Understanding, Evidence Strength, the
+   * new Retention dimension). No client-side thresholds or interpretation.
+   */
+  async getRevisionPlanV2(ctx: ServiceContext): Promise<RevisionRecommendation[]> {
+    assertCanConsume(ctx, "practice");
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_revision_plan_v2");
+    throwIfError(error, "Failed to load revision plan");
+
+    type Row = {
+      subject: string;
+      chapter: string | null;
+      concept: string;
+      subconcept: string | null;
+      understanding: number | null;
+      evidence_strength: number | null;
+      retention: number | null;
+      forgetting_events_count: number;
+      priority: number;
+      reason: {
+        understanding: number | null;
+        evidence_strength: number | null;
+        retention: number | null;
+        forgetting_events_count: number;
+      };
+    };
+
+    return ((data ?? []) as Row[]).map((row) => ({
+      subject: row.subject,
+      chapter: row.chapter,
+      concept: row.concept,
+      subconcept: row.subconcept,
+      understanding: row.understanding,
+      evidenceStrength: row.evidence_strength,
+      retention: row.retention,
+      forgettingEventsCount: row.forgetting_events_count,
       priority: row.priority,
       reason: row.reason,
     }));
