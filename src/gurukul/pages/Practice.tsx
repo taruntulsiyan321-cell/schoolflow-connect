@@ -1417,6 +1417,16 @@ function Session({
           sessionIdRef.current = null;
         }
         setQs(mapped);
+        // Bookmarked Questions loads only questions that are already
+        // bookmarked in question_records — the toggle button's local state
+        // must start reflecting that, or the first click on it (a same-value
+        // "set bookmarked=true") is a no-op and the question can never be
+        // un-bookmarked from within this mode.
+        if (config.mode === "bookmarked" && !config.resumeSessionId) {
+          const allIdx = mapped.map((_, i) => i);
+          bookmarkedRef.current = allIdx;
+          setBookmarked(allIdx);
+        }
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : "Could not start practice");
       } finally {
