@@ -2047,7 +2047,12 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   // Without checking it, curriculumScope resolving first makes classIdMissing
   // true for a real class that just hasn't hydrated into academicIdentity yet.
   const classIdMissing = shellReady && !!curriculumScope && !academicIdentity.classId;
-  const classLevelUnresolved = !!curriculumScope && curriculumScope.classLevel == null;
+  // Same reasoning as classIdMissing above: observed live with the exact
+  // same signature (header still showing placeholder identity when this
+  // fired) -- resolveCurriculumScope reads ctx.classId/schoolId, which goes
+  // through the same slow identity-resolution path, so a resolved-but-null
+  // classLevel can be a premature read, not a genuine absence.
+  const classLevelUnresolved = shellReady && !!curriculumScope && curriculumScope.classLevel == null;
   const classUnresolved = classIdMissing || classLevelUnresolved;
   const classUnresolvedMessage = classIdMissing
     ? CLASS_UNRESOLVED_MSG
