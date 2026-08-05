@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
-import { useGurukulAcademicIdentity, useGurukulStudent } from "@/gurukul/StudentContext";
+import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD, type CurriculumScope } from "@/academic";
 import type { PracticeSessionRow } from "@/academic";
@@ -2023,6 +2023,7 @@ return (
 export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const academicIdentity = useGurukulAcademicIdentity();
+  const shellReady = useGurukulShellReady();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { ctx, ready: academicReady } = useAcademicContext();
@@ -2039,7 +2040,13 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     practiceType: "",
     date: "",
   });
-  const classIdMissing = !!curriculumScope && !academicIdentity.classId;
+  // academicIdentity is populated by StudentDashboard from a separate async
+  // source than curriculumScope (Practice's own resolveCurriculumScope
+  // fetch) -- shellReady is the flag that already exists to say "identity
+  // isn't loaded yet" (studentShellReady = academicReady && progressionLoaded).
+  // Without checking it, curriculumScope resolving first makes classIdMissing
+  // true for a real class that just hasn't hydrated into academicIdentity yet.
+  const classIdMissing = shellReady && !!curriculumScope && !academicIdentity.classId;
   const classLevelUnresolved = !!curriculumScope && curriculumScope.classLevel == null;
   const classUnresolved = classIdMissing || classLevelUnresolved;
   const classUnresolvedMessage = classIdMissing
