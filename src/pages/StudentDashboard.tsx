@@ -36,6 +36,7 @@ import Class12MathPractice from "./student/Class12MathPractice";
 import Class12MathSession from "./student/Class12MathSession";
 import Class12AiSession from "./student/Class12AiSession";
 import PracticeSessionResult from "./student/PracticeSessionResult";
+import WeakAreasV2Debug from "./student/_debug/WeakAreasV2Debug";
 import DppAttempt from "./student/DppAttempt";
 import DppResult from "./student/DppResult";
 import { BattleRoom as LiveBattleRoom } from "./student/Battleground";
@@ -303,6 +304,8 @@ export default function StudentDashboard() {
           <Route path="practice/math12/session" element={<Class12MathSession />} />
           <Route path="practice/ai/session" element={<Class12AiSession />} />
           <Route path="practice/session/:id/result" element={<PracticeSessionResult />} />
+          {/* Internal debug tool, Decision Engine Slice 1 -- not linked from any nav */}
+          <Route path="_debug/weak-areas-v2" element={<WeakAreasV2Debug />} />
           <Route path="dpp" element={<Navigate to="/student/tests" replace />} />
           <Route path="dpp/:id/attempt" element={<DppAttempt />} />
           <Route path="dpp/:id/result" element={<DppResult />} />
