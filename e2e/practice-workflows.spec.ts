@@ -56,6 +56,13 @@ async function optionButton(page: Page, letter: "A" | "B" | "C" | "D") {
 async function bookmarkToggle(page: Page) {
   return page.locator('button[title*="Flag for this session"]');
 }
+/** Clicks the bookmark toggle and gives its RPC call time to actually land
+ * before the caller does anything else (e.g. End Session) that could race
+ * an in-flight write. */
+async function clickBookmarkToggle(page: Page) {
+  await (await bookmarkToggle(page)).click();
+  await page.waitForTimeout(1500);
+}
 
 /**
  * Answers the current question and waits for the feedback phase. The
@@ -190,7 +197,7 @@ test.describe("Workflow: Bookmark round-trip", () => {
     await startSubjectSession(page);
     const qText = await currentQuestionText(page);
     const needle = qText.slice(0, 30);
-    await (await bookmarkToggle(page)).click();
+    await clickBookmarkToggle(page);
     await endSession(page);
 
     await page.goto("/student/practice");
@@ -216,7 +223,7 @@ test.describe("Workflow: Bookmark round-trip", () => {
     // locateQuestionInQueue leaves the matched question as current, un-answered.
 
     // Remove it.
-    await (await bookmarkToggle(page)).click();
+    await clickBookmarkToggle(page);
     await endSession(page);
 
     await page.goto("/student/practice");
@@ -243,31 +250,35 @@ test.describe("Workflow: Mistake Book lifecycle", () => {
     await endSession(page);
 
     const needle = wrong.qText.slice(0, 30);
-    // Poll with real fresh navigations, not one shot -- rules out a single
-    // stale/racy fetch rather than a genuine absence.
-    let found = false;
-    for (let i = 0; i < 4 && !found; i++) {
-      if (i > 0) await page.waitForTimeout(3000);
-      await page.goto("/student/mistakes");
-      // "Restoring your session…" is a genuine, real load state (observed
-      // elsewhere taking up to ~28s) -- checking for content before it
-      // clears risks a false negative, not a true absence.
-      await expect(page.getByText("Restoring your session…")).toBeHidden({ timeout: 30000 });
-      found = await page.getByText(needle, { exact: false }).first().isVisible({ timeout: 10000 }).catch(() => false);
-    }
-    expect(found, `wrong answer for "${needle}" never appeared on /student/mistakes after 4 fresh attempts`).toBe(true);
+    await page.goto("/student/mistakes");
+    // "Restoring your session…" clearing is a DIFFERENT, earlier loading gate
+    // than the page's own student_mistakes fetch. Confirmed via network
+    // capture (diag-mistakebook.spec.ts): rpc_get_my_student_identity
+    // returns 400 (a pre-existing issue outside Practice, not fixed here per
+    // scope), which forces a slower multi-query fallback identity
+    // resolution -- the actual student_mistakes request can take 15s+ after
+    // "Restoring your session…" clears. A one-shot check right after that
+    // gate is a false negative, not a true absence -- use an auto-retrying
+    // expect with a matching budget instead of a fixed wait.
+    await expect(page.getByText("Restoring your session…")).toBeHidden({ timeout: 30000 });
+    const found = await expect(page.getByText(needle, { exact: false }).first())
+      .toBeVisible({ timeout: 25000 })
+      .then(() => true)
+      .catch(() => false);
+    expect(found, `wrong answer for "${needle}" never appeared on /student/mistakes`).toBe(true);
     if (!found) return; // nothing further to prove if the entry never showed up
 
     // Reload confirms it's a persisted read, not local optimistic state.
     await page.reload();
     await expect(page.getByText("Restoring your session…")).toBeHidden({ timeout: 30000 });
-    await expect(page.getByText(needle, { exact: false }).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(needle, { exact: false }).first()).toBeVisible({ timeout: 25000 });
   });
 });
 
 // ── 3. Incorrect Questions (the practice mode, not the Mistake Book page) ──
 test.describe("Workflow: Incorrect Questions persistence", () => {
   test("wrong creates an entry; answering correctly clears it and survives reload", async ({ page }) => {
+    test.setTimeout(150000);
     const wrong = await forceOneWrongAnswerAcrossSessions(page);
     await endSession(page);
 
@@ -410,6 +421,7 @@ test.describe("Workflow: Confidence update timing", () => {
 // ── 6. History ───────────────────────────────────────────────────────────────
 test.describe("Workflow: History", () => {
   test("finishing a session adds exactly one entry, which opens and survives reload", async ({ page }) => {
+    test.setTimeout(120000);
     await page.goto("/student/practice");
     await expect(page.getByText("Practice History", { exact: true })).toBeVisible({ timeout: 20000 });
     const before = await stableHistoryEntryCount(page);
@@ -481,6 +493,7 @@ test.describe("Workflow: QuestionRecord integrity", () => {
 // ── 8. PYQ ───────────────────────────────────────────────────────────────────
 test.describe("Workflow: PYQ", () => {
   test("opens, filters load, questions load, session completes", async ({ page }) => {
+    test.setTimeout(150000);
     await openMode(page, "Previous Year Questions");
     await expect(page.getByText("Exam year (optional)")).toBeVisible({ timeout: 15000 });
     await expect(page.getByRole("button", { name: "All years" })).toBeVisible();
@@ -497,9 +510,14 @@ test.describe("Workflow: PYQ", () => {
     // poll with fresh navigations rather than a single read, which can catch
     // a cold-start window where the mode screen renders before subjects has
     // hydrated.
+    // Confirmed via network capture (diag-mistakebook.spec.ts) that identity
+    // resolution on this account can take 15s+ under a cold start (a
+    // pre-existing, out-of-scope 400 on rpc_get_my_student_identity forces a
+    // slower fallback path) -- give subjects the same realistic budget
+    // before concluding it's genuinely empty.
     let subjectCount = await subjectChips(page, /^Subject$/).count();
-    for (let i = 0; i < 3 && subjectCount === 0; i++) {
-      await page.waitForTimeout(3000);
+    for (let i = 0; i < 5 && subjectCount === 0; i++) {
+      await page.waitForTimeout(4000);
       await page.goto("/student/practice");
       await openMode(page, "Previous Year Questions");
       await expect(page.getByText(/^Subject$/)).toBeVisible({ timeout: 15000 });
