@@ -6,13 +6,18 @@ import { test as setup, expect } from "@playwright/test";
  * playwright.config.ts's storageState -- none of them ever submit a login
  * form themselves.
  *
- * Credentials default to the demo student fixture this repo's own seed
- * tooling already documents in plaintext (scripts/apply-seed.mjs) --
- * arjun.mehta@wisdomcampus.com. Override with E2E_STUDENT_EMAIL /
- * E2E_STUDENT_PASSWORD to run against a different account.
+ * Defaults to the dedicated QA automation account (see
+ * docs/DEMO_ACCOUNTS.md, applied via
+ * supabase/migrations/20260805030000_qa_automation_student_account.sql) --
+ * NOT arjun.mehta@wisdomcampus.com. That account accumulated hundreds of
+ * practice sessions/bookmarks/mistakes/history entries from this repo's own
+ * E2E runs, which made every later verification run slower and harder to
+ * reason about. Override with E2E_STUDENT_EMAIL / E2E_STUDENT_PASSWORD to
+ * run against a different account, but don't point this back at
+ * arjun.mehta for routine verification.
  */
-const EMAIL = process.env.E2E_STUDENT_EMAIL || "arjun.mehta@wisdomcampus.com";
-const PASSWORD = process.env.E2E_STUDENT_PASSWORD || "DemoPass123!";
+const EMAIL = process.env.E2E_STUDENT_EMAIL || "qa.automation@wisdomcampus.com";
+const PASSWORD = process.env.E2E_STUDENT_PASSWORD || "QaAutomation123!";
 
 const authFile = "e2e/.auth/student.json";
 

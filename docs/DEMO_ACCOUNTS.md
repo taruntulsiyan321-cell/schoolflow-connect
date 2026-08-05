@@ -98,6 +98,19 @@ Teachers auto-link by matching `teachers.email` on signup.
 
 In Lovable, open **Supabase** → run migrations or paste `supabase/migrations/20260604120000_demo_data.sql` in the SQL editor. Confirm **Auth → Users** lists the emails above after the migration.
 
+## QA automation account (Playwright / E2E)
+
+A separate student account, reserved **only** for automated verification. Never sign into `arjun.mehta@wisdomcampus.com` for E2E runs — that account accumulated hundreds of practice sessions, bookmarks, mistakes, and history entries during the Practice module stabilization work, which makes every new verification run slower and harder to reason about (large queue-paging, ambiguous "before" counts).
+
+Apply `supabase/migrations/20260805030000_qa_automation_student_account.sql` (idempotent, safe to re-run). It clones the school/class assignment from `arjun.mehta`'s student row, so it resolves to the same board/stream/class Practice already works against, without copying any of that account's history.
+
+| Field | Value |
+|-------|--------|
+| Email | `qa.automation@wisdomcampus.com` |
+| Password | `QaAutomation123!` |
+
+`e2e/auth.setup.ts` uses this account by default (override with `E2E_STUDENT_EMAIL` / `E2E_STUDENT_PASSWORD` if needed). If this account ever accumulates its own testing debris, the fix is a fresh one — not reusing `arjun.mehta` again.
+
 ## Security
 
 Demo users use the `@wisdomcampus.com` domain. **Do not use these passwords in production.** Remove or skip this migration in production databases.
