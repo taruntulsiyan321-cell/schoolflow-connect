@@ -1425,7 +1425,7 @@ function Session({
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, academicReady, config]);
+  }, [ctx, academicReady, config, classUnresolved, classUnresolvedMessage]);
 
   // Resume with prior attempts but no remaining bank questions → finish via SSOT RPC.
   useEffect(() => {
