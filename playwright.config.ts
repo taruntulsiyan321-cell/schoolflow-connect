@@ -12,6 +12,13 @@ const baseURL =
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
+  // Every test in this suite shares one live demo account (same
+  // storageState) -- fullyParallel:false only serializes tests within a
+  // single file. Without pinning workers to 1, Playwright still runs
+  // separate files concurrently, and two tests finishing sessions or
+  // reading history at the same moment corrupt each other's "before/after"
+  // counts. Correctness requires full serialization here, not just speed.
+  workers: 1,
   retries: 0,
   // Default 30s is too tight for this live, network-dependent app --
   // session-restore/cold-load has been observed taking up to ~28s on its own.

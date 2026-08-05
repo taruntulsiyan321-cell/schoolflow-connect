@@ -161,10 +161,32 @@ function historyListContainer(page: Page) {
 async function historyEntryCount(page: Page): Promise<number> {
   return historyListContainer(page).locator("button").count();
 }
+/**
+ * The "Practice History" heading renders immediately, independent of its own
+ * async listHistory() fetch -- reading the count right after the heading
+ * appears can catch it mid-load (0 or partial) and produce a false baseline.
+ * Poll until two consecutive reads agree.
+ */
+async function stableHistoryEntryCount(page: Page, timeoutMs = 15000): Promise<number> {
+  const deadline = Date.now() + timeoutMs;
+  let prev = await historyEntryCount(page);
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(500);
+    const cur = await historyEntryCount(page);
+    if (cur === prev) return cur;
+    prev = cur;
+  }
+  return prev;
+}
 
 // ── 1. Bookmark round-trip ──────────────────────────────────────────────────
 test.describe("Workflow: Bookmark round-trip", () => {
   test("bookmark -> end -> reload -> shows in Bookmarked Questions -> remove -> reload confirms gone", async ({ page }) => {
+    // Bookmarked Questions accumulates across every prior run against this
+    // shared live account -- locateQuestionInQueue may have to page through
+    // a real, growing backlog. Default 60s is too tight for that, not for
+    // any product-side slowness.
+    test.setTimeout(150000);
     await startSubjectSession(page);
     const qText = await currentQuestionText(page);
     const needle = qText.slice(0, 30);
@@ -180,7 +202,13 @@ test.describe("Workflow: Bookmark round-trip", () => {
     let located = await locateQuestionInQueue(page, needle);
     expect(located, `"${needle}" never turned up in Bookmarked Questions after bookmarking it`).toBe(true);
 
+    // This SPA keeps session phase/config in React state only, not the URL --
+    // reloading mid-session always lands back on the Hub, not a resumed
+    // session. "Survives a reload" is proven by reloading the Hub, then
+    // re-entering the mode fresh, not by reloading mid-session.
+    await page.goto("/student/practice");
     await page.reload();
+    await openMode(page, "Bookmarked Questions");
     await waitForLoaded(page);
     await waitForQuestion(page);
     located = await locateQuestionInQueue(page, needle);
@@ -198,7 +226,9 @@ test.describe("Workflow: Bookmark round-trip", () => {
     const stillThere = !err && (await locateQuestionInQueue(page, needle).catch(() => false));
     expect(stillThere, "question is still showing in Bookmarked Questions after removing the bookmark").toBe(false);
 
+    await page.goto("/student/practice");
     await page.reload();
+    await openMode(page, "Bookmarked Questions");
     await waitForLoaded(page);
     const err2 = await hasStartError(page);
     const stillThereAfterReload = !err2 && (await locateQuestionInQueue(page, needle).catch(() => false));
@@ -212,14 +242,20 @@ test.describe("Workflow: Mistake Book lifecycle", () => {
     const wrong = await forceOneWrongAnswerAcrossSessions(page);
     await endSession(page);
 
-    await page.goto("/student/mistakes");
-    // "Restoring your session…" is a genuine, real load state (observed
-    // elsewhere taking up to ~28s) -- checking for content before it clears
-    // risks a false negative, not a true absence.
-    await expect(page.getByText("Restoring your session…")).toBeHidden({ timeout: 30000 });
     const needle = wrong.qText.slice(0, 30);
-    const found = await page.getByText(needle, { exact: false }).first().isVisible({ timeout: 15000 }).catch(() => false);
-    expect(found, `wrong answer for "${needle}" never appeared on /student/mistakes`).toBe(true);
+    // Poll with real fresh navigations, not one shot -- rules out a single
+    // stale/racy fetch rather than a genuine absence.
+    let found = false;
+    for (let i = 0; i < 4 && !found; i++) {
+      if (i > 0) await page.waitForTimeout(3000);
+      await page.goto("/student/mistakes");
+      // "Restoring your session…" is a genuine, real load state (observed
+      // elsewhere taking up to ~28s) -- checking for content before it
+      // clears risks a false negative, not a true absence.
+      await expect(page.getByText("Restoring your session…")).toBeHidden({ timeout: 30000 });
+      found = await page.getByText(needle, { exact: false }).first().isVisible({ timeout: 10000 }).catch(() => false);
+    }
+    expect(found, `wrong answer for "${needle}" never appeared on /student/mistakes after 4 fresh attempts`).toBe(true);
     if (!found) return; // nothing further to prove if the entry never showed up
 
     // Reload confirms it's a persisted read, not local optimistic state.
@@ -259,7 +295,9 @@ test.describe("Workflow: Incorrect Questions persistence", () => {
     const stillThere = !err && (await locateQuestionInQueue(page, needle));
     expect(stillThere, "question still appears in Incorrect Questions after being answered correctly").toBe(false);
 
+    await page.goto("/student/practice");
     await page.reload();
+    await openMode(page, "Incorrect Questions");
     await waitForLoaded(page);
     const err2 = await hasStartError(page);
     const stillThereAfterReload = !err2 && (await locateQuestionInQueue(page, needle).catch(() => false));
@@ -270,6 +308,7 @@ test.describe("Workflow: Incorrect Questions persistence", () => {
 // ── 4. Skipped Questions lifecycle ──────────────────────────────────────────
 test.describe("Workflow: Skipped Questions lifecycle", () => {
   test("skip -> appears in Skipped -> reattempt -> reload confirms persistence", async ({ page }) => {
+    test.setTimeout(150000);
     await startSubjectSession(page);
     const qText = await skipCurrentQuestion(page);
     // skip() auto-advances; end immediately so this stays the session's only event.
@@ -294,8 +333,10 @@ test.describe("Workflow: Skipped Questions lifecycle", () => {
     const errSkip = await hasStartError(page);
     const stillInSkipped = !errSkip && (await locateQuestionInQueue(page, needle).catch(() => false));
 
+    let finalMode: "Skipped Questions" | "Incorrect Questions";
     if (retry.isCorrect) {
       expect(stillInSkipped, "answering the skipped question correctly should remove it from Skipped").toBe(false);
+      finalMode = "Skipped Questions"; // absence is what's being re-checked after reload
     } else {
       // Documented, not assumed: a wrong reattempt should move it to Incorrect
       // Questions rather than leave it duplicated in Skipped.
@@ -306,9 +347,14 @@ test.describe("Workflow: Skipped Questions lifecycle", () => {
       const errInc = await hasStartError(page);
       const inIncorrect = !errInc && (await locateQuestionInQueue(page, needle).catch(() => false));
       expect(inIncorrect, "wrong reattempt of a skipped question did not surface in Incorrect Questions").toBe(true);
+      finalMode = "Incorrect Questions";
     }
 
+    // Reloading mid-session always returns to the Hub (phase/config are React
+    // state, not URL-encoded) -- re-enter the same mode fresh afterward.
+    await page.goto("/student/practice");
     await page.reload();
+    await openMode(page, finalMode);
     await waitForLoaded(page);
     const errAfterReload = await hasStartError(page);
     const stateAfterReload = !errAfterReload && (await locateQuestionInQueue(page, needle).catch(() => false));
@@ -330,9 +376,15 @@ test.describe("Workflow: Confidence update timing", () => {
     // test proves that RPC is never called while questions are still being
     // answered, and is called exactly once when the session ends.
     const finishCalls: string[] = [];
+    const finishResponses: number[] = [];
     page.on("request", (req) => {
       if (req.method() === "POST" && /\/rpc\/rpc_finish_practice_session(\?|$)/.test(req.url())) {
         finishCalls.push(req.url());
+      }
+    });
+    page.on("response", (res) => {
+      if (res.request().method() === "POST" && /\/rpc\/rpc_finish_practice_session(\?|$)/.test(res.url())) {
+        finishResponses.push(res.status());
       }
     });
 
@@ -348,6 +400,10 @@ test.describe("Workflow: Confidence update timing", () => {
 
     await endSession(page);
     expect(finishCalls.length, "expected exactly one rpc_finish_practice_session call at End Session").toBe(1);
+    // A call happening is not proof confidence was actually recomputed --
+    // the RPC can fire and still fail server-side. Check it actually
+    // succeeded, not merely that it was sent.
+    expect(finishResponses, "rpc_finish_practice_session did not return a successful status").toEqual([200]);
   });
 });
 
@@ -356,7 +412,7 @@ test.describe("Workflow: History", () => {
   test("finishing a session adds exactly one entry, which opens and survives reload", async ({ page }) => {
     await page.goto("/student/practice");
     await expect(page.getByText("Practice History", { exact: true })).toBeVisible({ timeout: 20000 });
-    const before = await historyEntryCount(page);
+    const before = await stableHistoryEntryCount(page);
 
     await startSubjectSession(page);
     await answerCurrentQuestion(page, "A");
@@ -378,6 +434,7 @@ test.describe("Workflow: History", () => {
 // ── 7. QuestionRecord integrity (indirect, UI-only) ─────────────────────────
 test.describe("Workflow: QuestionRecord integrity", () => {
   test("two consecutive wrong attempts on the same question never duplicate it in Incorrect Questions", async ({ page }) => {
+    test.setTimeout(150000);
     // No service-role DB access is available (anon key only, see .env), so
     // attempt_count / correct_count / wrong_count on question_records can't
     // be asserted directly. This proves the one thing observable end-to-end:
@@ -434,8 +491,21 @@ test.describe("Workflow: PYQ", () => {
     // exam-year-tagged seed content -- try each subject rather than assume
     // the first one does. If none do, that's an honest content gap (the app
     // shows a real "no PYQ content" empty state, not an error), not a bug.
-    const subjectCount = await subjectChips(page, /^Subject$/).count();
-    expect(subjectCount, "PYQ config shows no subjects at all").toBeGreaterThan(0);
+    //
+    // The subject list is a separate async fetch (root Practice component,
+    // keyed on [ctx, academicReady]) from the mode config screen itself --
+    // poll with fresh navigations rather than a single read, which can catch
+    // a cold-start window where the mode screen renders before subjects has
+    // hydrated.
+    let subjectCount = await subjectChips(page, /^Subject$/).count();
+    for (let i = 0; i < 3 && subjectCount === 0; i++) {
+      await page.waitForTimeout(3000);
+      await page.goto("/student/practice");
+      await openMode(page, "Previous Year Questions");
+      await expect(page.getByText(/^Subject$/)).toBeVisible({ timeout: 15000 });
+      subjectCount = await subjectChips(page, /^Subject$/).count();
+    }
+    expect(subjectCount, "PYQ config shows no subjects at all after multiple fresh attempts").toBeGreaterThan(0);
 
     let started = false;
     let lastEmptyMessage = "";
