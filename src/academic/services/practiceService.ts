@@ -7,7 +7,7 @@ import {
 import { assertStudentClassContext } from "./assertStudentContext";
 import type { Json } from "@/integrations/supabase/types";
 import { getClient, throwIfError } from "../repository/base";
-import { emitEvent } from "../repository/eventsRepository";
+import { emitEvent, emitEventBestEffort } from "../repository/eventsRepository";
 import { broadcastAcademicWrite } from "../live";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
 import {
@@ -34,6 +34,8 @@ import {
   looksLikeUnresolvedMojibake,
 } from "@/lib/utf8MojibakeRepair";
 import { WEAK_CONCEPT_THRESHOLD } from "../eie/masteryBands";
+import { DecisionEngineService } from "./decisionEngineService";
+import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 
 export type { CurriculumScope };
 export type AcademicTermRef = TaxonomyTermRef;
@@ -93,6 +95,72 @@ function isMissingSchema(err: unknown): boolean {
 let softDeleteAvailable: boolean | null = null;
 let questionRecordsAvailable: boolean | null = null;
 let confidenceAvailable: boolean | null = null;
+
+/**
+ * Decision Engine Slice 1 swap-in for listWeakConcepts's "simple" path,
+ * gated by DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2 (default off).
+ * rpc_weak_areas_v2 returns raw concept_mastery columns with no
+ * curriculum-scope filtering, placeholder-label filtering, or display
+ * formatting -- this reapplies the same guarantees the legacy query
+ * already provides, to keep the return contract intact for every caller.
+ */
+async function loadWeakConceptsFromDecisionEngineV2(
+  ctx: ServiceContext,
+  limit: number,
+): Promise<Array<{
+  subject: string;
+  chapter: string | null;
+  concept: string;
+  concept_label: string;
+  mastery_score: number;
+}>> {
+  const recs = await DecisionEngineService.getWeakAreasV2(ctx);
+  const scope = await PracticeService.resolveCurriculumScope(ctx);
+  void emitEventBestEffort(toRepoContext(ctx), {
+    eventType: "practice.weak_areas.path_used",
+    entityType: "practice",
+    studentId: ctx.studentId ?? null,
+    payload: { path: "v2" },
+  });
+  return recs
+    .map((r) => {
+      const subjectRaw = r.subject ?? "";
+      const chapterRaw = r.chapter;
+      const conceptRaw = r.concept ?? "";
+      return {
+        subjectRaw,
+        conceptRaw,
+        subject: displaySubject(subjectRaw) || subjectRaw,
+        chapter:
+          chapterRaw && !isPlaceholderAcademicLabel(chapterRaw)
+            ? displayChapter(chapterRaw)
+            : null,
+        concept: conceptRaw,
+        concept_label: displayConcept(conceptRaw),
+        // Practice's existing contract expects a mastery-like value. During
+        // the feature-flag rollout we intentionally map the Decision
+        // Engine's Understanding dimension into that field without
+        // changing the public PracticeService contract -- this is an
+        // adapter translation, not a claim that mastery_score and
+        // Understanding are the same concept. They aren't: mastery_score
+        // was a single ad hoc composite; Understanding is one canonical
+        // Learning Dimension among several. Numerically compatible (both
+        // 0-100), semantically distinct -- do not treat this field as
+        // "real" Understanding anywhere downstream.
+        mastery_score: r.understanding ?? 0,
+      };
+    })
+    .filter(
+      (r) =>
+        r.subject &&
+        r.concept &&
+        !isPlaceholderAcademicLabel(r.subjectRaw) &&
+        !isPlaceholderAcademicLabel(r.conceptRaw) &&
+        isSubjectAllowedForScope(r.subject, scope.stream, scope.classLevel),
+    )
+    .slice(0, limit)
+    .map(({ subjectRaw: _s, conceptRaw: _c, ...row }) => row);
+}
 
 const PRACTICE_SESSION_LIST_SELECT =
   "id, subject, chapter, question_count, correct_count, score, created_at, finished_at, practice_mode, skipped_count, wrong_count, total_time_ms, accuracy, saved_at, analysis_snapshot, xp_earned, difficulty, time_limit_sec";
@@ -758,6 +826,21 @@ export const PracticeService = {
     mastery_score: number;
   }>> {
     assertCanConsume(ctx, "practice");
+
+    // Decision Engine Slice 1 swap-in -- only for the "simple" (Practice
+    // Engine V1) path, behind an explicit, default-off flag. The
+    // "weighted" path below (legacy mastery_score, read by contextApis.ts)
+    // is completely untouched -- the flag has zero effect on it.
+    if (opts.source === "simple" && DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2) {
+      return loadWeakConceptsFromDecisionEngineV2(ctx, opts.limit ?? 12);
+    }
+    void emitEventBestEffort(toRepoContext(ctx), {
+      eventType: "practice.weak_areas.path_used",
+      entityType: "practice",
+      studentId: ctx.studentId ?? null,
+      payload: { path: "v1" },
+    });
+
     // Align with EIE / Nova / Recovery: mastery < WEAK_CONCEPT_THRESHOLD.
     const threshold = opts.threshold ?? WEAK_CONCEPT_THRESHOLD;
     const limit = opts.limit ?? 12;

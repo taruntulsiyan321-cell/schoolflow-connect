@@ -57,6 +57,18 @@ export const NOVA_FEATURE_FLAGS = {
   voice: parseBool(readEnv("VITE_FF_NOVA_VOICE"), false),
 } as const;
 
+/** Decision Engine integration switches — default OFF until a slice is
+ * proven in normal use (see docs/GURUKUL_ACADEMIC_DECISION_ENGINE_SPEC.md). */
+export const DECISION_ENGINE_FEATURE_FLAGS = {
+  weakAreasV2: parseBool(readEnv("VITE_FF_DECISION_ENGINE_WEAK_AREAS_V2"), false),
+} as const;
+if (DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2) {
+  // Once per app load, never per-request -- confirms this build actually
+  // has the flag baked in (VITE_FF_* is resolved at build time), so
+  // "I turned the flag on" is verifiable from the browser console alone.
+  console.log("[DecisionEngine] Weak Areas V2 enabled");
+}
+
 const DOUBT_ATTACH_META: Record<DoubtAttachKind, { label: string }> = {
   image: { label: "Image" },
   camera: { label: "Camera" },
