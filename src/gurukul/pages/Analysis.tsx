@@ -21,6 +21,8 @@ import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { buildMilestones, consistencyGrid } from "@/components/student/analytics/wisdom/analyticsDerived";
 import { MarksService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { DecisionEngineService, type WeakAreaRecommendation } from "@/academic/services/decisionEngineService";
+import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicDisplay";
 import {
@@ -105,6 +107,35 @@ export default function Analysis() {
   const { data: charts, loading: chartsLoading, error: chartsError } = useStudentPerformanceCharts(academicReady);
   const { data: snapshot, loading: snapshotLoading, error: snapshotError } = useStudentAcademicSnapshot(academicReady);
   const { items: mastery, loading: masteryLoading, error: masteryError } = useConceptMastery(academicReady);
+
+  // Decision Engine Slice 1 swap-in for topicGroups.needs_attention only
+  // (see the approved plan -- the other 6 weak_topics/strong_topics read
+  // sites in this file, and the shared deriveChapterRows/deriveRecoveryTopics
+  // library functions, are explicitly deferred). Reuses the same
+  // weakAreasV2 flag already live for Practice.tsx and
+  // RecoveryCompletionReportPage.tsx -- one rollout, not a per-consumer flag.
+  const [v2WeakAreas, setV2WeakAreas] = useState<WeakAreaRecommendation[] | null>(null);
+  useEffect(() => {
+    if (!DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2 || !ctx || !academicReady) return;
+    let cancelled = false;
+    DecisionEngineService.getWeakAreasV2(ctx)
+      .then((recs) => {
+        if (cancelled) return;
+        setV2WeakAreas(recs);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        // Same reasoning as RecoveryCompletionReportPage.tsx: rollout
+        // health metrics live in practiceService.ts's wrapper, not here, so
+        // this direct caller doesn't need to replicate them. Empty, not a
+        // silent fallback to the legacy snapshot field.
+        console.warn("[Analysis] getWeakAreasV2 failed:", e instanceof Error ? e.message : e);
+        setV2WeakAreas([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx, academicReady]);
   const [marks, setMarks] = useState<MarksRecord[]>([]);
   const [exams, setExams] = useState<ExamRecord[]>([]);
 
@@ -257,6 +288,19 @@ export default function Analysis() {
     const realTopic = (t: { topic?: string | null; chapter?: string | null }) =>
       preferRealAcademicLabel(t.topic, t.chapter);
     const realSubject = (s: string | null | undefined) => preferRealAcademicLabel(s);
+    const weakTopicsSource: { subject: string; chapter?: string; topic?: string; accuracy: number }[] =
+      DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2
+        ? (v2WeakAreas ?? []).map((r) => ({
+            subject: r.subject,
+            chapter: r.chapter ?? undefined,
+            topic: r.subconcept ?? r.concept,
+            // Adapter, not equivalence -- same pattern already used for
+            // mastery_score elsewhere: understanding and accuracy are both
+            // 0-100 "how well is this understood" scales, not the same
+            // measurement.
+            accuracy: r.understanding ?? 0,
+          }))
+        : (snapshot?.weak_topics ?? []);
     return {
       doing_well: (snapshot?.strong_topics ?? [])
         .map((t) => {
@@ -266,7 +310,7 @@ export default function Analysis() {
           return { topic, subject, score: Math.round(t.accuracy) };
         })
         .filter((t): t is NonNullable<typeof t> => t != null),
-      needs_attention: (snapshot?.weak_topics ?? [])
+      needs_attention: weakTopicsSource
         .map((t) => {
           const topic = realTopic(t);
           const subject = realSubject(t.subject);
@@ -304,7 +348,7 @@ export default function Analysis() {
           subject: preferRealAcademicLabel(m.subject),
         })),
     };
-  }, [snapshot?.strong_topics, snapshot?.weak_topics, mastery, charts?.practice_trend, analysis?.recent_sessions]);
+  }, [snapshot?.strong_topics, snapshot?.weak_topics, v2WeakAreas, mastery, charts?.practice_trend, analysis?.recent_sessions]);
 
   const practiceStats = useMemo(() => {
     const weekly = charts?.weekly_activity ?? [];
