@@ -51,6 +51,32 @@ export interface RevisionRecommendation {
 }
 
 /**
+ * A single Learning Dimension reading for the Recovery policy, per
+ * docs/GURUKUL_ACADEMIC_DECISION_ENGINE_SPEC.md §4/§6.3.
+ */
+export interface RecoveryRecommendation {
+  subject: string;
+  chapter: string | null;
+  concept: string;
+  subconcept: string | null;
+  recoveryNeed: number | null;
+  consistency: number | null;
+  evidenceStrength: number | null;
+  growthTrend: number | null;
+  understanding: number | null;
+  priority: number;
+  /** Structured, not prose — the exact dimension values that justified this
+   * recommendation, per the Decision Engine document §7. */
+  reason: {
+    recovery_need: number | null;
+    consistency: number | null;
+    evidence_strength: number | null;
+    growth_trend: number | null;
+    understanding: number | null;
+  };
+}
+
+/**
  * Decision Engine — Slice 1 ("Weak Areas, done right").
  *
  * This service reads only from rpc_weak_areas_v2, a read-only Policy that
@@ -142,6 +168,54 @@ export const DecisionEngineService = {
       evidenceStrength: row.evidence_strength,
       retention: row.retention,
       forgettingEventsCount: row.forgetting_events_count,
+      priority: row.priority,
+      reason: row.reason,
+    }));
+  },
+
+  /**
+   * Decision Engine — Slice 3 ("Recovery"). Same discipline as
+   * getWeakAreasV2/getRevisionPlanV2: reads only rpc_recovery_v2, a
+   * read-only Policy reading only Learning Dimensions (Recovery Need,
+   * Consistency, Evidence Strength, Growth Trend, Understanding). No
+   * client-side thresholds or interpretation.
+   */
+  async getRecoveryV2(ctx: ServiceContext): Promise<RecoveryRecommendation[]> {
+    assertCanConsume(ctx, "practice");
+    const client = getClient(toRepoContext(ctx));
+    const { data, error } = await client.rpc("rpc_recovery_v2");
+    throwIfError(error, "Failed to load recovery plan");
+
+    type Row = {
+      subject: string;
+      chapter: string | null;
+      concept: string;
+      subconcept: string | null;
+      recovery_need: number | null;
+      consistency: number | null;
+      evidence_strength: number | null;
+      growth_trend: number | null;
+      understanding: number | null;
+      priority: number;
+      reason: {
+        recovery_need: number | null;
+        consistency: number | null;
+        evidence_strength: number | null;
+        growth_trend: number | null;
+        understanding: number | null;
+      };
+    };
+
+    return ((data ?? []) as Row[]).map((row) => ({
+      subject: row.subject,
+      chapter: row.chapter,
+      concept: row.concept,
+      subconcept: row.subconcept,
+      recoveryNeed: row.recovery_need,
+      consistency: row.consistency,
+      evidenceStrength: row.evidence_strength,
+      growthTrend: row.growth_trend,
+      understanding: row.understanding,
       priority: row.priority,
       reason: row.reason,
     }));
