@@ -4,9 +4,9 @@ import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
 import { useAcademicContext, PracticeService } from "@/academic";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { useRevisionItems, type RevItem } from "./useRevisionQueueV2";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
-import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { GlassCard, SubjectBadge, cn } from "@/gurukul/components/shared";
 import {
   RotateCcw, Brain, CheckCircle2, AlertCircle,
@@ -16,55 +16,6 @@ import {
 } from "lucide-react";
 
 type RevView = "overview" | "session" | "results";
-
-interface RevItem {
-  id: string; concept: string; subject: string; chapter: string;
-  dueIn: string; priority: number; bookmarked: boolean;
-  teacherAssigned: boolean;
-  source: string; notes?: string;
-}
-
-function dueLabelFromDate(dueDate: string): string {
-  try {
-    const due = new Date(dueDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    due.setHours(0, 0, 0, 0);
-    const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
-    if (diff < 0) return "Now";
-    if (diff === 0) return "Today";
-    if (diff === 1) return "Tomorrow";
-    if (diff <= 7) return `${diff} days`;
-    return due.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  } catch {
-    return "—";
-  }
-}
-
-function mapRevisionQueue(
-  queue: NonNullable<ReturnType<typeof useStudentAcademicSnapshot>["data"]>["revision_queue"],
-): RevItem[] {
-  if (!queue?.length) return [];
-  return queue
-    .map((r) => {
-      const concept = [r.topic, r.chapter, r.subject].find((x) => !isPlaceholderAcademicLabel(x));
-      const subject = !isPlaceholderAcademicLabel(r.subject) ? r.subject : "";
-      if (!concept || !subject) return null;
-      const chapter = !isPlaceholderAcademicLabel(r.chapter) ? (r.chapter ?? "—") : "—";
-      return {
-        id: r.id,
-        concept,
-        subject,
-        chapter,
-        dueIn: dueLabelFromDate(r.due_date),
-        priority: r.priority,
-        bookmarked: false,
-        teacherAssigned: false,
-        source: "revision",
-      };
-    })
-    .filter((row): row is RevItem => !!row);
-}
 
 function DueTag({ dueIn }: { dueIn: string }) {
   const cfg =
@@ -219,10 +170,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   const [subjectTab, setSubjectTab] = useState("all");
   const [completingId, setCompletingId] = useState<string | null>(null);
 
-  const REVISION_ITEMS = useMemo(
-    () => mapRevisionQueue(snapshot?.revision_queue),
-    [snapshot?.revision_queue],
-  );
+  const { items: REVISION_ITEMS, v2Error } = useRevisionItems(ctx, academicReady, snapshot);
   const AI_SCHEDULE = useMemo(
     () => [
       { time: "Now", items: REVISION_ITEMS.filter((r) => r.dueIn === "Now") },
@@ -274,12 +222,12 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     );
   }
 
-  if (error) {
+  if (error || v2Error) {
     return (
       <GlassCard className="p-8 text-center">
         <AlertCircle className="w-8 h-8 text-violet-400 mx-auto mb-2"/>
         <p className="text-sm text-[#78788c]">Could not load revision queue</p>
-        <p className="text-xs text-[#78788c] mt-1">{error}</p>
+        <p className="text-xs text-[#78788c] mt-1">{error || v2Error}</p>
       </GlassCard>
     );
   }
