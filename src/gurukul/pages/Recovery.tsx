@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useRecoveryZone, type RecoveryZoneData, type WeakConcept } from "@/hooks/useRecoveryZone";
 import { PracticeService, useAcademicContext } from "@/academic";
+import { DecisionEngineService, type WeakAreaRecommendation } from "@/academic/services/decisionEngineService";
+import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displayConcept } from "@/lib/academicDisplay";
@@ -334,6 +336,50 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
   const [searchParams, setSearchParams] = useSearchParams();
   const { ctx, ready: academicReady } = useAcademicContext();
   const { data, loading, error, reload } = useRecoveryZone(academicReady);
+
+  // Decision Engine Slice 1 swap-in for the evidence-only branch of
+  // mapRecoveryZoneToTopics (concepts with no open recovery_assignments
+  // row yet) -- reuses the same weakAreasV2 flag already live for
+  // Practice.tsx, RecoveryCompletionReportPage.tsx, and Analysis.tsx (one
+  // rollout, not a per-consumer flag). Does NOT touch open_assignments --
+  // that's product workflow state, not learning evidence, and stays
+  // sourced from rpc_student_recovery_zone regardless of this flag.
+  const [v2WeakAreas, setV2WeakAreas] = useState<WeakAreaRecommendation[] | null>(null);
+  useEffect(() => {
+    if (!DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2 || !ctx || !academicReady) return;
+    let cancelled = false;
+    DecisionEngineService.getWeakAreasV2(ctx)
+      .then((recs) => {
+        if (cancelled) return;
+        setV2WeakAreas(recs);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        console.warn("[Recovery] getWeakAreasV2 failed:", e instanceof Error ? e.message : e);
+        setV2WeakAreas([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx, academicReady]);
+  const weakConceptsSource: WeakConcept[] = useMemo(
+    () =>
+      DECISION_ENGINE_FEATURE_FLAGS.weakAreasV2
+        ? (v2WeakAreas ?? []).map((r) => ({
+            subject: r.subject,
+            chapter: r.chapter ?? undefined,
+            concept: r.concept,
+            subconcept: r.subconcept ?? undefined,
+            // Adapter, not equivalence -- understanding and mastery_score
+            // are both 0-100 "how well is this understood" scales, not the
+            // same measurement (same note as every prior Weak Areas
+            // migration this session).
+            mastery_score: r.understanding ?? 0,
+          }))
+        : (data?.weak_concepts ?? []),
+    [v2WeakAreas, data?.weak_concepts],
+  );
+
   const [view, setView] = useState<RecoveryView>("overview");
   const [activeTopic, setActiveTopic] = useState<RecoveryTopic | null>(null);
   const [sessionScore, setSessionScore] = useState(0);
@@ -367,10 +413,11 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
 
   const TOPICS = useMemo(
     () =>
-      (data ? mapRecoveryZoneToTopics(data) : []).filter((t) =>
-        isSubjectAllowedForScope(t.subject, stream, classLevel),
-      ),
-    [data, stream, classLevel],
+      (data
+        ? mapRecoveryZoneToTopics({ ...data, weak_concepts: weakConceptsSource })
+        : []
+      ).filter((t) => isSubjectAllowedForScope(t.subject, stream, classLevel)),
+    [data, weakConceptsSource, stream, classLevel],
   );
   const TEACHER_TASKS: { id: string; title: string; teacher: string; due: string; qs: number; subject: string }[] = [];
   const AI_PLAN = useMemo(
