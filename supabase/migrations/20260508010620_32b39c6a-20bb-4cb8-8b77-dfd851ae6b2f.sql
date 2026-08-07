@@ -10,7 +10,7 @@ ALTER TABLE public.homework_submissions
 
 DO $$ BEGIN
   ALTER TABLE public.library_checkouts
-    ADD CONSTRAINT checkout_book_fkey FOREIGN KEY (book_id) REFERENCES public.library_books(id) ON DELETE CASCADE;
+    ADD CONSTRAINT checkout_book_fkey FOREIGN KEY (library_books_id) REFERENCES public.library_books(id) ON DELETE CASCADE;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 DO $$ BEGIN
