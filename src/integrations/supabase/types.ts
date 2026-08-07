@@ -10,7 +10,32 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
+  }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -21,6 +46,7 @@ export type Database = {
           expires_at: string | null
           id: string
           payload: Json
+          school_id: string | null
           source: string
           updated_at: string
           user_id: string
@@ -31,6 +57,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           payload?: Json
+          school_id?: string | null
           source?: string
           updated_at?: string
           user_id: string
@@ -41,11 +68,20 @@ export type Database = {
           expires_at?: string | null
           id?: string
           payload?: Json
+          school_id?: string | null
           source?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "academic_agent_cache_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       academic_audit: {
         Row: {
@@ -104,6 +140,7 @@ export type Database = {
           dpp_count: number
           homework_count: number
           practice_minutes: number
+          school_id: string | null
           self_practice_count: number
           user_id: string
         }
@@ -113,6 +150,7 @@ export type Database = {
           dpp_count?: number
           homework_count?: number
           practice_minutes?: number
+          school_id?: string | null
           self_practice_count?: number
           user_id: string
         }
@@ -122,10 +160,19 @@ export type Database = {
           dpp_count?: number
           homework_count?: number
           practice_minutes?: number
+          school_id?: string | null
           self_practice_count?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "academic_daily_activity_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       academic_events: {
         Row: {
@@ -1289,6 +1336,7 @@ export type Database = {
           enable_notices: boolean
           id: boolean
           locale: string
+          school_id: string | null
           school_name: string
           updated_at: string
           updated_by: string | null
@@ -1300,6 +1348,7 @@ export type Database = {
           enable_notices?: boolean
           id?: boolean
           locale?: string
+          school_id?: string | null
           school_name?: string
           updated_at?: string
           updated_by?: string | null
@@ -1311,11 +1360,20 @@ export type Database = {
           enable_notices?: boolean
           id?: boolean
           locale?: string
+          school_id?: string | null
           school_name?: string
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "app_settings_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       approval_requests: {
         Row: {
@@ -1558,6 +1616,7 @@ export type Database = {
           entity_id: string | null
           id: string
           metadata: Json | null
+          school_id: string | null
         }
         Insert: {
           action: string
@@ -1567,6 +1626,7 @@ export type Database = {
           entity_id?: string | null
           id?: string
           metadata?: Json | null
+          school_id?: string | null
         }
         Update: {
           action?: string
@@ -1576,8 +1636,17 @@ export type Database = {
           entity_id?: string | null
           id?: string
           metadata?: Json | null
+          school_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       battle_answers: {
         Row: {
@@ -1586,6 +1655,7 @@ export type Database = {
           is_correct: boolean
           participant_id: string
           question_id: string
+          school_id: string | null
           selected_index: number
           time_ms: number
         }
@@ -1595,6 +1665,7 @@ export type Database = {
           is_correct: boolean
           participant_id: string
           question_id: string
+          school_id?: string | null
           selected_index: number
           time_ms?: number
         }
@@ -1604,6 +1675,7 @@ export type Database = {
           is_correct?: boolean
           participant_id?: string
           question_id?: string
+          school_id?: string | null
           selected_index?: number
           time_ms?: number
         }
@@ -1622,6 +1694,13 @@ export type Database = {
             referencedRelation: "battle_questions"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "battle_answers_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
         ]
       }
       battle_events: {
@@ -1636,6 +1715,7 @@ export type Database = {
           id: string
           kind: string
           opponent_name: string | null
+          school_id: string | null
           subject: string | null
         }
         Insert: {
@@ -1649,6 +1729,7 @@ export type Database = {
           id?: string
           kind: string
           opponent_name?: string | null
+          school_id?: string | null
           subject?: string | null
         }
         Update: {
@@ -1662,6 +1743,7 @@ export type Database = {
           id?: string
           kind?: string
           opponent_name?: string | null
+          school_id?: string | null
           subject?: string | null
         }
         Relationships: [
@@ -1670,6 +1752,13 @@ export type Database = {
             columns: ["battle_id"]
             isOneToOne: false
             referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_events_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -1681,6 +1770,7 @@ export type Database = {
           id: string
           invited_user_id: string
           inviter_user_id: string
+          school_id: string | null
           status: string
         }
         Insert: {
@@ -1689,6 +1779,7 @@ export type Database = {
           id?: string
           invited_user_id: string
           inviter_user_id: string
+          school_id?: string | null
           status?: string
         }
         Update: {
@@ -1697,6 +1788,7 @@ export type Database = {
           id?: string
           invited_user_id?: string
           inviter_user_id?: string
+          school_id?: string | null
           status?: string
         }
         Relationships: [
@@ -1705,6 +1797,13 @@ export type Database = {
             columns: ["battle_id"]
             isOneToOne: false
             referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_invites_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -1719,6 +1818,7 @@ export type Database = {
           id: string
           joined_at: string
           rank: number | null
+          school_id: string | null
           score: number
           student_id: string | null
           total_time_ms: number
@@ -1733,6 +1833,7 @@ export type Database = {
           id?: string
           joined_at?: string
           rank?: number | null
+          school_id?: string | null
           score?: number
           student_id?: string | null
           total_time_ms?: number
@@ -1747,6 +1848,7 @@ export type Database = {
           id?: string
           joined_at?: string
           rank?: number | null
+          school_id?: string | null
           score?: number
           student_id?: string | null
           total_time_ms?: number
@@ -1758,6 +1860,13 @@ export type Database = {
             columns: ["battle_id"]
             isOneToOne: false
             referencedRelation: "battles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_participants_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
           {
@@ -1780,6 +1889,7 @@ export type Database = {
           order_index: number
           points: number
           question: string
+          school_id: string | null
           subconcept: string | null
         }
         Insert: {
@@ -1792,6 +1902,7 @@ export type Database = {
           order_index: number
           points?: number
           question: string
+          school_id?: string | null
           subconcept?: string | null
         }
         Update: {
@@ -1804,6 +1915,7 @@ export type Database = {
           order_index?: number
           points?: number
           question?: string
+          school_id?: string | null
           subconcept?: string | null
         }
         Relationships: [
@@ -1821,6 +1933,13 @@ export type Database = {
             referencedRelation: "battles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "battle_questions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
         ]
       }
       battle_reports: {
@@ -1833,6 +1952,7 @@ export type Database = {
           id: string
           participant_id: string
           report: Json
+          school_id: string | null
           user_id: string
         }
         Insert: {
@@ -1844,6 +1964,7 @@ export type Database = {
           id?: string
           participant_id: string
           report: Json
+          school_id?: string | null
           user_id: string
         }
         Update: {
@@ -1855,6 +1976,7 @@ export type Database = {
           id?: string
           participant_id?: string
           report?: Json
+          school_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -1870,6 +1992,13 @@ export type Database = {
             columns: ["participant_id"]
             isOneToOne: true
             referencedRelation: "battle_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battle_reports_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -1889,6 +2018,7 @@ export type Database = {
           mode: string
           per_question_sec: number
           question_count: number
+          school_id: string | null
           source: string
           starts_at: string
           status: Database["public"]["Enums"]["battle_status"]
@@ -1911,6 +2041,7 @@ export type Database = {
           mode?: string
           per_question_sec?: number
           question_count?: number
+          school_id?: string | null
           source?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["battle_status"]
@@ -1933,6 +2064,7 @@ export type Database = {
           mode?: string
           per_question_sec?: number
           question_count?: number
+          school_id?: string | null
           source?: string
           starts_at?: string
           status?: Database["public"]["Enums"]["battle_status"]
@@ -1947,6 +2079,13 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "battles_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -2087,36 +2226,48 @@ export type Database = {
         Row: {
           academic_year: string
           academic_year_id: string | null
+          capacity: number | null
           category: string | null
+          class_teacher_id: string | null
           created_at: string
           display_name: string | null
           id: string
+          is_active: boolean
           kind: string
           name: string | null
+          room_number: string | null
           school_id: string | null
           section: string | null
         }
         Insert: {
           academic_year?: string
           academic_year_id?: string | null
+          capacity?: number | null
           category?: string | null
+          class_teacher_id?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          is_active?: boolean
           kind?: string
           name?: string | null
+          room_number?: string | null
           school_id?: string | null
           section?: string | null
         }
         Update: {
           academic_year?: string
           academic_year_id?: string | null
+          capacity?: number | null
           category?: string | null
+          class_teacher_id?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          is_active?: boolean
           kind?: string
           name?: string | null
+          room_number?: string | null
           school_id?: string | null
           section?: string | null
         }
@@ -2126,6 +2277,13 @@ export type Database = {
             columns: ["academic_year_id"]
             isOneToOne: false
             referencedRelation: "academic_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_class_teacher_id_fkey"
+            columns: ["class_teacher_id"]
+            isOneToOne: false
+            referencedRelation: "teachers"
             referencedColumns: ["id"]
           },
           {
@@ -2306,18 +2464,21 @@ export type Database = {
         Row: {
           doubt_id: string
           id: string
+          school_id: string | null
           user_id: string
           viewed_at: string
         }
         Insert: {
           doubt_id: string
           id?: string
+          school_id?: string | null
           user_id: string
           viewed_at?: string
         }
         Update: {
           doubt_id?: string
           id?: string
+          school_id?: string | null
           user_id?: string
           viewed_at?: string
         }
@@ -2329,6 +2490,13 @@ export type Database = {
             referencedRelation: "community_doubts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "community_doubt_views_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
         ]
       }
       community_doubt_votes: {
@@ -2337,6 +2505,7 @@ export type Database = {
           created_at: string
           doubt_id: string | null
           id: string
+          school_id: string | null
           user_id: string
         }
         Insert: {
@@ -2344,6 +2513,7 @@ export type Database = {
           created_at?: string
           doubt_id?: string | null
           id?: string
+          school_id?: string | null
           user_id: string
         }
         Update: {
@@ -2351,6 +2521,7 @@ export type Database = {
           created_at?: string
           doubt_id?: string | null
           id?: string
+          school_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -2366,6 +2537,13 @@ export type Database = {
             columns: ["doubt_id"]
             isOneToOne: false
             referencedRelation: "community_doubts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "community_doubt_votes_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -2482,6 +2660,7 @@ export type Database = {
           answer_count: number
           badges: string[]
           points: number
+          school_id: string | null
           top_subject: string | null
           updated_at: string
           upvote_count: number
@@ -2492,6 +2671,7 @@ export type Database = {
           answer_count?: number
           badges?: string[]
           points?: number
+          school_id?: string | null
           top_subject?: string | null
           updated_at?: string
           upvote_count?: number
@@ -2502,12 +2682,21 @@ export type Database = {
           answer_count?: number
           badges?: string[]
           points?: number
+          school_id?: string | null
           top_subject?: string | null
           updated_at?: string
           upvote_count?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "community_reputation_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       concept_mastery: {
         Row: {
@@ -2526,6 +2715,7 @@ export type Database = {
           mistake_count: number
           recovery_attempts: number
           recovery_correct: number
+          school_id: string | null
           student_id: string | null
           subconcept: string | null
           subject: string
@@ -2549,6 +2739,7 @@ export type Database = {
           mistake_count?: number
           recovery_attempts?: number
           recovery_correct?: number
+          school_id?: string | null
           student_id?: string | null
           subconcept?: string | null
           subject: string
@@ -2572,6 +2763,7 @@ export type Database = {
           mistake_count?: number
           recovery_attempts?: number
           recovery_correct?: number
+          school_id?: string | null
           student_id?: string | null
           subconcept?: string | null
           subject?: string
@@ -2580,6 +2772,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "concept_mastery_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "concept_mastery_student_id_fkey"
             columns: ["student_id"]
@@ -2594,6 +2793,7 @@ export type Database = {
           created_at: string
           id: string
           platform: string
+          school_id: string | null
           token: string
           updated_at: string
           user_id: string
@@ -2602,6 +2802,7 @@ export type Database = {
           created_at?: string
           id?: string
           platform: string
+          school_id?: string | null
           token: string
           updated_at?: string
           user_id: string
@@ -2610,11 +2811,20 @@ export type Database = {
           created_at?: string
           id?: string
           platform?: string
+          school_id?: string | null
           token?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "device_tokens_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       dpp_answers: {
         Row: {
@@ -2625,6 +2835,7 @@ export type Database = {
           marks_awarded: number
           question_id: string
           response: Json
+          school_id: string | null
           time_ms: number
         }
         Insert: {
@@ -2635,6 +2846,7 @@ export type Database = {
           marks_awarded?: number
           question_id: string
           response?: Json
+          school_id?: string | null
           time_ms?: number
         }
         Update: {
@@ -2645,6 +2857,7 @@ export type Database = {
           marks_awarded?: number
           question_id?: string
           response?: Json
+          school_id?: string | null
           time_ms?: number
         }
         Relationships: [
@@ -2660,6 +2873,13 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "dpp_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dpp_answers_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -2742,6 +2962,7 @@ export type Database = {
           options: Json
           order_index: number
           question: string
+          school_id: string | null
           subconcept: string | null
           subject: string | null
         }
@@ -2759,6 +2980,7 @@ export type Database = {
           options?: Json
           order_index?: number
           question: string
+          school_id?: string | null
           subconcept?: string | null
           subject?: string | null
         }
@@ -2776,6 +2998,7 @@ export type Database = {
           options?: Json
           order_index?: number
           question?: string
+          school_id?: string | null
           subconcept?: string | null
           subject?: string | null
         }
@@ -2787,11 +3010,20 @@ export type Database = {
             referencedRelation: "dpps"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "dpp_questions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
         ]
       }
       dpps: {
         Row: {
+          archived_at: string | null
           chapter: string | null
+          chapters: string[] | null
           class_id: string
           created_at: string
           created_by: string
@@ -2801,7 +3033,9 @@ export type Database = {
           id: string
           instructions: string | null
           is_published: boolean
+          max_marks: number | null
           negative_marking: number
+          passing_marks: number | null
           published_at: string | null
           question_count: number
           scheduled_publish_at: string | null
@@ -2809,13 +3043,17 @@ export type Database = {
           status: string
           subject: string
           subject_id: string | null
+          test_kind: string
           title: string
           topic: string | null
+          topics: string[] | null
           total_marks: number
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           chapter?: string | null
+          chapters?: string[] | null
           class_id: string
           created_at?: string
           created_by: string
@@ -2825,7 +3063,9 @@ export type Database = {
           id?: string
           instructions?: string | null
           is_published?: boolean
+          max_marks?: number | null
           negative_marking?: number
+          passing_marks?: number | null
           published_at?: string | null
           question_count?: number
           scheduled_publish_at?: string | null
@@ -2833,13 +3073,17 @@ export type Database = {
           status?: string
           subject: string
           subject_id?: string | null
+          test_kind?: string
           title: string
           topic?: string | null
+          topics?: string[] | null
           total_marks?: number
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           chapter?: string | null
+          chapters?: string[] | null
           class_id?: string
           created_at?: string
           created_by?: string
@@ -2849,7 +3093,9 @@ export type Database = {
           id?: string
           instructions?: string | null
           is_published?: boolean
+          max_marks?: number | null
           negative_marking?: number
+          passing_marks?: number | null
           published_at?: string | null
           question_count?: number
           scheduled_publish_at?: string | null
@@ -2857,8 +3103,10 @@ export type Database = {
           status?: string
           subject?: string
           subject_id?: string | null
+          test_kind?: string
           title?: string
           topic?: string | null
+          topics?: string[] | null
           total_marks?: number
           updated_at?: string
         }
@@ -2881,58 +3129,82 @@ export type Database = {
       }
       exams: {
         Row: {
+          chapters: string[] | null
           class_id: string
           created_at: string
           created_by: string | null
+          duration_minutes: number | null
           end_date: string | null
           exam_date: string | null
           exam_group_id: string | null
           exam_type: Database["public"]["Enums"]["exam_type"]
           id: string
+          instructions: string | null
+          marks_locked: boolean
           max_marks: number
+          meta: Json
           name: string
+          passing_marks: number | null
           results_published_at: string | null
+          scheduled_publish_at: string | null
           school_id: string | null
           start_date: string | null
           status: string
           subject: string
           subject_id: string | null
+          topics: string[] | null
         }
         Insert: {
+          chapters?: string[] | null
           class_id: string
           created_at?: string
           created_by?: string | null
+          duration_minutes?: number | null
           end_date?: string | null
           exam_date?: string | null
           exam_group_id?: string | null
           exam_type?: Database["public"]["Enums"]["exam_type"]
           id?: string
+          instructions?: string | null
+          marks_locked?: boolean
           max_marks?: number
+          meta?: Json
           name: string
+          passing_marks?: number | null
           results_published_at?: string | null
+          scheduled_publish_at?: string | null
           school_id?: string | null
           start_date?: string | null
           status?: string
           subject: string
           subject_id?: string | null
+          topics?: string[] | null
         }
         Update: {
+          chapters?: string[] | null
           class_id?: string
           created_at?: string
           created_by?: string | null
+          duration_minutes?: number | null
           end_date?: string | null
           exam_date?: string | null
           exam_group_id?: string | null
           exam_type?: Database["public"]["Enums"]["exam_type"]
           id?: string
+          instructions?: string | null
+          marks_locked?: boolean
           max_marks?: number
+          meta?: Json
           name?: string
+          passing_marks?: number | null
           results_published_at?: string | null
+          scheduled_publish_at?: string | null
           school_id?: string | null
           start_date?: string | null
           status?: string
           subject?: string
           subject_id?: string | null
+          topics?: string[] | null
         }
         Relationships: [
           {
@@ -2963,10 +3235,13 @@ export type Database = {
           amount: number
           created_at: string
           due_date: string | null
+          fee_type: string | null
           id: string
           month: string
           notes: string | null
           paid_amount: number
+          paid_at: string | null
+          receipt_url: string | null
           school_id: string | null
           status: Database["public"]["Enums"]["fee_status"]
           student_id: string
@@ -2976,10 +3251,13 @@ export type Database = {
           amount?: number
           created_at?: string
           due_date?: string | null
+          fee_type?: string | null
           id?: string
           month: string
           notes?: string | null
           paid_amount?: number
+          paid_at?: string | null
+          receipt_url?: string | null
           school_id?: string | null
           status?: Database["public"]["Enums"]["fee_status"]
           student_id: string
@@ -2989,10 +3267,13 @@ export type Database = {
           amount?: number
           created_at?: string
           due_date?: string | null
+          fee_type?: string | null
           id?: string
           month?: string
           notes?: string | null
           paid_amount?: number
+          paid_at?: string | null
+          receipt_url?: string | null
           school_id?: string | null
           status?: Database["public"]["Enums"]["fee_status"]
           student_id?: string
@@ -3018,11 +3299,12 @@ export type Database = {
       homework: {
         Row: {
           archived_at: string | null
+          attachment_url: string | null
           attachments: Json | null
           class_id: string
           created_at: string
           created_by: string | null
-          description: string
+          description: string | null
           difficulty: string | null
           due_date: string | null
           due_time: string | null
@@ -3041,14 +3323,16 @@ export type Database = {
           tags: string[] | null
           title: string
           updated_at: string
+          work_kind: string
         }
         Insert: {
           archived_at?: string | null
+          attachment_url?: string | null
           attachments?: Json | null
           class_id: string
           created_at?: string
           created_by?: string | null
-          description?: string
+          description?: string | null
           difficulty?: string | null
           due_date?: string | null
           due_time?: string | null
@@ -3067,14 +3351,16 @@ export type Database = {
           tags?: string[] | null
           title: string
           updated_at?: string
+          work_kind?: string
         }
         Update: {
           archived_at?: string | null
+          attachment_url?: string | null
           attachments?: Json | null
           class_id?: string
           created_at?: string
           created_by?: string | null
-          description?: string
+          description?: string | null
           difficulty?: string | null
           due_date?: string | null
           due_time?: string | null
@@ -3093,6 +3379,7 @@ export type Database = {
           tags?: string[] | null
           title?: string
           updated_at?: string
+          work_kind?: string
         }
         Relationships: [
           {
@@ -3121,7 +3408,7 @@ export type Database = {
       homework_submissions: {
         Row: {
           attachments: Json | null
-          content: string
+          content: string | null
           created_at: string
           external_links: Json | null
           grade: string | null
@@ -3142,7 +3429,7 @@ export type Database = {
         }
         Insert: {
           attachments?: Json | null
-          content?: string
+          content?: string | null
           created_at?: string
           external_links?: Json | null
           grade?: string | null
@@ -3163,7 +3450,7 @@ export type Database = {
         }
         Update: {
           attachments?: Json | null
-          content?: string
+          content?: string | null
           created_at?: string
           external_links?: Json | null
           grade?: string | null
@@ -3195,6 +3482,13 @@ export type Database = {
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "homework_submissions_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
           {
@@ -3282,8 +3576,10 @@ export type Database = {
           id: string
           leave_type: string
           reason: string | null
+          review_note: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          school_id: string | null
           status: Database["public"]["Enums"]["leave_status"]
           student_id: string | null
           to_date: string
@@ -3298,8 +3594,10 @@ export type Database = {
           id?: string
           leave_type?: string
           reason?: string | null
+          review_note?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          school_id?: string | null
           status?: Database["public"]["Enums"]["leave_status"]
           student_id?: string | null
           to_date: string
@@ -3314,21 +3612,33 @@ export type Database = {
           id?: string
           leave_type?: string
           reason?: string | null
+          review_note?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          school_id?: string | null
           status?: Database["public"]["Enums"]["leave_status"]
           student_id?: string | null
           to_date?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       library_books: {
         Row: {
-          author: string | null
+          author: string
           available_copies: number
           category: string | null
+          cover_url: string | null
           created_at: string
+          description: string | null
           id: string
           isbn: string | null
           school_id: string | null
@@ -3338,10 +3648,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          author?: string | null
+          author?: string
           available_copies?: number
           category?: string | null
+          cover_url?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           isbn?: string | null
           school_id?: string | null
@@ -3351,10 +3663,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          author?: string | null
+          author?: string
           available_copies?: number
           category?: string | null
+          cover_url?: string | null
           created_at?: string
+          description?: string | null
           id?: string
           isbn?: string | null
           school_id?: string | null
@@ -3377,8 +3691,9 @@ export type Database = {
         Row: {
           checked_out_at: string
           created_at: string
-          due_date: string | null
+          due_date: string
           id: string
+          issued_by: string | null
           library_books_id: string
           returned_at: string | null
           school_id: string | null
@@ -3388,8 +3703,9 @@ export type Database = {
         Insert: {
           checked_out_at?: string
           created_at?: string
-          due_date?: string | null
+          due_date?: string
           id?: string
+          issued_by?: string | null
           library_books_id: string
           returned_at?: string | null
           school_id?: string | null
@@ -3399,8 +3715,9 @@ export type Database = {
         Update: {
           checked_out_at?: string
           created_at?: string
-          due_date?: string | null
+          due_date?: string
           id?: string
+          issued_by?: string | null
           library_books_id?: string
           returned_at?: string | null
           school_id?: string | null
@@ -3434,6 +3751,13 @@ export type Database = {
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "library_checkouts_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -3579,6 +3903,9 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_url: string | null
           content: string
           conversation_id: string | null
           created_at: string
@@ -3596,6 +3923,9 @@ export type Database = {
           thread_id: string | null
         }
         Insert: {
+          attachment_mime?: string | null
+          attachment_name?: string | null
+          attachment_url?: string | null
           content: string
           conversation_id?: string | null
           created_at?: string
@@ -3613,6 +3943,9 @@ export type Database = {
           thread_id?: string | null
         }
         Update: {
+          attachment_mime?: string | null
+          attachment_name?: string | null
+          attachment_url?: string | null
           content?: string
           conversation_id?: string | null
           created_at?: string
@@ -3655,42 +3988,51 @@ export type Database = {
       }
       notices: {
         Row: {
+          attachment_url: string | null
           audience: Database["public"]["Enums"]["notice_audience"]
           body: string
           class_id: string | null
           created_at: string
           expires_at: string | null
           id: string
+          pinned: boolean
           posted_by: string | null
-          priority: string | null
+          priority: Database["public"]["Enums"]["notice_priority"]
+          published_at: string | null
           revoked_at: string | null
           school_id: string | null
           status: string
           title: string
         }
         Insert: {
+          attachment_url?: string | null
           audience?: Database["public"]["Enums"]["notice_audience"]
           body: string
           class_id?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
+          pinned?: boolean
           posted_by?: string | null
-          priority?: string | null
+          priority?: Database["public"]["Enums"]["notice_priority"]
+          published_at?: string | null
           revoked_at?: string | null
           school_id?: string | null
           status?: string
           title: string
         }
         Update: {
+          attachment_url?: string | null
           audience?: Database["public"]["Enums"]["notice_audience"]
           body?: string
           class_id?: string | null
           created_at?: string
           expires_at?: string | null
           id?: string
+          pinned?: boolean
           posted_by?: string | null
-          priority?: string | null
+          priority?: Database["public"]["Enums"]["notice_priority"]
+          published_at?: string | null
           revoked_at?: string | null
           school_id?: string | null
           status?: string
@@ -3768,6 +4110,7 @@ export type Database = {
           kind: string
           parent_user_id: string
           read: boolean
+          school_id: string | null
           student_id: string
           title: string
         }
@@ -3778,6 +4121,7 @@ export type Database = {
           kind: string
           parent_user_id: string
           read?: boolean
+          school_id?: string | null
           student_id: string
           title: string
         }
@@ -3788,10 +4132,18 @@ export type Database = {
           kind?: string
           parent_user_id?: string
           read?: boolean
+          school_id?: string | null
           student_id?: string
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "parent_academic_alerts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "parent_academic_alerts_student_id_fkey"
             columns: ["student_id"]
@@ -3805,21 +4157,27 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_primary: boolean
           parent_id: string
+          relationship: string
           school_id: string
           student_id: string
         }
         Insert: {
           created_at?: string
           id?: string
+          is_primary?: boolean
           parent_id: string
+          relationship?: string
           school_id?: string
           student_id: string
         }
         Update: {
           created_at?: string
           id?: string
+          is_primary?: boolean
           parent_id?: string
+          relationship?: string
           school_id?: string
           student_id?: string
         }
@@ -3849,30 +4207,54 @@ export type Database = {
       }
       parents: {
         Row: {
+          address: string | null
           created_at: string
           email: string | null
           full_name: string
+          gender: Database["public"]["Enums"]["gender_type"]
           id: string
+          occupation: string | null
           phone: string | null
+          photo_url: string | null
+          portal_email: string | null
+          portal_phone: string | null
           school_id: string
+          status: Database["public"]["Enums"]["person_status"]
+          updated_at: string
           user_id: string | null
         }
         Insert: {
+          address?: string | null
           created_at?: string
           email?: string | null
-          full_name?: string
+          full_name: string
+          gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
+          occupation?: string | null
           phone?: string | null
+          photo_url?: string | null
+          portal_email?: string | null
+          portal_phone?: string | null
           school_id?: string
+          status?: Database["public"]["Enums"]["person_status"]
+          updated_at?: string
           user_id?: string | null
         }
         Update: {
+          address?: string | null
           created_at?: string
           email?: string | null
           full_name?: string
+          gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
+          occupation?: string | null
           phone?: string | null
+          photo_url?: string | null
+          portal_email?: string | null
+          portal_phone?: string | null
           school_id?: string
+          status?: Database["public"]["Enums"]["person_status"]
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: [
@@ -4650,9 +5032,11 @@ export type Database = {
           class: number
           concept: string | null
           created_at: string
+          difficulty: string | null
           explanation_template: string
           id: string
           is_active: boolean
+          school_id: string | null
           subconcept: string | null
           subject: string
           template_data: Json
@@ -4663,9 +5047,11 @@ export type Database = {
           class: number
           concept?: string | null
           created_at?: string
+          difficulty?: string | null
           explanation_template?: string
           id?: string
           is_active?: boolean
+          school_id?: string | null
           subconcept?: string | null
           subject: string
           template_data?: Json
@@ -4676,15 +5062,25 @@ export type Database = {
           class?: number
           concept?: string | null
           created_at?: string
+          difficulty?: string | null
           explanation_template?: string
           id?: string
           is_active?: boolean
+          school_id?: string | null
           subconcept?: string | null
           subject?: string
           template_data?: Json
           template_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "question_templates_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       recovery_assignment_questions: {
         Row: {
@@ -4699,6 +5095,7 @@ export type Database = {
           options: Json
           order_index: number
           question_text: string
+          school_id: string | null
           student_answer: Json | null
           template_id: string | null
         }
@@ -4714,6 +5111,7 @@ export type Database = {
           options?: Json
           order_index?: number
           question_text: string
+          school_id?: string | null
           student_answer?: Json | null
           template_id?: string | null
         }
@@ -4729,6 +5127,7 @@ export type Database = {
           options?: Json
           order_index?: number
           question_text?: string
+          school_id?: string | null
           student_answer?: Json | null
           template_id?: string | null
         }
@@ -4745,6 +5144,13 @@ export type Database = {
             columns: ["bank_question_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recovery_assignment_questions_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
           {
@@ -4766,6 +5172,7 @@ export type Database = {
           question_count: number
           questions_completed: number
           questions_correct: number
+          school_id: string | null
           severity: string
           source_id: string | null
           source_type: string | null
@@ -4784,6 +5191,7 @@ export type Database = {
           question_count?: number
           questions_completed?: number
           questions_correct?: number
+          school_id?: string | null
           severity: string
           source_id?: string | null
           source_type?: string | null
@@ -4802,6 +5210,7 @@ export type Database = {
           question_count?: number
           questions_completed?: number
           questions_correct?: number
+          school_id?: string | null
           severity?: string
           source_id?: string | null
           source_type?: string | null
@@ -4812,6 +5221,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "recovery_assignments_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "recovery_assignments_student_id_fkey"
             columns: ["student_id"]
@@ -4831,6 +5247,7 @@ export type Database = {
           id: string
           priority: number
           reason: string
+          school_id: string | null
           student_id: string | null
           subject: string
           topic: string | null
@@ -4845,6 +5262,7 @@ export type Database = {
           id?: string
           priority?: number
           reason?: string
+          school_id?: string | null
           student_id?: string | null
           subject: string
           topic?: string | null
@@ -4859,12 +5277,20 @@ export type Database = {
           id?: string
           priority?: number
           reason?: string
+          school_id?: string | null
           student_id?: string | null
           subject?: string
           topic?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "revision_queue_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "revision_queue_student_id_fkey"
             columns: ["student_id"]
@@ -5096,37 +5522,55 @@ export type Database = {
       }
       schools: {
         Row: {
+          academic_year: string | null
+          address: string | null
           board: string | null
           created_at: string
+          email: string | null
           id: string
           is_active: boolean
           logo_url: string | null
           name: string
+          phone: string | null
+          principal_name: string | null
           slug: string | null
           stream: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
+          academic_year?: string | null
+          address?: string | null
           board?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           logo_url?: string | null
           name: string
+          phone?: string | null
+          principal_name?: string | null
           slug?: string | null
           stream?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
+          academic_year?: string | null
+          address?: string | null
           board?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           logo_url?: string | null
           name?: string
+          phone?: string | null
+          principal_name?: string | null
           slug?: string | null
           stream?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }
@@ -5136,6 +5580,7 @@ export type Database = {
           date: string
           id: string
           marked_by: string | null
+          school_id: string | null
           status: Database["public"]["Enums"]["attendance_status"]
           teacher_id: string
         }
@@ -5144,6 +5589,7 @@ export type Database = {
           date?: string
           id?: string
           marked_by?: string | null
+          school_id?: string | null
           status: Database["public"]["Enums"]["attendance_status"]
           teacher_id: string
         }
@@ -5152,10 +5598,19 @@ export type Database = {
           date?: string
           id?: string
           marked_by?: string | null
+          school_id?: string | null
           status?: Database["public"]["Enums"]["attendance_status"]
           teacher_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "staff_attendance_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_academic_brain: {
         Row: {
@@ -5171,6 +5626,7 @@ export type Database = {
           practice_history: Json
           recovery_completion_pct: number
           recovery_history: Json
+          school_id: string | null
           speed_trend: Json
           strong_chapters: Json
           strong_concepts: Json
@@ -5196,6 +5652,7 @@ export type Database = {
           practice_history?: Json
           recovery_completion_pct?: number
           recovery_history?: Json
+          school_id?: string | null
           speed_trend?: Json
           strong_chapters?: Json
           strong_concepts?: Json
@@ -5221,6 +5678,7 @@ export type Database = {
           practice_history?: Json
           recovery_completion_pct?: number
           recovery_history?: Json
+          school_id?: string | null
           speed_trend?: Json
           strong_chapters?: Json
           strong_concepts?: Json
@@ -5234,6 +5692,13 @@ export type Database = {
           weak_subjects?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "student_academic_brain_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_academic_brain_student_id_fkey"
             columns: ["student_id"]
@@ -5383,6 +5848,7 @@ export type Database = {
           badge_code: string
           earned_at: string
           id: string
+          school_id: string | null
           tier: Database["public"]["Enums"]["badge_tier"]
           user_id: string
         }
@@ -5390,6 +5856,7 @@ export type Database = {
           badge_code: string
           earned_at?: string
           id?: string
+          school_id?: string | null
           tier?: Database["public"]["Enums"]["badge_tier"]
           user_id: string
         }
@@ -5397,16 +5864,26 @@ export type Database = {
           badge_code?: string
           earned_at?: string
           id?: string
+          school_id?: string | null
           tier?: Database["public"]["Enums"]["badge_tier"]
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_badges_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_improvement_plans: {
         Row: {
           chapter: string | null
           id: string
           plan: Json
+          school_id: string | null
           source: string
           subject: string
           topic: string | null
@@ -5417,6 +5894,7 @@ export type Database = {
           chapter?: string | null
           id?: string
           plan?: Json
+          school_id?: string | null
           source: string
           subject: string
           topic?: string | null
@@ -5427,13 +5905,22 @@ export type Database = {
           chapter?: string | null
           id?: string
           plan?: Json
+          school_id?: string | null
           source?: string
           subject?: string
           topic?: string | null
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "student_improvement_plans_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       student_mistakes: {
         Row: {
@@ -5443,6 +5930,8 @@ export type Database = {
           concept: string | null
           correct_answer: Json | null
           created_at: string
+          difficulty: string | null
+          error_type: string | null
           explanation: string | null
           id: string
           last_wrong_at: string
@@ -5450,6 +5939,7 @@ export type Database = {
           options: Json | null
           question_id: string | null
           question_text: string
+          school_id: string | null
           source: string
           source_id: string | null
           student_answer: Json | null
@@ -5467,6 +5957,8 @@ export type Database = {
           concept?: string | null
           correct_answer?: Json | null
           created_at?: string
+          difficulty?: string | null
+          error_type?: string | null
           explanation?: string | null
           id?: string
           last_wrong_at?: string
@@ -5474,6 +5966,7 @@ export type Database = {
           options?: Json | null
           question_id?: string | null
           question_text: string
+          school_id?: string | null
           source: string
           source_id?: string | null
           student_answer?: Json | null
@@ -5491,6 +5984,8 @@ export type Database = {
           concept?: string | null
           correct_answer?: Json | null
           created_at?: string
+          difficulty?: string | null
+          error_type?: string | null
           explanation?: string | null
           id?: string
           last_wrong_at?: string
@@ -5498,6 +5993,7 @@ export type Database = {
           options?: Json | null
           question_id?: string | null
           question_text?: string
+          school_id?: string | null
           source?: string
           source_id?: string | null
           student_answer?: Json | null
@@ -5509,6 +6005,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "student_mistakes_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "student_mistakes_student_id_fkey"
             columns: ["student_id"]
@@ -5522,18 +6025,21 @@ export type Database = {
         Row: {
           last_seen_at: string
           question_id: string
+          school_id: string | null
           times_seen: number
           user_id: string
         }
         Insert: {
           last_seen_at?: string
           question_id: string
+          school_id?: string | null
           times_seen?: number
           user_id: string
         }
         Update: {
           last_seen_at?: string
           question_id?: string
+          school_id?: string | null
           times_seen?: number
           user_id?: string
         }
@@ -5543,6 +6049,13 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_question_history_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]
@@ -5662,66 +6175,97 @@ export type Database = {
             referencedRelation: "progression_leagues"
             referencedColumns: ["code"]
           },
+          {
+            foreignKeyName: "student_xp_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
         ]
       }
       students: {
         Row: {
           address: string | null
           admission_number: string
+          blood_group: string | null
           class_id: string | null
           created_at: string
           date_of_birth: string | null
+          email: string | null
+          emergency_contact: string | null
           full_name: string
+          gender: Database["public"]["Enums"]["gender_type"]
+          house: string | null
           id: string
+          medical_notes: string | null
           parent_mobile: string | null
           parent_name: string | null
           parent_portal_email: string | null
           parent_user_id: string | null
+          phone: string | null
           photo_url: string | null
           portal_email: string | null
           portal_phone: string | null
           roll_number: string | null
           school_id: string | null
+          status: Database["public"]["Enums"]["person_status"]
           updated_at: string
           user_id: string | null
         }
         Insert: {
           address?: string | null
           admission_number: string
+          blood_group?: string | null
           class_id?: string | null
           created_at?: string
           date_of_birth?: string | null
+          email?: string | null
+          emergency_contact?: string | null
           full_name: string
+          gender?: Database["public"]["Enums"]["gender_type"]
+          house?: string | null
           id?: string
+          medical_notes?: string | null
           parent_mobile?: string | null
           parent_name?: string | null
           parent_portal_email?: string | null
           parent_user_id?: string | null
+          phone?: string | null
           photo_url?: string | null
           portal_email?: string | null
           portal_phone?: string | null
           roll_number?: string | null
           school_id?: string | null
+          status?: Database["public"]["Enums"]["person_status"]
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           address?: string | null
           admission_number?: string
+          blood_group?: string | null
           class_id?: string | null
           created_at?: string
           date_of_birth?: string | null
+          email?: string | null
+          emergency_contact?: string | null
           full_name?: string
+          gender?: Database["public"]["Enums"]["gender_type"]
+          house?: string | null
           id?: string
+          medical_notes?: string | null
           parent_mobile?: string | null
           parent_name?: string | null
           parent_portal_email?: string | null
           parent_user_id?: string | null
+          phone?: string | null
           photo_url?: string | null
           portal_email?: string | null
           portal_phone?: string | null
           roll_number?: string | null
           school_id?: string | null
+          status?: Database["public"]["Enums"]["person_status"]
           updated_at?: string
           user_id?: string | null
         }
@@ -5932,12 +6476,15 @@ export type Database = {
           address: string | null
           class_teacher_of: string | null
           created_at: string
+          date_of_birth: string | null
           department: string | null
           email: string | null
           employee_id: string | null
           full_name: string
+          gender: Database["public"]["Enums"]["gender_type"]
           id: string
           is_class_teacher: boolean
+          joined_date: string | null
           joining_date: string | null
           mobile: string | null
           notes: string | null
@@ -5947,6 +6494,7 @@ export type Database = {
           school_id: string | null
           status: string
           subject: string | null
+          subjects: string[]
           updated_at: string
           user_id: string | null
         }
@@ -5954,12 +6502,15 @@ export type Database = {
           address?: string | null
           class_teacher_of?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string | null
           email?: string | null
           employee_id?: string | null
           full_name: string
+          gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
           is_class_teacher?: boolean
+          joined_date?: string | null
           joining_date?: string | null
           mobile?: string | null
           notes?: string | null
@@ -5969,6 +6520,7 @@ export type Database = {
           school_id?: string | null
           status?: string
           subject?: string | null
+          subjects?: string[]
           updated_at?: string
           user_id?: string | null
         }
@@ -5976,12 +6528,15 @@ export type Database = {
           address?: string | null
           class_teacher_of?: string | null
           created_at?: string
+          date_of_birth?: string | null
           department?: string | null
           email?: string | null
           employee_id?: string | null
           full_name?: string
+          gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
           is_class_teacher?: boolean
+          joined_date?: string | null
           joining_date?: string | null
           mobile?: string | null
           notes?: string | null
@@ -5991,6 +6546,7 @@ export type Database = {
           school_id?: string | null
           status?: string
           subject?: string | null
+          subjects?: string[]
           updated_at?: string
           user_id?: string | null
         }
@@ -6172,6 +6728,16 @@ export type Database = {
         Returns: undefined
       }
       _class_grade: { Args: { _class_id: string }; Returns: number }
+      _classify_mistake_error: {
+        Args: {
+          _correct_answer: Json
+          _options: Json
+          _student_answer: Json
+          _time_taken_ms?: number
+          _times_wrong?: number
+        }
+        Returns: string
+      }
       _community_author_name: {
         Args: { _role: string; _uid: string }
         Returns: string
@@ -6308,11 +6874,21 @@ export type Database = {
         Args: { _student_id: string; _uid: string }
         Returns: Json
       }
+      _fanout_announcement_published: {
+        Args: {
+          _body?: string
+          _class_id: string
+          _school_id: string
+          _title: string
+        }
+        Returns: undefined
+      }
       _featured_system_creator: { Args: { _class_id: string }; Returns: string }
       _fill_featured_battle_questions: {
         Args: { _battle_id: string; _count?: number }
         Returns: number
       }
+      _fix_academic_display_text: { Args: { t: string }; Returns: string }
       _fix_utf8_content: { Args: { t: string }; Returns: string }
       _generate_battle_code: { Args: never; Returns: string }
       _humanize_template_type: { Args: { _t: string }; Returns: string }
@@ -6321,6 +6897,7 @@ export type Database = {
         Args: { t: string }
         Returns: string
       }
+      _normalize_subject_label: { Args: { raw: string }; Returns: string }
       _notify: {
         Args: {
           _body?: string
@@ -6354,7 +6931,29 @@ export type Database = {
         }
         Returns: undefined
       }
+      _notify_school_students: {
+        Args: {
+          _body?: string
+          _icon?: string
+          _link?: string
+          _school_id: string
+          _title: string
+          _type: string
+        }
+        Returns: undefined
+      }
       _notify_student_circle: {
+        Args: {
+          _body?: string
+          _icon?: string
+          _link?: string
+          _student_id: string
+          _title: string
+          _type: string
+        }
+        Returns: undefined
+      }
+      _notify_student_parents: {
         Args: {
           _body?: string
           _icon?: string
@@ -6367,6 +6966,10 @@ export type Database = {
       }
       _peek_teacher_featured_battle: {
         Args: { _class_id: string }
+        Returns: string
+      }
+      _pick_featured_subject: {
+        Args: { _class_id: string; _grade: number }
         Returns: string
       }
       _practice_grade_from_bank: {
@@ -6684,6 +7287,10 @@ export type Database = {
       }
       chat_can_dm: { Args: { _from: string; _to: string }; Returns: boolean }
       chat_dm_key: { Args: { _a: string; _b: string }; Returns: string }
+      claim_signup_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
       default_school_id: { Args: never; Returns: string }
       emit_academic_event: {
         Args: {
@@ -6706,12 +7313,38 @@ export type Database = {
         Args: { _student_id: string }
         Returns: string
       }
+      get_auth_context: {
+        Args: never
+        Returns: {
+          email: string
+          full_name: string
+          is_active: boolean
+          photo_url: string
+          role: Database["public"]["Enums"]["app_role"]
+          school_id: string
+          school_logo_url: string
+          school_name: string
+          school_slug: string
+          user_id: string
+        }[]
+      }
       get_chat_contacts: {
         Args: never
         Returns: {
           name: string
           role: string
           user_id: string
+        }[]
+      }
+      get_chat_groups: {
+        Args: never
+        Returns: {
+          conversation_id: string
+          kind: string
+          last_message: string
+          last_time: string
+          name: string
+          unread: number
         }[]
       }
       get_chat_inbox: {
@@ -6788,6 +7421,11 @@ export type Database = {
         Returns: string
       }
       require_active_profile: { Args: never; Returns: string }
+      rpc_academic_revision_plan: { Args: never; Returns: Json }
+      rpc_accept_battle_invite: {
+        Args: { _invite_id: string }
+        Returns: string
+      }
       rpc_add_community_answer: {
         Args: { _body: string; _doubt_id: string; _image_url?: string }
         Returns: string
@@ -6833,6 +7471,7 @@ export type Database = {
           id: string
           kind: string
           opponent_name: string | null
+          school_id: string | null
           subject: string | null
         }[]
         SetofOptions: {
@@ -6843,6 +7482,15 @@ export type Database = {
         }
       }
       rpc_battle_monitor: { Args: { _battle_id: string }; Returns: Json }
+      rpc_cache_agent_insight: {
+        Args: {
+          _agent_type: string
+          _payload: Json
+          _source?: string
+          _ttl_hours?: number
+        }
+        Returns: undefined
+      }
       rpc_challenge_student: {
         Args: {
           _chapter?: string
@@ -6878,6 +7526,10 @@ export type Database = {
         Returns: Json
       }
       rpc_complete_revision: { Args: { _id: string }; Returns: undefined }
+      rpc_compute_session_analytics: {
+        Args: { _session_id?: string }
+        Returns: Json
+      }
       rpc_create_class_battle: {
         Args: {
           _chapter?: string
@@ -6985,6 +7637,9 @@ export type Database = {
       rpc_delete_chat_message: {
         Args: { _message_id: string }
         Returns: {
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_url: string | null
           content: string
           conversation_id: string | null
           created_at: string
@@ -7011,6 +7666,9 @@ export type Database = {
       rpc_delete_message: {
         Args: { _message_id: string }
         Returns: {
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_url: string | null
           content: string
           conversation_id: string | null
           created_at: string
@@ -7126,8 +7784,13 @@ export type Database = {
         Args: { _battle_id: string; _count?: number }
         Returns: number
       }
+      rpc_get_academic_brain: { Args: never; Returns: Json }
       rpc_get_battle_report: {
         Args: { _participant_id: string }
+        Returns: Json
+      }
+      rpc_get_cached_agent_insight: {
+        Args: { _agent_type: string }
         Returns: Json
       }
       rpc_get_concept_recovery_report: {
@@ -7242,6 +7905,10 @@ export type Database = {
         Args: { _conversation_id: string }
         Returns: number
       }
+      rpc_mark_group_messages_read: {
+        Args: { _conversation_id: string }
+        Returns: number
+      }
       rpc_mark_messages_read: {
         Args: { _peer_user_id: string }
         Returns: number
@@ -7290,9 +7957,11 @@ export type Database = {
           class: number
           concept: string | null
           created_at: string
+          difficulty: string | null
           explanation_template: string
           id: string
           is_active: boolean
+          school_id: string | null
           subconcept: string | null
           subject: string
           template_data: Json
@@ -7377,6 +8046,7 @@ export type Database = {
           understanding: number
         }[]
       }
+      rpc_refresh_academic_brain: { Args: never; Returns: Json }
       rpc_refresh_featured_battles: { Args: never; Returns: Json }
       rpc_revision_plan_v2: {
         Args: never
@@ -7425,6 +8095,9 @@ export type Database = {
           _reply_to_id?: string
         }
         Returns: {
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_url: string | null
           content: string
           conversation_id: string | null
           created_at: string
@@ -7448,9 +8121,85 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      rpc_send_direct_message: {
-        Args: { _content: string; _receiver_id: string }
+      rpc_send_direct_message:
+        | {
+            Args: { _content: string; _receiver_id: string }
+            Returns: {
+              attachment_mime: string | null
+              attachment_name: string | null
+              attachment_url: string | null
+              content: string
+              conversation_id: string | null
+              created_at: string
+              deleted_at: string | null
+              deleted_by: string | null
+              has_attachment: boolean
+              id: string
+              is_read: boolean
+              read_at: string | null
+              receiver_id: string | null
+              reply_to_id: string | null
+              school_id: string | null
+              sender_id: string
+              subject: string | null
+              thread_id: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "messages"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              _attachment_mime?: string
+              _attachment_name?: string
+              _attachment_url?: string
+              _content: string
+              _receiver_id: string
+              _reply_to_id?: string
+            }
+            Returns: {
+              attachment_mime: string | null
+              attachment_name: string | null
+              attachment_url: string | null
+              content: string
+              conversation_id: string | null
+              created_at: string
+              deleted_at: string | null
+              deleted_by: string | null
+              has_attachment: boolean
+              id: string
+              is_read: boolean
+              read_at: string | null
+              receiver_id: string | null
+              reply_to_id: string | null
+              school_id: string | null
+              sender_id: string
+              subject: string | null
+              thread_id: string | null
+            }
+            SetofOptions: {
+              from: "*"
+              to: "messages"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+      rpc_send_group_message: {
+        Args: {
+          _attachment_mime?: string
+          _attachment_name?: string
+          _attachment_url?: string
+          _content: string
+          _conversation_id: string
+          _reply_to_id?: string
+        }
         Returns: {
+          attachment_mime: string | null
+          attachment_name: string | null
+          attachment_url: string | null
           content: string
           conversation_id: string | null
           created_at: string
@@ -7590,7 +8339,13 @@ export type Database = {
         | "failed"
         | "skipped"
       academic_year_status: "planned" | "active" | "closed" | "archived"
-      app_role: "admin" | "teacher" | "student" | "parent" | "principal"
+      app_role:
+        | "admin"
+        | "teacher"
+        | "student"
+        | "parent"
+        | "principal"
+        | "super_admin"
       attendance_status: "present" | "absent" | "leave" | "late" | "half_day"
       badge_tier: "bronze" | "silver" | "gold" | "platinum"
       battle_status: "scheduled" | "live" | "finished" | "cancelled"
@@ -7606,8 +8361,21 @@ export type Database = {
       case_status: "open" | "in_progress" | "resolved" | "closed"
       dpp_attempt_status: "in_progress" | "submitted"
       dpp_question_kind: "mcq" | "multi" | "numerical" | "short"
-      exam_type: "class_test" | "unit_test" | "half_yearly" | "final" | "other"
+      exam_type:
+        | "class_test"
+        | "unit_test"
+        | "half_yearly"
+        | "final"
+        | "other"
+        | "monthly_test"
+        | "mid_term"
+        | "annual"
+        | "practical"
+        | "viva"
+        | "internal"
+        | "surprise_test"
       fee_status: "paid" | "unpaid" | "partial"
+      gender_type: "male" | "female" | "other" | "unspecified"
       leave_applicant: "student" | "teacher"
       leave_status: "pending" | "approved" | "rejected"
       notice_audience:
@@ -7617,6 +8385,8 @@ export type Database = {
         | "teachers"
         | "parents"
         | "students"
+      notice_priority: "low" | "normal" | "high" | "urgent"
+      person_status: "active" | "inactive" | "suspended" | "alumni"
       resource_type:
         | "pdf"
         | "video"
@@ -7750,6 +8520,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       academic_event_status: [
@@ -7760,7 +8533,14 @@ export const Constants = {
         "skipped",
       ],
       academic_year_status: ["planned", "active", "closed", "archived"],
-      app_role: ["admin", "teacher", "student", "parent", "principal"],
+      app_role: [
+        "admin",
+        "teacher",
+        "student",
+        "parent",
+        "principal",
+        "super_admin",
+      ],
       attendance_status: ["present", "absent", "leave", "late", "half_day"],
       badge_tier: ["bronze", "silver", "gold", "platinum"],
       battle_status: ["scheduled", "live", "finished", "cancelled"],
@@ -7777,8 +8557,22 @@ export const Constants = {
       case_status: ["open", "in_progress", "resolved", "closed"],
       dpp_attempt_status: ["in_progress", "submitted"],
       dpp_question_kind: ["mcq", "multi", "numerical", "short"],
-      exam_type: ["class_test", "unit_test", "half_yearly", "final", "other"],
+      exam_type: [
+        "class_test",
+        "unit_test",
+        "half_yearly",
+        "final",
+        "other",
+        "monthly_test",
+        "mid_term",
+        "annual",
+        "practical",
+        "viva",
+        "internal",
+        "surprise_test",
+      ],
       fee_status: ["paid", "unpaid", "partial"],
+      gender_type: ["male", "female", "other", "unspecified"],
       leave_applicant: ["student", "teacher"],
       leave_status: ["pending", "approved", "rejected"],
       notice_audience: [
@@ -7789,6 +8583,8 @@ export const Constants = {
         "parents",
         "students",
       ],
+      notice_priority: ["low", "normal", "high", "urgent"],
+      person_status: ["active", "inactive", "suspended", "alumni"],
       resource_type: [
         "pdf",
         "video",
