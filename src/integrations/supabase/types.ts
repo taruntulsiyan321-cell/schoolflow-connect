@@ -3623,10 +3623,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "leave_requests_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "leave_requests_school_id_fkey"
             columns: ["school_id"]
             isOneToOne: false
             referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
             referencedColumns: ["id"]
           },
         ]
@@ -5713,6 +5727,7 @@ export type Database = {
           academic_year_id: string | null
           attendance_pct: number
           attendance_present: number
+          attendance_risk_band: string
           attendance_total: number
           created_at: string
           doubts_asked: number
@@ -5721,6 +5736,7 @@ export type Database = {
           exams_recorded: number
           homework_assigned: number
           homework_completion_pct: number
+          homework_consistency_band: string
           homework_submitted: number
           id: string
           last_event_at: string | null
@@ -5740,6 +5756,7 @@ export type Database = {
           academic_year_id?: string | null
           attendance_pct?: number
           attendance_present?: number
+          attendance_risk_band?: string
           attendance_total?: number
           created_at?: string
           doubts_asked?: number
@@ -5748,6 +5765,7 @@ export type Database = {
           exams_recorded?: number
           homework_assigned?: number
           homework_completion_pct?: number
+          homework_consistency_band?: string
           homework_submitted?: number
           id?: string
           last_event_at?: string | null
@@ -5767,6 +5785,7 @@ export type Database = {
           academic_year_id?: string | null
           attendance_pct?: number
           attendance_present?: number
+          attendance_risk_band?: string
           attendance_total?: number
           created_at?: string
           doubts_asked?: number
@@ -5775,6 +5794,7 @@ export type Database = {
           exams_recorded?: number
           homework_assigned?: number
           homework_completion_pct?: number
+          homework_consistency_band?: string
           homework_submitted?: number
           id?: string
           last_event_at?: string | null
@@ -6828,6 +6848,12 @@ export type Database = {
         }
         Returns: number
       }
+      _eie_attendance_risk_band: { Args: { _pct: number }; Returns: string }
+      _eie_band_severity: { Args: { _band: string }; Returns: number }
+      _eie_homework_consistency_band: {
+        Args: { _pct: number }
+        Returns: string
+      }
       _ensure_student_xp: {
         Args: { _uid: string }
         Returns: {
@@ -6910,6 +6936,17 @@ export type Database = {
         Returns: undefined
       }
       _notify_class_students: {
+        Args: {
+          _body?: string
+          _class_id: string
+          _icon?: string
+          _link?: string
+          _title: string
+          _type: string
+        }
+        Returns: undefined
+      }
+      _notify_class_teacher: {
         Args: {
           _body?: string
           _class_id: string
