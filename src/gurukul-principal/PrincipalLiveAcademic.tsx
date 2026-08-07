@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import {
   AnalyticsService,
@@ -6,6 +6,10 @@ import {
   AiSummaryService,
   AcademicProfileService,
   useAcademicLive,
+  computeAttendanceRisk,
+  computeHomeworkConsistency,
+  RiskBadge,
+  type RiskBand,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -175,44 +179,81 @@ export function PrincipalClassRollups() {
     };
   }, [settled, ready, ctx, liveVersion]);
 
+  const risk = useMemo(
+    () =>
+      rows.map((c) => ({
+        classId: c.classId,
+        // Empty classes have no real average to classify — avoid a false "high risk"
+        // read from a 0%-because-no-students average.
+        attendance: computeAttendanceRisk(c.studentCount > 0 ? c.avgAttendancePct : null),
+        homework: computeHomeworkConsistency(c.studentCount > 0 ? c.avgHomeworkCompletionPct : null),
+      })),
+    [rows],
+  );
+  const atRiskCount = risk.filter(
+    (r) => r.attendance.band === "elevated" || r.attendance.band === "high"
+      || r.homework.band === "elevated" || r.homework.band === "high",
+  ).length;
+
   if (loading) return <Loading label="Loading class rollups…" />;
   if (error) return <ErrorNote message={error} />;
 
   return (
     <div>
+      {atRiskCount > 0 && (
+        <div style={{
+          marginBottom: 14, padding: "10px 14px", borderRadius: 10,
+          background: "var(--rose-light, rgba(220,38,38,0.08))", border: "1px solid rgba(220,38,38,0.25)",
+          fontSize: 12, color: "var(--text-primary)", fontWeight: 600,
+        }}>
+          {atRiskCount} of {rows.length} class{rows.length === 1 ? "" : "es"} need attention — elevated or high attendance/homework risk (EIE).
+        </div>
+      )}
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
-              {["Class", "Students", "Attendance", "Homework", "Exams", "Tests"].map((h) => (
+              {["Class", "Students", "Attendance", "Homework", "Exams", "Tests", "Risk"].map((h) => (
                 <th key={h} style={thStyle}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((c, i) => (
-              <tr key={c.classId} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg)" }}>
-                <td style={{ padding: "12px 14px", fontWeight: 700, fontSize: 13 }}>{c.className}{c.section ? `-${c.section}` : ""}</td>
-                <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">{c.studentCount}</td>
-                <td
-                  style={{
-                    padding: "12px 14px", fontSize: 12, fontWeight: 600,
-                    color: c.avgAttendancePct >= 90 ? "var(--emerald)" : c.avgAttendancePct >= 75 ? "var(--amber)" : "var(--rose)",
-                  }}
-                  className="font-mono-data"
-                >
-                  {Math.round(c.avgAttendancePct)}%
-                </td>
-                <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">{Math.round(c.avgHomeworkCompletionPct)}%</td>
-                <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">{Math.round(c.avgExamsPct)}%</td>
-                <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">{Math.round(c.avgTestsPct)}%</td>
-              </tr>
-            ))}
+            {rows.map((c, i) => {
+              const r = risk.find((x) => x.classId === c.classId);
+              const worst: RiskBand =
+                c.studentCount === 0 || !r
+                  ? "unknown"
+                  : r.attendance.band === "high" || r.homework.band === "high"
+                  ? "high"
+                  : r.attendance.band === "elevated" || r.homework.band === "elevated"
+                  ? "elevated"
+                  : "low";
+              return (
+                <tr key={c.classId} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg)" }}>
+                  <td style={{ padding: "12px 14px", fontWeight: 700, fontSize: 13 }}>{c.className}{c.section ? `-${c.section}` : ""}</td>
+                  <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">{c.studentCount}</td>
+                  <td
+                    style={{
+                      padding: "12px 14px", fontSize: 12, fontWeight: 600,
+                      color: c.avgAttendancePct >= 90 ? "var(--emerald)" : c.avgAttendancePct >= 75 ? "var(--amber)" : "var(--rose)",
+                    }}
+                    className="font-mono-data"
+                  >
+                    {Math.round(c.avgAttendancePct)}%
+                  </td>
+                  <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">{Math.round(c.avgHomeworkCompletionPct)}%</td>
+                  <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">{Math.round(c.avgExamsPct)}%</td>
+                  <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">{Math.round(c.avgTestsPct)}%</td>
+                  <td style={{ padding: "12px 14px" }}><RiskBadge band={worst} size="sm" /></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {rows.length === 0 && <Empty message="No classes found." />}
       </div>
-      <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 8 }}>AnalyticsService.classRollups</p>
+      <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 8 }}>AnalyticsService.classRollups · risk bands via EIE (src/academic/eie)</p>
     </div>
   );
 }

@@ -4,6 +4,9 @@ import {
   AcademicProfileService,
   AttendanceService,
   useAcademicLive,
+  computeAttendanceRisk,
+  RiskBadge,
+  riskReasonText,
   type AttendanceRecord,
   type ParentChildRow,
 } from "@/academic";
@@ -21,6 +24,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
   const [pct, setPct] = useState(0);
   const [present, setPresent] = useState(0);
   const [total, setTotal] = useState(0);
+  const [risk, setRisk] = useState<ReturnType<typeof computeAttendanceRisk> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +50,11 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);
         setTotal(profile?.attendanceTotal ?? 0);
+        setRisk(
+          profile && profile.attendanceTotal > 0
+            ? computeAttendanceRisk(profile.attendancePct)
+            : null,
+        );
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load attendance");
       } finally {
@@ -98,6 +107,13 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
           <div className="text-[9px] text-[#78788c] uppercase tracking-wide font-bold">Engine rate</div>
         </div>
       </div>
+
+      {risk && risk.band !== "low" && (
+        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5">
+          <RiskBadge band={risk.band} />
+          <span className="text-[11px] text-[#c8c8d8]">{riskReasonText(risk.reason_codes)}</span>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3">
         {Object.entries(statusColor).map(([k, c]) => (

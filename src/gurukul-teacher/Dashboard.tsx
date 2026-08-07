@@ -11,6 +11,7 @@ import {
   PenLine,
   MessageCircle,
   Megaphone,
+  AlertTriangle,
 } from "lucide-react";
 import { cn } from "./shared";
 import type { TeacherPageKey } from "./nav";
@@ -20,6 +21,7 @@ import {
   TestService,
   MarksService,
   DoubtService,
+  AcademicProfileService,
   useAcademicLive,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -130,6 +132,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
   const [upcomingExams, setUpcomingExams] = useState(0);
   const [pendingMarksEntry, setPendingMarksEntry] = useState(0);
   const [doubtsOpen, setDoubtsOpen] = useState(0);
+  const [atRiskStudents, setAtRiskStudents] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
 
@@ -152,6 +155,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
       setUpcomingExams(0);
       setPendingMarksEntry(0);
       setDoubtsOpen(0);
+      setAtRiskStudents(0);
       return;
     }
     let cancelled = false;
@@ -167,6 +171,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         let pendingMarks = 0;
         let attPending = 0;
         let ct = 0;
+        let atRisk = 0;
         const partialErrors: string[] = [];
 
         for (const c of classes) {
@@ -209,6 +214,16 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           } catch {
             partialErrors.push("exams");
           }
+
+          try {
+            const profiles = await AcademicProfileService.listForClass(ctx, c.id);
+            for (const p of profiles) {
+              if (p.attendanceRiskBand === "elevated" || p.attendanceRiskBand === "high") atRisk += 1;
+              else if (p.homeworkConsistencyBand === "elevated" || p.homeworkConsistencyBand === "high") atRisk += 1;
+            }
+          } catch {
+            partialErrors.push("risk");
+          }
         }
 
         let open = 0;
@@ -230,6 +245,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         setUpcomingExams(upcoming);
         setPendingMarksEntry(pendingMarks);
         setDoubtsOpen(open);
+        setAtRiskStudents(atRisk);
         const unique = [...new Set(partialErrors)];
         setError(
           unique.length
@@ -368,6 +384,14 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             color="#3b5bdb"
             hint="Not yet published"
             onClick={() => openTab("exams-marks")}
+          />
+          <AttentionCard
+            icon={<AlertTriangle className="w-5 h-5" />}
+            label="Students at risk"
+            value={atRiskStudents}
+            color="#cc5069"
+            hint="Elevated/high attendance or homework risk (EIE)"
+            onClick={() => openTab("insights")}
           />
           <AttentionCard
             icon={<PenLine className="w-5 h-5" />}

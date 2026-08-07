@@ -20,6 +20,8 @@ type ProfileRow = {
   homework_assigned: number;
   homework_submitted: number;
   homework_completion_pct: number;
+  attendance_risk_band: "low" | "moderate" | "elevated" | "high" | "unknown";
+  homework_consistency_band: "low" | "moderate" | "elevated" | "high" | "unknown";
   tests_attempted: number;
   tests_avg_pct: number;
   exams_recorded: number;
@@ -47,6 +49,8 @@ function mapProfile(row: ProfileRow): StudentAcademicProfile {
     homeworkAssigned: row.homework_assigned,
     homeworkSubmitted: row.homework_submitted,
     homeworkCompletionPct: Number(row.homework_completion_pct),
+    attendanceRiskBand: row.attendance_risk_band,
+    homeworkConsistencyBand: row.homework_consistency_band,
     testsAttempted: row.tests_attempted,
     testsAvgPct: Number(row.tests_avg_pct),
     examsRecorded: row.exams_recorded,

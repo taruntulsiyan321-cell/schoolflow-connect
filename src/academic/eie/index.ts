@@ -26,6 +26,8 @@ export {
   type RiskBand,
 } from "./riskProducts";
 
+export { RiskBadge, riskReasonText } from "./RiskBadge";
+
 export {
   buildSchoolRiskRollups,
   EIE_SCHOOL_ROLLUP_ALGORITHM_ID,

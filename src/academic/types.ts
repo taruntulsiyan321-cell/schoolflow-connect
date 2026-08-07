@@ -24,6 +24,9 @@ export interface StudentAcademicProfile {
   homeworkAssigned: number;
   homeworkSubmitted: number;
   homeworkCompletionPct: number;
+  /** EIE-computed risk bands (server-persisted, src/academic/eie/riskProducts.ts thresholds). */
+  attendanceRiskBand: "low" | "moderate" | "elevated" | "high" | "unknown";
+  homeworkConsistencyBand: "low" | "moderate" | "elevated" | "high" | "unknown";
   testsAttempted: number;
   testsAvgPct: number;
   examsRecorded: number;

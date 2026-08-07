@@ -219,6 +219,14 @@ export {
   EIE_ALGORITHM_ID,
   MASTERY_THRESHOLDS,
   WEAK_CONCEPT_THRESHOLD,
+  computeAttendanceRisk,
+  computeHomeworkConsistency,
+  buildSchoolRiskRollups,
+  RiskBadge,
+  riskReasonText,
+  type RiskBand,
+  type ProfileRollupRow,
+  type SchoolRiskRollup,
 } from "./eie";
 
 export { AuditService, listAuditForEntity, listRecentAudit } from "./audit";
