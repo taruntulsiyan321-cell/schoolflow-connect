@@ -3,11 +3,11 @@ import { Loader2, Sparkles } from "lucide-react";
 import {
   AnalyticsService,
   AttendanceService,
-  AiSummaryService,
   AcademicProfileService,
   useAcademicLive,
   computeAttendanceRisk,
   computeHomeworkConsistency,
+  buildSchoolHealthBrief,
   RiskBadge,
   type RiskBand,
 } from "@/academic";
@@ -56,7 +56,9 @@ const thStyle: React.CSSProperties = {
 };
 
 /**
- * School-wide KPI overview — AnalyticsService.forSchool + AttendanceService.summarizeSchoolDate + AiSummaryService.school.
+ * School-wide KPI overview — AnalyticsService.forSchool + AttendanceService.summarizeSchoolDate.
+ * Health brief is built client-side from the same school aggregate (no extra fetch) via
+ * the EIE-aware buildSchoolHealthBrief — see src/academic/ai/schoolHealthBrief.ts.
  */
 export function PrincipalSchoolOverview() {
   const { ctx, ready, settled } = useAcademicContext();
@@ -70,7 +72,6 @@ export function PrincipalSchoolOverview() {
   ]);
   const [school, setSchool] = useState<Awaited<ReturnType<typeof AnalyticsService.forSchool>> | null>(null);
   const [today, setToday] = useState<Awaited<ReturnType<typeof AttendanceService.summarizeSchoolDate>> | null>(null);
-  const [ai, setAi] = useState<Awaited<ReturnType<typeof AiSummaryService.school>> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,15 +86,13 @@ export function PrincipalSchoolOverview() {
       setLoading(true);
       setError(null);
       try {
-        const [s, d, a] = await Promise.all([
+        const [s, d] = await Promise.all([
           AnalyticsService.forSchool(ctx),
           AttendanceService.summarizeSchoolDate(ctx, todayStr()),
-          AiSummaryService.school(ctx).catch(() => null),
         ]);
         if (cancelled) return;
         setSchool(s);
         setToday(d);
-        setAi(a);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load school overview");
       } finally {
@@ -104,6 +103,26 @@ export function PrincipalSchoolOverview() {
       cancelled = true;
     };
   }, [settled, ready, ctx, liveVersion]);
+
+  const brief = useMemo(() => {
+    if (!school) return null;
+    const attendanceRisk = computeAttendanceRisk(school.avgAttendancePct > 0 ? school.avgAttendancePct : null);
+    const homeworkRisk = computeHomeworkConsistency(school.avgHomeworkCompletionPct > 0 ? school.avgHomeworkCompletionPct : null);
+    return buildSchoolHealthBrief({
+      school_id: ctx?.schoolId ?? "",
+      class_count: school.classCount,
+      student_count: school.studentCount,
+      teacher_count: school.teacherCount,
+      avg_attendance_pct: school.avgAttendancePct,
+      avg_homework_completion_pct: school.avgHomeworkCompletionPct,
+      avg_tests_pct: school.avgTestsPct,
+      avg_exams_pct: school.avgExamsPct,
+      attendance_risk_band: attendanceRisk.band,
+      homework_consistency_band: homeworkRisk.band,
+      source_as_of: todayStr(),
+      data_version: `principal_overview:${school.studentCount}:${school.classCount}`,
+    });
+  }, [school, ctx?.schoolId]);
 
   if (loading) return <Loading label="Loading school overview (Academic Engine)…" />;
   if (error) return <ErrorNote message={error} />;
@@ -121,19 +140,20 @@ export function PrincipalSchoolOverview() {
         <StatBlock label="Avg Homework" value={`${Math.round(school.avgHomeworkCompletionPct)}%`} color="var(--amber)" />
         <StatBlock label="Avg Tests" value={`${Math.round(school.avgTestsPct)}%`} color="var(--indigo)" />
       </div>
-      {ai && (
+      {brief && brief.status === "ready" && (
         <div style={{
           padding: "16px 18px", borderRadius: 12, background: "var(--indigo-light)",
           border: "1px solid rgba(59,91,219,0.25)", fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6,
         }}>
-          <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-            <Sparkles size={13} color="var(--indigo)" /> AI School Summary
+          <div style={{ fontWeight: 700, color: "var(--text-primary)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+            <Sparkles size={13} color="var(--indigo)" /> School Health Brief
           </div>
-          Average attendance {Math.round(ai.avgAttendancePct)}% and average marks {Math.round(ai.avgMarksPct)}% across {ai.classCount} classes,
-          {" "}{ai.studentCount} students and {ai.teacherCount} teachers.
+          <ul style={{ margin: 0, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 3 }}>
+            {brief.bullets.map((b, i) => <li key={i}>{b}</li>)}
+          </ul>
         </div>
       )}
-      <p style={{ fontSize: 10, color: "var(--text-muted)" }}>AnalyticsService.forSchool · AttendanceService.summarizeSchoolDate · AiSummaryService.school</p>
+      <p style={{ fontSize: 10, color: "var(--text-muted)" }}>AnalyticsService.forSchool · AttendanceService.summarizeSchoolDate · buildSchoolHealthBrief (EIE)</p>
     </div>
   );
 }

@@ -113,7 +113,7 @@ const navItems: { icon: React.ElementType; key: PrincipalPageKey }[] = [
 function DashboardPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="AnalyticsService · AttendanceService · AiSummaryService">School Overview</SectionTitle>
+      <SectionTitle sub="AnalyticsService · AttendanceService · EIE health brief">School Overview</SectionTitle>
       <Card><PrincipalSchoolOverview /></Card>
       <SectionTitle sub="Per-class averages from AnalyticsService.classRollups">Class Performance</SectionTitle>
       <Card><PrincipalClassRollups /></Card>

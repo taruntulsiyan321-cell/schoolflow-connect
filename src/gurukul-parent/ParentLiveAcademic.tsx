@@ -11,9 +11,12 @@ import {
   WORK_KIND_LABELS,
   normalizeWorkKind,
   useAcademicLive,
+  buildParentScheduledNarrative,
   type StudentAcademicProfile,
+  type ParentNarrative,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { localDateKey } from "@/lib/localDate";
 import { cn } from "./shared";
 
 function Loading({ label }: { label: string }) {
@@ -265,7 +268,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
     studyStreak: number;
     badges: number;
   } | null>(null);
-  const [ai, setAi] = useState<string | null>(null);
+  const [narrative, setNarrative] = useState<ParentNarrative | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -308,9 +311,18 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
               }
             : { xp: 0, level: 0, league: "—", studyStreak: 0, badges: 0 },
         );
-        setAi(
+        setNarrative(
           summary
-            ? `Attendance ${Math.round(summary.attendancePct)}% · Homework ${Math.round(summary.homeworkCompletionPct)}% · Exams ${Math.round(summary.examsAvgPct)}% · Tests ${Math.round(summary.testsAvgPct)}%`
+            ? buildParentScheduledNarrative({
+                attendance_pct: summary.attendancePct,
+                homework_completion_pct: summary.homeworkCompletionPct,
+                tests_avg_pct: summary.testsAvgPct,
+                exams_avg_pct: summary.examsAvgPct,
+                weak_topics: summary.weakTopics,
+                strong_topics: summary.strongTopics,
+                source_as_of: localDateKey(),
+                data_version: `parent_performance:${studentId}`,
+              })
             : null,
         );
       } catch (e) {
@@ -362,14 +374,19 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
           ))}
         </div>
       )}
-      {ai && (
-        <div className="p-4 rounded-2xl bg-white/3 text-xs text-[#78788c] leading-relaxed">
-          <div className="text-[10px] font-bold text-white mb-2">AI Summary (engine)</div>
-          {ai}
+      {narrative && (
+        <div className="p-4 rounded-2xl bg-white/3 text-xs text-[#78788c] leading-relaxed space-y-2">
+          <div className="text-[10px] font-bold text-white">Progress Summary</div>
+          <p>{narrative.narrative}</p>
+          {narrative.bullets.length > 0 && (
+            <ul className="list-disc list-inside space-y-0.5">
+              {narrative.bullets.map((b, i) => <li key={i}>{b}</li>)}
+            </ul>
+          )}
         </div>
       )}
       <p className="text-[9px] text-[#46465a]">
-        AcademicProfileService · AnalyticsService · AiSummaryService · ProgressionService
+        AcademicProfileService · AnalyticsService · AiSummaryService · ProgressionService · buildParentScheduledNarrative
       </p>
     </div>
   );

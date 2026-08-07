@@ -211,6 +211,12 @@ export {
   AI_BILLING_UNAVAILABLE_MSG,
   isAiBillingOrCreditsIssue,
   resolveCoachCapability,
+  buildSchoolHealthBrief,
+  type SchoolHealthBrief,
+  type SchoolHealthAggregateInput,
+  buildParentScheduledNarrative,
+  type ParentNarrative,
+  type ParentNarrativeInput,
 } from "./ai";
 
 export {
