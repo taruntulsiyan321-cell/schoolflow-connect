@@ -165,6 +165,91 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
       try {
         const classes = await AttendanceService.listAssignedClasses(ctx);
         const todayDate = todayIsoDate();
+        const partialErrors: string[] = [];
+
+        // Every class's 5 lookups, and all classes, run concurrently instead
+        // of one long sequential chain — this was the dominant cause of the
+        // multi-second dashboard load (each cross-region RPC is ~400ms; a
+        // sequential chain of 5 x N classes compounds linearly).
+        const [classResults, doubtsResult] = await Promise.all([
+          Promise.all(
+            classes.map(async (c) => {
+              const [attRes, hwRes, testsRes, examsRes, riskRes] = await Promise.allSettled([
+                c.isClassTeacher
+                  ? AttendanceService.listForClassDate(ctx, c.id, todayDate)
+                  : Promise.resolve(null),
+                HomeworkService.listForClassWithStats(ctx, c.id, { limit: 100 }),
+                TestService.listForClass(ctx, c.id) as Promise<
+                  { status?: string; is_published?: boolean }[]
+                >,
+                MarksService.listExamsForClass(ctx, c.id, { limit: 100 }),
+                AcademicProfileService.listForClass(ctx, c.id),
+              ]);
+
+              const errors: string[] = [];
+              let attPendingHere = false;
+              let awReviewHere = 0;
+              let testsNHere = 0;
+              let upcomingHere = 0;
+              let pendingMarksHere = 0;
+              let atRiskHere = 0;
+
+              if (c.isClassTeacher) {
+                if (attRes.status === "fulfilled") {
+                  if (!attRes.value || !attRes.value.length) attPendingHere = true;
+                } else {
+                  errors.push("attendance");
+                }
+              }
+
+              if (hwRes.status === "fulfilled") {
+                for (const h of hwRes.value) awReviewHere += h.awaitingReview;
+              } else {
+                errors.push("homework");
+              }
+
+              if (testsRes.status === "fulfilled") {
+                testsNHere = testsRes.value.filter((t) => {
+                  const st = String(t.status ?? (t.is_published ? "published" : "draft"));
+                  return st === "draft" || st === "scheduled";
+                }).length;
+              } else {
+                errors.push("tests");
+              }
+
+              if (examsRes.status === "fulfilled") {
+                for (const e of examsRes.value) {
+                  if (!e.resultsPublishedAt && e.examDate && e.examDate >= todayDate) upcomingHere += 1;
+                  if (!e.marksLocked) pendingMarksHere += 1;
+                }
+              } else {
+                errors.push("exams");
+              }
+
+              if (riskRes.status === "fulfilled") {
+                for (const p of riskRes.value) {
+                  if (p.attendanceRiskBand === "elevated" || p.attendanceRiskBand === "high") atRiskHere += 1;
+                  else if (p.homeworkConsistencyBand === "elevated" || p.homeworkConsistencyBand === "high") atRiskHere += 1;
+                }
+              } else {
+                errors.push("risk");
+              }
+
+              return {
+                isCt: c.isClassTeacher,
+                attPendingHere,
+                awReviewHere,
+                testsNHere,
+                upcomingHere,
+                pendingMarksHere,
+                atRiskHere,
+                errors,
+              };
+            }),
+          ),
+          DoubtService.list(ctx, { status: "open" }).catch(() => null),
+        ]);
+
         let awReview = 0;
         let testsN = 0;
         let upcoming = 0;
@@ -172,68 +257,20 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         let attPending = 0;
         let ct = 0;
         let atRisk = 0;
-        const partialErrors: string[] = [];
-
-        for (const c of classes) {
-          if (c.isClassTeacher) {
+        for (const r of classResults) {
+          if (r.isCt) {
             ct += 1;
-            try {
-              const existing = await AttendanceService.listForClassDate(ctx, c.id, todayDate);
-              if (!existing.length) attPending += 1;
-            } catch {
-              partialErrors.push("attendance");
-            }
+            if (r.attPendingHere) attPending += 1;
           }
-
-          try {
-            const hw = await HomeworkService.listForClassWithStats(ctx, c.id, { limit: 100 });
-            for (const h of hw) awReview += h.awaitingReview;
-          } catch {
-            partialErrors.push("homework");
-          }
-
-          try {
-            const tests = (await TestService.listForClass(ctx, c.id)) as {
-              status?: string;
-              is_published?: boolean;
-            }[];
-            testsN += tests.filter((t) => {
-              const st = String(t.status ?? (t.is_published ? "published" : "draft"));
-              return st === "draft" || st === "scheduled";
-            }).length;
-          } catch {
-            partialErrors.push("tests");
-          }
-
-          try {
-            const exams = await MarksService.listExamsForClass(ctx, c.id, { limit: 100 });
-            for (const e of exams) {
-              if (!e.resultsPublishedAt && e.examDate && e.examDate >= todayDate) upcoming += 1;
-              if (!e.marksLocked) pendingMarks += 1;
-            }
-          } catch {
-            partialErrors.push("exams");
-          }
-
-          try {
-            const profiles = await AcademicProfileService.listForClass(ctx, c.id);
-            for (const p of profiles) {
-              if (p.attendanceRiskBand === "elevated" || p.attendanceRiskBand === "high") atRisk += 1;
-              else if (p.homeworkConsistencyBand === "elevated" || p.homeworkConsistencyBand === "high") atRisk += 1;
-            }
-          } catch {
-            partialErrors.push("risk");
-          }
+          awReview += r.awReviewHere;
+          testsN += r.testsNHere;
+          upcoming += r.upcomingHere;
+          pendingMarks += r.pendingMarksHere;
+          atRisk += r.atRiskHere;
+          partialErrors.push(...r.errors);
         }
-
-        let open = 0;
-        try {
-          const doubts = await DoubtService.list(ctx, { status: "open" });
-          open = doubts.length;
-        } catch {
-          partialErrors.push("doubts");
-          open = 0;
-        }
+        const open = doubtsResult ? doubtsResult.length : 0;
+        if (doubtsResult === null) partialErrors.push("doubts");
 
         if (cancelled) return;
         setClassCount(classes.length);
