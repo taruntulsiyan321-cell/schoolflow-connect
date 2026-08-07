@@ -28,6 +28,8 @@ export {
 
 export { RiskBadge, riskReasonText } from "./RiskBadge";
 
+export { computeDoubtUrgency, type DoubtUrgencyProduct } from "./doubtUrgency";
+
 export {
   buildSchoolRiskRollups,
   EIE_SCHOOL_ROLLUP_ALGORITHM_ID,

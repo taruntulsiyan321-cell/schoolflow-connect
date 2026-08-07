@@ -46,11 +46,19 @@ export type DoubtRow = {
   image_url: string | null;
   status: string;
   answer_count: number;
+  view_count: number;
   solved_at: string | null;
   solved_by_answer_id: string | null;
   created_at: string;
   updated_at: string;
   last_activity_at: string;
+};
+
+export type TeacherDoubtDashboard = {
+  unanswered: (DoubtRow & { status: DoubtStatus })[];
+  attention: (DoubtRow & { status: DoubtStatus })[];
+  concepts: { label: string; total: number; unresolved: number }[];
+  totals: { open: number; teacher_answered: number; solved: number };
 };
 
 export type DoubtAnswerRow = {
@@ -102,6 +110,31 @@ export const DoubtService = {
       throw new ForbiddenError("Teacher assignments require a teacher role");
     }
     return listTeacherClassSubjectPairs(toRepoContext(ctx), ctx.userId);
+  },
+
+  /**
+   * Teacher/admin/principal triage view — rpc_teacher_doubt_dashboard(), already
+   * deployed and RLS-scoped, was never called by any frontend page. Returns the
+   * unanswered list, an attention-ranked subset (view_count desc, created_at asc),
+   * a per-concept unresolved breakdown, and totals.
+   */
+  async getTeacherDashboard(ctx: ServiceContext): Promise<TeacherDoubtDashboard> {
+    assertCanConsume(ctx, "student_doubt");
+    if (ctx.role !== "teacher" && ctx.role !== "admin" && ctx.role !== "principal") {
+      throw new ForbiddenError("Doubt triage dashboard requires a teacher role");
+    }
+    const { data, error } = await getClient(toRepoContext(ctx)).rpc(
+      "rpc_teacher_doubt_dashboard",
+    );
+    throwIfError(error, "Failed to load doubt triage dashboard");
+    const raw = (data ?? {}) as Partial<TeacherDoubtDashboard>;
+    const fix = (row: DoubtRow) => asDoubt(row);
+    return {
+      unanswered: ((raw.unanswered ?? []) as DoubtRow[]).map(fix),
+      attention: ((raw.attention ?? []) as DoubtRow[]).map(fix),
+      concepts: (raw.concepts ?? []) as TeacherDoubtDashboard["concepts"],
+      totals: (raw.totals ?? { open: 0, teacher_answered: 0, solved: 0 }) as TeacherDoubtDashboard["totals"],
+    };
   },
 
   async list(

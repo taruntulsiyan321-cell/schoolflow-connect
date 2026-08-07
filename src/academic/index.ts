@@ -120,6 +120,7 @@ export type {
   DoubtAnswerRow,
   DoubtAttachmentRow,
   DoubtStatus,
+  TeacherDoubtDashboard,
 } from "./services/doubtService";
 
 export type {
@@ -228,11 +229,13 @@ export {
   computeAttendanceRisk,
   computeHomeworkConsistency,
   buildSchoolRiskRollups,
+  computeDoubtUrgency,
   RiskBadge,
   riskReasonText,
   type RiskBand,
   type ProfileRollupRow,
   type SchoolRiskRollup,
+  type DoubtUrgencyProduct,
 } from "./eie";
 
 export { AuditService, listAuditForEntity, listRecentAudit } from "./audit";

@@ -9,6 +9,7 @@ import {
   Loader2,
   X,
   AlertCircle,
+  Flame,
 } from "lucide-react";
 import { cn, InitialsAvatar } from "./shared";
 import {
@@ -17,11 +18,14 @@ import {
   uploadDoubtAttachment,
   signedDoubtUrl,
   DOUBT_FILE_ACCEPT,
+  computeDoubtUrgency,
+  RiskBadge,
   type DoubtRow,
   type DoubtAnswerRow,
   type DoubtAttachmentRow,
   type DoubtUploadMeta,
   type DoubtStatus,
+  type TeacherDoubtDashboard,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
@@ -95,6 +99,7 @@ export default function Doubts() {
 
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [doubts, setDoubts] = useState<UiDoubt[]>([]);
+  const [attention, setAttention] = useState<TeacherDoubtDashboard["attention"]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -123,6 +128,26 @@ export default function Doubts() {
       cancelled = true;
     };
   }, [ready, ctx]);
+
+  // Triage queue — rpc_teacher_doubt_dashboard() is already deployed and
+  // RLS-scoped; this was the first frontend caller. Independent of the
+  // filtered list below, so it loads (and refreshes on realtime doubt
+  // events) on its own.
+  useEffect(() => {
+    if (!ready || !ctx) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const dash = await DoubtService.getTeacherDashboard(ctx);
+        if (!cancelled) setAttention(dash.attention);
+      } catch {
+        if (!cancelled) setAttention([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, ctx, liveVersion]);
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -208,6 +233,25 @@ export default function Doubts() {
       }),
     [doubts, search],
   );
+
+  // Deterministic urgency (age + visibility) over the already-ranked attention
+  // set from rpc_teacher_doubt_dashboard — top 5 shown, highest score first.
+  const triage = useMemo(
+    () =>
+      attention
+        .map((row) => ({ row, urgency: computeDoubtUrgency({ createdAt: row.created_at, viewCount: row.view_count }) }))
+        // A fresh, unviewed doubt isn't something to flag as "needs attention" yet.
+        .filter((x) => x.urgency.band !== "low")
+        .sort((a, b) => b.urgency.score - a.urgency.score)
+        .slice(0, 5),
+    [attention],
+  );
+
+  function jumpToDoubt(id: string) {
+    setStatusFilter("all");
+    setAssignmentFilter("all");
+    setExpandedId(id);
+  }
 
   async function sendReply(id: string) {
     const text = replyText[id]?.trim();
@@ -298,6 +342,33 @@ export default function Doubts() {
           {error && <div className="text-[10px] text-[#cc5069] mt-1">{error}</div>}
         </div>
       </div>
+
+      {triage.length > 0 && (
+        <div className="rounded-2xl border border-[#cc5069]/20 bg-[#cc5069]/5 p-4">
+          <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#f0a1b0] mb-3">
+            <Flame className="w-3.5 h-3.5" /> Needs attention — oldest / most-viewed unanswered first
+          </div>
+          <div className="space-y-2">
+            {triage.map(({ row, urgency }) => (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => jumpToDoubt(row.id)}
+                className="w-full flex items-center gap-3 rounded-xl bg-[#131316] border border-white/7 hover:border-white/15 px-3 py-2.5 text-left transition-all"
+              >
+                <RiskBadge band={urgency.band} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs font-semibold text-white truncate">{row.title || row.body}</div>
+                  <div className="text-[9px] text-[#78788c] mt-0.5">
+                    {row.student_name} · {row.subject} · {urgency.age_hours < 1 ? "just now" : `${Math.round(urgency.age_hours)}h ago`}
+                    {urgency.view_count > 0 ? ` · ${urgency.view_count} views` : ""}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {assignments.length === 0 && (
         <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-2.5 text-[11px] text-amber-200">
