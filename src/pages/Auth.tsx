@@ -2,7 +2,6 @@ import { useState, useEffect, useId } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth, dashboardForRole, canAccessPath, mapAuthError } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -222,15 +221,16 @@ export default function Auth() {
   const handleGoogle = async () => {
     if (busy) return;
     setBusy(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
     });
-    if (result.error) {
+    if (error) {
       setBusy(false);
-      return toast.error(result.error.message ?? "Google sign-in failed");
+      toast.error(error.message || "Google sign-in failed");
+      return;
     }
-    if (result.redirected) return;
-    setBusy(false);
+    // Success navigates the browser away to Google's consent screen.
   };
 
   if (loading || (user && role && status === "authenticated")) {
