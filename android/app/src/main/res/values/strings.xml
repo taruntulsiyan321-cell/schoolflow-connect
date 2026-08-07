@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Vidyalaya</string>
+    <string name="title_activity_main">Vidyalaya</string>
+    <string name="package_name">study.gurukul.app</string>
+    <string name="custom_url_scheme">study.gurukul.app</string>
+</resources>
