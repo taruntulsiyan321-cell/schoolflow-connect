@@ -133,7 +133,8 @@ function PasswordField({
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <div className="relative">
+      <div className="relative group">
+        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
         <Input
           id={id}
           type={visible ? "text" : "password"}
@@ -142,7 +143,7 @@ function PasswordField({
           autoComplete={autoComplete}
           required
           disabled={disabled}
-          className="pr-10"
+          className="h-12 pl-10 pr-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
         />
         <button
           type="button"
@@ -604,8 +605,8 @@ export default function Auth() {
               <form onSubmit={handleCompleteProfile} className="space-y-4 animate-fade-in" noValidate>
                 <div className="space-y-1.5">
                   <Label htmlFor={profileNameId}>Full name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <div className="relative group">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
                     <Input
                       id={profileNameId}
                       value={newAccountName}
@@ -614,7 +615,7 @@ export default function Auth() {
                       autoComplete="name"
                       required
                       disabled={profileBusy}
-                      className="pl-9"
+                      className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
                     />
                   </div>
                 </div>
@@ -643,7 +644,7 @@ export default function Auth() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
+                  className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                   disabled={profileBusy}
                 >
                   {profileBusy ? (
@@ -677,7 +678,7 @@ export default function Auth() {
             <Button
               type="button"
               variant="outline"
-              className="w-full h-11 flex items-center justify-center gap-2.5 font-medium hover-lift"
+              className="w-full h-12 rounded-xl border-border/60 flex items-center justify-center gap-2.5 font-medium hover-lift"
               onClick={handleGoogle}
               disabled={busy}
             >
@@ -733,8 +734,8 @@ export default function Auth() {
                   <form onSubmit={handleSignIn} className="space-y-4" noValidate>
                     <div className="space-y-1.5">
                       <Label htmlFor={signinEmailId}>Email address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      <div className="relative group">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
                         <Input
                           id={signinEmailId}
                           type="email"
@@ -744,7 +745,7 @@ export default function Auth() {
                           autoComplete="email"
                           required
                           disabled={busy}
-                          className="pl-9"
+                          className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
                         />
                       </div>
                     </div>
@@ -771,7 +772,7 @@ export default function Auth() {
 
                     <Button
                       type="submit"
-                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
+                      className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                       disabled={busy}
                     >
                       {busy ? (
@@ -822,8 +823,8 @@ export default function Auth() {
                   <form onSubmit={handleEmailOtpSend} className="space-y-4" noValidate>
                     <div className="space-y-1.5">
                       <Label htmlFor="email-otp-address">Email address</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      <div className="relative group">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
                         <Input
                           id="email-otp-address"
                           type="email"
@@ -833,7 +834,7 @@ export default function Auth() {
                           autoComplete="email"
                           required
                           disabled={emailOtpBusy}
-                          className="pl-9"
+                          className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
                         />
                       </div>
                     </div>
@@ -842,7 +843,7 @@ export default function Auth() {
                     </p>
                     <Button
                       type="submit"
-                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
+                      className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                       disabled={emailOtpBusy}
                     >
                       {emailOtpBusy ? (
@@ -885,7 +886,7 @@ export default function Auth() {
                         <Button
                           type="button"
                           onClick={handleMobileOtp}
-                          className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
+                          className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                           disabled={mobileBusy}
                         >
                           {mobileBusy ? (
@@ -926,8 +927,8 @@ export default function Auth() {
                       <form onSubmit={handleMobilePasswordSignIn} className="space-y-4" noValidate>
                         <div className="space-y-1.5">
                           <Label htmlFor={mobilePhoneId}>Mobile number</Label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                          <div className="relative group">
+                            <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
                             <Input
                               id={mobilePhoneId}
                               type="tel"
@@ -937,7 +938,7 @@ export default function Auth() {
                               autoComplete="tel"
                               required
                               disabled={busy}
-                              className="pl-9"
+                              className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
                             />
                           </div>
                         </div>
@@ -951,7 +952,7 @@ export default function Auth() {
                         />
                         <Button
                           type="submit"
-                          className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
+                          className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                           disabled={busy}
                         >
                           {busy ? (
@@ -979,8 +980,8 @@ export default function Auth() {
               <form key="signup" onSubmit={handleSignUp} className="space-y-4 animate-fade-in" noValidate>
                 <div className="space-y-1.5">
                   <Label htmlFor={signupNameId}>Full name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <div className="relative group">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
                     <Input
                       id={signupNameId}
                       value={suName}
@@ -989,7 +990,7 @@ export default function Auth() {
                       autoComplete="name"
                       required
                       disabled={busy}
-                      className="pl-9"
+                      className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
                     />
                   </div>
                 </div>
@@ -1028,8 +1029,8 @@ export default function Auth() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor={signupEmailId}>Email address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                  <div className="relative group">
+                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
                     <Input
                       id={signupEmailId}
                       type="email"
@@ -1039,7 +1040,7 @@ export default function Auth() {
                       autoComplete="email"
                       required
                       disabled={busy}
-                      className="pl-9"
+                      className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
                     />
                   </div>
                 </div>
@@ -1056,7 +1057,7 @@ export default function Auth() {
 
                 <Button
                   type="submit"
-                  className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
+                  className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                   disabled={busy}
                 >
                   {busy ? (
