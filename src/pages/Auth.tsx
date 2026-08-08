@@ -6,7 +6,6 @@ import { useAuth, dashboardForRole, canAccessPath, mapAuthError } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   GraduationCap,
   Loader2,
@@ -46,11 +45,71 @@ const ROLE_OPTIONS: {
   { value: "parent", label: "Parent", desc: "Track your child's progress", icon: Users },
 ];
 
-const TRUST_POINTS = [
-  "Secure cloud authentication",
-  "Role-based portal access",
-  "Multi-school ready",
+/** What the portal actually does, standing in for the old generic
+ *  "Secure cloud authentication" checklist — concrete beats vague. */
+const CAMPUS_PILLARS: { label: string; icon: typeof GraduationCap }[] = [
+  { label: "Attendance", icon: CheckCircle2 },
+  { label: "Exams", icon: BookOpen },
+  { label: "Fees", icon: KeyRound },
+  { label: "Notices", icon: Sparkles },
 ];
+
+/** Sliding-indicator tab control — replaces the three near-identical
+ *  grey-pill segmented switchers that used to be hand-rolled per tab. */
+function TabSwitch<T extends string>({
+  options,
+  value,
+  onChange,
+  disabled,
+  ariaLabel,
+  size = "md",
+}: {
+  options: readonly { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  disabled?: boolean;
+  ariaLabel: string;
+  size?: "md" | "sm";
+}) {
+  const idx = Math.max(0, options.findIndex((o) => o.value === value));
+  return (
+    <div
+      role="tablist"
+      aria-label={ariaLabel}
+      className={cn(
+        "relative grid p-0.5 rounded-full bg-muted/70",
+        size === "md" ? "h-11" : "h-9",
+      )}
+      style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}
+    >
+      <div
+        aria-hidden
+        className="absolute inset-y-0.5 left-0.5 rounded-full bg-card shadow-card transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        style={{
+          width: `calc(${100 / options.length}% - 4px)`,
+          transform: `translateX(calc(${idx * 100}% + ${idx * 4}px))`,
+        }}
+      />
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="tab"
+          aria-selected={value === o.value}
+          disabled={disabled}
+          onClick={() => onChange(o.value)}
+          className={cn(
+            "relative z-10 flex items-center justify-center rounded-full font-medium transition-colors duration-200",
+            size === "md" ? "text-sm" : "text-xs",
+            value === o.value ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function PasswordField({
   id,
@@ -427,21 +486,24 @@ export default function Auth() {
       {/* Brand panel */}
       <aside className="relative lg:w-[44%] xl:w-[42%] bg-gradient-hero text-white overflow-hidden">
         <div
-          className="absolute inset-0 opacity-[0.07]"
+          className="absolute inset-0 opacity-[0.05]"
           style={{
             backgroundImage:
-              "linear-gradient(hsl(0 0% 100% / 0.12) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / 0.12) 1px, transparent 1px)",
-            backgroundSize: "48px 48px",
+              "linear-gradient(hsl(0 0% 100% / 0.14) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / 0.14) 1px, transparent 1px)",
+            backgroundSize: "44px 44px",
           }}
           aria-hidden
         />
-        <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-white/10 blur-3xl animate-float" aria-hidden />
-        <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full bg-white/5 blur-2xl" aria-hidden />
+        <div
+          className="absolute top-[-15%] left-1/2 -translate-x-1/2 w-[480px] h-[480px] rounded-full opacity-60"
+          style={{ background: "radial-gradient(circle, rgba(202,164,106,0.16) 0%, rgba(202,164,106,0) 70%)" }}
+          aria-hidden
+        />
 
-        <div className="relative z-10 flex flex-col min-h-[220px] lg:min-h-screen p-6 sm:p-10 lg:p-12">
+        <div className="relative z-10 flex flex-col min-h-[240px] lg:min-h-screen p-6 sm:p-10 lg:p-12">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm text-white/75 hover:text-white transition-colors w-fit group"
+            className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors w-fit group"
           >
             <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
             Back to home
@@ -449,56 +511,76 @@ export default function Auth() {
 
           <div className="flex-1 flex flex-col justify-center py-8 lg:py-0 max-w-md">
             <div className="animate-rise">
-              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1 text-xs mb-6 backdrop-blur">
-                <Sparkles className="w-3.5 h-3.5" />
-                Wisdom Campus · School portal
+              {/* Seal — a circle reads as "the mark," distinct from the small
+                  rounded-square icon tiles used for utility actions elsewhere
+                  in the app. */}
+              <div className="relative w-16 h-16 mb-7">
+                <div className="absolute inset-0 rounded-full border border-[#caa46a]/50" aria-hidden />
+                <div className="absolute inset-[3px] rounded-full bg-white/[0.07] backdrop-blur flex items-center justify-center ring-1 ring-white/15 shadow-elevated">
+                  <GraduationCap className="w-7 h-7 text-[#e3c793]" strokeWidth={1.75} />
+                </div>
               </div>
 
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center shadow-elevated ring-1 ring-white/20">
-                  <GraduationCap className="w-8 h-8" />
-                </div>
-                <div>
-                  <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Vidyalaya</h1>
-                  <p className="text-white/75 text-sm mt-0.5">School Management System</p>
-                </div>
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#caa46a]" aria-hidden />
+                <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/55">
+                  Wisdom Campus · School Portal
+                </span>
               </div>
+
+              <h1 className="text-4xl sm:text-[2.75rem] font-bold tracking-tight leading-[1.05] text-balance">
+                Vidyalaya
+              </h1>
+              <p className="text-white/60 text-sm mt-1.5 mb-6">School Management System</p>
 
               <p className="text-lg text-white/85 text-balance leading-relaxed">
-                One secure sign-in for admins, teachers, students, and parents — attendance, exams, fees, and more.
+                One secure sign-in for admins, teachers, students, and parents.
               </p>
 
-              <ul className="mt-8 space-y-3 stagger hidden sm:block">
-                {TRUST_POINTS.map((point) => (
-                  <li key={point} className="flex items-center gap-2.5 text-sm text-white/80">
-                    <CheckCircle2 className="w-4 h-4 text-accent shrink-0" />
-                    {point}
-                  </li>
+              <div className="mt-9 hidden sm:flex items-stretch stagger">
+                {CAMPUS_PILLARS.map(({ label, icon: Icon }, i) => (
+                  <div
+                    key={label}
+                    className={cn(
+                      "flex-1 flex flex-col items-center gap-2 py-1 text-center",
+                      i > 0 && "border-l border-white/10",
+                    )}
+                  >
+                    <Icon className="w-4 h-4 text-[#e3c793]" strokeWidth={1.75} />
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-white/55">{label}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           </div>
 
-          <p className="text-xs text-white/50 hidden lg:block animate-fade-in">
-            Native push notifications coming soon.
+          <p className="font-mono text-[11px] uppercase tracking-wide text-white/35 hidden lg:block animate-fade-in">
+            Native push notifications — coming soon
           </p>
         </div>
       </aside>
 
       {/* Form panel */}
-      <main className="flex-1 flex items-center justify-center bg-gradient-soft p-4 sm:p-8 lg:p-12">
-        <div className="w-full max-w-[420px] animate-rise">
-          <div className="mb-8 lg:hidden text-center">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-primary shadow-card mb-3">
-              <GraduationCap className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <h2 className="text-xl font-bold">Welcome to Vidyalaya</h2>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to your school portal</p>
-          </div>
-
-          <div className="surface-elevated p-6 sm:p-8 rounded-2xl">
-            <div className="hidden lg:block mb-6">
-              <h2 className="text-2xl font-bold tracking-tight">
+      <main className="relative flex-1 flex items-center justify-center bg-gradient-soft p-4 sm:p-8 lg:p-12 overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-[0.4]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, hsl(var(--foreground) / 0.06) 1px, transparent 0)",
+            backgroundSize: "28px 28px",
+          }}
+          aria-hidden
+        />
+        <div className="relative w-full max-w-[420px] animate-rise">
+          <div className="relative surface-elevated rounded-2xl overflow-hidden">
+            <div
+              className="h-[3px] w-full"
+              style={{ background: "linear-gradient(90deg, #caa46a 0%, #3b5bdb 55%, #caa46a 100%)" }}
+              aria-hidden
+            />
+            <div className="p-6 sm:p-8">
+            <div className="mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
                 {profileStep === "complete_profile"
                   ? "Almost there"
                   : tab === "signin"
@@ -561,7 +643,7 @@ export default function Auth() {
                 </div>
                 <Button
                   type="submit"
-                  className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                  className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                   disabled={profileBusy}
                 >
                   {profileBusy ? (
@@ -577,29 +659,18 @@ export default function Auth() {
             ) : (
               <>
             {/* Tab switcher */}
-            <div
-              role="tablist"
-              aria-label="Authentication mode"
-              className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-muted/80 mb-6"
-            >
-              {(["signin", "mobile", "signup"] as const).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === mode}
-                  onClick={() => setTab(mode)}
-                  disabled={busy || mobileBusy}
-                  className={cn(
-                    "relative py-2.5 px-3 text-sm font-medium rounded-lg transition-all duration-200 press",
-                    tab === mode
-                      ? "bg-background text-foreground shadow-card"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {mode === "signin" ? "Email" : mode === "mobile" ? "Mobile" : "Sign up"}
-                </button>
-              ))}
+            <div className="mb-6">
+              <TabSwitch
+                ariaLabel="Authentication mode"
+                value={tab}
+                onChange={setTab}
+                disabled={busy || mobileBusy}
+                options={[
+                  { value: "signin", label: "Email" },
+                  { value: "mobile", label: "Mobile" },
+                  { value: "signup", label: "Sign up" },
+                ]}
+              />
             </div>
 
             {/* Google OAuth */}
@@ -646,30 +717,17 @@ export default function Auth() {
             {/* Sign in form — Password (existing) or OTP-via-link (new) */}
             {tab === "signin" && (
               <div key="signin" className="space-y-4 animate-fade-in">
-                <div
-                  role="tablist"
-                  aria-label="Email sign-in method"
-                  className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-muted/60 mb-1"
-                >
-                  {(["password", "otp"] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      role="tab"
-                      aria-selected={emailMode === m}
-                      onClick={() => setEmailMode(m)}
-                      disabled={busy || emailOtpBusy}
-                      className={cn(
-                        "py-2 px-3 text-xs font-medium rounded-md transition-all duration-200",
-                        emailMode === m
-                          ? "bg-background text-foreground shadow-card"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {m === "password" ? "Password" : "OTP"}
-                    </button>
-                  ))}
-                </div>
+                <TabSwitch
+                  size="sm"
+                  ariaLabel="Email sign-in method"
+                  value={emailMode}
+                  onChange={setEmailMode}
+                  disabled={busy || emailOtpBusy}
+                  options={[
+                    { value: "password", label: "Password" },
+                    { value: "otp", label: "OTP" },
+                  ]}
+                />
 
                 {emailMode === "password" ? (
                   <form onSubmit={handleSignIn} className="space-y-4" noValidate>
@@ -713,7 +771,7 @@ export default function Auth() {
 
                     <Button
                       type="submit"
-                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                       disabled={busy}
                     >
                       {busy ? (
@@ -784,7 +842,7 @@ export default function Auth() {
                     </p>
                     <Button
                       type="submit"
-                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                       disabled={emailOtpBusy}
                     >
                       {emailOtpBusy ? (
@@ -807,30 +865,17 @@ export default function Auth() {
             {/* Mobile tab — OTP via MSG91 widget, or Mobile + Password */}
             {tab === "mobile" && (
               <div key="mobile" className="space-y-4 animate-fade-in">
-                    <div
-                      role="tablist"
-                      aria-label="Mobile sign-in method"
-                      className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-muted/60 mb-1"
-                    >
-                      {(["otp", "password"] as const).map((m) => (
-                        <button
-                          key={m}
-                          type="button"
-                          role="tab"
-                          aria-selected={mobileMode === m}
-                          onClick={() => setMobileMode(m)}
-                          disabled={busy || mobileBusy}
-                          className={cn(
-                            "py-2 px-3 text-xs font-medium rounded-md transition-all duration-200",
-                            mobileMode === m
-                              ? "bg-background text-foreground shadow-card"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          {m === "otp" ? "OTP" : "Password"}
-                        </button>
-                      ))}
-                    </div>
+                    <TabSwitch
+                      size="sm"
+                      ariaLabel="Mobile sign-in method"
+                      value={mobileMode}
+                      onChange={setMobileMode}
+                      disabled={busy || mobileBusy}
+                      options={[
+                        { value: "otp", label: "OTP" },
+                        { value: "password", label: "Password" },
+                      ]}
+                    />
 
                     {mobileMode === "otp" ? (
                       <div className="space-y-3">
@@ -840,7 +885,7 @@ export default function Auth() {
                         <Button
                           type="button"
                           onClick={handleMobileOtp}
-                          className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                          className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                           disabled={mobileBusy}
                         >
                           {mobileBusy ? (
@@ -906,7 +951,7 @@ export default function Auth() {
                         />
                         <Button
                           type="submit"
-                          className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                          className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                           disabled={busy}
                         >
                           {busy ? (
@@ -1011,7 +1056,7 @@ export default function Auth() {
 
                 <Button
                   type="submit"
-                  className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                  className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
                   disabled={busy}
                 >
                   {busy ? (
@@ -1027,6 +1072,7 @@ export default function Auth() {
             )}
               </>
             )}
+            </div>
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
@@ -1037,11 +1083,6 @@ export default function Auth() {
             </span>
           </p>
 
-          <div className="flex justify-center mt-4 lg:hidden">
-            <Badge variant="secondary" className="text-[10px] font-normal">
-              Wisdom Campus · Secure portal
-            </Badge>
-          </div>
         </div>
       </main>
     </div>
