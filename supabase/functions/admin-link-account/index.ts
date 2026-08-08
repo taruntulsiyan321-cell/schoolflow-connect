@@ -2,6 +2,7 @@
 // creates the account if it does not exist (so admins don't need the user to sign in first),
 // then links the user to the given student/teacher record.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { normalizePhone } from "../_shared/phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +15,6 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON = Deno.env.get("SUPABASE_ANON_KEY")!;
 
 const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
-const digits = (s: string) => s.replace(/\D/g, "");
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -95,8 +95,8 @@ Deno.serve(async (req) => {
         userId = created.user.id;
       }
     } else {
-      const phone = digits(identifier);
-      if (phone.length < 7) return json({ error: "Invalid phone number" }, 400);
+      const phone = normalizePhone(identifier);
+      if (!phone) return json({ error: "Invalid phone number" }, 400);
       const found = await findByPhone(admin, phone);
       if (found) {
         userId = found;
@@ -169,7 +169,7 @@ async function findByPhone(admin: ReturnType<typeof createClient>, phone: string
   while (page < 50) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
     if (error || !data) return null;
-    const hit = data.users.find((x) => (x.phone || "").replace(/\D/g, "") === phone);
+    const hit = data.users.find((x) => normalizePhone(x.phone) === phone);
     if (hit) return hit.id;
     if (data.users.length < perPage) return null;
     page++;

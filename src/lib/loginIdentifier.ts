@@ -1,3 +1,5 @@
+import { normalizePhone } from "@/lib/phone";
+
 /** Parse admin-entered email or mobile for portal login reservation. */
 export function parseLoginIdentifier(raw: string): { kind: "email" | "phone"; value: string } | null {
   const trimmed = raw.trim();
@@ -7,8 +9,8 @@ export function parseLoginIdentifier(raw: string): { kind: "email" | "phone"; va
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
     return { kind: "email", value: email };
   }
-  const phone = trimmed.replace(/\D/g, "");
-  if (phone.length < 7) return null;
+  const phone = normalizePhone(trimmed);
+  if (!phone) return null;
   return { kind: "phone", value: phone };
 }
 

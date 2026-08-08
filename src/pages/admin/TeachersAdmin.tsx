@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { classLabel } from "@/lib/utils";
+import { normalizePhone } from "@/lib/phone";
 
 const EMPTY = {
   full_name: "", subject: "", mobile: "", email: "",
@@ -50,6 +51,7 @@ export default function TeachersAdmin() {
     const { teaching_class_ids, ...rest } = form;
     const payload = {
       ...rest,
+      mobile: form.mobile.trim() ? (normalizePhone(form.mobile) ?? form.mobile.trim()) : "",
       class_teacher_of: form.is_class_teacher && form.class_teacher_of ? form.class_teacher_of : null,
       salary: form.salary ? Number(form.salary) : null,
     };
@@ -79,6 +81,7 @@ export default function TeachersAdmin() {
     const { teaching_class_ids, ...rest } = form;
     const payload = {
       ...rest,
+      mobile: form.mobile.trim() ? (normalizePhone(form.mobile) ?? form.mobile.trim()) : "",
       class_teacher_of: form.is_class_teacher && form.class_teacher_of ? form.class_teacher_of : null,
       salary: form.salary ? Number(form.salary) : null,
     };

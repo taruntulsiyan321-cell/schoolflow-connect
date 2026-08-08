@@ -75,4 +75,19 @@ describe("phoneToSyntheticEmail", () => {
     expect(a).toBe(b);
     expect(b).toBe(c);
   });
+
+  // Regression test: previously this used a bare digit-strip with no country
+  // code normalization, so a user who verified via the OTP widget (which
+  // always returns a country-code-prefixed number) and then typed their
+  // number without the country code into Mobile+Password would compute a
+  // DIFFERENT synthetic email and fail to sign in to their own account.
+  it("resolves to the same account whether or not the caller includes the country code", () => {
+    expect(phoneToSyntheticEmail("9876543210")).toBe(phoneToSyntheticEmail("+919876543210"));
+    expect(phoneToSyntheticEmail("9876543210")).toBe("919876543210@phone.vidyalaya.local");
+  });
+
+  it("returns null instead of building a garbage email for invalid input", () => {
+    expect(phoneToSyntheticEmail("")).toBeNull();
+    expect(phoneToSyntheticEmail("123")).toBeNull();
+  });
 });

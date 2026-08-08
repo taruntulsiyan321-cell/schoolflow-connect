@@ -88,3 +88,40 @@ test("diagnostic: MSG91 widget tab renders, initializes, and rejects bad Mobile+
   // Must still be on /auth -- no session was created for the bogus number.
   await expect(page).toHaveURL(/\/auth/);
 });
+
+test("diagnostic: Cancel closes the MSG91 widget cleanly, no page refresh, no orphan DOM", async ({ page }) => {
+  test.setTimeout(60000);
+
+  await page.goto("/auth");
+  await page.getByRole("tab", { name: "Mobile" }).click();
+  await page.getByRole("button", { name: "Continue with mobile OTP" }).click();
+  await expect(page.getByRole("button", { name: /Verifying/ })).toBeVisible({ timeout: 10000 });
+
+  // The bug this guards against: before the fix, nothing on the page --
+  // including our own tab-switcher buttons -- accepted clicks once the
+  // widget was open, with no way back except Escape (no key on a real phone)
+  // or a hard reload. Cancel must now be visible and must actually work.
+  const cancelBtn = page.getByRole("button", { name: /Cancel/ });
+  await expect(cancelBtn).toBeVisible({ timeout: 10000 });
+  await cancelBtn.click();
+
+  // "Closing…" is a real, if brief, transitional state -- MSG91's overlay
+  // does not release synchronously (see closeMsg91Widget() in
+  // src/lib/msg91Widget.ts) -- so wait for the panel to fully settle rather
+  // than asserting on that transitional text.
+  await expect(page.getByRole("button", { name: "Continue with mobile OTP" })).toBeVisible({ timeout: 10000 });
+
+  // The real proof: a click on our own UI, elsewhere on the page, must work
+  // again -- this is exactly the click that used to silently do nothing.
+  const emailTab = page.getByRole("tab", { name: "Email" });
+  await emailTab.click();
+  await expect(emailTab).toHaveAttribute("aria-selected", "true", { timeout: 5000 });
+  await expect(page.getByLabel("Email address")).toBeVisible();
+
+  // No page reload happened (this was a live requirement, not just a nice-to-have).
+  await expect(page).toHaveURL(/\/auth$/);
+
+  // No orphaned MSG91 DOM left behind after a cancelled open.
+  const orphanCount = await page.locator("msg91-otp-provider").count();
+  expect(orphanCount, "MSG91 widget host element was not cleaned up after Cancel").toBe(0);
+});

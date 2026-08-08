@@ -94,6 +94,15 @@ export function isMsg91WidgetConfigured(): boolean {
 }
 
 /**
+ * Snapshot of document.body's direct children taken right before the widget
+ * opens, so closeMsg91Widget() can remove exactly what MSG91's script added
+ * (its <msg91-otp-provider> host, country-picker helper elements, etc.)
+ * without touching anything else portaled onto body by the rest of the app
+ * (toasts, tooltips) that happened to exist first.
+ */
+let bodyChildrenBeforeOpen: Set<Element> | null = null;
+
+/**
  * Opens MSG91's hosted OTP widget (phone entry + OTP entry UI owned entirely
  * by MSG91). onSuccess receives only the access-token — never a phone
  * number, since the frontend must never be trusted to report one (that's
@@ -122,6 +131,8 @@ export async function openMsg91Widget(handlers: {
     return;
   }
 
+  bodyChildrenBeforeOpen = new Set(Array.from(document.body.children));
+
   window.initSendOTP({
     widgetId,
     tokenAuth,
@@ -138,4 +149,63 @@ export async function openMsg91Widget(handlers: {
       handlers.onFailure(error);
     },
   });
+}
+
+/**
+ * Closes MSG91's widget overlay without a page reload.
+ *
+ * MSG91's SDK has no documented public "close" method, so this fires every
+ * mechanism confirmed (via live testing against the real widget) to make it
+ * release the page-wide click-interceptor it installs while open:
+ *  1. its own internal close button, reached through the shadow DOM it
+ *     renders into <msg91-otp-provider> — an MSG91 implementation detail
+ *     that could change in a future SDK version, so it's best-effort only;
+ *  2. a synthetic Escape keypress, which MSG91's own script listens for
+ *     globally regardless of DOM target — confirmed live to work on its own,
+ *     independent of (1), and not tied to any private class name.
+ *
+ * Closing is not synchronous on MSG91's side. It exposes no event to await,
+ * and a hit-test-based poll turned out to be unreliable in practice: it
+ * false-positived by checking a point that was never actually blocked (e.g.
+ * the Cancel button's own position, right below the widget's action button),
+ * while the interceptor was still live elsewhere on the page (e.g. the tab
+ * switcher above it) — the blocked region isn't the same as any one fixed
+ * element we control, so there's no single coordinate that reliably proves
+ * release. A fixed delay, confirmed generous enough in every observed run,
+ * is the reliable option here.
+ *
+ * Once that delay elapses this sweeps every DOM node MSG91 added since
+ * openMsg91Widget() was called (diffed against the pre-open snapshot) so
+ * repeated open/cancel cycles never accumulate orphaned nodes.
+ */
+export async function closeMsg91Widget(): Promise<void> {
+  try {
+    const host = document.querySelector("msg91-otp-provider");
+    const closeBtn = host?.shadowRoot?.querySelector<HTMLElement>("button.close-dialog");
+    closeBtn?.click();
+  } catch {
+    // best-effort only — shadow DOM structure is an MSG91 implementation detail
+  }
+
+  const escOpts: KeyboardEventInit = {
+    key: "Escape",
+    code: "Escape",
+    keyCode: 27,
+    which: 27,
+    bubbles: true,
+    cancelable: true,
+  };
+  document.dispatchEvent(new KeyboardEvent("keydown", escOpts));
+  document.dispatchEvent(new KeyboardEvent("keyup", escOpts));
+
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+
+  document.querySelectorAll("msg91-otp-provider").forEach((n) => n.remove());
+  if (bodyChildrenBeforeOpen) {
+    const before = bodyChildrenBeforeOpen;
+    Array.from(document.body.children).forEach((el) => {
+      if (!before.has(el)) el.remove();
+    });
+  }
+  bodyChildrenBeforeOpen = null;
 }

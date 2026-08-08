@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { linkOrCreatePhoneUser } from "../_shared/phoneAuthLink.ts";
+import { normalizePhone } from "../_shared/phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +15,8 @@ async function sha256(s: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { phone, code } = await req.json();
+    const { phone: rawPhone, code } = await req.json();
+    const phone = normalizePhone(rawPhone);
     if (!phone || !code) {
       return new Response(JSON.stringify({ error: "phone and code required" }), {
         status: 400,
@@ -63,14 +65,14 @@ Deno.serve(async (req) => {
     }
     await admin.from("phone_otps").update({ consumed: true }).eq("id", otp.id);
 
-    const result = await linkOrCreatePhoneUser(admin, String(phone));
+    const result = await linkOrCreatePhoneUser(admin, phone);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error(e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {
+    return new Response(JSON.stringify({ error: "Something went wrong. Please try again." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -13,6 +13,7 @@
  */
 
 import type { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { normalizePhone } from "./phone.ts";
 
 type AdminClient = ReturnType<typeof createClient>;
 
@@ -24,11 +25,16 @@ export type PhoneLinkResult = {
   is_new_user: boolean;
 };
 
-/** E.164 phone -> the synthetic email every phone-derived account is keyed by. */
+/** Canonical phone -> the synthetic email every phone-derived account is keyed by. */
 export function syntheticEmailForPhone(phoneDigits: string): string {
   return `${phoneDigits}@phone.vidyalaya.local`;
 }
 
+/** phoneDigits must already be normalizePhone()'d -- this normalizes each
+ *  candidate's stored auth.users.phone the same way before comparing, so an
+ *  older account created before the canonical-format fix (e.g. via
+ *  admin-link-account's phone path) still matches instead of silently
+ *  spawning a duplicate account. */
 async function findExistingPhoneUser(
   admin: AdminClient,
   email: string,
@@ -40,7 +46,7 @@ async function findExistingPhoneUser(
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
     if (error || !data) return null;
     const hit = data.users.find((u) => {
-      const uPhone = (u.phone || "").replace(/\D/g, "");
+      const uPhone = normalizePhone(u.phone);
       return u.email === email || (phoneDigits && uPhone === phoneDigits);
     });
     if (hit) return { id: hit.id };
@@ -61,7 +67,8 @@ export async function linkOrCreatePhoneUser(
   admin: AdminClient,
   phoneE164: string,
 ): Promise<PhoneLinkResult> {
-  const phoneDigits = String(phoneE164).replace(/[^0-9]/g, "");
+  const phoneDigits = normalizePhone(phoneE164);
+  if (!phoneDigits) throw new Error("Invalid phone number");
   const email = syntheticEmailForPhone(phoneDigits);
   const password = crypto.randomUUID() + "!Aa1";
 

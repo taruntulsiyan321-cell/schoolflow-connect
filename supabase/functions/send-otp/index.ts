@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { normalizePhone } from "../_shared/phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,9 +16,10 @@ async function sha256(s: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { phone } = await req.json();
-    if (!phone || !/^\+[1-9]\d{6,14}$/.test(phone)) {
-      return new Response(JSON.stringify({ error: "Invalid phone (E.164 required)" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    const { phone: rawPhone } = await req.json();
+    const phone = normalizePhone(rawPhone);
+    if (!phone) {
+      return new Response(JSON.stringify({ error: "Invalid phone number" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     const MSG91_AUTH_KEY = Deno.env.get("MSG91_AUTH_KEY");
     const MSG91_TEMPLATE_ID = Deno.env.get("MSG91_TEMPLATE_ID");
@@ -38,9 +40,8 @@ Deno.serve(async (req) => {
     const expires_at = new Date(Date.now() + 5 * 60_000).toISOString();
     await supabase.from("phone_otps").insert({ phone, code_hash, expires_at });
 
-    // MSG91 expects the mobile number without the leading "+" (e.g. 919876543210).
-    const mobile = phone.replace(/^\+/, "");
-
+    // MSG91's OTP-send API expects the mobile number without a leading "+"
+    // (e.g. 919876543210) -- phone is already canonical digits-only.
     const r = await fetch(MSG91_OTP_URL, {
       method: "POST",
       headers: {
@@ -49,7 +50,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         template_id: MSG91_TEMPLATE_ID,
-        mobile,
+        mobile: phone,
         otp: code,
         otp_expiry: 5,
       }),
@@ -61,6 +62,6 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error(e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Something went wrong. Please try again." }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

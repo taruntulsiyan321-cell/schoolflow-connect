@@ -10,6 +10,7 @@
 // all inherited unchanged from the existing Supabase Auth architecture.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { linkOrCreatePhoneUser } from "../_shared/phoneAuthLink.ts";
+import { normalizePhone } from "../_shared/phone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,16 +34,8 @@ function clientIp(req: Request): string {
   return req.headers.get("x-real-ip") ?? "unknown";
 }
 
-/** MSG91 returns the verified number as digits (commonly with country code, no "+"). */
-function toE164(msg91Mobile: string): string | null {
-  const digits = String(msg91Mobile ?? "").replace(/\D/g, "");
-  if (digits.length < 8 || digits.length > 15) return null;
-  return `+${digits}`;
-}
-
-function maskPhone(e164: string): string {
-  const digits = e164.replace(/\D/g, "");
-  return `+${digits.slice(0, 2)}${"•".repeat(Math.max(0, digits.length - 6))}${digits.slice(-4)}`;
+function maskPhone(canonicalDigits: string): string {
+  return `+${canonicalDigits.slice(0, 2)}${"•".repeat(Math.max(0, canonicalDigits.length - 6))}${canonicalDigits.slice(-4)}`;
 }
 
 async function logAttempt(
@@ -121,9 +114,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const verifiedPhone = toE164(String(msg91Data.message ?? ""));
+    const verifiedPhone = normalizePhone(String(msg91Data.message ?? ""));
     if (!verifiedPhone) {
-      console.error("[verify-msg91-widget] MSG91 returned an unparseable phone:", msg91Data.message);
+      console.error("[verify-msg91-widget] MSG91 returned an unparseable phone (length:", String(msg91Data.message ?? "").length, ")");
       await logAttempt(admin, ip, false, "unparseable_phone");
       return json({ error: "Verification succeeded but the phone number was invalid.", error_code: "unparseable_phone" }, 502);
     }
@@ -137,6 +130,6 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("[verify-msg91-widget]", e);
     await logAttempt(admin, ip, false, "internal_error").catch(() => {});
-    return json({ error: e instanceof Error ? e.message : "Unknown error", error_code: "internal_error" }, 500);
+    return json({ error: "Something went wrong. Please try again.", error_code: "internal_error" }, 500);
   }
 });

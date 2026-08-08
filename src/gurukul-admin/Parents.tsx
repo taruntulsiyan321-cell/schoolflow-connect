@@ -7,6 +7,7 @@ import { cn, InitialsAvatar } from "./shared";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { normalizePhone } from "@/lib/phone";
 
 type LinkedStudent = {
   id: string;
@@ -68,6 +69,7 @@ function ParentForm({
 
     setSaving(true);
     try {
+      const normalizedPhone = phone.trim() ? (normalizePhone(phone) ?? phone.trim()) : null;
       let parentId = parent?.id;
       if (parentId) {
         const { error } = await supabase
@@ -75,7 +77,7 @@ function ParentForm({
           .update({
             full_name: fullName.trim(),
             email: email.trim() || null,
-            phone: phone.trim() || null,
+            phone: normalizedPhone,
           })
           .eq("id", parentId)
           .eq("school_id", ctx.schoolId);
@@ -86,7 +88,7 @@ function ParentForm({
           .insert({
             full_name: fullName.trim(),
             email: email.trim() || null,
-            phone: phone.trim() || null,
+            phone: normalizedPhone,
             school_id: ctx.schoolId,
           })
           .select("id")

@@ -22,11 +22,12 @@ import {
   User,
   Phone,
   KeyRound,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { validateEmail } from "@/lib/emailValidation";
 import { cn } from "@/lib/utils";
-import { openMsg91Widget, classifyMsg91Failure, isMsg91WidgetConfigured } from "@/lib/msg91Widget";
+import { openMsg91Widget, closeMsg91Widget, classifyMsg91Failure, isMsg91WidgetConfigured } from "@/lib/msg91Widget";
 import { completeMsg91SignIn, phoneToSyntheticEmail } from "@/lib/msg91Auth";
 
 const pwSchema = z.string().min(8, { message: "Min 8 chars" }).max(72);
@@ -131,6 +132,7 @@ export default function Auth() {
   // Mobile tab — OTP (MSG91 widget) or Password, plus new-user profile completion.
   const [mobileMode, setMobileMode] = useState<"otp" | "password">("otp");
   const [mobileBusy, setMobileBusy] = useState(false);
+  const [mobileCancelling, setMobileCancelling] = useState(false);
   const [mobilePhone, setMobilePhone] = useState("");
   const [mobilePw, setMobilePw] = useState("");
   const [mobileStep, setMobileStep] = useState<"idle" | "complete_profile">("idle");
@@ -285,11 +287,24 @@ export default function Auth() {
     });
   };
 
+  /** Cancels an in-progress MSG91 widget verification and returns the user
+   *  to the mobile sign-in screen — see closeMsg91Widget() for why this is
+   *  async and not instantaneous (MSG91's own overlay needs a moment to
+   *  release). `mobileCancelling` covers that gap so the Cancel button
+   *  itself never appears to do nothing. */
+  const handleCancelMobileOtp = async () => {
+    if (mobileCancelling) return;
+    setMobileCancelling(true);
+    await closeMsg91Widget();
+    setMobileBusy(false);
+    setMobileCancelling(false);
+  };
+
   const handleMobilePasswordSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
-    const digits = mobilePhone.replace(/[^0-9]/g, "");
-    if (digits.length < 8) {
+    const email = phoneToSyntheticEmail(mobilePhone);
+    if (!email) {
       toast.error("Enter a valid mobile number");
       return;
     }
@@ -298,7 +313,7 @@ export default function Auth() {
       return;
     }
     setBusy(true);
-    const { error } = await signIn({ email: phoneToSyntheticEmail(mobilePhone), password: mobilePw });
+    const { error } = await signIn({ email, password: mobilePw });
     setBusy(false);
     if (error) return toast.error(error);
     toast.success("Welcome back!");
@@ -672,6 +687,27 @@ export default function Auth() {
                             </>
                           )}
                         </Button>
+                        {mobileBusy && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={handleCancelMobileOtp}
+                            disabled={mobileCancelling}
+                            className="w-full h-9 text-sm text-muted-foreground hover:text-foreground"
+                          >
+                            {mobileCancelling ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                Closing…
+                              </>
+                            ) : (
+                              <>
+                                <X className="w-3.5 h-3.5 mr-1.5" />
+                                Cancel
+                              </>
+                            )}
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <form onSubmit={handleMobilePasswordSignIn} className="space-y-4" noValidate>
