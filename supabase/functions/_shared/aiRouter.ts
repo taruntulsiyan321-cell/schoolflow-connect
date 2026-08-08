@@ -28,6 +28,7 @@ import {
   buildEvidenceCitations,
   type RetrievalPack,
 } from "./vectorRetrieval.ts";
+import { embedQueryText } from "./embeddingProvider.ts";
 import {
   isSessionMemoryAllowed,
   redactSessionForContext,
@@ -367,6 +368,31 @@ function resolveStudentTarget(actor: RouterActor, target?: string): string {
   }
   if (!target) throw new Error("student_target_required");
   return target;
+}
+
+/** Env keys embedQueryText's provider resolution understands, read fresh per call. */
+function embeddingEnvFromDeno(): Record<string, string | undefined> {
+  return {
+    OPENROUTER_API_KEY: Deno.env.get("OPENROUTER_API_KEY"),
+    AI_EMBEDDING_API_KEY: Deno.env.get("AI_EMBEDDING_API_KEY"),
+    EMBEDDING_API_KEY: Deno.env.get("EMBEDDING_API_KEY"),
+    OPENAI_API_KEY: Deno.env.get("OPENAI_API_KEY"),
+    AI_EMBEDDING_ENDPOINT: Deno.env.get("AI_EMBEDDING_ENDPOINT"),
+    AI_EMBEDDING_MODEL: Deno.env.get("AI_EMBEDDING_MODEL"),
+    OPENROUTER_EMBEDDING_MODEL: Deno.env.get("OPENROUTER_EMBEDDING_MODEL"),
+    OPENROUTER_SITE_URL: Deno.env.get("OPENROUTER_SITE_URL"),
+  };
+}
+
+/**
+ * Embed a retrieval query before calling retrieveKmsChunks. Never throws and
+ * never blocks the request — a failed/unset embed just yields null, and
+ * retrieveKmsChunks (and the ai_kms_retrieve_chunks RPC underneath it)
+ * already fall back to lexical overlap when query_embedding is null.
+ */
+async function resolveQueryEmbedding(query: string): Promise<number[] | null> {
+  const result = await embedQueryText(query, { env: embeddingEnvFromDeno() });
+  return result.ok ? result.embedding : null;
 }
 
 function weekdayKey(d = new Date()): string {
@@ -1781,12 +1807,14 @@ export async function routeAiRequest(
           | "student"
           | "parent"
           | "principal";
+        const queryEmbedding = await resolveQueryEmbedding(query);
         const pack: RetrievalPack = await retrieveKmsChunks(admin, {
           school_id: req.actor.schoolId,
           query,
           role,
           limit: 5,
           min_score: 0.12,
+          query_embedding: queryEmbedding,
           subject:
             typeof req.input_structured?.subject === "string"
               ? req.input_structured.subject
@@ -1804,6 +1832,7 @@ export async function routeAiRequest(
         decision = pack.sufficient ? "answered_retrieval" : "answered_facts_only";
         provenance = {
           retrieval_mode: pack.mode,
+          vector_attempted: pack.vector_attempted ?? false,
           hit_count: pack.hit_count,
           approved_only: true,
           completeness: pack.sufficient ? 0.7 : 0.15,
@@ -2051,6 +2080,7 @@ export async function routeAiRequest(
         let snippets: string[] = [];
         const retrieveQuery = String(reconstructed ?? "").trim();
         if (retrieveQuery && !cachedExplanation) {
+          const queryEmbedding = await resolveQueryEmbedding(retrieveQuery);
           const retrievalPack = await retrieveKmsChunks(admin, {
             school_id: req.actor.schoolId,
             query: retrieveQuery,
@@ -2061,6 +2091,7 @@ export async function routeAiRequest(
               | "parent"
               | "principal",
             limit: 5,
+            query_embedding: queryEmbedding,
           });
           snippets = (retrievalPack?.hits ?? [])
             .map((h) => String(h.chunk_text ?? "").trim())
@@ -2449,6 +2480,7 @@ export async function routeAiRequest(
         const retrieveQuery = (req.input_text ?? concept?.name ?? "").trim();
         let retrievalPack: RetrievalPack | null = null;
         if (retrieveQuery) {
+          const queryEmbedding = await resolveQueryEmbedding(retrieveQuery);
           retrievalPack = await retrieveKmsChunks(admin, {
             school_id: req.actor.schoolId,
             query: retrieveQuery,
@@ -2460,6 +2492,7 @@ export async function routeAiRequest(
               | "principal",
             limit: 4,
             min_score: 0.15,
+            query_embedding: queryEmbedding,
             subject: concept?.subject ?? null,
           });
         }

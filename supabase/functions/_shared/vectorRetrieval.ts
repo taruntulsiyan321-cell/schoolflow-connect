@@ -26,6 +26,11 @@ export type RetrievalPack = {
   school_id: string;
   query: string;
   mode: RetrievalMatchMode | string;
+  /** Whether a real vector similarity search actually executed, independent
+   *  of whether it returned any hits — distinguishes "ran, found nothing" from
+   *  "never ran" now that `mode` alone collapses both to "lexical" when the
+   *  vector branch comes back empty and the RPC falls through. */
+  vector_attempted?: boolean;
   min_score: number;
   hits: RetrievalHit[];
   hit_count: number;
@@ -211,6 +216,7 @@ export function parseRetrievalRpcPayload(raw: unknown, schoolId: string, query: 
     school_id: String(obj.school_id ?? schoolId),
     query: String(obj.query ?? query),
     mode: String(obj.mode ?? (hits.length ? "lexical" : "none")),
+    vector_attempted: obj.vector_attempted === true,
     min_score: minScore,
     hits,
     hit_count: Number(obj.hit_count) || hits.length,

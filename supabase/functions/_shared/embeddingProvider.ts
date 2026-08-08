@@ -159,6 +159,53 @@ export function buildEmbeddingRequestBody(input: {
 }
 
 /**
+ * Embed a single free-text query (retrieval-side companion to
+ * processOneEmbeddingJob, which embeds chunk text on write). Reuses the same
+ * key resolution / endpoint / parsing so query and chunk vectors always come
+ * from the same provider+model. Never throws — any failure (unset provider,
+ * network error, bad response) degrades to `ok:false` so callers can fall
+ * through to lexical retrieval exactly as when no embedding is supplied.
+ */
+export async function embedQueryText(
+  text: string,
+  opts: { env?: Record<string, string | undefined>; fetchImpl?: typeof fetch } = {},
+): Promise<{ ok: true; embedding: number[]; model: string; provider: EmbeddingProviderId } | { ok: false; error: string }> {
+  const env = opts.env ?? {};
+  const trimmed = (text ?? "").trim();
+  if (!trimmed) return { ok: false, error: "empty_query_text" };
+
+  const resolved = resolveEmbeddingApiKey(env);
+  if (!resolved) return { ok: false, error: "embedding_provider_unset" };
+
+  const { endpoint, model } = resolveEmbeddingEndpoint(resolved.provider, env);
+  const fetchImpl = opts.fetchImpl ?? globalThis.fetch;
+  if (!fetchImpl) return { ok: false, error: "fetch_unavailable" };
+
+  try {
+    const res = await fetchImpl(endpoint, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resolved.key}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": env.OPENROUTER_SITE_URL ?? "https://gurukul.app",
+        "X-Title": "Gurukul Query Embedding",
+      },
+      body: JSON.stringify(buildEmbeddingRequestBody({ model, text: trimmed.slice(0, 8000) })),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      return { ok: false, error: `embedding_http_${res.status}:${body.slice(0, 160)}` };
+    }
+    const json = await res.json();
+    const parsed = parseEmbeddingApiResponse(json, resolved.provider, model);
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+    return { ok: true, embedding: parsed.embedding, model: parsed.model, provider: resolved.provider };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "embedding_fetch_failed" };
+  }
+}
+
+/**
  * Process one claimed job using a fetch-like injector (edge/tests).
  * When provider unset → deferred result (no fake vector).
  */
