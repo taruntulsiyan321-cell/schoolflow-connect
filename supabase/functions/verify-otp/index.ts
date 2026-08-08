@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { linkOrCreatePhoneUser } from "../_shared/phoneAuthLink.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,27 +9,6 @@ const corsHeaders = {
 async function sha256(s: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function findUserByEmailOrPhone(
-  admin: ReturnType<typeof createClient>,
-  email: string,
-  phoneDigits: string,
-): Promise<{ id: string } | null> {
-  let page = 1;
-  const perPage = 200;
-  while (page < 50) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
-    if (error || !data) return null;
-    const hit = data.users.find((u) => {
-      const uPhone = (u.phone || "").replace(/\D/g, "");
-      return u.email === email || (phoneDigits && uPhone === phoneDigits);
-    });
-    if (hit) return { id: hit.id };
-    if (data.users.length < perPage) return null;
-    page++;
-  }
-  return null;
 }
 
 Deno.serve(async (req) => {
@@ -83,43 +63,11 @@ Deno.serve(async (req) => {
     }
     await admin.from("phone_otps").update({ consumed: true }).eq("id", otp.id);
 
-    const phoneDigits = String(phone).replace(/[^0-9]/g, "");
-    const email = `${phoneDigits}@phone.vidyalaya.local`;
-    const password = crypto.randomUUID() + "!Aa1";
+    const result = await linkOrCreatePhoneUser(admin, String(phone));
 
-    let user = await findUserByEmailOrPhone(admin, email, phoneDigits);
-    if (!user) {
-      const { data: created, error } = await admin.auth.admin.createUser({
-        phone: phoneDigits,
-        email,
-        password,
-        phone_confirm: true,
-        email_confirm: true,
-      });
-      if (error) throw error;
-      user = { id: created.user!.id };
-    }
-
-    // Never return a raw magic-link URL (session theft if intercepted / logged).
-    // Client completes sign-in with verifyOtp({ email, token_hash, type: 'email' }).
-    const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
-      type: "magiclink",
-      email,
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-    if (linkErr) throw linkErr;
-
-    const tokenHash = link.properties?.hashed_token;
-    if (!tokenHash) throw new Error("Failed to mint sign-in token");
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        email,
-        token_hash: tokenHash,
-        type: "email",
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
   } catch (e) {
     console.error(e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown" }), {

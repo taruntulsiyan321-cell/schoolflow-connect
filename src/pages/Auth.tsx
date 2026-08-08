@@ -20,10 +20,14 @@ import {
   Lock,
   Mail,
   User,
+  Phone,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { validateEmail } from "@/lib/emailValidation";
 import { cn } from "@/lib/utils";
+import { openMsg91Widget, classifyMsg91Failure, isMsg91WidgetConfigured } from "@/lib/msg91Widget";
+import { completeMsg91SignIn, phoneToSyntheticEmail } from "@/lib/msg91Auth";
 
 const pwSchema = z.string().min(8, { message: "Min 8 chars" }).max(72);
 const nameSchema = z.string().trim().min(1).max(100);
@@ -99,13 +103,16 @@ function PasswordField({
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, role, loading, status, signIn, requestPasswordReset, homePath } = useAuth();
-  const [tab, setTab] = useState<"signin" | "signup">("signin");
+  const { user, role, loading, status, signIn, requestPasswordReset, homePath, refreshAuth } = useAuth();
+  const [tab, setTab] = useState<"signin" | "signup" | "mobile">("signin");
   const [busy, setBusy] = useState(false);
 
   const signinEmailId = useId();
   const signupNameId = useId();
   const signupEmailId = useId();
+  const mobilePhoneId = useId();
+  const mobilePwId = useId();
+  const profileNameId = useId();
 
   const from = (location.state as { from?: string } | null)?.from ?? null;
   /** `?next=` is used by the OAuth consent flow to return the user after sign-in. */
@@ -120,6 +127,15 @@ export default function Auth() {
   const [suEmail, setSuEmail] = useState("");
   const [suPw, setSuPw] = useState("");
   const [suRole, setSuRole] = useState<SignUpRole>("student");
+
+  // Mobile tab — OTP (MSG91 widget) or Password, plus new-user profile completion.
+  const [mobileMode, setMobileMode] = useState<"otp" | "password">("otp");
+  const [mobileBusy, setMobileBusy] = useState(false);
+  const [mobilePhone, setMobilePhone] = useState("");
+  const [mobilePw, setMobilePw] = useState("");
+  const [mobileStep, setMobileStep] = useState<"idle" | "complete_profile">("idle");
+  const [mobileName, setMobileName] = useState("");
+  const [mobileRole, setMobileRole] = useState<SignUpRole>("student");
 
   useEffect(() => {
     if (loading || status === "loading") return;
@@ -233,6 +249,89 @@ export default function Auth() {
     // Success navigates the browser away to Google's consent screen.
   };
 
+  /** Opens the MSG91 widget; the client never asserts a phone number — only
+   *  the access-token it returns is ever sent anywhere. */
+  const handleMobileOtp = async () => {
+    if (mobileBusy) return;
+    if (!isMsg91WidgetConfigured()) {
+      toast.error("Mobile sign-in isn't configured yet.");
+      return;
+    }
+    setMobileBusy(true);
+    await openMsg91Widget({
+      onSuccess: async (accessToken) => {
+        const result = await completeMsg91SignIn(accessToken);
+        setMobileBusy(false);
+        if (result.ok !== true) {
+          toast.error(result.error);
+          return;
+        }
+        if (result.is_new_user) {
+          setMobileStep("complete_profile");
+          toast.success(`Mobile verified (${result.verified_phone_masked}) — finish setting up your account.`);
+        } else {
+          toast.success(`Welcome back! Signed in as ${result.verified_phone_masked}.`);
+        }
+        // AuthProvider's onAuthStateChange listener already picked up the
+        // new session; the top-level effect navigates away as soon as role
+        // resolves (existing users: immediately; new users: once
+        // handleCompleteMobileProfile below claims a role).
+      },
+      onFailure: (error) => {
+        setMobileBusy(false);
+        const { message } = classifyMsg91Failure(error);
+        toast.error(message);
+      },
+    });
+  };
+
+  const handleMobilePasswordSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    const digits = mobilePhone.replace(/[^0-9]/g, "");
+    if (digits.length < 8) {
+      toast.error("Enter a valid mobile number");
+      return;
+    }
+    if (!mobilePw.trim()) {
+      toast.error("Enter your password");
+      return;
+    }
+    setBusy(true);
+    const { error } = await signIn({ email: phoneToSyntheticEmail(mobilePhone), password: mobilePw });
+    setBusy(false);
+    if (error) return toast.error(error);
+    toast.success("Welcome back!");
+  };
+
+  /** New phone-verified account: claim a role via the same self-signup RPC
+   *  the email flow already uses, then save the display name. */
+  const handleCompleteMobileProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mobileBusy) return;
+    const nv = nameSchema.safeParse(mobileName);
+    if (!nv.success) return toast.error("Enter your full name");
+    setMobileBusy(true);
+    try {
+      const { error: roleErr } = await (supabase.rpc as any)("claim_signup_role", { _role: mobileRole });
+      if (roleErr) throw roleErr;
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user?.id) {
+        const { error: profileErr } = await supabase
+          .from("profiles")
+          .update({ full_name: nv.data })
+          .eq("id", authData.user.id);
+        if (profileErr) console.warn("[auth] profile name update:", profileErr.message);
+      }
+      await refreshAuth();
+      toast.success("You're all set!");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not finish setting up your account");
+    } finally {
+      setMobileBusy(false);
+    }
+  };
+
   if (loading || (user && role && status === "authenticated")) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-soft gap-3 animate-fade-in">
@@ -303,7 +402,7 @@ export default function Auth() {
           </div>
 
           <p className="text-xs text-white/50 hidden lg:block animate-fade-in">
-            Phone OTP & native push notifications coming soon.
+            Native push notifications coming soon.
           </p>
         </div>
       </aside>
@@ -322,12 +421,14 @@ export default function Auth() {
           <div className="surface-elevated p-6 sm:p-8 rounded-2xl">
             <div className="hidden lg:block mb-6">
               <h2 className="text-2xl font-bold tracking-tight">
-                {tab === "signin" ? "Welcome back" : "Create your account"}
+                {tab === "signin" ? "Welcome back" : tab === "mobile" ? "Sign in with mobile" : "Create your account"}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
                 {tab === "signin"
                   ? "Enter your credentials to access your dashboard."
-                  : "Join your school's digital campus in minutes."}
+                  : tab === "mobile"
+                    ? "New or returning — your mobile number takes you straight in."
+                    : "Join your school's digital campus in minutes."}
               </p>
             </div>
 
@@ -335,24 +436,24 @@ export default function Auth() {
             <div
               role="tablist"
               aria-label="Authentication mode"
-              className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-muted/80 mb-6"
+              className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-muted/80 mb-6"
             >
-              {(["signin", "signup"] as const).map((mode) => (
+              {(["signin", "mobile", "signup"] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   role="tab"
                   aria-selected={tab === mode}
                   onClick={() => setTab(mode)}
-                  disabled={busy}
+                  disabled={busy || mobileBusy}
                   className={cn(
-                    "relative py-2.5 px-4 text-sm font-medium rounded-lg transition-all duration-200 press",
+                    "relative py-2.5 px-3 text-sm font-medium rounded-lg transition-all duration-200 press",
                     tab === mode
                       ? "bg-background text-foreground shadow-card"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  {mode === "signin" ? "Sign in" : "Sign up"}
+                  {mode === "signin" ? "Email" : mode === "mobile" ? "Mobile" : "Sign up"}
                 </button>
               ))}
             </div>
@@ -392,7 +493,9 @@ export default function Auth() {
 
             <div className="flex items-center gap-3 my-5">
               <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground font-medium">or with email</span>
+              <span className="text-xs text-muted-foreground font-medium">
+                {tab === "mobile" ? "or with mobile" : "or with email"}
+              </span>
               <div className="h-px flex-1 bg-border" />
             </div>
 
@@ -455,6 +558,173 @@ export default function Auth() {
                   )}
                 </Button>
               </form>
+            )}
+
+            {/* Mobile tab — OTP via MSG91 widget, or Mobile + Password */}
+            {tab === "mobile" && (
+              <div key="mobile" className="space-y-4 animate-fade-in">
+                {mobileStep === "complete_profile" ? (
+                  <form onSubmit={handleCompleteMobileProfile} className="space-y-4" noValidate>
+                    <p className="text-sm text-muted-foreground">
+                      Your mobile number is verified. Just a couple more details.
+                    </p>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={profileNameId}>Full name</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          id={profileNameId}
+                          value={mobileName}
+                          onChange={(e) => setMobileName(e.target.value)}
+                          placeholder="Your full name"
+                          autoComplete="name"
+                          required
+                          disabled={mobileBusy}
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>I am a</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {ROLE_OPTIONS.map(({ value, label, desc, icon: Icon }) => (
+                          <button
+                            key={value}
+                            type="button"
+                            disabled={mobileBusy}
+                            onClick={() => setMobileRole(value)}
+                            className={cn(
+                              "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all duration-200 press",
+                              mobileRole === value
+                                ? "border-primary bg-primary/5 shadow-glow ring-1 ring-primary/20"
+                                : "border-border/70 bg-background hover:border-primary/30 hover:bg-muted/40",
+                            )}
+                          >
+                            <Icon className={cn("w-4 h-4", mobileRole === value ? "text-primary" : "text-muted-foreground")} />
+                            <span className="text-sm font-medium leading-none">{label}</span>
+                            <span className="text-[11px] text-muted-foreground leading-tight">{desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <Button
+                      type="submit"
+                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                      disabled={mobileBusy}
+                    >
+                      {mobileBusy ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Finishing up…
+                        </>
+                      ) : (
+                        "Finish setting up"
+                      )}
+                    </Button>
+                  </form>
+                ) : (
+                  <>
+                    <div
+                      role="tablist"
+                      aria-label="Mobile sign-in method"
+                      className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-muted/60 mb-1"
+                    >
+                      {(["otp", "password"] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          role="tab"
+                          aria-selected={mobileMode === m}
+                          onClick={() => setMobileMode(m)}
+                          disabled={busy || mobileBusy}
+                          className={cn(
+                            "py-2 px-3 text-xs font-medium rounded-md transition-all duration-200",
+                            mobileMode === m
+                              ? "bg-background text-foreground shadow-card"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {m === "otp" ? "OTP" : "Password"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {mobileMode === "otp" ? (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Verify your mobile number with a one-time code. New here? This creates your account too.
+                        </p>
+                        <Button
+                          type="button"
+                          onClick={handleMobileOtp}
+                          className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                          disabled={mobileBusy}
+                        >
+                          {mobileBusy ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              Verifying…
+                            </>
+                          ) : (
+                            <>
+                              <Phone className="w-4 h-4 mr-2" />
+                              Continue with mobile OTP
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleMobilePasswordSignIn} className="space-y-4" noValidate>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={mobilePhoneId}>Mobile number</Label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                            <Input
+                              id={mobilePhoneId}
+                              type="tel"
+                              value={mobilePhone}
+                              onChange={(e) => setMobilePhone(e.target.value)}
+                              placeholder="+91 98765 43210"
+                              autoComplete="tel"
+                              required
+                              disabled={busy}
+                              className="pl-9"
+                            />
+                          </div>
+                        </div>
+                        <PasswordField
+                          id={mobilePwId}
+                          label="Password"
+                          value={mobilePw}
+                          onChange={setMobilePw}
+                          autoComplete="current-password"
+                          disabled={busy}
+                        />
+                        <Button
+                          type="submit"
+                          className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                          disabled={busy}
+                        >
+                          {busy ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              Signing in…
+                            </>
+                          ) : (
+                            <>
+                              <KeyRound className="w-4 h-4 mr-2" />
+                              Sign in
+                            </>
+                          )}
+                        </Button>
+                        <p className="text-[11px] text-muted-foreground">
+                          Password sign-in only works after you've verified this number with OTP at least once and set a password (where your portal offers that setting).
+                        </p>
+                      </form>
+                    )}
+                  </>
+                )}
+              </div>
             )}
 
             {/* Sign up form */}
