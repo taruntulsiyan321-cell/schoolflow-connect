@@ -129,19 +129,44 @@ export default function Auth() {
   const [suPw, setSuPw] = useState("");
   const [suRole, setSuRole] = useState<SignUpRole>("student");
 
-  // Mobile tab — OTP (MSG91 widget) or Password, plus new-user profile completion.
+  // Email tab — Password (existing) or OTP-via-link (new).
+  const [emailMode, setEmailMode] = useState<"password" | "otp">("password");
+  const [emailOtpEmail, setEmailOtpEmail] = useState("");
+  const [emailOtpBusy, setEmailOtpBusy] = useState(false);
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
+  const [emailOtpCooldown, setEmailOtpCooldown] = useState(0);
+
+  // Mobile tab — OTP (MSG91 widget) or Password.
   const [mobileMode, setMobileMode] = useState<"otp" | "password">("otp");
   const [mobileBusy, setMobileBusy] = useState(false);
   const [mobileCancelling, setMobileCancelling] = useState(false);
   const [mobilePhone, setMobilePhone] = useState("");
   const [mobilePw, setMobilePw] = useState("");
-  const [mobileStep, setMobileStep] = useState<"idle" | "complete_profile">("idle");
-  const [mobileName, setMobileName] = useState("");
-  const [mobileRole, setMobileRole] = useState<SignUpRole>("student");
+
+  // New-user profile completion — shared by every OTP-style path (mobile widget,
+  // email link) since neither collects a name/role up front the way
+  // Email+Password sign-up does. status === "missing_role" is the single
+  // source of truth for "show this"; see the redirect effect below.
+  const [profileStep, setProfileStep] = useState<"idle" | "complete_profile">("idle");
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [newAccountName, setNewAccountName] = useState("");
+  const [newAccountRole, setNewAccountRole] = useState<SignUpRole>("student");
 
   useEffect(() => {
     if (loading || status === "loading") return;
-    if (user && (status === "disabled" || status === "missing_role" || status === "missing_profile")) {
+    // missing_role is the expected, self-serviceable state for any brand-new
+    // OTP-style account (mobile widget or email link both land here, since
+    // neither collects a name/role up front) -- show the completion form
+    // instead of sending them to the dead-end "ask your admin" page. This
+    // also fixes a real race that predates this change: applyContext's role
+    // resolution resolves asynchronously after the session is created, so
+    // without this branch this effect could fire mid-signup and yank a
+    // brand-new user away before they ever saw the completion form.
+    if (user && status === "missing_role") {
+      setProfileStep("complete_profile");
+      return;
+    }
+    if (user && (status === "disabled" || status === "missing_profile")) {
       navigate("/unauthorized", {
         replace: true,
         state: { reason: status === "disabled" ? "disabled" : status },
@@ -160,6 +185,12 @@ export default function Auth() {
       navigate(dest, { replace: true });
     }
   }, [user, role, loading, status, navigate, from, homePath, nextParam]);
+
+  useEffect(() => {
+    if (emailOtpCooldown <= 0) return;
+    const t = setTimeout(() => setEmailOtpCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [emailOtpCooldown]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -269,7 +300,7 @@ export default function Auth() {
           return;
         }
         if (result.is_new_user) {
-          setMobileStep("complete_profile");
+          setProfileStep("complete_profile");
           toast.success(`Mobile verified (${result.verified_phone_masked}) — finish setting up your account.`);
         } else {
           toast.success(`Welcome back! Signed in as ${result.verified_phone_masked}.`);
@@ -277,7 +308,7 @@ export default function Auth() {
         // AuthProvider's onAuthStateChange listener already picked up the
         // new session; the top-level effect navigates away as soon as role
         // resolves (existing users: immediately; new users: once
-        // handleCompleteMobileProfile below claims a role).
+        // handleCompleteProfile below claims a role).
       },
       onFailure: (error) => {
         setMobileBusy(false);
@@ -319,16 +350,18 @@ export default function Auth() {
     toast.success("Welcome back!");
   };
 
-  /** New phone-verified account: claim a role via the same self-signup RPC
-   *  the email flow already uses, then save the display name. */
-  const handleCompleteMobileProfile = async (e: React.FormEvent) => {
+  /** New OTP-verified account (mobile widget or email link): claim a role
+   *  via the same self-signup RPC Email+Password uses, then save the
+   *  display name. Shared by every path that lands on status ===
+   *  "missing_role" — see the redirect effect above. */
+  const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mobileBusy) return;
-    const nv = nameSchema.safeParse(mobileName);
+    if (profileBusy) return;
+    const nv = nameSchema.safeParse(newAccountName);
     if (!nv.success) return toast.error("Enter your full name");
-    setMobileBusy(true);
+    setProfileBusy(true);
     try {
-      const { error: roleErr } = await (supabase.rpc as any)("claim_signup_role", { _role: mobileRole });
+      const { error: roleErr } = await (supabase.rpc as any)("claim_signup_role", { _role: newAccountRole });
       if (roleErr) throw roleErr;
       const { data: authData } = await supabase.auth.getUser();
       if (authData?.user?.id) {
@@ -338,13 +371,43 @@ export default function Auth() {
           .eq("id", authData.user.id);
         if (profileErr) console.warn("[auth] profile name update:", profileErr.message);
       }
+      setProfileStep("idle");
       await refreshAuth();
       toast.success("You're all set!");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not finish setting up your account");
     } finally {
-      setMobileBusy(false);
+      setProfileBusy(false);
     }
+  };
+
+  /** Sends a sign-in link to the given email via Supabase's own OTP
+   *  mechanism (supabase.auth.signInWithOtp) -- no third-party provider or
+   *  edge function needed, unlike phone. Creates the account automatically
+   *  if the email is new; the existing top-level redirect effect picks up
+   *  the resulting session via onAuthStateChange exactly like every other
+   *  sign-in method once the user clicks the link and lands back on /auth. */
+  const handleEmailOtpSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (emailOtpBusy || emailOtpCooldown > 0) return;
+    const ev = validateEmail(emailOtpEmail);
+    if (!ev.ok) {
+      toast.error(ev.message);
+      return;
+    }
+    setEmailOtpBusy(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: ev.email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/auth${nextParam ? `?next=${encodeURIComponent(nextParam)}` : ""}`,
+      },
+    });
+    setEmailOtpBusy(false);
+    if (error) return toast.error(mapAuthError(error));
+    setEmailOtpSent(true);
+    setEmailOtpCooldown(30);
+    toast.success(`Sign-in link sent to ${ev.email}.`);
   };
 
   if (loading || (user && role && status === "authenticated")) {
@@ -436,17 +499,83 @@ export default function Auth() {
           <div className="surface-elevated p-6 sm:p-8 rounded-2xl">
             <div className="hidden lg:block mb-6">
               <h2 className="text-2xl font-bold tracking-tight">
-                {tab === "signin" ? "Welcome back" : tab === "mobile" ? "Sign in with mobile" : "Create your account"}
+                {profileStep === "complete_profile"
+                  ? "Almost there"
+                  : tab === "signin"
+                    ? "Welcome back"
+                    : tab === "mobile"
+                      ? "Sign in with mobile"
+                      : "Create your account"}
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {tab === "signin"
-                  ? "Enter your credentials to access your dashboard."
-                  : tab === "mobile"
-                    ? "New or returning — your mobile number takes you straight in."
-                    : "Join your school's digital campus in minutes."}
+                {profileStep === "complete_profile"
+                  ? "You're verified — just a couple more details."
+                  : tab === "signin"
+                    ? "Enter your credentials to access your dashboard."
+                    : tab === "mobile"
+                      ? "New or returning — your mobile number takes you straight in."
+                      : "Join your school's digital campus in minutes."}
               </p>
             </div>
 
+            {profileStep === "complete_profile" ? (
+              <form onSubmit={handleCompleteProfile} className="space-y-4 animate-fade-in" noValidate>
+                <div className="space-y-1.5">
+                  <Label htmlFor={profileNameId}>Full name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id={profileNameId}
+                      value={newAccountName}
+                      onChange={(e) => setNewAccountName(e.target.value)}
+                      placeholder="Your full name"
+                      autoComplete="name"
+                      required
+                      disabled={profileBusy}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>I am a</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ROLE_OPTIONS.map(({ value, label, desc, icon: Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        disabled={profileBusy}
+                        onClick={() => setNewAccountRole(value)}
+                        className={cn(
+                          "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all duration-200 press",
+                          newAccountRole === value
+                            ? "border-primary bg-primary/5 shadow-glow ring-1 ring-primary/20"
+                            : "border-border/70 bg-background hover:border-primary/30 hover:bg-muted/40",
+                        )}
+                      >
+                        <Icon className={cn("w-4 h-4", newAccountRole === value ? "text-primary" : "text-muted-foreground")} />
+                        <span className="text-sm font-medium leading-none">{label}</span>
+                        <span className="text-[11px] text-muted-foreground leading-tight">{desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                  disabled={profileBusy}
+                >
+                  {profileBusy ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      Finishing up…
+                    </>
+                  ) : (
+                    "Finish setting up"
+                  )}
+                </Button>
+              </form>
+            ) : (
+              <>
             {/* Tab switcher */}
             <div
               role="tablist"
@@ -514,131 +643,170 @@ export default function Auth() {
               <div className="h-px flex-1 bg-border" />
             </div>
 
-            {/* Sign in form */}
+            {/* Sign in form — Password (existing) or OTP-via-link (new) */}
             {tab === "signin" && (
-              <form key="signin" onSubmit={handleSignIn} className="space-y-4 animate-fade-in" noValidate>
-                <div className="space-y-1.5">
-                  <Label htmlFor={signinEmailId}>Email address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      id={signinEmailId}
-                      type="email"
-                      value={siEmail}
-                      onChange={(e) => setSiEmail(e.target.value)}
-                      placeholder="you@school.edu"
-                      autoComplete="email"
-                      required
-                      disabled={busy}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-
-                <PasswordField
-                  id="signin-password"
-                  label="Password"
-                  value={siPw}
-                  onChange={setSiPw}
-                  autoComplete="current-password"
-                  disabled={busy}
-                />
-
-                <div className="flex items-center justify-end">
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    disabled={busy}
-                    className="text-sm text-primary hover:underline underline-offset-4 transition-colors disabled:opacity-50"
-                  >
-                    Forgot password?
-                  </button>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
-                  disabled={busy}
+              <div key="signin" className="space-y-4 animate-fade-in">
+                <div
+                  role="tablist"
+                  aria-label="Email sign-in method"
+                  className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-muted/60 mb-1"
                 >
-                  {busy ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Signing in…
-                    </>
-                  ) : (
-                    <>
-                      <Lock className="w-4 h-4 mr-2" />
-                      Sign in
-                    </>
-                  )}
-                </Button>
-              </form>
+                  {(["password", "otp"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      role="tab"
+                      aria-selected={emailMode === m}
+                      onClick={() => setEmailMode(m)}
+                      disabled={busy || emailOtpBusy}
+                      className={cn(
+                        "py-2 px-3 text-xs font-medium rounded-md transition-all duration-200",
+                        emailMode === m
+                          ? "bg-background text-foreground shadow-card"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {m === "password" ? "Password" : "OTP"}
+                    </button>
+                  ))}
+                </div>
+
+                {emailMode === "password" ? (
+                  <form onSubmit={handleSignIn} className="space-y-4" noValidate>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={signinEmailId}>Email address</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          id={signinEmailId}
+                          type="email"
+                          value={siEmail}
+                          onChange={(e) => setSiEmail(e.target.value)}
+                          placeholder="you@school.edu"
+                          autoComplete="email"
+                          required
+                          disabled={busy}
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+
+                    <PasswordField
+                      id="signin-password"
+                      label="Password"
+                      value={siPw}
+                      onChange={setSiPw}
+                      autoComplete="current-password"
+                      disabled={busy}
+                    />
+
+                    <div className="flex items-center justify-end">
+                      <button
+                        type="button"
+                        onClick={handleReset}
+                        disabled={busy}
+                        className="text-sm text-primary hover:underline underline-offset-4 transition-colors disabled:opacity-50"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+
+                    <Button
+                      type="submit"
+                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                      disabled={busy}
+                    >
+                      {busy ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Signing in…
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-4 h-4 mr-2" />
+                          Sign in
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                ) : emailOtpSent ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      We sent a sign-in link to <span className="font-medium text-foreground">{emailOtpEmail}</span>.
+                      Open it on this device to continue — new here? The same link creates your account too.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-10"
+                      disabled={emailOtpBusy || emailOtpCooldown > 0}
+                      onClick={handleEmailOtpSend}
+                    >
+                      {emailOtpBusy ? (
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                      ) : (
+                        <Mail className="w-4 h-4 mr-2" />
+                      )}
+                      {emailOtpCooldown > 0 ? `Resend in ${emailOtpCooldown}s` : "Resend link"}
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmailOtpSent(false);
+                        setEmailOtpCooldown(0);
+                      }}
+                      className="text-sm text-primary hover:underline underline-offset-4 transition-colors block mx-auto"
+                    >
+                      Use a different email
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleEmailOtpSend} className="space-y-4" noValidate>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="email-otp-address">Email address</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          id="email-otp-address"
+                          type="email"
+                          value={emailOtpEmail}
+                          onChange={(e) => setEmailOtpEmail(e.target.value)}
+                          placeholder="you@school.edu"
+                          autoComplete="email"
+                          required
+                          disabled={emailOtpBusy}
+                          className="pl-9"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      We'll email you a sign-in link — no password needed. New here? This creates your account too.
+                    </p>
+                    <Button
+                      type="submit"
+                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
+                      disabled={emailOtpBusy}
+                    >
+                      {emailOtpBusy ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                          Sending…
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4 mr-2" />
+                          Send sign-in link
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                )}
+              </div>
             )}
 
             {/* Mobile tab — OTP via MSG91 widget, or Mobile + Password */}
             {tab === "mobile" && (
               <div key="mobile" className="space-y-4 animate-fade-in">
-                {mobileStep === "complete_profile" ? (
-                  <form onSubmit={handleCompleteMobileProfile} className="space-y-4" noValidate>
-                    <p className="text-sm text-muted-foreground">
-                      Your mobile number is verified. Just a couple more details.
-                    </p>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={profileNameId}>Full name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                        <Input
-                          id={profileNameId}
-                          value={mobileName}
-                          onChange={(e) => setMobileName(e.target.value)}
-                          placeholder="Your full name"
-                          autoComplete="name"
-                          required
-                          disabled={mobileBusy}
-                          className="pl-9"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>I am a</Label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {ROLE_OPTIONS.map(({ value, label, desc, icon: Icon }) => (
-                          <button
-                            key={value}
-                            type="button"
-                            disabled={mobileBusy}
-                            onClick={() => setMobileRole(value)}
-                            className={cn(
-                              "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all duration-200 press",
-                              mobileRole === value
-                                ? "border-primary bg-primary/5 shadow-glow ring-1 ring-primary/20"
-                                : "border-border/70 bg-background hover:border-primary/30 hover:bg-muted/40",
-                            )}
-                          >
-                            <Icon className={cn("w-4 h-4", mobileRole === value ? "text-primary" : "text-muted-foreground")} />
-                            <span className="text-sm font-medium leading-none">{label}</span>
-                            <span className="text-[11px] text-muted-foreground leading-tight">{desc}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <Button
-                      type="submit"
-                      className="w-full h-11 bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated transition-shadow"
-                      disabled={mobileBusy}
-                    >
-                      {mobileBusy ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Finishing up…
-                        </>
-                      ) : (
-                        "Finish setting up"
-                      )}
-                    </Button>
-                  </form>
-                ) : (
-                  <>
                     <div
                       role="tablist"
                       aria-label="Mobile sign-in method"
@@ -758,8 +926,6 @@ export default function Auth() {
                         </p>
                       </form>
                     )}
-                  </>
-                )}
               </div>
             )}
 
@@ -858,6 +1024,8 @@ export default function Auth() {
                   )}
                 </Button>
               </form>
+            )}
+              </>
             )}
           </div>
 
