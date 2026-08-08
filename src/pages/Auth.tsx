@@ -14,8 +14,8 @@ import {
   Eye,
   EyeOff,
   ArrowLeft,
-  CheckCircle2,
-  Sparkles,
+  ChevronLeft,
+  Check,
   Lock,
   Mail,
   User,
@@ -45,17 +45,14 @@ const ROLE_OPTIONS: {
   { value: "parent", label: "Parent", desc: "Track your child's progress", icon: Users },
 ];
 
-/** What the portal actually does, standing in for the old generic
- *  "Secure cloud authentication" checklist — concrete beats vague. */
-const CAMPUS_PILLARS: { label: string; icon: typeof GraduationCap }[] = [
-  { label: "Attendance", icon: CheckCircle2 },
-  { label: "Exams", icon: BookOpen },
-  { label: "Fees", icon: KeyRound },
-  { label: "Notices", icon: Sparkles },
+const FEATURE_HIGHLIGHTS = [
+  "Real-time academic intelligence",
+  "One login for your entire school",
+  "Enterprise-grade security",
 ];
 
-/** Sliding-indicator tab control — replaces the three near-identical
- *  grey-pill segmented switchers that used to be hand-rolled per tab. */
+/** Sliding-indicator tab control — a single reusable segmented switch used
+ *  for every method choice on this page (channel, then credential type). */
 function TabSwitch<T extends string>({
   options,
   value,
@@ -77,14 +74,14 @@ function TabSwitch<T extends string>({
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "relative grid p-0.5 rounded-full bg-muted/70",
-        size === "md" ? "h-11" : "h-9",
+        "relative grid p-1 rounded-full bg-muted/70",
+        size === "md" ? "h-12" : "h-11",
       )}
       style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}
     >
       <div
         aria-hidden
-        className="absolute inset-y-0.5 left-0.5 rounded-full bg-card shadow-card transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+        className="absolute inset-y-1 left-1 rounded-full bg-card shadow-[0_1px_2px_rgba(15,23,42,0.06),0_1px_6px_rgba(15,23,42,0.05)] transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
         style={{
           width: `calc(${100 / options.length}% - 4px)`,
           transform: `translateX(calc(${idx * 100}% + ${idx * 4}px))`,
@@ -100,7 +97,7 @@ function TabSwitch<T extends string>({
           onClick={() => onChange(o.value)}
           className={cn(
             "relative z-10 flex items-center justify-center rounded-full font-medium transition-colors duration-200",
-            size === "md" ? "text-sm" : "text-xs",
+            size === "md" ? "text-sm" : "text-sm",
             value === o.value ? "text-foreground" : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -110,6 +107,13 @@ function TabSwitch<T extends string>({
     </div>
   );
 }
+
+const FIELD_CLASS =
+  "h-[52px] pl-11 rounded-2xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none";
+const FIELD_ICON_CLASS =
+  "absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground/55 pointer-events-none transition-colors duration-200 group-focus-within:text-primary";
+const PRIMARY_BUTTON_CLASS =
+  "w-full h-[52px] rounded-2xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300";
 
 function PasswordField({
   id,
@@ -134,7 +138,7 @@ function PasswordField({
     <div className="space-y-1.5">
       <Label htmlFor={id}>{label}</Label>
       <div className="relative group">
-        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
+        <Lock className={FIELD_ICON_CLASS} />
         <Input
           id={id}
           type={visible ? "text" : "password"}
@@ -143,20 +147,57 @@ function PasswordField({
           autoComplete={autoComplete}
           required
           disabled={disabled}
-          className="h-12 pl-10 pr-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
+          className={cn(FIELD_CLASS, "pr-11")}
         />
         <button
           type="button"
           tabIndex={-1}
           aria-label={visible ? "Hide password" : "Show password"}
           onClick={() => setVisible((v) => !v)}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"
           disabled={disabled}
         >
-          {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          {visible ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
         </button>
       </div>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+/** Two role cards, full-width, used by both the signup onboarding step and
+ *  the post-OTP profile-completion form. */
+function RolePicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: SignUpRole;
+  onChange: (v: SignUpRole) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="I am a">
+      {ROLE_OPTIONS.map(({ value: v, label, desc, icon: Icon }) => (
+        <button
+          key={v}
+          type="button"
+          role="radio"
+          aria-checked={value === v}
+          disabled={disabled}
+          onClick={() => onChange(v)}
+          className={cn(
+            "flex flex-col items-start gap-1.5 p-4 rounded-2xl border text-left transition-all duration-200 press",
+            value === v
+              ? "border-primary bg-primary/[0.06] shadow-glow ring-1 ring-primary/20"
+              : "border-border bg-background hover:border-primary/30 hover:bg-muted/40",
+          )}
+        >
+          <Icon className={cn("w-5 h-5 mb-0.5", value === v ? "text-primary" : "text-muted-foreground")} />
+          <span className="text-sm font-semibold leading-none">{label}</span>
+          <span className="text-[12px] text-muted-foreground leading-snug">{desc}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -188,6 +229,9 @@ export default function Auth() {
   const [suEmail, setSuEmail] = useState("");
   const [suPw, setSuPw] = useState("");
   const [suRole, setSuRole] = useState<SignUpRole>("student");
+  /** Sign up is a short two-step onboarding, not just another tab — resets
+   *  to "role" whenever the Sign up tab is (re-)entered. */
+  const [signupStep, setSignupStep] = useState<"role" | "details">("role");
 
   // Email tab — Password (existing) or OTP-via-link (new).
   const [emailMode, setEmailMode] = useState<"password" | "otp">("password");
@@ -472,9 +516,9 @@ export default function Auth() {
 
   if (loading || (user && role && status === "authenticated")) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-soft gap-3 animate-fade-in">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-elevated">
-          <GraduationCap className="w-6 h-6 text-primary-foreground" />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3 animate-fade-in">
+        <div className="w-11 h-11 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-elevated">
+          <GraduationCap className="w-5 h-5 text-primary-foreground" />
         </div>
         <Loader2 className="w-5 h-5 animate-spin text-primary" aria-hidden />
         <p className="text-sm text-muted-foreground">Signing you in…</p>
@@ -483,130 +527,109 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
       {/* Brand panel */}
-      <aside className="relative lg:w-[44%] xl:w-[42%] bg-gradient-hero text-white overflow-hidden">
+      <aside
+        className="relative lg:w-[45%] text-white overflow-hidden flex flex-col"
+        style={{ background: "linear-gradient(165deg, #070a14 0%, #0b1120 55%, #0a0e1a 100%)" }}
+      >
         <div
-          className="absolute inset-0 opacity-[0.05]"
+          className="absolute inset-0 opacity-[0.035]"
           style={{
             backgroundImage:
-              "linear-gradient(hsl(0 0% 100% / 0.14) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / 0.14) 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
+              "linear-gradient(hsl(0 0% 100% / 1) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / 1) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
           }}
           aria-hidden
         />
         <div
-          className="absolute top-[-15%] left-1/2 -translate-x-1/2 w-[480px] h-[480px] rounded-full opacity-60"
-          style={{ background: "radial-gradient(circle, rgba(202,164,106,0.16) 0%, rgba(202,164,106,0) 70%)" }}
+          className="absolute -top-1/4 -right-1/3 w-[560px] h-[560px] rounded-full blur-3xl animate-breathe"
+          style={{ background: "radial-gradient(circle, rgba(107,130,232,0.4) 0%, rgba(107,130,232,0) 70%)" }}
+          aria-hidden
+        />
+        <div
+          className="absolute bottom-[-20%] left-[-10%] w-[420px] h-[420px] rounded-full blur-3xl opacity-40"
+          style={{ background: "radial-gradient(circle, rgba(202,164,106,0.25) 0%, rgba(202,164,106,0) 70%)" }}
           aria-hidden
         />
 
-        <div className="relative z-10 flex flex-col min-h-[240px] lg:min-h-screen p-6 sm:p-10 lg:p-12">
+        <div className="relative z-10 flex flex-col min-h-[220px] lg:min-h-screen px-6 py-6 sm:px-10 sm:py-10 lg:px-16 lg:py-14">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm text-white/70 hover:text-white transition-colors w-fit group"
+            className="inline-flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors w-fit group"
           >
             <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
             Back to home
           </Link>
 
-          <div className="flex-1 flex flex-col justify-center py-8 lg:py-0 max-w-md">
+          <div className="flex-1 flex flex-col justify-center py-10 lg:py-0 max-w-md">
             <div className="animate-rise">
-              {/* Seal — a circle reads as "the mark," distinct from the small
-                  rounded-square icon tiles used for utility actions elsewhere
-                  in the app. */}
-              <div className="relative w-16 h-16 mb-7">
-                <div className="absolute inset-0 rounded-full border border-[#caa46a]/50" aria-hidden />
-                <div className="absolute inset-[3px] rounded-full bg-white/[0.07] backdrop-blur flex items-center justify-center ring-1 ring-white/15 shadow-elevated">
-                  <GraduationCap className="w-7 h-7 text-[#e3c793]" strokeWidth={1.75} />
-                </div>
+              <div className="text-2xl sm:text-[1.75rem] font-extrabold tracking-[0.08em] uppercase">
+                Gurukul
               </div>
 
-              <div className="flex items-center gap-2 mb-2.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#caa46a]" aria-hidden />
-                <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-white/55">
-                  Wisdom Campus · School Portal
-                </span>
-              </div>
-
-              <h1 className="text-4xl sm:text-[2.75rem] font-bold tracking-tight leading-[1.05] text-balance">
-                Vidyalaya
+              <h1 className="mt-6 text-[2.35rem] sm:text-5xl lg:text-[3.25rem] font-bold tracking-tight leading-[1.06] text-balance">
+                The future of learning starts here.
               </h1>
-              <p className="text-white/60 text-sm mt-1.5 mb-6">School Management System</p>
 
-              <p className="text-lg text-white/85 text-balance leading-relaxed">
-                One secure sign-in for admins, teachers, students, and parents.
+              <p className="mt-5 text-white/60 text-base sm:text-lg leading-relaxed max-w-sm text-pretty">
+                AI-powered academic intelligence, attendance, and communication — unified in one platform built to move at the speed of your school.
               </p>
 
-              <div className="mt-9 hidden sm:flex items-stretch stagger">
-                {CAMPUS_PILLARS.map(({ label, icon: Icon }, i) => (
-                  <div
-                    key={label}
-                    className={cn(
-                      "flex-1 flex flex-col items-center gap-2 py-1 text-center",
-                      i > 0 && "border-l border-white/10",
-                    )}
-                  >
-                    <Icon className="w-4 h-4 text-[#e3c793]" strokeWidth={1.75} />
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-white/55">{label}</span>
-                  </div>
+              <ul className="mt-10 space-y-3.5 stagger">
+                {FEATURE_HIGHLIGHTS.map((f) => (
+                  <li key={f} className="flex items-center gap-3 text-[13.5px] text-white/65">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-white/[0.08] ring-1 ring-white/10 shrink-0">
+                      <Check className="w-3 h-3 text-[#9fb0f5]" strokeWidth={3} />
+                    </span>
+                    {f}
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           </div>
 
-          <p className="font-mono text-[11px] uppercase tracking-wide text-white/35 hidden lg:block animate-fade-in">
-            Native push notifications — coming soon
+          <p className="font-mono text-[10.5px] uppercase tracking-wider text-white/25 hidden lg:block animate-fade-in">
+            Built for students, teachers, parents & administrators
           </p>
         </div>
       </aside>
 
       {/* Form panel */}
-      <main className="relative flex-1 flex items-center justify-center bg-gradient-soft p-4 sm:p-8 lg:p-12 overflow-hidden">
-        <div
-          className="absolute inset-0 opacity-[0.4]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 1px 1px, hsl(var(--foreground) / 0.06) 1px, transparent 0)",
-            backgroundSize: "28px 28px",
-          }}
-          aria-hidden
-        />
-        <div className="relative w-full max-w-[420px] animate-rise">
-          <div className="relative surface-elevated rounded-2xl overflow-hidden">
-            <div
-              className="h-[3px] w-full"
-              style={{ background: "linear-gradient(90deg, #caa46a 0%, #3b5bdb 55%, #caa46a 100%)" }}
-              aria-hidden
-            />
-            <div className="p-6 sm:p-8">
-            <div className="mb-6">
-              <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+      <main className="relative flex-1 flex items-center justify-center p-5 sm:p-10 lg:p-14">
+        <div className="relative w-full max-w-[440px] animate-rise">
+          <div className="rounded-[28px] border border-border/60 bg-card p-7 sm:p-9 shadow-[0_30px_80px_-24px_rgba(15,23,42,0.18),0_8px_24px_-8px_rgba(15,23,42,0.08)]">
+            <div className="mb-7">
+              <h2 className="text-[1.6rem] font-bold tracking-tight">
                 {profileStep === "complete_profile"
                   ? "Almost there"
                   : tab === "signin"
                     ? "Welcome back"
                     : tab === "mobile"
                       ? "Sign in with mobile"
-                      : "Create your account"}
+                      : signupStep === "role"
+                        ? "Create your account"
+                        : "Just a few details"}
               </h2>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground mt-1.5">
                 {profileStep === "complete_profile"
                   ? "You're verified — just a couple more details."
                   : tab === "signin"
                     ? "Enter your credentials to access your dashboard."
                     : tab === "mobile"
                       ? "New or returning — your mobile number takes you straight in."
-                      : "Join your school's digital campus in minutes."}
+                      : signupStep === "role"
+                        ? "Tell us who you are — it takes two steps."
+                        : `Setting up your ${suRole} account.`}
               </p>
             </div>
 
             {profileStep === "complete_profile" ? (
-              <form onSubmit={handleCompleteProfile} className="space-y-4 animate-fade-in" noValidate>
+              <form onSubmit={handleCompleteProfile} className="space-y-5 animate-fade-in" noValidate>
                 <div className="space-y-1.5">
                   <Label htmlFor={profileNameId}>Full name</Label>
                   <div className="relative group">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
+                    <User className={FIELD_ICON_CLASS} />
                     <Input
                       id={profileNameId}
                       value={newAccountName}
@@ -615,38 +638,15 @@ export default function Auth() {
                       autoComplete="name"
                       required
                       disabled={profileBusy}
-                      className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
+                      className={FIELD_CLASS}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label>I am a</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {ROLE_OPTIONS.map(({ value, label, desc, icon: Icon }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        disabled={profileBusy}
-                        onClick={() => setNewAccountRole(value)}
-                        className={cn(
-                          "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all duration-200 press",
-                          newAccountRole === value
-                            ? "border-primary bg-primary/5 shadow-glow ring-1 ring-primary/20"
-                            : "border-border/70 bg-background hover:border-primary/30 hover:bg-muted/40",
-                        )}
-                      >
-                        <Icon className={cn("w-4 h-4", newAccountRole === value ? "text-primary" : "text-muted-foreground")} />
-                        <span className="text-sm font-medium leading-none">{label}</span>
-                        <span className="text-[11px] text-muted-foreground leading-tight">{desc}</span>
-                      </button>
-                    ))}
-                  </div>
+                  <RolePicker value={newAccountRole} onChange={setNewAccountRole} disabled={profileBusy} />
                 </div>
-                <Button
-                  type="submit"
-                  className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
-                  disabled={profileBusy}
-                >
+                <Button type="submit" className={PRIMARY_BUTTON_CLASS} disabled={profileBusy}>
                   {profileBusy ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -659,433 +659,443 @@ export default function Auth() {
               </form>
             ) : (
               <>
-            {/* Tab switcher */}
-            <div className="mb-6">
-              <TabSwitch
-                ariaLabel="Authentication mode"
-                value={tab}
-                onChange={setTab}
-                disabled={busy || mobileBusy}
-                options={[
-                  { value: "signin", label: "Email" },
-                  { value: "mobile", label: "Mobile" },
-                  { value: "signup", label: "Sign up" },
-                ]}
-              />
-            </div>
-
-            {/* Google OAuth */}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full h-12 rounded-xl border-border/60 flex items-center justify-center gap-2.5 font-medium hover-lift"
-              onClick={handleGoogle}
-              disabled={busy}
-            >
-              {busy ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                  <path
-                    fill="#FFC107"
-                    d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.7 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.3-.4-3.5z"
+                {/* Channel switcher */}
+                <div className="mb-5">
+                  <TabSwitch
+                    ariaLabel="Authentication mode"
+                    value={tab}
+                    onChange={(v) => {
+                      setTab(v);
+                      if (v === "signup") setSignupStep("role");
+                    }}
+                    disabled={busy || mobileBusy}
+                    options={[
+                      { value: "signin", label: "Email" },
+                      { value: "mobile", label: "Mobile" },
+                      { value: "signup", label: "Sign up" },
+                    ]}
                   />
-                  <path
-                    fill="#FF3D00"
-                    d="M6.3 14.7l6.6 4.8C14.7 16 19 12.5 24 12.5c2.9 0 5.6 1.1 7.7 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 16.3 4.5 9.7 8.9 6.3 14.7z"
-                  />
-                  <path
-                    fill="#4CAF50"
-                    d="M24 43.5c5.1 0 9.8-2 13.3-5.2l-6.1-5c-2 1.4-4.5 2.2-7.2 2.2-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.6 39 16.2 43.5 24 43.5z"
-                  />
-                  <path
-                    fill="#1976D2"
-                    d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.1 5.5l6.1 5c-.4.4 6.7-4.9 6.7-14.5 0-1.2-.1-2.3-.4-3.5z"
-                  />
-                </svg>
-              )}
-              Continue with Google
-            </Button>
+                </div>
 
-            <div className="flex items-center gap-3 my-5">
-              <div className="h-px flex-1 bg-border" />
-              <span className="text-xs text-muted-foreground font-medium">
-                {tab === "mobile" ? "or with mobile" : "or with email"}
-              </span>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-
-            {/* Sign in form — Password (existing) or OTP-via-link (new) */}
-            {tab === "signin" && (
-              <div key="signin" className="space-y-4 animate-fade-in">
-                <TabSwitch
-                  size="sm"
-                  ariaLabel="Email sign-in method"
-                  value={emailMode}
-                  onChange={setEmailMode}
-                  disabled={busy || emailOtpBusy}
-                  options={[
-                    { value: "password", label: "Password" },
-                    { value: "otp", label: "OTP" },
-                  ]}
-                />
-
-                {emailMode === "password" ? (
-                  <form onSubmit={handleSignIn} className="space-y-4" noValidate>
-                    <div className="space-y-1.5">
-                      <Label htmlFor={signinEmailId}>Email address</Label>
-                      <div className="relative group">
-                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
-                        <Input
-                          id={signinEmailId}
-                          type="email"
-                          value={siEmail}
-                          onChange={(e) => setSiEmail(e.target.value)}
-                          placeholder="you@school.edu"
-                          autoComplete="email"
-                          required
-                          disabled={busy}
-                          className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
-                        />
-                      </div>
+                {tab === "signup" ? (
+                  <>
+                    {/* Two-dot progress — sign up is a short flow, not a form dump */}
+                    <div className="flex items-center gap-1.5 mb-6" aria-hidden>
+                      <div
+                        className={cn(
+                          "h-1 flex-1 rounded-full transition-colors duration-300",
+                          signupStep === "role" || signupStep === "details" ? "bg-primary" : "bg-border",
+                        )}
+                      />
+                      <div
+                        className={cn(
+                          "h-1 flex-1 rounded-full transition-colors duration-300",
+                          signupStep === "details" ? "bg-primary" : "bg-border",
+                        )}
+                      />
                     </div>
 
-                    <PasswordField
-                      id="signin-password"
-                      label="Password"
-                      value={siPw}
-                      onChange={setSiPw}
-                      autoComplete="current-password"
-                      disabled={busy}
-                    />
-
-                    <div className="flex items-center justify-end">
-                      <button
-                        type="button"
-                        onClick={handleReset}
-                        disabled={busy}
-                        className="text-sm text-primary hover:underline underline-offset-4 transition-colors disabled:opacity-50"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
-                      disabled={busy}
-                    >
-                      {busy ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Signing in…
-                        </>
-                      ) : (
-                        <>
-                          <Lock className="w-4 h-4 mr-2" />
-                          Sign in
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                ) : emailOtpSent ? (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      We sent a sign-in link to <span className="font-medium text-foreground">{emailOtpEmail}</span>.
-                      Open it on this device to continue — new here? The same link creates your account too.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full h-10"
-                      disabled={emailOtpBusy || emailOtpCooldown > 0}
-                      onClick={handleEmailOtpSend}
-                    >
-                      {emailOtpBusy ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      ) : (
-                        <Mail className="w-4 h-4 mr-2" />
-                      )}
-                      {emailOtpCooldown > 0 ? `Resend in ${emailOtpCooldown}s` : "Resend link"}
-                    </Button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEmailOtpSent(false);
-                        setEmailOtpCooldown(0);
-                      }}
-                      className="text-sm text-primary hover:underline underline-offset-4 transition-colors block mx-auto"
-                    >
-                      Use a different email
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={handleEmailOtpSend} className="space-y-4" noValidate>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="email-otp-address">Email address</Label>
-                      <div className="relative group">
-                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
-                        <Input
-                          id="email-otp-address"
-                          type="email"
-                          value={emailOtpEmail}
-                          onChange={(e) => setEmailOtpEmail(e.target.value)}
-                          placeholder="you@school.edu"
-                          autoComplete="email"
-                          required
-                          disabled={emailOtpBusy}
-                          className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      We'll email you a sign-in link — no password needed. New here? This creates your account too.
-                    </p>
-                    <Button
-                      type="submit"
-                      className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
-                      disabled={emailOtpBusy}
-                    >
-                      {emailOtpBusy ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Sending…
-                        </>
-                      ) : (
-                        <>
-                          <Mail className="w-4 h-4 mr-2" />
-                          Send sign-in link
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                )}
-              </div>
-            )}
-
-            {/* Mobile tab — OTP via MSG91 widget, or Mobile + Password */}
-            {tab === "mobile" && (
-              <div key="mobile" className="space-y-4 animate-fade-in">
-                    <TabSwitch
-                      size="sm"
-                      ariaLabel="Mobile sign-in method"
-                      value={mobileMode}
-                      onChange={setMobileMode}
-                      disabled={busy || mobileBusy}
-                      options={[
-                        { value: "otp", label: "OTP" },
-                        { value: "password", label: "Password" },
-                      ]}
-                    />
-
-                    {mobileMode === "otp" ? (
-                      <div className="space-y-3">
-                        <p className="text-sm text-muted-foreground">
-                          Verify your mobile number with a one-time code. New here? This creates your account too.
+                    {signupStep === "role" ? (
+                      <div className="space-y-6 animate-fade-in">
+                        <RolePicker value={suRole} onChange={setSuRole} disabled={busy} />
+                        <p className="text-[12px] text-muted-foreground leading-relaxed">
+                          Teachers, principals, and school admins are invited by your school — they cannot self-register here.
                         </p>
                         <Button
                           type="button"
-                          onClick={handleMobileOtp}
-                          className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
-                          disabled={mobileBusy}
+                          onClick={() => setSignupStep("details")}
+                          className={PRIMARY_BUTTON_CLASS}
                         >
-                          {mobileBusy ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                              Verifying…
-                            </>
-                          ) : (
-                            <>
-                              <Phone className="w-4 h-4 mr-2" />
-                              Continue with mobile OTP
-                            </>
-                          )}
+                          Continue
                         </Button>
-                        {mobileBusy && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={handleCancelMobileOtp}
-                            disabled={mobileCancelling}
-                            className="w-full h-9 text-sm text-muted-foreground hover:text-foreground"
-                          >
-                            {mobileCancelling ? (
-                              <>
-                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                                Closing…
-                              </>
-                            ) : (
-                              <>
-                                <X className="w-3.5 h-3.5 mr-1.5" />
-                                Cancel
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <form onSubmit={handleMobilePasswordSignIn} className="space-y-4" noValidate>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={mobilePhoneId}>Mobile number</Label>
-                          <div className="relative group">
-                            <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
-                            <Input
-                              id={mobilePhoneId}
-                              type="tel"
-                              value={mobilePhone}
-                              onChange={(e) => setMobilePhone(e.target.value)}
-                              placeholder="+91 98765 43210"
-                              autoComplete="tel"
-                              required
-                              disabled={busy}
-                              className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
-                            />
-                          </div>
-                        </div>
-                        <PasswordField
-                          id={mobilePwId}
-                          label="Password"
-                          value={mobilePw}
-                          onChange={setMobilePw}
-                          autoComplete="current-password"
-                          disabled={busy}
-                        />
                         <Button
-                          type="submit"
-                          className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
+                          type="button"
+                          variant="outline"
+                          className="w-full h-11 rounded-2xl border-border/60"
+                          onClick={handleGoogle}
                           disabled={busy}
                         >
                           {busy ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <GoogleGlyph className="w-[18px] h-[18px] mr-2" />
+                          )}
+                          Continue with Google instead
+                        </Button>
+                      </div>
+                    ) : (
+                      <form onSubmit={handleSignUp} className="space-y-5 animate-fade-in" noValidate>
+                        <button
+                          type="button"
+                          onClick={() => setSignupStep("role")}
+                          disabled={busy}
+                          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors -mt-1 mb-1"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Back
+                        </button>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor={signupNameId}>Full name</Label>
+                          <div className="relative group">
+                            <User className={FIELD_ICON_CLASS} />
+                            <Input
+                              id={signupNameId}
+                              value={suName}
+                              onChange={(e) => setSuName(e.target.value)}
+                              placeholder="Your full name"
+                              autoComplete="name"
+                              required
+                              disabled={busy}
+                              className={FIELD_CLASS}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor={signupEmailId}>Email address</Label>
+                          <div className="relative group">
+                            <Mail className={FIELD_ICON_CLASS} />
+                            <Input
+                              id={signupEmailId}
+                              type="email"
+                              value={suEmail}
+                              onChange={(e) => setSuEmail(e.target.value)}
+                              placeholder="you@school.edu"
+                              autoComplete="email"
+                              required
+                              disabled={busy}
+                              className={FIELD_CLASS}
+                            />
+                          </div>
+                        </div>
+
+                        <PasswordField
+                          id="signup-password"
+                          label="Password"
+                          value={suPw}
+                          onChange={setSuPw}
+                          autoComplete="new-password"
+                          hint="Minimum 8 characters"
+                          disabled={busy}
+                        />
+
+                        <Button type="submit" className={PRIMARY_BUTTON_CLASS} disabled={busy}>
+                          {busy ? (
                             <>
                               <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                              Signing in…
+                              Creating account…
                             </>
                           ) : (
-                            <>
-                              <KeyRound className="w-4 h-4 mr-2" />
-                              Sign in
-                            </>
+                            "Create account"
                           )}
                         </Button>
-                        <p className="text-[11px] text-muted-foreground">
-                          Password sign-in only works after you've verified this number with OTP at least once and set a password (where your portal offers that setting).
-                        </p>
                       </form>
                     )}
-              </div>
-            )}
-
-            {/* Sign up form */}
-            {tab === "signup" && (
-              <form key="signup" onSubmit={handleSignUp} className="space-y-4 animate-fade-in" noValidate>
-                <div className="space-y-1.5">
-                  <Label htmlFor={signupNameId}>Full name</Label>
-                  <div className="relative group">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
-                    <Input
-                      id={signupNameId}
-                      value={suName}
-                      onChange={(e) => setSuName(e.target.value)}
-                      placeholder="Your full name"
-                      autoComplete="name"
-                      required
+                  </>
+                ) : (
+                  <>
+                    {/* Google OAuth */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-[52px] rounded-2xl border-border/60 flex items-center justify-center gap-2.5 font-medium hover-lift"
+                      onClick={handleGoogle}
                       disabled={busy}
-                      className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
-                    />
-                  </div>
-                </div>
+                    >
+                      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleGlyph className="w-[18px] h-[18px]" />}
+                      Continue with Google
+                    </Button>
 
-                <div className="space-y-2">
-                  <Label>I am a</Label>
-                  <p className="text-[11px] text-muted-foreground -mt-1">
-                    Teachers, principals, and school admins are invited by your school — they cannot self-register here.
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {ROLE_OPTIONS.map(({ value, label, desc, icon: Icon }) => (
-                      <button
-                        key={value}
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setSuRole(value)}
-                        className={cn(
-                          "flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all duration-200 press",
-                          suRole === value
-                            ? "border-primary bg-primary/5 shadow-glow ring-1 ring-primary/20"
-                            : "border-border/70 bg-background hover:border-primary/30 hover:bg-muted/40",
-                        )}
-                      >
-                        <Icon
-                          className={cn(
-                            "w-4 h-4",
-                            suRole === value ? "text-primary" : "text-muted-foreground",
-                          )}
+                    <div className="flex items-center gap-3 my-5">
+                      <div className="h-px flex-1 bg-border" />
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {tab === "mobile" ? "or with mobile" : "or with email"}
+                      </span>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+
+                    {/* Sign in form — Password (existing) or OTP-via-link (new) */}
+                    {tab === "signin" && (
+                      <div key="signin" className="space-y-5 animate-fade-in">
+                        <TabSwitch
+                          size="sm"
+                          ariaLabel="Email sign-in method"
+                          value={emailMode}
+                          onChange={setEmailMode}
+                          disabled={busy || emailOtpBusy}
+                          options={[
+                            { value: "password", label: "Password" },
+                            { value: "otp", label: "One-time code" },
+                          ]}
                         />
-                        <span className="text-sm font-medium leading-none">{label}</span>
-                        <span className="text-[11px] text-muted-foreground leading-tight">{desc}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor={signupEmailId}>Email address</Label>
-                  <div className="relative group">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/60 pointer-events-none transition-colors duration-200 group-focus-within:text-primary" />
-                    <Input
-                      id={signupEmailId}
-                      type="email"
-                      value={suEmail}
-                      onChange={(e) => setSuEmail(e.target.value)}
-                      placeholder="you@school.edu"
-                      autoComplete="email"
-                      required
-                      disabled={busy}
-                      className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
-                    />
-                  </div>
-                </div>
+                        {emailMode === "password" ? (
+                          <form onSubmit={handleSignIn} className="space-y-5" noValidate>
+                            <div className="space-y-1.5">
+                              <Label htmlFor={signinEmailId}>Email address</Label>
+                              <div className="relative group">
+                                <Mail className={FIELD_ICON_CLASS} />
+                                <Input
+                                  id={signinEmailId}
+                                  type="email"
+                                  value={siEmail}
+                                  onChange={(e) => setSiEmail(e.target.value)}
+                                  placeholder="you@school.edu"
+                                  autoComplete="email"
+                                  required
+                                  disabled={busy}
+                                  className={FIELD_CLASS}
+                                />
+                              </div>
+                            </div>
 
-                <PasswordField
-                  id="signup-password"
-                  label="Password"
-                  value={suPw}
-                  onChange={setSuPw}
-                  autoComplete="new-password"
-                  hint="Minimum 8 characters"
-                  disabled={busy}
-                />
+                            <PasswordField
+                              id="signin-password"
+                              label="Password"
+                              value={siPw}
+                              onChange={setSiPw}
+                              autoComplete="current-password"
+                              disabled={busy}
+                            />
 
-                <Button
-                  type="submit"
-                  className="w-full h-12 rounded-xl bg-gradient-primary text-primary-foreground font-semibold press shadow-card hover:shadow-elevated hover:brightness-[1.06] active:brightness-95 transition-all duration-300"
-                  disabled={busy}
-                >
-                  {busy ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                      Creating account…
-                    </>
-                  ) : (
-                    "Create account"
-                  )}
-                </Button>
-              </form>
-            )}
+                            <div className="flex items-center justify-end -mt-2">
+                              <button
+                                type="button"
+                                onClick={handleReset}
+                                disabled={busy}
+                                className="text-sm text-primary hover:underline underline-offset-4 transition-colors disabled:opacity-50"
+                              >
+                                Forgot password?
+                              </button>
+                            </div>
+
+                            <Button type="submit" className={PRIMARY_BUTTON_CLASS} disabled={busy}>
+                              {busy ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                  Signing in…
+                                </>
+                              ) : (
+                                "Sign in"
+                              )}
+                            </Button>
+                          </form>
+                        ) : emailOtpSent ? (
+                          <div className="space-y-3 animate-fade-in">
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              We sent a sign-in link to{" "}
+                              <span className="font-medium text-foreground">{emailOtpEmail}</span>. Open it on this
+                              device to continue — new here? The same link creates your account too.
+                            </p>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="w-full h-11 rounded-2xl"
+                              disabled={emailOtpBusy || emailOtpCooldown > 0}
+                              onClick={handleEmailOtpSend}
+                            >
+                              {emailOtpBusy ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              ) : (
+                                <Mail className="w-4 h-4 mr-2" />
+                              )}
+                              {emailOtpCooldown > 0 ? `Resend in ${emailOtpCooldown}s` : "Resend link"}
+                            </Button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEmailOtpSent(false);
+                                setEmailOtpCooldown(0);
+                              }}
+                              className="text-sm text-primary hover:underline underline-offset-4 transition-colors block mx-auto"
+                            >
+                              Use a different email
+                            </button>
+                          </div>
+                        ) : (
+                          <form onSubmit={handleEmailOtpSend} className="space-y-4" noValidate>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="email-otp-address">Email address</Label>
+                              <div className="relative group">
+                                <Mail className={FIELD_ICON_CLASS} />
+                                <Input
+                                  id="email-otp-address"
+                                  type="email"
+                                  value={emailOtpEmail}
+                                  onChange={(e) => setEmailOtpEmail(e.target.value)}
+                                  placeholder="you@school.edu"
+                                  autoComplete="email"
+                                  required
+                                  disabled={emailOtpBusy}
+                                  className={FIELD_CLASS}
+                                />
+                              </div>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              We'll email you a sign-in link — no password needed. New here? This creates your
+                              account too.
+                            </p>
+                            <Button type="submit" className={PRIMARY_BUTTON_CLASS} disabled={emailOtpBusy}>
+                              {emailOtpBusy ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                  Sending…
+                                </>
+                              ) : (
+                                "Send sign-in link"
+                              )}
+                            </Button>
+                          </form>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Mobile tab — OTP via MSG91 widget, or Mobile + Password */}
+                    {tab === "mobile" && (
+                      <div key="mobile" className="space-y-5 animate-fade-in">
+                        <TabSwitch
+                          size="sm"
+                          ariaLabel="Mobile sign-in method"
+                          value={mobileMode}
+                          onChange={setMobileMode}
+                          disabled={busy || mobileBusy}
+                          options={[
+                            { value: "otp", label: "One-time code" },
+                            { value: "password", label: "Password" },
+                          ]}
+                        />
+
+                        {mobileMode === "otp" ? (
+                          <div className="space-y-3">
+                            <p className="text-sm text-muted-foreground leading-relaxed">
+                              Verify your mobile number with a one-time code. New here? This creates your account
+                              too.
+                            </p>
+                            <Button
+                              type="button"
+                              onClick={handleMobileOtp}
+                              className={PRIMARY_BUTTON_CLASS}
+                              disabled={mobileBusy}
+                            >
+                              {mobileBusy ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                  Verifying…
+                                </>
+                              ) : (
+                                <>
+                                  <Phone className="w-4 h-4 mr-2" />
+                                  Continue with mobile OTP
+                                </>
+                              )}
+                            </Button>
+                            {mobileBusy && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={handleCancelMobileOtp}
+                                disabled={mobileCancelling}
+                                className="w-full h-9 text-sm text-muted-foreground hover:text-foreground"
+                              >
+                                {mobileCancelling ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                                    Closing…
+                                  </>
+                                ) : (
+                                  <>
+                                    <X className="w-3.5 h-3.5 mr-1.5" />
+                                    Cancel
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <form onSubmit={handleMobilePasswordSignIn} className="space-y-5" noValidate>
+                            <div className="space-y-1.5">
+                              <Label htmlFor={mobilePhoneId}>Mobile number</Label>
+                              <div className="relative group">
+                                <Phone className={FIELD_ICON_CLASS} />
+                                <Input
+                                  id={mobilePhoneId}
+                                  type="tel"
+                                  value={mobilePhone}
+                                  onChange={(e) => setMobilePhone(e.target.value)}
+                                  placeholder="+91 98765 43210"
+                                  autoComplete="tel"
+                                  required
+                                  disabled={busy}
+                                  className={FIELD_CLASS}
+                                />
+                              </div>
+                            </div>
+                            <PasswordField
+                              id={mobilePwId}
+                              label="Password"
+                              value={mobilePw}
+                              onChange={setMobilePw}
+                              autoComplete="current-password"
+                              disabled={busy}
+                            />
+                            <Button type="submit" className={PRIMARY_BUTTON_CLASS} disabled={busy}>
+                              {busy ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                  Signing in…
+                                </>
+                              ) : (
+                                <>
+                                  <KeyRound className="w-4 h-4 mr-2" />
+                                  Sign in
+                                </>
+                              )}
+                            </Button>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              Password sign-in only works after you've verified this number with OTP at least once
+                              and set a password (where your portal offers that setting).
+                            </p>
+                          </form>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             )}
-            </div>
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-6 leading-relaxed">
             By continuing, you agree to your school's portal policies.
             <br className="hidden sm:inline" />
-            <span className="sm:ml-1">
-              Need help? Contact your school administrator.
-            </span>
+            <span className="sm:ml-1">Need help? Contact your school administrator.</span>
           </p>
-
         </div>
       </main>
     </div>
+  );
+}
+
+function GoogleGlyph({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 48 48" aria-hidden="true">
+      <path
+        fill="#FFC107"
+        d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.7 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.3-.4-3.5z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.3 14.7l6.6 4.8C14.7 16 19 12.5 24 12.5c2.9 0 5.6 1.1 7.7 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 16.3 4.5 9.7 8.9 6.3 14.7z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 43.5c5.1 0 9.8-2 13.3-5.2l-6.1-5c-2 1.4-4.5 2.2-7.2 2.2-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.6 39 16.2 43.5 24 43.5z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.1 5.5l6.1 5c-.4.4 6.7-4.9 6.7-14.5 0-1.2-.1-2.3-.4-3.5z"
+      />
+    </svg>
   );
 }

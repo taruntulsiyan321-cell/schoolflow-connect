@@ -22,7 +22,7 @@ test("diagnostic: Email OTP toggle renders, validates, and reaches Supabase", as
 
   // Default is Password -- must not change existing users' muscle memory.
   const pwTab = page.getByRole("tab", { name: "Password" }).first();
-  const otpTab = page.getByRole("tab", { name: "OTP" }).first();
+  const otpTab = page.getByRole("tab", { name: "One-time code" }).first();
   await expect(pwTab).toHaveAttribute("aria-selected", "true");
   await expect(page.getByLabel("Email address").first()).toBeVisible();
 

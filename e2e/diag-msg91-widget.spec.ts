@@ -27,7 +27,7 @@ test("diagnostic: MSG91 widget tab renders, initializes, and rejects bad Mobile+
   await expect(page.getByText("Sign in with mobile")).toBeVisible();
   await expect(page.getByText(/your mobile number takes you straight in/i)).toBeVisible();
 
-  const otpTab = page.getByRole("tab", { name: "OTP" });
+  const otpTab = page.getByRole("tab", { name: "One-time code" });
   const pwTab = page.getByRole("tab", { name: "Password" });
   await expect(otpTab).toBeVisible();
   await expect(pwTab).toBeVisible();
