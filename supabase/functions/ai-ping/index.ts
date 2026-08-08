@@ -4,7 +4,7 @@
  *
  * Secrets: OPENROUTER_API_KEY (required), OPENROUTER_MODEL (optional).
  */
-import { corsHeaders, jsonResponse } from "../_shared/gemini.ts";
+import { corsHeaders, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireAnyRole } from "../_shared/requireRole.ts";
 import {
   completeWithQwen,

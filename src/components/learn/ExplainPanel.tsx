@@ -116,7 +116,7 @@ export function ExplainPanel(props: Props) {
   const [data, setData] = useState<Explanation | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [aiSource, setAiSource] = useState<"gemini" | null>(null);
+  const [aiSource, setAiSource] = useState<"ai" | null>(null);
   const [open, setOpen] = useState(autoLoad);
   const fetched = useRef(false);
   const answerContext = buildAnswerContext({ options, correctIndex, selectedIndex, correctText, selectedText });
@@ -149,7 +149,7 @@ export function ExplainPanel(props: Props) {
         .maybeSingle();
       if (cached?.payload) {
         setData(cached.payload as Explanation);
-        setAiSource("gemini");
+        setAiSource("ai");
         setLoading(false);
         return;
       }
@@ -169,7 +169,7 @@ export function ExplainPanel(props: Props) {
           how_to_improve: res.how_to_improve ?? "",
         };
         setData(payload);
-        setAiSource("gemini");
+        setAiSource("ai");
 
         // 3) Cache for everyone else
         (supabase as any).from("ai_explanations").insert({

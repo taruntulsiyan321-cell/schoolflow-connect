@@ -1,7 +1,5 @@
-import { generateStructuredWithFallback, jsonResponse } from "./gemini.ts";
+import { generateStructuredWithFallback, jsonResponse } from "./structuredCompletion.ts";
 import { buildAgentContext, type AcademicBrainRecord } from "./academicBrainBuilder.ts";
-
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"];
 
 export async function handleRecoveryAgentRequest(body: Record<string, unknown>): Promise<Response> {
   const brain = (body.academic_brain ?? body.brain ?? {}) as AcademicBrainRecord;
@@ -65,7 +63,7 @@ export async function handleRecoveryAgentRequest(body: Record<string, unknown>):
     focus_message: string;
     plan: { concept: string; subject: string; chapter?: string; question_count: number; priority: number; rationale: string }[];
     total_questions: number;
-  }>({ system, user, schema, toolName: "emit_recovery_plan" }, { models: MODELS });
+  }>({ system, user, schema, toolName: "emit_recovery_plan" });
 
   if (!result.ok) {
     return jsonResponse(buildRuleRecoveryPlan(ctx, weak), 200);

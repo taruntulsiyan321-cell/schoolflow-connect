@@ -1,7 +1,7 @@
-// Expand the Class 12 question bank with fresh Gemini-generated MCQs.
+// Expand the Class 12 question bank with fresh OpenRouter-generated MCQs.
 // Caches results into public.question_templates as template_type='ai_mcq'.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { corsHeaders, generateStructured, jsonResponse } from "./gemini.ts";
+import { corsHeaders, generateStructured, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireAnyRole } from "../_shared/requireRole.ts";
 
 type GenQ = {
@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
       }));
 
     if (rows.length === 0) {
-      return jsonResponse({ error: "Gemini returned no valid questions", inserted: 0 }, 502);
+      return jsonResponse({ error: "Model returned no valid questions", inserted: 0 }, 502);
     }
 
     const { error: insErr, data: inserted } = await admin

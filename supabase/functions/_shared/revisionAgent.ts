@@ -1,7 +1,5 @@
-import { generateStructuredWithFallback, jsonResponse } from "./gemini.ts";
+import { generateStructuredWithFallback, jsonResponse } from "./structuredCompletion.ts";
 import { buildAgentContext, type AcademicBrainRecord } from "./academicBrainBuilder.ts";
-
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"];
 
 export async function handleRevisionAgentRequest(body: Record<string, unknown>): Promise<Response> {
   const brain = (body.academic_brain ?? body.brain ?? {}) as AcademicBrainRecord;
@@ -73,7 +71,7 @@ export async function handleRevisionAgentRequest(body: Record<string, unknown>):
     priority_note: string;
     total_minutes: number;
     today_plan: { topic: string; subject: string; chapter?: string; time_minutes: number; action: string; priority: number; reason?: string }[];
-  }>({ system, user, schema, toolName: "emit_revision_plan" }, { models: MODELS });
+  }>({ system, user, schema, toolName: "emit_revision_plan" });
 
   if (!result.ok) {
     return jsonResponse(buildRuleRevisionPlan(ctx, queueItems, brainPriorities), 200);

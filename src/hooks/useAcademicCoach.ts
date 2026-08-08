@@ -131,6 +131,6 @@ function mergeCoachIntoInsights(
       fix_hint: `Practice ${p.question_count} questions.`,
       mistake_count: p.question_count,
     })) ?? fallback.weak_concepts,
-    source: coach.source === "coach" ? "gemini" : "rule",
+    source: coach.source === "coach" ? "ai" : "rule",
   };
 }

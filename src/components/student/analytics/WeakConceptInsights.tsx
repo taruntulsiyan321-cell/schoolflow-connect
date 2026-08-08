@@ -150,7 +150,7 @@ export function WeakConceptInsights({
                 Deep analysis…
               </Badge>
             )}
-            {insights?.source === "gemini" && !enhancing && (
+            {insights?.source === "ai" && !enhancing && (
               <Badge className="text-xs bg-primary/10 text-primary border-0">Personalised</Badge>
             )}
             {hasMistakes && (

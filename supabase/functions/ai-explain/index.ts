@@ -1,5 +1,5 @@
-// Explain a quiz answer — Google Gemini Flash (primary).
-import { corsHeaders, generateStructured, jsonResponse } from "./gemini.ts";
+// Explain a quiz answer — OpenRouter (Qwen).
+import { corsHeaders, generateStructured, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
 
 Deno.serve(async (req) => {

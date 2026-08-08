@@ -10,9 +10,9 @@ export type EdgeInvokeResult<T> = {
 /** Strip vendor names from messages shown in the app UI. Keep "AI" (billing copy). */
 function sanitizeUserFacingError(message: string): string {
   return message
-    .replace(/google[_\s-]?gemini[_\s-]?api[_\s-]?key/gi, "service configuration")
-    .replace(/gemini\s*flash/gi, "learning service")
-    .replace(/gemini/gi, "learning service")
+    .replace(/openrouter[_\s-]?api[_\s-]?key/gi, "service configuration")
+    .replace(/qwen[\w./-]*/gi, "learning model")
+    .replace(/openrouter/gi, "learning service")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
@@ -87,23 +87,4 @@ export async function invokeEdgeFunction<T extends Record<string, unknown>>(
   }
 
   return { data: (data as T) ?? null, error: null, usedFallback: false };
-}
-
-export function isAiUnavailableError(msg: string | null): boolean {
-  if (!msg) return false;
-  const m = msg.toLowerCase();
-  return (
-    m.includes("learning service unavailable") ||
-    m.includes("gemini ai service unavailable") ||
-    m.includes("google_gemini") ||
-    m.includes("gemini api") ||
-    m.includes("not configured") ||
-    m.includes("credits") ||
-    m.includes("rate limit") ||
-    m.includes("unavailable") ||
-    m.includes("failed to send") ||
-    m.includes("502") ||
-    m.includes("402") ||
-    m.includes("429")
-  );
 }

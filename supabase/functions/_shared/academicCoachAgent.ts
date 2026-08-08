@@ -1,7 +1,5 @@
-import { generateStructuredWithFallback, jsonResponse } from "./gemini.ts";
+import { generateStructuredWithFallback, jsonResponse } from "./structuredCompletion.ts";
 import { buildAgentContext, type AcademicBrainRecord } from "./academicBrainBuilder.ts";
-
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"];
 
 export async function handleAcademicCoachRequest(body: Record<string, unknown>): Promise<Response> {
   const brain = (body.academic_brain ?? body.brain ?? {}) as AcademicBrainRecord;
@@ -54,7 +52,7 @@ export async function handleAcademicCoachRequest(body: Record<string, unknown>):
     diagnosis?: string;
     next_steps: string[];
     encouragement?: string;
-  }>({ system, user, schema, toolName: "emit_coach_report" }, { models: MODELS });
+  }>({ system, user, schema, toolName: "emit_coach_report" });
 
   if (!result.ok) {
     return jsonResponse(buildRuleCoachReport(ctx, learningPatterns, recoveryPlan, revisionPlan), 200);

@@ -1,4 +1,4 @@
-import { corsHeaders, jsonResponse } from "./gemini.ts";
+import { corsHeaders, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { handleRevisionAgentRequest } from "../_shared/revisionAgent.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
 

@@ -157,7 +157,7 @@ flowchart TB
 | Tests | Vitest + Testing Library |
 | Migrations | `supabase/migrations/` (timestamped SQL; user applies via project workflow) |
 
-Project scripts of note: `db:migrate`, `db:types`, `test`, `test:ai-benchmarks`, various `functions:deploy-*` (legacy Gemini agents still exist separately from `ai-gateway`).
+Project scripts of note: `db:migrate`, `db:types`, `test`, `test:ai-benchmarks`, `functions:deploy-gateway`. The standalone `ai-*` agent functions (battle report, concept report, explain, DPP gen, recovery/revision/learning-pattern/coach agents) exist separately from `ai-gateway` but now route through OpenRouter via `_shared/structuredCompletion.ts`, not Gemini — Gemini was fully removed on 2026-08-08.
 
 ---
 
@@ -295,7 +295,7 @@ Generative / tutor:
 
 - OpenRouter **API key and credits** must be configured in the Supabase function environment for generative Nova. Without credits, expect honest billing degradation—not fake chat.
 - Budget quotas / reasoning tiers exist (simple → enterprise reserved).
-- **Legacy parallel path:** older `supabase/functions/ai-*` agents still use `_shared/gemini.ts`. New academic Q&A should go through **`ai-gateway`**, not new direct Gemini calls from panels.
+- **Legacy parallel path:** older `supabase/functions/ai-*` agents (battle report, concept report, explain, DPP gen, recovery/revision/learning-pattern/coach) bypass the Gateway's budget/validator/confidence pipeline — they now call OpenRouter directly via `_shared/structuredCompletion.ts` (migrated off Gemini 2026-08-08), same provider as `ai-gateway` but without its governance. New academic Q&A should go through **`ai-gateway`**, not new direct calls from panels.
 - Multi-agent product orchestration is **architecturally reserved**, not a shipped multi-agent runtime for users.
 
 ---
@@ -433,7 +433,7 @@ Teacher path constants: `src/gurukul-teacher/nav.ts`.
 | Multi-agent runtime | **Reserved** in architecture; not a shipped user-facing multi-agent product |
 | Teacher DPP / insights / battle monitor pages | Built files exist but **not mounted** |
 | Teacher scheduled publish / cron | Deferred per workspace plan |
-| Legacy Gemini edge agents | Still present; consolidation incomplete |
+| Legacy standalone edge agents (now OpenRouter-backed, not Gateway-governed) | Still present; consolidation into `ai-gateway` incomplete |
 | Landing brand “Vidyalaya” | Inconsistent with Wisdom Campus / Gurukul |
 | README | Still Lovable stub — this document + AI SSOT are the real brief |
 | Parent/Principal identity chrome | Some hardcoded display names remain |

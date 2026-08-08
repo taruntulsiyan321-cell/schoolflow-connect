@@ -1,7 +1,5 @@
-import { generateStructuredWithFallback, jsonResponse } from "./gemini.ts";
+import { generateStructuredWithFallback, jsonResponse } from "./structuredCompletion.ts";
 import { buildAgentContext, type AcademicBrainRecord } from "./academicBrainBuilder.ts";
-
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite"];
 
 export async function handleLearningPatternRequest(body: Record<string, unknown>): Promise<Response> {
   const brain = (body.academic_brain ?? body.brain ?? {}) as AcademicBrainRecord;
@@ -60,7 +58,7 @@ export async function handleLearningPatternRequest(body: Record<string, unknown>
     headline: string;
     patterns: { label: string; description: string; evidence?: string }[];
     insights: string[];
-  }>({ system, user, schema, toolName: "emit_learning_patterns" }, { models: MODELS });
+  }>({ system, user, schema, toolName: "emit_learning_patterns" });
 
   if (!result.ok) {
     return jsonResponse(buildRuleLearningPatterns(ctx), 200);

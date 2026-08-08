@@ -1,5 +1,5 @@
-// Post-assessment concept recovery report — Google Gemini Flash (primary).
-import { corsHeaders, generateStructured, jsonResponse } from "./gemini.ts";
+// Post-assessment concept recovery report — OpenRouter (Qwen).
+import { corsHeaders, generateStructured, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
 
 Deno.serve(async (req) => {

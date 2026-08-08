@@ -1,5 +1,5 @@
-// Generate DPP MCQs — Google Gemini Flash (primary).
-import { corsHeaders, generateStructured, jsonResponse } from "./gemini.ts";
+// Generate DPP MCQs — OpenRouter (Qwen).
+import { corsHeaders, generateStructured, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
 
 /** Block SSRF via user-supplied source_url (private / link-local / metadata hosts). */
