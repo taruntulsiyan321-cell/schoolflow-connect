@@ -143,7 +143,7 @@ function PasswordField({
           autoComplete={autoComplete}
           required
           disabled={disabled}
-          className="h-12 pl-10 pr-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+          className="h-12 pl-10 pr-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
         />
         <button
           type="button"
@@ -615,7 +615,7 @@ export default function Auth() {
                       autoComplete="name"
                       required
                       disabled={profileBusy}
-                      className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                      className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
                     />
                   </div>
                 </div>
@@ -745,7 +745,7 @@ export default function Auth() {
                           autoComplete="email"
                           required
                           disabled={busy}
-                          className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                          className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
                         />
                       </div>
                     </div>
@@ -834,7 +834,7 @@ export default function Auth() {
                           autoComplete="email"
                           required
                           disabled={emailOtpBusy}
-                          className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                          className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
                         />
                       </div>
                     </div>
@@ -938,7 +938,7 @@ export default function Auth() {
                               autoComplete="tel"
                               required
                               disabled={busy}
-                              className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                              className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
                             />
                           </div>
                         </div>
@@ -990,7 +990,7 @@ export default function Auth() {
                       autoComplete="name"
                       required
                       disabled={busy}
-                      className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                      className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
                     />
                   </div>
                 </div>
@@ -1040,7 +1040,7 @@ export default function Auth() {
                       autoComplete="email"
                       required
                       disabled={busy}
-                      className="h-12 pl-10 rounded-xl border-border/50 bg-muted/40 text-[15px] shadow-none transition-all duration-200 focus-visible:bg-background focus-visible:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/15 focus-visible:ring-offset-0"
+                      className="h-12 pl-10 rounded-xl border border-border bg-muted text-[15px] shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] transition-all duration-200 focus-visible:bg-background focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-primary/15 focus-visible:ring-offset-0 focus-visible:shadow-none"
                     />
                   </div>
                 </div>
