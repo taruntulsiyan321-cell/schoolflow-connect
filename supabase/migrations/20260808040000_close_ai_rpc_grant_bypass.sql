@@ -1,0 +1,47 @@
+-- =============================================================================
+-- Close a direct-grant bypass on 3 service-role-only AI RPCs
+--
+-- Found via live adversarial testing during the final AI-subsystem audit,
+-- using nothing but the public anon key (no login required for any of this):
+--
+--   POST /rest/v1/rpc/ai_budget_check_and_reserve   -> 200 {"ok":true,...}
+--   POST /rest/v1/rpc/ai_prompt_load_production     -> 200 <full Nova system prompt>
+--
+-- Root cause: both functions' original migrations did
+-- `REVOKE ALL ON FUNCTION ... FROM PUBLIC` -- which revokes the *implicit*
+-- privilege every role inherits from PUBLIC, but does NOT revoke a privilege
+-- explicitly granted directly to a named role. `anon` and `authenticated`
+-- hold direct EXECUTE grants on these functions from Supabase's default
+-- schema-wide grants (confirmed via information_schema.role_routine_grants),
+-- and neither function has any internal auth check of its own -- unlike
+-- their sibling AI RPCs (ai_kms_retrieve_chunks, ai_kms_complete_chunk_embed,
+-- ai_embedding_jobs_process_batch, ai_prompt_promote, ai_session_memory_*),
+-- every one of which independently verified to RAISE EXCEPTION when called
+-- without a real auth.uid() or outside service_role, making their identical
+-- anon/authenticated grants harmless grant-hygiene noise rather than a live
+-- hole. ai_budget_check_and_reserve and ai_prompt_load_production/_shadow
+-- have no such internal check -- they trusted the grant alone, and the
+-- grant was wrong.
+--
+-- Impact confirmed live, unauthenticated (zero login, anon key only):
+--   - ai_budget_check_and_reserve: anyone can repeatedly reserve units
+--     against any school_id, exhausting that school's daily hard cap
+--     (400 units) and denying legitimate AI Gateway service to every real
+--     student/teacher/parent at that school for the rest of the day -- a
+--     trivial, zero-auth denial-of-service.
+--   - ai_prompt_load_production / ai_prompt_load_shadow: anyone can dump the
+--     complete raw system/user prompt template (grounding rules, output
+--     schema) for any capability_id -- an unauthenticated information
+--     disclosure that also hands an attacker the exact system prompt to
+--     design a prompt-injection attack against.
+--
+-- Fix: explicit REVOKE FROM anon, authenticated (not just PUBLIC) on all
+-- three functions, matching what their own migrations already stated as
+-- intent ("service_role only" / "service-role-only readers") but never
+-- actually enforced. No internal logic changes to any of the three
+-- functions -- this is a grants-only fix.
+-- =============================================================================
+
+REVOKE EXECUTE ON FUNCTION public.ai_budget_check_and_reserve(uuid, text, numeric) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.ai_prompt_load_production(text) FROM anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.ai_prompt_load_shadow(text) FROM anon, authenticated;

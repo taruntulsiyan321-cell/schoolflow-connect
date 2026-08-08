@@ -1,0 +1,38 @@
+-- =============================================================================
+-- Close a same-school student/parent/teacher data leak on ai_solution_cache
+--
+-- Found via live adversarial testing during the final AI-subsystem audit:
+-- an authenticated QA STUDENT account ran a plain `GET /rest/v1/ai_solution_cache`
+-- and received full cached academic snapshots for a DIFFERENT student in the
+-- same school -- name, roll number, class, attendance, marks, homework, EIE
+-- mastery, XP/progression. No admin/principal/teacher role was involved.
+--
+-- Root cause: "ai_solution_cache read tenant" (20260802170000_ai_audit_
+-- security_hardening.sql) scopes SELECT by *school_id* membership only --
+-- "is this row's school one you belong to as a student/teacher/parent, or
+-- an admin/principal of" -- with no per-student ownership check at all, even
+-- though every row carries a student_id. Every student, teacher, and parent
+-- in a school can read every OTHER student's cached AI facts in that school
+-- via this table, completely bypassing the AI Gateway's own actor/tenant
+-- checks (assertMayAccessStudent in aiRouter.ts), because those checks only
+-- run when the request goes through the edge function -- a direct PostgREST
+-- read on the table skips them entirely.
+--
+-- This table is a pure server-side performance cache (ai-gateway's L2 cache,
+-- 10-minute TTL, read/written exclusively via the service-role `admin`
+-- client inside aiRouter.ts's withCache()) -- not a data source any
+-- legitimate client is meant to query directly. Confirmed via a full grep of
+-- src/ that the only reference anywhere in the frontend is the generated
+-- types.ts type definition -- zero real callers query it from the client.
+-- The correct fix is not a narrower per-student policy (which would still
+-- leave a client-queryable surface for data that's supposed to be entirely
+-- server-mediated) -- it's removing client read access altogether, matching
+-- the already-correct posture of its sibling ai_request_decisions table.
+-- =============================================================================
+
+DROP POLICY IF EXISTS "ai_solution_cache read tenant" ON public.ai_solution_cache;
+
+-- No replacement authenticated-read policy: this table is service-role only,
+-- read and written exclusively by the AI Gateway edge function's admin
+-- client. RLS stays enabled with zero policies for `authenticated`, so any
+-- direct client query now returns an empty set rather than leaking rows.
