@@ -11,6 +11,7 @@ import { Plus, Trash2, Pencil, ShieldCheck, Link2, Loader2, UserX, ShieldAlert }
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { parseLoginIdentifier, portalFieldsFromIdentifier } from "@/lib/loginIdentifier";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 const EMPTY = {
   full_name: "", admission_number: "", roll_number: "", class_id: "",
@@ -19,6 +20,7 @@ const EMPTY = {
 };
 
 export default function StudentsAdmin() {
+  const { ctx } = useAcademicContext();
   const [rows, setRows] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -37,6 +39,7 @@ export default function StudentsAdmin() {
 
   const add = async () => {
     if (!form.full_name || !form.admission_number) return toast.error("Name and admission number required");
+    if (!ctx?.schoolId) return toast.error("No school context — try reloading the page");
     const { link_email, ...rest } = form;
     const portal = link_email?.trim() ? portalFieldsFromIdentifier(link_email.trim()) : {};
     if (link_email?.trim() && !parseLoginIdentifier(link_email.trim())) {
@@ -47,6 +50,7 @@ export default function StudentsAdmin() {
       ...portal,
       class_id: form.class_id || null,
       date_of_birth: form.date_of_birth || null,
+      school_id: ctx.schoolId,
     };
     const { data: created, error } = await supabase.from("students").insert(payload).select().single();
     if (error) return toast.error(error.message);

@@ -125,6 +125,12 @@ export function BattleRoom() {
   const [answerSyncFailed, setAnswerSyncFailed] = useState(false);
   const [revealedCorrectIndex, setRevealedCorrectIndex] = useState<number | null>(null);
   const [finishingBattle, setFinishingBattle] = useState(false);
+  /** correct_index per question, fetched ONLY once the battle is finished — never
+   *  merged into `questions` (which is fetched at battle-entry, before answering,
+   *  and must never carry correct_index or a client inspecting network traffic
+   *  could read the answer key before answering). Safe here because the battle
+   *  is already over and no further answering can happen. */
+  const [reviewCorrectIndex, setReviewCorrectIndex] = useState<Record<string, number>>({});
   const answeringRef = useRef(false);
   const answeredQRef = useRef<Set<string>>(new Set());
   const timerFiredRef = useRef(false);
@@ -257,6 +263,23 @@ export function BattleRoom() {
     });
   }, [finished, participantId]);
 
+  // Correct answers, for review only — deliberately a separate fetch gated on
+  // `finished`, never merged into the live `questions` array (see state comment above).
+  useEffect(() => {
+    if (!finished || !id) return;
+    supabase.from("battle_questions").select("id, correct_index").eq("battle_id", id).then(({ data, error }) => {
+      if (error) {
+        toast({ title: "Could not load answer key for review", description: error.message, variant: "destructive" });
+        return;
+      }
+      const m: Record<string, number> = {};
+      (data ?? []).forEach((row: { id: string; correct_index: number | null }) => {
+        if (typeof row.correct_index === "number") m[row.id] = row.correct_index;
+      });
+      setReviewCorrectIndex(m);
+    });
+  }, [finished, id]);
+
   const currentQ = questions[qIdx];
 
   const handleAnswer = useCallback(async (idx: number) => {
@@ -293,15 +316,17 @@ export function BattleRoom() {
       } catch (rpcErr) {
         const msg = rpcErr instanceof Error ? rpcErr.message : "";
         if (msg !== "BATTLE_SUBMIT_RPC_MISSING") throw rpcErr;
-        // Pre-migration fallback: client grade only when server RPC unavailable
-        const correctIdx = typeof currentQ.correct_index === "number" ? currentQ.correct_index : -1;
-        const correct = idx >= 0 && idx === correctIdx;
-        const pts = correct
-          ? (currentQ.points ?? 10) + Math.max(0, Math.floor((battle.per_question_sec * 1000 - elapsed) / 200))
-          : 0;
+        // Fallback for when rpc_submit_battle_answer is unreachable. This branch
+        // deliberately does NOT attempt to grade the answer: battle_questions.correct_index
+        // is intentionally never fetched by the client (see the `questions` load effect
+        // above) because doing so would expose the whole answer key before every
+        // participant has answered. Without the server RPC there is no safe way to know
+        // whether the selection was correct, so this records the raw answer as
+        // unscored/incorrect (0 points) rather than fabricating a result, and tells the
+        // student honestly that grading was unavailable.
         const newMe = {
-          score: me.score + pts,
-          correct_count: me.correct_count + (correct ? 1 : 0),
+          score: me.score,
+          correct_count: me.correct_count,
           answered_count: me.answered_count + 1,
           total_time_ms: me.total_time_ms + elapsed,
         };
@@ -309,7 +334,7 @@ export function BattleRoom() {
           participantId,
           questionId: currentQ.id,
           selectedIndex: idx,
-          isCorrect: correct,
+          isCorrect: false,
           timeMs: elapsed,
           score: newMe.score,
           correctCount: newMe.correct_count,
@@ -317,14 +342,19 @@ export function BattleRoom() {
           totalTimeMs: newMe.total_time_ms,
         });
         graded = {
-          isCorrect: correct,
-          points: pts,
-          correctIndex: correctIdx >= 0 ? correctIdx : null,
+          isCorrect: false,
+          points: 0,
+          correctIndex: null,
           score: newMe.score,
           correctCount: newMe.correct_count,
           answeredCount: newMe.answered_count,
           totalTimeMs: newMe.total_time_ms,
         };
+        toast({
+          title: "Answer saved, but not scored",
+          description: "Live grading was unavailable for this question — it was recorded but not scored. This shouldn't normally happen; try again next question.",
+          variant: "destructive",
+        });
       }
 
       setMe({
@@ -487,13 +517,14 @@ export function BattleRoom() {
             const ans = reviewAnswers[q.id];
             const sel = ans ? ans.selected_index : null;
             const wasCorrect = ans ? ans.is_correct : null;
+            const correctIndex = reviewCorrectIndex[q.id] ?? null;
             return (
               <Card key={q.id} className="p-4">
                 <div className="text-xs text-muted-foreground mb-1">Q{i + 1}</div>
                 <MathText block className="font-medium text-sm leading-snug" text={q.question} />
                 <div className="grid sm:grid-cols-2 gap-2 mt-3">
                   {(q.options as string[]).map((opt: string, oi: number) => {
-                    const isCorrect = oi === q.correct_index;
+                    const isCorrect = correctIndex !== null && oi === correctIndex;
                     const isSel = oi === sel;
                     return (
                       <div key={oi} className={cn(
@@ -513,7 +544,7 @@ export function BattleRoom() {
                 <ExplainPanel
                   question={q.question}
                   options={q.options as string[]}
-                  correctIndex={q.correct_index}
+                  correctIndex={correctIndex}
                   selectedIndex={sel}
                   subject={battle.subject}
                   topic={battle.topic ?? ""}

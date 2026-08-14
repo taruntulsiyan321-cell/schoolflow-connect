@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { classLabel } from "@/lib/utils";
 import { normalizePhone } from "@/lib/phone";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 const EMPTY = {
   full_name: "", subject: "", mobile: "", email: "",
@@ -23,6 +24,7 @@ const EMPTY = {
 
 export default function TeachersAdmin() {
   const nav = useNavigate();
+  const { ctx } = useAcademicContext();
   const [rows, setRows] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [addOpen, setAddOpen] = useState(false);
@@ -48,12 +50,14 @@ export default function TeachersAdmin() {
 
   const add = async () => {
     if (!form.full_name) return toast.error("Name required");
+    if (!ctx?.schoolId) return toast.error("No school context — try reloading the page");
     const { teaching_class_ids, ...rest } = form;
     const payload = {
       ...rest,
       mobile: form.mobile.trim() ? (normalizePhone(form.mobile) ?? form.mobile.trim()) : "",
       class_teacher_of: form.is_class_teacher && form.class_teacher_of ? form.class_teacher_of : null,
       salary: form.salary ? Number(form.salary) : null,
+      school_id: ctx.schoolId,
     };
     const { data: t, error } = await supabase.from("teachers").insert(payload).select().single();
     if (error) return toast.error(error.message);
