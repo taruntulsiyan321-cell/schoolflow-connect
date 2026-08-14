@@ -2,7 +2,7 @@ import { useState, useEffect, useId } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth, dashboardForRole, canAccessPath, mapAuthError } from "@/auth";
+import { useAuth, dashboardForRole, canAccessPath } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +14,6 @@ import {
   Users,
   Eye,
   EyeOff,
-  ChevronLeft,
   Check,
   Lock,
   Mail,
@@ -29,7 +28,6 @@ import { openMsg91Widget, closeMsg91Widget, classifyMsg91Failure, isMsg91WidgetC
 import { completeMsg91SignIn, phoneToSyntheticEmail } from "@/lib/msg91Auth";
 import { normalizePhone } from "@/lib/phone";
 
-const pwSchema = z.string().min(8, { message: "Min 8 chars" }).max(72);
 const nameSchema = z.string().trim().min(1).max(100);
 
 /** Public self-signup is limited — school staff are provisioned by admins */
@@ -53,7 +51,6 @@ const FIELD_ICON_CLASS =
   "absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-muted-foreground/55 pointer-events-none transition-colors duration-200 group-focus-within:text-primary";
 const PRIMARY_BUTTON_CLASS =
   "w-full h-14 rounded-[14px] bg-primary text-primary-foreground text-base font-semibold press shadow-card hover:bg-primary/90 transition-all duration-200";
-const OUTLINE_BUTTON_CLASS = "w-full h-14 rounded-[14px] border-border text-base font-semibold";
 
 /** Equal-width segmented control, 48px tall, 14px radius — used for both
  *  Individual/Organization and Password/OTP switches. */
@@ -192,29 +189,6 @@ function RolePicker({
   );
 }
 
-function GoogleGlyph({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 48 48" aria-hidden="true">
-      <path
-        fill="#FFC107"
-        d="M43.6 20.5H42V20H24v8h11.3C33.7 32.4 29.3 35.5 24 35.5c-6.4 0-11.5-5.1-11.5-11.5S17.6 12.5 24 12.5c2.9 0 5.6 1.1 7.7 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5 43.5 34.8 43.5 24c0-1.2-.1-2.3-.4-3.5z"
-      />
-      <path
-        fill="#FF3D00"
-        d="M6.3 14.7l6.6 4.8C14.7 16 19 12.5 24 12.5c2.9 0 5.6 1.1 7.7 2.9l5.7-5.7C33.9 6.5 29.2 4.5 24 4.5 16.3 4.5 9.7 8.9 6.3 14.7z"
-      />
-      <path
-        fill="#4CAF50"
-        d="M24 43.5c5.1 0 9.8-2 13.3-5.2l-6.1-5c-2 1.4-4.5 2.2-7.2 2.2-5.3 0-9.7-3.1-11.3-7.5l-6.5 5C9.6 39 16.2 43.5 24 43.5z"
-      />
-      <path
-        fill="#1976D2"
-        d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.2-4.1 5.5l6.1 5c-.4.4 6.7-4.9 6.7-14.5 0-1.2-.1-2.3-.4-3.5z"
-      />
-    </svg>
-  );
-}
-
 export default function Auth() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -224,16 +198,11 @@ export default function Auth() {
   /** Top-level account type — Organization is the only live path today;
    *  Individual is a disabled placeholder per the current design brief. */
   const [accountType, setAccountType] = useState<"individual" | "organization">("organization");
-  /** Sign in vs the existing two-step signup flow, entered via a link
-   *  rather than a top-level tab now that the channel switch lives above it. */
-  const [authView, setAuthView] = useState<"signin" | "signup">("signin");
   /** Password vs one-time code, under Organization → Sign in. */
   const [signInMode, setSignInMode] = useState<"password" | "otp">("password");
 
   const identifierId = useId();
   const otpIdentifierId = useId();
-  const signupNameId = useId();
-  const signupEmailId = useId();
   const profileNameId = useId();
 
   const from = (location.state as { from?: string } | null)?.from ?? null;
@@ -250,12 +219,6 @@ export default function Auth() {
   const [siIdentifier, setSiIdentifier] = useState("");
   const [siPw, setSiPw] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
-
-  const [suName, setSuName] = useState("");
-  const [suEmail, setSuEmail] = useState("");
-  const [suPw, setSuPw] = useState("");
-  const [suRole, setSuRole] = useState<SignUpRole>("student");
-  const [signupStep, setSignupStep] = useState<"role" | "details">("role");
 
   // Mobile OTP (MSG91 widget) — the widget itself collects the phone number
   // and OTP code inside its own UI; there's no local phone/code field to hold.
@@ -336,48 +299,6 @@ export default function Auth() {
     toast.success("Welcome back!");
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (busy) return;
-    const nv = nameSchema.safeParse(suName);
-    const ev = validateEmail(suEmail);
-    const pv = pwSchema.safeParse(suPw);
-    if (!nv.success) return toast.error("Enter your full name");
-    if (!ev.ok) {
-      toast.error(ev.message);
-      return;
-    }
-    if (!pv.success) return toast.error(pv.error.issues[0].message);
-    setBusy(true);
-    // Staff roles are admin-provisioned. Student/parent may self-claim via intended_role + RPC.
-    const { data, error } = await supabase.auth.signUp({
-      email: ev.email,
-      password: pv.data,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth${nextParam ? `?next=${encodeURIComponent(nextParam)}` : ""}`,
-        data: { full_name: nv.data, intended_role: suRole },
-      },
-    });
-    if (error) {
-      setBusy(false);
-      return toast.error(mapAuthError(error));
-    }
-    // Prefer SECURITY DEFINER RPC (bypasses RLS) over direct user_roles insert
-    if (data.session && data.user && (suRole === "student" || suRole === "parent")) {
-      const { error: roleErr } = await (supabase.rpc as any)("claim_signup_role", { _role: suRole });
-      if (roleErr) {
-        console.warn("[auth] claim_signup_role:", roleErr.message);
-      }
-    }
-    setBusy(false);
-    toast.success(
-      data.session
-        ? "Account created! Taking you to your dashboard…"
-        : "Account created — check your email to confirm, then sign in.",
-    );
-    if (!data.session) setAuthView("signin");
-  };
-
   const handleReset = async () => {
     if (busy) return;
     const ev = validateEmail(siIdentifier);
@@ -390,21 +311,6 @@ export default function Auth() {
     setBusy(false);
     if (error) return toast.error(error);
     toast.success("Reset link sent — check your inbox");
-  };
-
-  const handleGoogle = async () => {
-    if (busy) return;
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    });
-    if (error) {
-      setBusy(false);
-      toast.error(error.message || "Google sign-in failed");
-      return;
-    }
-    // Success navigates the browser away to Google's consent screen.
   };
 
   /** Opens the MSG91 widget; the client never asserts a phone number — only
@@ -567,22 +473,12 @@ export default function Auth() {
           <div className="text-center mb-6">
             <div className="text-xs font-extrabold tracking-[0.14em] uppercase text-primary mb-3">Gurukul</div>
             <h2 className="text-[32px] font-semibold tracking-tight">
-              {profileStep === "complete_profile"
-                ? "Almost there"
-                : accountType === "organization" && authView === "signup"
-                  ? signupStep === "role"
-                    ? "Create your account"
-                    : "Just a few details"
-                  : "Welcome Back"}
+              {profileStep === "complete_profile" ? "Almost there" : "Welcome Back"}
             </h2>
             <p className="text-base text-muted-foreground mt-1.5">
               {profileStep === "complete_profile"
                 ? "You're verified — just a couple more details."
-                : accountType === "organization" && authView === "signup"
-                  ? signupStep === "role"
-                    ? "Tell us who you are — it takes two steps."
-                    : `Setting up your ${suRole} account.`
-                  : "Choose how you want to access Gurukul."}
+                : "Choose how you want to access Gurukul."}
             </p>
           </div>
 
@@ -641,122 +537,6 @@ export default function Auth() {
                       Individual accounts aren't available yet — sign in through your school's Organization account.
                     </p>
                   </div>
-                ) : authView === "signup" ? (
-                  <>
-                    <div className="flex items-center gap-1.5 mb-6" aria-hidden>
-                      <div
-                        className={cn(
-                          "h-1 flex-1 rounded-full transition-colors duration-300",
-                          signupStep === "role" || signupStep === "details" ? "bg-primary" : "bg-border",
-                        )}
-                      />
-                      <div
-                        className={cn(
-                          "h-1 flex-1 rounded-full transition-colors duration-300",
-                          signupStep === "details" ? "bg-primary" : "bg-border",
-                        )}
-                      />
-                    </div>
-
-                    {signupStep === "role" ? (
-                      <div className="space-y-6 animate-fade-in">
-                        <RolePicker value={suRole} onChange={setSuRole} disabled={busy} />
-                        <p className="text-[12px] text-muted-foreground leading-relaxed">
-                          Teachers, principals, and school admins are invited by your school — they cannot
-                          self-register here.
-                        </p>
-                        <Button
-                          type="button"
-                          onClick={() => setSignupStep("details")}
-                          className={PRIMARY_BUTTON_CLASS}
-                        >
-                          Continue
-                        </Button>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleSignUp} className="space-y-4 animate-fade-in" noValidate>
-                        <button
-                          type="button"
-                          onClick={() => setSignupStep("role")}
-                          disabled={busy}
-                          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors -mt-1 mb-1"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                          Back
-                        </button>
-
-                        <div className="space-y-1.5">
-                          <Label htmlFor={signupNameId}>Full name</Label>
-                          <div className="relative group">
-                            <User className={FIELD_ICON_CLASS} />
-                            <Input
-                              id={signupNameId}
-                              value={suName}
-                              onChange={(e) => setSuName(e.target.value)}
-                              placeholder="Your full name"
-                              autoComplete="name"
-                              required
-                              disabled={busy}
-                              className={FIELD_CLASS}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <Label htmlFor={signupEmailId}>Email address</Label>
-                          <div className="relative group">
-                            <Mail className={FIELD_ICON_CLASS} />
-                            <Input
-                              id={signupEmailId}
-                              type="email"
-                              value={suEmail}
-                              onChange={(e) => setSuEmail(e.target.value)}
-                              placeholder="you@school.edu"
-                              autoComplete="email"
-                              required
-                              disabled={busy}
-                              className={FIELD_CLASS}
-                            />
-                          </div>
-                        </div>
-
-                        <PasswordField
-                          id="signup-password"
-                          label="Password"
-                          value={suPw}
-                          onChange={setSuPw}
-                          autoComplete="new-password"
-                          hint="Minimum 8 characters"
-                          disabled={busy}
-                        />
-
-                        <Button type="submit" className={PRIMARY_BUTTON_CLASS} disabled={busy}>
-                          {busy ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                              Creating account…
-                            </>
-                          ) : (
-                            "Create account"
-                          )}
-                        </Button>
-                      </form>
-                    )}
-
-                    <p className="text-center text-sm mt-6">
-                      <span className="text-muted-foreground">Already have an account? </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAuthView("signin");
-                          setSignupStep("role");
-                        }}
-                        className="text-primary font-medium hover:underline underline-offset-4"
-                      >
-                        Sign in
-                      </button>
-                    </p>
-                  </>
                 ) : (
                   <>
                     {/* Sign in with — Password / OTP */}
@@ -829,27 +609,6 @@ export default function Auth() {
                             ) : (
                               "Sign In"
                             )}
-                          </Button>
-
-                          <div className="flex items-center gap-3 py-1">
-                            <div className="h-px flex-1 bg-border" />
-                            <span className="text-xs text-muted-foreground font-medium">or</span>
-                            <div className="h-px flex-1 bg-border" />
-                          </div>
-
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className={cn(OUTLINE_BUTTON_CLASS, "flex items-center justify-center gap-2.5")}
-                            onClick={handleGoogle}
-                            disabled={busy}
-                          >
-                            {busy ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <GoogleGlyph className="w-[18px] h-[18px]" />
-                            )}
-                            Continue with Google
                           </Button>
                         </form>
                       ) : (
@@ -928,18 +687,6 @@ export default function Auth() {
                         </form>
                       )}
                     </div>
-
-                    <p className={cn("text-center text-sm mt-6 transition-opacity", (mobileBusy || emailOtpBusy) && "opacity-50 pointer-events-none")}>
-                      <span className="text-muted-foreground">New to Gurukul? </span>
-                      <button
-                        type="button"
-                        onClick={() => setAuthView("signup")}
-                        disabled={mobileBusy || emailOtpBusy}
-                        className="text-primary font-medium hover:underline underline-offset-4"
-                      >
-                        Create an account
-                      </button>
-                    </p>
                   </>
                 )}
               </div>
