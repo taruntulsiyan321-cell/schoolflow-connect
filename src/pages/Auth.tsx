@@ -27,6 +27,7 @@ import { validateEmail } from "@/lib/emailValidation";
 import { cn } from "@/lib/utils";
 import { openMsg91Widget, closeMsg91Widget, classifyMsg91Failure, isMsg91WidgetConfigured } from "@/lib/msg91Widget";
 import { completeMsg91SignIn, phoneToSyntheticEmail } from "@/lib/msg91Auth";
+import { normalizePhone } from "@/lib/phone";
 
 const pwSchema = z.string().min(8, { message: "Min 8 chars" }).max(72);
 const nameSchema = z.string().trim().min(1).max(100);
@@ -230,6 +231,7 @@ export default function Auth() {
   const [signInMode, setSignInMode] = useState<"password" | "otp">("password");
 
   const identifierId = useId();
+  const otpIdentifierId = useId();
   const signupNameId = useId();
   const signupEmailId = useId();
   const profileNameId = useId();
@@ -259,6 +261,15 @@ export default function Auth() {
   // and OTP code inside its own UI; there's no local phone/code field to hold.
   const [mobileBusy, setMobileBusy] = useState(false);
   const [mobileCancelling, setMobileCancelling] = useState(false);
+
+  // OTP sign-in — one identifier field routes to whichever channel it
+  // resolves to: a mobile number hands off to the MSG91 widget above
+  // (which still collects/verifies the number itself, unchanged); an email
+  // address uses Supabase Auth's own native email OTP (a sign-in link,
+  // since this project has no custom email template exposing a typed code).
+  const [otpIdentifier, setOtpIdentifier] = useState("");
+  const [emailOtpBusy, setEmailOtpBusy] = useState(false);
+  const [emailOtpSent, setEmailOtpSent] = useState(false);
 
   // New-user profile completion — shared by every OTP-style path (mobile
   // widget today) since it doesn't collect a name/role up front the way
@@ -445,6 +456,49 @@ export default function Auth() {
     setMobileCancelling(false);
   };
 
+  /** Sends a Supabase-native sign-in link to an email address — the same
+   *  supabase.auth client used everywhere else in this file, just its
+   *  built-in passwordless method. Not a new provider or backend: it is
+   *  the email OTP/passwordless mechanism Supabase Auth already ships
+   *  with, resolving through the same onAuthStateChange listener in
+   *  AuthProvider that every other sign-in path already relies on. */
+  const handleEmailOtp = async (email: string) => {
+    if (emailOtpBusy) return;
+    setEmailOtpBusy(true);
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/auth`,
+      },
+    });
+    setEmailOtpBusy(false);
+    if (error) {
+      toast.error(error.message || "Could not send the sign-in email. Please try again.");
+      return;
+    }
+    setEmailOtpSent(true);
+    toast.success(`Sign-in link sent to ${email} — check your inbox.`);
+  };
+
+  /** Unified OTP entry point: the identifier field alone decides the
+   *  channel, reusing the same validators as password-mode sign-in
+   *  (email-first, then phone) so both modes classify input identically. */
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mobileBusy || emailOtpBusy) return;
+    const ev = validateEmail(otpIdentifier);
+    if (ev.ok) {
+      await handleEmailOtp(ev.email);
+      return;
+    }
+    if (normalizePhone(otpIdentifier)) {
+      await handleMobileOtp();
+      return;
+    }
+    toast.error("Enter a valid email or mobile number");
+  };
+
   /** New OTP-verified account (mobile widget): claim a role via the same
    *  self-signup RPC Email+Password uses, then save the display name.
    *  Reached whenever status === "missing_role" — see the redirect effect
@@ -572,7 +626,7 @@ export default function Auth() {
                 ariaLabel="Account type"
                 value={accountType}
                 onChange={setAccountType}
-                disabled={busy || mobileBusy}
+                disabled={busy || mobileBusy || emailOtpBusy}
                 options={[
                   { value: "individual", label: "Individual" },
                   { value: "organization", label: "Organization" },
@@ -711,7 +765,7 @@ export default function Auth() {
                       ariaLabel="Sign in with"
                       value={signInMode}
                       onChange={setSignInMode}
-                      disabled={busy || mobileBusy}
+                      disabled={busy || mobileBusy || emailOtpBusy}
                       options={[
                         { value: "password", label: "Password" },
                         { value: "otp", label: "OTP" },
@@ -799,27 +853,54 @@ export default function Auth() {
                           </Button>
                         </form>
                       ) : (
-                        <div className="space-y-4">
+                        <form onSubmit={handleSendOtp} className="space-y-4" noValidate>
+                          <div className="space-y-1.5">
+                            <Label htmlFor={otpIdentifierId}>Email or Mobile</Label>
+                            <div className="relative group">
+                              <Mail className={FIELD_ICON_CLASS} />
+                              <Input
+                                id={otpIdentifierId}
+                                value={otpIdentifier}
+                                onChange={(e) => {
+                                  setOtpIdentifier(e.target.value);
+                                  setEmailOtpSent(false);
+                                }}
+                                placeholder="you@school.edu or +91 98765 43210"
+                                autoComplete="username"
+                                required
+                                disabled={mobileBusy || emailOtpBusy}
+                                className={FIELD_CLASS}
+                              />
+                            </div>
+                          </div>
+
                           <p className="text-sm text-muted-foreground leading-relaxed">
                             {mobileBusy
                               ? "A secure verification window is open — finish it there, or cancel below."
-                              : "We'll open a secure window to verify your mobile number with a one-time password. New here? This creates your account too."}
+                              : emailOtpSent
+                                ? "Sign-in link sent — check your inbox, or resend below."
+                                : "Mobile numbers open a secure verification window; email addresses get a sign-in link. New here? This creates your account too."}
                           </p>
+
                           <Button
-                            type="button"
-                            onClick={handleMobileOtp}
+                            type="submit"
                             className={PRIMARY_BUTTON_CLASS}
-                            disabled={mobileBusy}
+                            disabled={mobileBusy || emailOtpBusy}
                           >
                             {mobileBusy ? (
                               <>
                                 <Loader2 className="w-4 h-4 animate-spin mr-2" />
                                 Verifying…
                               </>
+                            ) : emailOtpBusy ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                Sending…
+                              </>
                             ) : (
                               <>
                                 <Phone className="w-4 h-4 mr-2" />
-                                Send OTP
+                                {emailOtpSent ? "Resend link" : "Send OTP"}
                               </>
                             )}
                           </Button>
@@ -844,16 +925,16 @@ export default function Auth() {
                               )}
                             </Button>
                           )}
-                        </div>
+                        </form>
                       )}
                     </div>
 
-                    <p className={cn("text-center text-sm mt-6 transition-opacity", mobileBusy && "opacity-50 pointer-events-none")}>
+                    <p className={cn("text-center text-sm mt-6 transition-opacity", (mobileBusy || emailOtpBusy) && "opacity-50 pointer-events-none")}>
                       <span className="text-muted-foreground">New to Gurukul? </span>
                       <button
                         type="button"
                         onClick={() => setAuthView("signup")}
-                        disabled={mobileBusy}
+                        disabled={mobileBusy || emailOtpBusy}
                         className="text-primary font-medium hover:underline underline-offset-4"
                       >
                         Create an account
