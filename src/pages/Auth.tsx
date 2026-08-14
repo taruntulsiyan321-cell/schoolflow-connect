@@ -96,6 +96,7 @@ function SegmentedControl<T extends string>({
           className={cn(
             "relative z-10 flex items-center justify-center rounded-[10px] text-sm font-semibold transition-colors duration-200",
             value === o.value ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+            disabled && "opacity-50 cursor-not-allowed",
           )}
         >
           {o.label}
@@ -705,6 +706,7 @@ export default function Auth() {
                 ) : (
                   <>
                     {/* Sign in with — Password / OTP */}
+                    <p className="text-sm font-medium text-foreground mb-2">Sign in with</p>
                     <SegmentedControl
                       ariaLabel="Sign in with"
                       value={signInMode}
@@ -716,7 +718,7 @@ export default function Auth() {
                       ]}
                     />
 
-                    <div key={signInMode} className="animate-slide-in-x mt-5">
+                    <div key={signInMode} className="animate-slide-in-x mt-6">
                       {signInMode === "password" ? (
                         <form onSubmit={handleSignIn} className="space-y-4" noValidate>
                           <div className="space-y-1.5">
@@ -797,10 +799,11 @@ export default function Auth() {
                           </Button>
                         </form>
                       ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           <p className="text-sm text-muted-foreground leading-relaxed">
-                            Verify your mobile number with a one-time code. New here? This creates your account
-                            too.
+                            {mobileBusy
+                              ? "A secure verification window is open — finish it there, or cancel below."
+                              : "We'll open a secure window to verify your mobile number with a one-time password. New here? This creates your account too."}
                           </p>
                           <Button
                             type="button"
@@ -845,11 +848,12 @@ export default function Auth() {
                       )}
                     </div>
 
-                    <p className="text-center text-sm mt-6">
+                    <p className={cn("text-center text-sm mt-6 transition-opacity", mobileBusy && "opacity-50 pointer-events-none")}>
                       <span className="text-muted-foreground">New to Gurukul? </span>
                       <button
                         type="button"
                         onClick={() => setAuthView("signup")}
+                        disabled={mobileBusy}
                         className="text-primary font-medium hover:underline underline-offset-4"
                       >
                         Create an account
