@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from "react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { toast } from "sonner";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -21,7 +22,8 @@ export function InitialsAvatar({
     .slice(0, 2)
     .join("");
   const colors = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
-  const bg = color ?? colors[name.charCodeAt(0) % colors.length];
+  const trimmedName = name.trim();
+  const bg = color ?? (trimmedName ? colors[trimmedName.charCodeAt(0) % colors.length] : colors[0]);
   const cls = { sm: "w-7 h-7 text-[9px]", md: "w-9 h-9 text-[11px]", lg: "w-14 h-14 text-base" }[size];
   return (
     <div
@@ -201,7 +203,10 @@ export function useUndoDelete<T extends { id: string }>(
 
 // Export helpers
 export function exportCSV(filename: string, rows: Record<string, unknown>[]) {
-  if (!rows.length) return;
+  if (!rows.length) {
+    toast.error("Nothing to export — this report has no rows.");
+    return;
+  }
   const headers = Object.keys(rows[0]);
   const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => JSON.stringify(r[h] ?? "")).join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
@@ -213,7 +218,10 @@ export function exportCSV(filename: string, rows: Record<string, unknown>[]) {
 
 export function printSection(title: string, content: string) {
   const win = window.open("", "_blank");
-  if (!win) return;
+  if (!win) {
+    toast.error("Print popup was blocked. Please allow popups for this site and try again.");
+    return;
+  }
   win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>
     <style>body{font-family:system-ui,sans-serif;padding:2rem;color:#111}h1{margin-bottom:1rem}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:6px 10px;font-size:13px}th{background:#f3f4f6}</style>
     </head><body><h1>${title}</h1>${content}</body></html>`);

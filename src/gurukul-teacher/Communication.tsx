@@ -167,8 +167,8 @@ function ChatView({
       setInput("");
       setReplyTo(null);
       await onSendFile(file, { caption, replyToId: replyId });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+    } catch {
+      // Error toast is already shown in handleSendFile, closer to the failure.
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";

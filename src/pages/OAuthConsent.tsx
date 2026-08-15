@@ -13,8 +13,14 @@ type AuthorizationDetails = {
 
 type OAuthApi = {
   getAuthorizationDetails: (id: string) => Promise<{ data: AuthorizationDetails | null; error: { message: string } | null }>;
-  approveAuthorization: (id: string) => Promise<{ data: AuthorizationDetails | null; error: { message: string } | null }>;
-  denyAuthorization: (id: string) => Promise<{ data: AuthorizationDetails | null; error: { message: string } | null }>;
+  approveAuthorization: (
+    id: string,
+    options?: { skipBrowserRedirect?: boolean },
+  ) => Promise<{ data: AuthorizationDetails | null; error: { message: string } | null }>;
+  denyAuthorization: (
+    id: string,
+    options?: { skipBrowserRedirect?: boolean },
+  ) => Promise<{ data: AuthorizationDetails | null; error: { message: string } | null }>;
 };
 
 function oauthApi(): OAuthApi {
@@ -62,15 +68,18 @@ export default function OAuthConsent() {
   async function decide(approve: boolean) {
     setBusy(true);
     const api = oauthApi();
+    // skipBrowserRedirect: this page does its own navigation below once the
+    // redirect target is known, so the SDK's own automatic redirect is
+    // opted out of here to avoid navigating twice.
     const { data, error: err } = approve
-      ? await api.approveAuthorization(authorizationId)
-      : await api.denyAuthorization(authorizationId);
+      ? await api.approveAuthorization(authorizationId, { skipBrowserRedirect: true })
+      : await api.denyAuthorization(authorizationId, { skipBrowserRedirect: true });
     if (err) {
       setBusy(false);
       setError(err.message);
       return;
     }
-    const target = data?.redirect_url ?? data?.redirect_to;
+    const target = data?.redirect_url;
     if (!target) {
       setBusy(false);
       setError("No redirect returned by the authorization server.");

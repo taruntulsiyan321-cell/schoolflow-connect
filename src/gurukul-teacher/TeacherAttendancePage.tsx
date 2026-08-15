@@ -413,9 +413,11 @@ export function TeacherAttendanceWorkspace({
               title={
                 !canMark
                   ? "Read only — class teacher marks attendance"
-                  : dirty
-                    ? "Save unsaved changes"
-                    : "Already saved — click to re-save"
+                  : students.length === 0
+                    ? "No students enrolled in this class"
+                    : dirty
+                      ? "Save unsaved changes"
+                      : "Already saved — click to re-save"
               }
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

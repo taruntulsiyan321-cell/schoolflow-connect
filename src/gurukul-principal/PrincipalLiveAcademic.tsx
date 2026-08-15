@@ -589,23 +589,24 @@ export function PrincipalTeachersLive() {
           .order("full_name");
         if (tErr) throw new Error(tErr.message);
         const list = teachers ?? [];
-        const enriched = [];
-        for (const t of list) {
-          const perf = await AnalyticsService.forTeacher(ctx, t.id).catch(() => null);
-          enriched.push({
-            id: t.id,
-            name: t.full_name ?? "Teacher",
-            subject: t.subject ?? perf?.assignedSubjects[0] ?? "-",
-            status: t.status ?? "active",
-            classCount: perf?.classCount ?? 0,
-            subjects: perf?.assignedSubjects ?? [],
-            avgAttendancePct: perf?.avgAttendancePct ?? 0,
-            avgHomeworkCompletionPct: perf?.avgHomeworkCompletionPct ?? 0,
-            avgExamsPct: perf?.avgExamsPct ?? 0,
-            avgTestsPct: perf?.avgTestsPct ?? 0,
-            studentCount: perf?.studentCount ?? 0,
-          });
-        }
+        const enriched = await Promise.all(
+          list.map(async (t) => {
+            const perf = await AnalyticsService.forTeacher(ctx, t.id).catch(() => null);
+            return {
+              id: t.id,
+              name: t.full_name ?? "Teacher",
+              subject: t.subject ?? perf?.assignedSubjects[0] ?? "-",
+              status: t.status ?? "active",
+              classCount: perf?.classCount ?? 0,
+              subjects: perf?.assignedSubjects ?? [],
+              avgAttendancePct: perf?.avgAttendancePct ?? 0,
+              avgHomeworkCompletionPct: perf?.avgHomeworkCompletionPct ?? 0,
+              avgExamsPct: perf?.avgExamsPct ?? 0,
+              avgTestsPct: perf?.avgTestsPct ?? 0,
+              studentCount: perf?.studentCount ?? 0,
+            };
+          }),
+        );
         if (!cancelled) setRows(enriched);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load teachers");

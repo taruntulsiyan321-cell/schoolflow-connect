@@ -75,6 +75,11 @@ export function useNotifications() {
     async (id: string) => {
       const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id);
       if (error) {
+        toast({
+          title: "Could not mark notification as read",
+          description: error.message || "Please try again.",
+          variant: "destructive",
+        });
         await reload();
         return;
       }
@@ -91,6 +96,11 @@ export function useNotifications() {
       .eq("user_id", user.id)
       .eq("read", false);
     if (error) {
+      toast({
+        title: "Could not mark all notifications as read",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
       await reload();
       return;
     }
@@ -101,6 +111,11 @@ export function useNotifications() {
     async (id: string) => {
       const { error } = await supabase.from("notifications").delete().eq("id", id);
       if (error) {
+        toast({
+          title: "Could not delete notification",
+          description: error.message || "Please try again.",
+          variant: "destructive",
+        });
         await reload();
         return;
       }

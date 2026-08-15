@@ -59,10 +59,11 @@ function ResolveModal({
           {request.fromDate !== request.toDate && ` → ${request.toDate}`} ({request.days}d)
         </div>
         <div className="flex flex-col gap-1 mb-5">
-          <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+          <label htmlFor="leave-resolve-remarks" className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
             Remarks (optional — stored on audit event)
           </label>
           <textarea
+            id="leave-resolve-remarks"
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
             rows={3}

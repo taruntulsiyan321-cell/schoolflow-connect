@@ -115,6 +115,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           let below = 0;
           let above = 0;
           for (const c of day.classes) {
+            if (cancelled) break;
             const profiles = await AcademicProfileService.listForClass(ctx, c.classId, { limit: 200 });
             for (const p of profiles) {
               const pct = Math.round(p.attendancePct);

@@ -135,8 +135,9 @@ function ParentForm({
         </div>
         <div className="p-6 grid grid-cols-2 gap-4">
           <div className="col-span-2 flex flex-col gap-1">
-            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Full Name</label>
+            <label htmlFor="parent-full-name" className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Full Name</label>
             <input
+              id="parent-full-name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className={cn(
@@ -147,8 +148,9 @@ function ParentForm({
             {errors.fullName && <span className="text-[9px] text-[#cc5069]">{errors.fullName}</span>}
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Email</label>
+            <label htmlFor="parent-email" className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Email</label>
             <input
+              id="parent-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -160,8 +162,9 @@ function ParentForm({
             {errors.email && <span className="text-[9px] text-[#cc5069]">{errors.email}</span>}
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Phone</label>
+            <label htmlFor="parent-phone" className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Phone</label>
             <input
+              id="parent-phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
@@ -433,6 +436,8 @@ export default function ParentManagement() {
       toast.success("Parent deleted");
       setDetail(null);
       setConfirmDelete(null);
+      const newTotalPages = Math.max(1, Math.ceil((filtered.length - 1) / PER_PAGE));
+      setPage((p) => Math.min(p, newTotalPages));
       await load();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Delete failed");

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   User, Lock, Link2, Edit2, Save, X, Check, Smartphone, Shield, Loader2,
 } from "lucide-react";
@@ -76,6 +76,7 @@ export default function ParentProfile() {
   const [changePwdOpen, setChangePwdOpen] = useState(false);
   const [pwdForm, setPwdForm] = useState({ next: "", confirm: "" });
   const [pwdSaving, setPwdSaving] = useState(false);
+  const changePwdDialogRef = useRef<HTMLDivElement>(null);
 
   const displayName = parentRow?.full_name || profile?.fullName || "";
   const email = parentRow?.email || profile?.email || user?.email || "";
@@ -165,6 +166,41 @@ export default function ParentProfile() {
     await refreshAuth();
     if (!profileErr) showFlash("Profile updated");
   }
+
+  // Escape-to-close + a simple focus trap while the Change Password dialog is open.
+  useEffect(() => {
+    if (!changePwdOpen) return;
+    const container = changePwdDialogRef.current;
+    const focusable = container?.querySelectorAll<HTMLElement>(
+      'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])',
+    );
+    focusable?.[0]?.focus();
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setChangePwdOpen(false);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const nodes = changePwdDialogRef.current?.querySelectorAll<HTMLElement>(
+        'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])',
+      );
+      if (!nodes || nodes.length === 0) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first || !container?.contains(document.activeElement)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (document.activeElement === last || !container?.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [changePwdOpen]);
 
   async function handleChangePwd() {
     if (!pwdForm.next || pwdForm.next !== pwdForm.confirm) return;
@@ -321,9 +357,15 @@ export default function ParentProfile() {
       {changePwdOpen && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setChangePwdOpen(false)} />
-          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+          <div
+            ref={changePwdDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="change-pwd-title"
+            className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4"
+          >
             <div className="flex items-center justify-between">
-              <div className="text-sm font-bold text-white">Change Password</div>
+              <div id="change-pwd-title" className="text-sm font-bold text-white">Change Password</div>
               <button type="button" onClick={() => setChangePwdOpen(false)} className="text-[#78788c] hover:text-white">
                 <X className="w-4 h-4" />
               </button>

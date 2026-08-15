@@ -140,7 +140,6 @@ function PasswordField({
         />
         <button
           type="button"
-          tabIndex={-1}
           aria-label={visible ? "Hide password" : "Show password"}
           onClick={() => setVisible((v) => !v)}
           className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md"

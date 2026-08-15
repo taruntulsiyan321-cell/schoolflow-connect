@@ -171,7 +171,14 @@ export function LiveAcademicWorkTab({
 
   const openReview = async (hw: StatsRow) => {
     if (!ctx) return;
+    const switchingItem = reviewHw?.id !== hw.id;
     setReviewHw(hw);
+    if (switchingItem) {
+      // Clear the previous item's submissions/roster immediately so the
+      // new title never briefly renders alongside stale submission data.
+      setSubs([]);
+      setRoster([]);
+    }
     setGradeDraft({});
     setError(null);
     try {

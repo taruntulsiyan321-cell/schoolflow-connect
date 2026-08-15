@@ -151,13 +151,24 @@ export default function QuestionBankPage() {
   };
 
   const importCsv = async () => {
-    const rows = parseCsv(csv, { subject, classLevel, chapter, difficulty, userId: user?.id ?? null });
-    if (rows.length === 0) return toast.error("No valid rows found. Check the format below.");
+    const { rows, skipped } = parseCsv(csv, { subject, classLevel, chapter, difficulty, userId: user?.id ?? null });
+    const skipSummary = summarizeSkippedRows(skipped);
+    if (rows.length === 0) {
+      return toast.error(
+        skipped.length > 0
+          ? `No valid rows found — ${skipSummary}`
+          : "No valid rows found. Check the format below.",
+      );
+    }
     if (!academicReady || !ctx) return toast.error("Academic context not ready");
     setCsvBusy(true);
     try {
       const { count } = await QuestionBankService.insert(ctx, rows);
-      toast.success(`Imported ${count} questions`);
+      if (skipped.length > 0) {
+        toast.warning(`Imported ${count} questions, but skipped ${skipped.length} row(s) — ${skipSummary}`);
+      } else {
+        toast.success(`Imported ${count} questions`);
+      }
       setCsv("");
       void loadSummary();
     } catch (e) {
@@ -386,23 +397,49 @@ function BankMetric({ icon, label, value, sub }: { icon: ReactNode; label: strin
   );
 }
 
+type SkippedRow = { line: number; reason: string };
+
+type CsvQuestionRow = {
+  class_level: number | null;
+  subject: string;
+  chapter: string | null;
+  difficulty: string;
+  question: string;
+  options: string[];
+  correct_index: number;
+  explanation: string | null;
+  source: string;
+  created_by: string | null;
+};
+
 // Minimal CSV parser supporting quoted fields.
 function parseCsv(
   text: string,
   meta: { subject: string; classLevel: string; chapter: string; difficulty: string; userId: string | null },
-) {
+): { rows: CsvQuestionRow[]; skipped: SkippedRow[] } {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const rows: any[] = [];
+  const rows: CsvQuestionRow[] = [];
+  const skipped: SkippedRow[] = [];
   for (let i = 0; i < lines.length; i++) {
     const cells = splitCsvLine(lines[i]);
-    if (cells.length < 6) continue;
     // skip header
     if (i === 0 && /question/i.test(cells[0]) && /option/i.test(cells[1])) continue;
+    if (cells.length < 6) {
+      skipped.push({ line: i + 1, reason: `expected 6+ columns, found ${cells.length}` });
+      continue;
+    }
     const [q, a, b, c, d, idxRaw, explanation] = cells;
     // Repair UTF-8-as-CP1252 paste corruption at ingest (never store à¤… for Hindi).
     const options = [a, b, c, d].map((x) => fixUtf8Content(x ?? ""));
     const correct_index = Math.max(0, Math.min(3, parseInt(idxRaw, 10) || 0));
-    if (!q?.trim() || options.filter(Boolean).length < 2) continue;
+    if (!q?.trim()) {
+      skipped.push({ line: i + 1, reason: "missing question text" });
+      continue;
+    }
+    if (options.filter(Boolean).length < 2) {
+      skipped.push({ line: i + 1, reason: "fewer than 2 non-empty options" });
+      continue;
+    }
     rows.push({
       class_level: meta.classLevel ? Number(meta.classLevel) : null,
       subject: presentAcademicLabel(meta.subject, "subject") || meta.subject,
@@ -418,7 +455,17 @@ function parseCsv(
       created_by: meta.userId,
     });
   }
-  return rows;
+  return { rows, skipped };
+}
+
+// Builds a short, human-readable summary of skipped rows for toast messages.
+function summarizeSkippedRows(skipped: SkippedRow[], maxShown = 3): string {
+  const shown = skipped
+    .slice(0, maxShown)
+    .map((s) => `line ${s.line} (${s.reason})`)
+    .join(", ");
+  const extra = skipped.length > maxShown ? `, +${skipped.length - maxShown} more` : "";
+  return `${shown}${extra}`;
 }
 
 function splitCsvLine(line: string): string[] {

@@ -172,12 +172,13 @@ function FreqBadge({ freq }: { freq: number }) {
 }
 
 function MistakeCard({
-  mistake, onRetry, onAddRecovery, onToggleBookmark,
+  mistake, onRetry, onAddRecovery, onToggleBookmark, addingRecovery,
 }: {
   mistake: Mistake;
   onRetry: () => void;
   onAddRecovery: () => void;
   onToggleBookmark: (id: string) => void;
+  addingRecovery?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -218,9 +219,9 @@ function MistakeCard({
             <RotateCcw className="w-3 h-3"/> Retry
           </button>
           {!mistake.resolved && (
-            <button onClick={onAddRecovery}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/25 text-rose-300 text-xs font-bold hover:bg-rose-500/25 transition-all">
-              <RefreshCw className="w-3 h-3"/> Add to Recovery
+            <button onClick={onAddRecovery} disabled={addingRecovery}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/25 text-rose-300 text-xs font-bold hover:bg-rose-500/25 transition-all disabled:opacity-50">
+              <RefreshCw className="w-3 h-3"/> {addingRecovery ? "Adding…" : "Add to Recovery"}
             </button>
           )}
         </div>
@@ -457,6 +458,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [sourceFilter, setSourceFilter] = useState("all");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [toastMsg, setToast] = useState<string|null>(null);
+  const [recoveringId, setRecoveringId] = useState<string | null>(null);
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [classLevel, setClassLevel] = useState<number | null>(null);
   const liveVersion = useAcademicLive(["profile", "xp"]);
@@ -579,8 +581,10 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       showToast("Academic context is still loading");
       return;
     }
+    if (recoveringId) return;
     const m = mistakes.find(x => x.id === id);
     if (!m) return;
+    setRecoveringId(id);
     try {
       const assignmentId = await assignRecoveryOnMistake({
         subject: m.subject,
@@ -600,6 +604,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       }, 800);
     } catch (e) {
       setToast(e instanceof Error ? e.message : "Could not add to Recovery");
+    } finally {
+      setRecoveringId(null);
     }
   }
 
@@ -858,7 +864,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             <MistakeCard key={m.id} mistake={m}
               onRetry={() => { setPracticeIds([m.id]); setView("practice"); }}
               onAddRecovery={() => addToRecovery(m.id)}
-              onToggleBookmark={toggleBookmark}/>
+              onToggleBookmark={toggleBookmark}
+              addingRecovery={recoveringId === m.id}/>
           ))
         )}
       </div>

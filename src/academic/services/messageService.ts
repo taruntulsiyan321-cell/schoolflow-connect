@@ -706,16 +706,15 @@ export const MessageService = {
     if (error || !Array.isArray(data)) return [];
     return (data as {
       conversation_id?: string | null;
-      peer_user_id?: string | null;
       title?: string;
       snippet?: string;
-      created_at?: string | null;
+      rank_at?: string | null;
     }[]).map((r) => ({
       conversationId: r.conversation_id ?? null,
-      peerUserId: r.peer_user_id ?? null,
+      peerUserId: null,
       title: r.title || "Chat",
       snippet: r.snippet || "",
-      createdAt: r.created_at ?? null,
+      createdAt: r.rank_at ?? null,
     }));
   },
 

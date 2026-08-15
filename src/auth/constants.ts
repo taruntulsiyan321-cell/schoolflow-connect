@@ -28,22 +28,26 @@ export const ROUTE_ALLOW: Record<string, AppRole[]> = {
   "/parent": ["parent"],
 };
 
+/** Module keys for the /admin panel — shared by admin and super_admin, since
+ *  super_admin is also routed into /admin (see ROUTE_ALLOW above). */
+const ADMIN_PANEL_MODULES = [
+  "dashboard",
+  "students",
+  "teachers",
+  "parents",
+  "classes",
+  "announcements",
+  "examinations",
+  "leave",
+  "reports",
+  "settings",
+  "account_linking",
+] as const;
+
 /** Modules allowed per role (for future fine-grained UI gating) */
 export const ROLE_MODULES: Record<AppRole, readonly string[]> = {
-  super_admin: ["platform", "schools", "billing"],
-  admin: [
-    "dashboard",
-    "students",
-    "teachers",
-    "parents",
-    "classes",
-    "announcements",
-    "examinations",
-    "leave",
-    "reports",
-    "settings",
-    "account_linking",
-  ],
+  super_admin: ["platform", "schools", "billing", ...ADMIN_PANEL_MODULES],
+  admin: ADMIN_PANEL_MODULES,
   principal: [
     "dashboard",
     "analytics",

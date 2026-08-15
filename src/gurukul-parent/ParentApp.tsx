@@ -265,6 +265,16 @@ export default function ParentApp() {
   const parentName = profile?.fullName ?? "";
   const initials = initialsFromName(parentName.trim() || "Parent");
 
+  // Seed activeChildId here (not just in Dashboard) so any parent route
+  // entered directly via deep link already has a selected child.
+  const { children: liveChildren } = useParentLiveChildren();
+  const liveChild = liveChildren.find((c) => c.id === activeChildId) ?? liveChildren[0];
+  useEffect(() => {
+    if (liveChild && liveChild.id !== activeChildId) {
+      setActiveChildId(liveChild.id);
+    }
+  }, [liveChild, activeChildId]);
+
   useEffect(() => {
     if (!ready || !ctx) {
       setUnreadMsg(0);

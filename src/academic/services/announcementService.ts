@@ -122,19 +122,25 @@ function mapNotice(row: NoticeRow): TeacherAnnouncementRow {
 export type UpsertAnnouncementInput = {
   title: string;
   body: string;
-  classId: string;
+  /** Null for a school-wide notice (audience "all" / "students" / "parents"). */
+  classId: string | null;
   priority?: AnnouncementPriority;
   status?: AnnouncementStatus;
   scheduledFor?: string | null;
   audience?: NoticeAudience;
 };
 
-/** Teachers must own the target class; school operators bypass. */
+/** Teachers must own the target class; school operators bypass. A null
+ * classId (school-wide notice) has no class to own, so only operators
+ * (admin/principal) may publish it — a plain teacher cannot. */
 export async function assertTeacherMayAnnounce(
   ctx: ServiceContext,
-  classId: string,
+  classId: string | null,
 ): Promise<void> {
   if (isSchoolOperator(ctx.role)) return;
+  if (classId === null) {
+    throw new ForbiddenError("Only admins/principals may publish a school-wide announcement");
+  }
   if (ctx.role !== "teacher") {
     throw new ForbiddenError("Only teachers may publish class announcements");
   }
@@ -429,12 +435,15 @@ export const AnnouncementService = {
     assertCanOwn(ctx, "announcement");
     const existing = await loadNoticeForMutation(ctx, id);
     const classId = input.classId ?? existing.class_id;
-    if (!classId) {
+    const resolvedAudience = (input.audience ?? uiAudience(existing.audience)) as NoticeAudience;
+    const audienceNeedsClass = resolvedAudience === "class" || resolvedAudience === "section";
+    if (audienceNeedsClass && !classId) {
       throw new ValidationFailedError([
         { field: "classId", code: "required", message: "Class is required" },
       ]);
     }
-    await assertTeacherMayAnnounce(ctx, classId);
+    const effectiveClassId: string | null = audienceNeedsClass && classId ? classId : null;
+    await assertTeacherMayAnnounce(ctx, effectiveClassId);
     const validation = validateAnnouncementContent(input.title, input.body);
     if (validation.ok === false) {
       throw new ValidationFailedError(validation.issues);

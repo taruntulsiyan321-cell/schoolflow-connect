@@ -526,7 +526,7 @@ function InputBar({
           </button>
         )}
 
-        <button type="button" onClick={submit} disabled={!text.trim()}
+        <button type="button" onClick={submit} disabled={!text.trim()} aria-label="Send message"
           className={cn(
             "w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
             text.trim()
@@ -638,6 +638,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   // synchronously the instant a new conversation is created.
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
+  // Guards Regenerate against rapid double-clicks: two fast clicks before
+  // React commits the optimistic message removal would both read the same
+  // pre-removal snapshot and fire duplicate gateway calls. A ref check is
+  // synchronous and re-render-independent, unlike state.
+  const regenBusyRef = useRef(false);
 
   const active = activeId ? convos.find(c => c.id === activeId) ?? null : null;
   const msgs   = active?.messages ?? [];
@@ -797,12 +802,14 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   }
 
   function regenerateLast() {
+    if (regenBusyRef.current) return;
     if (!activeId) return;
     const c = convos.find(x => x.id === activeId);
     if (!c || c.messages.length === 0) return;
     const studentMsgs = c.messages.filter(m => m.role === "student");
     const lastQ = studentMsgs[studentMsgs.length - 1];
     if (!lastQ) return;
+    regenBusyRef.current = true;
     const last = c.messages[c.messages.length - 1];
     if (last?.role === "nova") {
       if (user?.id) {
@@ -820,7 +827,9 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         : x
       ));
     }
-    void replyViaGateway(activeId, lastQ.text);
+    void replyViaGateway(activeId, lastQ.text).finally(() => {
+      regenBusyRef.current = false;
+    });
   }
 
   async function sendFeedback(msgId: string, signal: "like" | "dislike") {

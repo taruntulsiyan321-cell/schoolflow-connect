@@ -71,6 +71,7 @@ export default function Leaderboard() {
   }, [ready, ctx, period, user?.id, liveVersion]);
 
   useEffect(() => {
+    let cancelled = false;
     const onXp = () => {
       if (!ready || !ctx) return;
       void ProgressionService.leaderboard(ctx, {
@@ -80,6 +81,7 @@ export default function Leaderboard() {
         limit: 100,
       })
         .then((lb) => {
+          if (cancelled) return;
           setRows(
             lb.rows.map((r) => ({
               userId: r.user_id,
@@ -94,7 +96,10 @@ export default function Leaderboard() {
         .catch(() => undefined);
     };
     window.addEventListener("student-xp-updated", onXp);
-    return () => window.removeEventListener("student-xp-updated", onXp);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("student-xp-updated", onXp);
+    };
   }, [ready, ctx, period, user?.id]);
 
   const ranked = useMemo(() => rows.map((r, i) => ({ ...r, rank: i + 1 })), [rows]);

@@ -31,11 +31,13 @@ import BattleTeacherReport from "@/pages/teacher/BattleTeacherReport";
 
 /** Set My Classes sub-tab then bounce to /teacher/classes (sessionStorage contract). */
 function RedirectTeacherClassTab({ tab }: { tab: string }) {
-  try {
-    sessionStorage.setItem("teacher.openTab", tab);
-  } catch {
-    /* ignore */
-  }
+  useEffect(() => {
+    try {
+      sessionStorage.setItem("teacher.openTab", tab);
+    } catch {
+      /* ignore */
+    }
+  }, [tab]);
   return <Navigate to="/teacher/classes" replace />;
 }
 

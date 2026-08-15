@@ -512,6 +512,9 @@ function Hub({
                   placeholder="Search subject, chapter, type…"
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20"
                 />
+                <div className="mt-1.5 text-[10px] text-[#78788c]/70">
+                  Showing your most recent 100 sessions
+                </div>
               </div>
               <select
                 value={historyFilters.subject}

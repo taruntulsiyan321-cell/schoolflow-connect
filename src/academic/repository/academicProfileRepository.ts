@@ -93,11 +93,17 @@ export async function requireStudentAcademicProfile(
   return profile;
 }
 
-export async function listClassAcademicProfiles(
+export type ClassAcademicProfilesResult = {
+  profiles: StudentAcademicProfile[];
+  /** Students in this class/page with no synced student_academic_profiles row yet. */
+  missingProfileCount: number;
+};
+
+async function fetchClassAcademicProfiles(
   ctx: RepoContext,
   classId: string,
   page?: PageParams,
-): Promise<StudentAcademicProfile[]> {
+): Promise<ClassAcademicProfilesResult> {
   const schoolId = schoolIdOf(ctx);
   const { limit, offset } = normalizePage(page);
 
@@ -110,7 +116,7 @@ export async function listClassAcademicProfiles(
 
   throwIfError(sErr, "Failed to list class students");
   const ids = (students ?? []).map((s) => s.id);
-  if (ids.length === 0) return [];
+  if (ids.length === 0) return { profiles: [], missingProfileCount: 0 };
 
   const { data, error } = await getClient(ctx)
     .from("student_academic_profiles")
@@ -119,7 +125,33 @@ export async function listClassAcademicProfiles(
     .in("student_id", ids);
 
   throwIfError(error, "Failed to list academic profiles");
-  return (data ?? []).map((row) => mapProfile(row as ProfileRow));
+  const profiles = (data ?? []).map((row) => mapProfile(row as ProfileRow));
+  const foundIds = new Set(profiles.map((p) => p.studentId));
+  const missingProfileCount = ids.reduce((n, id) => (foundIds.has(id) ? n : n + 1), 0);
+  return { profiles, missingProfileCount };
+}
+
+export async function listClassAcademicProfiles(
+  ctx: RepoContext,
+  classId: string,
+  page?: PageParams,
+): Promise<StudentAcademicProfile[]> {
+  const { profiles } = await fetchClassAcademicProfiles(ctx, classId, page);
+  return profiles;
+}
+
+/**
+ * Same listing as listClassAcademicProfiles, plus the count of students in
+ * this class/page that have no synced student_academic_profiles row yet
+ * (e.g. newly-admitted students), so callers can surface a "N pending"
+ * indicator instead of those students silently vanishing from the list.
+ */
+export async function listClassAcademicProfilesWithMissingCount(
+  ctx: RepoContext,
+  classId: string,
+  page?: PageParams,
+): Promise<ClassAcademicProfilesResult> {
+  return fetchClassAcademicProfiles(ctx, classId, page);
 }
 
 /** School-wide profiles for admin/principal rankings & reports (engine-owned). */

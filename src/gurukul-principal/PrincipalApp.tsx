@@ -211,7 +211,7 @@ function AnnouncementsPage() {
   const filtered = rows.filter((a) => tab === 'all' || a.status === tab)
 
   async function publish(row: TeacherAnnouncementRow) {
-    if (!ctx || !row.classId) return
+    if (!ctx) return
     setBusyId(row.id)
     try {
       await AnnouncementService.update(ctx, row.id, {
@@ -296,7 +296,7 @@ function AnnouncementsPage() {
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.45 }}>{ann.body}</div>
                 </div>
-                {ann.status !== 'published' && ann.classId && (
+                {ann.status !== 'published' && (
                   <button
                     type="button"
                     disabled={busyId === ann.id}

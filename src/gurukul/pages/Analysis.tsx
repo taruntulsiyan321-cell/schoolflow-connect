@@ -1056,8 +1056,8 @@ export default function Analysis() {
                   <div className="text-[11px] text-[#78788c]">Pending</div>
                 </div>
                 <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
-                  <div className="text-xl font-black text-white">{revisionData.pending}</div>
-                  <div className="text-[11px] text-[#78788c]">In queue</div>
+                  <div className="text-xl font-black text-white">{revisionData.dueToday.length}</div>
+                  <div className="text-[11px] text-[#78788c]">Due today</div>
                 </div>
               </div>
               <SLabel>Due for revision today</SLabel>

@@ -28,12 +28,16 @@ export default function Index() {
     );
   }
 
-  if (user && !role) {
+  if (user && (status === "disabled" || status === "missing_role" || status === "missing_profile")) {
+    const message =
+      status === "disabled"
+        ? "This account has been disabled. Contact your school admin for access."
+        : status === "missing_profile"
+          ? "We couldn't find a profile for this account. Contact your school admin for access."
+          : "Signed in, but no portal role is assigned to this account. Contact your school admin for access.";
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
-        <p className="text-sm text-muted-foreground max-w-sm">
-          Signed in, but no portal role is assigned to this account. Contact your school admin for access.
-        </p>
+        <p className="text-sm text-muted-foreground max-w-sm">{message}</p>
         <Button variant="outline" size="sm" onClick={() => signOut()}>
           Sign out
         </Button>

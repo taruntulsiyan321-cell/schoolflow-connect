@@ -34,7 +34,11 @@ export default function Class12MathSession() {
   const nav = useNavigate();
   const [params] = useSearchParams();
   const chapter = params.get("chapter") ?? "Matrices";
-  const count = Math.min(20, Math.max(1, Number(params.get("count") ?? 10)));
+  const rawCountParam = params.get("count");
+  const parsedCountParam = rawCountParam === null ? NaN : Number(rawCountParam);
+  const count = Number.isFinite(parsedCountParam) && parsedCountParam > 0
+    ? Math.min(20, Math.max(1, Math.floor(parsedCountParam)))
+    : 10;
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);

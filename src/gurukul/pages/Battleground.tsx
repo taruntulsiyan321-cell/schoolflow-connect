@@ -782,6 +782,16 @@ function JoinCodeModal({
   joining: boolean;
 }) {
   const [code, setCode] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !joining) onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, joining, onClose]);
+
   if (!open) return null;
   return (
     <div
@@ -799,6 +809,9 @@ function JoinCodeModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="join-challenge-title"
         style={{
           background: C.surface,
           border: `1px solid ${C.border}`,
@@ -809,7 +822,7 @@ function JoinCodeModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.15rem", color: C.text, margin: "0 0 0.35rem" }}>
+        <h2 id="join-challenge-title" style={{ fontFamily: "Outfit, sans-serif", fontWeight: 800, fontSize: "1.15rem", color: C.text, margin: "0 0 0.35rem" }}>
           Join Challenge
         </h2>
         <p style={{ color: C.text3, fontSize: "0.78rem", margin: "0 0 1rem", fontFamily: "Inter, sans-serif" }}>
@@ -819,6 +832,7 @@ function JoinCodeModal({
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           placeholder="e.g. A3X9TK"
+          aria-label="Battle code"
           autoFocus
           style={{
             width: "100%",

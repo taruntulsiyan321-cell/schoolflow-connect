@@ -36,7 +36,11 @@ export default function Class12AiSession() {
   const chapterParam = params.get("chapter")?.trim() || "";
   const subject = subjectParam;
   const chapter = chapterParam;
-  const count = Math.min(20, Math.max(1, Number(params.get("count") ?? 10)));
+  const rawCountParam = params.get("count");
+  const parsedCountParam = rawCountParam === null ? NaN : Number(rawCountParam);
+  const count = Number.isFinite(parsedCountParam) && parsedCountParam > 0
+    ? Math.min(20, Math.max(1, Math.floor(parsedCountParam)))
+    : 10;
   const isMath = subject.toLowerCase().includes("math");
   const paramsMissing = !subjectParam || !chapterParam;
 
