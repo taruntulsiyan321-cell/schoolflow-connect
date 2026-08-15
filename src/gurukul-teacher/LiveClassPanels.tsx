@@ -1959,6 +1959,11 @@ export function LiveExamsMarksTab({
       setError("Enter at least one mark");
       return;
     }
+    const outOfRange = rows.some((r) => r.marksObtained < 0 || r.marksObtained > activeExam.maxMarks);
+    if (outOfRange) {
+      setError(`Marks must be between 0 and ${activeExam.maxMarks} (this exam's max marks)`);
+      return;
+    }
     setSaving(true);
     setError(null);
     try {

@@ -25,10 +25,13 @@ export function useAcademicContext(): {
   classId: string | null;
   classLabel: string | null;
   identity: StudentAcademicIdentity | null;
+  /** Set when the most recent identity load threw; cleared on the next success. */
+  identityError: Error | null;
 } {
   const { user, role, schoolId: authSchoolId, loading, status } = useAuth();
   const [identity, setIdentity] = useState<StudentAcademicIdentity | null>(null);
   const [identityReady, setIdentityReady] = useState(false);
+  const [identityError, setIdentityError] = useState<Error | null>(null);
   const lastGoodIdentity = useRef<StudentAcademicIdentity | null>(null);
 
   useEffect(() => {
@@ -39,6 +42,7 @@ export function useAcademicContext(): {
           lastGoodIdentity.current = null;
           setIdentity(null);
           setIdentityReady(false);
+          setIdentityError(null);
         }
         return;
       }
@@ -50,13 +54,19 @@ export function useAcademicContext(): {
           }
           setIdentity(loaded ?? lastGoodIdentity.current);
           setIdentityReady(true);
+          setIdentityError(null);
         }
-      } catch {
+      } catch (err) {
         if (!cancelled) {
           // Keep last good identity — do not wipe class/school on soft failure.
           setIdentity(lastGoodIdentity.current);
-          // Students without a prior identity stay unsettled until a successful load.
-          setIdentityReady(role !== "student" || !!lastGoodIdentity.current?.studentId);
+          // Always settle (even with no prior identity) so a transient failure
+          // on the very first load can't leave the portal spinning forever —
+          // `identityError` lets callers distinguish this from a real "ready".
+          setIdentityReady(true);
+          setIdentityError(
+            err instanceof Error ? err : new Error("Could not load student identity"),
+          );
         }
       }
     })();
@@ -108,5 +118,6 @@ export function useAcademicContext(): {
     classId,
     classLabel,
     identity,
+    identityError,
   };
 }

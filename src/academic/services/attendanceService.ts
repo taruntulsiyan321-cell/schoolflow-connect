@@ -272,37 +272,46 @@ export const AttendanceService = {
       .eq("date", date);
 
     const lockedSet = new Set((locks ?? []).map((l: { class_id: string }) => l.class_id));
-    const summaries: ClassDateAttendanceSummary[] = [];
+
+    // Both queries per class, and all classes, run concurrently — a sequential
+    // await here meant a 40-class school made 80 round trips one at a time
+    // behind a single spinner.
+    const summaries: ClassDateAttendanceSummary[] = await Promise.all(
+      (classes ?? []).map(async (cls) => {
+        const [students, records] = await Promise.all([
+          listStudentsForClass(repo, cls.id),
+          listAttendanceForClassDate(repo, cls.id, date),
+        ]);
+        const p = records.filter((r) => r.status === "present" || r.status === "late").length;
+        const a = records.filter((r) => r.status === "absent").length;
+        const late = records.filter((r) => r.status === "late").length;
+        const halfDay = records.filter((r) => r.status === "half_day").length;
+        const leave = records.filter((r) => r.status === "leave").length;
+        const dayRatePct = students.length ? Math.round((p / students.length) * 100) : 0;
+        return {
+          classId: cls.id,
+          className: cls.name,
+          section: cls.section,
+          totalStudents: students.length,
+          marked: records.length,
+          present: p,
+          absent: a,
+          late,
+          halfDay,
+          leave,
+          dayRatePct,
+          locked: lockedSet.has(cls.id),
+        };
+      }),
+    );
+
     let totalStudents = 0;
     let present = 0;
     let absent = 0;
-
-    for (const cls of classes ?? []) {
-      const students = await listStudentsForClass(repo, cls.id);
-      const records = await listAttendanceForClassDate(repo, cls.id, date);
-      const p = records.filter((r) => r.status === "present" || r.status === "late").length;
-      const a = records.filter((r) => r.status === "absent").length;
-      const late = records.filter((r) => r.status === "late").length;
-      const halfDay = records.filter((r) => r.status === "half_day").length;
-      const leave = records.filter((r) => r.status === "leave").length;
-      const dayRatePct = students.length ? Math.round((p / students.length) * 100) : 0;
-      summaries.push({
-        classId: cls.id,
-        className: cls.name,
-        section: cls.section,
-        totalStudents: students.length,
-        marked: records.length,
-        present: p,
-        absent: a,
-        late,
-        halfDay,
-        leave,
-        dayRatePct,
-        locked: lockedSet.has(cls.id),
-      });
-      totalStudents += students.length;
-      present += p;
-      absent += a;
+    for (const s of summaries) {
+      totalStudents += s.totalStudents;
+      present += s.present;
+      absent += s.absent;
     }
 
     return {

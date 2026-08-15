@@ -63,10 +63,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /** Monotonic id so a slower loadAuthContext cannot overwrite a newer session. */
   const contextRequestId = useRef(0);
 
-  const applyContext = useCallback(async (uid: string | undefined | null) => {
-    const requestId = ++contextRequestId.current;
+  const applyContext = useCallback(async (uid: string | undefined | null, requestId?: number) => {
+    const id = requestId ?? ++contextRequestId.current;
+    // If this call's id is already stale (e.g. a deferred call whose id was
+    // captured before scheduling, and a sign-out advanced the counter while
+    // it waited), bail before touching any state.
+    if (id !== contextRequestId.current) return;
     if (!uid) {
-      if (requestId !== contextRequestId.current) return;
       setCtx(null);
       bootstrapped.current = null;
       setLoading(false);
@@ -83,15 +86,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ),
         ),
       ]);
-      if (requestId !== contextRequestId.current) return;
+      if (id !== contextRequestId.current) return;
       setCtx(data);
       bootstrapped.current = uid;
     } catch (err) {
-      if (requestId !== contextRequestId.current) return;
+      if (id !== contextRequestId.current) return;
       console.error("[auth] failed to load context", err);
       setCtx(null);
     } finally {
-      if (requestId === contextRequestId.current) setLoading(false);
+      if (id === contextRequestId.current) setLoading(false);
     }
   }, []);
 
@@ -114,9 +117,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Without this, Auth/Index briefly see user+!role and send users to
         // /unauthorized ("No portal role") before loadAuthContext finishes.
         setLoading(true);
-        // Defer DB work to avoid auth deadlock
+        // Defer DB work to avoid auth deadlock. Capture the request id
+        // synchronously (before scheduling) rather than inside the timeout
+        // callback -- otherwise a sign-out landing first advances
+        // contextRequestId, and the still-pending callback would then bump
+        // it again for itself and wrongly treat itself as the newest
+        // request, resurrecting stale profile/role state right after logout.
+        const requestId = ++contextRequestId.current;
         setTimeout(() => {
-          void applyContext(sess.user.id);
+          void applyContext(sess.user.id, requestId);
         }, 0);
       } else {
         contextRequestId.current += 1;

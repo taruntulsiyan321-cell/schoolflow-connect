@@ -21,17 +21,24 @@ function groupExams(exams: ExamRecord[]): ExamGroupRow[] {
   const groups = new Map<string, ExamGroupRow>();
   for (const e of exams) {
     const gid = e.examGroupId ?? e.id;
-    const g = groups.get(gid) ?? {
+    const recordStart = e.startDate ?? e.examDate;
+    const recordEnd = e.endDate ?? e.examDate;
+    const existing = groups.get(gid);
+    const g = existing ?? {
       examGroupId: gid,
       name: e.name,
       classId: e.classId,
-      startDate: e.startDate ?? e.examDate,
-      endDate: e.endDate ?? e.examDate,
+      startDate: recordStart,
+      endDate: recordEnd,
       examType: e.examType,
       subjectCount: 0,
       marksLocked: true,
       resultsPublishedAt: e.resultsPublishedAt,
     };
+    if (existing) {
+      if (recordStart && (!g.startDate || recordStart < g.startDate)) g.startDate = recordStart;
+      if (recordEnd && (!g.endDate || recordEnd > g.endDate)) g.endDate = recordEnd;
+    }
     g.subjectCount += 1;
     g.marksLocked = g.marksLocked && e.marksLocked;
     if (!e.resultsPublishedAt) g.resultsPublishedAt = null;

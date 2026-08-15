@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Loader2, Megaphone, Send } from "lucide-react";
 import {
   AnnouncementService,
@@ -22,19 +22,23 @@ export default function AnnouncementManagement() {
   const [tab, setTab] = useState<"all" | AnnouncementStatus>("all");
   const [search, setSearch] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const reloadIdRef = useRef(0);
 
   const reload = async () => {
     if (!ready || !ctx) return;
+    const requestId = ++reloadIdRef.current;
     setLoading(true);
     try {
       const list = await AnnouncementService.listForSchool(ctx);
+      if (reloadIdRef.current !== requestId) return;
       setRows(list);
       setError(null);
     } catch (e) {
+      if (reloadIdRef.current !== requestId) return;
       setRows([]);
       setError(e instanceof Error ? e.message : "Failed to load announcements");
     } finally {
-      setLoading(false);
+      if (reloadIdRef.current === requestId) setLoading(false);
     }
   };
 

@@ -424,7 +424,10 @@ export default function Auth() {
           .from("profiles")
           .update({ full_name: nv.data })
           .eq("id", authData.user.id);
-        if (profileErr) console.warn("[auth] profile name update:", profileErr.message);
+        if (profileErr) {
+          console.warn("[auth] profile name update:", profileErr.message);
+          toast.error("Your account is set up, but we couldn't save your name — you can update it later from your profile.");
+        }
       }
       setProfileStep("idle");
       await refreshAuth();

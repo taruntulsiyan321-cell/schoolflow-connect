@@ -108,7 +108,7 @@ export default function Doubts() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [replyFiles, setReplyFiles] = useState<Record<string, File[]>>({});
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const loadedRef = useRef(false);
 
   const teacherTag = teacherInitials(identity.name, "T");
@@ -255,13 +255,13 @@ export default function Doubts() {
 
   async function sendReply(id: string) {
     const text = replyText[id]?.trim();
-    if (!text || !ctx || busyId) return;
+    if (!text || !ctx || busyIds.has(id)) return;
     const doubt = doubts.find((d) => d.row.id === id);
     if (!doubt?.row.class_id) {
       toast.error("Missing class on this doubt");
       return;
     }
-    setBusyId(id);
+    setBusyIds((prev) => new Set(prev).add(id));
     try {
       const files = replyFiles[id] ?? [];
       const uploaded: DoubtUploadMeta[] = [];
@@ -306,7 +306,11 @@ export default function Doubts() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not post reply");
     } finally {
-      setBusyId(null);
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   }
 
@@ -600,10 +604,10 @@ export default function Doubts() {
                     <button
                       type="button"
                       onClick={() => void sendReply(row.id)}
-                      disabled={!replyText[row.id]?.trim() || busyId === row.id}
+                      disabled={!replyText[row.id]?.trim() || busyIds.has(row.id)}
                       className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-black flex items-center justify-center hover:bg-[#d97706] disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
                     >
-                      {busyId === row.id ? (
+                      {busyIds.has(row.id) ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Send className="w-4 h-4" />

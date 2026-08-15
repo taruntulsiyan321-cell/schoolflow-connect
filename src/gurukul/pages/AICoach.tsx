@@ -632,6 +632,12 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const convosRef = useRef(convos);
   convosRef.current = convos;
+  // activeId (state) does not update until the next render commits, so a
+  // second rapid sendMessage() call in that window would still see the old
+  // value. Mirror it into a ref that sendMessage can also update
+  // synchronously the instant a new conversation is created.
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
 
   const active = activeId ? convos.find(c => c.id === activeId) ?? null : null;
   const msgs   = active?.messages ?? [];
@@ -722,23 +728,31 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   }
 
   function sendMessage(text: string) {
-    if (!activeId) {
+    const currentId = activeIdRef.current;
+    if (!currentId) {
       const id = `c${Date.now()}`;
       const newConvo: Conversation = {
         id, title: text.slice(0,40) || "New Conversation",
         preview: text.slice(0,60), date:"Today", messages:[],
       };
+      // Update the ref synchronously so a second send fired before this
+      // state update commits still finds this conversation instead of
+      // creating another one.
+      activeIdRef.current = id;
       setConvos(cs => [newConvo, ...cs]);
       setActiveId(id);
       setTimeout(() => {
-        setConvos(cs => cs.map(c => c.id === id ? { ...c, messages:[{ id:"m1", role:"student", text, time:now() }] } : c));
+        // Prepend (not replace) — a second rapid send may have already
+        // joined this conversation via activeIdRef and appended its own
+        // message before this timeout fires.
+        setConvos(cs => cs.map(c => c.id === id ? { ...c, messages:[{ id:"m1", role:"student", text, time:now() }, ...c.messages] } : c));
         void replyViaGateway(id, text);
       }, 100);
       return;
     }
 
-    addMessage(activeId, { role:"student", text, time:now() });
-    void replyViaGateway(activeId, text);
+    addMessage(currentId, { role:"student", text, time:now() });
+    void replyViaGateway(currentId, text);
   }
 
   function handleSuggestion(text: string) {

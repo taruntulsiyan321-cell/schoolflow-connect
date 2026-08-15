@@ -21,7 +21,7 @@ const typeConfig: Record<string, { icon: React.ReactNode; color: string; label: 
  * Parent notifications — live `notifications` rows via useNotifications.
  */
 export default function ParentNotifications() {
-  const { items, unread, loading, markRead, markAllRead, remove } = useNotifications();
+  const { items, unread, loading, error, markRead, markAllRead, remove } = useNotifications();
   const [filterType, setFilterType] = useState("all");
 
   const types = Array.from(new Set(items.map((n) => n.type)));
@@ -31,6 +31,14 @@ export default function ParentNotifications() {
     return (
       <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading notifications…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-sm text-[#cc5069] py-16 text-center">
+        Failed to load notifications: {error}
       </div>
     );
   }

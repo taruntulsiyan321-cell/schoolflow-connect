@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { useAcademicContext, useAcademicLive } from "@/academic";
+import { useLatestEffect } from "@/hooks/useLatestEffect";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import {
@@ -246,6 +247,10 @@ export function useBattlegroundData(enabled = true) {
   } = useAcademicContext();
   const [loading, setLoading] = useState(true);
   const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
+  // reload() is fired from three independent triggers below (mount, live-version
+  // change, window event) with no ordering between them — a slower/older run
+  // finishing after a newer one must not overwrite the newer run's state.
+  const beginRun = useLatestEffect();
   const [xp, setXp] = useState<{
     xp: number;
     level: number;
@@ -275,6 +280,7 @@ export function useBattlegroundData(enabled = true) {
 
   const reload = useCallback(async () => {
     if (!enabled || !user || !academicReady || !academicCtx) return;
+    const isStale = beginRun();
     // Soft refresh after first paint — live battle/xp bumps must not blank the arena.
     if (!battles.length && !history.length && !xp) beginLoading(setLoading);
     setError(null);
@@ -380,6 +386,10 @@ export function useBattlegroundData(enabled = true) {
       }
 
       if (stuRes.error) throw stuRes.error;
+      // A newer reload() (from a different trigger) may have started and possibly
+      // already resolved while the above was in flight — don't let this slower,
+      // superseded run commit its (possibly stale) profile/xp/rank/battle data.
+      if (isStale()) return;
       // Soft-fail classmates — don't blank the arena; never invent ranks
       if (matesRes.error) {
         toast({ title: "Could not load classmates", description: matesRes.error.message, variant: "destructive" });
@@ -465,8 +475,9 @@ export function useBattlegroundData(enabled = true) {
             .order("joined_at", { ascending: false })
             .limit(40);
           if (flatErr) {
-            setError(flatErr.message);
             toast({ title: "Battleground load failed", description: flatErr.message, variant: "destructive" });
+            if (isStale()) return;
+            setError(flatErr.message);
             return;
           }
           const ids = [...new Set((flatParts || []).map((p) => p.battle_id))];
@@ -483,8 +494,9 @@ export function useBattlegroundData(enabled = true) {
             battles: battleMap[p.battle_id] ?? null,
           })) as PartRow[];
         } else {
-          setError(msg || "Could not load your battles");
           toast({ title: "Battleground load failed", description: msg, variant: "destructive" });
+          if (isStale()) return;
+          setError(msg || "Could not load your battles");
           return;
         }
       }
@@ -882,16 +894,18 @@ export function useBattlegroundData(enabled = true) {
         }
       }
 
+      if (isStale()) return;
       setBattles(cards);
       setHistory(hist);
     } catch (e: unknown) {
+      if (isStale()) return;
       const msg = e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Failed to load battleground";
       setError(msg);
       toast({ title: "Battleground load failed", description: msg, variant: "destructive" });
     } finally {
       endLoading(setLoading);
     }
-  }, [enabled, user, academicReady, academicCtx, academicClassId, beginLoading, endLoading]);
+  }, [enabled, user, academicReady, academicCtx, academicClassId, beginLoading, endLoading, beginRun]);
 
   useEffect(() => {
     if (!enabled) return;

@@ -230,6 +230,26 @@ export function TeacherAttendanceWorkspace({
     setMarks(next);
   };
 
+  const confirmDiscardIfDirty = () => {
+    if (!dirtyRef.current) return true;
+    return window.confirm(
+      "You have unsaved attendance changes that will be lost if you switch now. Continue without saving?",
+    );
+  };
+
+  const changeClass = (id: string) => {
+    if (id === classId) return;
+    if (!confirmDiscardIfDirty()) return;
+    setClassId(id);
+    navigate(`/teacher/classes/${id}/attendance`, { replace: true });
+  };
+
+  const changeDate = (nextDate: string) => {
+    if (nextDate === date) return;
+    if (!confirmDiscardIfDirty()) return;
+    setDate(nextDate);
+  };
+
   const save = async () => {
     if (!ctx || !classId || !canMark) return;
     setSaving(true);
@@ -293,7 +313,7 @@ export function TeacherAttendanceWorkspace({
         <input
           type="date"
           value={date}
-          onChange={(e) => setDate(e.target.value)}
+          onChange={(e) => changeDate(e.target.value)}
           className="bg-[#131316] border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
         />
       </div>
@@ -315,10 +335,7 @@ export function TeacherAttendanceWorkspace({
             <button
               key={c.id}
               type="button"
-              onClick={() => {
-                setClassId(c.id);
-                navigate(`/teacher/classes/${c.id}/attendance`, { replace: true });
-              }}
+              onClick={() => changeClass(c.id)}
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
                 classId === c.id

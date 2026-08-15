@@ -135,7 +135,16 @@ export default function TeacherProfile() {
             qualification: draft.qualification.trim() || null,
           })
           .eq("id", identity.teacherRowId);
-        if (tErr) throw tErr;
+        if (tErr) {
+          // The profiles update above already committed, so this is a partial
+          // save, not a no-op — tell the user plainly instead of implying
+          // nothing was saved, so they know to retry.
+          await identity.reload();
+          toast.error(
+            `Name and phone were saved, but the rest of your teacher details could not be saved (${tErr.message}). Please try again.`,
+          );
+          return;
+        }
       }
 
       await identity.reload();

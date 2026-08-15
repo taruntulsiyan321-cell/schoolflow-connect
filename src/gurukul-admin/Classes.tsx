@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Building2, X, Loader2, UserCheck,
 } from "lucide-react";
@@ -39,6 +39,13 @@ function AttendancePanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const unmountedRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      unmountedRef.current = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -88,16 +95,19 @@ function AttendancePanel({
     setError(null);
     try {
       await AttendanceService.markBulk(ctx, toSave);
+      if (unmountedRef.current) return;
       setFlash(
         unmarkedCount > 0
           ? `Saved ${toSave.length} of ${students.length} — ${unmarkedCount} still unmarked`
           : "Saved via AttendanceService",
       );
-      setTimeout(() => setFlash(null), 2500);
+      setTimeout(() => {
+        if (!unmountedRef.current) setFlash(null);
+      }, 2500);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
+      if (!unmountedRef.current) setError(e instanceof Error ? e.message : "Save failed");
     } finally {
-      setSaving(false);
+      if (!unmountedRef.current) setSaving(false);
     }
   }
 
@@ -238,17 +248,23 @@ function ClassRosterDrawer({
   const { ctx, ready } = useAcademicContext();
   const [students, setStudents] = useState<ClassStudentRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!ready || !ctx) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setError(null);
       try {
         const roster = await AttendanceService.listClassStudents(ctx, liveClass.classId);
         if (!cancelled) setStudents(roster);
-      } catch {
-        if (!cancelled) setStudents([]);
+      } catch (e) {
+        if (!cancelled) {
+          setStudents([]);
+          setError(e instanceof Error ? e.message : "Failed to load roster");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -256,7 +272,7 @@ function ClassRosterDrawer({
     return () => {
       cancelled = true;
     };
-  }, [ready, ctx, liveClass.classId]);
+  }, [ready, ctx, liveClass.classId, retryKey]);
 
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
@@ -297,6 +313,17 @@ function ClassRosterDrawer({
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-12 text-[#78788c] text-xs">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+            </div>
+          ) : error ? (
+            <div className="text-xs text-center pt-8 space-y-2">
+              <div className="text-[#cc5069]">{error}</div>
+              <button
+                type="button"
+                onClick={() => setRetryKey((k) => k + 1)}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-white/5 hover:bg-white/10"
+              >
+                Retry
+              </button>
             </div>
           ) : students.length === 0 ? (
             <div className="text-xs text-[#78788c] text-center pt-8">No students in this class</div>

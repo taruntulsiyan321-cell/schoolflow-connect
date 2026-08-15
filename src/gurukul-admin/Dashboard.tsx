@@ -109,7 +109,8 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           recentStudentRows,
           recentTeacherRows,
           activityRows,
-          leaveRows,
+          classLeaveRows,
+          schoolTeacherRows,
           noticeRows,
         ] = await Promise.all([
           AttendanceService.summarizeSchoolDate(ctx, today),
@@ -143,6 +144,11 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             .eq("classes.school_id", ctx.schoolId)
             .order("created_at", { ascending: false })
             .limit(5),
+          // Teacher leave requests always have class_id = null, so they can never
+          // match the classes!inner join above. Resolve this school's teacher user
+          // ids separately (same approach as LeaveService.listForSchool) so their
+          // pending leaves aren't silently dropped from the widget.
+          supabase.from("teachers").select("user_id").eq("school_id", ctx.schoolId),
           supabase
             .from("notices")
             .select("id, title, body, created_at, priority")
@@ -152,6 +158,49 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         ]);
 
         if (cancelled) return;
+
+        // Every query above only reflects reality if it actually succeeded —
+        // .count / .data default to 0 / [] on error too, which would otherwise
+        // render as a confident (wrong) empty dashboard with no indication
+        // anything failed server-side.
+        if (studentCount.error) throw new Error(`Failed to load student count: ${studentCount.error.message}`);
+        if (teacherCount.error) throw new Error(`Failed to load teacher count: ${teacherCount.error.message}`);
+        if (parentCount.error) throw new Error(`Failed to load parent count: ${parentCount.error.message}`);
+        if (classCount.error) throw new Error(`Failed to load class count: ${classCount.error.message}`);
+        if (recentStudentRows.error) {
+          throw new Error(`Failed to load recent students: ${recentStudentRows.error.message}`);
+        }
+        if (recentTeacherRows.error) {
+          throw new Error(`Failed to load recent teachers: ${recentTeacherRows.error.message}`);
+        }
+        if (activityRows.error) throw new Error(`Failed to load activity feed: ${activityRows.error.message}`);
+        if (classLeaveRows.error) throw new Error(`Failed to load pending leaves: ${classLeaveRows.error.message}`);
+        if (schoolTeacherRows.error) {
+          throw new Error(`Failed to load teacher roster: ${schoolTeacherRows.error.message}`);
+        }
+        if (noticeRows.error) throw new Error(`Failed to load notices: ${noticeRows.error.message}`);
+
+        const schoolTeacherUserIds = ((schoolTeacherRows.data ?? []) as { user_id: string | null }[])
+          .map((t) => t.user_id)
+          .filter((id): id is string => !!id);
+
+        let teacherLeaveRows: LeaveRow[] = [];
+        if (schoolTeacherUserIds.length > 0) {
+          const teacherLeaveRes = await supabase
+            .from("leave_requests")
+            .select("id, leave_type, from_date, to_date, created_at")
+            .eq("status", "pending")
+            .eq("applicant_kind", "teacher")
+            .is("class_id", null)
+            .in("applicant_user_id", schoolTeacherUserIds)
+            .order("created_at", { ascending: false })
+            .limit(5);
+          if (cancelled) return;
+          if (teacherLeaveRes.error) {
+            throw new Error(`Failed to load pending leaves: ${teacherLeaveRes.error.message}`);
+          }
+          teacherLeaveRows = (teacherLeaveRes.data ?? []) as LeaveRow[];
+        }
 
         setTodayPresent(day.present);
         setTodayAbsent(day.absent);
@@ -204,13 +253,18 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
 
         setActivity((activityRows.data ?? []) as ActivityRow[]);
         setPendingLeaves(
-          ((leaveRows.data ?? []) as unknown as (LeaveRow & { classes: unknown })[]).map((r) => ({
-            id: r.id,
-            leave_type: r.leave_type,
-            from_date: r.from_date,
-            to_date: r.to_date,
-            created_at: r.created_at,
-          })),
+          [
+            ...((classLeaveRows.data ?? []) as unknown as (LeaveRow & { classes: unknown })[]).map((r) => ({
+              id: r.id,
+              leave_type: r.leave_type,
+              from_date: r.from_date,
+              to_date: r.to_date,
+              created_at: r.created_at,
+            })),
+            ...teacherLeaveRows,
+          ]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 5),
         );
         setNotices((noticeRows.data ?? []) as NoticeRow[]);
       } catch (e) {

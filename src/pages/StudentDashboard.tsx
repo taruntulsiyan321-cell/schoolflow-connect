@@ -49,6 +49,7 @@ import MyFeesPage from "./shared/MyFeesPage";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLatestEffect } from "@/hooks/useLatestEffect";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { studentShellReady } from "@/academic/services/assertStudentContext";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
@@ -93,9 +94,14 @@ export default function StudentDashboard() {
   const [progressionLoaded, setProgressionLoaded] = useState(false);
   /** Live/focus/poll refreshes must not wipe XP chrome back to placeholders. */
   const progressionLoadedRef = useRef(false);
+  // loadProfile is re-invoked on every live-poll tick and XP-update event;
+  // guard against an older in-flight call overwriting state after a newer
+  // one has already resolved (e.g. two rapid XP gains resolving out of order).
+  const beginRun = useLatestEffect();
 
   const loadProfile = useCallback(async () => {
     if (!user || !academicReady || !ctx) return;
+    const isStale = beginRun();
     // Do NOT flip progressionLoaded false on live refresh — that collapses shellReady
     // and remounts the whole student panel after it already rendered.
     const { data: s, error: studentErr } = await supabase
@@ -202,6 +208,8 @@ export default function StudentDashboard() {
       levelProgressPct = levelProgressPct ?? derived.levelProgressPct;
     }
 
+    if (isStale()) return;
+
     setProfile({
       name: fullName,
       firstName: parts[0] || fullName,
@@ -223,7 +231,7 @@ export default function StudentDashboard() {
     });
     progressionLoadedRef.current = true;
     setProgressionLoaded(true);
-  }, [user, academicReady, ctx]);
+  }, [user, academicReady, ctx, beginRun]);
 
   useEffect(() => {
     if (!academicReady || !ctx) {

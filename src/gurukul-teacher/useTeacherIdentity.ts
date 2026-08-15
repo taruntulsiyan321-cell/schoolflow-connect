@@ -77,17 +77,19 @@ export function useTeacherIdentity(): TeacherIdentity {
 
       if (t) {
         if (t.class_teacher_of) {
-          const { data: c } = await supabase
+          const { data: c, error: classErr } = await supabase
             .from("classes")
             .select("name, section")
             .eq("id", t.class_teacher_of)
             .maybeSingle();
+          if (classErr) throw classErr;
           if (c) classTeacherOf = { className: c.name, section: c.section };
         }
-        const { data: tc } = await supabase
+        const { data: tc, error: tcErr } = await supabase
           .from("teacher_classes")
           .select("subject")
           .eq("teacher_id", t.id);
+        if (tcErr) throw tcErr;
         const fromAssignments = [
           ...new Set(
             (tc ?? [])

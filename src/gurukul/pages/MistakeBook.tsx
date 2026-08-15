@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -18,7 +18,7 @@ import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 type MBView = "list" | "practice" | "results";
 
 interface Mistake {
-  id: string; question: string; options: string[]; correct: number; chosen: number;
+  id: string; question: string; options: string[]; correct: number | null; chosen: number | null;
   subject: string; chapter: string; topic: string; difficulty: "easy"|"medium"|"hard"|null;
   /** Raw DB chapter/concept for recovery assign (not display-humanized). */
   chapterRaw: string | null;
@@ -54,18 +54,21 @@ function parseOptions(raw: unknown): string[] {
   return [];
 }
 
-function answerIndex(raw: { correct_index?: number; indexes?: number[] } | null, fallback = 0): number {
-  if (!raw) return fallback;
+/** Returns null (unknown) when the stored answer is missing/malformed — never
+ *  fabricates option A as a guess, since that would misrepresent the actual
+ *  correct/chosen answer to the student. */
+function answerIndex(raw: { correct_index?: number; indexes?: number[] } | null): number | null {
+  if (!raw) return null;
   if (typeof raw.correct_index === "number") return raw.correct_index;
   if (Array.isArray(raw.indexes) && raw.indexes.length > 0) return raw.indexes[0];
-  return fallback;
+  return null;
 }
 
-function studentIndex(raw: { selected_index?: number; indexes?: number[] } | null, fallback = 0): number {
-  if (!raw) return fallback;
+function studentIndex(raw: { selected_index?: number; indexes?: number[] } | null): number | null {
+  if (!raw) return null;
   if (typeof raw.selected_index === "number") return raw.selected_index;
   if (Array.isArray(raw.indexes) && raw.indexes.length > 0) return raw.indexes[0];
-  return fallback;
+  return null;
 }
 
 function formatMistakeDate(iso: string): string {
@@ -98,8 +101,8 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     id: row.id,
     question: row.question_text,
     options,
-    correct: answerIndex(row.correct_answer, 0),
-    chosen: studentIndex(row.student_answer, 0),
+    correct: answerIndex(row.correct_answer),
+    chosen: studentIndex(row.student_answer),
     subject: row.subject,
     chapter: displayChapter(row.chapter) || "—",
     topic: displayTopic(row.concept ?? row.topic) || "—",
@@ -230,13 +233,21 @@ function MistakeCard({
                 <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <XCircle className="w-3 h-3"/> Your Answer
                 </div>
-                <p className="text-xs text-rose-200 font-semibold">{mistake.options[mistake.chosen]}</p>
+                <p className="text-xs text-rose-200 font-semibold">
+                  {mistake.chosen !== null && mistake.options[mistake.chosen] !== undefined
+                    ? mistake.options[mistake.chosen]
+                    : "Not recorded"}
+                </p>
               </div>
               <div className="p-3 rounded-xl bg-emerald-500/8 border border-emerald-500/20">
                 <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3"/> Correct Answer
                 </div>
-                <p className="text-xs text-emerald-200 font-semibold">{mistake.options[mistake.correct]}</p>
+                <p className="text-xs text-emerald-200 font-semibold">
+                  {mistake.correct !== null && mistake.options[mistake.correct] !== undefined
+                    ? mistake.options[mistake.correct]
+                    : "Unknown"}
+                </p>
               </div>
             </div>
 
@@ -309,14 +320,22 @@ function MistakePractice({
   const [selected, setSelected] = useState<number | null>(null);
   const [answers, setAnswers] = useState<(number|null)[]>([]);
   const [showExp, setShowExp] = useState(false);
+  // Guards the final "See Results" tap from firing the completion write twice
+  // on a double-click — a ref for a synchronous, re-render-independent check
+  // plus `busy` state to actually disable the button in the DOM.
+  const busyRef = useRef(false);
+  const [busy, setBusy] = useState(false);
 
   const q = questions[qi];
   const isLast = qi === questions.length - 1;
 
   function submit(idx: number) { if (selected !== null) return; setSelected(idx); setShowExp(true); }
   function next() {
+    if (busyRef.current) return;
     const newAnswers = [...answers, selected];
     if (isLast) {
+      busyRef.current = true;
+      setBusy(true);
       const attempts: MistakeRetryAttempt[] = questions.map((qq, i) => ({
         mistakeId: qq.id,
         bankQuestionId: qq.questionId,
@@ -326,7 +345,10 @@ function MistakePractice({
         questionText: qq.question,
         options: qq.options,
         selectedIndex: typeof newAnswers[i] === "number" ? (newAnswers[i] as number) : -1,
-        correctIndex: qq.correct,
+        // Unknown correct answer (malformed/missing source data) — NaN never
+        // equals a real selectedIndex, so this is graded as not-correct rather
+        // than fabricating option A as the right answer.
+        correctIndex: qq.correct ?? Number.NaN,
         explanation: qq.explanation || null,
         difficulty: qq.difficulty,
       }));
@@ -410,7 +432,7 @@ function MistakePractice({
         )}
 
         {selected !== null && (
-          <button onClick={next} className="mt-4 w-full py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-sm font-bold transition-all flex items-center justify-center gap-2">
+          <button onClick={next} disabled={busy} className="mt-4 w-full py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-sm font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none">
             {isLast ? "See Results" : "Next Question"} <ArrowRight className="w-4 h-4"/>
           </button>
         )}

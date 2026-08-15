@@ -141,7 +141,7 @@ function PriorityTag({ p }: { p: Priority }) {
   );
 }
 
-function TopicCard({ topic, onStart }: { topic: RecoveryTopic; onStart: () => void }) {
+function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart: () => void; starting?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const m = PRIORITY_META[topic.priority];
   return (
@@ -177,8 +177,8 @@ function TopicCard({ topic, onStart }: { topic: RecoveryTopic; onStart: () => vo
         </div>
 
         <div className="flex items-center gap-2 mt-3 flex-wrap">
-          <button onClick={onStart}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:brightness-110"
+          <button onClick={onStart} disabled={starting}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:brightness-110 disabled:opacity-50"
             style={{background:m.color,color:"#fff"}}>
             <Play className="w-3 h-3"/>
             {topic.assignmentId
@@ -716,7 +716,9 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
             <p className="text-[#78788c] text-sm">No topics match your filters</p>
           </GlassCard>
         ) : (
-          filtered.map(t => <TopicCard key={t.id} topic={t} onStart={() => startSession(t)}/>)
+          filtered.map(t => (
+            <TopicCard key={t.id} topic={t} onStart={() => startSession(t)} starting={startingId === t.id}/>
+          ))
         )}
       </div>
 

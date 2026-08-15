@@ -97,7 +97,8 @@ function ParentForm({
         parentId = data.id;
       }
 
-      await supabase.from("parent_students").delete().eq("parent_id", parentId);
+      const { error: unlinkErr } = await supabase.from("parent_students").delete().eq("parent_id", parentId);
+      if (unlinkErr) throw unlinkErr;
       const links = [...linkedIds].map((studentId) => ({
         parent_id: parentId!,
         student_id: studentId,
@@ -105,7 +106,11 @@ function ParentForm({
       }));
       if (links.length) {
         const { error: linkErr } = await supabase.from("parent_students").insert(links);
-        if (linkErr) throw linkErr;
+        if (linkErr) {
+          throw new Error(
+            `Parent details saved, but re-linking students failed (${linkErr.message}). This parent currently has 0 linked students — please re-link them.`,
+          );
+        }
       }
 
       toast.success(parent ? "Parent updated" : "Parent added");
@@ -413,13 +418,18 @@ export default function ParentManagement() {
     if (!ctx?.schoolId) return;
     setDeleting(true);
     try {
-      await supabase.from("parent_students").delete().eq("parent_id", id);
+      const { error: unlinkErr } = await supabase.from("parent_students").delete().eq("parent_id", id);
+      if (unlinkErr) throw unlinkErr;
       const { error: delErr } = await supabase
         .from("parents")
         .delete()
         .eq("id", id)
         .eq("school_id", ctx.schoolId);
-      if (delErr) throw delErr;
+      if (delErr) {
+        throw new Error(
+          `Removed this parent's student links, but deleting the parent record failed (${delErr.message}). Retry the delete.`,
+        );
+      }
       toast.success("Parent deleted");
       setDetail(null);
       setConfirmDelete(null);

@@ -131,14 +131,24 @@ export function AttachmentComposer({
     if (!files?.length || disabled) return;
     setUploading(true);
     setError(null);
+    // Commit each successful upload to state as it finishes, and keep going
+    // on a per-file failure — a bad file later in the batch must not erase
+    // (or block) files that already uploaded fine.
+    let current = items;
+    const failures: string[] = [];
     try {
-      const uploaded: HomeworkAttachmentMeta[] = [];
       for (const file of Array.from(files)) {
-        uploaded.push(await uploadAcademicFile(file));
+        try {
+          const meta = await uploadAcademicFile(file);
+          current = [...current, meta];
+          onChange(current);
+        } catch (e) {
+          failures.push(`${file.name} (${e instanceof Error ? e.message : "upload failed"})`);
+        }
       }
-      onChange([...items, ...uploaded]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      if (failures.length) {
+        setError(`Failed to upload: ${failures.join(", ")}`);
+      }
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";

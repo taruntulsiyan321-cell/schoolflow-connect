@@ -27,6 +27,9 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
   const [risk, setRisk] = useState<ReturnType<typeof computeAttendanceRisk> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // True when either parallel fetch (profile OR attendance list) rejected —
+  // distinct from a fulfilled-but-genuinely-empty result.
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     if (!settled) return;
@@ -38,12 +41,25 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
     (async () => {
       setLoading(true);
       setError(null);
+      setUnavailable(false);
       try {
         const results = await Promise.allSettled([
           AcademicProfileService.get(ctx, studentId),
           AttendanceService.listForStudent(ctx, studentId, { limit: 120 }),
         ]);
         if (cancelled) return;
+        if (results[0].status === "rejected") {
+          console.warn(
+            `[ParentLiveAttendance] AcademicProfileService.get failed for student ${studentId}:`,
+            results[0].reason,
+          );
+        }
+        if (results[1].status === "rejected") {
+          console.warn(
+            `[ParentLiveAttendance] AttendanceService.listForStudent failed for student ${studentId}:`,
+            results[1].reason,
+          );
+        }
         const profile = results[0].status === "fulfilled" ? results[0].value : null;
         const list = results[1].status === "fulfilled" ? results[1].value : [];
         setRecords(list);
@@ -55,6 +71,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
             ? computeAttendanceRisk(profile.attendancePct)
             : null,
         );
+        setUnavailable(results[0].status === "rejected" || results[1].status === "rejected");
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load attendance");
       } finally {
@@ -95,18 +112,26 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-[#3b5bdb]">{present}</div>
+          <div className="text-lg font-black text-[#3b5bdb]">{unavailable ? "—" : present}</div>
           <div className="text-[9px] text-[#3b5bdb] uppercase tracking-wide font-bold">Present equiv.</div>
         </div>
         <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-white">{total}</div>
+          <div className="text-lg font-black text-white">{unavailable ? "—" : total}</div>
           <div className="text-[9px] text-[#78788c] uppercase tracking-wide font-bold">Days marked</div>
         </div>
         <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-white">{pct}%</div>
+          <div className="text-lg font-black text-white">{unavailable ? "—" : `${pct}%`}</div>
           <div className="text-[9px] text-[#78788c] uppercase tracking-wide font-bold">Engine rate</div>
         </div>
       </div>
+
+      {unavailable && (
+        <div className="flex items-center gap-2 bg-[#cc5069]/10 border border-[#cc5069]/20 rounded-xl px-3 py-2.5">
+          <span className="text-[11px] text-[#cc5069]">
+            Attendance data unavailable — try again later.
+          </span>
+        </div>
+      )}
 
       {risk && risk.band !== "low" && (
         <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5">

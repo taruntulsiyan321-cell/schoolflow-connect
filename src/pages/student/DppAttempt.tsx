@@ -119,19 +119,36 @@ export default function DppAttempt() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remaining, dpp, attemptId, timedDpp]);
 
-  const persist = async (qid: string, r: Response) => {
+  /** Per-question save sequencing: the counter marks which edit is "latest" for
+   *  that question, and the chain ensures saves for the same question run one
+   *  at a time (never overlapping in flight) so a slower-resolving earlier
+   *  save can't land in the DB after — and overwrite — a newer one. */
+  const saveSeqRef = useRef<Record<string, number>>({});
+  const saveChainRef = useRef<Record<string, Promise<void>>>({});
+
+  const persist = (qid: string, r: Response) => {
     if (!attemptId) return;
     setResponses((prev) => ({ ...prev, [qid]: r }));
-    try {
-      const serviceCtx = await resolveCtx();
-      await TestService.saveAnswer(serviceCtx, {
-        attemptId,
-        questionId: qid,
-        response: r as Record<string, unknown>,
-      });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save answer");
-    }
+    const seq = (saveSeqRef.current[qid] ?? 0) + 1;
+    saveSeqRef.current[qid] = seq;
+    const prevChain = saveChainRef.current[qid] ?? Promise.resolve();
+    const chained = prevChain.catch(() => {}).then(async () => {
+      // A newer edit to this question has already been queued — skip this
+      // now-stale save so it cannot overwrite the later answer in the DB.
+      if (saveSeqRef.current[qid] !== seq) return;
+      try {
+        const serviceCtx = await resolveCtx();
+        if (saveSeqRef.current[qid] !== seq) return;
+        await TestService.saveAnswer(serviceCtx, {
+          attemptId,
+          questionId: qid,
+          response: r as Record<string, unknown>,
+        });
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Could not save answer");
+      }
+    });
+    saveChainRef.current[qid] = chained;
   };
 
   const submit = async () => {
@@ -219,7 +236,7 @@ export default function DppAttempt() {
           <ArrowLeft className="w-4 h-4" /> Prev
         </Button>
         <div className="text-xs text-muted-foreground">{answeredCount}/{questions.length} answered</div>
-        {idx < questions.length - 1 ? (
+        {idx < questions.length - 1 && !(timedDpp && remaining === 0) ? (
           <Button onClick={() => setIdx((i) => i + 1)}>Next <ArrowRight className="w-4 h-4" /></Button>
         ) : (
           <Button onClick={() => void submit()} disabled={submitting}><Send className="w-4 h-4" /> {submitting ? "Submitting…" : "Submit"}</Button>

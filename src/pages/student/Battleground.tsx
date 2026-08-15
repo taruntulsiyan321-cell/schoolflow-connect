@@ -166,20 +166,26 @@ export function BattleRoom() {
         if (isStale()) return;
         let pid = existing?.id;
         if (!pid) {
-          if (b?.mode === "duel") {
-            const { count } = await supabase
-              .from("battle_participants")
-              .select("id", { count: "exact", head: true })
-              .eq("battle_id", id);
-            if ((count ?? 0) >= 2) {
-              toast({ title: "This duel is already full.", variant: "destructive" });
-              return;
-            }
-          }
           try {
             let joinCtx: ServiceContext | null = ctx && academicReady ? ctx : null;
             if (!joinCtx) {
               joinCtx = await resolveStudentServiceContext();
+            }
+            // Re-check the duel-full count as close to the join write as possible
+            // (right before it, after ctx resolution) to shrink the client-side
+            // check-then-act window. This narrows but cannot fully close the race:
+            // two joins within this window can still both pass. Fully closing it
+            // needs a server-side guard (DB constraint/trigger or an atomic
+            // count-check-and-insert RPC) — not present today.
+            if (b?.mode === "duel") {
+              const { count } = await supabase
+                .from("battle_participants")
+                .select("id", { count: "exact", head: true })
+                .eq("battle_id", id);
+              if ((count ?? 0) >= 2) {
+                toast({ title: "This duel is already full.", variant: "destructive" });
+                return;
+              }
             }
             pid = await BattleExperienceService.joinById(joinCtx, id);
           } catch (joinErr) {

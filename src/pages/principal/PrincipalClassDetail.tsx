@@ -112,19 +112,15 @@ export default function PrincipalClassDetail() {
 
         const { data: feedRows } = await supabase
           .from("school_activity_feed")
-          .select("action, created_at, entity_type, metadata")
+          .select("action, created_at")
           .eq("school_id", ctx.schoolId)
           .eq("entity_type", "attendance")
+          .eq("metadata->>class_id", classId)
           .order("created_at", { ascending: false })
-          .limit(40);
-        const classFeed = ((feedRows ?? []) as {
-          action: string;
-          created_at: string;
-          metadata: { class_id?: string } | null;
-        }[])
-          .filter((row) => row.metadata?.class_id === classId)
-          .slice(0, 12)
-          .map((row) => ({ title: row.action, created_at: row.created_at }));
+          .limit(12);
+        const classFeed = ((feedRows ?? []) as { action: string; created_at: string }[]).map(
+          (row) => ({ title: row.action, created_at: row.created_at }),
+        );
         if (!cancelled) setFeed(classFeed);
 
         try {
@@ -155,7 +151,7 @@ export default function PrincipalClassDetail() {
   }, [settled, classId, ctx, ready, liveVersion]);
 
   const total = students.length;
-  const attendanceRate = total
+  const attendanceRate = total && todayMarked > 0
     ? Math.round((todayPresent / total) * 100)
     : Math.round(avgAttendancePct);
 

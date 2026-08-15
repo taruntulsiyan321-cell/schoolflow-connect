@@ -71,13 +71,14 @@ export default function AiAnalyticsPanel() {
       });
       setSummary(agg);
 
-      const { data: rows } = await supabase
+      const { data: rows, error: rowsError } = await supabase
         .from("ai_request_decisions")
         .select("created_at, used_model, estimated_cost_units, evidence")
         .eq("school_id", schoolId)
         .gte("created_at", fromIso)
         .lte("created_at", toIso)
         .limit(5000);
+      if (rowsError) throw rowsError;
 
       const daily = dailyUsageFromDecisions((rows as never[]) ?? []);
       const monthUsed = daily.reduce((s, d) => s + d.units, 0);

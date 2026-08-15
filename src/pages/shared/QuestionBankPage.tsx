@@ -95,24 +95,29 @@ export default function QuestionBankPage() {
       return toast.error("URL must start with http:// or https://");
     }
     setBusy(true);
-    const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
-      body: {
-        topic: topic.trim(), subject, chapter: chapter.trim(),
-        difficulty, count, source_text: sourceText.trim(), source_url: url.trim(),
-      },
-    });
-    setBusy(false);
-    if (error) return toast.error(error.message ?? "Question generation failed");
-    const arr = (data?.questions ?? []) as Array<{ question: string; options: string[]; correct_index: number; explanation?: string }>;
-    if (arr.length === 0) return toast.error(data?.error ?? "No questions returned");
-    setDrafts(arr.map((a) => ({
-      question: a.question,
-      options: (a.options ?? []).slice(0, 4),
-      correct_index: Math.max(0, Math.min(3, a.correct_index ?? 0)),
-      explanation: a.explanation ?? "",
-      include: true,
-    })));
-    toast.success(`Generated ${arr.length} questions — review & save`);
+    try {
+      const { data, error } = await supabase.functions.invoke("dpp-generate-questions", {
+        body: {
+          topic: topic.trim(), subject, chapter: chapter.trim(),
+          difficulty, count, source_text: sourceText.trim(), source_url: url.trim(),
+        },
+      });
+      if (error) return toast.error(error.message ?? "Question generation failed");
+      const arr = (data?.questions ?? []) as Array<{ question: string; options: string[]; correct_index: number; explanation?: string }>;
+      if (arr.length === 0) return toast.error(data?.error ?? "No questions returned");
+      setDrafts(arr.map((a) => ({
+        question: a.question,
+        options: (a.options ?? []).slice(0, 4),
+        correct_index: Math.max(0, Math.min(3, a.correct_index ?? 0)),
+        explanation: a.explanation ?? "",
+        include: true,
+      })));
+      toast.success(`Generated ${arr.length} questions — review & save`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Question generation failed");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const saveDrafts = async () => {

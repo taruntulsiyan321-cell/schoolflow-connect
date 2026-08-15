@@ -1950,8 +1950,8 @@ interface SessionResults {
   } | null;
 }
 
-function Summary({ results, onRetry, onHub }: {
-  results: SessionResults; onRetry: ()=>void; onHub: ()=>void;
+function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
+  results: SessionResults; onRetry: ()=>void; onHub: ()=>void; onRetryIncorrect: ()=>void;
 }) {
   const { correct, total, skipped, bookmarked, config, serverStats, finishFailed } = results;
   // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats — never invent XP.
@@ -2004,7 +2004,7 @@ return (
             <RotateCcw className="w-4 h-4"/> Retry Same Mode
           </button>
           {wrong > 0 && (
-            <button onClick={onHub}
+            <button onClick={onRetryIncorrect}
               className="w-full py-3 rounded-2xl border border-rose-400/30 text-rose-400 font-semibold text-sm hover:bg-rose-400/8 transition-all flex items-center justify-center gap-2">
               <XCircle className="w-4 h-4"/> Practice {wrong} incorrect question{wrong!==1?"s":""}
             </button>
@@ -2399,7 +2399,12 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         />
       )}
       {phase === "summary" && results && (
-        <Summary results={results} onRetry={handleRetry} onHub={() => setPhase("hub")}/>
+        <Summary
+          results={results}
+          onRetry={handleRetry}
+          onHub={() => setPhase("hub")}
+          onRetryIncorrect={() => handleMode("incorrect")}
+        />
       )}
     </>
   );
