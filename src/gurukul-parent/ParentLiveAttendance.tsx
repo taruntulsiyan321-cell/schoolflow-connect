@@ -207,6 +207,10 @@ export function useChildAttendancePct(studentId: string | null) {
   const [present, setPresent] = useState(0);
   const [total, setTotal] = useState(0);
   const [todayStatus, setTodayStatus] = useState<string | null>(null);
+  // True when either parallel fetch (profile OR attendance list) rejected —
+  // distinct from a fulfilled-but-genuinely-empty result.
+  const [unavailable, setUnavailable] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!settled) return;
@@ -215,9 +219,20 @@ export function useChildAttendancePct(studentId: string | null) {
       setPresent(0);
       setTotal(0);
       setTodayStatus(null);
+      setUnavailable(false);
+      setLoading(false);
       return;
     }
+    // Reset synchronously on every studentId change so the previous child's
+    // numbers never flash under the newly selected child's name while the
+    // new fetch is in flight.
     let cancelled = false;
+    setLoading(true);
+    setPct(0);
+    setPresent(0);
+    setTotal(0);
+    setTodayStatus(null);
+    setUnavailable(false);
     (async () => {
       try {
         const today = localDateKey();
@@ -226,19 +241,36 @@ export function useChildAttendancePct(studentId: string | null) {
           AttendanceService.listForStudent(ctx, studentId, { limit: 40 }),
         ]);
         if (cancelled) return;
+        if (results[0].status === "rejected") {
+          console.warn(
+            `[useChildAttendancePct] AcademicProfileService.get failed for student ${studentId}:`,
+            results[0].reason,
+          );
+        }
+        if (results[1].status === "rejected") {
+          console.warn(
+            `[useChildAttendancePct] AttendanceService.listForStudent failed for student ${studentId}:`,
+            results[1].reason,
+          );
+        }
         const profile = results[0].status === "fulfilled" ? results[0].value : null;
         const list = results[1].status === "fulfilled" ? results[1].value : [];
         setPct(Math.round(profile?.attendancePct ?? 0));
         setPresent(profile?.attendancePresent ?? 0);
         setTotal(profile?.attendanceTotal ?? 0);
         setTodayStatus(list.find((r) => r.date === today)?.status ?? null);
-      } catch {
+        setUnavailable(results[0].status === "rejected" || results[1].status === "rejected");
+      } catch (e) {
         if (!cancelled) {
+          console.warn(`[useChildAttendancePct] unexpected failure for student ${studentId}:`, e);
           setPct(0);
           setPresent(0);
           setTotal(0);
           setTodayStatus(null);
+          setUnavailable(true);
         }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => {
@@ -246,5 +278,5 @@ export function useChildAttendancePct(studentId: string | null) {
     };
   }, [settled, ready, ctx, studentId, liveVersion]);
 
-  return { pct, present, total, todayStatus };
+  return { pct, present, total, todayStatus, unavailable, loading };
 }

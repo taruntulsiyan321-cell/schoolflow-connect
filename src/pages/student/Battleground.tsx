@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Routes, Route, useNavigate, useParams, Link, NavLink, Outlet, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLatestEffect } from "@/hooks/useLatestEffect";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -134,10 +135,12 @@ export function BattleRoom() {
   const answeringRef = useRef(false);
   const answeredQRef = useRef<Set<string>>(new Set());
   const timerFiredRef = useRef(false);
+  const beginRun = useLatestEffect();
 
   // Load
   useEffect(() => {
     if (!id || !user) return;
+    const isStale = beginRun();
     (async () => {
       setBattleLoading(true);
       try {
@@ -145,7 +148,6 @@ export function BattleRoom() {
         if (battleErr) {
           toast({ title: "Could not load battle", description: battleErr.message, variant: "destructive" });
         }
-        setBattle(b);
         const { data: qs, error: qsErr } = await supabase
           .from("battle_questions")
           .select("id, battle_id, order_index, question, options, points, explanation, concept, subconcept, bank_question_id")
@@ -154,8 +156,14 @@ export function BattleRoom() {
         if (qsErr) {
           toast({ title: "Could not load questions", description: qsErr.message, variant: "destructive" });
         }
+        // A newer room load (a different battle id) may have started while the
+        // two fetches above were in flight — don't let this slower, superseded
+        // response paint a different battle's questions/state on top of it.
+        if (isStale()) return;
+        setBattle(b);
         setQuestions(qs ?? []);
         const { data: existing } = await supabase.from("battle_participants").select("*").eq("battle_id", id).eq("user_id", user.id).maybeSingle();
+        if (isStale()) return;
         let pid = existing?.id;
         if (!pid) {
           if (b?.mode === "duel") {
@@ -219,6 +227,7 @@ export function BattleRoom() {
             }
           }
         }
+        if (isStale()) return;
         setQuestionStart(Date.now());
         if (b) setTimeLeft(b.per_question_sec);
         if ((qs ?? []).length > 0 && !existing?.finished_at && !didAutoFinish) setReadyCount(3);
@@ -226,7 +235,7 @@ export function BattleRoom() {
         setBattleLoading(false);
       }
     })();
-  }, [id, user, ctx, academicReady]);
+  }, [id, user, ctx, academicReady, beginRun]);
 
   // Pre-battle 3-2-1 countdown
   useEffect(() => {

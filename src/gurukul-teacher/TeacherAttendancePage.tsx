@@ -36,7 +36,14 @@ const STATUS_OPTIONS: {
 type SortKey = "roll" | "name" | "status";
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  // Local calendar date, not UTC — the app is IST throughout, and
+  // Dashboard's "attendance pending today" check uses the same local
+  // definition of "today" (see TeacherHome's todayIsoDate in Dashboard.tsx).
+  // Using toISOString() here would roll over to the next day before local
+  // midnight (IST is UTC+5:30), showing the wrong default date late in
+  // the evening.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export interface TeacherAttendanceWorkspaceProps {

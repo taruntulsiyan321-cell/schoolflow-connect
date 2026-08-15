@@ -34,7 +34,7 @@ function AttendancePanel({
   const { ctx, ready } = useAcademicContext();
   const [selectedDate, setSelectedDate] = useState(localDateKey());
   const [students, setStudents] = useState<ClassStudentRow[]>([]);
-  const [statusByStudent, setStatusByStudent] = useState<Record<string, AttendanceStatus>>({});
+  const [statusByStudent, setStatusByStudent] = useState<Record<string, AttendanceStatus | undefined>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,10 +52,9 @@ function AttendancePanel({
           AttendanceService.listForClassDate(ctx, liveClass.classId, selectedDate),
         ]);
         if (cancelled) return;
-        const map: Record<string, AttendanceStatus> = {};
+        const map: Record<string, AttendanceStatus | undefined> = {};
         roster.forEach((s) => {
-          map[s.id] =
-            (records.find((r) => r.studentId === s.id)?.status as AttendanceStatus) ?? "present";
+          map[s.id] = records.find((r) => r.studentId === s.id)?.status as AttendanceStatus | undefined;
         });
         setStudents(roster);
         setStatusByStudent(map);
@@ -72,18 +71,28 @@ function AttendancePanel({
 
   async function save() {
     if (!ctx) return;
+    const toSave = students
+      .filter((s) => statusByStudent[s.id] != null)
+      .map((s) => ({
+        studentId: s.id,
+        classId: liveClass.classId,
+        date: selectedDate,
+        status: statusByStudent[s.id]!,
+      }));
+    const unmarkedCount = students.length - toSave.length;
+    if (toSave.length === 0) {
+      setError("No students are marked yet — nothing to save.");
+      return;
+    }
     setSaving(true);
+    setError(null);
     try {
-      await AttendanceService.markBulk(
-        ctx,
-        students.map((s) => ({
-          studentId: s.id,
-          classId: liveClass.classId,
-          date: selectedDate,
-          status: statusByStudent[s.id] ?? "present",
-        })),
+      await AttendanceService.markBulk(ctx, toSave);
+      setFlash(
+        unmarkedCount > 0
+          ? `Saved ${toSave.length} of ${students.length} — ${unmarkedCount} still unmarked`
+          : "Saved via AttendanceService",
       );
-      setFlash("Saved via AttendanceService");
       setTimeout(() => setFlash(null), 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -96,6 +105,7 @@ function AttendancePanel({
     (s) => s === "present" || s === "late" || s === "half_day",
   ).length;
   const absentCount = Object.values(statusByStudent).filter((s) => s === "absent").length;
+  const unmarkedCount = Object.values(statusByStudent).filter((s) => s == null).length;
 
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
@@ -140,7 +150,7 @@ function AttendancePanel({
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <div className="p-3 rounded-xl bg-white/3 text-center">
                   <div className="text-lg font-black text-white">{students.length}</div>
                   <div className="text-[9px] text-[#78788c]">Total</div>
@@ -153,6 +163,10 @@ function AttendancePanel({
                   <div className="text-lg font-black text-[#cc5069]">{absentCount}</div>
                   <div className="text-[9px] text-[#78788c]">Absent</div>
                 </div>
+                <div className="p-3 rounded-xl bg-white/5 text-center">
+                  <div className="text-lg font-black text-[#78788c]">{unmarkedCount}</div>
+                  <div className="text-[9px] text-[#78788c]">Unmarked</div>
+                </div>
               </div>
 
               {students.length === 0 ? (
@@ -160,7 +174,7 @@ function AttendancePanel({
               ) : (
                 <div className="space-y-2">
                   {students.map((s) => {
-                    const status = statusByStudent[s.id] ?? "present";
+                    const status = statusByStudent[s.id];
                     const present = status === "present" || status === "late" || status === "half_day";
                     return (
                       <div key={s.id} className="bg-white/3 rounded-xl p-3 flex items-center gap-3">
@@ -170,18 +184,19 @@ function AttendancePanel({
                           <div className="text-[9px] text-[#78788c]">{s.rollNumber ?? "—"}</div>
                         </div>
                         <select
-                          value={status}
+                          value={status ?? ""}
                           onChange={(e) =>
                             setStatusByStudent((prev) => ({
                               ...prev,
-                              [s.id]: e.target.value as AttendanceStatus,
+                              [s.id]: e.target.value === "" ? undefined : (e.target.value as AttendanceStatus),
                             }))
                           }
                           className={cn(
                             "px-2 py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10",
-                            present ? "text-[#4aa87a]" : "text-[#cc5069]",
+                            status == null ? "text-[#78788c]" : present ? "text-[#4aa87a]" : "text-[#cc5069]",
                           )}
                         >
+                          <option value="">Unmarked</option>
                           <option value="present">Present</option>
                           <option value="absent">Absent</option>
                           <option value="late">Late</option>

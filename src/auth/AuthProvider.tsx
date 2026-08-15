@@ -23,6 +23,11 @@ import type {
   SignInCredentials,
 } from "./types";
 
+/** A hung identity-load request must not leave every dashboard behind an
+ *  infinite spinner — bound it and let applyContext's existing catch/finally
+ *  turn a hang into a real (recoverable) error state instead. */
+const AUTH_CONTEXT_TIMEOUT_MS = 15_000;
+
 interface AuthCtx {
   user: User | null;
   session: Session | null;
@@ -69,7 +74,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(true);
     try {
-      const data = await loadAuthContext(uid);
+      const data = await Promise.race([
+        loadAuthContext(uid),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("Timed out loading auth context")),
+            AUTH_CONTEXT_TIMEOUT_MS,
+          ),
+        ),
+      ]);
       if (requestId !== contextRequestId.current) return;
       setCtx(data);
       bootstrapped.current = uid;

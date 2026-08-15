@@ -95,15 +95,14 @@ function AnnouncementForm({
             className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none">
             <option value="draft">Save as Draft</option>
             <option value="published">Publish Now</option>
-            <option value="scheduled">Schedule</option>
+            <option value="scheduled" disabled>Schedule (coming soon)</option>
           </select>
         </div>
 
         {form.status === "scheduled" && (
-          <div className="flex flex-col gap-1">
-            <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Schedule For</label>
-            <input type="datetime-local" value={form.scheduledFor} onChange={(e) => setForm((p) => ({ ...p, scheduledFor: e.target.value }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40" />
+          <div className="col-span-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-[#f59e0b]/10 text-[#f59e0b] text-[10px] font-semibold">
+            <Clock className="w-3.5 h-3.5 shrink-0" />
+            Scheduled publishing isn&apos;t available yet — this was saved before the feature existed and will stay as-is until you change it. Switch to Draft or Publish Now to update it.
           </div>
         )}
 

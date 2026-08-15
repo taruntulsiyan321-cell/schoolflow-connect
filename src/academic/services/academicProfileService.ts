@@ -9,6 +9,7 @@ import {
   requireStudentAcademicProfile,
   listClassAcademicProfiles,
   listSchoolAcademicProfiles,
+  listSchoolAcademicProfileExtremes,
   ensureAcademicProfile,
 } from "../repository/academicProfileRepository";
 import type { StudentAcademicProfile } from "../types";
@@ -76,6 +77,24 @@ export const AcademicProfileService = {
       throw new ForbiddenError("School-wide academic profiles are admin/principal-only");
     }
     return listSchoolAcademicProfiles(toRepoContext(ctx), page);
+  },
+
+  /** True school-wide top/bottom-N by one metric — see listSchoolAcademicProfileExtremes
+   *  for why this exists instead of paging listForSchool and re-sorting client-side. */
+  async listSchoolExtremes(
+    ctx: ServiceContext,
+    metric: "exams" | "attendance",
+    n = 5,
+  ): Promise<{ top: StudentAcademicProfile[]; bottom: StudentAcademicProfile[] }> {
+    assertCanConsume(ctx, "student_academic_profile");
+    if (!isSchoolOperator(ctx.role)) {
+      throw new ForbiddenError("School-wide academic profiles are admin/principal-only");
+    }
+    return listSchoolAcademicProfileExtremes(
+      toRepoContext(ctx),
+      metric === "exams" ? "exams_avg_pct" : "attendance_pct",
+      n,
+    );
   },
 
   /** Bootstrap shell only — does not recompute metrics (Phase 4 sync does). */

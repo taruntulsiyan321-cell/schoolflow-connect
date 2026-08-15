@@ -234,16 +234,19 @@ export default function PrincipalMessages() {
 
   async function handleSend(text: string, opts?: { replyToId?: string }) {
     if (!ctx || !selected) return;
+    const targetKey = selectedKey; // capture before the await — the open conversation may change while this is in flight
     setSending(true);
     try {
       const msg = await MessageService.send(ctx, selected.userId, text, {
         conversationId: selected.conversationId ?? (isGroup(selected) ? selected.userId : null),
         replyToId: opts?.replyToId,
       });
-      setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      if (selectedKey === targetKey) {
+        setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      }
       setContacts((prev) =>
         prev.map((c) =>
-          (c.conversationId || c.userId) === selectedKey
+          (c.conversationId || c.userId) === targetKey
             ? {
                 ...c,
                 lastMessage: text || "Message",
@@ -271,6 +274,7 @@ export default function PrincipalMessages() {
 
   async function onPickFile(file: File | null) {
     if (!file || !ctx || !selected) return;
+    const targetKey = selectedKey; // capture before the await — see handleSend
     setUploading(true);
     try {
       const caption = input.trim();
@@ -284,10 +288,12 @@ export default function PrincipalMessages() {
         caption,
         replyToId: replyId,
       });
-      setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      if (selectedKey === targetKey) {
+        setMessages((prev) => (prev.find((m) => m.id === msg.id) ? prev : [...prev, msg]));
+      }
       setContacts((prev) =>
         prev.map((c) =>
-          (c.conversationId || c.userId) === selectedKey
+          (c.conversationId || c.userId) === targetKey
             ? {
                 ...c,
                 lastMessage: caption || file.name || "Attachment",

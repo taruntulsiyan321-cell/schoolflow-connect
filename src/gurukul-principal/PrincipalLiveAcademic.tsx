@@ -10,6 +10,7 @@ import {
   buildSchoolHealthBrief,
   RiskBadge,
   type RiskBand,
+  type StudentAcademicProfile,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -106,8 +107,8 @@ export function PrincipalSchoolOverview() {
 
   const brief = useMemo(() => {
     if (!school) return null;
-    const attendanceRisk = computeAttendanceRisk(school.avgAttendancePct > 0 ? school.avgAttendancePct : null);
-    const homeworkRisk = computeHomeworkConsistency(school.avgHomeworkCompletionPct > 0 ? school.avgHomeworkCompletionPct : null);
+    const attendanceRisk = computeAttendanceRisk(school.studentCount > 0 ? school.avgAttendancePct : null);
+    const homeworkRisk = computeHomeworkConsistency(school.studentCount > 0 ? school.avgHomeworkCompletionPct : null);
     return buildSchoolHealthBrief({
       school_id: ctx?.schoolId ?? "",
       class_count: school.classCount,
@@ -293,7 +294,11 @@ interface RankedStudent {
 export function PrincipalStudentRankings() {
   const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive(["profile", "marks", "attendance", "examination"]);
-  const [rows, setRows] = useState<RankedStudent[]>([]);
+  const [byMetric, setByMetric] = useState<Record<"exams" | "attendance", { top: RankedStudent[]; bottom: RankedStudent[] }>>({
+    exams: { top: [], bottom: [] },
+    attendance: { top: [], bottom: [] },
+  });
+  const [hasAnyRows, setHasAnyRows] = useState(true);
   const [metric, setMetric] = useState<"exams" | "attendance">("exams");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -309,8 +314,15 @@ export function PrincipalStudentRankings() {
       setLoading(true);
       setError(null);
       try {
-        const profiles = await AcademicProfileService.listForSchool(ctx, { limit: 500 });
-        const ids = profiles.map((p) => p.studentId);
+        const [examsExtremes, attendanceExtremes] = await Promise.all([
+          AcademicProfileService.listSchoolExtremes(ctx, "exams", 5),
+          AcademicProfileService.listSchoolExtremes(ctx, "attendance", 5),
+        ]);
+        const allProfiles = [
+          ...examsExtremes.top, ...examsExtremes.bottom,
+          ...attendanceExtremes.top, ...attendanceExtremes.bottom,
+        ];
+        const ids = [...new Set(allProfiles.map((p) => p.studentId))];
         const names = new Map<string, { fullName: string; classLabel: string }>();
         if (ids.length > 0) {
           const { data, error: sErr } = await supabase
@@ -325,14 +337,20 @@ export function PrincipalStudentRankings() {
             });
           }
         }
-        const ranked: RankedStudent[] = profiles.map((p) => ({
+        const toRanked = (p: StudentAcademicProfile): RankedStudent => ({
           studentId: p.studentId,
           fullName: names.get(p.studentId)?.fullName ?? p.studentId.slice(0, 8),
           classLabel: names.get(p.studentId)?.classLabel ?? "—",
           examsAvgPct: p.examsAvgPct,
           attendancePct: p.attendancePct,
-        }));
-        if (!cancelled) setRows(ranked);
+        });
+        if (!cancelled) {
+          setByMetric({
+            exams: { top: examsExtremes.top.map(toRanked), bottom: examsExtremes.bottom.map(toRanked) },
+            attendance: { top: attendanceExtremes.top.map(toRanked), bottom: attendanceExtremes.bottom.map(toRanked) },
+          });
+          setHasAnyRows(ids.length > 0);
+        }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load rankings");
       } finally {
@@ -348,9 +366,8 @@ export function PrincipalStudentRankings() {
   if (error) return <ErrorNote message={error} />;
 
   const key = metric === "exams" ? "examsAvgPct" : "attendancePct";
-  const sorted = [...rows].sort((a, b) => b[key] - a[key]);
-  const top = sorted.slice(0, 5);
-  const bottom = [...sorted].reverse().slice(0, 5);
+  const top = byMetric[metric].top;
+  const bottom = byMetric[metric].bottom;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -371,7 +388,7 @@ export function PrincipalStudentRankings() {
           </button>
         ))}
       </div>
-      {rows.length === 0 ? (
+      {!hasAnyRows ? (
         <Empty message="No student academic profiles found yet." />
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>

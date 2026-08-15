@@ -39,13 +39,18 @@ export async function resolveTeacherId(ctx: RepoContext, userId: string): Promis
 }
 
 /**
- * Classes the teacher may mark attendance for:
+ * Classes the teacher may mark attendance for, WITHOUT per-class student counts:
  * class_teacher_of ∪ teacher_classes mappings (Teacher–Class–Subject).
+ *
+ * Shared by listAssignedClassesForTeacher (which adds studentCount on top, for
+ * callers that display it) and assertTeacherOwnsClass (a pure authorization
+ * check that never reads studentCount — see that function for why it must not
+ * pay for the N sequential per-class COUNT queries this data doesn't need).
  */
-export async function listAssignedClassesForTeacher(
+async function gatherAssignedClasses(
   ctx: RepoContext,
   teacherUserId: string,
-): Promise<AssignedClass[]> {
+): Promise<Omit<AssignedClass, "studentCount">[]> {
   const schoolId = schoolIdOf(ctx);
   const teacherId = await resolveTeacherId(ctx, teacherUserId);
 
@@ -56,7 +61,7 @@ export async function listAssignedClassesForTeacher(
     .maybeSingle();
   throwIfError(tErr, "Failed to load teacher");
 
-  const byClass = new Map<string, AssignedClass>();
+  const byClass = new Map<string, Omit<AssignedClass, "studentCount">>();
 
   if (teacher?.class_teacher_of) {
     const { data: cls, error } = await getClient(ctx)
@@ -75,7 +80,6 @@ export async function listAssignedClassesForTeacher(
         subject: null,
         subjectId: null,
         isClassTeacher: true,
-        studentCount: 0,
       });
     }
   }
@@ -111,11 +115,27 @@ export async function listAssignedClassesForTeacher(
       subject: row.subject ?? null,
       subjectId: row.subject_id ?? null,
       isClassTeacher: false,
-      studentCount: 0,
     });
   }
 
-  const classes = [...byClass.values()];
+  return [...byClass.values()].sort((a, b) =>
+    `${a.name}-${a.section}`.localeCompare(`${b.name}-${b.section}`),
+  );
+}
+
+/**
+ * Classes the teacher may mark attendance for, WITH per-class student counts.
+ * Same class set/order as gatherAssignedClasses — this just adds one COUNT
+ * query per class on top, for callers (e.g. the teacher's My Classes list)
+ * that actually display studentCount.
+ */
+export async function listAssignedClassesForTeacher(
+  ctx: RepoContext,
+  teacherUserId: string,
+): Promise<AssignedClass[]> {
+  const schoolId = schoolIdOf(ctx);
+  const classes = await gatherAssignedClasses(ctx, teacherUserId);
+  const withCounts: AssignedClass[] = [];
   for (const cls of classes) {
     const { count, error } = await getClient(ctx)
       .from("students")
@@ -123,12 +143,9 @@ export async function listAssignedClassesForTeacher(
       .eq("school_id", schoolId)
       .eq("class_id", cls.id);
     throwIfError(error, "Failed to count students");
-    cls.studentCount = count ?? 0;
+    withCounts.push({ ...cls, studentCount: count ?? 0 });
   }
-
-  return classes.sort((a, b) =>
-    `${a.name}-${a.section}`.localeCompare(`${b.name}-${b.section}`),
-  );
+  return withCounts;
 }
 
 /** Distinct class+subject pairs for a teacher (from teacher_classes only). */
@@ -232,7 +249,7 @@ export async function assertTeacherOwnsClass(
   teacherUserId: string,
   classId: string,
 ): Promise<void> {
-  const assigned = await listAssignedClassesForTeacher(ctx, teacherUserId);
+  const assigned = await gatherAssignedClasses(ctx, teacherUserId);
   if (!assigned.some((c) => c.id === classId)) {
     throw new TenantViolationError("Teacher is not assigned to this class");
   }

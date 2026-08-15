@@ -41,11 +41,20 @@ export default function TeachersAdmin() {
   };
   useEffect(() => { load(); }, []);
 
-  const persistAssignments = async (teacherId: string, classIds: string[], subject: string) => {
-    await supabase.from("teacher_classes").delete().eq("teacher_id", teacherId);
+  const persistAssignments = async (
+    teacherId: string,
+    classIds: string[],
+    subject: string,
+  ): Promise<{ ok: boolean; stage?: "delete" | "insert"; message?: string }> => {
+    const { error: delError } = await supabase.from("teacher_classes").delete().eq("teacher_id", teacherId);
+    if (delError) return { ok: false, stage: "delete", message: delError.message };
     if (classIds.length) {
-      await supabase.from("teacher_classes").insert(classIds.map(cid => ({ teacher_id: teacherId, class_id: cid, subject: subject || null })));
+      const { error: insError } = await supabase
+        .from("teacher_classes")
+        .insert(classIds.map(cid => ({ teacher_id: teacherId, class_id: cid, subject: subject || null })));
+      if (insError) return { ok: false, stage: "insert", message: insError.message };
     }
+    return { ok: true };
   };
 
   const add = async () => {
@@ -61,8 +70,16 @@ export default function TeachersAdmin() {
     };
     const { data: t, error } = await supabase.from("teachers").insert(payload).select().single();
     if (error) return toast.error(error.message);
-    await persistAssignments(t.id, teaching_class_ids, form.subject);
-    toast.success("Teacher added");
+    const assignResult = await persistAssignments(t.id, teaching_class_ids, form.subject);
+    if (!assignResult.ok) {
+      toast.error(
+        assignResult.stage === "insert"
+          ? `Teacher saved, but class assignments failed to save (${assignResult.message}). This teacher currently has NO class assignments — please reopen and try again.`
+          : `Teacher saved, but updating class assignments failed (${assignResult.message}). Please try again.`,
+      );
+    } else {
+      toast.success("Teacher added");
+    }
     setAddOpen(false); setForm({ ...EMPTY }); load();
   };
 
@@ -91,8 +108,16 @@ export default function TeachersAdmin() {
     };
     const { error } = await supabase.from("teachers").update(payload).eq("id", editTarget.id);
     if (error) return toast.error(error.message);
-    await persistAssignments(editTarget.id, teaching_class_ids, form.subject);
-    toast.success("Teacher updated");
+    const assignResult = await persistAssignments(editTarget.id, teaching_class_ids, form.subject);
+    if (!assignResult.ok) {
+      toast.error(
+        assignResult.stage === "insert"
+          ? `Teacher saved, but class assignments failed to save (${assignResult.message}). This teacher currently has NO class assignments — please reopen and try again.`
+          : `Teacher saved, but updating class assignments failed (${assignResult.message}). Please try again.`,
+      );
+    } else {
+      toast.success("Teacher updated");
+    }
     setEditOpen(false); setEditTarget(null); load();
   };
 

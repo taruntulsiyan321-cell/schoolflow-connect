@@ -622,7 +622,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                   </div>
                 )}
                 {messages.map((m) => {
-                  const isMine = m.senderId === user!.id;
+                  const isMine = !!user && m.senderId === user.id;
                   const deleted = Boolean(m.deletedAt);
                   const attachments = m.attachments ?? [];
                   return (

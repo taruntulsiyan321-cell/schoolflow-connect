@@ -27,17 +27,25 @@ function Field({
   editing,
   onChange,
   type = "text",
+  disabled = false,
+  disabledHint,
 }: {
   label: string;
   value: string;
   editing: boolean;
   onChange: (v: string) => void;
   type?: string;
+  /** True when this field cannot actually be saved right now (e.g. unlinked
+   * teacher record) — shown read-only with an explanation instead of
+   * silently accepting edits that will be dropped on save. */
+  disabled?: boolean;
+  disabledHint?: string;
 }) {
+  const isEditable = editing && !disabled;
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">{label}</label>
-      {editing ? (
+      {isEditable ? (
         <input
           type={type}
           value={value}
@@ -45,7 +53,12 @@ function Field({
           className="bg-white/5 border border-[#3b5bdb]/30 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/60 transition-all"
         />
       ) : (
-        <div className="text-sm text-white px-0.5">{value || <span className="text-[#46465a]">Not set</span>}</div>
+        <div className="text-sm text-white px-0.5" title={editing && disabled ? disabledHint : undefined}>
+          {value || <span className="text-[#46465a]">Not set</span>}
+          {editing && disabled && disabledHint && (
+            <span className="block text-[9px] text-[#f59e0b] mt-0.5 font-normal normal-case">{disabledHint}</span>
+          )}
+        </div>
       )}
     </div>
   );
@@ -241,6 +254,8 @@ export default function TeacherProfile() {
             editing={editing}
             onChange={(v) => d("email", v)}
             type="email"
+            disabled={!identity.teacherRowId}
+            disabledHint="Can't save — account isn't linked to a teacher record. Ask admin to link it."
           />
           <Field
             label="Phone Number"
@@ -255,6 +270,8 @@ export default function TeacherProfile() {
               value={editing ? draft.address : profile.address}
               editing={editing}
               onChange={(v) => d("address", v)}
+              disabled={!identity.teacherRowId}
+              disabledHint="Can't save — account isn't linked to a teacher record. Ask admin to link it."
             />
           </div>
         </div>
@@ -269,6 +286,8 @@ export default function TeacherProfile() {
             value={editing ? draft.qualification : profile.qualification}
             editing={editing}
             onChange={(v) => d("qualification", v)}
+            disabled={!identity.teacherRowId}
+            disabledHint="Can't save — account isn't linked to a teacher record. Ask admin to link it."
           />
           <Field label="Joined Date" value={profile.joinedDate || "—"} editing={false} onChange={() => {}} />
           <div className="col-span-2">

@@ -1,5 +1,5 @@
 import { validateAttendanceDate } from "../validation/rules";
-import { ValidationFailedError, TenantViolationError } from "./errors";
+import { AcademicRepositoryError, ValidationFailedError, TenantViolationError } from "./errors";
 import {
   getClient,
   schoolIdOf,
@@ -160,13 +160,66 @@ export async function upsertAttendance(
   return mapRow(data as AttendanceRow);
 }
 
+/**
+ * Bulk attendance upsert — one atomic server-side write for the whole batch
+ * via rpc_bulk_upsert_attendance (see the migration that adds it for the full
+ * rationale). A client-side validate-then-write approach was deliberately
+ * rejected here: it still leaves a race window between validating and
+ * writing, which does not satisfy this app's atomicity requirement for
+ * attendance. This function does not fall back to the old sequential
+ * single-row loop if the RPC is missing — that old behavior does not have
+ * the atomicity property either, so silently degrading to it would misrepresent
+ * this as fixed when the migration simply hasn't been applied to this
+ * environment yet.
+ */
 export async function bulkUpsertAttendance(
   ctx: RepoContext,
   rows: UpsertAttendanceInput[],
 ): Promise<AttendanceRecord[]> {
-  const out: AttendanceRecord[] = [];
+  const schoolId = schoolIdOf(ctx);
+
   for (const row of rows) {
-    out.push(await upsertAttendance(ctx, row));
+    const dateCheck = validateAttendanceDate(row.date);
+    if (!dateCheck.ok) throw new ValidationFailedError((dateCheck as { ok: false; issues: unknown[] }).issues as never);
+    if (!ATTENDANCE_STATUSES.includes(row.status)) {
+      throw new ValidationFailedError([
+        { field: "status", code: "invalid", message: "Attendance status must be present, absent, leave, late, or half_day" },
+      ]);
+    }
   }
-  return out;
+
+  const { data, error } = await getClient(ctx).rpc("rpc_bulk_upsert_attendance" as never, {
+    _rows: rows.map((r) => ({
+      student_id: r.studentId,
+      class_id: r.classId,
+      date: r.date,
+      status: r.status,
+    })),
+  } as never);
+
+  if (error) {
+    const msg = error.message || "";
+    if (/rpc_bulk_upsert_attendance|schema cache|function .* does not exist/i.test(msg)) {
+      throw new AcademicRepositoryError(
+        "db_error",
+        "Bulk attendance save requires a database migration that hasn't been applied to this environment yet " +
+          "(rpc_bulk_upsert_attendance — see supabase/migrations/20260808110000_atomic_bulk_attendance_upsert.sql).",
+      );
+    }
+    throwIfError(error, "Failed to save attendance");
+  }
+
+  // rpc_bulk_upsert_attendance re-validates and writes atomically but only
+  // returns a count, not the written rows (the fixed set of fields the caller
+  // already knows) — re-fetch is unnecessary since callers already have this
+  // shape locally; return it as confirmation of what was written.
+  return rows.map((r) => ({
+    id: "",
+    schoolId,
+    studentId: r.studentId,
+    classId: r.classId,
+    date: r.date,
+    status: r.status,
+    markedBy: ctx.userId ?? null,
+  }));
 }

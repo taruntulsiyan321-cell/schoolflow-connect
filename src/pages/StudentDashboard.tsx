@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
 import { PAGE_PATH, pathToPage, legacyClassesRedirectPath } from "@/gurukul/nav";
 import Layout from "@/gurukul/components/Layout";
@@ -150,10 +151,14 @@ export default function StudentDashboard() {
 
     // Accuracy SSOT: rpc_student_academic_snapshot.exam_readiness only.
     // Never average chart subjects (dual path that showed 100% with XP 0).
-    const [{ data: snap }, { data: charts }] = await Promise.all([
+    const [{ data: snap, error: snapError }, { data: charts, error: chartsError }] = await Promise.all([
       supabase.rpc("rpc_student_academic_snapshot"),
       supabase.rpc("rpc_student_performance_charts"),
     ]);
+    if (snapError || chartsError) {
+      console.warn("student dashboard snapshot/charts:", snapError?.message, chartsError?.message);
+      toast.error("Could not load your latest stats — showing what's cached.");
+    }
 
     type ChartRow = { weekly_activity?: { date: string; total: number }[] };
 

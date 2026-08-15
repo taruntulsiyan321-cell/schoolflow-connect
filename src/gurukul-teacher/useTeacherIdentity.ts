@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { TeacherProfile } from "./data";
@@ -148,12 +148,23 @@ export function useTeacherIdentity(): TeacherIdentity {
     void reload();
   }, [reload]);
 
-  return {
-    ...profile,
-    teacherRowId,
-    linked,
-    loading,
-    error,
-    reload,
-  };
+  // Stable reference unless one of these actually changes — without this, every
+  // consumer that puts this hook's return value in a useEffect/useMemo dependency
+  // array (e.g. Profile.tsx) gets a "new" identity object on every render even
+  // when nothing changed, since object-literal returns are never referentially
+  // equal across renders otherwise. That triggers an infinite render loop:
+  // effect sees a "new" identity -> setState -> re-render -> new identity object
+  // again -> effect fires again. Confirmed live (React's own "Maximum update
+  // depth exceeded" loop-detector was firing on the Teacher Profile page).
+  return useMemo(
+    () => ({
+      ...profile,
+      teacherRowId,
+      linked,
+      loading,
+      error,
+      reload,
+    }),
+    [profile, teacherRowId, linked, loading, error, reload],
+  );
 }

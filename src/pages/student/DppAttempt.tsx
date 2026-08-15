@@ -24,6 +24,15 @@ export default function DppAttempt() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const startRef = useRef<number>(Date.now());
+  /** Which test id we've already successfully started an attempt for in this
+   *  component's lifetime. This effect's deps include ctx/academicReady so it
+   *  can retry once a fallback-context load resolves to the real one — but
+   *  rpc_dpp_start is idempotent (upserts on (dpp_id, user_id)), so a second
+   *  full re-run after the first already succeeded isn't fixing anything; it
+   *  only re-flashes the loading skeleton and re-fetches responses, which can
+   *  clobber answers the student has changed locally since the first load
+   *  finished but before that edit's save round-trip lands. */
+  const startedForIdRef = useRef<string | null>(null);
 
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -34,6 +43,7 @@ export default function DppAttempt() {
 
   const load = async () => {
     if (!id || !user) return;
+    if (startedForIdRef.current === id) return;
     setLoading(true);
     setLoadError(null);
     try {
@@ -59,6 +69,7 @@ export default function DppAttempt() {
 
       const aid = await TestService.startAttempt(serviceCtx, id);
       setAttemptId(aid as string);
+      startedForIdRef.current = id;
 
       // Prefer server started_at for timed tests (survives reload)
       let startedMs = Date.now();

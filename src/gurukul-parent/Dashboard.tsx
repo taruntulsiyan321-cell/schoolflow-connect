@@ -76,8 +76,14 @@ export default function ParentDashboard({
   const { children: liveChildren, loading: childrenLoading, error: childrenError } = useParentLiveChildren();
   const liveChild = liveChildren.find((c) => c.id === activeChildId) ?? liveChildren[0];
   const attendanceId = liveChild?.id ?? null;
-  const { pct: attendancePct, present: presentDays, total: schoolDays, todayStatus } =
-    useChildAttendancePct(attendanceId);
+  const {
+    pct: attendancePct,
+    present: presentDays,
+    total: schoolDays,
+    todayStatus,
+    unavailable: attendanceUnavailable,
+    loading: attendanceLoading,
+  } = useChildAttendancePct(attendanceId);
   const [pendingHw, setPendingHw] = useState(0);
   const { unread: unreadNotifications } = useNotifications();
 
@@ -168,14 +174,22 @@ export default function ParentDashboard({
           <div
             className={cn(
               "text-xs font-bold px-3 py-1.5 rounded-xl capitalize",
-              todayStatus === "present" || todayStatus === "late"
-                ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
-                : todayStatus === "absent"
-                  ? "bg-[#cc5069]/15 text-[#cc5069]"
-                  : "bg-white/8 text-[#78788c]",
+              attendanceLoading || attendanceUnavailable
+                ? "bg-white/8 text-[#78788c]"
+                : todayStatus === "present" || todayStatus === "late"
+                  ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
+                  : todayStatus === "absent"
+                    ? "bg-[#cc5069]/15 text-[#cc5069]"
+                    : "bg-white/8 text-[#78788c]",
             )}
           >
-            {todayStatus ? `${todayStatus.replace("_", " ")} today` : "Not marked today"}
+            {attendanceLoading
+              ? "Loading…"
+              : attendanceUnavailable
+                ? "Status unavailable"
+                : todayStatus
+                  ? `${todayStatus.replace("_", " ")} today`
+                  : "Not marked today"}
           </div>
         </div>
       </div>
@@ -183,8 +197,14 @@ export default function ParentDashboard({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickStat
           label="Attendance"
-          value={`${attendancePct}%`}
-          sub={`${presentDays}/${schoolDays} days`}
+          value={attendanceLoading ? "…" : attendanceUnavailable ? "—" : `${attendancePct}%`}
+          sub={
+            attendanceLoading
+              ? "Loading…"
+              : attendanceUnavailable
+                ? "Unavailable — try again later"
+                : `${presentDays}/${schoolDays} days`
+          }
           color="#3b5bdb"
           icon={<UserCheck className="w-5 h-5" />}
         />

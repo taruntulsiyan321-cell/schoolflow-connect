@@ -139,6 +139,37 @@ export async function listSchoolAcademicProfiles(
   return (data ?? []).map((row) => mapProfile(row as ProfileRow));
 }
 
+export type SchoolRankingMetricColumn = "exams_avg_pct" | "attendance_pct";
+
+/**
+ * True school-wide top/bottom-N by a single metric, via ORDER BY + LIMIT
+ * directly against the metric being asked for. listSchoolAcademicProfiles
+ * above orders by exams_avg_pct only and pages — re-sorting that single,
+ * exam-sorted, size-capped page client-side for a different metric (e.g.
+ * attendance) silently misses any student whose true attendance extreme
+ * falls outside the exam-average-selected page. This issues one query per
+ * direction against the metric actually requested, so it stays correct
+ * regardless of school size.
+ */
+export async function listSchoolAcademicProfileExtremes(
+  ctx: RepoContext,
+  metric: SchoolRankingMetricColumn,
+  n = 5,
+): Promise<{ top: StudentAcademicProfile[]; bottom: StudentAcademicProfile[] }> {
+  const schoolId = schoolIdOf(ctx);
+  const client = getClient(ctx);
+  const [topRes, bottomRes] = await Promise.all([
+    client.from("student_academic_profiles").select("*").eq("school_id", schoolId).order(metric, { ascending: false }).limit(n),
+    client.from("student_academic_profiles").select("*").eq("school_id", schoolId).order(metric, { ascending: true }).limit(n),
+  ]);
+  throwIfError(topRes.error, "Failed to list top academic profiles");
+  throwIfError(bottomRes.error, "Failed to list bottom academic profiles");
+  return {
+    top: (topRes.data ?? []).map((row) => mapProfile(row as ProfileRow)),
+    bottom: (bottomRes.data ?? []).map((row) => mapProfile(row as ProfileRow)),
+  };
+}
+
 /** Ensure profile shell exists (SECURITY DEFINER RPC). */
 export async function ensureAcademicProfile(ctx: RepoContext, studentId: string): Promise<string> {
   const { data, error } = await getClient(ctx).rpc("ensure_student_academic_profile", {
