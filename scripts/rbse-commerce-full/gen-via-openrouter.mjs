@@ -367,7 +367,9 @@ Rules — follow exactly, these are non-negotiable:
 - Write every question, option, and explanation in the SAME language as the chapter name given to you (English chapter name -> English content; Hindi/Devanagari chapter name -> full Hindi content, verified spelling/matras). Do not switch language.
 - Do not include any text before or after the JSON array. The entire response must be valid JSON starting with [ and ending with ].`;
 
-async function generateChapter(subjectName, classLevel, chapter, count, existingItems = []) {
+const DEVANAGARI_RE = /[ऀ-ॿ]/;
+
+async function generateChapter(subjectKey, subjectName, classLevel, chapter, count, existingItems = []) {
   const topUp = existingItems.length > 0;
   const existingBlock = topUp
     ? `\n\nThis chapter ALREADY has ${existingItems.length} questions covering these concepts: ${[...new Set(existingItems.map((i) => i.concept))].join(", ")}.\nExisting question texts (do NOT repeat or closely rephrase any of these):\n${existingItems.map((i) => "- " + i.q).join("\n")}\n\nWrite ${count} MORE questions that either go deeper on an existing concept (different angle, different numbers/scenario) or cover a genuinely new sub-topic within this chapter not yet represented.`
@@ -397,6 +399,19 @@ Return the JSON array now.`;
       typeof item.concept !== "string"
     ) {
       throw new Error("Malformed question object: " + JSON.stringify(item).slice(0, 300));
+    }
+    // Language-purity gate: only the "hindi" subject may contain Devanagari.
+    // Every other Commerce subject in this seed is English-medium — a model
+    // that switches language mid-batch (seen from google/gemini-2.5-flash-lite)
+    // must have its WHOLE chapter response rejected, not silently kept.
+    if (subjectKey !== "hindi") {
+      const blob = item.q + " " + item.o.join(" ") + " " + item.e;
+      if (DEVANAGARI_RE.test(blob)) {
+        throw new Error(
+          "Language contamination: Devanagari text in a non-Hindi subject. Item: " +
+            JSON.stringify(item).slice(0, 200),
+        );
+      }
     }
   }
   return parsed;
@@ -439,6 +454,21 @@ async function main() {
       let existing = [];
       if (fs.existsSync(cacheFile)) {
         existing = JSON.parse(fs.readFileSync(cacheFile, "utf8")).items;
+        if (subjectKey !== "hindi") {
+          const before = existing.length;
+          existing = existing.filter(
+            (it) => !DEVANAGARI_RE.test(it.q + " " + it.o.join(" ") + " " + it.e),
+          );
+          const removed = before - existing.length;
+          if (removed > 0) {
+            console.log(`  [purged ${removed} pre-existing Devanagari-contaminated item(s) from cache — will regenerate]`);
+            fs.writeFileSync(
+              cacheFile,
+              JSON.stringify({ subject: subject.name, classLevel, chapter, items: existing }, null, 2),
+              "utf8",
+            );
+          }
+        }
       }
 
       let stalledRounds = 0;
@@ -460,7 +490,7 @@ async function main() {
           `[${chapterIdx}/${totalChapters}] ${classLevel} — ${chapter} (${existing.length}/${TARGET_PER_CHAPTER}, +${askFor}) ... `,
         );
         try {
-          const newItems = await generateChapter(subject.name, classLevel, chapter, askFor, existing);
+          const newItems = await generateChapter(subjectKey, subject.name, classLevel, chapter, askFor, existing);
           // De-dup against existing by exact question text before merging.
           const existingTexts = new Set(existing.map((i) => i.q.trim().toLowerCase()));
           const merged = [...existing];
