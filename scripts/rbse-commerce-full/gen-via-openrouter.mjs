@@ -453,6 +453,15 @@ Return the JSON array now.`;
             JSON.stringify(item).slice(0, 200),
         );
       }
+    } else {
+      // Inverse check: Hindi subject content must actually BE in Devanagari —
+      // catches the model silently falling back to English despite the
+      // language instruction, which would otherwise pass structural validation.
+      if (!DEVANAGARI_RE.test(item.q)) {
+        throw new Error(
+          "Hindi subject produced non-Devanagari question text: " + JSON.stringify(item).slice(0, 200),
+        );
+      }
     }
   }
   return parsed;

@@ -195,10 +195,31 @@ verdict is one of:
 
 No text before or after the JSON array.`;
 
-async function verifyChapterBatch(subjectName, classLevel, chapter, items) {
+const VERIFY_SYSTEM_HINDI = `You are an adversarial Hindi-language quality reviewer for an RBSE Hindi MCQ question bank (Devanagari script). You did NOT necessarily write these questions — review them with EXTRA linguistic scrutiny; do not assume they are correct merely because they look readable.
+
+For EACH question given (indexed 0, 1, 2, ...), independently verify, character by character where needed:
+1. LANGUAGE INTEGRITY — no corrupted characters, no missing characters, no incorrect Unicode, no mojibake (look specifically for patterns like "à¤" / "à¥" which indicate UTF-8-as-Latin1 corruption), no duplicated characters, no truncated words or sentences, no broken punctuation.
+2. MATRAS — every matra (मात्रा) present and correctly placed; no missing matra, no wrong matra, no misplaced matra.
+3. CONJUNCTS — every conjunct consonant (संयुक्ताक्षर) correctly formed, no broken half-letters.
+4. ANUSVARA / CHANDRABINDU / VISARGA / HALANT — all used correctly where grammatically required, none missing or misapplied.
+5. SPELLING — every word correctly spelled per standard Hindi orthography.
+6. GRAMMAR — sentence structure is grammatically valid Hindi; the question is genuinely comprehensible to a Class 11/12 RBSE student.
+7. MEANING — the question's meaning has not been altered or made ambiguous by any character/spelling error.
+8. ANSWER CORRECTNESS — exactly one option is unambiguously correct for the stated grammar rule (sandhi/samaas/vibhakti/kaal/etc.); the explanation genuinely justifies it.
+9. If the question concerns a specific literary work, poem, or author, do not invent or guess factual details you are not confident about.
+
+If ANY doubt exists about linguistic correctness — even if the question "looks readable" — treat it as REJECT. Do not approve based on probability ("this is probably the right spelling"). When in doubt, drop it.
+
+Output STRICT JSON ONLY — an array with one object per input question, in the same order, same length as input:
+[{"i": 0, "verdict": "ok"}, {"i": 1, "verdict": "wrong_answer", "correct_index": 2, "reason": "short reason"}, {"i": 2, "verdict": "drop", "reason": "short reason, e.g. missing matra in option 3"}, ...]
+
+No text before or after the JSON array.`;
+
+async function verifyChapterBatch(subjectKey, subjectName, classLevel, chapter, items) {
   const numbered = items.map((it, i) => ({ i, q: it.q, o: it.o, c: it.c, e: it.e }));
+  const system = subjectKey === "hindi" ? VERIFY_SYSTEM_HINDI : VERIFY_SYSTEM;
   const user = `Subject: ${subjectName}\nClass: ${classLevel}\nChapter: "${chapter}"\n\nVerify these ${items.length} questions:\n${JSON.stringify(numbered)}\n\nReturn the verdict JSON array now.`;
-  const raw = await callModel(VERIFY_SYSTEM, user);
+  const raw = await callModel(system, user);
   const parsed = extractJson(raw);
   if (!Array.isArray(parsed)) throw new Error("Verify response was not an array");
   return parsed;
@@ -258,7 +279,7 @@ async function main() {
         `  ${data.classLevel} — ${data.chapter} [${start + 1}-${start + chunk.length}/${items.length}] ... `,
       );
       try {
-        const verdicts = await verifyChapterBatch(data.subject, data.classLevel, data.chapter, chunk);
+        const verdicts = await verifyChapterBatch(subjectKey, data.subject, data.classLevel, data.chapter, chunk);
         const byIndex = new Map(verdicts.map((v) => [v.i, v]));
         let chunkDropped = 0;
         let chunkCorrected = 0;
