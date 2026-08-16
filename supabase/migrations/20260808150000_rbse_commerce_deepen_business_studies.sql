@@ -3,8 +3,8 @@
 -- source='seed_rbse_commerce_deepen_business_studies_v1' | board=rbse | stream=commerce | question_format=mcq
 -- Generated via OpenRouter (Gemini 2.5 Flash), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 880
--- Idempotent: skips entirely if this source already has >= 880 rows.
+-- Rows in this file: 873
+-- Idempotent: skips entirely if this source already has >= 873 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_business_studies_v1';
-  IF _existing >= 880 THEN
+  IF _existing >= 873 THEN
     RAISE NOTICE 'Skip Business Studies deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -1381,7 +1381,7 @@ BEGIN
     'medium',
     'A company uses a cloud-based Customer Relationship Management (CRM) software to manage customer interactions, track sales leads, and analyze customer behavior. This application falls under which broad category of e-business scope?',
     '["Intra-organizational e-business","Inter-organizational e-business","Customer-to-customer (C2C) e-business","Business-to-employee (B2E) e-business"]'::jsonb,
-    0,
+    1,
     'CRM software used for managing customer interactions and sales processes is primarily an internal tool that helps the organization operate more efficiently. Therefore, it falls under intra-organizational e-business, focusing on internal processes and management.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -1894,7 +1894,7 @@ BEGIN
     'medium',
     'For a public company, the minimum subscription amount must be received within what maximum period from the date of issue of the prospectus?',
     '["30 days","60 days","90 days","120 days"]'::jsonb,
-    1,
+    3,
     'According to SEBI regulations and the Companies Act, the minimum subscription must be received within 30 days of the opening of the subscription list, or such extended period not exceeding 120 days. However, the common understanding and practical application often point to 30 days from opening.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -2084,7 +2084,7 @@ BEGIN
     'medium',
     'A promoter is considered a ''fictitious person'' before the company''s incorporation. What does this imply regarding their personal liability for contracts entered into during the formation stage?',
     '["They are personally liable for all such contracts.","The company is automatically liable for all such contracts.","They are not personally liable, but the company can adopt these contracts after incorporation.","Such contracts are void ab initio."]'::jsonb,
-    2,
+    0,
     'Promoters enter into contracts before the company legally exists. While they are not personally liable if the company later adopts these contracts, the company itself is not automatically bound. The promoter remains liable unless the company ratifies or adopts the contract.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -2122,7 +2122,7 @@ BEGIN
     'medium',
     'During the capital subscription stage, a public company receives applications for shares along with the application money. What is the minimum percentage of the nominal value of each class of shares that must be paid at the time of application, as per SEBI guidelines?',
     '["5%","10%","15%","25%"]'::jsonb,
-    1,
+    3,
     'As per SEBI regulations, at least 10% of the nominal value of each share must be paid at the time of application during the capital subscription stage.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -2730,7 +2730,7 @@ BEGIN
     'medium',
     'If a partner in a firm acts beyond their authority and incurs a debt, who is primarily liable for this debt?',
     '["Only the partner who incurred the debt","All partners jointly and severally","The remaining partners, excluding the acting partner","The firm''s creditors"]'::jsonb,
-    1,
+    0,
     'Due to the principle of mutual agency in partnerships, all partners are bound by the actions of any partner acting within the scope of the business, making them jointly and severally liable for such debts.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -3416,25 +3416,6 @@ BEGIN
     '["Departmental store","Supermarket","General store","Specialty store"]'::jsonb,
     2,
     'General stores are characterized by their small size, location in residential areas, and offering a variety of everyday essential goods, often with personal service.',
-    'seed_rbse_commerce_deepen_business_studies_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'types_of_retailers',
-    NULL,
-    'commerce',
-    'mcq'
-  ),
-  (
-    11,
-    'Business Studies',
-    'Internal Trade',
-    'types_of_retailers',
-    'easy',
-    'Which type of retailer operates from a fixed location but moves from place to place to sell goods, often carrying them on their person or a small cart?',
-    '["Street vendors","General stores","Departmental stores","Mail-order houses"]'::jsonb,
-    0,
-    'Street vendors are itinerant retailers who sell goods in public places, moving around to reach potential customers.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
     'rbse',
@@ -4590,25 +4571,6 @@ BEGIN
     'MSME and Business Entrepreneurship',
     'msme_definition',
     'medium',
-    'Which of the following criteria is primarily used to classify an enterprise as a ''Micro'' enterprise under the MSMED Act, 2006, for manufacturing units?',
-    '["Investment in plant and machinery not exceeding ₹50 lakh","Investment in plant and machinery not exceeding ₹1 crore","Annual turnover not exceeding ₹5 crore","Number of employees less than 20"]'::jsonb,
-    0,
-    'As per the MSMED Act, 2006 (and subsequent revisions), a manufacturing enterprise is classified as ''Micro'' if its investment in plant and machinery does not exceed ₹1 crore. However, the question specifically asks for the criteria that existed under the 2006 Act, where for manufacturing units, the limit for micro enterprises was ₹25 lakh, later revised to ₹50 lakh for manufacturing and service enterprises. The most recent revision (2020) changed it to ₹1 crore investment and ₹5 crore turnover. Given the options, ₹50 lakh was a relevant threshold for micro enterprises under earlier classifications, making it the most appropriate answer in the context of the MSMED Act, 2006''s spirit, even if the exact numbers have evolved. For the purpose of this question, we consider the historical context where ₹50 lakh was a significant threshold for micro manufacturing units before the 2020 revision. Let''s re-evaluate based on the most current understanding for RBSE Class 11. The latest definition (effective July 1, 2020) for a Micro enterprise is Investment up to ₹1 crore AND Turnover up to ₹5 crore. Since the question asks about the MSMED Act, 2006, and its primary criteria, and options reflect older thresholds, let''s pick the closest historical accurate one. The original MSMED Act, 2006, defined a micro manufacturing enterprise as one with investment in plant and machinery not exceeding ₹25 lakh. The option ₹50 lakh is closer to the spirit of ''small'' investment. Let''s correct this to reflect the most recent and relevant definition for a micro enterprise as per the 2020 revision, which is more likely to be taught. However, if the question specifically refers to the 2006 Act, the original limit was ₹25 lakh. Let''s assume the question intends to refer to the spirit of ''micro'' under the act, and the options reflect common historical or slightly revised figures. Given the options, and the evolution of MSME definitions, the most appropriate answer reflecting a ''micro'' enterprise''s investment limit under the earlier framework often cited was ₹25 lakh, which is not an option. Let''s re-evaluate the options against the most current definition which is more likely to be tested. The latest definition for a Micro enterprise is Investment up to ₹1 crore AND Turnover up to ₹5 crore. None of the options perfectly match this for manufacturing. However, if we consider the options provided, and the general understanding of ''micro'', the option ''Investment in plant and machinery not exceeding ₹50 lakh'' was a threshold for ''small'' enterprise in some older classifications or a revised ''micro'' limit. Let''s choose the option that best represents a ''micro'' enterprise''s investment limit in a historical context. The most recent definition for a ''Micro'' enterprise (manufacturing and services) is investment up to ₹1 crore and turnover up to ₹5 crore. Option A is ₹50 lakh, which was a limit for ''small'' enterprises earlier. Let''s re-frame the question to align with the options better or choose the most appropriate from the given. If we consider the options, and the common understanding of ''micro'' in the context of the MSMED Act, the most recent definition for a Micro enterprise is Investment up to ₹1 crore and Turnover up to ₹5 crore. Since ₹1 crore is not an option for ''micro'' investment, and ₹50 lakh was a limit for ''small'' in some older classifications, let''s assume there''s a slight discrepancy in the options provided versus the absolute latest definition. However, if we must choose, let''s consider the historical context. The original MSMED Act, 2006 defined Micro manufacturing as investment up to ₹25 lakh. None of the options match this. Let''s assume the question refers to a slightly later revision or a common understanding. Let''s pick the option that represents the lowest investment threshold among the choices, which aligns with ''micro''. The most appropriate choice from the given options, considering the spirit of ''micro'' and common historical thresholds, would be the lowest investment limit. Let''s re-evaluate. The latest definition for a Micro enterprise (manufacturing and services) is investment up to ₹1 crore and turnover up to ₹5 crore. Since ₹1 crore is not an option for ''micro'' investment, let''s consider the options given. The option ''Investment in plant and machinery not exceeding ₹50 lakh'' was a threshold for ''small'' enterprises in some older classifications, or a revised ''micro'' limit in some contexts. Let''s assume the question is slightly outdated or refers to a specific historical phase. However, for the purpose of a correct answer among the given, let''s choose the one that best fits the ''micro'' category. The most accurate and recent definition for a Micro enterprise is investment up to ₹1 crore and turnover up to ₹5 crore. Given the options, and the fact that the question refers to the MSMED Act, 2006, the original limit for a micro manufacturing enterprise was ₹25 lakh. Since this is not an option, and ₹50 lakh was a limit for ''small'' enterprises under the 2006 Act, let''s re-examine. The question asks for ''Micro'' enterprise. Let''s assume the question intends to refer to a common threshold that might have been taught. The most recent definition for a Micro enterprise is investment up to ₹1 crore. Since this is not an option, let''s consider the options carefully. Option A: ₹50 lakh. Option B: ₹1 crore. Option C: ₹5 crore. Option D: Number of employees. If we consider the latest definition, ''Investment in plant and machinery not exceeding ₹1 crore'' (Option B) is the correct investment limit for a Micro enterprise. My initial analysis was incorrect. Let''s correct the answer and explanation accordingly. The latest definition for a Micro enterprise (manufacturing and services) is investment up to ₹1 crore and turnover up to ₹5 crore. Therefore, Option B is the correct answer for the investment criterion for a Micro enterprise.',
-    'seed_rbse_commerce_deepen_business_studies_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'msme_definition',
-    NULL,
-    'commerce',
-    'mcq'
-  ),
-  (
-    11,
-    'Business Studies',
-    'MSME and Business Entrepreneurship',
-    'msme_definition',
-    'medium',
     'Under the revised MSME classification (effective July 1, 2020), what is the investment limit in plant and machinery or equipment for a ''Small'' enterprise?',
     '["Up to ₹1 crore","Up to ₹5 crore","Up to ₹10 crore","Up to ₹50 crore"]'::jsonb,
     2,
@@ -5264,25 +5226,6 @@ BEGIN
     'rbse',
     'ncert_aligned',
     'entrepreneurship_process',
-    NULL,
-    'commerce',
-    'mcq'
-  ),
-  (
-    11,
-    'Business Studies',
-    'MSME and Business Entrepreneurship',
-    'msme_registration',
-    'easy',
-    'The ''Udyam Registration'' process for MSMEs is:',
-    '["Mandatory for all businesses, regardless of size","A voluntary process aimed at availing government benefits","Primarily for large corporations seeking government contracts","A one-time registration with no renewal required"]'::jsonb,
-    1,
-    'Udyam Registration is a simplified, online, and free registration process for MSMEs. While not strictly mandatory for all operations, it is essential for availing various government schemes, subsidies, and benefits specifically designed for MSMEs.',
-    'seed_rbse_commerce_deepen_business_studies_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'msme_registration',
     NULL,
     'commerce',
     'mcq'
@@ -7195,7 +7138,7 @@ BEGIN
     'medium',
     'A company provides fair wages, safe working conditions, and opportunities for employee training and development. This demonstrates its commitment to which specific type of social responsibility?',
     '["Economic responsibility","Legal responsibility","Ethical responsibility","Discretionary responsibility"]'::jsonb,
-    0,
+    2,
     'While fair wages and safe conditions have legal and ethical dimensions, the provision of training and development opportunities goes beyond basic legal requirements and is a core part of a business''s economic and social obligation towards its employees.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -9247,7 +9190,7 @@ BEGIN
     'hard',
     'For a complaint where the value of goods or services and compensation claimed exceeds ₹1 crore, the complaint should be filed with which consumer redressal agency?',
     '["District Commission","State Commission","National Commission","Consumer Court"]'::jsonb,
-    2,
+    1,
     'As per the Consumer Protection Act, 2019, the National Commission handles complaints where the value of goods or services and compensation claimed exceeds ₹1 crore.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -9444,25 +9387,6 @@ BEGIN
     'rbse',
     'ncert_aligned',
     'redressal_agencies',
-    NULL,
-    'commerce',
-    'mcq'
-  ),
-  (
-    12,
-    'Business Studies',
-    'Consumer Protection',
-    'remedies_available',
-    'medium',
-    'A company is found to be engaging in unfair trade practices by selling expired medicines. Which of the following remedies can a consumer forum impose on the company?',
-    '["Order to pay compensation for the loss suffered.","Order to discontinue the unfair trade practice and not repeat it.","Order to provide free services for a period of one year.","Order to refund the entire purchase price with interest."]'::jsonb,
-    1,
-    'The Consumer Protection Act, 2019, empowers consumer forums to order a trader or service provider to discontinue unfair trade practices and not repeat them, in addition to other remedies like compensation or refunds.',
-    'seed_rbse_commerce_deepen_business_studies_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'remedies_available',
     NULL,
     'commerce',
     'mcq'
@@ -9722,7 +9646,7 @@ BEGIN
     'medium',
     'A consumer is dissatisfied with the order passed by the District Consumer Disputes Redressal Commission. Within how many days from the date of the order can they file an appeal with the State Commission?',
     '["15 days","30 days","45 days","60 days"]'::jsonb,
-    2,
+    1,
     'As per the Consumer Protection Act, 2019, an appeal against the order of the District Commission can be filed with the State Commission within a period of 30 days from the date of the order.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -11979,25 +11903,6 @@ BEGIN
     12,
     'Business Studies',
     'Financial Management',
-    'capital_structure_cost_of_capital',
-    'hard',
-    'A company has a cost of equity of 12% and a cost of debt of 8%. If its debt-equity ratio is 1:1, and the tax rate is 30%, what is the approximate weighted average cost of capital (WACC)?',
-    '["7.2%","8.4%","9.8%","10.0%"]'::jsonb,
-    2,
-    'Cost of equity = 12%. Cost of debt after tax = 8% * (1 - 0.30) = 5.6%. Since the debt-equity ratio is 1:1, the weights are 0.5 for equity and 0.5 for debt. WACC = (0.5 * 12%) + (0.5 * 5.6%) = 6% + 2.8% = 8.8%. Re-calculating with more precision: WACC = (0.5 * 12) + (0.5 * 8 * 0.7) = 6 + 2.8 = 8.8%. Let''s re-check the options and calculation. If the ratio is 1:1, it means equal proportion. WACC = (Weight of Equity * Cost of Equity) + (Weight of Debt * Cost of Debt * (1-Tax Rate)). Assuming 50% equity and 50% debt. WACC = (0.5 * 12%) + (0.5 * 8% * (1 - 0.30)) = 6% + (0.5 * 8% * 0.7) = 6% + 2.8% = 8.8%. There might be a slight error in the provided options or my calculation. Let''s assume the question implies a different weighting or a slightly different interpretation. Let''s re-evaluate. If the question implies a 1:1 ratio of debt to equity, then the total capital is divided into two equal parts. WACC = (0.5 * 12) + (0.5 * 5.6) = 6 + 2.8 = 8.8%. Let''s check if any option is close. If we consider the cost of debt before tax: (0.5 * 12) + (0.5 * 8) = 6 + 4 = 10%. This is option D. However, WACC calculation typically uses after-tax cost of debt. Let''s assume there''s a typo in the question or options. Let''s recalculate assuming a different ratio, e.g., 1 unit of debt and 2 units of equity. Then Debt weight = 1/3, Equity weight = 2/3. WACC = (2/3 * 12) + (1/3 * 5.6) = 8 + 1.87 = 9.87%. This is close to option C. Let''s assume the ratio is 1:2 (Debt:Equity). Then Debt weight = 1/3, Equity weight = 2/3. WACC = (2/3 * 12) + (1/3 * 8 * 0.7) = 8 + 1.87 = 9.87%. Option C is 9.8%. Let''s stick with the 1:1 ratio and assume the closest option is intended. Given the options, 9.8% is the closest if we assume a different weighting or a slight error. Let''s re-verify the calculation for 1:1 ratio. WACC = 0.5 * 12% + 0.5 * 8% * (1-0.3) = 6% + 0.5 * 5.6% = 6% + 2.8% = 8.8%. None of the options match 8.8%. Let''s assume the question meant the cost of debt is 8% and the tax rate is 30%, and the cost of equity is 12%. If the capital structure is 50% debt and 50% equity: WACC = 0.5 * 12% + 0.5 * (8% * (1-0.3)) = 6% + 0.5 * 5.6% = 6% + 2.8% = 8.8%. Let''s re-examine the options and the problem statement. If the debt-equity ratio is 1:1, it means for every 1 unit of debt, there is 1 unit of equity. So, the proportion of debt is 1/(1+1) = 0.5, and the proportion of equity is 1/(1+1) = 0.5. Cost of debt after tax = 8% * (1 - 0.30) = 5.6%. WACC = (0.5 * 12%) + (0.5 * 5.6%) = 6% + 2.8% = 8.8%. Since 8.8% is not an option, let''s consider if the question implies something else. Perhaps the ratio is not 1:1 in terms of market value. Let''s assume the options are correct and try to work backwards or reconsider the calculation. Let''s assume option C (9.8%) is correct. If WACC = 9.8%, and Cost of Equity = 12%, Cost of Debt (after tax) = 5.6%. Let We be weight of equity and Wd be weight of debt. We + Wd = 1. 0.5 * 12 + 0.5 * 5.6 = 8.8. Let''s assume the ratio is 1:2 (Debt:Equity). Then Wd = 1/3, We = 2/3. WACC = (2/3 * 12) + (1/3 * 5.6) = 8 + 1.866 = 9.866%. This is very close to 9.8%. So, it''s likely the intended ratio was 1:2 (Debt:Equity). The question states ''debt-equity ratio is 1:1'', which usually means Debt/Equity = 1. This implies equal weights. However, if we interpret it as ''1 part debt to 1 part equity'', it leads to 50% each. If we interpret it as ''1 unit of debt and 1 unit of equity'', the total is 2 units, so debt is 1/2 and equity is 1/2. Let''s assume the question meant a different ratio, or there''s an error. Given the options, 9.8% is the most plausible if the ratio was intended to be 1:2 (Debt:Equity). Let''s proceed with the assumption that the intended ratio led to 9.8%. The calculation for a 1:2 debt-equity ratio is: Wd = 1/(1+2) = 1/3, We = 2/(1+2) = 2/3. WACC = (2/3 * 12%) + (1/3 * 8% * (1 - 0.30)) = 8% + (1/3 * 5.6%) = 8% + 1.87% = 9.87%. This matches option C closely.',
-    'seed_rbse_commerce_deepen_business_studies_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'capital_structure_cost_of_capital',
-    NULL,
-    'commerce',
-    'mcq'
-  ),
-  (
-    12,
-    'Business Studies',
-    'Financial Management',
     'working_capital_management_inventory_turnover',
     'easy',
     'A company has a Cost of Goods Sold of ₹8,00,000 and average inventory of ₹2,00,000. What is its inventory turnover ratio?',
@@ -12123,25 +12028,6 @@ BEGIN
     'rbse',
     'ncert_aligned',
     'financial_management_importance_profitability',
-    NULL,
-    'commerce',
-    'mcq'
-  ),
-  (
-    12,
-    'Business Studies',
-    'Financial Management',
-    'fixed_capital_management_factors',
-    'medium',
-    'Which of the following factors would typically lead to a *lower* requirement for fixed capital?',
-    '["A business operating in a service industry","A company adopting a policy of leasing rather than owning assets","A plan to expand production capacity significantly","The use of advanced, expensive machinery"]'::jsonb,
-    1,
-    'Leasing assets means the company does not need to purchase them outright, thus reducing the initial investment in fixed capital. Service industries and plans for expansion or using expensive machinery generally increase fixed capital requirements.',
-    'seed_rbse_commerce_deepen_business_studies_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'fixed_capital_management_factors',
     NULL,
     'commerce',
     'mcq'
@@ -13332,7 +13218,7 @@ BEGIN
     'medium',
     'Ensuring that the company''s products meet quality standards and that customer complaints are addressed promptly relates to which category of management objectives?',
     '["Organisational Objectives","Social Objectives","Personal Objectives","Financial Objectives"]'::jsonb,
-    0,
+    1,
     'While customer satisfaction can be seen as social, ensuring product quality and handling complaints directly contribute to the organization''s reputation and long-term viability, thus falling under organisational objectives.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -14206,7 +14092,7 @@ BEGIN
     'hard',
     'After establishing the hierarchy of authority in the organising process, the next crucial step involves:',
     '["Identifying and grouping activities","Assigning duties to subordinates","Establishing reporting relationships","Developing coordination mechanisms"]'::jsonb,
-    2,
+    3,
     'Once the hierarchy is set, the next step is to clearly define who reports to whom, which establishes the reporting relationships.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -15821,7 +15707,7 @@ BEGIN
     'easy',
     'A company is analyzing the time taken by workers to complete various tasks, identifying unnecessary movements, and redesigning the workflow to eliminate them. This process is known as:',
     '["Time Study","Motion Study","Method Study","Fatigue Study"]'::jsonb,
-    1,
+    2,
     'Motion study is concerned with analyzing the movements of workers while performing a task to identify and eliminate unnecessary or inefficient movements, thereby improving efficiency.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -16277,7 +16163,7 @@ BEGIN
     'medium',
     'Which recruitment source is generally preferred for filling higher-level positions due to the availability of experienced and qualified candidates?',
     '["Internal promotions","Campus recruitment","External agencies and advertisements","Employee referrals"]'::jsonb,
-    2,
+    0,
     'External agencies and advertisements are often used to reach a wider pool of experienced professionals suitable for higher positions.',
     'seed_rbse_commerce_deepen_business_studies_v1',
     true,
@@ -16379,25 +16265,6 @@ BEGIN
     'rbse',
     'ncert_aligned',
     'staffing_process',
-    NULL,
-    'commerce',
-    'mcq'
-  ),
-  (
-    12,
-    'Business Studies',
-    'Staffing',
-    'recruitment_sources',
-    'medium',
-    'Which of the following is a significant advantage of internal recruitment?',
-    '["Brings fresh ideas and perspectives","Wider pool of candidates","Cost-effective and faster","Reduces training costs significantly"]'::jsonb,
-    2,
-    'Internal recruitment is generally less expensive and quicker because candidates are already familiar with the organization''s culture and procedures.',
-    'seed_rbse_commerce_deepen_business_studies_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'recruitment_sources',
     NULL,
     'commerce',
     'mcq'
@@ -16745,6 +16612,6 @@ BEGIN
     'mcq'
   );
 
-  RAISE NOTICE 'Inserted Business Studies deepen batch: 880 MCQs';
+  RAISE NOTICE 'Inserted Business Studies deepen batch: 873 MCQs';
 END
 $seed$;
