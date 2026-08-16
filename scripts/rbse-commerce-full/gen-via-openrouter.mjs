@@ -19,8 +19,6 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, "../..");
 const CACHE_DIR = path.join(__dirname, ".gen-cache");
-const MODEL = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash";
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 function loadEnvLocal() {
   const p = path.join(ROOT, ".env.local");
@@ -35,7 +33,13 @@ function loadEnvLocal() {
     process.env[key] = val;
   }
 }
+// MUST run before MODEL is read below — a prior bug read process.env.OPENROUTER_MODEL
+// before .env.local was loaded, so it silently fell back to the hardcoded default
+// every time regardless of what .env.local said. Fixed by loading env first.
 loadEnvLocal();
+
+const MODEL = process.env.OPENROUTER_MODEL || "google/gemini-2.5-flash";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const API_KEY = process.env.OPENROUTER_API_KEY;
 if (!API_KEY) {
