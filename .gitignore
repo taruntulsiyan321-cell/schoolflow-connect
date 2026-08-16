@@ -19,6 +19,9 @@ supabase/.temp
 /test-results/
 /blob-report/
 
+# Generated question-bank content cache (intermediate; compiled migration is the real artifact)
+scripts/rbse-commerce-full/.gen-cache/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
