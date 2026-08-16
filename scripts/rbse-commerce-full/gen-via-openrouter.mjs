@@ -55,7 +55,9 @@ const SAFETY_MARGIN_USD = 0.2;
 
 class BudgetExceededError extends Error {}
 
-async function getRemoteUsageUsd() {
+let lastKnownUsage = null;
+
+async function getRemoteUsageUsdOnce() {
   const res = await fetch("https://openrouter.ai/api/v1/key", {
     headers: { Authorization: `Bearer ${API_KEY}` },
   });
@@ -64,6 +66,30 @@ async function getRemoteUsageUsd() {
   const usage = json?.data?.usage;
   if (typeof usage !== "number") throw new Error("Could not read usage from /key response");
   return usage;
+}
+
+/** Retries transient network failures (DNS blips, timeouts) a few times before
+ * falling back to the last known-good reading — a network hiccup during the
+ * budget check must never crash the whole run when there's real, safely-saved
+ * progress to protect. Only throws if we have NO prior reading to fall back on. */
+async function getRemoteUsageUsd() {
+  const delays = [1000, 3000, 6000];
+  let lastErr;
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      const usage = await getRemoteUsageUsdOnce();
+      lastKnownUsage = usage;
+      return usage;
+    } catch (e) {
+      lastErr = e;
+      if (attempt < delays.length) await new Promise((r) => setTimeout(r, delays[attempt]));
+    }
+  }
+  if (lastKnownUsage !== null) {
+    console.log(`\n[budget check network error, using last known usage $${lastKnownUsage.toFixed(4)}: ${lastErr.message}]`);
+    return lastKnownUsage;
+  }
+  throw lastErr;
 }
 
 async function assertBudgetOk() {
@@ -273,8 +299,23 @@ function slug(s) {
     .slice(0, 60);
 }
 
+/** Retries a raw network-level failure (DNS blip, connection reset) a couple
+ * times before giving up — an HTTP error response (4xx/5xx) is NOT retried
+ * here, it's returned normally so the caller's own round-retry logic handles it. */
+async function fetchWithNetworkRetry(url, options) {
+  const delays = [1000, 3000];
+  for (let attempt = 0; attempt <= delays.length; attempt++) {
+    try {
+      return await fetch(url, options);
+    } catch (e) {
+      if (attempt >= delays.length) throw e;
+      await new Promise((r) => setTimeout(r, delays[attempt]));
+    }
+  }
+}
+
 async function callGemini(system, user) {
-  const res = await fetch(OPENROUTER_URL, {
+  const res = await fetchWithNetworkRetry(OPENROUTER_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${API_KEY}`,
@@ -434,10 +475,18 @@ async function main() {
 
   console.log(`=== Generating ${subject.name} via ${MODEL} (target ${TARGET_PER_CHAPTER}/chapter) ===`);
 
-  const startBudget = await assertBudgetOk();
-  console.log(
-    `Budget: $${startBudget.usage.toFixed(4)} spent of $${BUDGET_LIMIT_USD.toFixed(2)} limit ($${startBudget.remaining.toFixed(4)} remaining, will stop with $${SAFETY_MARGIN_USD.toFixed(2)} margin left)`,
-  );
+  try {
+    const startBudget = await assertBudgetOk();
+    console.log(
+      `Budget: $${startBudget.usage.toFixed(4)} spent of $${BUDGET_LIMIT_USD.toFixed(2)} limit ($${startBudget.remaining.toFixed(4)} remaining, will stop with $${SAFETY_MARGIN_USD.toFixed(2)} margin left)`,
+    );
+  } catch (e) {
+    if (e instanceof BudgetExceededError) {
+      console.log(`\nBUDGET LIMIT ALREADY REACHED before starting: ${e.message}`);
+      return;
+    }
+    throw e;
+  }
 
   let chaptersAtTarget = 0;
   let chaptersBelowTarget = 0;
@@ -540,7 +589,27 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error("FATAL:", e);
-  process.exit(1);
-});
+/** main() is fully resumable (already-cached/at-target chapters are skipped),
+ * so an unattended run auto-restarts on any uncaught crash instead of just
+ * dying — a transient failure should cost a retry, not require someone to
+ * come back and re-run the command by hand. */
+async function runWithAutoRestart() {
+  const MAX_RESTARTS = 15;
+  for (let attempt = 1; attempt <= MAX_RESTARTS; attempt++) {
+    try {
+      await main();
+      return;
+    } catch (e) {
+      console.error(`\nCRASHED (attempt ${attempt}/${MAX_RESTARTS}): ${e.message}`);
+      if (attempt >= MAX_RESTARTS) {
+        console.error("Giving up after max restarts. Everything generated so far is saved — re-run manually to continue.");
+        process.exit(1);
+      }
+      const delay = Math.min(30000, 2000 * attempt);
+      console.error(`Restarting in ${delay / 1000}s...`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
+runWithAutoRestart();
