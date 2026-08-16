@@ -43,6 +43,37 @@ if (!API_KEY) {
   process.exit(1);
 }
 
+// ---- Hard budget guard — real, authoritative spend from OpenRouter itself,
+// not a local estimate. Checked before EVERY round; the whole run aborts
+// (not just skips) the instant remaining budget is inside the safety margin. ----
+const BUDGET_LIMIT_USD = Number(process.env.QB_BUDGET_LIMIT_USD || 3.0);
+const SAFETY_MARGIN_USD = 0.2;
+
+class BudgetExceededError extends Error {}
+
+async function getRemoteUsageUsd() {
+  const res = await fetch("https://openrouter.ai/api/v1/key", {
+    headers: { Authorization: `Bearer ${API_KEY}` },
+  });
+  if (!res.ok) throw new Error(`OpenRouter /key check failed: ${res.status}`);
+  const json = await res.json();
+  const usage = json?.data?.usage;
+  if (typeof usage !== "number") throw new Error("Could not read usage from /key response");
+  return usage;
+}
+
+async function assertBudgetOk() {
+  const usage = await getRemoteUsageUsd();
+  const remaining = BUDGET_LIMIT_USD - usage;
+  if (remaining <= SAFETY_MARGIN_USD) {
+    throw new BudgetExceededError(
+      `Budget guard tripped: $${usage.toFixed(4)} spent of $${BUDGET_LIMIT_USD.toFixed(2)} limit ` +
+        `(only $${remaining.toFixed(4)} remaining, safety margin is $${SAFETY_MARGIN_USD.toFixed(2)}). Stopping now.`,
+    );
+  }
+  return { usage, remaining };
+}
+
 // ---- Subject -> chapter list (Class 11 / 12), taken from src/academic/taxonomy/seeds/commerceRbse.ts ----
 const SUBJECTS = {
   accountancy: {
@@ -329,15 +360,20 @@ Rules — follow exactly, these are non-negotiable:
 - No duplicate or near-duplicate questions within your output.
 - "explanation" must genuinely justify why the marked answer is correct, not just restate the question.
 - Difficulty mix across your whole batch: roughly 30% easy, 45% medium, 25% hard.
-- Write every question, option, and explanation in ENGLISH ONLY (this matches the rest of the existing question bank for this subject) — regardless of the subject or chapter name, do not switch to Hindi or any other language.
+- Write every question, option, and explanation in the SAME language as the chapter name given to you (English chapter name -> English content; Hindi/Devanagari chapter name -> full Hindi content, verified spelling/matras). Do not switch language.
 - Do not include any text before or after the JSON array. The entire response must be valid JSON starting with [ and ending with ].`;
 
-async function generateChapter(subjectName, classLevel, chapter, count) {
+async function generateChapter(subjectName, classLevel, chapter, count, existingItems = []) {
+  const topUp = existingItems.length > 0;
+  const existingBlock = topUp
+    ? `\n\nThis chapter ALREADY has ${existingItems.length} questions covering these concepts: ${[...new Set(existingItems.map((i) => i.concept))].join(", ")}.\nExisting question texts (do NOT repeat or closely rephrase any of these):\n${existingItems.map((i) => "- " + i.q).join("\n")}\n\nWrite ${count} MORE questions that either go deeper on an existing concept (different angle, different numbers/scenario) or cover a genuinely new sub-topic within this chapter not yet represented.`
+    : `\n\nWrite ${count} original MCQ questions for this exact chapter, spread across 3-6 real sub-topics within it (put a genuine short topic identifier as the "concept" field, snake_case, e.g. "journal_entries", "depreciation_methods" — group multiple questions under the same concept slug when they share a sub-topic).`;
+
   const user = `Subject: ${subjectName}
 Class: ${classLevel} (RBSE Commerce stream)
-Chapter: "${chapter}"
+Chapter: "${chapter}"${existingBlock}
 
-Write ${count} original MCQ questions for this exact chapter, spread across 3-6 real sub-topics within it (put a genuine short topic identifier as the "concept" field, snake_case, e.g. "journal_entries", "depreciation_methods" — group multiple questions under the same concept slug when they share a sub-topic). Return the JSON array now.`;
+Return the JSON array now.`;
 
   const raw = await callGemini(SYSTEM_PROMPT, user);
   const parsed = extractJson(raw);
@@ -374,48 +410,99 @@ async function main() {
   const cacheSubjectDir = path.join(CACHE_DIR, subjectKey);
   fs.mkdirSync(cacheSubjectDir, { recursive: true });
 
-  console.log(`=== Generating ${subject.name} via ${MODEL} ===`);
+  const TARGET_PER_CHAPTER = Number(process.env.QB_TARGET_PER_CHAPTER || 40);
+  const ROUND_SIZE = 14;
 
-  const perChapterCount = 14;
-  let done = 0;
-  let failed = 0;
+  console.log(`=== Generating ${subject.name} via ${MODEL} (target ${TARGET_PER_CHAPTER}/chapter) ===`);
+
+  const startBudget = await assertBudgetOk();
+  console.log(
+    `Budget: $${startBudget.usage.toFixed(4)} spent of $${BUDGET_LIMIT_USD.toFixed(2)} limit ($${startBudget.remaining.toFixed(4)} remaining, will stop with $${SAFETY_MARGIN_USD.toFixed(2)} margin left)`,
+  );
+
+  let chaptersAtTarget = 0;
+  let chaptersBelowTarget = 0;
   const totalChapters =
     (subject.chapters[11]?.length || 0) + (subject.chapters[12]?.length || 0);
+  let chapterIdx = 0;
+  let budgetStopped = false;
 
-  for (const classLevel of [11, 12]) {
+  outer: for (const classLevel of [11, 12]) {
     const chapters = subject.chapters[classLevel] || [];
     for (const chapter of chapters) {
+      chapterIdx++;
       const cacheFile = path.join(cacheSubjectDir, `${classLevel}-${slug(chapter)}.json`);
+      let existing = [];
       if (fs.existsSync(cacheFile)) {
-        console.log(`[skip, cached] ${classLevel} — ${chapter}`);
-        done++;
-        continue;
+        existing = JSON.parse(fs.readFileSync(cacheFile, "utf8")).items;
       }
-      process.stdout.write(`[${done + failed + 1}/${totalChapters}] ${classLevel} — ${chapter} ... `);
-      try {
-        const items = await generateChapter(subject.name, classLevel, chapter, perChapterCount);
-        fs.writeFileSync(
-          cacheFile,
-          JSON.stringify({ subject: subject.name, classLevel, chapter, items }, null, 2),
-          "utf8",
+
+      let stalledRounds = 0;
+      while (existing.length < TARGET_PER_CHAPTER && stalledRounds < 3) {
+        try {
+          await assertBudgetOk();
+        } catch (e) {
+          if (e instanceof BudgetExceededError) {
+            console.log(`\nBUDGET LIMIT REACHED: ${e.message}`);
+            console.log("Stopping the whole run now. Everything generated so far is already saved to disk.");
+            budgetStopped = true;
+            break outer;
+          }
+          throw e;
+        }
+        const remaining = TARGET_PER_CHAPTER - existing.length;
+        const askFor = Math.min(ROUND_SIZE, remaining);
+        process.stdout.write(
+          `[${chapterIdx}/${totalChapters}] ${classLevel} — ${chapter} (${existing.length}/${TARGET_PER_CHAPTER}, +${askFor}) ... `,
         );
-        console.log(`OK (${items.length} questions, saved)`);
-        done++;
-      } catch (e) {
-        console.log(`FAILED: ${e.message}`);
-        failed++;
-        // Continue to next chapter rather than aborting the whole run —
-        // already-cached chapters stay saved; this one can be retried later.
+        try {
+          const newItems = await generateChapter(subject.name, classLevel, chapter, askFor, existing);
+          // De-dup against existing by exact question text before merging.
+          const existingTexts = new Set(existing.map((i) => i.q.trim().toLowerCase()));
+          const merged = [...existing];
+          let addedCount = 0;
+          for (const it of newItems) {
+            const key = it.q.trim().toLowerCase();
+            if (existingTexts.has(key)) continue;
+            existingTexts.add(key);
+            merged.push(it);
+            addedCount++;
+          }
+          existing = merged;
+          fs.writeFileSync(
+            cacheFile,
+            JSON.stringify({ subject: subject.name, classLevel, chapter, items: existing }, null, 2),
+            "utf8",
+          );
+          console.log(`OK (+${addedCount} new, ${existing.length}/${TARGET_PER_CHAPTER} total, saved)`);
+          if (addedCount === 0) stalledRounds++;
+          else stalledRounds = 0;
+        } catch (e) {
+          console.log(`round FAILED: ${e.message}`);
+          stalledRounds++;
+        }
+        await new Promise((r) => setTimeout(r, 500));
       }
-      // Small delay to be polite to the API between calls.
-      await new Promise((r) => setTimeout(r, 500));
+
+      if (existing.length >= TARGET_PER_CHAPTER) chaptersAtTarget++;
+      else {
+        chaptersBelowTarget++;
+        console.log(`  [chapter below target after retries: ${existing.length}/${TARGET_PER_CHAPTER} — will retry on next run]`);
+      }
     }
   }
 
-  console.log(`\n=== ${subject.name}: ${done}/${totalChapters} chapters cached, ${failed} failed ===`);
+  console.log(
+    `\n=== ${subject.name}: ${chaptersAtTarget}/${totalChapters} chapters at target, ${chaptersBelowTarget} below target ===`,
+  );
   console.log(`Cache dir: ${cacheSubjectDir}`);
-  if (failed > 0) {
-    console.log(`Re-run the same command to retry only the failed/missing chapters.`);
+  if (budgetStopped) {
+    const final = await getRemoteUsageUsd().catch(() => null);
+    console.log(
+      `\n*** RUN STOPPED EARLY — BUDGET LIMIT ***${final !== null ? ` ($${final.toFixed(4)} of $${BUDGET_LIMIT_USD.toFixed(2)} spent)` : ""}`,
+    );
+  } else if (chaptersBelowTarget > 0) {
+    console.log(`Re-run the same command to top up chapters still below target.`);
   }
 }
 
