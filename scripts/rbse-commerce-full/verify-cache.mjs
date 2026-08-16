@@ -177,7 +177,7 @@ function extractJson(text) {
   }
 }
 
-const VERIFY_SYSTEM = `You are an adversarial quality reviewer for an RBSE Commerce MCQ question bank. You did NOT necessarily write these questions — review them skeptically, do not assume they are correct.
+const VERIFY_SYSTEM = `You are an adversarial quality reviewer for an RBSE school MCQ question bank. You did NOT necessarily write these questions — review them skeptically, do not assume they are correct.
 
 For EACH question given (indexed 0, 1, 2, ...), independently verify:
 1. If it involves ANY calculation, formula, or numerical answer: re-solve it yourself from scratch, step by step, and compare to the marked correct option. Do not trust the given explanation's arithmetic — redo the math independently.
@@ -203,7 +203,7 @@ For EACH question given (indexed 0, 1, 2, ...), independently verify, character 
 3. CONJUNCTS — every conjunct consonant (संयुक्ताक्षर) correctly formed, no broken half-letters.
 4. ANUSVARA / CHANDRABINDU / VISARGA / HALANT — all used correctly where grammatically required, none missing or misapplied.
 5. SPELLING — every word correctly spelled per standard Hindi orthography.
-6. GRAMMAR — sentence structure is grammatically valid Hindi; the question is genuinely comprehensible to a Class 11/12 RBSE student.
+6. GRAMMAR — sentence structure is grammatically valid Hindi; the question is genuinely comprehensible to an RBSE student at the stated class level.
 7. MEANING — the question's meaning has not been altered or made ambiguous by any character/spelling error.
 8. ANSWER CORRECTNESS — exactly one option is unambiguously correct for the stated grammar rule (sandhi/samaas/vibhakti/kaal/etc.); the explanation genuinely justifies it.
 9. If the question concerns a specific literary work, poem, or author, do not invent or guess factual details you are not confident about.

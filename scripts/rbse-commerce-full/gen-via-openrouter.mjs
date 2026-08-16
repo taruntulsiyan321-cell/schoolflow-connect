@@ -108,6 +108,7 @@ async function assertBudgetOk() {
 const SUBJECTS = {
   accountancy: {
     name: "Accountancy",
+    stream: "commerce",
     chapters: {
       11: [
         "Introduction to Accounting",
@@ -136,6 +137,7 @@ const SUBJECTS = {
   },
   business_studies: {
     name: "Business Studies",
+    stream: "commerce",
     chapters: {
       11: [
         "Nature and Purpose of Business",
@@ -167,6 +169,7 @@ const SUBJECTS = {
   },
   economics: {
     name: "Economics",
+    stream: "commerce",
     chapters: {
       11: [
         "Indian Economy on the Eve of Independence",
@@ -203,6 +206,7 @@ const SUBJECTS = {
   },
   mathematics: {
     name: "Mathematics",
+    stream: "commerce",
     chapters: {
       11: [
         "Sets",
@@ -239,6 +243,7 @@ const SUBJECTS = {
   },
   english: {
     name: "English",
+    stream: "commerce",
     chapters: {
       11: [
         "Comprehension Skills",
@@ -260,6 +265,7 @@ const SUBJECTS = {
   },
   hindi: {
     name: "Hindi",
+    stream: "commerce",
     chapters: {
       11: [
         "व्याकरण - संधि",
@@ -286,6 +292,158 @@ const SUBJECTS = {
         "व्याकरण - वाच्य",
         "व्याकरण - वाक्य शुद्धि",
         "व्याकरण - वर्तनी",
+      ],
+    },
+  },
+  mathematics_9: {
+    name: "Mathematics",
+    stream: null,
+    chapters: {
+      9: [
+        "Number Systems",
+        "Polynomials",
+        "Coordinate Geometry",
+        "Linear Equations in Two Variables",
+        "Introduction to Euclid's Geometry",
+        "Lines and Angles",
+        "Triangles",
+        "Quadrilaterals",
+        "Areas of Parallelograms and Triangles",
+        "Circles",
+        "Constructions",
+        "Heron's Formula",
+        "Surface Areas and Volumes",
+        "Statistics",
+        "Probability",
+      ],
+    },
+  },
+  mathematics_10: {
+    name: "Mathematics",
+    stream: null,
+    chapters: {
+      10: [
+        "Real Numbers",
+        "Polynomials",
+        "Pair of Linear Equations in Two Variables",
+        "Quadratic Equations",
+        "Arithmetic Progressions",
+        "Triangles",
+        "Coordinate Geometry",
+        "Introduction to Trigonometry",
+        "Some Applications of Trigonometry",
+        "Circles",
+        "Areas Related to Circles",
+        "Surface Areas and Volumes",
+        "Statistics",
+        "Probability",
+      ],
+    },
+  },
+  science_9: {
+    name: "Science",
+    stream: null,
+    chapters: {
+      9: [
+        "Matter in Our Surroundings",
+        "Is Matter Around Us Pure",
+        "Atoms and Molecules",
+        "Structure of the Atom",
+        "The Fundamental Unit of Life",
+        "Tissues",
+        "Diversity in Living Organisms",
+        "Motion",
+        "Force and Laws of Motion",
+        "Gravitation",
+        "Work and Energy",
+        "Sound",
+        "Why Do We Fall Ill",
+        "Natural Resources",
+        "Improvement in Food Resources",
+      ],
+    },
+  },
+  science_10: {
+    name: "Science",
+    stream: null,
+    chapters: {
+      10: [
+        "Chemical Reactions and Equations",
+        "Acids, Bases and Salts",
+        "Metals and Non-metals",
+        "Carbon and its Compounds",
+        "Periodic Classification of Elements",
+        "Life Processes",
+        "Control and Coordination",
+        "How do Organisms Reproduce",
+        "Heredity and Evolution",
+        "Light - Reflection and Refraction",
+        "The Human Eye and the Colourful World",
+        "Electricity",
+        "Magnetic Effects of Electric Current",
+        "Sources of Energy",
+        "Our Environment",
+        "Management of Natural Resources",
+      ],
+    },
+  },
+  social_science_9: {
+    name: "Social Science",
+    stream: null,
+    chapters: {
+      9: [
+        "The French Revolution",
+        "Socialism in Europe and the Russian Revolution",
+        "Nazism and the Rise of Hitler",
+        "Forest Society and Colonialism",
+        "Pastoralists in the Modern World",
+        "India - Size and Location",
+        "Physical Features of India",
+        "Drainage",
+        "Climate",
+        "Natural Vegetation and Wildlife",
+        "Population",
+        "What is Democracy? Why Democracy?",
+        "Constitutional Design",
+        "Electoral Politics",
+        "Working of Institutions",
+        "Democratic Rights",
+        "The Story of Village Palampur",
+        "People as Resource",
+        "Poverty as a Challenge",
+        "Food Security in India",
+      ],
+    },
+  },
+  social_science_10: {
+    name: "Social Science",
+    stream: null,
+    chapters: {
+      10: [
+        "The Rise of Nationalism in Europe",
+        "Nationalism in India",
+        "The Making of a Global World",
+        "The Age of Industrialisation",
+        "Print Culture and the Modern World",
+        "Resources and Development",
+        "Forest and Wildlife Resources",
+        "Water Resources",
+        "Agriculture",
+        "Minerals and Energy Resources",
+        "Manufacturing Industries",
+        "Lifelines of National Economy",
+        "Power Sharing",
+        "Federalism",
+        "Democracy and Diversity",
+        "Gender, Religion and Caste",
+        "Popular Struggles and Movements",
+        "Political Parties",
+        "Outcomes of Democracy",
+        "Development",
+        "Sectors of the Indian Economy",
+        "Money and Credit",
+        "Globalisation and the Indian Economy",
+        "Consumer Rights",
       ],
     },
   },
@@ -393,7 +551,7 @@ function extractJson(text) {
   }
 }
 
-const SYSTEM_PROMPT = `You are a subject-matter expert writing an RBSE (Rajasthan Board) Class 11/12 Commerce MCQ question bank for a real school app called Gurukul. You write ORIGINAL questions inspired by standard NCERT/RBSE syllabus topics — you must NEVER reproduce actual NCERT textbook question text verbatim (copyright). Output STRICT JSON ONLY, no markdown, no commentary, no code fences — just a raw JSON array.
+const SYSTEM_PROMPT = `You are a subject-matter expert writing an RBSE (Rajasthan Board) school MCQ question bank for a real school app called Gurukul. You write ORIGINAL questions inspired by standard NCERT/RBSE syllabus topics — you must NEVER reproduce actual NCERT textbook question text verbatim (copyright). Output STRICT JSON ONLY, no markdown, no commentary, no code fences — just a raw JSON array.
 
 Every question object must have exactly these fields:
 {"concept": "short_snake_case_slug", "q": "question text", "o": ["option A","option B","option C","option D"], "c": 0, "e": "explanation text", "diff": "easy"|"medium"|"hard"}
@@ -410,14 +568,15 @@ Rules — follow exactly, these are non-negotiable:
 
 const DEVANAGARI_RE = /[ऀ-ॿ]/;
 
-async function generateChapter(subjectKey, subjectName, classLevel, chapter, count, existingItems = []) {
+async function generateChapter(subjectKey, subjectName, classLevel, chapter, count, existingItems = [], stream = null) {
   const topUp = existingItems.length > 0;
   const existingBlock = topUp
     ? `\n\nThis chapter ALREADY has ${existingItems.length} questions covering these concepts: ${[...new Set(existingItems.map((i) => i.concept))].join(", ")}.\nExisting question texts (do NOT repeat or closely rephrase any of these):\n${existingItems.map((i) => "- " + i.q).join("\n")}\n\nWrite ${count} MORE questions that either go deeper on an existing concept (different angle, different numbers/scenario) or cover a genuinely new sub-topic within this chapter not yet represented.`
     : `\n\nWrite ${count} original MCQ questions for this exact chapter, spread across 3-6 real sub-topics within it (put a genuine short topic identifier as the "concept" field, snake_case, e.g. "journal_entries", "depreciation_methods" — group multiple questions under the same concept slug when they share a sub-topic).`;
 
+  const streamLabel = stream ? ` (RBSE ${stream[0].toUpperCase()}${stream.slice(1)} stream)` : "";
   const user = `Subject: ${subjectName}
-Class: ${classLevel} (RBSE Commerce stream)
+Class: ${classLevel}${streamLabel}
 Chapter: "${chapter}"${existingBlock}
 
 Return the JSON array now.`;
@@ -502,12 +661,12 @@ async function main() {
 
   let chaptersAtTarget = 0;
   let chaptersBelowTarget = 0;
-  const totalChapters =
-    (subject.chapters[11]?.length || 0) + (subject.chapters[12]?.length || 0);
+  const classLevels = Object.keys(subject.chapters).map(Number).sort((a, b) => a - b);
+  const totalChapters = classLevels.reduce((sum, cl) => sum + (subject.chapters[cl]?.length || 0), 0);
   let budgetStopped = false;
 
   const jobs = [];
-  for (const classLevel of [11, 12]) {
+  for (const classLevel of classLevels) {
     for (const chapter of subject.chapters[classLevel] || []) jobs.push({ classLevel, chapter });
   }
   jobs.forEach((j, i) => (j.idx = i + 1));
@@ -529,7 +688,7 @@ async function main() {
         const removed = before - existing.length;
         if (removed > 0) {
           console.log(`  [purged ${removed} pre-existing Devanagari-contaminated item(s) from cache — will regenerate]`);
-          fs.writeFileSync(cacheFile, JSON.stringify({ subject: subject.name, classLevel, chapter, items: existing }, null, 2), "utf8");
+          fs.writeFileSync(cacheFile, JSON.stringify({ subject: subject.name, stream: subject.stream ?? null, classLevel, chapter, items: existing }, null, 2), "utf8");
         }
       }
     }
@@ -553,7 +712,7 @@ async function main() {
         `[${idx}/${totalChapters}] ${classLevel} — ${chapter} (${existing.length}/${TARGET_PER_CHAPTER}, +${askFor}) ... `,
       );
       try {
-        const newItems = await generateChapter(subjectKey, subject.name, classLevel, chapter, askFor, existing);
+        const newItems = await generateChapter(subjectKey, subject.name, classLevel, chapter, askFor, existing, subject.stream ?? null);
         // De-dup against existing by exact question text before merging.
         const existingTexts = new Set(existing.map((i) => i.q.trim().toLowerCase()));
         const merged = [...existing];
@@ -566,7 +725,7 @@ async function main() {
           addedCount++;
         }
         existing = merged;
-        fs.writeFileSync(cacheFile, JSON.stringify({ subject: subject.name, classLevel, chapter, items: existing }, null, 2), "utf8");
+        fs.writeFileSync(cacheFile, JSON.stringify({ subject: subject.name, stream: subject.stream ?? null, classLevel, chapter, items: existing }, null, 2), "utf8");
         console.log(`OK (+${addedCount} new, ${existing.length}/${TARGET_PER_CHAPTER} total, saved)`);
         if (addedCount === 0) stalledRounds++;
         else stalledRounds = 0;

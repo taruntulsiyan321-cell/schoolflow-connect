@@ -25,7 +25,7 @@ function optsJson(o) {
   return JSON.stringify(o).replace(/'/g, "''");
 }
 
-function emitRow(source, subject, classLevel, chapter, item) {
+function emitRow(source, subject, classLevel, chapter, item, stream) {
   const diff = item.diff || "medium";
   const concept = item.concept || null;
   return `  (
@@ -44,7 +44,7 @@ function emitRow(source, subject, classLevel, chapter, item) {
     'ncert_aligned',
     ${concept ? `'${esc(concept)}'` : "NULL"},
     NULL,
-    'commerce',
+    ${stream ? `'${esc(stream)}'` : "NULL"},
     'mcq'
   )`;
 }
@@ -72,23 +72,25 @@ function main() {
   const source = SOURCE_PREFIX + subjectKey + "_v1";
   const rows = [];
   let subjectName = null;
+  let stream = undefined;
   const chapterCounts = {};
 
   for (const f of files) {
     const data = JSON.parse(fs.readFileSync(path.join(cacheSubjectDir, f), "utf8"));
     subjectName = data.subject;
+    if (stream === undefined) stream = data.stream ?? null;
     const key = `${data.classLevel} — ${data.chapter}`;
     chapterCounts[key] = (chapterCounts[key] || 0) + data.items.length;
     for (const item of data.items) {
-      rows.push(emitRow(source, data.subject, data.classLevel, data.chapter, item));
+      rows.push(emitRow(source, data.subject, data.classLevel, data.chapter, item, stream));
     }
   }
 
   const values = rows.join(",\n");
   const sql = `-- ============================================================================
--- RBSE Commerce deepening batch — ${subjectName}
--- source='${source}' | board=rbse | stream=commerce | question_format=mcq
--- Generated via OpenRouter (Gemini 2.5 Flash), cached per-chapter, compiled by
+-- RBSE question bank batch — ${subjectName}
+-- source='${source}' | board=rbse | stream=${stream || "(none)"} | question_format=mcq
+-- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
 -- Rows in this file: ${rows.length}
 -- Idempotent: skips entirely if this source already has >= ${rows.length} rows.
