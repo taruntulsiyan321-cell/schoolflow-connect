@@ -480,7 +480,10 @@ async function main() {
   fs.mkdirSync(cacheSubjectDir, { recursive: true });
 
   const TARGET_PER_CHAPTER = Number(process.env.QB_TARGET_PER_CHAPTER || 40);
-  const ROUND_SIZE = 14;
+  // Smaller batches per call = shorter JSON responses = fewer malformed-JSON
+  // retries (Mathematics specifically was failing ~50% of rounds at 14/call,
+  // likely from notation-heavy content tripping up JSON string escaping).
+  const ROUND_SIZE = Number(process.env.QB_ROUND_SIZE || 10);
 
   console.log(`=== Generating ${subject.name} via ${MODEL} (target ${TARGET_PER_CHAPTER}/chapter) ===`);
 
@@ -501,88 +504,98 @@ async function main() {
   let chaptersBelowTarget = 0;
   const totalChapters =
     (subject.chapters[11]?.length || 0) + (subject.chapters[12]?.length || 0);
-  let chapterIdx = 0;
   let budgetStopped = false;
 
-  outer: for (const classLevel of [11, 12]) {
-    const chapters = subject.chapters[classLevel] || [];
-    for (const chapter of chapters) {
-      chapterIdx++;
-      const cacheFile = path.join(cacheSubjectDir, `${classLevel}-${slug(chapter)}.json`);
-      let existing = [];
-      if (fs.existsSync(cacheFile)) {
-        existing = JSON.parse(fs.readFileSync(cacheFile, "utf8")).items;
-        if (subjectKey !== "hindi") {
-          const before = existing.length;
-          existing = existing.filter(
-            (it) => !DEVANAGARI_RE.test(it.q + " " + it.o.join(" ") + " " + it.e),
-          );
-          const removed = before - existing.length;
-          if (removed > 0) {
-            console.log(`  [purged ${removed} pre-existing Devanagari-contaminated item(s) from cache — will regenerate]`);
-            fs.writeFileSync(
-              cacheFile,
-              JSON.stringify({ subject: subject.name, classLevel, chapter, items: existing }, null, 2),
-              "utf8",
-            );
-          }
-        }
-      }
+  const jobs = [];
+  for (const classLevel of [11, 12]) {
+    for (const chapter of subject.chapters[classLevel] || []) jobs.push({ classLevel, chapter });
+  }
+  jobs.forEach((j, i) => (j.idx = i + 1));
 
-      let stalledRounds = 0;
-      while (existing.length < TARGET_PER_CHAPTER && stalledRounds < 3) {
-        try {
-          await assertBudgetOk();
-        } catch (e) {
-          if (e instanceof BudgetExceededError) {
-            console.log(`\nBUDGET LIMIT REACHED: ${e.message}`);
-            console.log("Stopping the whole run now. Everything generated so far is already saved to disk.");
-            budgetStopped = true;
-            break outer;
-          }
-          throw e;
+  /** Process one chapter to target, fully self-contained (own cache file,
+   * own round loop) — safe to run several of these concurrently since each
+   * touches a different file and the only shared state (budgetStopped) is
+   * a plain boolean checked/set between awaits, which is race-free in JS's
+   * single-threaded event loop. */
+  async function processChapter({ classLevel, chapter, idx }) {
+    if (budgetStopped) return;
+    const cacheFile = path.join(cacheSubjectDir, `${classLevel}-${slug(chapter)}.json`);
+    let existing = [];
+    if (fs.existsSync(cacheFile)) {
+      existing = JSON.parse(fs.readFileSync(cacheFile, "utf8")).items;
+      if (subjectKey !== "hindi") {
+        const before = existing.length;
+        existing = existing.filter((it) => !DEVANAGARI_RE.test(it.q + " " + it.o.join(" ") + " " + it.e));
+        const removed = before - existing.length;
+        if (removed > 0) {
+          console.log(`  [purged ${removed} pre-existing Devanagari-contaminated item(s) from cache — will regenerate]`);
+          fs.writeFileSync(cacheFile, JSON.stringify({ subject: subject.name, classLevel, chapter, items: existing }, null, 2), "utf8");
         }
-        const remaining = TARGET_PER_CHAPTER - existing.length;
-        const askFor = Math.min(ROUND_SIZE, remaining);
-        process.stdout.write(
-          `[${chapterIdx}/${totalChapters}] ${classLevel} — ${chapter} (${existing.length}/${TARGET_PER_CHAPTER}, +${askFor}) ... `,
-        );
-        try {
-          const newItems = await generateChapter(subjectKey, subject.name, classLevel, chapter, askFor, existing);
-          // De-dup against existing by exact question text before merging.
-          const existingTexts = new Set(existing.map((i) => i.q.trim().toLowerCase()));
-          const merged = [...existing];
-          let addedCount = 0;
-          for (const it of newItems) {
-            const key = it.q.trim().toLowerCase();
-            if (existingTexts.has(key)) continue;
-            existingTexts.add(key);
-            merged.push(it);
-            addedCount++;
-          }
-          existing = merged;
-          fs.writeFileSync(
-            cacheFile,
-            JSON.stringify({ subject: subject.name, classLevel, chapter, items: existing }, null, 2),
-            "utf8",
-          );
-          console.log(`OK (+${addedCount} new, ${existing.length}/${TARGET_PER_CHAPTER} total, saved)`);
-          if (addedCount === 0) stalledRounds++;
-          else stalledRounds = 0;
-        } catch (e) {
-          console.log(`round FAILED: ${e.message}`);
-          stalledRounds++;
-        }
-        await new Promise((r) => setTimeout(r, 500));
-      }
-
-      if (existing.length >= TARGET_PER_CHAPTER) chaptersAtTarget++;
-      else {
-        chaptersBelowTarget++;
-        console.log(`  [chapter below target after retries: ${existing.length}/${TARGET_PER_CHAPTER} — will retry on next run]`);
       }
     }
+
+    let stalledRounds = 0;
+    while (existing.length < TARGET_PER_CHAPTER && stalledRounds < 3 && !budgetStopped) {
+      try {
+        await assertBudgetOk();
+      } catch (e) {
+        if (e instanceof BudgetExceededError) {
+          console.log(`\nBUDGET LIMIT REACHED: ${e.message}`);
+          console.log("Stopping the whole run now. Everything generated so far is already saved to disk.");
+          budgetStopped = true;
+          return;
+        }
+        throw e;
+      }
+      const remaining = TARGET_PER_CHAPTER - existing.length;
+      const askFor = Math.min(ROUND_SIZE, remaining);
+      process.stdout.write(
+        `[${idx}/${totalChapters}] ${classLevel} — ${chapter} (${existing.length}/${TARGET_PER_CHAPTER}, +${askFor}) ... `,
+      );
+      try {
+        const newItems = await generateChapter(subjectKey, subject.name, classLevel, chapter, askFor, existing);
+        // De-dup against existing by exact question text before merging.
+        const existingTexts = new Set(existing.map((i) => i.q.trim().toLowerCase()));
+        const merged = [...existing];
+        let addedCount = 0;
+        for (const it of newItems) {
+          const key = it.q.trim().toLowerCase();
+          if (existingTexts.has(key)) continue;
+          existingTexts.add(key);
+          merged.push(it);
+          addedCount++;
+        }
+        existing = merged;
+        fs.writeFileSync(cacheFile, JSON.stringify({ subject: subject.name, classLevel, chapter, items: existing }, null, 2), "utf8");
+        console.log(`OK (+${addedCount} new, ${existing.length}/${TARGET_PER_CHAPTER} total, saved)`);
+        if (addedCount === 0) stalledRounds++;
+        else stalledRounds = 0;
+      } catch (e) {
+        console.log(`round FAILED: ${e.message}`);
+        stalledRounds++;
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    if (existing.length >= TARGET_PER_CHAPTER) chaptersAtTarget++;
+    else if (!budgetStopped) {
+      chaptersBelowTarget++;
+      console.log(`  [chapter below target after retries: ${existing.length}/${TARGET_PER_CHAPTER} — will retry on next run]`);
+    }
   }
+
+  // Concurrency-limited worker pool: several chapters generate at once
+  // (independent API calls, independent cache files) instead of strictly
+  // one at a time — same per-question rigor, more wall-clock throughput.
+  const CONCURRENCY = Number(process.env.QB_CONCURRENCY || 3);
+  let nextJob = 0;
+  async function worker() {
+    while (nextJob < jobs.length && !budgetStopped) {
+      const job = jobs[nextJob++];
+      await processChapter(job);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, jobs.length) }, () => worker()));
 
   console.log(
     `\n=== ${subject.name}: ${chaptersAtTarget}/${totalChapters} chapters at target, ${chaptersBelowTarget} below target ===`,
