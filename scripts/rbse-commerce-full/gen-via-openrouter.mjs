@@ -447,6 +447,83 @@ const SUBJECTS = {
       ],
     },
   },
+  english_9: {
+    name: "English",
+    stream: null,
+    chapters: {
+      9: [
+        "Grammar - Tenses",
+        "Grammar - Modals",
+        "Grammar - Determiners",
+        "Grammar - Subject-Verb Agreement",
+        "Grammar - Prepositions",
+        "Grammar - Articles",
+        "Grammar - Reported Speech",
+        "Grammar - Active and Passive Voice",
+        "Grammar - Clauses",
+        "Vocabulary",
+        "Comprehension Skills",
+      ],
+    },
+  },
+  english_10: {
+    name: "English",
+    stream: null,
+    chapters: {
+      10: [
+        "Grammar - Tenses",
+        "Grammar - Modals",
+        "Grammar - Determiners",
+        "Grammar - Subject-Verb Agreement",
+        "Grammar - Reported Speech",
+        "Grammar - Active and Passive Voice",
+        "Grammar - Clauses",
+        "Grammar - Gap Filling and Editing",
+        "Grammar - Sentence Reordering",
+        "Vocabulary",
+        "Comprehension Skills",
+      ],
+    },
+  },
+  hindi_9: {
+    name: "Hindi",
+    stream: null,
+    chapters: {
+      9: [
+        "व्याकरण - संधि",
+        "व्याकरण - समास",
+        "व्याकरण - उपसर्ग",
+        "व्याकरण - प्रत्यय",
+        "व्याकरण - पर्यायवाची",
+        "व्याकरण - विलोम",
+        "व्याकरण - मुहावरा",
+        "व्याकरण - काल",
+        "व्याकरण - वाक्य",
+        "व्याकरण - वर्तनी",
+        "व्याकरण - अनेकार्थी शब्द",
+      ],
+    },
+  },
+  hindi_10: {
+    name: "Hindi",
+    stream: null,
+    chapters: {
+      10: [
+        "व्याकरण - संधि",
+        "व्याकरण - समास",
+        "व्याकरण - उपसर्ग",
+        "व्याकरण - प्रत्यय",
+        "व्याकरण - पर्यायवाची",
+        "व्याकरण - विलोम",
+        "व्याकरण - मुहावरा",
+        "व्याकरण - काल",
+        "व्याकरण - वाक्य",
+        "व्याकरण - वर्तनी",
+        "व्याकरण - रस",
+        "व्याकरण - अलंकार",
+      ],
+    },
+  },
 };
 
 function slug(s) {
