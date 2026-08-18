@@ -3,8 +3,8 @@
 -- source='seed_rbse_commerce_deepen_hindi_v1' | board=rbse | stream=(none) | question_format=mcq
 -- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 652
--- Idempotent: skips entirely if this source already has >= 652 rows.
+-- Rows in this file: 651
+-- Idempotent: skips entirely if this source already has >= 651 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_hindi_v1';
-  IF _existing >= 652 THEN
+  IF _existing >= 651 THEN
     RAISE NOTICE 'Skip Hindi deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -4713,25 +4713,6 @@ BEGIN
     'rbse',
     'ncert_aligned',
     'yan_sandhi_ia',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    11,
-    'Hindi',
-    'व्याकरण - संधि',
-    'guna_sandhi_uo',
-    'medium',
-    'उ + ओ का संयोग किस स्वर का निर्माण करता है?',
-    '["ओ","औ","उ","ऋ"]'::jsonb,
-    -1,
-    'गुण संधि के नियम के अनुसार, उ और ओ का मिलन औ स्वर उत्पन्न करता है।',
-    'seed_rbse_commerce_deepen_hindi_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'guna_sandhi_uo',
     NULL,
     NULL,
     'mcq'
