@@ -3,8 +3,8 @@
 -- source='seed_rbse_commerce_deepen_hindi_9_v1' | board=rbse | stream=(none) | question_format=mcq
 -- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 306
--- Idempotent: skips entirely if this source already has >= 306 rows.
+-- Rows in this file: 305
+-- Idempotent: skips entirely if this source already has >= 305 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_hindi_9_v1';
-  IF _existing >= 306 THEN
+  IF _existing >= 305 THEN
     RAISE NOTICE 'Skip Hindi deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -3486,25 +3486,6 @@ BEGIN
     9,
     'Hindi',
     'व्याकरण - वर्तनी',
-    'conjunct_ksh_spelling',
-    'easy',
-    'निम्नलिखित में से कौन सा शब्द में संयुक्ताक्षर ''क्ष'' की वर्तनी सही है?',
-    '["क्षेत्र","क्षेत्‍र","क्षेत्र","खेत्र"]'::jsonb,
-    0,
-    'क्ष संयुक्ताक्षर क + ष से बनता है, उसके बाद मात्रा े और conjunct त्र लगाकर शब्द क्षेत्र बनता है। अन्य विकल्पों में हलंत की गलत स्थिति या मात्रा की कमी के कारण वर्तनी अशुद्ध है।',
-    'seed_rbse_commerce_deepen_hindi_9_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'conjunct_ksh_spelling',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    9,
-    'Hindi',
-    'व्याकरण - वर्तनी',
     'avagraha_usage',
     'medium',
     'निम्नलिखित में से कौन सा शब्द अवग्रह (ऽ) के सही उपयोग को दर्शाता है?',
@@ -5839,6 +5820,6 @@ BEGIN
     'mcq'
   );
 
-  RAISE NOTICE 'Inserted Hindi deepen batch: 306 MCQs';
+  RAISE NOTICE 'Inserted Hindi deepen batch: 305 MCQs';
 END
 $seed$;

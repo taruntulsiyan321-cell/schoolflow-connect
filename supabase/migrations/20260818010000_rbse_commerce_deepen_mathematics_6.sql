@@ -3,8 +3,8 @@
 -- source='seed_rbse_commerce_deepen_mathematics_6_v1' | board=rbse | stream=(none) | question_format=mcq
 -- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 393
--- Idempotent: skips entirely if this source already has >= 393 rows.
+-- Rows in this file: 392
+-- Idempotent: skips entirely if this source already has >= 392 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_mathematics_6_v1';
-  IF _existing >= 393 THEN
+  IF _existing >= 392 THEN
     RAISE NOTICE 'Skip Mathematics deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -3792,25 +3792,6 @@ Yes, the answer is 8.05. I will proceed with this.',
     6,
     'Mathematics',
     'Knowing Our Numbers',
-    'using_commas_and_number_names',
-    'medium',
-    'Insert commas and write the number 987654321 according to the Indian system of numeration.',
-    '["98,76,54,321 - Ninety-eight crore seventy-six lakh fifty-four thousand three hundred twenty-one","987,654,321 - Nine hundred eighty-seven million six hundred fifty-four thousand three hundred twenty-one","9,87,65,43,21 - Nine arab eighty-seven crore sixty-five lakh forty-three thousand two hundred ten","98,76,54,321 - Ninety-eight crore seventy-six lakh fifty-four thousand three hundred twenty-one"]'::jsonb,
-    0,
-    'In the Indian system, commas are placed after every three digits from the right, then after every two digits. The number is 98,76,54,321, which is read as Ninety-eight crore seventy-six lakh fifty-four thousand three hundred twenty-one.',
-    'seed_rbse_commerce_deepen_mathematics_6_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'using_commas_and_number_names',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    6,
-    'Mathematics',
-    'Knowing Our Numbers',
     'large_numbers_in_context',
     'easy',
     'The distance from Earth to the Sun is approximately 150 million kilometers. How is this number written using digits in the international system?',
@@ -7554,6 +7535,6 @@ Yes, the answer is 8.05. I will proceed with this.',
     'mcq'
   );
 
-  RAISE NOTICE 'Inserted Mathematics deepen batch: 393 MCQs';
+  RAISE NOTICE 'Inserted Mathematics deepen batch: 392 MCQs';
 END
 $seed$;

@@ -3,8 +3,8 @@
 -- source='seed_rbse_commerce_deepen_hindi_10_v1' | board=rbse | stream=(none) | question_format=mcq
 -- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 455
--- Idempotent: skips entirely if this source already has >= 455 rows.
+-- Rows in this file: 454
+-- Idempotent: skips entirely if this source already has >= 454 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_hindi_10_v1';
-  IF _existing >= 455 THEN
+  IF _existing >= 454 THEN
     RAISE NOTICE 'Skip Hindi deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -5101,25 +5101,6 @@ BEGIN
     10,
     'Hindi',
     'व्याकरण - वर्तनी',
-    'conjunct_consonants',
-    'hard',
-    'निम्नलिखित में कौन‑सा शब्द संयुक्ताक्षर ''ज्ञ'' का सही प्रयोग दर्शाता है?',
-    '["ज्ञान","ज्ञान","ज्ञ‍ान","ज्ञाना"]'::jsonb,
-    0,
-    'conjunct ज्ञ (ज् + ञ) का सही रूप ज्ञान में है; विकल्प B में अनावश्यक हलंत, C में vowel sign की गलत स्थिति, D में अतिरिक्त आ।',
-    'seed_rbse_commerce_deepen_hindi_10_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'conjunct_consonants',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    10,
-    'Hindi',
-    'व्याकरण - वर्तनी',
     'matra_use',
     'easy',
     'शब्द ''काट'' (काटना) की सही वर्तनी कौन‑सी है?',
@@ -8670,6 +8651,6 @@ BEGIN
     'mcq'
   );
 
-  RAISE NOTICE 'Inserted Hindi deepen batch: 455 MCQs';
+  RAISE NOTICE 'Inserted Hindi deepen batch: 454 MCQs';
 END
 $seed$;

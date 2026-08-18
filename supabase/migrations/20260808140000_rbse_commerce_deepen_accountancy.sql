@@ -1,10 +1,10 @@
 -- ============================================================================
--- RBSE Commerce deepening batch — Accountancy
--- source='seed_rbse_commerce_deepen_accountancy_v1' | board=rbse | stream=commerce | question_format=mcq
--- Generated via OpenRouter (Gemini 2.5 Flash), cached per-chapter, compiled by
+-- RBSE question bank batch — Accountancy
+-- source='seed_rbse_commerce_deepen_accountancy_v1' | board=rbse | stream=(none) | question_format=mcq
+-- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 735
--- Idempotent: skips entirely if this source already has >= 735 rows.
+-- Rows in this file: 734
+-- Idempotent: skips entirely if this source already has >= 734 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_accountancy_v1';
-  IF _existing >= 735 THEN
+  IF _existing >= 734 THEN
     RAISE NOTICE 'Skip Accountancy deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -40,7 +40,7 @@ BEGIN
     'ncert_aligned',
     'purpose_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -59,7 +59,7 @@ BEGIN
     'ncert_aligned',
     'causes_of_difference',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -78,7 +78,7 @@ BEGIN
     'ncert_aligned',
     'causes_of_difference',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -97,7 +97,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -116,7 +116,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -135,7 +135,7 @@ BEGIN
     'ncert_aligned',
     'overdraft_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -154,7 +154,7 @@ BEGIN
     'ncert_aligned',
     'purpose_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -173,7 +173,7 @@ BEGIN
     'ncert_aligned',
     'causes_of_difference',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -192,7 +192,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -211,7 +211,7 @@ BEGIN
     'ncert_aligned',
     'causes_of_difference',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -230,7 +230,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -249,7 +249,7 @@ BEGIN
     'ncert_aligned',
     'bank_statement_terms',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -268,7 +268,7 @@ BEGIN
     'ncert_aligned',
     'bank_statement_terms',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -287,7 +287,7 @@ BEGIN
     'ncert_aligned',
     'errors_in_recording',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -306,7 +306,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -325,7 +325,7 @@ BEGIN
     'ncert_aligned',
     'overdraft_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -344,7 +344,7 @@ BEGIN
     'ncert_aligned',
     'causes_of_difference',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -363,7 +363,7 @@ BEGIN
     'ncert_aligned',
     'errors_in_recording',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -382,7 +382,7 @@ BEGIN
     'ncert_aligned',
     'bank_statement_terms',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -401,7 +401,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -420,7 +420,7 @@ BEGIN
     'ncert_aligned',
     'overdraft_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -439,7 +439,7 @@ BEGIN
     'ncert_aligned',
     'errors_in_recording',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -458,7 +458,7 @@ BEGIN
     'ncert_aligned',
     'purpose_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -477,7 +477,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -496,7 +496,7 @@ BEGIN
     'ncert_aligned',
     'bank_statement_terms',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -515,7 +515,7 @@ BEGIN
     'ncert_aligned',
     'causes_of_difference',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -534,7 +534,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -553,7 +553,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -572,7 +572,7 @@ BEGIN
     'ncert_aligned',
     'errors_in_recording',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -591,7 +591,7 @@ BEGIN
     'ncert_aligned',
     'overdraft_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -610,7 +610,7 @@ BEGIN
     'ncert_aligned',
     'causes_of_difference',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -629,7 +629,7 @@ BEGIN
     'ncert_aligned',
     'bank_statement_terms',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -648,7 +648,7 @@ BEGIN
     'ncert_aligned',
     'preparation_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -667,7 +667,7 @@ BEGIN
     'ncert_aligned',
     'purpose_of_brs',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -686,7 +686,7 @@ BEGIN
     'ncert_aligned',
     'causes_of_difference',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -705,7 +705,7 @@ BEGIN
     'ncert_aligned',
     'overdraft_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -724,7 +724,7 @@ BEGIN
     'ncert_aligned',
     'bank_statement_terms',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -743,7 +743,7 @@ BEGIN
     'ncert_aligned',
     'errors_in_recording',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -762,7 +762,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -781,7 +781,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_methods',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -800,7 +800,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_methods',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -819,7 +819,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_factors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -838,7 +838,7 @@ BEGIN
     'ncert_aligned',
     'provisions_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -857,7 +857,7 @@ BEGIN
     'ncert_aligned',
     'reserves_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -876,7 +876,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -895,7 +895,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -914,7 +914,7 @@ BEGIN
     'ncert_aligned',
     'types_of_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -933,7 +933,7 @@ BEGIN
     'ncert_aligned',
     'capital_vs_revenue_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -952,7 +952,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_impact_on_financials',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -971,7 +971,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_vs_amortization',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -990,7 +990,7 @@ BEGIN
     'ncert_aligned',
     'provisions_vs_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1009,7 +1009,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_sale_of_asset',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1028,7 +1028,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_methods',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1047,7 +1047,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1066,7 +1066,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_factors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1085,7 +1085,7 @@ BEGIN
     'ncert_aligned',
     'provisions_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1104,7 +1104,7 @@ BEGIN
     'ncert_aligned',
     'reserves_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1123,7 +1123,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1142,7 +1142,7 @@ BEGIN
     'ncert_aligned',
     'types_of_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1161,7 +1161,7 @@ BEGIN
     'ncert_aligned',
     'capital_vs_revenue_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1180,7 +1180,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_impact_on_financials',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1199,7 +1199,7 @@ BEGIN
     'ncert_aligned',
     'depreciation_vs_amortization',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1218,7 +1218,7 @@ BEGIN
     'ncert_aligned',
     'provisions_vs_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1245,7 +1245,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'depreciation_sale_of_asset',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1264,7 +1264,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'depreciation_methods',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1283,7 +1283,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'provisions_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1302,7 +1302,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'reserves_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1321,7 +1321,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'depreciation_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1340,7 +1340,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'depreciation_methods',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1359,7 +1359,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'depreciation_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1378,7 +1378,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'types_of_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1397,7 +1397,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'depreciation_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1416,7 +1416,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'depreciation_methods',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1435,7 +1435,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1454,7 +1454,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'provisions_vs_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1473,7 +1473,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'depreciation_impact_on_financials',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1492,7 +1492,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'purpose_of_financial_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1511,7 +1511,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'components_of_financial_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1530,7 +1530,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1549,7 +1549,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1568,7 +1568,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1587,7 +1587,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1606,7 +1606,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet_assets',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1625,7 +1625,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1644,7 +1644,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_closing_stock',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1663,7 +1663,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_outstanding_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1682,7 +1682,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_depreciation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1701,7 +1701,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_bad_debts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1720,7 +1720,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue_items',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1739,7 +1739,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue_items',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1758,7 +1758,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'purpose_of_financial_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1777,7 +1777,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1796,7 +1796,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1815,7 +1815,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1834,7 +1834,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet_assets',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1853,7 +1853,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1872,7 +1872,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_closing_stock',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1891,7 +1891,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_outstanding_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1910,7 +1910,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_prepaid_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1929,7 +1929,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_depreciation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1948,7 +1948,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_bad_debts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1967,7 +1967,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_accrued_income',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -1986,7 +1986,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue_items',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2005,7 +2005,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue_items',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2024,7 +2024,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2043,7 +2043,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2062,7 +2062,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet_assets',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2081,7 +2081,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2100,7 +2100,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_depreciation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2119,7 +2119,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_bad_debts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2138,7 +2138,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue_items',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2157,7 +2157,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_prepaid_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2176,7 +2176,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_accrued_income',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2195,7 +2195,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'components_of_financial_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2214,7 +2214,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_closing_stock',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2233,7 +2233,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue_items',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2252,7 +2252,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'manufacturing_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2271,7 +2271,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'manufacturing_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2290,7 +2290,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2309,7 +2309,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2328,7 +2328,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2347,7 +2347,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2366,7 +2366,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2385,7 +2385,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2404,7 +2404,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2423,7 +2423,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2442,7 +2442,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2461,7 +2461,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2480,7 +2480,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2499,7 +2499,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'manufacturing_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2518,7 +2518,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2537,7 +2537,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2556,7 +2556,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2575,7 +2575,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2594,7 +2594,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2613,7 +2613,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2632,7 +2632,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2651,7 +2651,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2670,7 +2670,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2689,7 +2689,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'capital_vs_revenue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2708,7 +2708,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'manufacturing_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2727,7 +2727,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2746,7 +2746,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2765,7 +2765,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'manufacturing_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2784,7 +2784,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2803,7 +2803,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2822,7 +2822,7 @@ Loss on Sale = Book Value - Selling Price = ₹1,15,425 - ₹1,10,000 = ₹5,425
     'ncert_aligned',
     'balance_sheet',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2842,7 +2842,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2861,7 +2861,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2880,7 +2880,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'capital_vs_revenue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2899,7 +2899,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'balance_sheet',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2918,7 +2918,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2937,7 +2937,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'adjustments_final_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2956,7 +2956,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'trading_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2975,7 +2975,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'profit_and_loss_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -2994,7 +2994,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'balance_sheet',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3013,7 +3013,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'meaning_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3032,7 +3032,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'objectives_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3051,7 +3051,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'users_of_accounting_information',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3070,7 +3070,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'users_of_accounting_information',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3089,7 +3089,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'branches_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3108,7 +3108,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'branches_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3127,7 +3127,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'role_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3146,7 +3146,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'bookkeeping_vs_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3165,7 +3165,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'limitations_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3184,7 +3184,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'limitations_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3203,7 +3203,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3222,7 +3222,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3241,7 +3241,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_as_information_system',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3260,7 +3260,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'meaning_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3279,7 +3279,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'characteristics_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3298,7 +3298,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'users_of_accounting_information',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3317,7 +3317,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'bookkeeping_vs_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3336,7 +3336,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'objectives_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3355,7 +3355,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'branches_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3374,7 +3374,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'role_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3393,7 +3393,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'limitations_of_accounting',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3412,7 +3412,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3431,7 +3431,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_as_information_system',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3450,7 +3450,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_equation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3469,7 +3469,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'double_entry_system',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3488,7 +3488,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accrual_vs_cash_basis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3507,7 +3507,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'source_documents',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3526,7 +3526,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'money_measurement_concept',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3545,7 +3545,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'entity_concept',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3564,7 +3564,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'going_concern_concept',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3583,7 +3583,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_period_concept',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3602,7 +3602,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'dual_aspect_concept',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3621,7 +3621,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'matching_principle',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3640,7 +3640,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'comparability_characteristic',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3659,7 +3659,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'price_level_limitation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3678,7 +3678,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'debit_note_source_doc',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3697,7 +3697,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'nominal_account_classification',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3716,7 +3716,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'trial_balance_purpose',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3735,7 +3735,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_cycle_steps',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3754,7 +3754,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_equation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3773,7 +3773,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_equation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3792,7 +3792,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'double_entry_system',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3811,7 +3811,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'double_entry_system',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3830,7 +3830,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'types_of_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3849,7 +3849,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'types_of_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3868,7 +3868,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'rules_of_debit_credit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3887,7 +3887,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'rules_of_debit_credit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3906,7 +3906,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'rules_of_debit_credit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3925,7 +3925,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3944,7 +3944,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3963,7 +3963,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -3982,7 +3982,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4001,7 +4001,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4020,7 +4020,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_equation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4039,7 +4039,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_equation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4058,7 +4058,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'double_entry_system',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4077,7 +4077,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'double_entry_system',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4096,7 +4096,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'types_of_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4115,7 +4115,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'types_of_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4134,7 +4134,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'rules_of_debit_credit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4153,7 +4153,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'rules_of_debit_credit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4172,7 +4172,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4191,7 +4191,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4210,7 +4210,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4229,7 +4229,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4248,7 +4248,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4267,7 +4267,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4286,7 +4286,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_equation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4305,7 +4305,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'double_entry_system',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4324,7 +4324,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'types_of_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4343,7 +4343,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'rules_of_debit_credit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4362,7 +4362,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4381,7 +4381,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4400,7 +4400,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accounting_equation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4419,7 +4419,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'types_of_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4438,7 +4438,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'rules_of_debit_credit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4457,7 +4457,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4476,7 +4476,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4495,7 +4495,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'double_entry_system',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4514,7 +4514,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4533,7 +4533,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4552,7 +4552,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'journal_entries_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4571,7 +4571,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'compound_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4590,7 +4590,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'trade_discount_vs_cash_discount',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4609,7 +4609,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'trade_discount_vs_cash_discount',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4628,7 +4628,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'goods_used_for_personal_use',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4647,7 +4647,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'goods_used_for_personal_use',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4666,7 +4666,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'bad_debts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4685,7 +4685,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'bad_debts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4704,7 +4704,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'outstanding_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4723,7 +4723,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'depreciation_journal_entry',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4742,7 +4742,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'interest_on_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4761,7 +4761,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'purchase_return_journal_entry',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4780,7 +4780,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'sale_return_journal_entry',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4799,7 +4799,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'prepaid_expenses_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4818,7 +4818,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'accrued_income_journal_entry',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4837,7 +4837,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'income_received_in_advance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4856,7 +4856,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'drawings_in_cash',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4875,7 +4875,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'interest_on_drawings',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4894,7 +4894,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'bad_debts_written_off',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4913,7 +4913,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'goods_distributed_as_free_samples',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4932,7 +4932,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'loss_of_goods_by_theft',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4951,7 +4951,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'bank_charges_journal_entry',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4970,7 +4970,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'capital_introduced_in_kind',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -4989,7 +4989,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'rent_paid_by_proprietor_for_business',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5008,7 +5008,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'outstanding_income_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5027,7 +5027,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'compound_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5046,7 +5046,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'trade_discount_vs_cash_discount',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5065,7 +5065,7 @@ Revised calculation: Depreciation = ₹1,00,000 * 10% * (6/12) = ₹5,000.',
     'ncert_aligned',
     'bad_debts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5090,7 +5090,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'depreciation_journal_entry',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5109,7 +5109,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'purchase_return_journal_entry',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5128,7 +5128,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accrued_income_journal_entry',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5147,7 +5147,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'income_received_in_advance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5166,7 +5166,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'interest_on_drawings',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5185,7 +5185,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'goods_distributed_as_free_samples',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5204,7 +5204,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'capital_introduced_in_kind',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5223,7 +5223,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'outstanding_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5242,7 +5242,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'prepaid_expenses_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5261,7 +5261,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_assumptions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5280,7 +5280,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_assumptions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5299,7 +5299,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5318,7 +5318,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5337,7 +5337,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5356,7 +5356,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5375,7 +5375,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_conventions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5394,7 +5394,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_conventions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5413,7 +5413,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_standards',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5432,7 +5432,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_standards',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5451,7 +5451,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_bases',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5470,7 +5470,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_bases',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5489,7 +5489,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5508,7 +5508,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5527,7 +5527,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_assumptions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5546,7 +5546,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5565,7 +5565,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5584,7 +5584,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5603,7 +5603,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_conventions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5622,7 +5622,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_conventions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5641,7 +5641,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_standards',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5660,7 +5660,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_standards',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5679,7 +5679,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_bases',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5698,7 +5698,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_bases',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5717,7 +5717,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5736,7 +5736,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5755,7 +5755,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5774,7 +5774,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_assumptions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5793,7 +5793,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_assumptions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5812,7 +5812,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5831,7 +5831,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5850,7 +5850,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_conventions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5869,7 +5869,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_standards',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5888,7 +5888,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_bases',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5907,7 +5907,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5926,7 +5926,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'qualitative_characteristics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5945,7 +5945,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_principles',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5964,7 +5964,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_conventions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -5983,7 +5983,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_standards',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6002,7 +6002,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'accounting_assumptions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6021,7 +6021,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'purpose_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6040,7 +6040,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'purpose_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6059,7 +6059,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'preparation_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6078,7 +6078,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'preparation_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6097,7 +6097,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6116,7 +6116,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6135,7 +6135,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6154,7 +6154,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6173,7 +6173,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'types_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6192,7 +6192,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'types_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6211,7 +6211,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'impact_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6230,7 +6230,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_after_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6249,7 +6249,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_after_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6268,7 +6268,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'limitations_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6287,7 +6287,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'preparation_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6306,7 +6306,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'types_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6325,7 +6325,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6344,7 +6344,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_after_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6363,7 +6363,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'limitations_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6382,7 +6382,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'purpose_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6401,7 +6401,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6420,7 +6420,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'types_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6439,7 +6439,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_after_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6458,7 +6458,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'preparation_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6477,7 +6477,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6496,7 +6496,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'impact_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6515,7 +6515,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_after_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6534,7 +6534,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6553,7 +6553,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'types_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6572,7 +6572,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_after_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6591,7 +6591,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'limitations_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6610,7 +6610,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'purpose_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6629,7 +6629,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6648,7 +6648,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'impact_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6667,7 +6667,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_after_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6686,7 +6686,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'types_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6705,7 +6705,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_of_errors',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6724,7 +6724,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'rectification_after_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6743,7 +6743,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'preparation_of_trial_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6762,7 +6762,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'features_of_partnership',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6781,7 +6781,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'partnership_deed',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6800,7 +6800,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'partnership_deed',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6819,7 +6819,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'interest_on_drawings',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6838,7 +6838,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'profit_and_loss_appropriation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6857,7 +6857,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'fixed_vs_fluctuating_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6876,7 +6876,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'fixed_vs_fluctuating_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6895,7 +6895,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'partner_salary_commission',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6914,7 +6914,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'profit_and_loss_appropriation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6933,26 +6933,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'interest_on_drawings',
     NULL,
-    'commerce',
-    'mcq'
-  ),
-  (
-    12,
-    'Accountancy',
-    'Accounting for Partnership - Basic Concepts',
-    'past_adjustments',
-    'hard',
-    'A, B, and C are partners. Their fixed capitals are ₹1,00,000, ₹80,000, and ₹60,000 respectively. For the year ended March 31, 2023, interest on capital was credited at 6% instead of 8%. The profit for the year was ₹50,000. What will be the adjustment entry for this error?',
-    '["Debit A''s Current A/c ₹2,000; Debit B''s Current A/c ₹1,600; Debit C''s Current A/c ₹1,200; Credit P&L Adj A/c ₹4,800","Debit P&L Adj A/c ₹4,800; Credit A''s Current A/c ₹2,000; Credit B''s Current A/c ₹1,600; Credit C''s Current A/c ₹1,200","Debit A''s Current A/c ₹2,000; Debit B''s Current A/c ₹1,600; Debit C''s Current A/c ₹1,200; Credit P&L Adj A/c ₹4,800","Debit P&L Adj A/c ₹4,800; Credit A''s Current A/c ₹2,000; Credit B''s Current A/c ₹1,600; Credit C''s Current A/c ₹1,200"]'::jsonb,
-    1,
-    'Interest on capital should have been 8%. Interest actually credited was 6%. The difference of 2% needs to be credited to partners'' current accounts (since capitals are fixed). A: 2% of ₹1,00,000 = ₹2,000. B: 2% of ₹80,000 = ₹1,600. C: 2% of ₹60,000 = ₹1,200. Total additional interest to be credited = ₹2,000 + ₹1,600 + ₹1,200 = ₹4,800. This ₹4,800 should have been debited to P&L Appropriation A/c (or P&L Adjustment A/c in this context). So, P&L Adjustment A/c will be debited, and partners'' current accounts will be credited.',
-    'seed_rbse_commerce_deepen_accountancy_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'past_adjustments',
     NULL,
-    'commerce',
     'mcq'
   ),
   (
@@ -6971,7 +6952,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'partnership_deed',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -6990,7 +6971,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'profit_and_loss_appropriation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7009,7 +6990,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'partnership_deed',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7028,7 +7009,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'profit_and_loss_appropriation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7047,7 +7028,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'fixed_vs_fluctuating_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7066,7 +7047,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'interest_on_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7085,7 +7066,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'features_of_partnership',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7104,7 +7085,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'profit_and_loss_appropriation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7123,7 +7104,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'interest_on_drawings',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7142,7 +7123,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'fixed_vs_fluctuating_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7161,7 +7142,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'guarantee_of_profit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7180,7 +7161,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'interest_on_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7199,7 +7180,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'partner_salary_commission',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7218,7 +7199,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'partnership_deed',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7237,7 +7218,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'interest_on_drawings',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7256,7 +7237,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'profit_and_loss_appropriation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7275,7 +7256,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'fixed_vs_fluctuating_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7294,7 +7275,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'guarantee_of_profit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7313,7 +7294,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'interest_on_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7332,7 +7313,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'partner_salary_commission',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7351,7 +7332,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'features_of_partnership',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7370,7 +7351,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'partnership_deed',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7389,7 +7370,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'share_capital_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7408,7 +7389,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'share_capital_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7427,7 +7408,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'forfeiture_and_reissue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7446,7 +7427,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'forfeiture_and_reissue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7465,7 +7446,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'calls_in_arrears_and_advance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7484,7 +7465,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'calls_in_arrears_and_advance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7503,7 +7484,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7522,7 +7503,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7541,7 +7522,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'pro_rata_allotment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7560,7 +7541,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'pro_rata_allotment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7579,7 +7560,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'balance_sheet_presentation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7598,7 +7579,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'balance_sheet_presentation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7617,7 +7598,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'employee_stock_option_plan',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7636,7 +7617,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'underwriting_of_shares',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7655,7 +7636,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'share_capital_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7674,7 +7655,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'forfeiture_and_reissue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7693,7 +7674,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'forfeiture_and_reissue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7712,7 +7693,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'calls_in_arrears_and_advance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7731,7 +7712,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7750,7 +7731,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'pro_rata_allotment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7769,7 +7750,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'balance_sheet_presentation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7788,7 +7769,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'employee_stock_option_plan',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7807,7 +7788,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'underwriting_of_shares',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7826,7 +7807,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'share_capital_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7845,7 +7826,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'forfeiture_and_reissue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7864,7 +7845,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7883,7 +7864,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'calls_in_arrears_and_advance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7902,7 +7883,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'balance_sheet_presentation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7921,7 +7902,7 @@ So the correct answer is ₹9,000. Option ''c'' was ₹8,100. I need to make sur
     'ncert_aligned',
     'share_capital_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -7987,7 +7968,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'forfeiture_and_reissue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8006,7 +7987,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8025,7 +8006,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'pro_rata_allotment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8044,7 +8025,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_presentation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8063,7 +8044,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'calls_in_arrears_and_advance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8082,7 +8063,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'forfeiture_and_reissue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8101,7 +8082,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8120,7 +8101,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'share_capital_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8139,7 +8120,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'underwriting_of_shares',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8158,7 +8139,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'employee_stock_option_plan',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8177,7 +8158,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'forfeiture_and_reissue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8196,7 +8177,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'meaning_of_accounting_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8215,7 +8196,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8234,7 +8215,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'liquidity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8253,7 +8234,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'liquidity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8272,7 +8253,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'solvency_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8291,7 +8272,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'solvency_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8310,7 +8291,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'profitability_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8329,7 +8310,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'profitability_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8348,7 +8329,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'activity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8367,7 +8348,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'activity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8386,7 +8367,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'profitability_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8405,7 +8386,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'return_on_investment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8424,7 +8405,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'return_on_investment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8443,7 +8424,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8462,7 +8443,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'liquidity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8481,7 +8462,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'solvency_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8500,7 +8481,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'profitability_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8519,7 +8500,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'activity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8538,7 +8519,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8557,7 +8538,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'solvency_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8576,7 +8557,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'profitability_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8595,7 +8576,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'return_on_investment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8614,7 +8595,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8633,7 +8614,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'liquidity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8652,7 +8633,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'solvency_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8671,7 +8652,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'profitability_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8690,7 +8671,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'activity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8709,7 +8690,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8728,7 +8709,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'liquidity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8747,7 +8728,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'solvency_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8766,7 +8747,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'activity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8785,7 +8766,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'return_on_investment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8804,7 +8785,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8823,7 +8804,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'profitability_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8842,7 +8823,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'activity_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8861,7 +8842,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8880,7 +8861,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'solvency_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8899,7 +8880,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_ratios',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8918,7 +8899,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'meaning_financial_statements_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8937,7 +8918,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'meaning_financial_statements_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8956,7 +8937,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'tools_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8975,7 +8956,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'tools_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -8994,7 +8975,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'tools_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9013,7 +8994,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9032,7 +9013,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9051,7 +9032,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'comparative_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9070,7 +9051,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'comparative_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9089,7 +9070,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'common_size_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9108,7 +9089,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'common_size_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9127,7 +9108,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9146,7 +9127,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9165,7 +9146,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'users_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9184,7 +9165,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'comparative_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9203,7 +9184,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'common_size_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9222,7 +9203,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'tools_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9241,7 +9222,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9260,7 +9241,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9279,7 +9260,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'users_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9298,7 +9279,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'comparative_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9317,7 +9298,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'common_size_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9336,7 +9317,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'meaning_financial_statements_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9355,7 +9336,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9374,7 +9355,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'tools_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9393,7 +9374,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9412,7 +9393,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'common_size_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9431,7 +9412,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'comparative_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9450,7 +9431,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'common_size_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9469,7 +9450,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9488,7 +9469,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9507,7 +9488,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'users_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9526,7 +9507,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'comparative_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9545,7 +9526,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'common_size_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9564,7 +9545,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'tools_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9583,7 +9564,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'limitations_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9602,7 +9583,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9621,7 +9602,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'meaning_financial_statements_analysis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9640,7 +9621,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'comparative_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9659,7 +9640,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9678,7 +9659,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9697,7 +9678,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9716,7 +9697,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9735,7 +9716,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'investing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9754,7 +9735,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'investing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9773,7 +9754,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9792,7 +9773,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9811,7 +9792,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'non_cash_transactions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9830,7 +9811,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9849,7 +9830,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_and_cash_equivalents',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9868,7 +9849,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9887,7 +9868,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9906,7 +9887,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_structure',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9925,7 +9906,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9944,7 +9925,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9963,7 +9944,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'investing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -9982,7 +9963,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10001,7 +9982,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_structure',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10020,7 +10001,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10039,7 +10020,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'investing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10058,7 +10039,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10077,7 +10058,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'non_cash_transactions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10096,7 +10077,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10115,7 +10096,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_and_cash_equivalents',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10134,7 +10115,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'investing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10153,7 +10134,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10172,7 +10153,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10191,7 +10172,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10210,7 +10191,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10229,7 +10210,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'investing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10248,7 +10229,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10267,7 +10248,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'non_cash_transactions',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10286,7 +10267,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_structure',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10305,7 +10286,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'investing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10324,7 +10305,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_and_cash_equivalents',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10343,7 +10324,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10362,7 +10343,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10381,7 +10362,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'operating_activities_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10400,7 +10381,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'dissolution_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10419,7 +10400,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'modes_of_dissolution',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10438,7 +10419,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10457,7 +10438,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_account_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10476,7 +10457,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_account_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10495,7 +10476,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10514,7 +10495,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'partner_loan_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10533,7 +10514,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'insolvency_of_partner',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10552,7 +10533,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'insolvency_of_partner',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10571,7 +10552,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'capital_accounts_settlement',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10590,7 +10571,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10609,7 +10590,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10628,7 +10609,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'treatment_of_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10647,7 +10628,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'order_of_payment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10666,7 +10647,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'dissolution_meaning',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10685,7 +10666,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'modes_of_dissolution',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10704,7 +10685,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10723,7 +10704,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_account_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10742,7 +10723,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10761,7 +10742,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'partner_loan_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10780,7 +10761,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'insolvency_of_partner',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10799,7 +10780,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'capital_accounts_settlement',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10818,7 +10799,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10837,7 +10818,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'treatment_of_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10856,7 +10837,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'order_of_payment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10875,7 +10856,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'partner_taking_over_asset',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10894,7 +10875,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'unrecorded_liability',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10913,7 +10894,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_account_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10932,7 +10913,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10951,7 +10932,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'partner_loan_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10970,7 +10951,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'insolvency_of_partner',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -10989,7 +10970,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'partner_taking_over_asset',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11008,7 +10989,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'unrecorded_liability',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11027,7 +11008,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'treatment_of_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11046,7 +11027,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'modes_of_dissolution',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11065,7 +11046,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'realisation_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11084,7 +11065,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'capital_accounts_settlement',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11103,7 +11084,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11122,7 +11103,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'components_of_financial_statements',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11141,7 +11122,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_format',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11160,7 +11141,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'statement_of_profit_and_loss_items',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11179,7 +11160,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_classification',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11198,7 +11179,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'share_capital_presentation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11217,7 +11198,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'reserves_and_surplus',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11236,7 +11217,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'contingent_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11255,7 +11236,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'statement_of_profit_and_loss_calculation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11274,7 +11255,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11293,7 +11274,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11312,7 +11293,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'notes_to_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11331,7 +11312,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'statement_of_changes_in_equity',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11350,7 +11331,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financial_statements_objectives',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11369,7 +11350,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'extraordinary_items',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11388,7 +11369,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_assets_classification',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11407,7 +11388,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'statement_of_profit_and_loss_presentation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11426,7 +11407,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_financing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11445,7 +11426,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'reserves_and_surplus_components',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11464,7 +11445,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_non_current_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11483,7 +11464,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'statement_of_profit_and_loss_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11502,7 +11483,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_indirect_method_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11521,7 +11502,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'share_capital_disclosure',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11540,7 +11521,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'extraordinary_items_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11559,7 +11540,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_presentation_order',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11578,7 +11559,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'statement_of_profit_and_loss_other_expenses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11597,7 +11578,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_investing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11616,7 +11597,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'notes_to_accounts_detail',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11635,7 +11616,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financial_statements_limitations',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11654,7 +11635,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_format',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11673,7 +11654,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_indirect_method',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11692,7 +11673,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'share_capital_presentation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11711,7 +11692,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'reserves_and_surplus',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11730,7 +11711,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'contingent_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11749,7 +11730,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'statement_of_profit_and_loss_calculation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11768,7 +11749,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11787,7 +11768,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'notes_to_accounts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11806,7 +11787,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_assets_classification',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11825,7 +11806,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'cash_flow_statement_investing_activities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11844,7 +11825,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'financial_statements_limitations',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11863,7 +11844,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'balance_sheet_non_current_assets',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11882,7 +11863,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'meaning_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11901,7 +11882,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11920,7 +11901,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11939,7 +11920,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'issue_of_debentures_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11958,7 +11939,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'issue_of_debentures_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11977,7 +11958,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'issue_of_debentures_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -11996,7 +11977,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'redemption_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12015,7 +11996,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'redemption_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12034,7 +12015,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'redemption_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12053,7 +12034,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'redemption_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12072,7 +12053,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'loss_on_issue_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12091,7 +12072,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'interest_on_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12110,7 +12091,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_interest_tax',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12129,7 +12110,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'writing_off_discount_on_issue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12148,7 +12129,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12167,7 +12148,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'issue_of_debentures_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12186,7 +12167,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'redemption_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12205,7 +12186,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_redemption_reserve_investment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12224,7 +12205,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'loss_on_issue_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12243,7 +12224,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'interest_on_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12262,7 +12243,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_redemption_reserve',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12281,7 +12262,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'issue_of_debentures_collateral_security',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12300,7 +12281,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'writing_off_discount_on_issue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12319,7 +12300,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_trustee',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12338,7 +12319,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'issue_of_debentures_at_premium',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12357,7 +12338,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'redemption_of_debentures_sinking_fund',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12376,7 +12357,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_certificate',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12395,7 +12376,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_holders_rights',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12414,7 +12395,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'issue_of_debentures_journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12433,7 +12414,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'redemption_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12452,7 +12433,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_redemption_reserve',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12471,7 +12452,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'loss_on_issue_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12490,7 +12471,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'issue_of_debentures_collateral_security',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12509,7 +12490,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_redemption_reserve_investment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12528,7 +12509,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'types_of_debentures',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12547,7 +12528,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_holders_rights',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12566,7 +12547,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'redemption_of_debentures_sinking_fund',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12585,7 +12566,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'writing_off_discount_on_issue',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12604,7 +12585,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_interest_tax',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12623,7 +12604,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'issue_of_debentures_at_premium',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12642,7 +12623,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'debenture_trustee',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12661,7 +12642,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'admission_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12680,7 +12661,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'new_profit_sharing_ratio',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12699,7 +12680,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'sacrificing_ratio',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12718,7 +12699,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'goodwill_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12737,7 +12718,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'goodwill_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12756,7 +12737,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'revaluation_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12775,7 +12756,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'revaluation_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12794,7 +12775,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'undistributed_profits_losses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12813,7 +12794,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'capital_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12832,7 +12813,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'capital_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12851,7 +12832,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12870,7 +12851,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12889,7 +12870,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'adjustments_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12908,7 +12889,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'admission_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12927,7 +12908,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'new_profit_sharing_ratio',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12946,7 +12927,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'sacrificing_ratio',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12965,7 +12946,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'goodwill_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -12984,7 +12965,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'goodwill_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13003,7 +12984,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'revaluation_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13022,7 +13003,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'revaluation_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13041,7 +13022,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'undistributed_profits_losses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13060,7 +13041,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'capital_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13079,7 +13060,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'capital_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13098,7 +13079,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13117,7 +13098,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'adjustments_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13136,7 +13117,7 @@ Let''s assume the question implies the total amount received on these shares, in
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13160,7 +13141,7 @@ New ratio A:B:C:D = 15:9:6:10.',
     'ncert_aligned',
     'new_profit_sharing_ratio',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13179,7 +13160,7 @@ New ratio A:B:C:D = 15:9:6:10.',
     'ncert_aligned',
     'sacrificing_ratio',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13198,7 +13179,7 @@ New ratio A:B:C:D = 15:9:6:10.',
     'ncert_aligned',
     'goodwill_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13217,7 +13198,7 @@ New ratio A:B:C:D = 15:9:6:10.',
     'ncert_aligned',
     'revaluation_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13236,7 +13217,7 @@ New ratio A:B:C:D = 15:9:6:10.',
     'ncert_aligned',
     'journal_entries',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13258,7 +13239,7 @@ This Rs. 50,000 is the total goodwill of the firm. C''s share of goodwill = (1/5
     'ncert_aligned',
     'hidden_goodwill',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13277,7 +13258,7 @@ This Rs. 50,000 is the total goodwill of the firm. C''s share of goodwill = (1/5
     'ncert_aligned',
     'adjustments_reserves',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13296,7 +13277,7 @@ This Rs. 50,000 is the total goodwill of the firm. C''s share of goodwill = (1/5
     'ncert_aligned',
     'admission_basics',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13318,7 +13299,7 @@ If A withdraws 50% of his share, A will withdraw = 50% of Rs. 18,000 = Rs. 9,000
     'ncert_aligned',
     'goodwill_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13337,7 +13318,7 @@ If A withdraws 50% of his share, A will withdraw = 50% of Rs. 18,000 = Rs. 9,000
     'ncert_aligned',
     'revaluation_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13366,7 +13347,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'capital_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13385,7 +13366,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'new_profit_sharing_ratio',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13404,7 +13385,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'goodwill_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13423,7 +13404,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'revaluation_of_assets_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13442,7 +13423,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'accumulated_profits_losses',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13461,7 +13442,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'payment_to_retiring_partner',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13480,7 +13461,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'death_of_a_partner',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13499,7 +13480,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'deceased_partner_share_of_profit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13518,7 +13499,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'joint_life_policy',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13537,7 +13518,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'capital_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13556,7 +13537,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'retirement_liability',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13575,7 +13556,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'interest_on_loan',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13594,7 +13575,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'general_reserve_distribution',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13613,7 +13594,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'gaining_ratio_calculation',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13632,7 +13613,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'revaluation_account_balance',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13651,7 +13632,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'accumulated_losses_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13670,7 +13651,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'payment_to_retiring_partner_loan',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13689,7 +13670,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'deceased_partner_executor_account',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13708,7 +13689,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'deceased_partner_share_of_profit_time_basis',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13727,7 +13708,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'joint_life_policy_premium_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13746,7 +13727,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'capital_adjustment_proportionate',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13765,7 +13746,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'workmen_compensation_reserve_claim',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13784,7 +13765,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'investment_fluctuation_fund_retirement',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13803,7 +13784,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'contingency_reserve_distribution',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13822,7 +13803,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'interest_on_deceased_partner_capital',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13841,7 +13822,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'general_reserve_journal_entry',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13860,7 +13841,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'goodwill_treatment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13879,7 +13860,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'interest_on_loan',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13898,7 +13879,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'revaluation_of_assets_liabilities',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13917,7 +13898,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'provision_for_doubtful_debts',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13936,7 +13917,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'workmen_compensation_reserve_claim',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13955,7 +13936,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'investment_fluctuation_fund_retirement',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13974,7 +13955,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'contingency_reserve_distribution',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -13993,7 +13974,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'payment_to_retiring_partner_loan',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -14012,7 +13993,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'deceased_partner_share_of_profit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -14031,7 +14012,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'joint_life_policy',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -14050,7 +14031,7 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'capital_adjustment',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   ),
   (
@@ -14069,10 +14050,10 @@ My previous check was correct, and the option is available.',
     'ncert_aligned',
     'deceased_partner_share_of_profit',
     NULL,
-    'commerce',
+    NULL,
     'mcq'
   );
 
-  RAISE NOTICE 'Inserted Accountancy deepen batch: 735 MCQs';
+  RAISE NOTICE 'Inserted Accountancy deepen batch: 734 MCQs';
 END
 $seed$;

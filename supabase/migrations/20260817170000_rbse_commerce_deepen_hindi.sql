@@ -3,8 +3,8 @@
 -- source='seed_rbse_commerce_deepen_hindi_v1' | board=rbse | stream=(none) | question_format=mcq
 -- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 651
--- Idempotent: skips entirely if this source already has >= 651 rows.
+-- Rows in this file: 649
+-- Idempotent: skips entirely if this source already has >= 649 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_hindi_v1';
-  IF _existing >= 651 THEN
+  IF _existing >= 649 THEN
     RAISE NOTICE 'Skip Hindi deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -8654,25 +8654,6 @@ BEGIN
     12,
     'Hindi',
     'व्याकरण - वर्तनी',
-    'uchcharan_aadharit_vartani',
-    'easy',
-    'शब्द ''अनुसंधान'' की सही वर्तनी कौन सी है?',
-    '["अनुसंधान","अनुसंधान","अनुसंधान","अनुसंधान्न"]'::jsonb,
-    0,
-    'शब्द ''अनुसंधान'' में स के बाद न आता है, न कि अनुस्वार या चंद्रबिंदु; अतः सही वर्तनी ''अनुसंधान'' है।',
-    'seed_rbse_commerce_deepen_hindi_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'uchcharan_aadharit_vartani',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    12,
-    'Hindi',
-    'व्याकरण - वर्तनी',
     'sandhi_vartani',
     'hard',
     'संधि ''देव + इन्द्र'' के परिणामस्वरूप बनने वाले शब्द की सही वर्तनी कौन सी है?',
@@ -9064,25 +9045,6 @@ BEGIN
     'rbse',
     'ncert_aligned',
     'virama_chinh_semicolon',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    12,
-    'Hindi',
-    'व्याकरण - वर्तनी',
-    'upsarg_pratyay',
-    'medium',
-    'निम्नलिखित वाक्य में कौन सा शब्द सही वर्तनी में उपसर्ग ''परम-'' और धातु ''अणु'' के संयोजन से बना है?',
-    '["वैज्ञानिकों ने परमाणु का अध्ययन किया।","वैज्ञानिकों ने परमानु का अध्ययन किया।","वैज्ञानिकों ने परमाणुः का अध्ययन किया।","वैज्ञानिकों ने परमाणु का अध्ययन किया।"]'::jsonb,
-    0,
-    'उपसर्ग परम् (meaning supreme) + धातु अणु (atom) → परमाणु; यहाँ म् के स्थान पर अनुस्वार (ं) लगाया जाता है और अंत में उ की मात्रा होती है। केवल विकल्प A में यह सही वर्तनी है।',
-    'seed_rbse_commerce_deepen_hindi_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'upsarg_pratyay',
     NULL,
     NULL,
     'mcq'
@@ -12394,6 +12356,6 @@ BEGIN
     'mcq'
   );
 
-  RAISE NOTICE 'Inserted Hindi deepen batch: 652 MCQs';
+  RAISE NOTICE 'Inserted Hindi deepen batch: 649 MCQs';
 END
 $seed$;

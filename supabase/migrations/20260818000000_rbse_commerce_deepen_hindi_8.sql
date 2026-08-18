@@ -3,8 +3,8 @@
 -- source='seed_rbse_commerce_deepen_hindi_8_v1' | board=rbse | stream=(none) | question_format=mcq
 -- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 438
--- Idempotent: skips entirely if this source already has >= 438 rows.
+-- Rows in this file: 433
+-- Idempotent: skips entirely if this source already has >= 433 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_hindi_8_v1';
-  IF _existing >= 438 THEN
+  IF _existing >= 433 THEN
     RAISE NOTICE 'Skip Hindi deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -5044,25 +5044,6 @@ BEGIN
     8,
     'Hindi',
     'व्याकरण - वर्तनी',
-    'shuddh_vartani_pehchan',
-    'medium',
-    'इनमें से कौन सा शब्द ''व्यवहार'' की शुद्ध वर्तनी है?',
-    '["व्यवहार","ब्यौहार","व्यवहार","बिबहार"]'::jsonb,
-    2,
-    'शुद्ध वर्तनी ''व्यवहार'' है, जिसमें ''व'' पर ''य'' का आधा रूप और ''ह'' पर ''आ'' की मात्रा का प्रयोग होता है।',
-    'seed_rbse_commerce_deepen_hindi_8_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'shuddh_vartani_pehchan',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    8,
-    'Hindi',
-    'व्याकरण - वर्तनी',
     'ashuddh_vartani_shodhan',
     'hard',
     'निम्नलिखित में से कौन सा शब्द वर्तनी की अशुद्धि के कारण गलत है?',
@@ -5196,25 +5177,6 @@ BEGIN
     8,
     'Hindi',
     'व्याकरण - वर्तनी',
-    'sanyukt_vyanjan',
-    'medium',
-    'संयुक्त व्यंजन ''त्र'' का सही उच्चारण किन दो व्यंजनों के मेल से होता है?',
-    '["त् + र","त + र","त् + र","त + र"]'::jsonb,
-    0,
-    'संयुक्त व्यंजन ''त्र'' का निर्माण ''त्'' (हलन्त) और ''र'' के मेल से होता है।',
-    'seed_rbse_commerce_deepen_hindi_8_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'sanyukt_vyanjan',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    8,
-    'Hindi',
-    'व्याकरण - वर्तनी',
     'shuddh_vartani_pehchan',
     'medium',
     'निम्नलिखित में से कौन सा शब्द ''ऊर्जा'' की शुद्ध वर्तनी है?',
@@ -5264,44 +5226,6 @@ BEGIN
     'rbse',
     'ncert_aligned',
     'visarg_ka_upyog',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    8,
-    'Hindi',
-    'व्याकरण - वर्तनी',
-    'sanyukt_vyanjan',
-    'medium',
-    'संयुक्त व्यंजन ''श्र'' का निर्माण किन दो व्यंजनों के मेल से होता है?',
-    '["श् + र","श + र","श् + र","श + र"]'::jsonb,
-    0,
-    'संयुक्त व्यंजन ''श्र'' का निर्माण ''श्'' (हलन्त) और ''र'' के मेल से होता है।',
-    'seed_rbse_commerce_deepen_hindi_8_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'sanyukt_vyanjan',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    8,
-    'Hindi',
-    'व्याकरण - वर्तनी',
-    'ashuddh_vartani_shodhan',
-    'medium',
-    'निम्नलिखित में से किस विकल्प में सभी शब्द वर्तनी की दृष्टि से शुद्ध हैं?',
-    '["आशीर्वाद, उज्जवल, निरोग","आशिर्वाद, उज्जवल, निरोग","आशीर्वाद, उज्जवल, निरोग","आशीर्वाद, उज्जवल, निरोग"]'::jsonb,
-    2,
-    'विकल्प ''आशीर्वाद, उज्जवल, निरोग'' में तीनों शब्द वर्तनी की दृष्टि से शुद्ध हैं। ''आशीर्वाद'' में ''श'' पर बड़ी ''ई'' की मात्रा, ''उज्जवल'' में ''ज'' पर आधा ''ज'' और ''निरोग'' में ''न'' पर छोटी ''इ'' की मात्रा का प्रयोग होता है।',
-    'seed_rbse_commerce_deepen_hindi_8_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'ashuddh_vartani_shodhan',
     NULL,
     NULL,
     'mcq'
@@ -7324,25 +7248,6 @@ BEGIN
     8,
     'Hindi',
     'व्याकरण - संधि',
-    'vyanjan_sandhi_anuswar',
-    'easy',
-    '''सम'' + ''जय'' का संधि रूप क्या है, जिसमें अनुस्वार नियम लागू होता है?',
-    '["समजय","संजय","संजय","संज्य"]'::jsonb,
-    2,
-    ' ''सम'' + ''जय'' में ''म'' के बाद व्यंजन आने पर ''म'' का अनुस्वार (ं) हो जाता है। अतः, सही संधि रूप ''संजय'' है।',
-    'seed_rbse_commerce_deepen_hindi_8_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'vyanjan_sandhi_anuswar',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    8,
-    'Hindi',
-    'व्याकरण - संधि',
     'visarg_sandhi_rudhatva',
     'hard',
     'विसर्ग संधि के ''रुत्व'' (विसर्ग का ''र'' में परिवर्तन) नियम का एक उदाहरण पहचानें।',
@@ -8347,6 +8252,6 @@ BEGIN
     'mcq'
   );
 
-  RAISE NOTICE 'Inserted Hindi deepen batch: 438 MCQs';
+  RAISE NOTICE 'Inserted Hindi deepen batch: 433 MCQs';
 END
 $seed$;

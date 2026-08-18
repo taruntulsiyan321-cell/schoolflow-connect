@@ -3,8 +3,8 @@
 -- source='seed_rbse_commerce_deepen_science_9_v1' | board=rbse | stream=(none) | question_format=mcq
 -- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 449
--- Idempotent: skips entirely if this source already has >= 449 rows.
+-- Rows in this file: 448
+-- Idempotent: skips entirely if this source already has >= 448 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_science_9_v1';
-  IF _existing >= 449 THEN
+  IF _existing >= 448 THEN
     RAISE NOTICE 'Skip Science deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -642,25 +642,6 @@ BEGIN
     '["Species","Genus","Family","Order"]'::jsonb,
     1,
     'The first word in a binomial name is the genus, always capitalized; the second word is the specific epithet.',
-    'seed_rbse_commerce_deepen_science_9_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'binomial_nomenclature',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    9,
-    'Science',
-    'Diversity in Living Organisms',
-    'binomial_nomenclature',
-    'medium',
-    'Which of the following is the correct way to write the scientific name of humans?',
-    '["homo sapiens","Homo sapiens","HOMO SAPIENS","Homo Sapiens"]'::jsonb,
-    1,
-    'The genus name is capitalized and the specific epithet is lowercase; both are italicized or underlined.',
     'seed_rbse_commerce_deepen_science_9_v1',
     true,
     'rbse',
@@ -8556,6 +8537,6 @@ BEGIN
     'mcq'
   );
 
-  RAISE NOTICE 'Inserted Science deepen batch: 449 MCQs';
+  RAISE NOTICE 'Inserted Science deepen batch: 448 MCQs';
 END
 $seed$;

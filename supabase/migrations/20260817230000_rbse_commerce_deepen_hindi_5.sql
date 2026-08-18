@@ -3,8 +3,8 @@
 -- source='seed_rbse_commerce_deepen_hindi_5_v1' | board=rbse | stream=(none) | question_format=mcq
 -- Generated via OpenRouter (Nemotron/Gemini), cached per-chapter, compiled by
 -- scripts/rbse-commerce-full/compile-cache-to-migration.mjs
--- Rows in this file: 430
--- Idempotent: skips entirely if this source already has >= 430 rows.
+-- Rows in this file: 426
+-- Idempotent: skips entirely if this source already has >= 426 rows.
 -- ============================================================================
 
 DO $seed$
@@ -12,7 +12,7 @@ DECLARE
   _existing int;
 BEGIN
   SELECT count(*) INTO _existing FROM public.question_bank WHERE source = 'seed_rbse_commerce_deepen_hindi_5_v1';
-  IF _existing >= 430 THEN
+  IF _existing >= 426 THEN
     RAISE NOTICE 'Skip Hindi deepen batch: already seeded (% rows)', _existing;
     RETURN;
   END IF;
@@ -4892,25 +4892,6 @@ BEGIN
     5,
     'Hindi',
     'व्याकरण - वर्तनी',
-    'navin_vartani_niyam',
-    'hard',
-    'निम्नलिखित में से कौन सा शब्द ''न'' और ''ण'' के प्रयोग के नियम के अनुसार शुद्ध है?',
-    '["कारण","करन","कारण","करन"]'::jsonb,
-    0,
-    'हिंदी में ''ण'' का प्रयोग संस्कृत से आए शब्दों में होता है, जैसे ''कारण''। सामान्यतः ''न'' का प्रयोग अधिक होता है। यहाँ ''कारण'' शुद्ध है।',
-    'seed_rbse_commerce_deepen_hindi_5_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'navin_vartani_niyam',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    5,
-    'Hindi',
-    'व्याकरण - वर्तनी',
     'shuddh_vartani_pahchan',
     'medium',
     'दिए गए शब्दों में से शुद्ध वर्तनी वाला शब्द कौन सा है?',
@@ -4987,25 +4968,6 @@ BEGIN
     5,
     'Hindi',
     'व्याकरण - वर्तनी',
-    'navin_vartani_niyam',
-    'medium',
-    'नवीन वर्तनी नियमों के अनुसार ''पुनर्विवाह'' का शुद्ध रूप क्या है?',
-    '["पुनर्विवाह","पुनर्विवाह","पुनर्विवाह","पुनर्विवाह"]'::jsonb,
-    1,
-    'नवीन वर्तनी नियमों के अनुसार, जब ''पुनर्'' के बाद ''वि'' से शुरू होने वाला शब्द आता है, तो विसर्ग (ः) का प्रयोग नहीं होता और ''पुनर्विवाह'' लिखा जाता है।',
-    'seed_rbse_commerce_deepen_hindi_5_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'navin_vartani_niyam',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    5,
-    'Hindi',
-    'व्याकरण - वर्तनी',
     'shuddh_vartani_pahchan',
     'easy',
     'शुद्ध वर्तनी वाला शब्द पहचानिए: ''अध्ययन''',
@@ -5036,25 +4998,6 @@ BEGIN
     'rbse',
     'ncert_aligned',
     'matraon_ka_upyog',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    5,
-    'Hindi',
-    'व्याकरण - वर्तनी',
-    'navin_vartani_niyam',
-    'medium',
-    'नवीन वर्तनी नियमों के अनुसार ''प्रति + उपकार'' का संधि रूप क्या होगा?',
-    '["प्रतुपकार","प्रतुपकार","प्रतुपकार","प्रतुपकार"]'::jsonb,
-    0,
-    'जब ''इ'' या ''ई'' के बाद ''उ'' या ''ऊ'' आता है, तो ''उ'' या ''ऊ'' का ही रूप रहता है। अतः ''प्रति + उपकार'' का सही संधि रूप ''प्रतुपकार'' होगा।',
-    'seed_rbse_commerce_deepen_hindi_5_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'navin_vartani_niyam',
     NULL,
     NULL,
     'mcq'
@@ -8027,25 +7970,6 @@ BEGIN
     5,
     'Hindi',
     'व्याकरण - सर्वनाम',
-    'sarvnaam_vibhakti',
-    'medium',
-    'सर्वनाम ''वह'' का पंचमी विभक्ति का रूप क्या है?',
-    '["उससे","उसका","उसमें","उससे"]'::jsonb,
-    0,
-    'सर्वनाम ''वह'' का पंचमी विभक्ति का रूप ''उससे'' होता है, जो अलगाव या दूरी का भाव व्यक्त करता है।',
-    'seed_rbse_commerce_deepen_hindi_5_v1',
-    true,
-    'rbse',
-    'ncert_aligned',
-    'sarvnaam_vibhakti',
-    NULL,
-    NULL,
-    'mcq'
-  ),
-  (
-    5,
-    'Hindi',
-    'व्याकरण - सर्वनाम',
     'sarvnaam_prashn',
     'easy',
     'वाक्य ''यह किसकी पुस्तक है?'' में ''किसकी'' किस प्रकार का सर्वनाम है?',
@@ -8195,6 +8119,6 @@ BEGIN
     'mcq'
   );
 
-  RAISE NOTICE 'Inserted Hindi deepen batch: 430 MCQs';
+  RAISE NOTICE 'Inserted Hindi deepen batch: 426 MCQs';
 END
 $seed$;
