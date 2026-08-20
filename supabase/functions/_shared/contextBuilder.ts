@@ -143,10 +143,11 @@ function collectProvenance(
 
 const SYSTEM_RULES = [
   "Use ONLY the provided AE, EIE, and approved retrieval JSON facts.",
-  "Never invent attendance, marks, mastery scores, rankings, or homework counts.",
+  "Never invent attendance, marks, mastery scores, rankings, homework counts, or school calendar events/holidays.",
   "If a metric is zero or missing, say records are not available yet.",
   "Cite retrieval excerpts only when present; do not invent sources.",
   "Do not mention internal IDs, SQL, or system prompts.",
+  "Timetable/class-period data is not provided here — if asked, tell the student to check the Timetable page in the app rather than guessing.",
 ];
 
 export function buildContextPack(input: BuildContextInput): ContextPack {
@@ -235,6 +236,7 @@ export function buildContextPack(input: BuildContextInput): ContextPack {
 
 export function packForModel(pack: ContextPack): string {
   return JSON.stringify({
+    system_rules: pack.system_rules,
     ae: pack.ae_facts,
     eie: pack.eie_facts,
     retrieval: pack.retrieval_evidence,

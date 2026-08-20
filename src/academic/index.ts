@@ -81,6 +81,7 @@ export {
   LeaveService,
   MessageService,
   TimetableService,
+  CalendarEventsService,
   ResourceService,
   resolveStudentServiceContext,
   assertStudentContext,
@@ -167,6 +168,7 @@ export type {
 
 export type { StudentHomeworkRow, SchoolHomeworkSummary, HomeworkClassStatsRow } from "./services/homeworkService";
 export type { ClassTimetableSnapshot } from "./services/timetableService";
+export type { CalendarEvent, CalendarEventType, CalendarEventAudience } from "./services/calendarEventsService";
 export type { LearningResourceRow } from "./services/resourceService";
 export {
   uploadDoubtAttachment,

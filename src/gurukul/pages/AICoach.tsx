@@ -13,19 +13,28 @@ import {
   resolveNovaPresentation,
 } from "@/lib/productFeatureFlags";
 import { toast } from "sonner";
-import { askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue } from "@/academic/ai/gatewayClient";
+import {
+  askAiCoach, recordAiFeedback, AI_BILLING_UNAVAILABLE_MSG, isAiBillingOrCreditsIssue,
+  type NovaRecentTurn, type NovaQuestionContext,
+} from "@/academic/ai/gatewayClient";
 import { buildNovaUiChips, dedupeSubjects, isPlaceholderLabel } from "@/academic/ai/novaContextBuilder";
+import { consumeNovaQuestionContext } from "@/gurukul/novaQuestionContext";
+import {
+  processAttachmentFile, AttachmentError,
+  ACCEPTED_ATTACHMENT_TYPES, MAX_ATTACHMENTS,
+} from "@/gurukul/novaAttachments";
 import { WEAK_CONCEPT_THRESHOLD } from "@/academic/eie/masteryBands";
+import { NovaMarkdown } from "@/components/NovaMarkdown";
 import { useAuth } from "@/auth";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import {
   Mic, Send, Plus, Search, Pin, Star, Trash2, Edit3,
   MoreHorizontal, ChevronLeft, Paperclip, Copy, Bookmark,
-  RotateCcw, X,
+  RotateCcw, X, Loader2, ImageIcon,
   BookOpen, HelpCircle, Brain, Sparkles,
   MessageSquare, Check, AlertCircle, Globe, Layers,
-  ThumbsUp, ThumbsDown,
+  ThumbsUp, ThumbsDown, CalendarDays,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -37,6 +46,10 @@ interface Message {
   requestId?: string;
   featureId?: string;
   feedback?: "like" | "dislike" | null;
+  /** True for offline/network-failure fallback text — rendered distinctly from a real reply. */
+  isError?: boolean;
+  /** How many photos/pages were attached — images themselves are never persisted or re-shown. */
+  imageCount?: number;
 }
 
 interface Conversation {
@@ -44,6 +57,8 @@ interface Conversation {
   pinned?: boolean; starred?: boolean; messages: Message[];
   /** Gateway multi-turn session id (when available) */
   sessionId?: string;
+  /** The practice question this conversation was opened about, if any — sent on every turn. */
+  questionContext?: NovaQuestionContext;
 }
 
 const CONVO_STORAGE_KEY = "gurukul.nova.convos.v1";
@@ -51,11 +66,18 @@ const CONVO_STORAGE_KEY = "gurukul.nova.convos.v1";
 // ── Honest empty conversation list (never seed demo chats) ────────────────────
 const EMPTY_CONVOS: Conversation[] = [];
 
+function genId(prefix: string): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return `${prefix}${crypto.randomUUID()}`;
+  }
+  return `${prefix}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 const SUGGESTIONS = [
   { icon:<HelpCircle className="w-4 h-4"/>,    text:"What is my attendance this month?",     color:"#3b5bdb" },
   { icon:<Layers className="w-4 h-4"/>,         text:"Which homework is due soon?",           color:"#4b9fd4" },
   { icon:<BookOpen className="w-4 h-4"/>,       text:"Show my marks summary",                 color:"#6882e8" },
-  { icon:<Brain className="w-4 h-4"/>,          text:"What is today's timetable?",            color:"#4aa87a" },
+  { icon:<CalendarDays className="w-4 h-4"/>,   text:"Any upcoming school events or holidays?", color:"#4aa87a" },
   { icon:<Sparkles className="w-4 h-4"/>,       text:"What should I revise? Show mastery",    color:"#c08a3a" },
   { icon:<MessageSquare className="w-4 h-4"/>,  text:"Explain my performance from school records", color:"#cc5069" },
   { icon:<Globe className="w-4 h-4"/>,          text:"Summarise my weak concepts",            color:"#4b9fd4" },
@@ -81,7 +103,7 @@ function now() {
 function offlineFallback(): string {
   return (
     "I couldn’t reach the AI Gateway just now. " +
-    "Ask about attendance, homework due, marks, today’s timetable, or mastery/revision — " +
+    "Ask about attendance, homework due, marks, upcoming school events, or mastery/revision — " +
     "or use Practice, Doubts, or Recovery for learning paths."
   );
 }
@@ -98,8 +120,10 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
   const [copied, setCopied] = useState(false);
 
   function copy() {
-    navigator.clipboard.writeText(msg.text).catch(()=>{});
-    setCopied(true); setTimeout(()=>setCopied(false), 1500);
+    navigator.clipboard.writeText(msg.text).then(
+      () => { setCopied(true); setTimeout(()=>setCopied(false), 1500); },
+      () => { toast.error("Could not copy — clipboard access denied"); },
+    );
   }
 
   // Render markdown-like bold and newlines
@@ -128,11 +152,23 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
         <div className={cn(
           "px-4 py-3 rounded-2xl text-sm leading-relaxed",
           isNova
-            ? "bg-[#131316] border border-white/7 text-[#c8d4e8]"
+            ? msg.isError
+              ? "bg-amber-400/5 border border-amber-400/25 text-[#c8d4e8]"
+              : "bg-[#131316] border border-white/7 text-[#c8d4e8]"
             : "text-white"
         )}
         style={!isNova ? { background:"linear-gradient(135deg,#3b5bdb,#2563eb)", boxShadow:"0 4px 16px rgba(59,130,246,0.25)" } : {}}>
-          {renderText(msg.text)}
+          {msg.isError && (
+            <div className="flex items-center gap-1.5 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
+              <AlertCircle className="w-3 h-3"/> Connection issue — not a live answer
+            </div>
+          )}
+          {!!msg.imageCount && (
+            <div className={cn("flex items-center gap-1.5 mb-1.5 text-[10px] font-medium", isNova ? "text-[#78788c]" : "text-white/70")}>
+              <ImageIcon className="w-3 h-3"/> {msg.imageCount} photo{msg.imageCount > 1 ? "s" : ""} attached
+            </div>
+          )}
+          {isNova ? <NovaMarkdown text={msg.text} /> : renderText(msg.text)}
         </div>
 
         {/* Timestamp + actions */}
@@ -240,7 +276,7 @@ function SuggestionGrid({
         Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"} 👋
       </h2>
       <p className="text-[#78788c] text-sm mb-8 text-center max-w-xs">
-        I'm Nova — your personal academic tutor. Ask about attendance, homework, marks, timetable, or revision.
+        I'm Nova — your personal academic tutor. Ask about attendance, homework, marks, school events, or revision.
       </p>
 
       {/* Academic context mini-card — live chips only, no placeholders / duplicates */}
@@ -455,26 +491,59 @@ function Sidebar({
 
 // ── Input bar ─────────────────────────────────────────────────────────────────
 function InputBar({
-  onSend, onVoiceUnavailable, onAttachUnavailable, disabled,
+  onSend, onVoiceUnavailable, disabled,
 }: {
-  onSend: (text: string) => void;
+  onSend: (text: string, images?: string[]) => void;
   onVoiceUnavailable: () => void;
-  onAttachUnavailable: () => void;
   disabled?: boolean;
 }) {
   const [text, setText] = useState("");
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
+  const [processing, setProcessing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const attachPresentation = resolveNovaPresentation("attachment");
   const voicePresentation = resolveNovaPresentation("voice");
 
   function submit() {
-    if (!text.trim()) return;
-    onSend(text.trim());
+    if ((!text.trim() && pendingImages.length === 0) || disabled || processing) return;
+    onSend(text.trim() || "Please help me with this.", pendingImages.length ? pendingImages : undefined);
     setText("");
+    setPendingImages([]);
   }
 
   function onKey(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(); }
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(); }
+  }
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const room = MAX_ATTACHMENTS - pendingImages.length;
+    if (room <= 0) {
+      toast.message(`You can attach up to ${MAX_ATTACHMENTS} photos/pages at a time.`);
+      return;
+    }
+    setProcessing(true);
+    try {
+      const collected: string[] = [];
+      for (const file of Array.from(files).slice(0, room)) {
+        try {
+          const uris = await processAttachmentFile(file);
+          collected.push(...uris);
+        } catch (e) {
+          toast.error(e instanceof AttachmentError ? e.message : `Could not process "${file.name}".`);
+        }
+      }
+      if (collected.length) {
+        setPendingImages((prev) => [...prev, ...collected].slice(0, MAX_ATTACHMENTS));
+      }
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  function removePendingImage(index: number) {
+    setPendingImages((prev) => prev.filter((_, i) => i !== index));
   }
 
   useEffect(() => {
@@ -486,26 +555,58 @@ function InputBar({
 
   return (
     <div className="relative">
+      {pendingImages.length > 0 && (
+        <div className="flex items-center gap-2 mb-2 px-1">
+          {pendingImages.map((uri, i) => (
+            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-white/10 shrink-0 group">
+              <img src={uri} alt="" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removePendingImage(i)}
+                aria-label="Remove attachment"
+                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="w-2.5 h-2.5"/>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="flex items-end gap-2 bg-[#131316] border border-white/10 rounded-2xl p-2 focus-within:border-[#3b5bdb]/30 transition-all">
         {attachPresentation !== "hidden" && (
-          <button
-            type="button"
-            onClick={onAttachUnavailable}
-            title={
-              attachPresentation === "coming_soon"
-                ? `Attachments — ${COMING_SOON_LABEL}`
-                : "Attachments"
-            }
-            className="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5 text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4"
-          >
-            <Paperclip className="w-4 h-4"/>
-          </button>
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_ATTACHMENT_TYPES}
+              multiple
+              className="hidden"
+              onChange={(e) => { void handleFiles(e.target.files); e.target.value = ""; }}
+            />
+            <button
+              type="button"
+              onClick={() =>
+                attachPresentation === "coming_soon"
+                  ? toast.message(comingSoonToast("Attachments"))
+                  : fileInputRef.current?.click()
+              }
+              disabled={processing}
+              title={
+                attachPresentation === "coming_soon"
+                  ? `Attachments — ${COMING_SOON_LABEL}`
+                  : "Attach a photo or PDF"
+              }
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5 text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4"
+            >
+              {processing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Paperclip className="w-4 h-4"/>}
+            </button>
+          </>
         )}
 
         <textarea
           ref={textareaRef}
           value={text} onChange={e => setText(e.target.value)} onKeyDown={onKey}
-          placeholder="Ask Nova anything…"
+          placeholder={pendingImages.length ? "Add a note (optional)…" : "Ask Nova anything…"}
           rows={1} disabled={disabled}
           className="flex-1 bg-transparent text-sm text-white placeholder:text-[#78788c] outline-none resize-none py-1.5 leading-relaxed"
           style={{ maxHeight:120 }}
@@ -526,10 +627,12 @@ function InputBar({
           </button>
         )}
 
-        <button type="button" onClick={submit} disabled={!text.trim()} aria-label="Send message"
+        <button type="button" onClick={submit}
+          disabled={(!text.trim() && pendingImages.length === 0) || disabled || processing}
+          aria-label="Send message"
           className={cn(
             "w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
-            text.trim()
+            (text.trim() || pendingImages.length > 0) && !disabled && !processing
               ? "bg-[#3b5bdb] text-white hover:bg-blue-500"
               : "text-[#78788c]/40 cursor-not-allowed"
           )}>
@@ -627,7 +730,10 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const [sidebarOpen,setSidebarOpen]= useState(false);
   const [renaming,   setRenaming]   = useState<string|null>(null);
   const [renameVal,  setRenameVal]  = useState("");
-  const [isTyping,   setIsTyping]   = useState(false);
+  // Scoped per conversation (not one global flag) — switching conversations while a reply is
+  // pending must not show/hide the wrong conversation's loading state, and two overlapping
+  // requests must not be able to clear each other's indicator early.
+  const [pendingConvoIds, setPendingConvoIds] = useState<Set<string>>(() => new Set());
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const convosRef = useRef(convos);
@@ -643,9 +749,43 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   // pre-removal snapshot and fire duplicate gateway calls. A ref check is
   // synchronous and re-render-independent, unlike state.
   const regenBusyRef = useRef(false);
+  // One in-flight AbortController per conversation — lets delete/unmount actually
+  // cancel the underlying request instead of letting an orphaned reply keep billing.
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  // Guards against double-submission at the network-call level (not just UI disabled
+  // state) — set synchronously before any await, so a race that slips past the UI
+  // guard still can't fire a second gateway call for the same conversation.
+  const pendingConvoIdsRef = useRef<Set<string>>(new Set());
 
   const active = activeId ? convos.find(c => c.id === activeId) ?? null : null;
   const msgs   = active?.messages ?? [];
+  const isTyping = activeId ? pendingConvoIds.has(activeId) : false;
+
+  // One-shot handoff from a result screen ("Ask Nova about this question") — consumed once.
+  useEffect(() => {
+    const ctx = consumeNovaQuestionContext();
+    if (!ctx) return;
+    const id = genId("c");
+    const newConvo: Conversation = {
+      id,
+      title: ctx.question.slice(0, 40) || "Question",
+      preview: "Ask Nova about this question",
+      date: "Today",
+      messages: [],
+      questionContext: ctx,
+    };
+    activeIdRef.current = id;
+    setConvos((cs) => [newConvo, ...cs]);
+    setActiveId(id);
+  }, []);
+
+  useEffect(() => {
+    const controllers = abortControllersRef.current;
+    return () => {
+      controllers.forEach((c) => c.abort());
+      controllers.clear();
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -661,17 +801,35 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
 
   function addMessage(convoId: string, msg: Omit<Message,"id">) {
     setConvos(cs => cs.map(c => c.id === convoId
-      ? { ...c, messages:[...c.messages, { ...msg, id:`m${Date.now()}` }],
+      ? { ...c, messages:[...c.messages, { ...msg, id:genId("m") }],
           preview: msg.text.slice(0,60) + (msg.text.length>60?"…":"") }
       : c
     ));
   }
 
-  async function replyViaGateway(convoId: string, text: string) {
-    setIsTyping(true);
+  function setPending(convoId: string, pending: boolean) {
+    if (pending) pendingConvoIdsRef.current.add(convoId);
+    else pendingConvoIdsRef.current.delete(convoId);
+    setPendingConvoIds(new Set(pendingConvoIdsRef.current));
+  }
+
+  async function replyViaGateway(convoId: string, text: string, images?: string[]) {
+    // Network-call-level guard — catches races the UI's disabled state can't (e.g. Regenerate
+    // firing while a send for the same conversation is already in flight).
+    if (pendingConvoIdsRef.current.has(convoId)) return;
+    setPending(convoId, true);
+
+    const controller = new AbortController();
+    abortControllersRef.current.set(convoId, controller);
+
     try {
       const existing = convosRef.current.find((c) => c.id === convoId);
-      const { text: reply, response } = await askAiCoach({
+      // Last few turns (before this one) so Nova can resolve follow-ups like "give me an example".
+      const recentTurns: NovaRecentTurn[] = (existing?.messages ?? [])
+        .slice(-6)
+        .map((m) => ({ role: m.role === "nova" ? "nova" : "student", text: m.text }));
+
+      const result = await askAiCoach({
         text,
         studentId: studentId || undefined,
         role: role === "student" || role === "parent" || role === "teacher" || role === "principal" || role === "admin"
@@ -681,7 +839,15 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         locale: typeof navigator !== "undefined" ? navigator.language : undefined,
         session_id: existing?.sessionId,
         open_session: !existing?.sessionId,
+        recentTurns,
+        questionContext: existing?.questionContext,
+        images,
+        signal: controller.signal,
       });
+
+      if (!result) return; // cancelled (conversation deleted / component unmounted) — no-op
+
+      const { text: reply, response } = result;
       if (isAiBillingOrCreditsIssue(response)) {
         toast.message(AI_BILLING_UNAVAILABLE_MSG);
       }
@@ -698,7 +864,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
                 messages: [
                   ...c.messages,
                   {
-                    id: `m${Date.now()}`,
+                    id: genId("m"),
                     role: "nova",
                     text: reply,
                     time: now(),
@@ -713,6 +879,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         ),
       );
     } catch {
+      if (controller.signal.aborted) return; // cancelled, not a real failure
       toast.error("AI Gateway unavailable");
       setConvos((cs) =>
         cs.map((c) =>
@@ -721,24 +888,26 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
                 ...c,
                 messages: [
                   ...c.messages,
-                  { id: `m${Date.now()}`, role: "nova", text: offlineFallback(), time: now() },
+                  { id: genId("m"), role: "nova", text: offlineFallback(), time: now(), isError: true },
                 ],
               }
             : c,
         ),
       );
     } finally {
-      setIsTyping(false);
+      abortControllersRef.current.delete(convoId);
+      setPending(convoId, false);
     }
   }
 
-  function sendMessage(text: string) {
+  function sendMessage(text: string, images?: string[]) {
     const currentId = activeIdRef.current;
     if (!currentId) {
-      const id = `c${Date.now()}`;
+      const id = genId("c");
       const newConvo: Conversation = {
         id, title: text.slice(0,40) || "New Conversation",
-        preview: text.slice(0,60), date:"Today", messages:[],
+        preview: text.slice(0,60), date:"Today",
+        messages: [{ id: genId("m"), role:"student", text, time:now(), imageCount: images?.length }],
       };
       // Update the ref synchronously so a second send fired before this
       // state update commits still finds this conversation instead of
@@ -746,18 +915,12 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       activeIdRef.current = id;
       setConvos(cs => [newConvo, ...cs]);
       setActiveId(id);
-      setTimeout(() => {
-        // Prepend (not replace) — a second rapid send may have already
-        // joined this conversation via activeIdRef and appended its own
-        // message before this timeout fires.
-        setConvos(cs => cs.map(c => c.id === id ? { ...c, messages:[{ id:"m1", role:"student", text, time:now() }, ...c.messages] } : c));
-        void replyViaGateway(id, text);
-      }, 100);
+      void replyViaGateway(id, text, images);
       return;
     }
 
-    addMessage(currentId, { role:"student", text, time:now() });
-    void replyViaGateway(currentId, text);
+    addMessage(currentId, { role:"student", text, time:now(), imageCount: images?.length });
+    void replyViaGateway(currentId, text, images);
   }
 
   function handleSuggestion(text: string) {
@@ -770,6 +933,9 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   }
 
   function deleteConvo(id: string) {
+    abortControllersRef.current.get(id)?.abort();
+    abortControllersRef.current.delete(id);
+    setPending(id, false);
     setConvos(cs => cs.filter(c => c.id !== id));
     if (activeId === id) setActiveId(null);
   }
@@ -784,7 +950,14 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
 
   function startRename(id: string) {
     const c = convos.find(x => x.id === id);
-    if (c) { setRenaming(id); setRenameVal(c.title); }
+    if (!c) return;
+    // The rename input only renders in the header for the active conversation — switch to
+    // it first so renaming a non-active conversation (from the sidebar menu) is visible.
+    if (activeIdRef.current !== id) {
+      activeIdRef.current = id;
+      setActiveId(id);
+    }
+    setRenaming(id); setRenameVal(c.title);
   }
 
   function commitRename() {
@@ -813,14 +986,14 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     const last = c.messages[c.messages.length - 1];
     if (last?.role === "nova") {
       if (user?.id) {
-        void recordAiFeedback({
+        recordAiFeedback({
           request_id: last.requestId ?? null,
           school_id: schoolId ?? null,
           actor_user_id: user.id,
           actor_role: role ?? "student",
           feature_id: last.featureId ?? null,
           signal_type: "retry",
-        });
+        }).catch(() => { /* best-effort telemetry — never blocks regenerate */ });
       }
       setConvos(cs => cs.map(x => x.id === activeId
         ? { ...x, messages: x.messages.filter(m => m.id !== last.id) }
@@ -840,6 +1013,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     const c = convos.find((x) => x.id === activeId);
     const msg = c?.messages.find((m) => m.id === msgId);
     if (!msg || msg.role !== "nova") return;
+    const previousFeedback = msg.feedback ?? null;
 
     setConvos((cs) =>
       cs.map((convo) =>
@@ -854,15 +1028,36 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       ),
     );
 
-    const result = await recordAiFeedback({
-      request_id: msg.requestId ?? null,
-      school_id: schoolId ?? null,
-      actor_user_id: user.id,
-      actor_role: role ?? "student",
-      feature_id: msg.featureId ?? null,
-      signal_type: signal,
-    });
-    if (!result.ok) {
+    function revert() {
+      setConvos((cs) =>
+        cs.map((convo) =>
+          convo.id === activeId
+            ? {
+                ...convo,
+                messages: convo.messages.map((m) =>
+                  m.id === msgId ? { ...m, feedback: previousFeedback } : m,
+                ),
+              }
+            : convo,
+        ),
+      );
+    }
+
+    try {
+      const result = await recordAiFeedback({
+        request_id: msg.requestId ?? null,
+        school_id: schoolId ?? null,
+        actor_user_id: user.id,
+        actor_role: role ?? "student",
+        feature_id: msg.featureId ?? null,
+        signal_type: signal,
+      });
+      if (!result.ok) {
+        revert();
+        toast.error("Could not save feedback");
+      }
+    } catch {
+      revert();
       toast.error("Could not save feedback");
     }
   }
@@ -998,9 +1193,6 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
             onSend={sendMessage}
             onVoiceUnavailable={() => {
               toast.message(comingSoonToast("Voice input"));
-            }}
-            onAttachUnavailable={() => {
-              toast.message(comingSoonToast("Attachments"));
             }}
             disabled={isTyping}
           />

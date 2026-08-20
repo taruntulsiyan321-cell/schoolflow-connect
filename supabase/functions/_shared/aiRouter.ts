@@ -395,8 +395,31 @@ async function resolveQueryEmbedding(query: string): Promise<number[] | null> {
   return result.ok ? result.embedding : null;
 }
 
-function weekdayKey(d = new Date()): string {
-  return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getDay()] ?? "Mon";
+/**
+ * Extract every numeric token from a question's text, normalized (commas/currency stripped)
+ * and sorted for order-independent comparison.
+ */
+function extractNumbers(text: string): number[] {
+  const matches = text.match(/\d+(?:[.,]\d+)*/g) ?? [];
+  return matches
+    .map((m) => parseFloat(m.replace(/,/g, "")))
+    .filter((n) => Number.isFinite(n))
+    .sort((a, b) => a - b);
+}
+
+/**
+ * True only when two questions carry the EXACT same numeric values (or neither has any —
+ * a purely conceptual question). This is the real safety gate for "same question" vs "same
+ * template, different values": embedding similarity alone cannot tell them apart reliably —
+ * verified empirically, a same-template-different-values pair can score HIGHER (0.94) than a
+ * genuine same-question paraphrase (0.79). Reusing a cached answer when the numbers differ
+ * would silently hand a student the wrong result for their own values.
+ */
+function numbersMatch(a: string, b: string): boolean {
+  const na = extractNumbers(a);
+  const nb = extractNumbers(b);
+  if (na.length !== nb.length) return false;
+  return na.every((n, i) => Math.abs(n - nb[i]) < 0.005);
 }
 
 async function fetchAttendance(admin: SupabaseClient, schoolId: string, studentId: string) {
@@ -584,57 +607,6 @@ async function fetchMarksSummary(admin: SupabaseClient, schoolId: string, studen
     source_as_of: null,
     data_version: `marks:${studentId}:${exams_count}:${average_pct ?? "na"}`,
     completeness: exams_count > 0 ? 1 : 0,
-  };
-}
-
-async function fetchTimetableToday(admin: SupabaseClient, schoolId: string, studentId: string) {
-  const day = weekdayKey();
-  const { data: student } = await admin
-    .from("students")
-    .select("class_id")
-    .eq("id", studentId)
-    .eq("school_id", schoolId)
-    .maybeSingle();
-
-  if (!student?.class_id) {
-    return {
-      projection: "StudentTimetableToday",
-      version: 1,
-      studentId,
-      schoolId,
-      classId: null,
-      day_key: day,
-      periods: [],
-      has_timetable: false,
-      source_as_of: null,
-      data_version: `tt:${studentId}:none`,
-      completeness: 0,
-    };
-  }
-
-  const { data: tt } = await admin
-    .from("class_timetables")
-    .select("grid, updated_at")
-    .eq("class_id", student.class_id)
-    .maybeSingle();
-
-  const grid = (tt?.grid ?? {}) as Record<string, string>;
-  const periods = Object.entries(grid)
-    .filter(([k, v]) => k.startsWith(`${day}-`) && String(v ?? "").trim())
-    .map(([k, v]) => ({ period: k.slice(day.length + 1), subject: String(v).trim() }));
-
-  return {
-    projection: "StudentTimetableToday",
-    version: 1,
-    studentId,
-    schoolId,
-    classId: student.class_id,
-    day_key: day,
-    periods,
-    has_timetable: periods.length > 0,
-    source_as_of: tt?.updated_at ? String(tt.updated_at) : null,
-    data_version: `tt:${student.class_id}:${day}:${periods.length}`,
-    completeness: periods.length > 0 ? 1 : 0.1,
   };
 }
 
@@ -1129,6 +1101,315 @@ async function fetchRecoveryQueue(admin: SupabaseClient, schoolId: string, stude
   };
 }
 
+/**
+ * Upcoming school-wide academic calendar events (holidays, exams, meetings, sports,
+ * cultural, deadlines) for Nova. Admin/principal/teacher manage `school_calendar_events`
+ * via the app; this is read-only. School-wide events (audience 'all'/'students') plus
+ * the student's own class events are included; past events are excluded.
+ */
+async function fetchUpcomingEvents(admin: SupabaseClient, schoolId: string, studentId: string) {
+  const { data: student } = await admin
+    .from("students")
+    .select("class_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const classId = student?.class_id ? String(student.class_id) : null;
+  const nowIso = new Date().toISOString();
+
+  let query = admin
+    .from("school_calendar_events")
+    .select("id, title, description, event_type, audience, class_id, starts_at, ends_at, all_day")
+    .eq("school_id", schoolId)
+    .gte("starts_at", nowIso)
+    .order("starts_at", { ascending: true })
+    .limit(15);
+  query = classId
+    ? query.or(`audience.in.(all,students),class_id.eq.${classId}`)
+    : query.in("audience", ["all", "students"]);
+
+  const { data: rows } = await query;
+  const list = (rows ?? []).map((r) => ({
+    title: String(r.title),
+    description: r.description ? String(r.description) : null,
+    event_type: String(r.event_type),
+    starts_at: String(r.starts_at),
+    ends_at: r.ends_at ? String(r.ends_at) : null,
+    all_day: !!r.all_day,
+  }));
+  const latest = list[0]?.starts_at ?? null;
+
+  return {
+    projection: "StudentUpcomingEvents",
+    version: 1,
+    studentId,
+    schoolId,
+    events: list,
+    upcoming_count: list.length,
+    source_as_of: latest,
+    data_version: `events:${studentId}:${list.length}:${latest ?? "none"}`,
+    completeness: list.length > 0 ? 1 : 0.3,
+  };
+}
+
+// ── Cache version probes ─────────────────────────────────────────────────────
+// withCache's lookup key used to be a hardcoded literal ("pending", or a static
+// per-student string) — meaning a cache hit returned whatever was cached last,
+// for up to the L1/L2 TTL, REGARDLESS of whether the underlying attendance/
+// homework/marks/timetable/mastery data had since changed. A teacher correcting
+// today's attendance, or publishing an exam's results, would not be reflected
+// for up to 10 minutes.
+//
+// Fix: each probe below mirrors the PRIMARY (and, where the fetch function joins
+// a second table, secondary) query of its corresponding fetch* function — same
+// table, same filters, same order/limit — but selects only the columns that can
+// change the fetched result, and folds them into a content hash. That hash IS
+// the cache lookup key. A real edit changes the hash, which changes the key,
+// which is a guaranteed cache miss on the next read — no TTL wait, no polling,
+// no new cache table/mechanism (still the same L1 map + `ai_solution_cache`
+// L2 table). The 60s/10min TTLs stay as pure garbage-collection bounds, not the
+// correctness mechanism — see withCache below.
+async function sha256Hex(input: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(input));
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Order-independent content fingerprint of a narrow row-set. Truncated to 64 bits — this is a cache key, not a security boundary, so collision risk is negligible at realistic per-student row counts. */
+async function hashRows(rows: unknown[] | null | undefined): Promise<string> {
+  const list = rows ?? [];
+  if (!list.length) return "0:empty";
+  const encoded = list.map((r) => JSON.stringify(r)).sort().join("|");
+  return `${list.length}:${(await sha256Hex(encoded)).slice(0, 16)}`;
+}
+
+async function probeAttendance(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data } = await admin
+    .from("attendance")
+    .select("date, status")
+    .eq("school_id", schoolId)
+    .eq("student_id", studentId)
+    .order("date", { ascending: false })
+    .limit(120);
+  return `att:${await hashRows(data)}`;
+}
+
+async function probeHomework(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data: student } = await admin
+    .from("students")
+    .select("class_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  if (!student?.class_id) return "hw:noclass";
+  const [{ data: hw }, { data: subs }] = await Promise.all([
+    admin
+      .from("homework")
+      .select("id, title, subject, due_date, due_time, status")
+      .eq("school_id", schoolId)
+      .eq("class_id", student.class_id)
+      .in("status", ["published", "active"])
+      .order("due_date", { ascending: true })
+      .limit(50),
+    admin
+      .from("homework_submissions")
+      .select("homework_id, status")
+      .eq("student_id", studentId)
+      .limit(200),
+  ]);
+  return `hw:${await hashRows(hw)}:${await hashRows(subs)}`;
+}
+
+async function probeMarks(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data: marks } = await admin
+    .from("marks")
+    .select("exam_id, marks_obtained")
+    .eq("student_id", studentId)
+    .eq("school_id", schoolId)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  const examIds = [...new Set((marks ?? []).map((m) => String(m.exam_id)))];
+  const { data: exams } = examIds.length
+    ? await admin.from("exams").select("id, results_published_at").in("id", examIds)
+    : { data: [] as unknown[] };
+  // marks_obtained corrections and homework/attendance status corrections are written via
+  // upsert (see attendanceRepository.ts / marksRepository.ts) which does not bump created_at,
+  // so the hash MUST cover marks_obtained itself, not just row identity/count.
+  return `marks:${await hashRows(marks)}:${await hashRows(exams)}`;
+}
+
+async function probeEie(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data: student } = await admin
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const userId = student?.user_id ? String(student.user_id) : null;
+  if (!userId) return "eie:nouser";
+  const [{ data: mastery }, { data: revision }, { data: profile }] = await Promise.all([
+    admin
+      .from("concept_mastery")
+      .select("subject, chapter, concept, mastery_score, mistake_count, updated_at")
+      .eq("user_id", userId)
+      .limit(200),
+    admin
+      .from("revision_queue")
+      .select("subject, chapter, topic, reason, priority, due_date, completed")
+      .eq("user_id", userId)
+      .eq("completed", false)
+      .order("priority", { ascending: false })
+      .limit(40),
+    admin
+      .from("student_academic_profiles")
+      .select("attendance_pct, homework_completion_pct")
+      .eq("student_id", studentId)
+      .eq("school_id", schoolId)
+      .maybeSingle(),
+  ]);
+  return `eie:${await hashRows(mastery)}:${await hashRows(revision)}:${profile?.attendance_pct ?? "na"}:${profile?.homework_completion_pct ?? "na"}`;
+}
+
+async function probeProgression(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data: student } = await admin
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const userId = student?.user_id ? String(student.user_id) : null;
+  if (!userId) return "prog:nouser";
+  const [{ data: xp }, { data: mastery }] = await Promise.all([
+    admin
+      .from("student_xp")
+      .select("xp, level, study_streak, current_streak, wins, total_battles, practice_sessions_count, league_code, updated_at")
+      .eq("user_id", userId)
+      .maybeSingle(),
+    admin
+      .from("concept_mastery")
+      .select("subject, concept, mastery_score, mistake_count")
+      .eq("user_id", userId)
+      .order("mastery_score", { ascending: true })
+      .limit(40),
+  ]);
+  return `prog:${xp?.updated_at ?? "none"}:${xp?.xp ?? 0}:${xp?.level ?? 0}:${xp?.study_streak ?? 0}:${await hashRows(mastery)}`;
+}
+
+async function probeParentSummary(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data } = await admin
+    .from("student_academic_profiles")
+    .select("refreshed_at")
+    .eq("student_id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  return `parent:${data?.refreshed_at ?? "none"}`;
+}
+
+async function probeStudentProfile(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data: student } = await admin
+    .from("students")
+    .select("full_name, roll_number, class_id, classes(name, section)")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  if (!student) return "profilectx:none";
+  let subjHash = "0:none";
+  if (student.class_id) {
+    const { data: tc } = await admin
+      .from("teacher_classes")
+      .select("subject")
+      .eq("class_id", student.class_id)
+      .eq("school_id", schoolId);
+    subjHash = await hashRows(tc);
+  }
+  return `profilectx:${student.full_name ?? ""}:${student.class_id ?? "none"}:${subjHash}`;
+}
+
+async function probePracticeHistory(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data: student } = await admin
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const userId = student?.user_id ? String(student.user_id) : null;
+  if (!userId) return "practice:nouser";
+  const { data } = await admin
+    .from("practice_sessions")
+    .select("subject, chapter, accuracy, correct_count, question_count, finished_at, saved_at")
+    .eq("user_id", userId)
+    .not("finished_at", "is", null)
+    .order("finished_at", { ascending: false })
+    .limit(30);
+  return `practice:${await hashRows(data)}`;
+}
+
+async function probeMistakesBook(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data: student } = await admin
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const userId = student?.user_id ? String(student.user_id) : null;
+  if (!userId) return "mistakes:nouser";
+  const { data } = await admin
+    .from("student_mistakes")
+    .select("subject, concept, topic, times_wrong, last_wrong_at, mastered")
+    .eq("user_id", userId)
+    .eq("mastered", false)
+    .order("last_wrong_at", { ascending: false })
+    .limit(40);
+  return `mistakes:${await hashRows(data)}`;
+}
+
+async function probeRecoveryQueue(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data: student } = await admin
+    .from("students")
+    .select("user_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const userId = student?.user_id ? String(student.user_id) : null;
+  if (!userId) return "recovery:nouser";
+  const { data } = await admin
+    .from("recovery_assignments")
+    .select("subject, concept, status, created_at")
+    .eq("user_id", userId)
+    .in("status", ["pending", "in_progress"])
+    .order("created_at", { ascending: false })
+    .limit(30);
+  return `recovery:${await hashRows(data)}`;
+}
+
+async function probeUpcomingEvents(admin: SupabaseClient, schoolId: string, studentId: string): Promise<string> {
+  const { data: student } = await admin
+    .from("students")
+    .select("class_id")
+    .eq("id", studentId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  const classId = student?.class_id ? String(student.class_id) : null;
+  const nowIso = new Date().toISOString();
+  let query = admin
+    .from("school_calendar_events")
+    .select("id, title, description, event_type, audience, class_id, starts_at, ends_at, all_day, updated_at")
+    .eq("school_id", schoolId)
+    .gte("starts_at", nowIso)
+    .order("starts_at", { ascending: true })
+    .limit(15);
+  query = classId
+    ? query.or(`audience.in.(all,students),class_id.eq.${classId}`)
+    : query.in("audience", ["all", "students"]);
+  const { data } = await query;
+  return `events:${await hashRows(data)}`;
+}
+
+/** Joins several independent probes into one composite cache-version string for a multi-fact bundle. */
+async function combineProbes(probes: Promise<string>[]): Promise<string> {
+  const parts = await Promise.all(probes);
+  return `combo:${(await sha256Hex(parts.join("|"))).slice(0, 20)}`;
+}
+
 async function readL2Cache(
   admin: SupabaseClient,
   schoolId: string,
@@ -1377,36 +1658,68 @@ export async function routeAiRequest(
 
     switch (cap.feature_id) {
       case "student.attendance.query": {
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied", error_code: "student_required",
+            message: "Student target required", route_class: cap.route_class,
+          });
+        }
         // Explicit: never call model for attendance
-        data = await withCache("pending", () =>
+        data = await withCache(await probeAttendance(admin, req.actor.schoolId, studentId), () =>
           fetchAttendance(admin, req.actor.schoolId, studentId),
         );
         decision = "answered_deterministic";
         break;
       }
       case "student.homework.due": {
-        data = await withCache("pending", () =>
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied", error_code: "student_required",
+            message: "Student target required", route_class: cap.route_class,
+          });
+        }
+        data = await withCache(await probeHomework(admin, req.actor.schoolId, studentId), () =>
           fetchHomeworkDue(admin, req.actor.schoolId, studentId),
         );
         decision = "answered_deterministic";
         break;
       }
       case "student.marks.summary": {
-        data = await withCache("pending", () =>
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied", error_code: "student_required",
+            message: "Student target required", route_class: cap.route_class,
+          });
+        }
+        data = await withCache(await probeMarks(admin, req.actor.schoolId, studentId), () =>
           fetchMarksSummary(admin, req.actor.schoolId, studentId),
         );
         decision = "answered_deterministic";
         break;
       }
-      case "student.timetable.today": {
-        data = await withCache("pending", () =>
-          fetchTimetableToday(admin, req.actor.schoolId, studentId),
+      case "student.calendar.upcoming": {
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied", error_code: "student_required",
+            message: "Student target required", route_class: cap.route_class,
+          });
+        }
+        data = await withCache(await probeUpcomingEvents(admin, req.actor.schoolId, studentId), () =>
+          fetchUpcomingEvents(admin, req.actor.schoolId, studentId),
         );
         decision = "answered_deterministic";
         break;
       }
       case "student.eie.mastery_summary": {
-        data = await withCache("pending", () => fetchEie(admin, req.actor.schoolId, studentId));
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied", error_code: "student_required",
+            message: "Student target required", route_class: cap.route_class,
+          });
+        }
+        data = await withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
+          fetchEie(admin, req.actor.schoolId, studentId),
+        );
         decision = "answered_eie";
         provenance = {
           algorithm_id: (data as { algorithm_id?: string })?.algorithm_id,
@@ -1416,18 +1729,32 @@ export async function routeAiRequest(
         break;
       }
       case "parent.child.summary": {
-        data = await withCache("pending", () =>
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied", error_code: "student_required",
+            message: "Student target required", route_class: cap.route_class,
+          });
+        }
+        data = await withCache(await probeParentSummary(admin, req.actor.schoolId, studentId), () =>
           fetchParentSummary(admin, req.actor.schoolId, studentId),
         );
         decision = "answered_deterministic";
         break;
       }
       case "parent.child.narrative": {
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied", error_code: "student_required",
+            message: "Student target required", route_class: cap.route_class,
+          });
+        }
         const [parentSummary, eie] = await Promise.all([
-          withCache("pending", () =>
+          withCache(await probeParentSummary(admin, req.actor.schoolId, studentId), () =>
             fetchParentSummary(admin, req.actor.schoolId, studentId),
           ) as Promise<Awaited<ReturnType<typeof fetchParentSummary>>>,
-          withCache("pending", () => fetchEie(admin, req.actor.schoolId, studentId)),
+          withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
+            fetchEie(admin, req.actor.schoolId, studentId),
+          ),
         ]);
         const narrative = buildParentScheduledNarrative({
           attendance_pct: parentSummary.attendance_pct,
@@ -1455,7 +1782,18 @@ export async function routeAiRequest(
         break;
       }
       case "student.performance.explain": {
-        const factsVersionSeed = `explain-facts:${studentId}`;
+        if (!studentId) {
+          return fail({
+            decision: "permission_denied", error_code: "student_required",
+            message: "Student target required", route_class: cap.route_class,
+          });
+        }
+        const factsVersionSeed = await combineProbes([
+          probeAttendance(admin, req.actor.schoolId, studentId),
+          probeHomework(admin, req.actor.schoolId, studentId),
+          probeMarks(admin, req.actor.schoolId, studentId),
+          probeEie(admin, req.actor.schoolId, studentId),
+        ]);
         const factsBundle = (await withCache(factsVersionSeed, async () => {
           const [attendance, homework, marks, eie] = await Promise.all([
             fetchAttendance(admin, req.actor.schoolId, studentId),
@@ -1767,7 +2105,7 @@ export async function routeAiRequest(
             route_class: cap.route_class,
           });
         }
-        const eie = (await withCache("pending", () =>
+        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
           fetchEie(admin, req.actor.schoolId, studentId),
         )) as Awaited<ReturnType<typeof fetchEie>>;
         const parentLike = await fetchParentSummary(admin, req.actor.schoolId, studentId);
@@ -2471,7 +2809,7 @@ export async function routeAiRequest(
             route_class: cap.route_class,
           });
         }
-        const eie = (await withCache("pending", () =>
+        const eie = (await withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
           fetchEie(admin, req.actor.schoolId, studentId),
         )) as Awaited<ReturnType<typeof fetchEie>>;
         const concept = pickConceptFromEie(eie, req.input_text);
@@ -2897,7 +3235,128 @@ export async function routeAiRequest(
             : "") ||
           "en";
 
-        const factsVersionSeed = `nova-facts:${studentId}`;
+        // Recent turns + current-question context — client-supplied per-request only, never
+        // persisted server-side (session memory stores structured flags, not transcripts).
+        // Re-capped here regardless of any client-side cap; never trust client bounds.
+        const structuredInput = req.input_structured ?? {};
+        const rawTurns = Array.isArray(structuredInput.recent_turns)
+          ? (structuredInput.recent_turns as unknown[])
+          : [];
+        const historyLines = rawTurns
+          .slice(-6)
+          .map((t) => {
+            if (!t || typeof t !== "object") return null;
+            const role = (t as { role?: unknown }).role === "nova" ? "Nova" : "Student";
+            const text = (t as { text?: unknown }).text;
+            const trimmed = typeof text === "string" ? text.trim().slice(0, 500) : "";
+            return trimmed ? `${role}: ${trimmed}` : null;
+          })
+          .filter((l): l is string => Boolean(l));
+
+        const qc = structuredInput.question_context;
+        const questionContextBlock = (() => {
+          if (!qc || typeof qc !== "object") return null;
+          const q = qc as Record<string, unknown>;
+          const qText = typeof q.question === "string" ? q.question.trim().slice(0, 1000) : "";
+          if (!qText) return null;
+          const options = Array.isArray(q.options) ? (q.options as unknown[]).slice(0, 8) : [];
+          const optsLine = options.length
+            ? options
+                .map((o, i) => `${String.fromCharCode(65 + i)}. ${String(o).slice(0, 300)}`)
+                .join(" | ")
+            : "";
+          const correctIdx = typeof q.correct_index === "number" ? q.correct_index : null;
+          const correctLabel =
+            correctIdx != null && options[correctIdx] != null
+              ? `${String.fromCharCode(65 + correctIdx)}. ${String(options[correctIdx]).slice(0, 300)}`
+              : null;
+          const subjBits = [q.subject, q.chapter, q.topic].filter(
+            (v): v is string => typeof v === "string" && v.trim().length > 0,
+          );
+          return (
+            `The student is currently viewing this practice question` +
+            (subjBits.length ? ` (${subjBits.join(" · ")})` : "") +
+            `:\n"${qText}"` +
+            (optsLine ? `\nOptions: ${optsLine}` : "") +
+            (correctLabel ? `\nCorrect answer: ${correctLabel}` : "")
+          );
+        })();
+
+        const contextPreamble = [
+          questionContextBlock,
+          historyLines.length
+            ? `Previous turns in this conversation (most recent last):\n${historyLines.join("\n")}`
+            : null,
+        ]
+          .filter((v): v is string => Boolean(v))
+          .join("\n\n");
+
+        // Attached photos/PDF pages — client-supplied data URIs only, never a stored/public URL
+        // (never persisted server-side; sent inline to the model and discarded). Re-capped here
+        // regardless of any client-side cap; never trust client bounds. Re-capping to 3 images ×
+        // ~6MB matches roughly what a compressed photo or rendered PDF page needs.
+        const rawImages = Array.isArray(structuredInput.images)
+          ? (structuredInput.images as unknown[])
+          : [];
+        const images = rawImages
+          .filter((v): v is string => typeof v === "string" && v.startsWith("data:image/"))
+          .filter((v) => v.length < 8_000_000)
+          .slice(0, 3);
+
+        // No image-generation provider is connected (verified: no image endpoint, key, or SDK
+        // anywhere in this codebase — OpenRouter is used for text chat + vision INPUT only).
+        // Detect an explicit "make me a picture/diagram" request and decline honestly and
+        // immediately, rather than silently forwarding it to the text model — which cannot
+        // produce an image and may hallucinate having done so (a known LLM failure mode).
+        const IMAGE_GENERATION_INTENT =
+          /\b(draw|generate|create|make|design|sketch|paint|produce)\b[^.?!\n]{0,40}\b(diagram|picture|image|illustration|drawing|graphic|infographic|poster|photo|artwork)\b/i;
+        if (IMAGE_GENERATION_INTENT.test(question)) {
+          const reply =
+            "I can't generate images or diagrams yet — that capability isn't connected for Nova. " +
+            "I can describe it step by step in words instead, or you could ask your teacher for a " +
+            "diagram. Want a detailed text description?";
+          const conf = scoreConfidence({
+            used_model: false, cache_hit: false, completeness: 1,
+            source_as_of: null, route_class: cap.route_class, budget_tier: "simple",
+          });
+          decision = "answered_capability_unavailable";
+          data = {
+            reply, explanation: reply, facts: null, language,
+            facts_empty: false, source: "capability_gap",
+          };
+          provenance = {
+            algorithm_id: "image_generation_unavailable_v1", completeness: 1,
+            data_version: "static", budget_tier: "simple", source_as_of: null,
+          };
+          await writeDecision(admin, {
+            request_id: req.request_id, school_id: req.actor.schoolId,
+            actor_user_id: req.actor.userId, actor_role: req.actor.role,
+            feature_id: cap.feature_id, route_class: cap.route_class, decision,
+            used_model: false, cache_hit: false, latency_ms: Date.now() - started,
+            confidence: conf.confidence, budget_tier: "simple", validation_ok: true,
+            estimated_cost_units: 0,
+            evidence: { student_id: studentId, language, intent: "image_generation_request" },
+          });
+          return {
+            request_id: req.request_id, feature_id: cap.feature_id, decision,
+            route_class: cap.route_class, used_model: false, cache_hit: false,
+            data, provenance, confidence: conf.confidence, budget_tier: "simple",
+          };
+        }
+
+        const factsVersionSeed = await combineProbes([
+          probeAttendance(admin, req.actor.schoolId, studentId),
+          probeHomework(admin, req.actor.schoolId, studentId),
+          probeMarks(admin, req.actor.schoolId, studentId),
+          probeEie(admin, req.actor.schoolId, studentId),
+          probeParentSummary(admin, req.actor.schoolId, studentId),
+          probeProgression(admin, req.actor.schoolId, studentId),
+          probeStudentProfile(admin, req.actor.schoolId, studentId),
+          probePracticeHistory(admin, req.actor.schoolId, studentId),
+          probeMistakesBook(admin, req.actor.schoolId, studentId),
+          probeRecoveryQueue(admin, req.actor.schoolId, studentId),
+          probeUpcomingEvents(admin, req.actor.schoolId, studentId),
+        ]);
         const factsBundle = (await withCache(factsVersionSeed, async () => {
           const [
             attendance,
@@ -2910,6 +3369,7 @@ export async function routeAiRequest(
             practice,
             mistakes,
             recovery,
+            events,
           ] = await Promise.all([
             fetchAttendance(admin, req.actor.schoolId, studentId),
             fetchHomeworkDue(admin, req.actor.schoolId, studentId),
@@ -2921,6 +3381,7 @@ export async function routeAiRequest(
             fetchPracticeHistory(admin, req.actor.schoolId, studentId),
             fetchMistakesBook(admin, req.actor.schoolId, studentId),
             fetchRecoveryQueue(admin, req.actor.schoolId, studentId),
+            fetchUpcomingEvents(admin, req.actor.schoolId, studentId),
           ]);
           // Merge enrolled subjects with practice/marks subjects (deduped).
           const subjects = dedupeSubjects([
@@ -2941,7 +3402,8 @@ export async function routeAiRequest(
             practice,
             mistakes,
             recovery,
-            data_version: `nova:${attendance.data_version}:${homework.data_version}:${marks.data_version}:${eie.data_version}:${profile.data_version}:${progression.data_version}:${student_profile.data_version}:${practice.data_version}:${mistakes.data_version}:${recovery.data_version}`,
+            events,
+            data_version: `nova:${attendance.data_version}:${homework.data_version}:${marks.data_version}:${eie.data_version}:${profile.data_version}:${progression.data_version}:${student_profile.data_version}:${practice.data_version}:${mistakes.data_version}:${recovery.data_version}:${events.data_version}`,
             source_as_of: (() => {
               const stamps = [
                 attendance.source_as_of,
@@ -2954,6 +3416,7 @@ export async function routeAiRequest(
                 practice.source_as_of,
                 mistakes.source_as_of,
                 recovery.source_as_of,
+                events.source_as_of,
               ].filter((v): v is string => typeof v === "string" && v.length > 0);
               stamps.sort();
               return stamps.length ? stamps[stamps.length - 1] : null;
@@ -2968,8 +3431,9 @@ export async function routeAiRequest(
                 student_profile.completeness +
                 practice.completeness +
                 mistakes.completeness +
-                recovery.completeness) /
-              10,
+                recovery.completeness +
+                events.completeness) /
+              11,
           };
         })) as {
           attendance: Awaited<ReturnType<typeof fetchAttendance>>;
@@ -2984,6 +3448,7 @@ export async function routeAiRequest(
           practice: Awaited<ReturnType<typeof fetchPracticeHistory>>;
           mistakes: Awaited<ReturnType<typeof fetchMistakesBook>>;
           recovery: Awaited<ReturnType<typeof fetchRecoveryQueue>>;
+          events: Awaited<ReturnType<typeof fetchUpcomingEvents>>;
           data_version: string;
           source_as_of: string | null;
           completeness: number;
@@ -3000,6 +3465,7 @@ export async function routeAiRequest(
           practice,
           mistakes,
           recovery,
+          events,
         } = factsBundle;
         const facts = {
           attendance,
@@ -3012,6 +3478,7 @@ export async function routeAiRequest(
           practice,
           mistakes,
           recovery,
+          events,
         };
         const factsEmpty =
           factsBundle.completeness < 0.25 &&
@@ -3019,6 +3486,176 @@ export async function routeAiRequest(
           !(profile.weak_topics?.length || profile.strong_topics?.length) &&
           !(progression.xp > 0 || progression.practice_sessions > 0) &&
           !(practice.sessions_completed > 0 || mistakes.open_count > 0 || recovery.pending_count > 0);
+
+        // Question matching — two-stage, across BOTH question_bank (authoritative) and
+        // ai_answer_cache (previously validated Nova-generated answers). Skipped entirely when
+        // an image is attached (nothing to text-match against a photo) or question_context is
+        // already known (exact question already identified — search could only add noise).
+        // class_level is a hard SQL filter, never part of the similarity score, so a
+        // semantically-similar-but-wrong-class question can never be returned regardless of
+        // embedding quality.
+        //
+        // STAGE 1 (retrieval): broad similarity floor (0.65) across both sources.
+        // STAGE 2 (verification): the top candidate is only ever treated as EXACT — safe to
+        // return its stored answer directly — when similarity is also >= 0.78 AND every numeric
+        // value in the two questions matches exactly (numbersMatch). This second gate is not
+        // optional: verified empirically that a same-template-different-values pair can score
+        // HIGHER (0.94) than a genuine same-question paraphrase (0.79) — cosine similarity alone
+        // cannot distinguish "same question" from "same method, different numbers," and reusing
+        // a cached numeric answer for different values would silently hand a student someone
+        // else's answer. Below the EXACT bar but still >= 0.65, the candidate becomes a
+        // REFERENCE: folded into the model prompt as a worked example to reuse the method
+        // against, never as a ready-made answer — the model still calculates fresh for this
+        // student's actual values.
+        let queryEmbedding: number[] | null = null;
+        let matchClassLevel: number | null = null;
+        let matchSubjects: string[] | null = null;
+        let referenceBlock: string | null = null;
+        let matchedSubjectHint: string | null = null;
+        if (!images.length && !questionContextBlock) {
+          const classLevelMatch = /(\d+)/.exec(
+            student_profile.class_name ?? student_profile.class_label ?? "",
+          );
+          matchClassLevel = classLevelMatch ? parseInt(classLevelMatch[1], 10) : null;
+          if (matchClassLevel != null && matchClassLevel >= 1 && matchClassLevel <= 12) {
+            try {
+              queryEmbedding = await resolveQueryEmbedding(question);
+              if (queryEmbedding) {
+                matchSubjects = student_profile.subjects?.length ? student_profile.subjects : null;
+                const [bankRes, cacheRes] = await Promise.all([
+                  admin.rpc("match_question_bank", {
+                    p_query_embedding: queryEmbedding,
+                    p_class_level: matchClassLevel,
+                    p_subjects: matchSubjects,
+                    p_match_threshold: 0.65,
+                    p_match_count: 2,
+                  }),
+                  admin.rpc("match_ai_answer_cache", {
+                    p_query_embedding: queryEmbedding,
+                    p_class_level: matchClassLevel,
+                    p_subjects: matchSubjects,
+                    p_match_threshold: 0.65,
+                    p_match_count: 2,
+                  }),
+                ]);
+                const bankRows: Record<string, unknown>[] =
+                  !bankRes.error && Array.isArray(bankRes.data)
+                    ? (bankRes.data as Record<string, unknown>[])
+                    : [];
+                const cacheRows: Record<string, unknown>[] =
+                  !cacheRes.error && Array.isArray(cacheRes.data)
+                    ? (cacheRes.data as Record<string, unknown>[])
+                    : [];
+                const bankCandidates: (Record<string, unknown> & { __source: "question_bank" })[] =
+                  bankRows.map((m) => ({ ...m, __source: "question_bank" as const }));
+                const cacheCandidates: (Record<string, unknown> & { __source: "ai_answer_cache" })[] =
+                  cacheRows.map((m) => ({
+                    ...m,
+                    question: m.original_question,
+                    __source: "ai_answer_cache" as const,
+                  }));
+                const best = ([...bankCandidates, ...cacheCandidates] as (Record<string, unknown> & {
+                  __source: "question_bank" | "ai_answer_cache";
+                })[]).sort((a, b) => Number(b.similarity) - Number(a.similarity))[0];
+
+                if (best) {
+                  const similarity = Number(best.similarity);
+                  const candidateQuestion = String(best.question ?? "");
+                  const isExact = similarity >= 0.78 && numbersMatch(question, candidateQuestion);
+
+                  if (isExact && best.__source === "question_bank") {
+                    const opts: string[] = Array.isArray(best.options) ? best.options as string[] : [];
+                    const idx = typeof best.correct_index === "number" ? best.correct_index : null;
+                    const letter = idx != null ? String.fromCharCode(65 + idx) : null;
+                    const correctText = idx != null ? opts[idx] : null;
+                    const bankReply =
+                      `This matches a question already in our records` +
+                      (best.chapter ? ` (${best.chapter})` : "") +
+                      `:\n\n**${candidateQuestion}**\n\n` +
+                      (letter && correctText ? `The correct answer is **${letter}. ${correctText}**.\n\n` : "") +
+                      (best.explanation ? String(best.explanation) : "");
+                    const conf = scoreConfidence({
+                      used_model: false, cache_hit: true, completeness: 1,
+                      source_as_of: null, route_class: cap.route_class, budget_tier: "simple",
+                    });
+                    decision = "answered_retrieval";
+                    data = {
+                      reply: bankReply, explanation: bankReply, facts, language,
+                      facts_empty: factsEmpty, source: "question_bank", match_similarity: similarity,
+                    };
+                    provenance = {
+                      algorithm_id: "question_bank_semantic_match_v1", completeness: 1,
+                      data_version: factsBundle.data_version, budget_tier: "simple", source_as_of: null,
+                    };
+                    await writeDecision(admin, {
+                      request_id: req.request_id, school_id: req.actor.schoolId,
+                      actor_user_id: req.actor.userId, actor_role: req.actor.role,
+                      feature_id: cap.feature_id, route_class: cap.route_class, decision,
+                      used_model: false, cache_hit: true, latency_ms: Date.now() - started,
+                      confidence: conf.confidence, budget_tier: "simple", validation_ok: true,
+                      estimated_cost_units: 0,
+                      evidence: { student_id: studentId, matched_question_id: best.id, similarity, language },
+                    });
+                    return {
+                      request_id: req.request_id, feature_id: cap.feature_id, decision,
+                      route_class: cap.route_class, used_model: false, cache_hit: true,
+                      data, provenance, confidence: conf.confidence, budget_tier: "simple",
+                    };
+                  }
+
+                  if (isExact && best.__source === "ai_answer_cache") {
+                    const cachedReply = String(best.answer ?? "");
+                    const conf = scoreConfidence({
+                      used_model: false, cache_hit: true, completeness: 1,
+                      source_as_of: null, route_class: cap.route_class, budget_tier: "simple",
+                    });
+                    decision = "answered_cache";
+                    data = {
+                      reply: cachedReply, explanation: cachedReply, facts, language,
+                      facts_empty: factsEmpty, source: "ai_answer_cache", match_similarity: similarity,
+                    };
+                    provenance = {
+                      algorithm_id: "ai_answer_cache_semantic_match_v1", completeness: 1,
+                      data_version: factsBundle.data_version, budget_tier: "simple", source_as_of: null,
+                    };
+                    await writeDecision(admin, {
+                      request_id: req.request_id, school_id: req.actor.schoolId,
+                      actor_user_id: req.actor.userId, actor_role: req.actor.role,
+                      feature_id: cap.feature_id, route_class: cap.route_class, decision,
+                      used_model: false, cache_hit: true, latency_ms: Date.now() - started,
+                      confidence: conf.confidence, budget_tier: "simple", validation_ok: true,
+                      estimated_cost_units: 0,
+                      evidence: { student_id: studentId, matched_cache_id: best.id, similarity, language },
+                    });
+                    admin.rpc("bump_ai_answer_cache_hit", { p_id: best.id }).then(
+                      () => {}, () => {},
+                    );
+                    return {
+                      request_id: req.request_id, feature_id: cap.feature_id, decision,
+                      route_class: cap.route_class, used_model: false, cache_hit: true,
+                      data, provenance, confidence: conf.confidence, budget_tier: "simple",
+                    };
+                  }
+
+                  // Not exact (either similarity or numbers didn't clear the bar), but relevant
+                  // enough to use as a worked-method reference for a fresh, recalculated answer.
+                  const refAnswer = best.__source === "question_bank" ? String(best.explanation ?? "") : String(best.answer ?? "");
+                  if (refAnswer.trim()) {
+                    referenceBlock =
+                      `A similar previously-solved question exists (do NOT reuse its specific numeric ` +
+                      `answer — the values here may differ; use the same method/approach and calculate ` +
+                      `fresh for THIS question's actual values):\n"${candidateQuestion}"\n${refAnswer}`;
+                  }
+                  if (typeof best.subject === "string" && best.subject.trim()) {
+                    matchedSubjectHint = best.subject;
+                  }
+                }
+              }
+            } catch {
+              // Embedding/match failure never blocks the chat — fall through to generation.
+            }
+          }
+        }
 
         const pack = buildContextPack({
           capability: cap.feature_id,
@@ -3033,6 +3670,7 @@ export async function routeAiRequest(
             practice,
             mistakes,
             recovery,
+            events,
           },
           eie,
           session_memory: sessionForContext,
@@ -3194,10 +3832,19 @@ export async function routeAiRequest(
           cost_units = estimateUnitsForTier(budget_tier);
         }
 
+        // History/question-context/reference are folded into the question text (not a new
+        // template var) so they reach the model regardless of whether the production or
+        // builtin prompt is active.
+        const fullPreamble = [contextPreamble, referenceBlock].filter(Boolean).join("\n\n");
+        const modelQuestion = fullPreamble
+          ? `${fullPreamble}\n\nStudent's new message: ${question}`
+          : question;
+
         const modelResult = await completeWithPromptLibrary({
           admin,
           capability_id: cap.feature_id,
-          vars: { question, language, facts: factsJson },
+          vars: { question: modelQuestion, language, facts: factsJson },
+          images: images.length ? images : undefined,
           budget_tier,
           request_id: req.request_id,
           shadow_percent: flags.shadowPromptPercent,
@@ -3261,7 +3908,7 @@ export async function routeAiRequest(
               ? billingUnavailableMsg
               : factsEmpty
               ? honestEmptyMsg
-              : "Nova could not reach the AI model right now. Try attendance, homework, marks, timetable, or mastery — those still work without generative credits.",
+              : "Nova could not reach the AI model right now. Try attendance, homework, marks, or mastery — those still work without generative credits.",
             error_code: billing ? "openrouter_billing" : "model_degraded",
             provenance: {
               algorithm_id: eie.algorithm_id,
@@ -3401,6 +4048,42 @@ export async function routeAiRequest(
           language,
         };
 
+        // Save a genuinely new, successfully-answered question into the learned cache so a
+        // future differently-worded question from another student can reuse it — never
+        // question_bank (that stays authoritative/curated only). Best-effort, fire-and-forget:
+        // a save failure must never affect the response already being returned to this student.
+        // Eligibility mirrors the lookup gate above (no image, no question_context, class known)
+        // plus requiring we actually have the embedding already computed (avoids a second paid
+        // embedding call) and a non-empty validated reply. Live-verified end to end: a fresh
+        // question saves here, and a later differently-worded equivalent (via
+        // match_ai_answer_cache) retrieves it directly with zero model cost.
+        if (
+          matchClassLevel != null &&
+          !images.length &&
+          !questionContextBlock &&
+          queryEmbedding &&
+          modelResult.text.trim()
+        ) {
+          admin
+            .from("ai_answer_cache")
+            .insert({
+              original_question: question,
+              answer: modelResult.text,
+              embedding: `[${queryEmbedding.join(",")}]`,
+              class_level: matchClassLevel,
+              subject: matchedSubjectHint,
+              model_id: model_id ?? null,
+              request_id: req.request_id,
+              school_id: req.actor.schoolId,
+            })
+            .then(
+              (res) => {
+                if (res.error) console.error("ai_answer_cache insert failed:", JSON.stringify(res.error));
+              },
+              (e) => console.error("ai_answer_cache insert threw:", e instanceof Error ? e.message : String(e)),
+            );
+        }
+
         await writeDecision(admin, {
           request_id: req.request_id,
           school_id: req.actor.schoolId,
@@ -3424,6 +4107,7 @@ export async function routeAiRequest(
             prompt_version: modelResult.prompt?.version ?? null,
             cost_units,
             soft_breach: budget.soft_breach,
+            fallback_used: modelResult.fallback_used ?? false,
           },
         });
 

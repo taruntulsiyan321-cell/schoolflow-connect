@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { HomeworkService, MarksService, TestService, useAcademicLive } from "@/academic";
+import { HomeworkService, MarksService, TestService, CalendarEventsService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
@@ -67,6 +67,7 @@ export default function Calendar() {
           HomeworkService.listForStudent(ctx, studentId),
           classId ? TestService.listForClass(ctx, classId) : Promise.resolve([]),
           classId ? MarksService.listExamsForClass(ctx, classId, { limit: 50 }) : Promise.resolve([]),
+          CalendarEventsService.listUpcoming(ctx, { classId, limit: 100, fromISO: "2020-01-01T00:00:00.000Z" }),
         ]);
         if (cancelled) return;
 
@@ -114,6 +115,25 @@ export default function Calendar() {
             subject,
             type: "exam",
             color: colorForSubject(subject, "exam"),
+          });
+        }
+
+        const calEvents = settled[3].status === "fulfilled" ? settled[3].value : [];
+        const CAL_TYPE_MAP: Record<string, EventType> = {
+          holiday: "holiday", exam: "exam", meeting: "event",
+          sports: "event", cultural: "event", deadline: "deadline", other: "event",
+        };
+        for (const ce of calEvents as { id: string; title: string; eventType: string; startsAt: string }[]) {
+          const date = toDateKey(ce.startsAt);
+          if (!date) continue;
+          const type = CAL_TYPE_MAP[ce.eventType] ?? "event";
+          events.push({
+            id: `cal-${ce.id}`,
+            date,
+            title: ce.title,
+            subject: "",
+            type,
+            color: TYPE_META[type].color,
           });
         }
 

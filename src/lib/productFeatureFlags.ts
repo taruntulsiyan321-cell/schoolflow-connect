@@ -53,7 +53,9 @@ export const DOUBT_ATTACH_FLAGS: Record<DoubtAttachKind, boolean> = {
 
 /** Nova input capabilities. */
 export const NOVA_FEATURE_FLAGS = {
-  attachment: parseBool(readEnv("VITE_FF_NOVA_ATTACHMENT"), false),
+  // Live: photo (camera/gallery) + PDF attachment, routed to a vision-capable model.
+  // Override with VITE_FF_NOVA_ATTACHMENT=0 to disable without a code change.
+  attachment: parseBool(readEnv("VITE_FF_NOVA_ATTACHMENT"), true),
   voice: parseBool(readEnv("VITE_FF_NOVA_VOICE"), false),
 } as const;
 

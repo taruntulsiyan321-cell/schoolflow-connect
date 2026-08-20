@@ -59,7 +59,11 @@ export type TierSignals = {
 const CAPABILITY_DEFAULTS: Record<string, ReasoningTier> = {
   "student.performance.explain": "simple",
   "student.concept.explain": "simple",
-  "student.nova.chat": "simple",
+  // "medium" (500 output tokens), not "simple" (250) — nova.chat is open-ended tutoring, not a
+  // fixed fact lookup; 250 tokens truncates a real worked example mid-solution (verified live:
+  // a 2-step quadratic-equation answer needs ~900 tokens to finish; 500 covers the large
+  // majority of classroom questions without jumping straight to "complex" tier cost).
+  "student.nova.chat": "medium",
   "student.knowledge.retrieve": "simple",
   "student.recommendation.explain": "simple",
   "teacher.question_paper.plan": "simple",
@@ -86,7 +90,12 @@ export function assignReasoningTier(signals: TierSignals): ReasoningTier {
 
   if (tier === "enterprise") tier = "complex";
 
-  if (signals.facts_complete) {
+  // Nova chat is exempt: "facts complete" just means the student's academic records (attendance/
+  // marks/etc.) are populated, which is true for almost every real student — it says nothing
+  // about whether THIS message needs a short fact or a full worked answer, so forcing "simple"
+  // here truncated real tutoring answers (a genuine bug, found by live-testing a math question).
+  // The other capabilities below are single-purpose fact lookups where this override is correct.
+  if (signals.facts_complete && signals.feature_id !== "student.nova.chat") {
     tier = "simple";
   }
 

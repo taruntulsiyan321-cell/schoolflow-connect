@@ -35,11 +35,18 @@ export function isAiBillingOrCreditsIssue(
 
 export async function invokeAiGateway<T = unknown>(
   body: AiClientRequest,
-): Promise<AiGatewayResponse<T>> {
+  opts?: { signal?: AbortSignal },
+): Promise<AiGatewayResponse<T> | null> {
   const result = await invokeEdgeFunction<Record<string, unknown>>(
     "ai-gateway",
     body as unknown as Record<string, unknown>,
+    opts,
   ) as unknown as { data: (AiGatewayResponse<T> & { error?: string }) | null; error?: string };
+
+  if (!result.data && !result.error) {
+    // Caller-cancelled request (conversation deleted / component unmounted) — no envelope to return.
+    return null;
+  }
 
   if (result.error) {
     return {
@@ -85,7 +92,7 @@ export function resolveCoachCapability(input: {
       if (input.role && !cap.allowed_roles.includes(input.role)) {
         return {
           unsupported: true,
-          message: `That action is not available for your role. Try attendance, homework, marks, timetable, mastery, or chat with Nova.`,
+          message: `That action is not available for your role. Try attendance, homework, marks, mastery, or chat with Nova.`,
         };
       }
       return { feature_id: input.feature_id };
@@ -106,7 +113,7 @@ export function resolveCoachCapability(input: {
   return {
     unsupported: true,
     message:
-      "I can answer attendance, homework due, marks, today's timetable, mastery/revision, next practice recommendation, concept help, performance summary, or a free chat with Nova. Ask one of those, or use Practice / Doubts for learning help.",
+      "I can answer attendance, homework due, marks, mastery/revision, next practice recommendation, concept help, performance summary, or a free chat with Nova. Ask one of those, or use Practice / Doubts for learning help.",
   };
 }
 
@@ -165,15 +172,23 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
         `_Only published results are shown._`
       );
     }
-    case "student.timetable.today": {
-      const periods = Array.isArray(d.periods) ? d.periods : [];
-      if (!d.has_timetable || periods.length === 0) {
-        return "**Today's timetable** — none set up for your class yet.";
+    case "student.calendar.upcoming": {
+      const events = Array.isArray(d.events) ? d.events : [];
+      if (!events.length) {
+        return "**Upcoming events** — nothing on the school calendar yet.";
       }
-      const lines = periods.map((p: { period?: string; subject?: string }) =>
-        `• Period **${p.period}**: ${p.subject}`,
-      );
-      return `**Today's timetable** (${d.day_key})\n${lines.join("\n")}`;
+      const typeLabel: Record<string, string> = {
+        holiday: "Holiday", exam: "Exam", meeting: "Meeting", sports: "Sports",
+        cultural: "Cultural", deadline: "Deadline", other: "Event",
+      };
+      const lines = events.slice(0, 10).map((e: { title?: string; event_type?: string; starts_at?: string }) => {
+        const date = e.starts_at
+          ? new Date(e.starts_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+          : "";
+        const label = typeLabel[e.event_type ?? ""] ?? "Event";
+        return `• **${date}** — ${e.title} (${label})`;
+      });
+      return `**Upcoming school events**\n${lines.join("\n")}`;
     }
     case "student.eie.mastery_summary": {
       const weak = Array.isArray(d.weak_concepts) ? d.weak_concepts : [];
@@ -407,6 +422,22 @@ function formatDeterministicReply(featureId: string, data: unknown): string {
   }
 }
 
+/** A short prior turn, sent so Nova can resolve follow-ups like "give me an example". */
+export type NovaRecentTurn = { role: "student" | "nova"; text: string };
+
+/** The practice question a student is currently looking at, when Nova is opened from it. */
+export type NovaQuestionContext = {
+  question: string;
+  options?: string[];
+  correctIndex?: number | null;
+  subject?: string;
+  chapter?: string;
+  topic?: string;
+};
+
+const MAX_HISTORY_TURNS = 6;
+const MAX_TURN_CHARS = 500;
+
 /**
  * Ask the AI Coach a question via Gateway. Deterministic intents get live AE/EIE answers;
  * free-form maps to student.nova.chat (Qwen via OpenRouter).
@@ -423,7 +454,15 @@ export async function askAiCoach(input: {
   session_id?: string;
   /** Open a new session when capability supports memory (default: true for nova chat) */
   open_session?: boolean;
-}): Promise<{ text: string; response: AiGatewayResponse }> {
+  /** Last few turns of this conversation, oldest first — never persisted server-side, sent per-request only. */
+  recentTurns?: NovaRecentTurn[];
+  /** The practice question the student is currently viewing, if Nova was opened from it. */
+  questionContext?: NovaQuestionContext;
+  /** Attached photos / rendered PDF pages as data URIs — never persisted server-side, sent inline only. */
+  images?: string[];
+  /** Aborts the underlying request (conversation deleted / component unmounted). */
+  signal?: AbortSignal;
+}): Promise<{ text: string; response: AiGatewayResponse } | null> {
   const role = input.role ?? "student";
   const resolved = resolveCoachCapability({
     feature_id: input.feature_id,
@@ -452,17 +491,48 @@ export async function askAiCoach(input: {
     input.open_session === true ||
     Boolean(input.session_id);
 
-  const response = await invokeAiGateway({
-    feature_id: resolved.feature_id,
-    intent_hint: input.text,
-    input: { text: input.text },
-    target_refs: input.studentId ? { studentId: input.studentId } : undefined,
-    channel: input.channel ?? "student_app",
-    locale: input.locale,
-    client_context_version: "gurukul-aicoach/2",
-    session_id: input.session_id,
-    open_session: input.session_id ? false : wantsSession && input.open_session !== false,
-  });
+  const recent_turns = input.recentTurns?.length
+    ? input.recentTurns.slice(-MAX_HISTORY_TURNS).map((t) => ({
+        role: t.role,
+        text: t.text.slice(0, MAX_TURN_CHARS),
+      }))
+    : undefined;
+  const question_context = input.questionContext
+    ? {
+        question: input.questionContext.question.slice(0, 1000),
+        options: input.questionContext.options?.slice(0, 8).map((o) => o.slice(0, 300)),
+        correct_index: input.questionContext.correctIndex ?? null,
+        subject: input.questionContext.subject,
+        chapter: input.questionContext.chapter,
+        topic: input.questionContext.topic,
+      }
+    : undefined;
+  const images = input.images?.length ? input.images.slice(0, 3) : undefined;
+  const structured =
+    recent_turns || question_context || images
+      ? {
+          ...(recent_turns ? { recent_turns } : {}),
+          ...(question_context ? { question_context } : {}),
+          ...(images ? { images } : {}),
+        }
+      : undefined;
+
+  const response = await invokeAiGateway(
+    {
+      feature_id: resolved.feature_id,
+      intent_hint: input.text,
+      input: { text: input.text, structured },
+      target_refs: input.studentId ? { studentId: input.studentId } : undefined,
+      channel: input.channel ?? "student_app",
+      locale: input.locale,
+      client_context_version: "gurukul-aicoach/2",
+      session_id: input.session_id,
+      open_session: input.session_id ? false : wantsSession && input.open_session !== false,
+    },
+    { signal: input.signal },
+  );
+
+  if (!response) return null;
 
   if (isAiBillingOrCreditsIssue(response) && resolved.feature_id === "student.nova.chat") {
     const d = response.data as Record<string, unknown> | null;

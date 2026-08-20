@@ -29,6 +29,8 @@ type Props = {
   /** Auto-fetch on mount (use sparingly — costs an AI call). */
   autoLoad?: boolean;
   className?: string;
+  /** Shown as "Ask Nova" when provided — hand this question off to the Nova chat. */
+  onAskNova?: () => void;
 };
 
 function optionLabel(index: number | null | undefined, options: string[], fallback = ""): string {
@@ -110,7 +112,7 @@ export function ExplainPanel(props: Props) {
   const {
     question, options = [], correctIndex = null, selectedIndex = null,
     correctText = "", selectedText = "", subject = "", chapter = "", topic = "",
-    grade = "", wasCorrect = null, autoLoad = false, className,
+    grade = "", wasCorrect = null, autoLoad = false, className, onAskNova,
   } = props;
 
   const [data, setData] = useState<Explanation | null>(null);
@@ -221,11 +223,18 @@ export function ExplainPanel(props: Props) {
               <Sparkles className="w-4 h-4" />
             </div>
             <span className="section-label text-primary">Learning insight</span>
-            {!autoLoad && (
-              <button onClick={() => setOpen(false)} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
-                Hide
-              </button>
-            )}
+            <div className="ml-auto flex items-center gap-3">
+              {onAskNova && (
+                <button onClick={onAskNova} className="text-xs font-medium text-primary hover:underline">
+                  Ask Nova
+                </button>
+              )}
+              {!autoLoad && (
+                <button onClick={() => setOpen(false)} className="text-xs text-muted-foreground hover:text-foreground">
+                  Hide
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="mb-3 grid gap-2 sm:grid-cols-2">

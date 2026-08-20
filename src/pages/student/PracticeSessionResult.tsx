@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, PracticeService } from "@/academic";
@@ -25,6 +25,7 @@ import {
 } from "@/lib/practiceAnalysisSnapshot";
 import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
+import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -70,6 +71,7 @@ type SessionRow = {
 export default function PracticeSessionResult() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
 
@@ -516,6 +518,16 @@ export default function PracticeSessionResult() {
                 subject={subjectRaw}
                 chapter={chapterRaw}
                 wasCorrect={a.is_correct}
+                onAskNova={() => {
+                  setNovaQuestionContext({
+                    question: questionText,
+                    options: opts,
+                    correctIndex: correctIdx,
+                    subject: subjectRaw,
+                    chapter: chapterRaw,
+                  });
+                  navigate("/student/aicoach");
+                }}
               />
             </Card>
           );

@@ -2,13 +2,14 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import type { PageKey } from "@/gurukul/nav";
 import { EMPTY_STUDENT, type GurukulStudentProfile } from "@/gurukul/emptyStudent";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
 import { MessageService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
-import { cn, XPBar } from "./shared";
+import { cn, XPBar, EASE_OUT, springSnappy, springSoft } from "./shared";
 import {
   Home, BookOpen, Brain, Swords, Library,
   BarChart2, RefreshCw, RotateCcw, AlertCircle,
@@ -123,6 +124,7 @@ export default function Layout({
   const [unreadMsg, setUnreadMsg] = useState(0);
   const student = { ...EMPTY_STUDENT, ...profile };
   const showXpChrome = progressionReady;
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!ready || !ctx) {
@@ -207,8 +209,9 @@ export default function Layout({
   const SubLink = ({ item, color }: { item: NavItem; color: string }) => {
     const active = page === item.key;
     return (
-      <button
+      <motion.button
         onClick={() => { setPage(item.key); setMobileOpen(false); }}
+        whileTap={reduceMotion ? undefined : { scale: 0.97 }}
         className={cn(
           "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-all duration-150 border border-transparent",
           !active && "text-[#78788c] hover:text-white hover:bg-white/5"
@@ -217,8 +220,15 @@ export default function Layout({
         title={collapsed ? item.label : undefined}>
         <span className="shrink-0" style={active ? {color} : undefined}>{item.icon}</span>
         {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-        {active && !collapsed && <span className="w-1.5 h-1.5 rounded-full ml-auto shrink-0" style={{background:color}}/>}
-      </button>
+        {active && !collapsed && (
+          <motion.span
+            layoutId="subNavDot"
+            transition={springSnappy}
+            className="w-1.5 h-1.5 rounded-full ml-auto shrink-0"
+            style={{background:color}}
+          />
+        )}
+      </motion.button>
     );
   };
 
@@ -227,15 +237,23 @@ export default function Layout({
     const active = page === entry.key;
     const showChatBadge = entry.key === "chat" && unreadMsg > 0;
     return (
-      <button
+      <motion.button
         onClick={() => { setPage(entry.key); setMobileOpen(false); }}
+        whileTap={reduceMotion ? undefined : { scale: 0.98 }}
         className={cn(
-          "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-all duration-150",
-          active ? "bg-[#3b5bdb] text-white shadow-lg shadow-[#3b5bdb]/15" : "text-[#78788c] hover:text-white hover:bg-white/5",
+          "relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-colors duration-150",
+          active ? "text-white" : "text-[#78788c] hover:text-white hover:bg-white/5",
           collapsed && "justify-center px-2"
         )}
         title={collapsed ? entry.label : undefined}>
-        <span className="shrink-0 relative">
+        {active && (
+          <motion.div
+            layoutId="sidebarActivePill"
+            transition={reduceMotion ? { duration: 0 } : springSnappy}
+            className="absolute inset-0 rounded-xl bg-[#3b5bdb] shadow-lg shadow-[#3b5bdb]/15"
+          />
+        )}
+        <span className="relative z-10 shrink-0">
           {entry.icon}
           {showChatBadge && collapsed && (
             <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center">
@@ -243,13 +261,13 @@ export default function Layout({
             </span>
           )}
         </span>
-        {!collapsed && <span className="truncate flex-1">{entry.label}</span>}
+        {!collapsed && <span className="relative z-10 truncate flex-1">{entry.label}</span>}
         {showChatBadge && !collapsed && (
-          <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center shrink-0">
+          <span className="relative z-10 min-w-[16px] h-4 px-1 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center shrink-0">
             {unreadMsg > 9 ? "9+" : unreadMsg}
           </span>
         )}
-      </button>
+      </motion.button>
     );
   };
 
@@ -262,14 +280,21 @@ export default function Layout({
     return (
       <div>
         <div className={cn(
-          "flex items-center rounded-xl transition-all duration-150",
-          isHubActive && "bg-[#3b5bdb] shadow-lg shadow-[#3b5bdb]/15",
+          "relative flex items-center rounded-xl transition-colors duration-150",
           collapsed && "justify-center"
         )}>
-          <button
+          {isHubActive && (
+            <motion.div
+              layoutId="sidebarActivePill"
+              transition={reduceMotion ? { duration: 0 } : springSnappy}
+              className="absolute inset-0 rounded-xl bg-[#3b5bdb] shadow-lg shadow-[#3b5bdb]/15"
+            />
+          )}
+          <motion.button
             onClick={() => { setPage(entry.hubKey); setMobileOpen(false); }}
+            whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             className={cn(
-              "flex-1 flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium transition-all",
+              "relative z-10 flex-1 flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium transition-all",
               isHubActive ? "text-white" : isActive ? "text-white" : "text-[#78788c] hover:text-white",
               collapsed && "justify-center"
             )}
@@ -279,28 +304,39 @@ export default function Layout({
               {entry.icon}
             </span>
             {!collapsed && <span className="truncate">{entry.label}</span>}
-          </button>
+          </motion.button>
           {!collapsed && (
             <button
               onClick={() => toggleGroup(entry.hubKey)}
-              className={cn("px-2 py-2.5 shrink-0 transition-colors",
+              className={cn("relative z-10 px-2 py-2.5 shrink-0 transition-colors",
                 isHubActive ? "text-white/70 hover:text-white" : "text-[#78788c] hover:text-white"
               )}>
-              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", isOpen && "rotate-180")}/>
+              <motion.span
+                animate={{ rotate: isOpen ? 180 : 0 }}
+                transition={reduceMotion ? { duration: 0 } : springSnappy}
+                className="block">
+                <ChevronDown className="w-3.5 h-3.5"/>
+              </motion.span>
             </button>
           )}
         </div>
 
-        {!collapsed && isOpen && (
-          <div className="ml-3 pl-3 border-l mt-0.5 mb-1 space-y-0.5" style={{borderColor:`${entry.color}25`}}>
-            {entry.items.map(item => <SubLink key={item.key} item={item} color={entry.color}/>)}
-          </div>
-        )}
-        {collapsed && isOpen && (
-          <div className="space-y-0.5 mt-0.5">
-            {entry.items.map(item => <SubLink key={item.key} item={item} color={entry.color}/>)}
-          </div>
-        )}
+        <AnimatePresence initial={false}>
+          {isOpen && (
+            <motion.div
+              key={collapsed ? "collapsed" : "expanded"}
+              initial={reduceMotion ? undefined : { height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: EASE_OUT }}
+              className="overflow-hidden">
+              <div className={collapsed ? "space-y-0.5 mt-0.5" : "ml-3 pl-3 border-l mt-0.5 mb-1 space-y-0.5"}
+                style={collapsed ? undefined : {borderColor:`${entry.color}25`}}>
+                {entry.items.map(item => <SubLink key={item.key} item={item} color={entry.color}/>)}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   };
@@ -383,19 +419,36 @@ export default function Layout({
       </aside>
 
       {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="fixed inset-0 z-modal md:hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)}/>
-          <aside className="absolute left-0 top-0 h-full w-64 bg-[#0d0d0f] border-r border-white/5 flex flex-col">
-            <div className="flex justify-end p-3 shrink-0">
-              <button onClick={() => setMobileOpen(false)} className="text-[#78788c] hover:text-white">
-                <X className="w-5 h-5"/>
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden"><SidebarContent/></div>
-          </aside>
-        </div>
-      )}
+      <AnimatePresence>
+        {mobileOpen && (
+          <div className="fixed inset-0 z-modal md:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setMobileOpen(false)}
+            />
+            <motion.aside
+              initial={reduceMotion ? undefined : { x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={reduceMotion ? undefined : { x: "-100%" }}
+              transition={reduceMotion ? { duration: 0 } : springSoft}
+              className="absolute left-0 top-0 h-full w-64 bg-[#0d0d0f] border-r border-white/5 flex flex-col">
+              <div className="flex justify-end p-3 shrink-0">
+                <motion.button
+                  whileTap={reduceMotion ? undefined : { scale: 0.9 }}
+                  onClick={() => setMobileOpen(false)}
+                  className="text-[#78788c] hover:text-white">
+                  <X className="w-5 h-5"/>
+                </motion.button>
+              </div>
+              <div className="flex-1 overflow-hidden"><SidebarContent/></div>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -404,14 +457,25 @@ export default function Layout({
         <header className="relative z-40 shrink-0 border-b border-white/5 bg-[#0d0d0f]/80 backdrop-blur-xl">
           <div className="h-14 px-4 sm:px-6 flex items-center gap-3">
             {/* Mobile hamburger */}
-            <button className="md:hidden text-[#78788c] hover:text-white" onClick={() => setMobileOpen(true)}>
+            <motion.button
+              whileTap={reduceMotion ? undefined : { scale: 0.88 }}
+              className="md:hidden text-[#78788c] hover:text-white"
+              onClick={() => setMobileOpen(true)}>
               <Menu className="w-5 h-5"/>
-            </button>
+            </motion.button>
 
             {/* Page title */}
-            <h1 className="text-sm font-bold text-white flex-1 tracking-tight" style={{fontFamily:"var(--font-display)"}}>
-              {headerTitle}
-            </h1>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.h1
+                key={headerTitle}
+                initial={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? undefined : { opacity: 0, y: 4 }}
+                transition={{ duration: 0.15, ease: EASE_OUT }}
+                className="text-sm font-bold text-white flex-1 tracking-tight" style={{fontFamily:"var(--font-display)"}}>
+                {headerTitle}
+              </motion.h1>
+            </AnimatePresence>
 
             {/* Right badges */}
             <div className="flex items-center gap-2">
@@ -430,34 +494,47 @@ export default function Layout({
                 </span>
               </div>
               {/* Bell -> Notifications (live inbox) */}
-              <button
+              <motion.button
+                whileHover={reduceMotion ? undefined : { scale: 1.06 }}
+                whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                 onClick={() => navigate("/student/notifications")}
                 className="relative w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-colors"
                 title="Notifications"
               >
                 <Bell className="w-4 h-4"/>
-                {unread > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#cc5069] text-white text-[9px] font-bold flex items-center justify-center">
-                    {unread > 9 ? "9+" : unread}
-                  </span>
-                )}
-              </button>
+                <AnimatePresence>
+                  {unread > 0 && (
+                    <motion.span
+                      initial={reduceMotion ? undefined : { scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={reduceMotion ? undefined : { scale: 0, opacity: 0 }}
+                      transition={springSnappy}
+                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#cc5069] text-white text-[9px] font-bold flex items-center justify-center">
+                      {unread > 9 ? "9+" : unread}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </motion.button>
 
               {/* Admin Panel shortcut */}
               {onOpenAdmin && (
-                <button
+                <motion.button
+                  whileHover={reduceMotion ? undefined : { scale: 1.03 }}
+                  whileTap={reduceMotion ? undefined : { scale: 0.96 }}
                   onClick={onOpenAdmin}
                   className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-[#78788c] hover:text-[#a5b4fc] border border-white/10 hover:border-[#3b5bdb]/40 hover:bg-[#3b5bdb]/8 rounded-full px-2.5 py-1 transition-all"
                   title="Switch to Admin Panel"
                 >
                   <Settings className="w-3 h-3" />
                   Admin
-                </button>
+                </motion.button>
               )}
 
               {/* Profile avatar — opens dropdown (portaled to body) */}
               <div className="relative" ref={profileRef}>
-                <button
+                <motion.button
+                  whileHover={reduceMotion ? undefined : { scale: 1.06 }}
+                  whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                   onClick={() => setProfileOpen(o => !o)}
                   className={cn(
                     "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white transition-all ring-2 ring-offset-2 ring-offset-[#0d0d0f]",
@@ -469,12 +546,18 @@ export default function Layout({
                   aria-expanded={profileOpen}
                 >
                   {student.avatar}
-                </button>
+                </motion.button>
 
-                {profileOpen && createPortal(
-                  <div
+                {createPortal(
+                  <AnimatePresence>
+                    {profileOpen && (
+                  <motion.div
                     ref={profileMenuRef}
                     role="menu"
+                    initial={reduceMotion ? undefined : { opacity: 0, scale: 0.96, y: -6 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={reduceMotion ? undefined : { opacity: 0, scale: 0.96, y: -6 }}
+                    transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: EASE_OUT }}
                     className="fixed right-4 top-14 mt-0 w-64 z-overlay rounded-2xl border border-white/10 bg-[#131316]/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
                   >
                     {/* User info */}
@@ -543,7 +626,9 @@ export default function Layout({
                         Sign out
                       </button>
                     </div>
-                  </div>,
+                  </motion.div>
+                    )}
+                  </AnimatePresence>,
                   document.body,
                 )}
               </div>
@@ -553,7 +638,17 @@ export default function Layout({
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto bg-[#0d0d0f]">
-          <div className="p-4 sm:p-6 max-w-5xl mx-auto pb-24 md:pb-6">{children}</div>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={page}
+              initial={reduceMotion ? undefined : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? undefined : { opacity: 0, y: -8 }}
+              transition={{ duration: 0.18, ease: EASE_OUT }}
+              className="p-4 sm:p-6 max-w-5xl mx-auto pb-24 md:pb-6">
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
 
         {/* Mobile bottom nav — 4 tabs */}
@@ -563,39 +658,61 @@ export default function Layout({
               const active = isBottomActive(item.key);
               const showChatBadge = item.key === "chat" && unreadMsg > 0;
               return (
-                <button key={item.key} onClick={() => setPage(item.key)}
+                <motion.button key={item.key} onClick={() => setPage(item.key)}
+                  whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                   className={cn(
-                    "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-all relative",
+                    "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-colors relative",
                     active ? "text-[#3b5bdb]" : "text-[#78788c]"
                   )}>
-                  <span className={cn("relative transition-transform duration-150", active && "scale-110")}>
+                  {active && (
+                    <motion.span
+                      layoutId="bottomNavDot"
+                      transition={reduceMotion ? { duration: 0 } : springSnappy}
+                      className="absolute top-0 w-8 h-0.5 rounded-full bg-[#3b5bdb]"
+                    />
+                  )}
+                  <motion.span
+                    className="relative"
+                    animate={{ scale: active ? 1.1 : 1 }}
+                    transition={reduceMotion ? { duration: 0 } : springSnappy}>
                     {item.icon}
                     {showChatBadge && (
                       <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center">
                         {unreadMsg > 9 ? "9+" : unreadMsg}
                       </span>
                     )}
-                  </span>
+                  </motion.span>
                   {item.label}
-                </button>
+                </motion.button>
               );
             })}
             {/* Profile avatar button in bottom nav */}
-            <button
+            <motion.button
               onClick={() => setPage("profile")}
+              whileTap={reduceMotion ? undefined : { scale: 0.92 }}
               className={cn(
-                "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-all",
+                "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-colors relative",
                 page === "profile" ? "text-[#3b5bdb]" : "text-[#78788c]"
               )}>
-              <div className={cn(
-                "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white transition-transform",
-                page === "profile" ? "scale-110 ring-2 ring-[#3b5bdb] ring-offset-1 ring-offset-[#0d0d0f]" : ""
+              {page === "profile" && (
+                <motion.span
+                  layoutId="bottomNavDot"
+                  transition={reduceMotion ? { duration: 0 } : springSnappy}
+                  className="absolute top-0 w-8 h-0.5 rounded-full bg-[#3b5bdb]"
+                />
               )}
+              <motion.div
+                animate={{ scale: page === "profile" ? 1.1 : 1 }}
+                transition={reduceMotion ? { duration: 0 } : springSnappy}
+                className={cn(
+                  "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white",
+                  page === "profile" ? "ring-2 ring-[#3b5bdb] ring-offset-1 ring-offset-[#0d0d0f]" : ""
+                )}
                 style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
                 {student.avatar}
-              </div>
+              </motion.div>
               Profile
-            </button>
+            </motion.button>
           </div>
         </nav>
       </div>

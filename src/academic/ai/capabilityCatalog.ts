@@ -42,13 +42,13 @@ export const CAPABILITY_CATALOG: Record<string, CapabilityDefinition> = {
     requires_student_target: true,
     description: "Published marks summary for an authorised student",
   },
-  "student.timetable.today": {
-    feature_id: "student.timetable.today",
+  "student.calendar.upcoming": {
+    feature_id: "student.calendar.upcoming",
     route_class: "deterministic_record",
     model_policy: "never",
     allowed_roles: ["student", "parent", "teacher", "principal", "admin"],
     requires_student_target: true,
-    description: "Today's timetable periods for the student's class",
+    description: "Upcoming school-wide and class academic-calendar events (holidays, exams, meetings, sports, cultural, deadlines)",
   },
   "student.eie.mastery_summary": {
     feature_id: "student.eie.mastery_summary",

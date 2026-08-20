@@ -40,7 +40,7 @@ describe("capability catalog", () => {
       "student.attendance.query",
       "student.homework.due",
       "student.marks.summary",
-      "student.timetable.today",
+      "student.calendar.upcoming",
       "student.eie.mastery_summary",
       "student.performance.explain",
       "student.concept.explain",
@@ -110,11 +110,11 @@ describe("router policy", () => {
     }
   });
 
-  it("never calls model for homework/marks/timetable/eie", () => {
+  it("never calls model for homework/marks/eie/calendar", () => {
     for (const id of [
       "student.homework.due",
       "student.marks.summary",
-      "student.timetable.today",
+      "student.calendar.upcoming",
       "student.eie.mastery_summary",
       "parent.child.summary",
       "parent.child.narrative",
@@ -201,7 +201,7 @@ describe("auth relationship rules", () => {
 });
 
 describe("intent mapping / golden routes", () => {
-  it("maps attendance / homework / marks / timetable / mastery phrases", () => {
+  it("maps attendance / homework / marks / mastery phrases", () => {
     expect(mapIntentToCapability("What is my attendance this month?")?.feature_id).toBe(
       "student.attendance.query",
     );
@@ -211,8 +211,8 @@ describe("intent mapping / golden routes", () => {
     expect(mapIntentToCapability("Show my marks in Science")?.feature_id).toBe(
       "student.marks.summary",
     );
-    expect(mapIntentToCapability("What is today's timetable?")?.feature_id).toBe(
-      "student.timetable.today",
+    expect(mapIntentToCapability("Any upcoming school events or holidays?")?.feature_id).toBe(
+      "student.calendar.upcoming",
     );
     expect(mapIntentToCapability("What should I revise? Show mastery")?.feature_id).toBe(
       "student.eie.mastery_summary",

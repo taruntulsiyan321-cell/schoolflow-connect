@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-
 import {
   LayoutDashboard, Users, GraduationCap, Building2,
   BarChart2, Bell, Settings, ChevronLeft, ChevronRight,
-  Shield, Menu, ClipboardList, CalendarCheck, LogOut, BookOpen, Activity,
+  Shield, Menu, ClipboardList, CalendarCheck, LogOut, BookOpen, Activity, CalendarDays,
 } from "lucide-react";
 import { cn } from "./shared";
 import {
@@ -18,6 +18,7 @@ import TeachersAdmin from "@/pages/admin/TeachersAdmin";
 import ParentManagement from "./Parents";
 import ClassManagement from "./Classes";
 import AnnouncementManagement from "./Announcements";
+import CalendarEventsPage from "./CalendarEvents";
 import Reports from "./Reports";
 import ExaminationManagement from "./Examinations";
 import HomeworkAdmin from "./Homework";
@@ -60,6 +61,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { key: "classes", label: "Classes", icon: <Building2 className="w-4 h-4" /> },
       { key: "examinations", label: "Examinations", icon: <ClipboardList className="w-4 h-4" /> },
       { key: "homework", label: "Homework", icon: <BookOpen className="w-4 h-4" /> },
+      { key: "calendar", label: "Academic Calendar", icon: <CalendarDays className="w-4 h-4" /> },
     ],
   },
   {
@@ -277,6 +279,7 @@ export default function AdminApp() {
               <Route path="fees" element={<Navigate to="/admin/reports" replace />} />
               <Route path="examinations/*" element={<ExaminationManagement />} />
               <Route path="homework/*" element={<HomeworkAdmin />} />
+              <Route path="calendar/*" element={<CalendarEventsPage />} />
               <Route path="exams" element={<Navigate to="/admin/examinations" replace />} />
               <Route path="exams/*" element={<Navigate to="/admin/examinations" replace />} />
               <Route path="leave-requests/*" element={<LeaveRequests />} />

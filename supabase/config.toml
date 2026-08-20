@@ -24,8 +24,5 @@ verify_jwt = true
 [functions.ai-analytics-insights]
 verify_jwt = true
 
-[functions.ai-ping]
-verify_jwt = true
-
 [functions.ai-gateway]
 verify_jwt = true

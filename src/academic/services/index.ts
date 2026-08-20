@@ -21,6 +21,7 @@ import { AnnouncementService } from "./announcementService";
 import { LeaveService } from "./leaveService";
 import { MessageService } from "./messageService";
 import { TimetableService } from "./timetableService";
+import { CalendarEventsService } from "./calendarEventsService";
 import { ResourceService } from "./resourceService";
 import { resolveStudentServiceContext } from "./resolveStudentContext";
 import {
@@ -60,6 +61,7 @@ export const AcademicServices = {
   leave: LeaveService,
   message: MessageService,
   timetable: TimetableService,
+  calendarEvents: CalendarEventsService,
   resource: ResourceService,
 } as const;
 
@@ -82,6 +84,7 @@ export {
   LeaveService,
   MessageService,
   TimetableService,
+  CalendarEventsService,
   ResourceService,
   resolveStudentServiceContext,
   assertStudentContext,

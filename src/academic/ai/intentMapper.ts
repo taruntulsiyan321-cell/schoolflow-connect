@@ -49,12 +49,14 @@ const RULES: { feature_id: string; patterns: RegExp[] }[] = [
     ],
   },
   {
-    feature_id: "student.timetable.today",
+    feature_id: "student.calendar.upcoming",
     patterns: [
-      /\btimetable\b/i,
-      /\bschedule\b/i,
-      /\bwhat('s| is) (my )?(next|today).+(class|period|lesson)\b/i,
-      /\bperiods?\b.+\btoday\b/i,
+      /\bholiday(s)?\b/i,
+      /\b(school|academic)\s*calendar\b/i,
+      /\bupcoming\b.+\b(event|events)\b/i,
+      /\bschool\s*event(s)?\b/i,
+      /\bwhen('s| is)\b.+\b(holiday|break|vacation)\b/i,
+      /\bnext\b.+\b(holiday|break|vacation)\b/i,
     ],
   },
   {
