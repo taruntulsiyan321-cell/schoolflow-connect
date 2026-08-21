@@ -67,14 +67,14 @@ function ArenaHeroRing({ xp, level }: { xp: number; level: number }) {
             style={{ transition: "stroke-dashoffset 0.8s ease" }}
           />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-foreground">
           <span className="ba-display text-2xl">{levelProgressPct}%</span>
           <span className="ba-label text-[9px] text-[var(--ba-primary-fixed-dim)]">Progress</span>
         </div>
       </div>
       <div className="mt-2 text-center">
         <div className="ba-headline text-[var(--ba-secondary-fixed)]">{xp.toLocaleString()} XP</div>
-        <div className="ba-label text-[10px] text-white/60">
+        <div className="ba-label text-[10px] text-foreground/60">
           {xpToNextLevel} XP to level {level + 1}
         </div>
       </div>
@@ -263,14 +263,14 @@ export function ArenaHub() {
     <div className="wisdom-arena space-y-8 animate-rise pb-24 md:pb-8 relative">
       {/* Hero */}
       <section className="ba-hero p-6 md:p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 bg-[radial-gradient(circle,var(--ba-primary-fixed)_0%,transparent_70%)] pointer-events-none" />
+        <div className="absolute top-0 right-0 w-1/2 h-full opacity-10 bg-[var(--ba-primary-fixed)] pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex-1 space-y-3 text-center md:text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full ba-glass">
               <Award className="w-4 h-4 text-[var(--ba-secondary-fixed)]" />
               <span className="ba-label text-[var(--ba-secondary-fixed)]">{levelTitle(xp.level)}</span>
             </div>
-            <h2 className="ba-display text-2xl md:text-3xl text-white">
+            <h2 className="ba-display text-2xl md:text-3xl text-foreground">
               The arena awaits, {firstName}.
             </h2>
             <p className="text-[var(--ba-primary-fixed-dim)] max-w-lg text-sm md:text-base">
@@ -282,10 +282,10 @@ export function ArenaHub() {
             </p>
             <div className="flex flex-wrap gap-2 justify-center md:justify-start">
               <StreakFlame streak={xp.win_streak} />
-              <span className="text-xs px-2.5 py-1 rounded-full ba-glass text-white/90 font-medium">
+              <span className="text-xs px-2.5 py-1 rounded-full ba-glass text-foreground/90 font-medium">
                 {xp.wins} wins
               </span>
-              <span className="text-xs px-2.5 py-1 rounded-full ba-glass text-white/90 font-medium">
+              <span className="text-xs px-2.5 py-1 rounded-full ba-glass text-foreground/90 font-medium">
                 {xp.total_battles} battles
               </span>
               {xp.equipped_badge && (
@@ -327,7 +327,7 @@ export function ArenaHub() {
                     type="button"
                     onClick={launchQuickBattle}
                     disabled={quickLoading}
-                    className="px-4 py-2 rounded-lg bg-[var(--ba-primary-container)] text-white text-sm font-semibold"
+                    className="px-4 py-2 rounded-lg bg-[var(--ba-primary-container)] text-foreground text-sm font-semibold"
                   >
                     {quickLoading ? <Loader2 className="w-4 h-4 animate-spin inline" /> : "Quick match"}
                   </button>

@@ -134,7 +134,7 @@ export default function Timetable() {
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c]">
+      <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />
         Loading timetable…
       </div>
@@ -145,13 +145,13 @@ export default function Timetable() {
     return (
       <div className="space-y-6">
         <GlassCard glow="blue" className="p-6">
-          <h2 className="text-2xl font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
+          <h2 className="text-2xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
             Class Timetable
           </h2>
-          {classLabel && <p className="text-sm text-[#78788c] mt-0.5">{classLabel}</p>}
+          {classLabel && <p className="text-sm text-muted-foreground mt-0.5">{classLabel}</p>}
         </GlassCard>
         <GlassCard className="p-8 text-center">
-          <p className="text-sm text-[#78788c]">No timetable set up for your class yet.</p>
+          <p className="text-sm text-muted-foreground">No timetable set up for your class yet.</p>
         </GlassCard>
       </div>
     );
@@ -163,15 +163,15 @@ export default function Timetable() {
       <GlassCard glow="blue" className="p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
+            <h2 className="text-2xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
               Class Timetable
             </h2>
-            <p className="text-sm text-[#78788c] mt-0.5">{classLabel || "Your class schedule"}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{classLabel || "Your class schedule"}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setDayIdx((i) => Math.max(0, i - 1))}
-              className="w-8 h-8 rounded-xl border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white hover:border-white/25 transition-all disabled:opacity-30"
+              className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-black/25 transition-all disabled:opacity-30"
               disabled={dayIdx === 0}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -185,7 +185,7 @@ export default function Timetable() {
                     "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
                     i === dayIdx
                       ? "bg-[#3b5bdb] text-white"
-                      : "text-[#78788c] hover:text-white hover:bg-white/5",
+                      : "text-muted-foreground hover:text-foreground hover:bg-black/5",
                   )}
                 >
                   {d.full.slice(0, 3)}
@@ -194,7 +194,7 @@ export default function Timetable() {
             </div>
             <button
               onClick={() => setDayIdx((i) => Math.min(4, i + 1))}
-              className="w-8 h-8 rounded-xl border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white hover:border-white/25 transition-all disabled:opacity-30"
+              className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-black/25 transition-all disabled:opacity-30"
               disabled={dayIdx === 4}
             >
               <ChevronRight className="w-4 h-4" />
@@ -229,7 +229,7 @@ export default function Timetable() {
                 "flex items-stretch gap-4 rounded-2xl border transition-all duration-200",
                 isCurrent
                   ? "border-[#3b5bdb]/40 bg-[#3b5bdb]/8 shadow-[0_0_24px_rgba(59,130,246,0.12)]"
-                  : "border-white/5 bg-[#131316]/70",
+                  : "border-black/5 bg-card/70",
                 isBreak && "opacity-50",
               )}
             >
@@ -239,7 +239,7 @@ export default function Timetable() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className={cn("text-sm font-bold", isBreak ? "text-[#78788c]" : "text-white")}>
+                      <span className={cn("text-sm font-bold", isBreak ? "text-muted-foreground" : "text-foreground")}>
                         {period.subject}
                       </span>
                       {isCurrent && (
@@ -250,18 +250,18 @@ export default function Timetable() {
                       )}
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <div className="flex items-center gap-1 text-[11px] text-[#78788c]">
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                         <Clock className="w-3 h-3" />
                         {period.time}
                       </div>
                       {period.teacher && (
-                        <div className="flex items-center gap-1 text-[11px] text-[#78788c]">
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                           <User className="w-3 h-3" />
                           {period.teacher}
                         </div>
                       )}
                       {period.room && (
-                        <div className="flex items-center gap-1 text-[11px] text-[#78788c]">
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                           <MapPin className="w-3 h-3" />
                           {period.room}
                         </div>
@@ -293,7 +293,7 @@ export default function Timetable() {
                 <div
                   className={cn(
                     "text-center text-xs font-bold mb-2 py-1.5 rounded-lg",
-                    di === dayIdx ? "bg-[#3b5bdb]/20 text-[#3b5bdb]" : "text-[#78788c]",
+                    di === dayIdx ? "bg-[#3b5bdb]/20 text-[#3b5bdb]" : "text-muted-foreground",
                   )}
                 >
                   {d.day.slice(0, 3)}

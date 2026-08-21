@@ -120,34 +120,34 @@ function AttendancePanel({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-96 sm:w-[480px] bg-[#0a0a0c] border-l border-white/7 flex flex-col h-full overflow-hidden">
-        <div className="p-5 border-b border-white/7 flex items-start gap-3">
+      <div className="relative z-50 w-96 sm:w-[480px] bg-card border-l border-black/7 flex flex-col h-full overflow-hidden">
+        <div className="p-5 border-b border-black/7 flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
             <Building2 className="w-5 h-5 text-[#3b5bdb]" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-white">
+            <div className="text-sm font-bold text-foreground">
               Attendance — {liveClass.className} {liveClass.section}
             </div>
-            <div className="text-[10px] text-[#78788c]">
+            <div className="text-[10px] text-muted-foreground">
               Class ID · {liveClass.classId.slice(0, 8)}… · AttendanceService
             </div>
           </div>
-          <button onClick={onClose} className="text-[#78788c] hover:text-white shrink-0">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <div className="flex items-center gap-3">
-            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">
               Date
             </label>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
+              className="flex-1 bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3b5bdb]/50"
             />
           </div>
 
@@ -155,43 +155,43 @@ function AttendancePanel({
           {error && <div className="text-xs text-[#cc5069]">{error}</div>}
 
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-[#78788c] text-xs">
+            <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground text-xs">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading roster…
             </div>
           ) : (
             <>
               <div className="grid grid-cols-4 gap-2">
-                <div className="p-3 rounded-xl bg-white/3 text-center">
-                  <div className="text-lg font-black text-white">{students.length}</div>
-                  <div className="text-[9px] text-[#78788c]">Total</div>
+                <div className="p-3 rounded-xl bg-black/3 text-center">
+                  <div className="text-lg font-black text-foreground">{students.length}</div>
+                  <div className="text-[9px] text-muted-foreground">Total</div>
                 </div>
                 <div className="p-3 rounded-xl bg-[#4aa87a]/10 text-center">
                   <div className="text-lg font-black text-[#4aa87a]">{presentCount}</div>
-                  <div className="text-[9px] text-[#78788c]">Present+</div>
+                  <div className="text-[9px] text-muted-foreground">Present+</div>
                 </div>
                 <div className="p-3 rounded-xl bg-[#cc5069]/10 text-center">
                   <div className="text-lg font-black text-[#cc5069]">{absentCount}</div>
-                  <div className="text-[9px] text-[#78788c]">Absent</div>
+                  <div className="text-[9px] text-muted-foreground">Absent</div>
                 </div>
-                <div className="p-3 rounded-xl bg-white/5 text-center">
-                  <div className="text-lg font-black text-[#78788c]">{unmarkedCount}</div>
-                  <div className="text-[9px] text-[#78788c]">Unmarked</div>
+                <div className="p-3 rounded-xl bg-black/5 text-center">
+                  <div className="text-lg font-black text-muted-foreground">{unmarkedCount}</div>
+                  <div className="text-[9px] text-muted-foreground">Unmarked</div>
                 </div>
               </div>
 
               {students.length === 0 ? (
-                <div className="text-xs text-[#78788c] text-center py-8">No students in this class</div>
+                <div className="text-xs text-muted-foreground text-center py-8">No students in this class</div>
               ) : (
                 <div className="space-y-2">
                   {students.map((s) => {
                     const status = statusByStudent[s.id];
                     const present = status === "present" || status === "late" || status === "half_day";
                     return (
-                      <div key={s.id} className="bg-white/3 rounded-xl p-3 flex items-center gap-3">
+                      <div key={s.id} className="bg-black/3 rounded-xl p-3 flex items-center gap-3">
                         <InitialsAvatar name={s.fullName} size="sm" />
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-white">{s.fullName}</div>
-                          <div className="text-[9px] text-[#78788c]">{s.rollNumber ?? "—"}</div>
+                          <div className="text-xs font-semibold text-foreground">{s.fullName}</div>
+                          <div className="text-[9px] text-muted-foreground">{s.rollNumber ?? "—"}</div>
                         </div>
                         <select
                           value={status ?? ""}
@@ -202,8 +202,8 @@ function AttendancePanel({
                             }))
                           }
                           className={cn(
-                            "px-2 py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10",
-                            status == null ? "text-[#78788c]" : present ? "text-[#4aa87a]" : "text-[#cc5069]",
+                            "px-2 py-1 rounded-lg text-xs font-bold bg-black/5 border border-black/10",
+                            status == null ? "text-muted-foreground" : present ? "text-[#4aa87a]" : "text-[#cc5069]",
                           )}
                         >
                           <option value="">Unmarked</option>
@@ -222,7 +222,7 @@ function AttendancePanel({
           )}
         </div>
 
-        <div className="p-4 border-t border-white/7">
+        <div className="p-4 border-t border-black/7">
           <button
             disabled={saving || loading || students.length === 0}
             onClick={() => void save()}
@@ -277,41 +277,41 @@ function ClassRosterDrawer({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-white/7 flex flex-col h-full overflow-hidden">
-        <div className="p-5 border-b border-white/7 flex items-start gap-3">
+      <div className="relative z-50 w-80 sm:w-96 bg-card border-l border-black/7 flex flex-col h-full overflow-hidden">
+        <div className="p-5 border-b border-black/7 flex items-start gap-3">
           <div className="w-12 h-12 rounded-2xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
             <Building2 className="w-6 h-6 text-[#3b5bdb]" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-white">
+            <div className="text-sm font-bold text-foreground">
               {liveClass.className} — {liveClass.section}
             </div>
-            <div className="text-[10px] text-[#78788c]">
+            <div className="text-[10px] text-muted-foreground">
               {liveClass.studentCount} students · engine roster
             </div>
           </div>
-          <button onClick={onClose} className="text-[#78788c] hover:text-white shrink-0">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 p-4 border-b border-white/7">
+        <div className="grid grid-cols-2 gap-2 p-4 border-b border-black/7">
           {[
             { label: "Profile att.", value: `${Math.round(liveClass.avgAttendancePct)}%` },
             { label: "Today day-rate", value: liveClass.dayRatePct != null ? `${liveClass.dayRatePct}%` : "—" },
             { label: "Homework", value: `${Math.round(liveClass.avgHomeworkCompletionPct)}%` },
             { label: "Exams", value: `${Math.round(liveClass.avgExamsPct)}%` },
           ].map((item) => (
-            <div key={item.label} className="p-3 rounded-xl bg-white/3 text-center">
-              <div className="text-sm font-black text-white">{item.value}</div>
-              <div className="text-[9px] text-[#78788c] mt-0.5">{item.label}</div>
+            <div key={item.label} className="p-3 rounded-xl bg-black/3 text-center">
+              <div className="text-sm font-black text-foreground">{item.value}</div>
+              <div className="text-[9px] text-muted-foreground mt-0.5">{item.label}</div>
             </div>
           ))}
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-12 text-[#78788c] text-xs">
+            <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground text-xs">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading…
             </div>
           ) : error ? (
@@ -320,27 +320,27 @@ function ClassRosterDrawer({
               <button
                 type="button"
                 onClick={() => setRetryKey((k) => k + 1)}
-                className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-white/5 hover:bg-white/10"
+                className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-foreground bg-black/5 hover:bg-black/10"
               >
                 Retry
               </button>
             </div>
           ) : students.length === 0 ? (
-            <div className="text-xs text-[#78788c] text-center pt-8">No students in this class</div>
+            <div className="text-xs text-muted-foreground text-center pt-8">No students in this class</div>
           ) : (
             students.map((s) => (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
+              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-black/3">
                 <InitialsAvatar name={s.fullName} size="sm" />
                 <div>
-                  <div className="text-xs font-semibold text-white">{s.fullName}</div>
-                  <div className="text-[9px] text-[#78788c]">{s.rollNumber ?? s.admissionNumber ?? "—"}</div>
+                  <div className="text-xs font-semibold text-foreground">{s.fullName}</div>
+                  <div className="text-[9px] text-muted-foreground">{s.rollNumber ?? s.admissionNumber ?? "—"}</div>
                 </div>
               </div>
             ))
           )}
         </div>
 
-        <div className="p-4 border-t border-white/7">
+        <div className="p-4 border-t border-black/7">
           <button
             onClick={onAttendance}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-[#4b9fd4] bg-[#4b9fd4]/10 hover:bg-[#4b9fd4]/20 flex items-center justify-center gap-2"
@@ -410,31 +410,31 @@ export default function Classes() {
 
   return (
     <div className="space-y-4">
-      <div className="text-xs text-[#78788c]">
+      <div className="text-xs text-muted-foreground">
         {rows.length} live classes · AnalyticsService.classRollups · AttendanceService
       </div>
 
       {error && <div className="text-xs text-[#cc5069]">{error}</div>}
 
       {loading ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-[#78788c] text-xs">
+        <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground text-xs">
           <Loader2 className="w-4 h-4 animate-spin" /> Loading classes…
         </div>
       ) : rows.length === 0 ? (
-        <div className="text-xs text-[#46465a] py-16 text-center">No classes in this school yet.</div>
+        <div className="text-xs text-muted-foreground py-16 text-center">No classes in this school yet.</div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
           {rows.map((c) => (
             <div
               key={c.classId}
-              className="bg-[#131316] border border-white/7 rounded-2xl p-4 hover:border-white/15 transition-all"
+              className="bg-card border border-black/7 rounded-2xl p-4 hover:border-black/15 transition-all"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-bold text-white">
+                  <div className="text-sm font-bold text-foreground">
                     {c.className}-{c.section}
                   </div>
-                  <div className="text-[10px] text-[#46465a] mt-0.5 font-mono">
+                  <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">
                     {c.classId.slice(0, 8)}…
                   </div>
                 </div>
@@ -442,27 +442,27 @@ export default function Classes() {
                   <div className="text-lg font-black text-[#4aa87a]">
                     {c.dayRatePct != null ? `${c.dayRatePct}%` : "—"}
                   </div>
-                  <div className="text-[9px] text-[#78788c]">Today</div>
+                  <div className="text-[9px] text-muted-foreground">Today</div>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 mt-3">
-                <div className="text-center p-2 rounded-lg bg-white/3">
-                  <div className="text-xs font-bold text-white">{c.studentCount}</div>
-                  <div className="text-[8px] text-[#78788c]">Students</div>
+                <div className="text-center p-2 rounded-lg bg-black/3">
+                  <div className="text-xs font-bold text-foreground">{c.studentCount}</div>
+                  <div className="text-[8px] text-muted-foreground">Students</div>
                 </div>
-                <div className="text-center p-2 rounded-lg bg-white/3">
-                  <div className="text-xs font-bold text-white">{Math.round(c.avgAttendancePct)}%</div>
-                  <div className="text-[8px] text-[#78788c]">Profile att.</div>
+                <div className="text-center p-2 rounded-lg bg-black/3">
+                  <div className="text-xs font-bold text-foreground">{Math.round(c.avgAttendancePct)}%</div>
+                  <div className="text-[8px] text-muted-foreground">Profile att.</div>
                 </div>
-                <div className="text-center p-2 rounded-lg bg-white/3">
-                  <div className="text-xs font-bold text-white">{Math.round(c.avgExamsPct)}%</div>
-                  <div className="text-[8px] text-[#78788c]">Exams</div>
+                <div className="text-center p-2 rounded-lg bg-black/3">
+                  <div className="text-xs font-bold text-foreground">{Math.round(c.avgExamsPct)}%</div>
+                  <div className="text-[8px] text-muted-foreground">Exams</div>
                 </div>
               </div>
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={() => setDetail(c)}
-                  className="flex-1 py-2 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10"
+                  className="flex-1 py-2 rounded-xl text-[10px] font-bold text-foreground bg-black/5 hover:bg-black/10"
                 >
                   Roster
                 </button>

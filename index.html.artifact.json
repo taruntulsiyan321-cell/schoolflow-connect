@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "schoolflow-connect/index.html",
+  "entry": "schoolflow-connect/index.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-20T12:30:52.618Z",
+  "updatedAt": "2026-08-20T12:30:52.618Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

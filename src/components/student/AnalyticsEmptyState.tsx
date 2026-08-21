@@ -5,7 +5,7 @@ import { BarChart3, Calculator, Target, Sword } from "lucide-react";
 
 export function AnalyticsEmptyState() {
   return (
-    <Card className="p-10 sm:p-12 text-center shadow-card border-dashed border-border/80 bg-gradient-to-b from-muted/40 to-transparent">
+    <Card className="p-10 sm:p-12 text-center shadow-card border-dashed border-border/80 ">
       <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
         <BarChart3 className="w-7 h-7 text-primary" />
       </div>

@@ -120,23 +120,23 @@ function Sidebar({
 
   return (
     <div className={cn(
-      "flex flex-col h-full bg-[#0a0a0c] border-r border-white/7 transition-all duration-300",
+      "flex flex-col h-full bg-card border-r border-black/7 transition-all duration-300",
       mobile ? "w-64" : collapsed ? "w-16" : "w-60"
     )}>
-      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-white/7", collapsed && !mobile && "justify-center px-2")}>
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <BookOpen className="w-4 h-4 text-white" />
+      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-black/7", collapsed && !mobile && "justify-center px-2")}>
+        <div className="w-8 h-8 rounded-xl bg-[#3b5bdb] flex items-center justify-center shrink-0">
+          <BookOpen className="w-4 h-4 text-foreground" />
         </div>
         {(!collapsed || mobile) && (
           <div className="min-w-0">
-            <div className="text-sm font-black text-white">Gurukul</div>
+            <div className="text-sm font-black text-foreground">Gurukul</div>
             <div className="text-[10px] font-bold uppercase tracking-widest text-[#3b5bdb]">Parent Panel</div>
           </div>
         )}
         {!mobile && (
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="ml-auto shrink-0 w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+            className="ml-auto shrink-0 w-6 h-6 rounded-lg bg-black/5 hover:bg-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
           >
             {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
           </button>
@@ -144,14 +144,14 @@ function Sidebar({
       </div>
 
       {(!collapsed || mobile) && activeChild && (
-        <div className="px-3 pt-3 pb-2 border-b border-white/7">
-          <div className="text-[8px] font-bold text-[#46465a] uppercase tracking-widest px-2 mb-1">Active Child</div>
+        <div className="px-3 pt-3 pb-2 border-b border-black/7">
+          <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest px-2 mb-1">Active Child</div>
           {children.map((c) => (
             <div
               key={c.id}
               className={cn(
                 "flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all cursor-pointer",
-                c.id === activeChildId ? "bg-[#3b5bdb]/10 text-[#3b5bdb]" : "hover:bg-white/3 text-[#78788c]",
+                c.id === activeChildId ? "bg-[#3b5bdb]/10 text-[#3b5bdb]" : "hover:bg-black/3 text-muted-foreground",
               )}
               onClick={() => {
                 setActiveChildId(c.id);
@@ -181,7 +181,7 @@ function Sidebar({
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
             {(!collapsed || mobile) && (
-              <div className="text-[8px] uppercase tracking-[0.15em] text-[#46465a] px-2 py-2 mt-2">{group.label}</div>
+              <div className="text-[8px] uppercase tracking-[0.15em] text-muted-foreground px-2 py-2 mt-2">{group.label}</div>
             )}
             {collapsed && !mobile && <div className="h-2" />}
             {group.items.map((item) => {
@@ -198,7 +198,7 @@ function Sidebar({
                     collapsed && !mobile && "justify-center px-2",
                     active
                       ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
-                      : "text-[#78788c] hover:text-white hover:bg-white/5 border border-transparent",
+                      : "text-muted-foreground hover:text-foreground hover:bg-black/5 border border-transparent",
                   )}
                   title={collapsed && !mobile ? item.label : undefined}
                 >
@@ -224,20 +224,20 @@ function Sidebar({
       </nav>
 
       {(!collapsed || mobile) && (
-        <div className="px-3 py-4 border-t border-white/7 space-y-2">
+        <div className="px-3 py-4 border-t border-black/7 space-y-2">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-              <span className="text-[11px] font-black text-white">{initials}</span>
+            <div className="w-8 h-8 rounded-xl bg-[#3b5bdb] flex items-center justify-center shrink-0">
+              <span className="text-[11px] font-black text-foreground">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-white truncate">{displayName}</div>
-              <div className="text-[9px] text-[#46465a]">{children.length} linked children</div>
+              <div className="text-xs font-bold text-foreground truncate">{displayName}</div>
+              <div className="text-[9px] text-muted-foreground">{children.length} linked children</div>
             </div>
           </div>
           {onSignOut && (
             <button
               onClick={onSignOut}
-              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-[#78788c] hover:text-white hover:bg-white/5 text-xs font-medium transition-all"
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5 text-xs font-medium transition-all"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
@@ -302,7 +302,7 @@ export default function ParentApp() {
   };
 
   return (
-    <div className="gurukul-parent dark flex h-screen bg-[#0d0d0f] overflow-hidden">
+    <div className="gurukul-parent flex h-screen bg-background overflow-hidden">
       <div className="hidden md:flex flex-col shrink-0">
         <Sidebar
           page={page}
@@ -341,24 +341,24 @@ export default function ParentApp() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-white/7 bg-[#0a0a0c]/80 backdrop-blur-xl">
+        <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-black/7 bg-card/80 backdrop-blur-xl">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#78788c] hover:text-white"
+            className="md:hidden w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center text-muted-foreground hover:text-foreground"
           >
             <Menu className="w-4 h-4" />
           </button>
 
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs text-[#46465a]">Parent</span>
-            <span className="text-[#46465a]">/</span>
-            <span className="text-sm font-semibold text-white truncate">{PARENT_PAGE_TITLES[page]}</span>
+            <span className="text-xs text-muted-foreground">Parent</span>
+            <span className="text-muted-foreground">/</span>
+            <span className="text-sm font-semibold text-foreground truncate">{PARENT_PAGE_TITLES[page]}</span>
           </div>
 
           <div className="ml-auto flex items-center gap-3">
             <button
               onClick={() => setPage("notifications")}
-              className="relative w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+              className="relative w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
             >
               <Bell className="w-4 h-4" />
               {unreadNotif > 0 && (
@@ -369,7 +369,7 @@ export default function ParentApp() {
             </button>
             <button
               onClick={() => setPage("messages")}
-              className="relative w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+              className="relative w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
             >
               <MessageSquare className="w-4 h-4" />
               {unreadMsg > 0 && (
@@ -384,14 +384,14 @@ export default function ParentApp() {
             </div>
             <button
               onClick={() => setPage("profile")}
-              className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"
+              className="w-8 h-8 rounded-xl bg-[#3b5bdb] flex items-center justify-center shrink-0"
             >
-              <span className="text-[11px] font-black text-white">{initials}</span>
+              <span className="text-[11px] font-black text-foreground">{initials}</span>
             </button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#0d0d0f]">
+        <main className="flex-1 overflow-y-auto bg-background">
           <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
             <Routes>
               <Route

@@ -145,7 +145,7 @@ export default function LearningHub({ setPage }: Props) {
 
   if (loading && !snapshot && !charts) {
     return (
-      <div className="flex items-center justify-center py-24 text-[#78788c] text-sm gap-2">
+      <div className="flex items-center justify-center py-24 text-muted-foreground text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading learning hub…
       </div>
     );
@@ -154,8 +154,8 @@ export default function LearningHub({ setPage }: Props) {
   if (loadError && !snapshot && !charts) {
     return (
       <div className="rounded-2xl border border-[#cc5069]/25 bg-[#cc5069]/08 p-6 text-center space-y-3">
-        <p className="text-sm font-semibold text-white">Could not load learning data</p>
-        <p className="text-xs text-[#78788c]">{loadError}</p>
+        <p className="text-sm font-semibold text-foreground">Could not load learning data</p>
+        <p className="text-xs text-muted-foreground">{loadError}</p>
         <button type="button" onClick={() => { void reloadSnap(); void reloadCharts(); }} className="text-xs font-bold text-[#3b5bdb] hover:underline">Try again</button>
       </div>
     );
@@ -168,11 +168,11 @@ export default function LearningHub({ setPage }: Props) {
       )}
       {/* Header */}
       <div>
-        <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Student Panel</div>
-        <h1 className="text-3xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>
+        <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Student Panel</div>
+        <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
           Learning
         </h1>
-        <p className="text-[#78788c] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           Practice → Analyse → Recover → Revise. Your complete growth loop.
         </p>
       </div>
@@ -187,7 +187,7 @@ export default function LearningHub({ setPage }: Props) {
         ].map(s => (
           <GlassCard key={s.label} className="p-4 text-center">
             <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-            <div className="text-[11px] text-[#78788c] mt-0.5">{s.label}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{s.label}</div>
           </GlassCard>
         ))}
       </div>
@@ -197,8 +197,8 @@ export default function LearningHub({ setPage }: Props) {
         {features.map(f => (
           <button key={f.key} onClick={() => setPage(f.key)}
             className={cn(
-              "group text-left p-5 rounded-2xl border border-white/7 bg-[#131316]/90 transition-all duration-200",
-              "hover:border-white/20 hover:scale-[1.02]",
+              "group text-left p-5 rounded-2xl border border-black/7 bg-card/90 transition-all duration-200",
+              "hover:border-black/20 hover:scale-[1.02]",
               f.glow
             )}>
             <div className="flex items-start justify-between mb-4">
@@ -206,13 +206,13 @@ export default function LearningHub({ setPage }: Props) {
                 style={{background:`${f.color}15`,color:f.color}}>
                 {f.icon}
               </div>
-              <ArrowRight className="w-4 h-4 text-[#78788c] group-hover:text-white group-hover:translate-x-0.5 transition-all"/>
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all"/>
             </div>
-            <div className="text-base font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>{f.label}</div>
-            <div className="text-xs text-[#78788c] leading-relaxed mb-4">{f.sub}</div>
+            <div className="text-base font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>{f.label}</div>
+            <div className="text-xs text-muted-foreground leading-relaxed mb-4">{f.sub}</div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-black tabular-nums" style={{color:f.color}}>{f.stat}</span>
-              <span className="text-[11px] text-[#78788c]">{f.statSub}</span>
+              <span className="text-[11px] text-muted-foreground">{f.statSub}</span>
             </div>
           </button>
         ))}
@@ -224,10 +224,10 @@ export default function LearningHub({ setPage }: Props) {
         <GlassCard className="p-5">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1 h-4 rounded-full bg-[#4b9fd4]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Accuracy Trend</span>
+            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Accuracy Trend</span>
           </div>
           <div className="flex items-baseline gap-2 mb-4">
-            <span className="text-2xl font-black text-white">{latestScore}%</span>
+            <span className="text-2xl font-black text-foreground">{latestScore}%</span>
             {accuracyTrend.length >= 2 && (
               <span className={cn(
                 "flex items-center gap-1 text-xs font-semibold",
@@ -250,7 +250,7 @@ export default function LearningHub({ setPage }: Props) {
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-sm text-[#78788c] py-8 text-center">No trend data yet — practice to build your chart.</p>
+            <p className="text-sm text-muted-foreground py-8 text-center">No trend data yet — practice to build your chart.</p>
           )}
         </GlassCard>
 
@@ -258,7 +258,7 @@ export default function LearningHub({ setPage }: Props) {
         <GlassCard className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-4 rounded-full bg-[#3b5bdb]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Subject Accuracy</span>
+            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Subject Accuracy</span>
           </div>
           {subjects.length > 0 ? (
             <div className="space-y-3">
@@ -268,7 +268,7 @@ export default function LearningHub({ setPage }: Props) {
                     style={{background:`${s.color}15`,color:s.color}}>{s.icon}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between mb-1">
-                      <span className="text-xs font-semibold text-white">{s.name}</span>
+                      <span className="text-xs font-semibold text-foreground">{s.name}</span>
                       <span className="text-xs font-black tabular-nums" style={{color:s.color}}>{s.accuracy}%</span>
                     </div>
                     <ProgressBar value={s.accuracy} color={s.color} height="h-1.5"/>
@@ -284,14 +284,14 @@ export default function LearningHub({ setPage }: Props) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-[#78788c] py-8 text-center">No subject data yet.</p>
+            <p className="text-sm text-muted-foreground py-8 text-center">No subject data yet.</p>
           )}
         </GlassCard>
       </div>
 
       {/* Learning loop reminder */}
-      <GlassCard className="p-5 border-dashed border-white/10">
-        <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-[#78788c]">
+      <GlassCard className="p-5 border-dashed border-black/10">
+        <div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
           {loopSteps.map((step, i, arr) => (
             <span key={step.label} className="flex items-center gap-2">
               <span className={cn(
@@ -306,7 +306,7 @@ export default function LearningHub({ setPage }: Props) {
                 {step.active && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{background:step.color}}/>}
                 {step.label}
               </span>
-              {i < arr.length-1 && <span className="text-[#78788c]/30">→</span>}
+              {i < arr.length-1 && <span className="text-muted-foreground/30">→</span>}
             </span>
           ))}
         </div>

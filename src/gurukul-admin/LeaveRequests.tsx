@@ -52,14 +52,14 @@ function ResolveModal({
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
-        <div className="text-sm font-bold text-white mb-1">{cfg.label}</div>
-        <div className="text-[10px] text-[#78788c] mb-4">
+      <div className="relative z-10 bg-card border border-black/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        <div className="text-sm font-bold text-foreground mb-1">{cfg.label}</div>
+        <div className="text-[10px] text-muted-foreground mb-4">
           {request.applicantName} · {leaveTypeLabel(request.leaveType)} · {request.fromDate}
           {request.fromDate !== request.toDate && ` → ${request.toDate}`} ({request.days}d)
         </div>
         <div className="flex flex-col gap-1 mb-5">
-          <label htmlFor="leave-resolve-remarks" className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+          <label htmlFor="leave-resolve-remarks" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
             Remarks (optional — stored on audit event)
           </label>
           <textarea
@@ -68,14 +68,14 @@ function ResolveModal({
             onChange={(e) => setRemarks(e.target.value)}
             rows={3}
             placeholder="Add a note for this decision…"
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#3b5bdb]/50"
+            className="bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-sm text-foreground resize-none focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <div className="flex gap-3 justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all"
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground bg-black/5 hover:bg-black/10 transition-all"
           >
             Cancel
           </button>
@@ -84,7 +84,7 @@ function ResolveModal({
             disabled={busy}
             onClick={() => onConfirm(remarks)}
             className={cn(
-              "px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50",
+              "px-4 py-2 rounded-xl text-sm font-semibold text-foreground transition-all disabled:opacity-50",
               cfg.btnClass,
             )}
           >
@@ -110,12 +110,12 @@ function LeaveDetail({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-white/7 flex flex-col h-full overflow-hidden">
-        <div className="p-5 border-b border-white/7 flex items-start gap-3">
+      <div className="relative z-50 w-80 sm:w-96 bg-card border-l border-black/7 flex flex-col h-full overflow-hidden">
+        <div className="p-5 border-b border-black/7 flex items-start gap-3">
           <InitialsAvatar name={request.applicantName} size="lg" />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-white">{request.applicantName}</div>
-            <div className="text-[10px] text-[#78788c]">
+            <div className="text-sm font-bold text-foreground">{request.applicantName}</div>
+            <div className="text-[10px] text-muted-foreground">
               {request.department ?? request.applicantKind}
             </div>
             <div className="mt-1">
@@ -127,7 +127,7 @@ function LeaveDetail({
               </span>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-[#78788c] hover:text-white shrink-0">
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -144,21 +144,21 @@ function LeaveDetail({
               value: new Date(request.createdAt).toLocaleString("en-IN"),
             },
           ].map((row) => (
-            <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-white/3">
-              <div className="text-[9px] text-[#46465a] uppercase tracking-wider">{row.label}</div>
-              <div className="text-xs text-white capitalize">{row.value}</div>
+            <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-black/3">
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{row.label}</div>
+              <div className="text-xs text-foreground capitalize">{row.value}</div>
             </div>
           ))}
 
-          <div className="flex flex-col gap-1 p-3 rounded-xl bg-white/3">
-            <div className="text-[9px] text-[#46465a] uppercase tracking-wider">Reason</div>
-            <div className="text-xs text-[#c8c8d4] leading-relaxed">{request.reason || "—"}</div>
+          <div className="flex flex-col gap-1 p-3 rounded-xl bg-black/3">
+            <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Reason</div>
+            <div className="text-xs text-muted-foreground leading-relaxed">{request.reason || "—"}</div>
           </div>
 
           {request.reviewedAt && (
-            <div className="flex flex-col gap-1 p-3 rounded-xl bg-white/3">
-              <div className="text-[9px] text-[#46465a] uppercase tracking-wider">Reviewed</div>
-              <div className="text-xs text-[#c8c8d4]">
+            <div className="flex flex-col gap-1 p-3 rounded-xl bg-black/3">
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Reviewed</div>
+              <div className="text-xs text-muted-foreground">
                 {new Date(request.reviewedAt).toLocaleString("en-IN")}
               </div>
             </div>
@@ -166,7 +166,7 @@ function LeaveDetail({
         </div>
 
         {request.status === "pending" && (
-          <div className="p-4 border-t border-white/7 space-y-2">
+          <div className="p-4 border-t border-black/7 space-y-2">
             <button
               type="button"
               onClick={() => onAction("approve")}
@@ -273,7 +273,7 @@ export default function LeaveRequests() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading leave requests…
       </div>
     );
@@ -287,18 +287,18 @@ export default function LeaveRequests() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#46465a]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by applicant or reason…"
-            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
+            className="w-full bg-card border border-black/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50"
+          className="bg-card border border-black/7 rounded-xl px-3 py-2.5 text-sm text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
         >
           <option value="all">All Leave Types</option>
           {(Object.keys(LEAVE_TYPE_LABELS) as LeaveType[]).map((k) => (
@@ -309,7 +309,7 @@ export default function LeaveRequests() {
         </select>
       </div>
 
-      <div className="flex gap-1 p-1 bg-[#131316] border border-white/7 rounded-2xl w-fit">
+      <div className="flex gap-1 p-1 bg-card border border-black/7 rounded-2xl w-fit">
         {(
           [
             { key: "all", label: "All" },
@@ -326,7 +326,7 @@ export default function LeaveRequests() {
               "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
               statusTab === tab.key
                 ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
-                : "text-[#78788c] hover:text-white",
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {tab.label}
@@ -334,8 +334,8 @@ export default function LeaveRequests() {
               className={cn(
                 "text-[9px] px-1.5 py-0.5 rounded-full",
                 statusTab === tab.key
-                  ? "bg-[#3b5bdb]/20 text-[#a5b4fc]"
-                  : "bg-white/5 text-[#46465a]",
+                  ? "bg-[#3b5bdb]/20 text-muted-foreground"
+                  : "bg-black/5 text-muted-foreground",
               )}
             >
               {tabCounts[tab.key] ?? 0}
@@ -346,10 +346,10 @@ export default function LeaveRequests() {
 
       <div className="space-y-3">
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center gap-3 py-16 bg-[#131316] border border-white/7 rounded-2xl">
-            <Calendar className="w-8 h-8 text-[#46465a]" />
-            <div className="text-sm text-[#78788c]">No leave requests found</div>
-            <div className="text-[10px] text-[#46465a]">LeaveService · school-scoped</div>
+          <div className="flex flex-col items-center gap-3 py-16 bg-card border border-black/7 rounded-2xl">
+            <Calendar className="w-8 h-8 text-muted-foreground" />
+            <div className="text-sm text-muted-foreground">No leave requests found</div>
+            <div className="text-[10px] text-muted-foreground">LeaveService · school-scoped</div>
           </div>
         )}
 
@@ -358,30 +358,30 @@ export default function LeaveRequests() {
           return (
             <div
               key={req.id}
-              className="bg-[#131316] border border-white/7 rounded-2xl p-4 hover:border-white/12 transition-all group"
+              className="bg-card border border-black/7 rounded-2xl p-4 hover:border-black/12 transition-all group"
             >
               <div className="flex items-start gap-4">
                 <InitialsAvatar name={req.applicantName} size="md" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-sm font-bold text-white">{req.applicantName}</span>
+                    <span className="text-sm font-bold text-foreground">{req.applicantName}</span>
                     <span
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                       style={{ background: cfg.bg, color: cfg.color }}
                     >
                       {cfg.label}
                     </span>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-[#78788c]">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-black/5 text-muted-foreground">
                       {leaveTypeLabel(req.leaveType)}
                     </span>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-[#78788c] capitalize">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-black/5 text-muted-foreground capitalize">
                       {req.applicantKind}
                     </span>
                   </div>
-                  <div className="text-[10px] text-[#78788c] mb-1">
+                  <div className="text-[10px] text-muted-foreground mb-1">
                     {req.department ?? "—"}
                   </div>
-                  <div className="flex items-center gap-4 text-[10px] text-[#78788c] mb-2">
+                  <div className="flex items-center gap-4 text-[10px] text-muted-foreground mb-2">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" /> {req.fromDate}
                       {req.fromDate !== req.toDate ? ` → ${req.toDate}` : ""}
@@ -396,14 +396,14 @@ export default function LeaveRequests() {
                       })}
                     </span>
                   </div>
-                  <div className="text-xs text-[#78788c] line-clamp-1">{req.reason || "—"}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-1">{req.reason || "—"}</div>
                 </div>
 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                   <button
                     type="button"
                     onClick={() => setDetail(req)}
-                    className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+                    className="w-7 h-7 rounded-lg bg-black/5 hover:bg-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
@@ -412,14 +412,14 @@ export default function LeaveRequests() {
                       <button
                         type="button"
                         onClick={() => setResolveModal({ request: req, action: "approve" })}
-                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#4aa87a]/20 flex items-center justify-center text-[#78788c] hover:text-[#4aa87a] transition-all"
+                        className="w-7 h-7 rounded-lg bg-black/5 hover:bg-[#4aa87a]/20 flex items-center justify-center text-muted-foreground hover:text-[#4aa87a] transition-all"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setResolveModal({ request: req, action: "reject" })}
-                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-[#78788c] hover:text-[#cc5069] transition-all"
+                        className="w-7 h-7 rounded-lg bg-black/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-muted-foreground hover:text-[#cc5069] transition-all"
                       >
                         <XCircle className="w-3.5 h-3.5" />
                       </button>

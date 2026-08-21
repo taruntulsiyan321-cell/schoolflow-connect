@@ -301,7 +301,7 @@ export function LeaderboardPanel({ embedded = false }: Props) {
 function Podium({ rows, meUserId, badgeMap }: { rows: RankRow[]; meUserId?: string; badgeMap: Record<string, string | null> }) {
   const order = [rows[1], rows[0], rows[2]];
   const heights = ["h-20", "h-28", "h-16"];
-  const tone = ["from-muted", "from-warning/40", "from-accent/25"];
+  const tone = ["", "", ""];
   const crownTone = ["text-tier-silver", "text-tier-gold", "text-tier-bronze"];
   const ranks = [2, 1, 3];
   return (
@@ -319,7 +319,7 @@ function Podium({ rows, meUserId, badgeMap }: { rows: RankRow[]; meUserId?: stri
             </div>
             <div className="text-[11px] text-muted-foreground">{r.label}</div>
           </div>
-          <div className={cn("rounded-t-xl bg-gradient-to-t to-transparent flex items-start justify-center pt-2", heights[i], tone[i], r.userId === meUserId && "ring-2 ring-primary")}>
+          <div className={cn("rounded-t-xl flex items-start justify-center pt-2", heights[i], tone[i], r.userId === meUserId && "ring-2 ring-primary")}>
             <Crown className={cn("w-5 h-5", crownTone[i])} />
           </div>
         </div>

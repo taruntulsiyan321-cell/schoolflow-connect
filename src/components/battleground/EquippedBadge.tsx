@@ -10,7 +10,7 @@ export function EquippedBadge({ code, size = "sm", showLabel = false }: { code?:
   const ip = size === "xs" ? "w-3 h-3" : size === "md" ? "w-5 h-5" : "w-4 h-4";
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span title={`${b.label} · ${b.desc}`} className={cn("rounded-full text-white flex items-center justify-center ring-2", px, t.bg, t.ring)}>
+      <span title={`${b.label} · ${b.desc}`} className={cn("rounded-full text-foreground flex items-center justify-center ring-2", px, t.bg, t.ring)}>
         <Icon className={ip} />
       </span>
       {showLabel && <span className={cn("text-xs font-semibold", t.text)}>{b.label}</span>}

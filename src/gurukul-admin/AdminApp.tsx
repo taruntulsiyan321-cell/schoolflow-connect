@@ -92,26 +92,26 @@ function Sidebar({
 }) {
   return (
     <div className={cn(
-      "flex flex-col h-full bg-[#0a0a0c] border-r border-white/7 transition-all duration-300",
+      "flex flex-col h-full bg-card border-r border-black/7 transition-all duration-300",
       mobile ? "w-64" : collapsed ? "w-16" : "w-60"
     )}>
       <div className={cn(
-        "flex items-center gap-3 px-4 py-5 border-b border-white/7",
+        "flex items-center gap-3 px-4 py-5 border-b border-black/7",
         collapsed && !mobile && "justify-center px-2"
       )}>
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <Shield className="w-4 h-4 text-white" />
+        <div className="w-8 h-8 rounded-xl bg-[#3b5bdb] flex items-center justify-center shrink-0">
+          <Shield className="w-4 h-4 text-foreground" />
         </div>
         {(!collapsed || mobile) && (
           <div className="min-w-0">
-            <div className="text-sm font-black text-white">Gurukul</div>
+            <div className="text-sm font-black text-foreground">Gurukul</div>
             <div className="text-[10px] font-bold uppercase tracking-widest text-[#3b5bdb]">Admin Panel</div>
           </div>
         )}
         {!mobile && (
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="ml-auto shrink-0 w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+            className="ml-auto shrink-0 w-6 h-6 rounded-lg bg-black/5 hover:bg-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
           >
             {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
           </button>
@@ -122,7 +122,7 @@ function Sidebar({
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
             {(!collapsed || mobile) && (
-              <div className="text-[9px] uppercase tracking-[0.15em] text-[#46465a] px-2 py-2 mt-2">
+              <div className="text-[9px] uppercase tracking-[0.15em] text-muted-foreground px-2 py-2 mt-2">
                 {group.label}
               </div>
             )}
@@ -138,7 +138,7 @@ function Sidebar({
                     collapsed && !mobile && "justify-center px-2",
                     active
                       ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
-                      : "text-[#78788c] hover:text-white hover:bg-white/5 border border-transparent"
+                      : "text-muted-foreground hover:text-foreground hover:bg-black/5 border border-transparent"
                   )}
                   title={collapsed && !mobile ? item.label : undefined}
                 >
@@ -149,7 +149,7 @@ function Sidebar({
                       {item.badge && (
                         <span className={cn(
                           "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-                          active ? "bg-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/8 text-[#78788c]"
+                          active ? "bg-[#3b5bdb]/30 text-muted-foreground" : "bg-black/8 text-muted-foreground"
                         )}>
                           {item.badge}
                         </span>
@@ -164,11 +164,11 @@ function Sidebar({
       </nav>
 
       {onSignOut && (
-        <div className="p-2 border-t border-white/7">
+        <div className="p-2 border-t border-black/7">
           <button
             onClick={onSignOut}
             className={cn(
-              "w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left text-xs font-medium text-[#78788c] hover:text-rose-400 hover:bg-rose-400/5 transition-all",
+              "w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left text-xs font-medium text-muted-foreground hover:text-rose-400 hover:bg-rose-400/5 transition-all",
               collapsed && !mobile && "justify-center px-2"
             )}
           >
@@ -206,7 +206,7 @@ export default function AdminApp() {
   };
 
   return (
-    <div className="gurukul-admin dark flex h-screen bg-[#0d0d0f] overflow-hidden">
+    <div className="gurukul-admin flex h-screen bg-background overflow-hidden">
       <div className="hidden md:flex flex-col shrink-0">
         <Sidebar
           page={page}
@@ -235,18 +235,18 @@ export default function AdminApp() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-white/7 bg-[#0a0a0c]/80 backdrop-blur-xl">
+        <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-black/7 bg-card/80 backdrop-blur-xl">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#78788c] hover:text-white"
+            className="md:hidden w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center text-muted-foreground hover:text-foreground"
           >
             <Menu className="w-4 h-4" />
           </button>
 
           <div className="flex items-center gap-2 min-w-0">
-            <span className="text-xs text-[#46465a]">Admin</span>
-            <span className="text-[#46465a]">/</span>
-            <span className="text-sm font-semibold text-white truncate">{ADMIN_PAGE_TITLES[page]}</span>
+            <span className="text-xs text-muted-foreground">Admin</span>
+            <span className="text-muted-foreground">/</span>
+            <span className="text-sm font-semibold text-foreground truncate">{ADMIN_PAGE_TITLES[page]}</span>
           </div>
 
           <div className="ml-auto flex items-center gap-3">
@@ -258,14 +258,14 @@ export default function AdminApp() {
               type="button"
               onClick={() => setPage("settings")}
               title="Settings"
-              className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"
+              className="w-8 h-8 rounded-xl bg-[#3b5bdb] flex items-center justify-center shrink-0"
             >
-              <span className="text-[11px] font-black text-white">{initials}</span>
+              <span className="text-[11px] font-black text-foreground">{initials}</span>
             </button>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#0d0d0f]">
+        <main className="flex-1 overflow-y-auto bg-background">
           <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
             <Routes>
               <Route index element={<AdminHome setPage={setPage} />} />

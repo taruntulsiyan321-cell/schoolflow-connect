@@ -271,7 +271,7 @@ export default function StudentDashboard() {
   );
 
   return (
-    <div className="gurukul-student dark min-h-screen">
+    <div className="gurukul-student min-h-screen">
       <GurukulStudentProvider value={mergedStudent} identity={academicIdentity} shellReady={shellReady}>
       <Layout page={page} setPage={setPage} profile={{ ...profile, ...(classLabel ? { class: classLabel } : {}) }} progressionReady={shellReady}>
         <Routes>

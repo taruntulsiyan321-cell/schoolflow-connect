@@ -58,7 +58,7 @@ function QuickAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-white/7 bg-[#131316] hover:border-white/15 hover:bg-white/3 transition-all group text-center"
+      className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-black/7 bg-card hover:border-black/15 hover:bg-black/3 transition-all group text-center"
     >
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110"
@@ -66,7 +66,7 @@ function QuickAction({
       >
         {icon}
       </div>
-      <div className="text-[10px] font-semibold text-[#78788c] group-hover:text-white transition-all leading-tight">
+      <div className="text-[10px] font-semibold text-muted-foreground group-hover:text-foreground transition-all leading-tight">
         {label}
       </div>
     </button>
@@ -94,8 +94,8 @@ function AttentionCard({
       onClick={onClick}
       disabled={!onClick}
       className={cn(
-        "bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-start gap-3 text-left w-full",
-        onClick && "hover:border-white/15 hover:bg-white/3 transition-all cursor-pointer",
+        "bg-card border border-black/7 rounded-2xl p-4 flex items-start gap-3 text-left w-full",
+        onClick && "hover:border-black/15 hover:bg-black/3 transition-all cursor-pointer",
       )}
     >
       <div
@@ -105,9 +105,9 @@ function AttentionCard({
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-xl font-black text-white tabular-nums">{value}</div>
-        <div className="text-[10px] text-[#78788c] font-medium mt-0.5">{label}</div>
-        {hint && <div className="text-[9px] text-[#46465a] mt-0.5">{hint}</div>}
+        <div className="text-xl font-black text-foreground tabular-nums">{value}</div>
+        <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{label}</div>
+        {hint && <div className="text-[9px] text-muted-foreground mt-0.5">{hint}</div>}
       </div>
     </button>
   );
@@ -303,7 +303,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-sm gap-2">
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading your day…
       </div>
     );
@@ -311,9 +311,9 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-[#3b5bdb]/10 to-[#f59e0b]/5 border border-[#3b5bdb]/20 rounded-2xl p-5">
-        <div className="text-sm font-black text-white">Good to go — here is your day</div>
-        <div className="text-xs text-[#78788c] mt-0.5">
+      <div className="bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-2xl p-5">
+        <div className="text-sm font-black text-foreground">Good to go — here is your day</div>
+        <div className="text-xs text-muted-foreground mt-0.5">
           {classCount} class{classCount === 1 ? "" : "es"}
           {ctClasses > 0 ? ` · class teacher of ${ctClasses}` : ""}
           {classNames.length > 0
@@ -324,7 +324,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
       </div>
 
       <div>
-        <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-3">
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
           Quick actions
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -386,7 +386,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
       </div>
 
       <div>
-        <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-3">
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
           Needs your attention
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -452,13 +452,13 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         type="button"
         onClick={() => openTab("students")}
         className={cn(
-          "w-full p-4 rounded-2xl border border-white/7 bg-[#131316] text-left hover:border-[#3b5bdb]/40",
+          "w-full p-4 rounded-2xl border border-black/7 bg-card text-left hover:border-[#3b5bdb]/40",
         )}
       >
-        <div className="text-xs font-bold text-white flex items-center gap-2">
+        <div className="text-xs font-bold text-foreground flex items-center gap-2">
           <Calendar className="w-4 h-4 text-[#3b5bdb]" /> Open My Classes
         </div>
-        <div className="text-[10px] text-[#78788c] mt-1">
+        <div className="text-[10px] text-muted-foreground mt-1">
           Students · Attendance · Homework · Tests · Exams & Marks · Insights
         </div>
       </button>

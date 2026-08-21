@@ -30,10 +30,10 @@ function Stat({
   hint?: string;
 }) {
   return (
-    <div className="rounded-xl border border-white/8 bg-white/[0.03] px-4 py-3">
-      <div className="text-[10px] uppercase tracking-widest text-[#78788c] font-bold">{label}</div>
-      <div className="mt-1 text-xl font-black text-white tabular-nums">{value}</div>
-      {hint ? <div className="mt-1 text-[11px] text-[#5c5c70]">{hint}</div> : null}
+    <div className="rounded-xl border border-black/8 bg-muted px-4 py-3">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{label}</div>
+      <div className="mt-1 text-xl font-black text-foreground tabular-nums">{value}</div>
+      {hint ? <div className="mt-1 text-[11px] text-muted-foreground">{hint}</div> : null}
     </div>
   );
 }
@@ -130,11 +130,11 @@ export default function AiAnalyticsPanel() {
     <div className="space-y-6 p-1">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-white font-black text-lg">
+          <div className="flex items-center gap-2 text-foreground font-black text-lg">
             <Activity className="w-5 h-5 text-[#3b5bdb]" />
             AI Analytics
           </div>
-          <p className="mt-1 text-sm text-[#78788c] max-w-xl">
+          <p className="mt-1 text-sm text-muted-foreground max-w-xl">
             Live aggregates from the AI decision ledger for this school. Empty windows show zeros — never demo burn.
           </p>
         </div>
@@ -144,7 +144,7 @@ export default function AiAnalyticsPanel() {
             void load();
             void loadRollout();
           }}
-          className="inline-flex items-center gap-2 rounded-lg bg-white/5 hover:bg-white/10 px-3 py-2 text-xs font-bold text-white"
+          className="inline-flex items-center gap-2 rounded-lg bg-black/5 hover:bg-black/10 px-3 py-2 text-xs font-bold text-foreground"
         >
           <RefreshCw className={cn("w-3.5 h-3.5", (loading || rolloutLoading) && "animate-spin")} />
           Refresh
@@ -152,7 +152,7 @@ export default function AiAnalyticsPanel() {
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-2 text-[#78788c] text-sm py-12 justify-center">
+        <div className="flex items-center gap-2 text-muted-foreground text-sm py-12 justify-center">
           <Loader2 className="w-4 h-4 animate-spin" /> Loading ledger…
         </div>
       ) : error ? (
@@ -193,13 +193,13 @@ export default function AiAnalyticsPanel() {
             />
           </div>
 
-          <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
-            <div className="text-sm font-bold text-white mb-2">Budget forecast</div>
-            <p className="text-[10px] text-[#5c5c70] mb-3">
+          <div className="rounded-xl border border-black/8 bg-muted p-4">
+            <div className="text-sm font-bold text-foreground mb-2">Budget forecast</div>
+            <p className="text-[10px] text-muted-foreground mb-3">
               Soft/hard limits below are provisional product defaults (not school-configured quotas).
             </p>
             {!forecast || forecast.status === "insufficient_data" ? (
-              <p className="text-sm text-[#78788c]">
+              <p className="text-sm text-muted-foreground">
                 Insufficient ledger history to forecast. Status: {forecast?.status ?? "—"}.
               </p>
             ) : (
@@ -224,16 +224,16 @@ export default function AiAnalyticsPanel() {
                 ["Feature mix", summary?.feature_mix],
               ] as const
             ).map(([title, mix]) => (
-              <div key={title} className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
-                <div className="text-sm font-bold text-white mb-3">{title}</div>
+              <div key={title} className="rounded-xl border border-black/8 bg-muted p-4">
+                <div className="text-sm font-bold text-foreground mb-3">{title}</div>
                 {mixEntries(mix).length === 0 ? (
-                  <p className="text-xs text-[#5c5c70]">No rows in window.</p>
+                  <p className="text-xs text-muted-foreground">No rows in window.</p>
                 ) : (
                   <ul className="space-y-1.5">
                     {mixEntries(mix).slice(0, 8).map(([k, v]) => (
-                      <li key={k} className="flex justify-between text-xs text-[#a0a0b8]">
+                      <li key={k} className="flex justify-between text-xs text-muted-foreground">
                         <span className="truncate pr-2">{k}</span>
-                        <span className="tabular-nums text-white font-bold">{v}</span>
+                        <span className="tabular-nums text-foreground font-bold">{v}</span>
                       </li>
                     ))}
                   </ul>
@@ -244,14 +244,14 @@ export default function AiAnalyticsPanel() {
         </>
       )}
 
-      <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
-        <div className="text-sm font-bold text-white mb-1">Decision Engine Rollout — Weak Areas V2</div>
-        <p className="text-[10px] text-[#5c5c70] mb-3">
+      <div className="rounded-xl border border-black/8 bg-muted p-4">
+        <div className="text-sm font-bold text-foreground mb-1">Decision Engine Rollout — Weak Areas V2</div>
+        <p className="text-[10px] text-muted-foreground mb-3">
           The pilot flag is off for every real student today. Read-only health of the V1/V2 split,
           for the separate decision of when to turn it on.
         </p>
         {rolloutLoading ? (
-          <div className="flex items-center gap-2 text-[#78788c] text-sm py-6 justify-center">
+          <div className="flex items-center gap-2 text-muted-foreground text-sm py-6 justify-center">
             <Loader2 className="w-4 h-4 animate-spin" /> Loading rollout summary…
           </div>
         ) : rolloutError ? (

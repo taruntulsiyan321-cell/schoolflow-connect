@@ -47,7 +47,7 @@ export function StatusDot({ status }: { status: string }) {
 
 export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("bg-[#131316] border border-white/7 rounded-2xl", className)}>
+    <div className={cn("bg-card border border-black/7 rounded-2xl", className)}>
       {children}
     </div>
   );
@@ -57,8 +57,8 @@ export function SectionHead({ title, subtitle, action }: { title: string; subtit
   return (
     <div className="flex items-center justify-between gap-4 mb-4">
       <div>
-        <div className="text-sm font-bold text-white">{title}</div>
-        {subtitle && <div className="text-[10px] text-[#78788c] mt-0.5">{subtitle}</div>}
+        <div className="text-sm font-bold text-foreground">{title}</div>
+        {subtitle && <div className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</div>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -67,9 +67,9 @@ export function SectionHead({ title, subtitle, action }: { title: string; subtit
 
 export function StatBox({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+    <div className="bg-card border border-black/7 rounded-2xl p-4 text-center">
       <div className="text-xl font-black tabular-nums" style={{ color: color ?? "#fff" }}>{value}</div>
-      <div className="text-[10px] text-[#78788c] mt-0.5">{label}</div>
+      <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
     </div>
   );
 }

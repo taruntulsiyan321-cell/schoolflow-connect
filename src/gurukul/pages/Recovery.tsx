@@ -145,7 +145,7 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
   const [expanded, setExpanded] = useState(false);
   const m = PRIORITY_META[topic.priority];
   return (
-    <GlassCard className={cn("overflow-hidden transition-all duration-200 hover:border-white/15")}>
+    <GlassCard className={cn("overflow-hidden transition-all duration-200 hover:border-black/15")}>
       <div className="p-4" style={{borderLeft:`3px solid ${m.color}`}}>
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
@@ -158,19 +158,19 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
                 </span>
               )}
             </div>
-            <div className="text-sm font-bold text-white">{displayConcept(topic.concept)}</div>
-            <div className="text-xs text-[#78788c] mt-0.5">{displayChapter(topic.chapter)} · {SOURCE_LABELS[topic.source]} · {topic.lastAttempt}</div>
+            <div className="text-sm font-bold text-foreground">{displayConcept(topic.concept)}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{displayChapter(topic.chapter)} · {SOURCE_LABELS[topic.source]} · {topic.lastAttempt}</div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <div className="text-right">
               <div className="text-lg font-black tabular-nums" style={{color:m.color}}>{topic.mastery}%</div>
-              <div className="text-[10px] text-[#78788c]">{topic.attempts} mistakes</div>
+              <div className="text-[10px] text-muted-foreground">{topic.attempts} mistakes</div>
             </div>
           </div>
         </div>
 
         <div className="mt-3">
-          <div className="flex items-center justify-between text-[10px] text-[#78788c] mb-1">
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
             <span>Mastery</span><span>{topic.mastery}%</span>
           </div>
           <ProgressBar value={topic.mastery} color={m.color} height="h-1.5"/>
@@ -186,24 +186,24 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
               : "Practice this concept"}
           </button>
           <button onClick={() => setExpanded(e => !e)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all">
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground bg-black/5 hover:bg-black/10 transition-all">
             <Brain className="w-3 h-3 text-violet-400"/>
             Insight {expanded ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
           </button>
         </div>
 
         {expanded && (
-          <div className="mt-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/15 text-xs text-[#a0a0b0] leading-relaxed space-y-2">
+          <div className="mt-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/15 text-xs text-muted-foreground leading-relaxed space-y-2">
             <div className="flex items-center gap-1.5">
               <Brain className="w-3.5 h-3.5 text-violet-400"/>
               <span className="text-violet-400 font-semibold text-[10px] uppercase tracking-wider">Recovery insight</span>
             </div>
             <p>{topic.aiReason}</p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <Link to="/student/practice" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-[#4b9fd4] hover:bg-white/10">Practice</Link>
-              <Link to="/student/revision" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-[#c08a3a] hover:bg-white/10">Revision</Link>
-              <Link to="/student/aicoach" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-violet-400 hover:bg-white/10">Ask Nova</Link>
-              <Link to="/student/mistakes" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-rose-400 hover:bg-white/10">Mistake Book</Link>
+              <Link to="/student/practice" className="px-2 py-1 rounded-lg bg-black/5 text-[10px] font-bold text-[#4b9fd4] hover:bg-black/10">Practice</Link>
+              <Link to="/student/revision" className="px-2 py-1 rounded-lg bg-black/5 text-[10px] font-bold text-[#c08a3a] hover:bg-black/10">Revision</Link>
+              <Link to="/student/aicoach" className="px-2 py-1 rounded-lg bg-black/5 text-[10px] font-bold text-violet-400 hover:bg-black/10">Ask Nova</Link>
+              <Link to="/student/mistakes" className="px-2 py-1 rounded-lg bg-black/5 text-[10px] font-bold text-rose-400 hover:bg-black/10">Mistake Book</Link>
             </div>
           </div>
         )}
@@ -216,9 +216,9 @@ function RecoverySession({ topic, onBack }: { topic: RecoveryTopic; onBack: () =
   return (
     <div className="space-y-5">
       <GlassCard className="p-8 text-center">
-        <RefreshCw className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
-        <p className="text-sm font-semibold text-white mb-1">Open live recovery</p>
-        <p className="text-xs text-[#78788c] mb-4">
+        <RefreshCw className="w-8 h-8 text-muted-foreground mx-auto mb-3"/>
+        <p className="text-sm font-semibold text-foreground mb-1">Open live recovery</p>
+        <p className="text-xs text-muted-foreground mb-4">
           Recovery drills load from your assigned concepts. Practice, Revision, or Nova can help meanwhile.
         </p>
         <div className="flex flex-wrap justify-center gap-2">
@@ -241,7 +241,7 @@ function RecoverySession({ topic, onBack }: { topic: RecoveryTopic; onBack: () =
             Ask Nova
           </Link>
           <button onClick={onBack}
-            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+            className="px-4 py-2 rounded-xl bg-black/5 border border-black/10 text-muted-foreground text-sm font-semibold hover:bg-black/10 transition-all">
             Back
           </button>
         </div>
@@ -280,7 +280,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
   return (
     <div className="space-y-6">
       <GlassCard className="p-6 text-center">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-[#78788c] mb-4">Recovery Session Complete</div>
+        <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-4">Recovery Session Complete</div>
         <div className="flex justify-center mb-4">
           <div className="relative inline-flex" style={{width:size,height:size}}>
             <svg width={size} height={size} className="-rotate-90">
@@ -294,10 +294,10 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
             </div>
           </div>
         </div>
-        <div className="text-lg font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
+        <div className="text-lg font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>
           {displayConcept(topic.concept)}
         </div>
-        <p className="text-sm text-[#78788c]">
+        <p className="text-sm text-muted-foreground">
           {passed ? "Great improvement! Topic is recovering well." : "Keep going — a few more sessions will strengthen this."}
         </p>
 
@@ -307,9 +307,9 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
             { label:"Previous", value:`${topic.mastery}%`,   color:"#78788c" },
             { label:"Change",   value: score >= topic.mastery ? `+${score - topic.mastery}%` : `${score - topic.mastery}%`, color: score > topic.mastery ? "#4aa87a" : "#cc5069" },
           ].map(s => (
-            <div key={s.label} className="p-3 rounded-xl bg-white/3 border border-white/8">
+            <div key={s.label} className="p-3 rounded-xl bg-black/3 border border-black/8">
               <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-              <div className="text-[10px] text-[#78788c] mt-0.5">{s.label}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
@@ -323,7 +323,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
           </button>
         )}
         <button onClick={onBack}
-          className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+          className="w-full py-3 rounded-xl bg-black/5 border border-black/10 text-muted-foreground text-sm font-semibold hover:bg-black/10 transition-all">
           Back to Recovery Hub
         </button>
       </div>
@@ -542,7 +542,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
   if (!academicReady) {
     return (
       <GlassCard className="p-8 text-center">
-        <p className="text-sm text-[#78788c]">No student profile linked to this account.</p>
+        <p className="text-sm text-muted-foreground">No student profile linked to this account.</p>
       </GlassCard>
     );
   }
@@ -551,8 +551,8 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
     return (
       <GlassCard className="p-8 text-center">
         <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2"/>
-        <p className="text-sm text-[#78788c]">Could not load recovery data</p>
-        <p className="text-xs text-[#78788c] mt-1">{error}</p>
+        <p className="text-sm text-muted-foreground">Could not load recovery data</p>
+        <p className="text-xs text-muted-foreground mt-1">{error}</p>
       </GlassCard>
     );
   }
@@ -581,9 +581,9 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Learning Workflow</div>
-          <h1 className="text-3xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>Recovery</h1>
-          <p className="text-[#78788c] text-sm mt-1">Targeted practice for topics where you need the most help.</p>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Learning Workflow</div>
+          <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Recovery</h1>
+          <p className="text-muted-foreground text-sm mt-1">Targeted practice for topics where you need the most help.</p>
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
           <AlertCircle className="w-3.5 h-3.5 text-rose-400"/>
@@ -601,7 +601,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         ].map(s => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-[#78788c]">{s.label}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
             </div>
             <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
           </GlassCard>
@@ -615,13 +615,13 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
             <Brain className="w-4 h-4 text-violet-400"/>
           </div>
           <div>
-            <div className="text-sm font-bold text-white">Recovery Plan</div>
-            <div className="text-[11px] text-[#78788c]">Based on your highest-priority weak concepts from practice</div>
+            <div className="text-sm font-bold text-foreground">Recovery Plan</div>
+            <div className="text-[11px] text-muted-foreground">Based on your highest-priority weak concepts from practice</div>
           </div>
         </div>
         <div className="grid sm:grid-cols-3 gap-3">
           {AI_PLAN.length === 0 ? (
-            <p className="text-xs text-[#78788c] col-span-full">No recovery plan yet — weak areas will appear here as you practice.</p>
+            <p className="text-xs text-muted-foreground col-span-full">No recovery plan yet — weak areas will appear here as you practice.</p>
           ) : (
             AI_PLAN.map((item, i) => {
             const m = PRIORITY_META[item.priority];
@@ -631,16 +631,16 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                 type="button"
                 onClick={() => startSession(item.topic)}
                 disabled={startingId === item.topic.id}
-                className="p-3 rounded-xl border bg-white/2 hover:bg-white/5 transition-all text-left group disabled:opacity-50"
+                className="p-3 rounded-xl border bg-black/2 hover:bg-black/5 transition-all text-left group disabled:opacity-50"
                 style={{borderColor:`${m.color}25`}}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black text-white"
+                  <span className="w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black text-foreground"
                     style={{background:m.color}}>{i+1}</span>
                   <SubjectBadge subject={item.subject}/>
                 </div>
-                <p className="text-xs text-white font-semibold leading-snug mb-2">{item.task}</p>
-                <div className="flex items-center gap-1.5 text-[10px] text-[#78788c]">
+                <p className="text-xs text-foreground font-semibold leading-snug mb-2">{item.task}</p>
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <Clock className="w-3 h-3"/>{item.time}
                 </div>
               </button>
@@ -655,7 +655,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         <GlassCard className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-4 rounded-full bg-blue-400"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Teacher Assigned</span>
+            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Teacher Assigned</span>
           </div>
           <div className="space-y-2">
             {TEACHER_TASKS.map(t => (
@@ -664,8 +664,8 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                   <Target className="w-4 h-4 text-blue-400"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white">{t.title}</div>
-                  <div className="text-[11px] text-[#78788c]">{t.teacher} · Due {t.due} · {t.qs} questions</div>
+                  <div className="text-sm font-semibold text-foreground">{t.title}</div>
+                  <div className="text-[11px] text-muted-foreground">{t.teacher} · Due {t.due} · {t.qs} questions</div>
                 </div>
                 <button className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-xs font-bold transition-all">
                   <Play className="w-3 h-3"/> Start
@@ -679,16 +679,16 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[180px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#78788c]"/>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search topics..."
-            className="w-full pl-8 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-rose-500/40"/>
+            className="w-full pl-8 pr-3 py-2 rounded-xl bg-black/5 border border-black/10 text-sm text-foreground placeholder-[#78788c] focus:outline-none focus:border-rose-500/40"/>
         </div>
         <div className="flex items-center gap-1.5">
-          <Filter className="w-3.5 h-3.5 text-[#78788c]"/>
+          <Filter className="w-3.5 h-3.5 text-muted-foreground"/>
           {(["all","high","medium","low"] as const).map(p => (
             <button key={p} onClick={() => setPriority(p)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                priority === p ? "bg-rose-500/20 border border-rose-500/40 text-rose-300" : "bg-white/5 border border-white/10 text-[#78788c] hover:bg-white/10")}>
+                priority === p ? "bg-rose-500/20 border border-rose-500/40 text-rose-300" : "bg-black/5 border border-black/10 text-muted-foreground hover:bg-black/10")}>
               {p === "all" ? "All" : p}
             </button>
           ))}
@@ -697,7 +697,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
           {(["all","practice","tests","battleground"] as const).map(src => (
             <button key={src} onClick={() => setSourceFilter(src)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                sourceFilter === src ? "bg-white/15 border border-white/25 text-white" : "bg-white/5 border border-white/10 text-[#78788c] hover:bg-white/10")}>
+                sourceFilter === src ? "bg-black/15 border border-black/25 text-foreground" : "bg-black/5 border border-black/10 text-muted-foreground hover:bg-black/10")}>
               {src === "all" ? "All Sources" : SOURCE_LABELS[src]}
             </button>
           ))}
@@ -707,13 +707,13 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Topic list */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[#78788c]">{filtered.length} topic{filtered.length !== 1 ? "s" : ""} found</span>
-          <span className="text-xs text-[#78788c]">Sorted by priority</span>
+          <span className="text-xs text-muted-foreground">{filtered.length} topic{filtered.length !== 1 ? "s" : ""} found</span>
+          <span className="text-xs text-muted-foreground">Sorted by priority</span>
         </div>
         {filtered.length === 0 ? (
           <GlassCard className="p-8 text-center">
-            <RefreshCw className="w-8 h-8 text-[#78788c] mx-auto mb-2"/>
-            <p className="text-[#78788c] text-sm">No topics match your filters</p>
+            <RefreshCw className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
+            <p className="text-muted-foreground text-sm">No topics match your filters</p>
           </GlassCard>
         ) : (
           filtered.map(t => (
@@ -725,15 +725,15 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Recovery History */}
       <div>
         <button onClick={() => setShowHistory(h => !h)}
-          className="flex items-center gap-2 text-xs text-[#78788c] hover:text-white transition-colors mb-3 group">
-          <History className="w-3.5 h-3.5 group-hover:text-white"/>
+          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3 group">
+          <History className="w-3.5 h-3.5 group-hover:text-foreground"/>
           Recovery History {showHistory ? <ChevronDown className="w-3.5 h-3.5"/> : <ChevronRight className="w-3.5 h-3.5"/>}
         </button>
         {showHistory && (
           <div className="space-y-2">
             {HISTORY.length === 0 ? (
               <GlassCard className="p-6 text-center">
-                <p className="text-xs text-[#78788c]">No completed recovery sessions yet.</p>
+                <p className="text-xs text-muted-foreground">No completed recovery sessions yet.</p>
               </GlassCard>
             ) : (
               HISTORY.map(h => (
@@ -743,8 +743,8 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                   {h.improved ? <TrendingUp className="w-4 h-4 text-emerald-400"/> : <SkipForward className="w-4 h-4 text-amber-400"/>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white">{displayConcept(h.concept)}</div>
-                  <div className="text-[11px] text-[#78788c]">{h.subject} · {h.date}</div>
+                  <div className="text-sm font-semibold text-foreground">{displayConcept(h.concept)}</div>
+                  <div className="text-[11px] text-muted-foreground">{h.subject} · {h.date}</div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-lg font-black tabular-nums" style={{color:h.improved?"#4aa87a":"#c08a3a"}}>{h.score}%</span>
@@ -774,7 +774,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                         teacherAssigned: false,
                       });
                     }}
-                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#78788c] hover:text-white transition-all"
+                    className="p-1.5 rounded-lg bg-black/5 hover:bg-black/10 text-muted-foreground hover:text-foreground transition-all"
                   >
                     <RotateCcw className="w-3.5 h-3.5"/>
                   </button>

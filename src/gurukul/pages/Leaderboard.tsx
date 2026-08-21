@@ -107,7 +107,7 @@ export default function Leaderboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading rankings…
       </div>
     );
@@ -135,7 +135,7 @@ export default function Leaderboard() {
               "px-3 py-1.5 rounded-xl text-[11px] font-semibold border transition-colors",
               period === p.key
                 ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
-                : "border-white/7 text-[#78788c] hover:text-white",
+                : "border-black/7 text-muted-foreground hover:text-foreground",
             )}
           >
             {p.label}
@@ -146,7 +146,7 @@ export default function Leaderboard() {
       <GlassCard className="p-5">
         <SectionLabel>Class XP · Progression Engine</SectionLabel>
         {ranked.length === 0 && (
-          <div className="text-xs text-[#46465a] py-8 text-center">
+          <div className="text-xs text-muted-foreground py-8 text-center">
             No class XP rankings yet. Earn XP from practice, homework, and battles to appear here.
           </div>
         )}
@@ -156,7 +156,7 @@ export default function Leaderboard() {
               key={p.userId}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-xl border transition-colors",
-                p.you ? "border-blue-500/30 bg-blue-500/8" : "border-white/7 hover:border-white/12",
+                p.you ? "border-blue-500/30 bg-blue-500/8" : "border-black/7 hover:border-black/12",
               )}
             >
               <div className="w-7 h-7 flex items-center justify-center shrink-0">
@@ -168,12 +168,12 @@ export default function Leaderboard() {
                     )}
                   />
                 ) : (
-                  <span className="text-xs font-black text-[#78788c]">#{p.rank}</span>
+                  <span className="text-xs font-black text-muted-foreground">#{p.rank}</span>
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className={cn("text-sm font-semibold", p.you ? "text-blue-300" : "text-white")}>
+                  <span className={cn("text-sm font-semibold", p.you ? "text-blue-300" : "text-foreground")}>
                     {p.name}
                   </span>
                   {p.you && (
@@ -184,13 +184,13 @@ export default function Leaderboard() {
                 </div>
                 <div className="flex items-center gap-3 mt-1">
                   <ProgressBar value={Math.round((p.value / maxXp) * 100)} color="#6882e8" height="h-1" />
-                  <span className="text-[11px] text-[#78788c] shrink-0 capitalize">
+                  <span className="text-[11px] text-muted-foreground shrink-0 capitalize">
                     Lv.{p.level} · {p.league}
                   </span>
                 </div>
               </div>
-              <div className="text-right shrink-0 text-[11px] text-[#78788c]">
-                <div className="flex items-center gap-1 justify-end text-white font-bold">
+              <div className="text-right shrink-0 text-[11px] text-muted-foreground">
+                <div className="flex items-center gap-1 justify-end text-foreground font-bold">
                   <Zap className="w-3 h-3 text-amber-400" />
                   {p.value} XP
                 </div>

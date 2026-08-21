@@ -9,7 +9,7 @@
 }
 
 .student-premium .sp-stat-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f4fff8 100%);
+  background: #ffff;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -23,9 +23,9 @@
 }
 
 .student-premium .sp-action-card:hover {
-  background: linear-gradient(135deg, #ffffff 0%, #defaeb 100%);
+  background: #ffff;
 }
 
 .student-premium .rounded-2xl.border-border\/60.bg-card {
-  background: linear-gradient(180deg, #ffffff 0%, #fafefb 100%);
+  background: #ffff;
 }

@@ -227,19 +227,19 @@ export function AnalyticsStudio({ data, charts }: Props) {
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <span className="wa-gold-pill">Wisdom Campus · Academic Intelligence Center</span>
-              <span className="rounded-full bg-white/12 border border-white/15 px-3 py-1 text-[10px] font-semibold text-white/80">
+              <span className="rounded-full bg-black/12 border border-black/15 px-3 py-1 text-[10px] font-semibold text-foreground/80">
                 {studentClass}
               </span>
             </div>
-            <p className="text-sm text-white/70">Hi, {firstName}</p>
-            <h1 className="font-['Sora'] text-3xl sm:text-5xl font-semibold tracking-tight text-white mt-1">
+            <p className="text-sm text-foreground/70">Hi, {firstName}</p>
+            <h1 className="font-['Sora'] text-3xl sm:text-5xl font-semibold tracking-tight text-foreground mt-1">
               Academic Health
             </h1>
             <div className="mt-6 flex flex-wrap items-end gap-4">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">Health score</p>
-                <p className="text-6xl font-bold tabular-nums text-white leading-none mt-1">
-                  {academicHealth}<span className="text-2xl text-white/55">/100</span>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-foreground/60">Health score</p>
+                <p className="text-6xl font-bold tabular-nums text-foreground leading-none mt-1">
+                  {academicHealth}<span className="text-2xl text-foreground/55">/100</span>
                 </p>
               </div>
               <div className="rounded-2xl bg-[#ffdf97] text-[#251a00] px-4 py-3 shadow-lg">
@@ -249,7 +249,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
                 </p>
               </div>
             </div>
-            <p className="text-sm text-white/72 mt-5 max-w-xl">
+            <p className="text-sm text-foreground/72 mt-5 max-w-xl">
               This score blends accuracy, concept mastery, recovery completion, and consistency so you can see your academic position instantly.
             </p>
           </div>
@@ -262,11 +262,11 @@ export function AnalyticsStudio({ data, charts }: Props) {
               { label: "Consistency Score", value: consistencyScore },
             ].map((m) => (
               <div key={m.label}>
-                <div className="flex justify-between text-sm font-medium text-white/85 mb-1">
+                <div className="flex justify-between text-sm font-medium text-foreground/85 mb-1">
                   <span>{m.label}</span>
                   <span className="tabular-nums">{m.value}%</span>
                 </div>
-                <div className="h-2 rounded-full bg-white/15 overflow-hidden">
+                <div className="h-2 rounded-full bg-black/15 overflow-hidden">
                   <div className="h-full rounded-full bg-[#ffdf97]" style={{ width: `${m.value}%` }} />
                 </div>
               </div>
@@ -278,7 +278,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
       {(enhancing || coachLive || coachError) && (
         <div className="flex flex-wrap items-center gap-2 px-1">
           {enhancing && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--wa-on-surface-variant)] bg-white/80 px-3 py-1 rounded-full border border-[var(--wa-outline-variant)]">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--wa-on-surface-variant)] bg-card px-3 py-1 rounded-full border border-[var(--wa-outline-variant)]">
               <Loader2 className="w-3 h-3 animate-spin" /> Coach analysing your mistakes…
             </span>
           )}
@@ -302,8 +302,8 @@ export function AnalyticsStudio({ data, charts }: Props) {
             <h2 className="wa-display text-2xl mt-1">{focusTitle}</h2>
             <p className="wa-body mt-1 max-w-2xl">{clipInsightText(focusBody, 120)}</p>
           </div>
-          <div className="rounded-2xl bg-[var(--wa-primary)] text-white px-4 py-3">
-            <p className="wa-label text-white/65">Measured gain</p>
+          <div className="rounded-2xl bg-[var(--wa-primary)] text-foreground px-4 py-3">
+            <p className="wa-label text-foreground/65">Measured gain</p>
             <p className="text-3xl font-bold tabular-nums">
               {measuredGain > 0 ? `+${measuredGain}%` : "—"}
             </p>
@@ -430,7 +430,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
               <div key={s.name} className="wa-subject-card">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-semibold">{s.name}</h3>
-                  <span className="text-xs rounded-full bg-white/70 px-2 py-1">{trendLabel}</span>
+                  <span className="text-xs rounded-full bg-muted px-2 py-1">{trendLabel}</span>
                 </div>
                 <p className="wa-label mt-4">Accuracy</p>
                 <p className="text-2xl font-bold tabular-nums">{Math.round(s.accuracy)}%</p>
@@ -538,7 +538,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
           ].map((action) => {
             const Icon = action.icon;
             return (
-              <Button key={action.label} asChild variant="outline" className="h-auto justify-start rounded-2xl p-4 bg-white">
+              <Button key={action.label} asChild variant="outline" className="h-auto justify-start rounded-2xl p-4 bg-card">
                 <Link to={action.to} className="flex items-center gap-3">
                   <span className="wa-next-icon"><Icon className="w-4 h-4" /></span>
                   <span>{action.label}</span>

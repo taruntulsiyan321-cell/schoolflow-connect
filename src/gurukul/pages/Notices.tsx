@@ -92,7 +92,7 @@ export default function Notices() {
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading notices…
       </div>
     );
@@ -102,12 +102,12 @@ export default function Notices() {
     <div className="space-y-5">
       <div>
         <h1
-          className="text-3xl font-black text-white"
+          className="text-3xl font-black text-foreground"
           style={{ fontFamily: "var(--font-display)" }}
         >
           Notices
         </h1>
-        <p className="text-[#78788c] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           AnnouncementService · {rows.length} published
         </p>
         {error && <p className="text-[10px] text-[#cc5069] mt-1">{error}</p>}
@@ -115,8 +115,8 @@ export default function Notices() {
 
       {rows.length === 0 ? (
         <GlassCard className="p-10 text-center">
-          <Bell className="w-10 h-10 mx-auto mb-3 text-[#46465a]" />
-          <p className="text-sm text-[#78788c]">
+          <Bell className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
             No published notices yet. Your school will post class and school announcements here.
           </p>
         </GlassCard>
@@ -136,7 +136,7 @@ export default function Notices() {
                     "w-full text-left rounded-2xl border transition-all",
                     selected === notice.id
                       ? "bg-[#3b5bdb]/8 border-[#3b5bdb]/25"
-                      : "bg-[#131316]/80 border-white/7 hover:border-white/15",
+                      : "bg-card/80 border-black/7 hover:border-black/15",
                   )}
                 >
                   <GlassCard className="p-4 border-0 bg-transparent shadow-none">
@@ -157,14 +157,14 @@ export default function Notices() {
                             {classLabel}
                           </span>
                           {notice.hasAttachment && (
-                            <Paperclip className="w-3 h-3 text-[#46465a]" />
+                            <Paperclip className="w-3 h-3 text-muted-foreground" />
                           )}
                         </div>
-                        <div className="text-sm font-semibold text-white">{notice.title}</div>
-                        <div className="text-[11px] text-[#78788c] mt-1 line-clamp-2">
+                        <div className="text-sm font-semibold text-foreground">{notice.title}</div>
+                        <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
                           {notice.body}
                         </div>
-                        <div className="text-[10px] text-[#46465a] mt-1.5">
+                        <div className="text-[10px] text-muted-foreground mt-1.5">
                           {notice.publishedAt ?? "—"}
                         </div>
                       </div>
@@ -182,21 +182,21 @@ export default function Notices() {
                 <button
                   type="button"
                   onClick={() => setSelected(null)}
-                  className="text-[#46465a] hover:text-white text-xs"
+                  className="text-muted-foreground hover:text-foreground text-xs"
                 >
                   ✕
                 </button>
               </div>
               <div>
-                <div className="text-lg font-bold text-white">{detail.title}</div>
-                <div className="text-[11px] text-[#78788c] mt-1">
+                <div className="text-lg font-bold text-foreground">{detail.title}</div>
+                <div className="text-[11px] text-muted-foreground mt-1">
                   {[detail.targetClass, detail.targetSection].filter(Boolean).join(" ") ||
                     (detail.audience === "all" ? "School-wide" : "Class notice")}
                   {" · "}
                   {detail.publishedAt ?? "—"}
                 </div>
               </div>
-              <div className="text-sm text-[#b0b0c0] leading-relaxed whitespace-pre-wrap">
+              <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                 {detail.body}
               </div>
               {detail.hasAttachment && (
@@ -209,7 +209,7 @@ export default function Notices() {
                       ? "Open attachment"
                       : "Attachment link is missing"
                   }
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20 text-xs font-semibold text-[#a5b4fc] hover:bg-[#6366f1]/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6366f1]/10 border border-[#6366f1]/20 text-xs font-semibold text-muted-foreground hover:bg-[#6366f1]/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   <Paperclip className="w-3.5 h-3.5" />
                   {detail.attachmentName ?? "Attachment"}

@@ -35,7 +35,7 @@ function clipText(text: string | undefined, max = 120) {
 export function DiagnosisBanner({ insights }: { insights: AnalyticsInsights | null }) {
   if (!insights?.headline && !insights?.diagnosis) return null;
   return (
-    <section className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 to-card p-5 sm:p-6 shadow-sm">
+    <section className="rounded-2xl border border-primary/20 p-5 sm:p-6 shadow-sm">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">Full diagnosis</p>
       {insights.headline && (
         <h2 className="text-lg sm:text-xl font-semibold text-foreground mt-1 leading-snug">{insights.headline}</h2>
@@ -69,7 +69,7 @@ export function TopicDeepCards({ topics, variant = "default" }: { topics: TopicG
             <h3 className="wa-headline text-lg">Focus topics</h3>
             <p className="wa-body text-sm mt-1">Short, readable reasons and one clear fix per weak spot.</p>
           </div>
-          <span className="wa-label rounded-full bg-white/80 border border-[var(--wa-outline-variant)] px-3 py-1">
+          <span className="wa-label rounded-full bg-card border border-[var(--wa-outline-variant)] px-3 py-1">
             {topics.length} topic{topics.length === 1 ? "" : "s"}
           </span>
         </div>

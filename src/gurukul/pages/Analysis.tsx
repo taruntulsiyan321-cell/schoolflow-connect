@@ -70,13 +70,13 @@ function scoreColor(v: number) {
 const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#131316] border border-white/10 rounded-xl px-3 py-2 text-xs shadow-2xl">
-      <div className="text-[#78788c] mb-1">{label}</div>
+    <div className="bg-card border border-black/10 rounded-xl px-3 py-2 text-xs shadow-2xl">
+      <div className="text-muted-foreground mb-1">{label}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full" style={{ background: p.color }} />
-          <span className="text-[#a0a0b0]">{p.name}:</span>
-          <span className="text-white font-semibold">{p.value}</span>
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="text-foreground font-semibold">{p.value}</span>
         </div>
       ))}
     </div>
@@ -633,7 +633,7 @@ export default function Analysis() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <p className="text-sm text-[#78788c]">Loading analysis…</p>
+        <p className="text-sm text-muted-foreground">Loading analysis…</p>
       </div>
     );
   }
@@ -641,7 +641,7 @@ export default function Analysis() {
   if (!academicReady) {
     return (
       <div className="flex items-center justify-center py-24">
-        <p className="text-sm text-[#78788c]">No student profile linked to this account.</p>
+        <p className="text-sm text-muted-foreground">No student profile linked to this account.</p>
       </div>
     );
   }
@@ -665,14 +665,14 @@ export default function Analysis() {
               <span style={{ color: item.color }}>{item.icon}</span>
               <span className="text-[10px] uppercase tracking-[0.15em]" style={{ color: item.color }}>{item.q}</span>
             </div>
-            <div className="text-sm font-bold text-white leading-tight">{item.a}</div>
-            <div className="text-[11px] text-[#78788c] mt-0.5">{item.sub}</div>
+            <div className="text-sm font-bold text-foreground leading-tight">{item.a}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{item.sub}</div>
           </div>
         ))}
       </div>
 
       {/* ── Tab bar ─────────────────────── */}
-      <div className="flex gap-0 overflow-x-auto border-b border-white/7 -mx-1 px-1">
+      <div className="flex gap-0 overflow-x-auto border-b border-black/7 -mx-1 px-1">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -680,8 +680,8 @@ export default function Analysis() {
             className={cn(
               "shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-150 whitespace-nowrap",
               tab === t.key
-                ? "border-[#3b5bdb] text-white"
-                : "border-transparent text-[#78788c] hover:text-white"
+                ? "border-[#3b5bdb] text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
             {t.label}
@@ -714,18 +714,12 @@ export default function Analysis() {
             <>
             <div className="h-48 mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={scoreTrend}>
-                  <defs>
-                    <linearGradient id="an-scGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b5bdb" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b5bdb" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
+                  <AreaChart data={scoreTrend}>
                   <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
                   <XAxis dataKey="week" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis domain={scoreTrendDomain} tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="score" name="Score" stroke="#3b5bdb" strokeWidth={2.5} fill="url(#an-scGrad)"
+                  <Area type="monotone" dataKey="score" name="Score" stroke="#3b5bdb" strokeWidth={2.5} fill="#3b5bdb" fillOpacity={0.15}
                     isAnimationActive={false} dot={{ r: 4, fill: "#3b5bdb", strokeWidth: 0 }} activeDot={{ r: 6, fill: "#3b5bdb", stroke: "#0d0d0f", strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -744,7 +738,7 @@ export default function Analysis() {
             )}
             </>
             ) : (
-              <p className="text-sm text-[#78788c] mt-4 py-8 text-center">No score trend data yet</p>
+              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">No score trend data yet</p>
             )}
           </Card>
 
@@ -764,7 +758,7 @@ export default function Analysis() {
               </ResponsiveContainer>
             </div>
             ) : (
-              <p className="text-sm text-[#78788c] mt-4 py-8 text-center">No weekly activity yet</p>
+              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">No weekly activity yet</p>
             )}
           </Card>
 
@@ -774,20 +768,20 @@ export default function Analysis() {
             {personalInsights.length > 0 ? (
             <div className="grid sm:grid-cols-2 gap-3">
               {personalInsights.map((ins) => (
-                <div key={ins.label} className="flex items-start gap-3 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/15 transition-colors">
+                <div key={ins.label} className="flex items-start gap-3 p-4 rounded-xl border border-black/7 bg-card/60 hover:border-black/15 transition-colors">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${ins.color}15`, color: ins.color }}>
                     {ins.icon}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-[10px] uppercase tracking-[0.12em] text-[#78788c]">{ins.label}</div>
-                    <div className="text-sm font-bold text-white mt-0.5">{ins.value}</div>
-                    <div className="text-[11px] text-[#78788c] mt-0.5">{ins.sub}</div>
+                    <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{ins.label}</div>
+                    <div className="text-sm font-bold text-foreground mt-0.5">{ins.value}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{ins.sub}</div>
                   </div>
                 </div>
               ))}
             </div>
             ) : (
-              <p className="text-sm text-[#78788c] py-6 text-center">Practice more to unlock personal insights</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">Practice more to unlock personal insights</p>
             )}
           </div>
         </div>
@@ -811,25 +805,25 @@ export default function Analysis() {
                 </ResponsiveContainer>
               </div>
               ) : (
-                <p className="text-sm text-[#78788c] py-12 text-center">No subject data yet</p>
+                <p className="text-sm text-muted-foreground py-12 text-center">No subject data yet</p>
               )}
             </Card>
 
             <div className="space-y-3">
               <SLabel>Subjects at a glance</SLabel>
               {subjectData.length === 0 ? (
-                <p className="text-sm text-[#78788c] py-6 text-center">No subjects tracked yet</p>
+                <p className="text-sm text-muted-foreground py-6 text-center">No subjects tracked yet</p>
               ) : subjectData.map((s) => (
-                <div key={s.name} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                <div key={s.name} className="flex items-center gap-3 p-3 rounded-xl border border-black/7 bg-card/60 hover:border-black/12 transition-colors">
                   <div className="w-2 h-10 rounded-full shrink-0" style={{ background: s.color }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-white">{displaySubject(s.name) || s.name}</span>
+                      <span className="text-sm font-semibold text-foreground">{displaySubject(s.name) || s.name}</span>
                       {s.status === "best" && <span className="text-[9px] uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">Best subject</span>}
                       {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
-                    <div className="text-[11px] text-[#78788c] mt-0.5">{s.questions} questions{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` · Rank #${s.rankInClass}` : ""}</div>
-                    <div className="h-1 rounded-full bg-white/5 mt-2 overflow-hidden">
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{s.questions} questions{s.timeHrs > 0 ? ` · ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` · Rank #${s.rankInClass}` : ""}</div>
+                    <div className="h-1 rounded-full bg-black/5 mt-2 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
                     </div>
                   </div>
@@ -841,7 +835,7 @@ export default function Analysis() {
                       {Math.abs(s.trend)}%
                     </div>
                     ) : (
-                      <div className="text-[11px] text-[#78788c]">—</div>
+                      <div className="text-[11px] text-muted-foreground">—</div>
                     )}
                   </div>
                 </div>
@@ -853,7 +847,7 @@ export default function Analysis() {
           <div>
             <SLabel>Chapter by chapter</SLabel>
             {chapterData.length === 0 ? (
-              <p className="text-sm text-[#78788c] py-6 text-center">No chapter data yet</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">No chapter data yet</p>
             ) : (
             <div className="grid sm:grid-cols-2 gap-3">
               {chapterData.map((c) => {
@@ -864,10 +858,10 @@ export default function Analysis() {
                 };
                 const st = statusLabel[c.status];
                 return (
-                  <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                  <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-black/7 bg-card/60 hover:border-black/12 transition-colors">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
-                        <div className="text-sm font-semibold text-white">{displayChapter(c.chapter)}</div>
+                        <div className="text-sm font-semibold text-foreground">{displayChapter(c.chapter)}</div>
                         <div className="text-[11px] mt-0.5" style={{ color: c.color }}>{displaySubject(c.subject)}</div>
                       </div>
                       <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: `${st.color}12` }}>
@@ -876,12 +870,12 @@ export default function Analysis() {
                     </div>
                     <div className="grid grid-cols-3 gap-2 mb-2">
                       <div className="text-center">
-                        <div className="text-sm font-black tabular-nums text-white">{c.completion}%</div>
-                        <div className="text-[9px] text-[#78788c]">Practice</div>
+                        <div className="text-sm font-black tabular-nums text-foreground">{c.completion}%</div>
+                        <div className="text-[9px] text-muted-foreground">Practice</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-sm font-black tabular-nums text-white">{c.accuracy}%</div>
-                        <div className="text-[9px] text-[#78788c]">Accuracy</div>
+                        <div className="text-sm font-black tabular-nums text-foreground">{c.accuracy}%</div>
+                        <div className="text-[9px] text-muted-foreground">Accuracy</div>
                       </div>
                       <div className="text-center">
                         {c.trend != null ? (
@@ -890,12 +884,12 @@ export default function Analysis() {
                           {Math.abs(c.trend)}%
                         </div>
                         ) : (
-                          <div className="text-sm font-black tabular-nums text-[#78788c]">—</div>
+                          <div className="text-sm font-black tabular-nums text-muted-foreground">—</div>
                         )}
-                        <div className="text-[9px] text-[#78788c]">Change</div>
+                        <div className="text-[9px] text-muted-foreground">Change</div>
                       </div>
                     </div>
-                    <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+                    <div className="h-1 rounded-full bg-black/5 overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${c.completion}%`, background: c.color }} />
                     </div>
                   </div>
@@ -917,10 +911,10 @@ export default function Analysis() {
               { label: "Topics in progress", value: learningProgress.inProgress, color: "#3b5bdb", icon: <BookOpen className="w-5 h-5" /> },
               { label: "Yet to begin",        value: learningProgress.notStarted, color: "#78788c", icon: <Minus className="w-5 h-5" /> },
             ].map((item) => (
-              <div key={item.label} className="p-4 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+              <div key={item.label} className="p-4 rounded-xl border border-black/7 bg-card/60 text-center">
                 <div className="flex justify-center mb-2" style={{ color: item.color }}>{item.icon}</div>
                 <div className="text-2xl font-black tabular-nums" style={{ color: item.color }}>{item.value}</div>
-                <div className="text-[11px] text-[#78788c] mt-0.5">{item.label}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">{item.label}</div>
               </div>
             ))}
           </div>
@@ -931,13 +925,13 @@ export default function Analysis() {
               <SLabel>Topics you're doing well in</SLabel>
               <div className="space-y-2">
                 {topicGroups.doing_well.length === 0 ? (
-                  <p className="text-sm text-[#78788c] py-4 text-center">No strong topics yet</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">No strong topics yet</p>
                 ) : topicGroups.doing_well.map((t) => (
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-emerald-400/12 bg-emerald-400/5 hover:border-emerald-400/25 transition-colors">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{displaySubject(t.subject)}</div>
+                      <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
+                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
                     </div>
                     <span className="text-sm font-black text-emerald-400 shrink-0">{t.score}%</span>
                   </div>
@@ -950,17 +944,17 @@ export default function Analysis() {
               <SLabel>Topics that need your attention</SLabel>
               <div className="space-y-2">
                 {topicGroups.needs_attention.length === 0 ? (
-                  <p className="text-sm text-[#78788c] py-4 text-center">No weak topics flagged</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">No weak topics flagged</p>
                 ) : topicGroups.needs_attention.map((t) => (
                   <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-amber-400/12 bg-amber-400/5 hover:border-amber-400/25 transition-colors cursor-pointer">
                     <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{displaySubject(t.subject)}{t.practiceCount > 0 ? ` · ${t.practiceCount} questions done` : ""}</div>
+                      <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
+                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}{t.practiceCount > 0 ? ` · ${t.practiceCount} questions done` : ""}</div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black text-amber-400">{t.score}%</div>
-                      <div className="text-[10px] text-[#78788c]">accuracy</div>
+                      <div className="text-[10px] text-muted-foreground">accuracy</div>
                     </div>
                   </div>
                 ))}
@@ -974,13 +968,13 @@ export default function Analysis() {
               <SLabel>Topics getting better</SLabel>
               <div className="space-y-2">
                 {topicGroups.improving.length === 0 ? (
-                  <p className="text-sm text-[#78788c] py-4 text-center">No improvement trends yet</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">No improvement trends yet</p>
                 ) : topicGroups.improving.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-black/7 bg-card/60 hover:border-black/12 transition-colors">
                     <TrendingUp className="w-4 h-4 text-[#3b5bdb] shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{displaySubject(t.subject)}</div>
+                      <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
+                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
                     </div>
                     <span className="text-sm font-black text-emerald-400 shrink-0">+{t.improvement}%</span>
                   </div>
@@ -993,15 +987,15 @@ export default function Analysis() {
               <SLabel>Topics yet to begin</SLabel>
               <div className="space-y-2">
                 {topicGroups.not_started.length === 0 ? (
-                  <p className="text-sm text-[#78788c] py-4 text-center">All tracked topics attempted</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">All tracked topics attempted</p>
                 ) : topicGroups.not_started.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/2">
-                    <Minus className="w-4 h-4 text-[#78788c] shrink-0" />
+                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-black/5 bg-black/2">
+                    <Minus className="w-4 h-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-[#a0a0b0] truncate">{displayTopic(t.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{displaySubject(t.subject)}</div>
+                      <div className="text-sm font-semibold text-muted-foreground truncate">{displayTopic(t.topic)}</div>
+                      <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
                     </div>
-                    <span className="text-[10px] text-[#78788c]">Not started</span>
+                    <span className="text-[10px] text-muted-foreground">Not started</span>
                   </div>
                 ))}
               </div>
@@ -1013,31 +1007,31 @@ export default function Analysis() {
             <div>
               <SLabel>Topics you practiced again</SLabel>
               <div className="grid grid-cols-2 gap-3 mb-3">
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
-                  <div className="text-xl font-black text-white">{recoveryProgress.completed}</div>
-                  <div className="text-[11px] text-[#78788c]">Completed</div>
+                <div className="p-3 rounded-xl border border-black/7 bg-card/60 text-center">
+                  <div className="text-xl font-black text-foreground">{recoveryProgress.completed}</div>
+                  <div className="text-[11px] text-muted-foreground">Completed</div>
                 </div>
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+                <div className="p-3 rounded-xl border border-black/7 bg-card/60 text-center">
                   <div className="text-xl font-black text-amber-400">{recoveryProgress.stillPending}</div>
-                  <div className="text-[11px] text-[#78788c]">Still pending</div>
+                  <div className="text-[11px] text-muted-foreground">Still pending</div>
                 </div>
               </div>
               <div className="space-y-2">
                 {recoveryTopics.length === 0 ? (
-                  <p className="text-sm text-[#78788c] py-4 text-center">No recovery topics yet</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">No recovery topics yet</p>
                 ) : recoveryTopics.map((r) => (
-                  <div key={r.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60">
+                  <div key={r.topic} className="flex items-center gap-3 p-3 rounded-xl border border-black/7 bg-card/60">
                     {r.status === "completed"
                       ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       : <Clock className="w-4 h-4 text-amber-400 shrink-0" />
                     }
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate">{displayTopic(r.topic)}</div>
-                      <div className="text-[11px] text-[#78788c]">{displaySubject(r.subject)}</div>
+                      <div className="text-sm font-medium text-foreground truncate">{displayTopic(r.topic)}</div>
+                      <div className="text-[11px] text-muted-foreground">{displaySubject(r.subject)}</div>
                     </div>
                     {r.status === "completed"
                       ? <span className="text-xs font-semibold text-emerald-400">+{r.improvement}%</span>
-                      : <span className="text-[11px] text-[#78788c]">{r.attempts} tries</span>
+                      : <span className="text-[11px] text-muted-foreground">{r.attempts} tries</span>
                     }
                   </div>
                 ))}
@@ -1047,27 +1041,27 @@ export default function Analysis() {
             <div>
               <SLabel>Revision status</SLabel>
               <div className="grid grid-cols-3 gap-3 mb-3">
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+                <div className="p-3 rounded-xl border border-black/7 bg-card/60 text-center">
                   <div className="text-xl font-black text-emerald-400">{revisionData.completed}</div>
-                  <div className="text-[11px] text-[#78788c]">Done</div>
+                  <div className="text-[11px] text-muted-foreground">Done</div>
                 </div>
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+                <div className="p-3 rounded-xl border border-black/7 bg-card/60 text-center">
                   <div className="text-xl font-black text-amber-400">{revisionData.pending}</div>
-                  <div className="text-[11px] text-[#78788c]">Pending</div>
+                  <div className="text-[11px] text-muted-foreground">Pending</div>
                 </div>
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
-                  <div className="text-xl font-black text-white">{revisionData.dueToday.length}</div>
-                  <div className="text-[11px] text-[#78788c]">Due today</div>
+                <div className="p-3 rounded-xl border border-black/7 bg-card/60 text-center">
+                  <div className="text-xl font-black text-foreground">{revisionData.dueToday.length}</div>
+                  <div className="text-[11px] text-muted-foreground">Due today</div>
                 </div>
               </div>
               <SLabel>Due for revision today</SLabel>
               <div className="space-y-2">
                 {revisionData.dueToday.length === 0 ? (
-                  <p className="text-sm text-[#78788c] py-4 text-center">Nothing due for revision today</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">Nothing due for revision today</p>
                 ) : revisionData.dueToday.map((topic) => (
                   <div key={topic} className="flex items-center gap-3 p-3 rounded-xl border border-[#3b5bdb]/20 bg-[#3b5bdb]/5">
                     <Clock className="w-4 h-4 text-[#3b5bdb] shrink-0" />
-                    <span className="text-sm text-white">{displayTopic(topic)}</span>
+                    <span className="text-sm text-foreground">{displayTopic(topic)}</span>
                     <span className="ml-auto text-[10px] text-[#3b5bdb] font-semibold">Due today</span>
                   </div>
                 ))}
@@ -1112,7 +1106,7 @@ export default function Analysis() {
               </ResponsiveContainer>
             </div>
             ) : (
-              <p className="text-sm text-[#78788c] mt-4 py-8 text-center">No monthly practice data yet</p>
+              <p className="text-sm text-muted-foreground mt-4 py-8 text-center">No monthly practice data yet</p>
             )}
           </Card>
 
@@ -1120,23 +1114,23 @@ export default function Analysis() {
           <div>
             <SLabel>Recent tests</SLabel>
             {testResults.length === 0 ? (
-              <p className="text-sm text-[#78788c] py-6 text-center">No test results yet</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">No test results yet</p>
             ) : (
             <div className="space-y-2">
               {testResults.map((t) => {
                 const col = scoreColor(t.score);
                 return (
-                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-black/7 bg-card/60 hover:border-black/12 transition-colors">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black" style={{ background: `${col}15`, color: col }}>
                       {t.score}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white">{t.name}</div>
-                      <div className="text-[11px] text-[#78788c]">{t.subject} · {t.date}</div>
+                      <div className="text-sm font-semibold text-foreground">{t.name}</div>
+                      <div className="text-[11px] text-muted-foreground">{t.subject} · {t.date}</div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-sm font-black tabular-nums" style={{ color: col }}>{t.marksObtained}/{t.rawMax}</div>
-                      <div className="text-[11px] text-[#78788c]">{t.score}%</div>
+                      <div className="text-[11px] text-muted-foreground">{t.score}%</div>
                     </div>
                   </div>
                 );
@@ -1187,7 +1181,7 @@ export default function Analysis() {
               </ResponsiveContainer>
             </div>
               ) : (
-                <p className="text-sm text-[#78788c] mt-4 py-8 text-center">No speed data yet</p>
+                <p className="text-sm text-muted-foreground mt-4 py-8 text-center">No speed data yet</p>
               )}
             </Card>
           </div>
@@ -1232,12 +1226,12 @@ export default function Analysis() {
               <div className="min-w-[380px]">
                 <div className="flex gap-1 mb-2 ml-9">
                   {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => (
-                    <div key={d} className="flex-1 text-center text-[10px] text-[#78788c]">{d}</div>
+                    <div key={d} className="flex-1 text-center text-[10px] text-muted-foreground">{d}</div>
                   ))}
                 </div>
                 {activityHeatmap.map((row) => (
                   <div key={row.week} className="flex items-center gap-1 mb-1.5">
-                    <div className="w-8 text-[10px] text-[#78788c] shrink-0">{row.week}</div>
+                    <div className="w-8 text-[10px] text-muted-foreground shrink-0">{row.week}</div>
                     {row.days.map((cell) => {
                       const intensity = cell.value / 50;
                       const bg = cell.value === 0 ? "rgba(255,255,255,0.04)" : `rgba(59,130,246,${0.08 + intensity * 0.92})`;
@@ -1250,11 +1244,11 @@ export default function Analysis() {
                   </div>
                 ))}
                 <div className="flex items-center gap-2 mt-3 justify-end">
-                  <span className="text-[10px] text-[#78788c]">Less</span>
+                  <span className="text-[10px] text-muted-foreground">Less</span>
                   {[0.08, 0.3, 0.55, 0.75, 1].map((o) => (
                     <div key={o} className="w-3 h-3 rounded-sm" style={{ background: `rgba(59,130,246,${o})` }} />
                   ))}
-                  <span className="text-[10px] text-[#78788c]">More</span>
+                  <span className="text-[10px] text-muted-foreground">More</span>
                 </div>
               </div>
             </div>
@@ -1268,12 +1262,12 @@ export default function Analysis() {
                 const pct = row.lastM > 0 ? Math.round((diff / row.lastM) * 100) : 0;
                 const up = diff > 0;
                 return (
-                  <div key={row.label} className="text-center p-3 rounded-xl border border-white/7 bg-[#131316]/60">
-                    <div className="text-[10px] text-[#78788c] uppercase tracking-wider mb-1">{row.label}</div>
-                    <div className="text-xl font-black text-white">{row.thisM}{row.unit}</div>
-                    <div className="text-[10px] text-[#78788c] mt-0.5">{row.lastM > 0 ? `vs ${row.lastM}${row.unit} last month` : "No prior month data"}</div>
+                  <div key={row.label} className="text-center p-3 rounded-xl border border-black/7 bg-card/60">
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">{row.label}</div>
+                    <div className="text-xl font-black text-foreground">{row.thisM}{row.unit}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{row.lastM > 0 ? `vs ${row.lastM}${row.unit} last month` : "No prior month data"}</div>
                     {row.lastM > 0 && (
-                    <div className={cn("flex items-center gap-1 justify-center mt-1 text-xs font-semibold", up ? "text-emerald-400" : diff < 0 ? "text-rose-400" : "text-[#78788c]")}>
+                    <div className={cn("flex items-center gap-1 justify-center mt-1 text-xs font-semibold", up ? "text-emerald-400" : diff < 0 ? "text-rose-400" : "text-muted-foreground")}>
                       {diff !== 0 && (up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
                       {diff !== 0 ? `${up ? "+" : ""}${pct}%` : "—"}
                     </div>
@@ -1292,20 +1286,20 @@ export default function Analysis() {
           <div>
             <SLabel>Your progress milestones</SLabel>
             {milestones.length === 0 ? (
-              <p className="text-sm text-[#78788c] py-6 text-center">No milestones yet — keep practicing!</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">No milestones yet — keep practicing!</p>
             ) : (
             <div className="space-y-3">
               {milestones.map((m) => (
-                <div key={m.title} className="flex items-start gap-4 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                <div key={m.title} className="flex items-start gap-4 p-4 rounded-xl border border-black/7 bg-card/60 hover:border-black/12 transition-colors">
                   <span className="text-2xl shrink-0 mt-0.5">{m.icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-bold text-white">{m.title}</span>
-                      <span className="text-[9px] uppercase tracking-wider text-[#78788c] bg-white/5 px-2 py-0.5 rounded-full">{m.category}</span>
+                      <span className="text-sm font-bold text-foreground">{m.title}</span>
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground bg-black/5 px-2 py-0.5 rounded-full">{m.category}</span>
                     </div>
-                    <div className="text-xs text-[#78788c] mt-0.5">{m.desc}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{m.desc}</div>
                   </div>
-                  <span className="text-[11px] text-[#78788c] shrink-0">{m.date}</span>
+                  <span className="text-[11px] text-muted-foreground shrink-0">{m.date}</span>
                 </div>
               ))}
             </div>
@@ -1316,21 +1310,21 @@ export default function Analysis() {
           <div>
             <SLabel>Next milestones to reach</SLabel>
             {upcomingMilestones.length === 0 ? (
-              <p className="text-sm text-[#78788c] py-6 text-center">No upcoming milestones tracked yet</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">No upcoming milestones tracked yet</p>
             ) : (
             <div className="space-y-3">
               {upcomingMilestones.map((m) => {
                 const pct = Math.round((m.progress / m.target) * 100);
                 return (
-                  <div key={m.title} className="p-4 rounded-xl border border-white/7 bg-[#131316]/60">
+                  <div key={m.title} className="p-4 rounded-xl border border-black/7 bg-card/60">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-semibold text-white">{m.title}</span>
-                      <span className="text-xs text-[#78788c]">{m.progress}/{m.target} {m.unit}</span>
+                      <span className="text-sm font-semibold text-foreground">{m.title}</span>
+                      <span className="text-xs text-muted-foreground">{m.progress}/{m.target} {m.unit}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#3b5bdb,#4b9fd4)" }} />
+                    <div className="h-1.5 rounded-full bg-black/5 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "#3b5bdb" }} />
                     </div>
-                    <div className="text-[10px] text-[#78788c] mt-1">{pct}% complete</div>
+                    <div className="text-[10px] text-muted-foreground mt-1">{pct}% complete</div>
                   </div>
                 );
               })}
@@ -1380,16 +1374,16 @@ export default function Analysis() {
                       () => toast.info("Sharing is not available on this device."),
                     );
                   }}
-                  className="flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/20 hover:bg-[#131316] transition-all text-left group"
+                  className="flex items-center gap-3 p-4 rounded-xl border border-black/7 bg-card/60 hover:border-black/20 hover:bg-card transition-all text-left group"
                 >
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform" style={{ background: `${r.color}15`, color: r.color }}>
                     {r.icon}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-white">{r.label}</div>
-                    <div className="text-[11px] text-[#78788c]">{r.desc}</div>
+                    <div className="text-sm font-semibold text-foreground">{r.label}</div>
+                    <div className="text-[11px] text-muted-foreground">{r.desc}</div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-[#78788c] ml-auto shrink-0 group-hover:text-white transition-colors" />
+                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0 group-hover:text-foreground transition-colors" />
                 </button>
               ))}
             </div>
@@ -1404,7 +1398,7 @@ export default function Analysis() {
 
 function Card({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="p-5 rounded-2xl border border-white/7 bg-[#131316]/60">
+    <div className="p-5 rounded-2xl border border-black/7 bg-card/60">
       <SLabel>{label}</SLabel>
       {children}
     </div>
@@ -1415,17 +1409,17 @@ function SLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-0">
       <div className="w-1 h-3.5 rounded-full bg-[#3b5bdb]" />
-      <span className="text-[11px] uppercase tracking-[0.14em] text-[#78788c]">{children}</span>
+      <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{children}</span>
     </div>
   );
 }
 
 function Metric({ label, value, color, sub }: { label: string; value: string | number; color?: string; sub?: string }) {
   return (
-    <div className="p-4 rounded-xl border border-white/7 bg-[#131316]/60">
-      <div className="text-[10px] uppercase tracking-[0.12em] text-[#78788c] mb-1">{label}</div>
+    <div className="p-4 rounded-xl border border-black/7 bg-card/60">
+      <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-1">{label}</div>
       <div className="text-2xl font-black tabular-nums leading-none" style={{ color: color ?? "#e8eaf0", fontFamily: "var(--font-display)" }}>{value}</div>
-      {sub && <div className="text-[11px] text-[#78788c] mt-1">{sub}</div>}
+      {sub && <div className="text-[11px] text-muted-foreground mt-1">{sub}</div>}
     </div>
   );
 }

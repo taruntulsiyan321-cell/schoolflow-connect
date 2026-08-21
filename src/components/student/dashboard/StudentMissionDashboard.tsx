@@ -127,13 +127,6 @@ function HeroRing({ value, label = "Accuracy", size = 148 }: { value: number; la
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <defs>
-          <linearGradient id="sd-hero-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#b2f0d4" />
-            <stop offset="50%" stopColor="#e8c468" />
-            <stop offset="100%" stopColor="#97d3b8" />
-          </linearGradient>
-        </defs>
         <circle cx={size / 2} cy={size / 2} r={r} className="sd-ring-track" strokeWidth={10} fill="none" />
         <circle
           cx={size / 2}
@@ -202,7 +195,7 @@ function ConceptRadarViz({ scores }: { scores: typeof PLACEHOLDER.radarScores })
         ))}
       </svg>
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="text-center bg-white/80 backdrop-blur-sm rounded-2xl px-3 py-2 shadow-sm border border-emerald-100">
+        <div className="text-center bg-card backdrop-blur-sm rounded-2xl px-3 py-2 shadow-sm border border-emerald-100">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Mastery</p>
           <p className="text-lg font-bold text-emerald-900 tabular-nums">71%</p>
         </div>
@@ -245,7 +238,7 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
               </h1>
 
               <div className="mt-8 grid sm:grid-cols-2 gap-4 max-w-xl">
-                <div className="rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur-sm p-4">
+                <div className="rounded-2xl bg-black/10 ring-1 ring-black/15 backdrop-blur-sm p-4">
                   <p className="text-[11px] uppercase tracking-wider text-primary-foreground/65">
                     Today&apos;s Goal
                   </p>
@@ -257,10 +250,10 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
                       </span>
                       <span>{p.goalProgress}%</span>
                     </div>
-                    <Progress value={p.goalProgress} className="h-2 bg-white/15 [&>div]:bg-[#e8c468]" />
+                    <Progress value={p.goalProgress} className="h-2 bg-black/15 [&>div]:bg-[#e8c468]" />
                   </div>
                 </div>
-                <div className="rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur-sm p-4 flex flex-col justify-center">
+                <div className="rounded-2xl bg-black/10 ring-1 ring-black/15 backdrop-blur-sm p-4 flex flex-col justify-center">
                   <p className="text-[11px] uppercase tracking-wider text-primary-foreground/65">
                     Expected Improvement
                   </p>
@@ -293,17 +286,17 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
             const Icon = m.icon;
             const toneClass =
               m.tone === "emerald"
-                ? "from-emerald-500/15 to-emerald-600/5 text-emerald-700"
+                ? "text-emerald-700"
                 : m.tone === "gold"
-                  ? "from-amber-400/20 to-amber-500/5 text-amber-800"
+                  ? "text-amber-800"
                   : m.tone === "battle"
-                    ? "from-violet-500/15 to-violet-600/5 text-violet-700"
-                    : "from-slate-500/10 to-slate-600/5 text-slate-700";
+                    ? "text-violet-700"
+                    : "text-slate-700";
             return (
               <div key={m.title} className="sd-mission-card sd-card rounded-2xl p-5 flex flex-col">
                 <div
                   className={cn(
-                    "w-11 h-11 rounded-2xl flex items-center justify-center bg-gradient-to-br mb-4",
+                    "w-11 h-11 rounded-2xl flex items-center justify-center mb-4",
                     toneClass,
                   )}
                 >
@@ -426,7 +419,7 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
                   {p.recoveryWeak.map((c) => (
                     <span
                       key={c}
-                      className="text-sm font-medium px-3 py-1.5 rounded-full bg-white border border-orange-200 text-orange-900 shadow-sm"
+                      className="text-sm font-medium px-3 py-1.5 rounded-full bg-card border border-orange-200 text-orange-900 shadow-sm"
                     >
                       {c}
                     </span>
@@ -467,13 +460,7 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
           </div>
           <div className="h-52 w-full sd-trend-chart">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={p.weeklyTrend} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="sdAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#0d5c44" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="#0d5c44" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
+                <AreaChart data={p.weeklyTrend} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="day"
@@ -503,7 +490,8 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
                   dataKey="accuracy"
                   stroke="#003324"
                   strokeWidth={2.5}
-                  fill="url(#sdAreaGrad)"
+                  fill="#0d5c44"
+                  fillOpacity={0.12}
                   dot={{ r: 4, fill: "#003324", strokeWidth: 2, stroke: "#fff" }}
                 />
               </AreaChart>
@@ -523,15 +511,15 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
               description: "Warm up with timed questions before you challenge anyone.",
               cta: "Start Solo",
               to: "/student/battleground",
-              accent: "from-emerald-400/30 to-emerald-600/10",
+              accent: "",
             },
             {
               icon: Sword,
               title: "Challenge Friend",
-              description: "Pick a classmate and battle head-to-head in real time.",
+              description: "Pick a classmate and battle head-in real time.",
               cta: "Challenge",
               to: "/student/battleground",
-              accent: "from-amber-400/30 to-amber-600/10",
+              accent: "",
             },
             {
               icon: Users,
@@ -539,7 +527,7 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
               description: "Join the live lobby and compete with your entire class.",
               cta: "Enter Lobby",
               to: "/student/battleground",
-              accent: "from-violet-400/25 to-violet-600/10",
+              accent: "",
             },
           ].map((b) => {
             const Icon = b.icon;
@@ -550,7 +538,7 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
               >
                 <div
                   className={cn(
-                    "w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center mb-5",
+                    "w-14 h-14 rounded-2xl flex items-center justify-center mb-5",
                     b.accent,
                   )}
                 >
@@ -563,7 +551,7 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="mt-5 rounded-full bg-white/15 hover:bg-white/25 text-primary-foreground border-0"
+                  className="mt-5 rounded-full bg-black/15 hover:bg-muted text-primary-foreground border-0"
                   asChild
                 >
                   <Link to={b.to}>
@@ -585,7 +573,7 @@ export function StudentMissionDashboard({ studentName = "Student" }: StudentMiss
             const Icon = a.icon;
             return (
               <div key={a.label} className="sd-achievement sd-card rounded-2xl p-5 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center mx-auto text-amber-700 border border-amber-200/50">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto text-amber-700 border border-amber-200/50">
                   <Icon className="w-6 h-6" />
                 </div>
                 <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground mt-4">

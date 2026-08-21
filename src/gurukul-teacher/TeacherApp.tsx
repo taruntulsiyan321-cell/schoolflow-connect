@@ -90,16 +90,16 @@ function Sidebar({
 }) {
   return (
     <aside className={cn(
-      "flex flex-col h-full bg-[#0a0a0c] border-r border-white/7 transition-all duration-300 shrink-0",
+      "flex flex-col h-full bg-card border-r border-black/7 transition-all duration-300 shrink-0",
       mobile ? "w-64" : collapsed ? "w-16" : "w-60",
     )}>
-      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-white/7 min-h-[72px]", collapsed && !mobile && "justify-center px-2")}>
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
+      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-black/7 min-h-[72px]", collapsed && !mobile && "justify-center px-2")}>
+        <div className="w-8 h-8 rounded-xl bg-[#3b5bdb] flex items-center justify-center shrink-0">
           <GraduationCap className="w-4 h-4 text-black" />
         </div>
         {(!collapsed || mobile) && (
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-black text-white leading-none">Gurukul</div>
+            <div className="text-xs font-black text-foreground leading-none">Gurukul</div>
             <div className="text-[9px] text-[#3b5bdb] font-semibold mt-0.5">Teacher Panel</div>
           </div>
         )}
@@ -107,7 +107,7 @@ function Sidebar({
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className="w-6 h-6 rounded-lg bg-white/5 text-[#46465a] flex items-center justify-center hover:bg-white/10 hover:text-white transition-all shrink-0"
+            className="w-6 h-6 rounded-lg bg-black/5 text-muted-foreground flex items-center justify-center hover:bg-black/10 hover:text-foreground transition-all shrink-0"
           >
             {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
           </button>
@@ -130,11 +130,11 @@ function Sidebar({
                 collapsed && !mobile && "justify-center px-2",
                 active
                   ? "bg-[#3b5bdb]/10 text-[#3b5bdb]"
-                  : "text-[#78788c] hover:bg-white/5 hover:text-white",
+                  : "text-muted-foreground hover:bg-black/5 hover:text-foreground",
               )}
               title={collapsed && !mobile ? item.label : undefined}
             >
-              <div className={cn("shrink-0 transition-all", active ? "text-[#3b5bdb]" : "text-[#46465a] group-hover:text-white")}>
+              <div className={cn("shrink-0 transition-all", active ? "text-[#3b5bdb]" : "text-muted-foreground group-hover:text-foreground")}>
                 {item.icon}
               </div>
               {(!collapsed || mobile) && (
@@ -154,21 +154,21 @@ function Sidebar({
       </nav>
 
       {(!collapsed || mobile) && (
-        <div className="p-3 border-t border-white/7 space-y-2">
+        <div className="p-3 border-t border-black/7 space-y-2">
           <div className="flex items-center gap-2 px-1">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-[#3b5bdb] flex items-center justify-center shrink-0">
               <span className="text-[11px] font-black text-black">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-white truncate">{displayName || "Teacher"}</div>
-              <div className="text-[9px] text-[#46465a] truncate">{employeeId || "—"}</div>
+              <div className="text-xs font-bold text-foreground truncate">{displayName || "Teacher"}</div>
+              <div className="text-[9px] text-muted-foreground truncate">{employeeId || "—"}</div>
             </div>
           </div>
           {onSignOut && (
             <button
               type="button"
               onClick={onSignOut}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[#78788c] hover:text-white hover:bg-white/5 text-xs font-medium transition-all"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-black/5 text-xs font-medium transition-all"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
@@ -232,7 +232,7 @@ export default function TeacherApp() {
   };
 
   return (
-    <div className="gurukul-teacher dark flex h-screen bg-[#0d0d0f] text-white overflow-hidden">
+    <div className="gurukul-teacher flex h-screen bg-background text-foreground overflow-hidden">
       <div className="hidden md:flex flex-col shrink-0 h-screen">
         <Sidebar
           {...sidebarProps}
@@ -257,18 +257,18 @@ export default function TeacherApp() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="relative z-40 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/7 bg-[#0d0d0f]/80 backdrop-blur-xl shrink-0 gap-4">
+        <header className="relative z-40 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-black/7 bg-background/80 backdrop-blur-xl shrink-0 gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#78788c] hover:text-white shrink-0"
+              className="md:hidden w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0"
             >
               <Menu className="w-4 h-4" />
             </button>
             <div className="min-w-0">
-              <div className="text-sm font-black text-white truncate">{TEACHER_PAGE_TITLES[page]}</div>
-              <div className="text-[10px] text-[#46465a] mt-0.5 truncate">
+              <div className="text-sm font-black text-foreground truncate">{TEACHER_PAGE_TITLES[page]}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
                 {displayName} · {employeeId}
               </div>
             </div>
@@ -276,7 +276,7 @@ export default function TeacherApp() {
           <button
             type="button"
             onClick={() => setPage("profile")}
-            className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0"
+            className="w-8 h-8 rounded-xl bg-[#3b5bdb] flex items-center justify-center shrink-0"
           >
             <span className="text-xs font-black text-black">{initials}</span>
           </button>

@@ -45,16 +45,11 @@ export const XPRing = ({
         <circle cx={size / 2} cy={size / 2} r={r} stroke="hsl(var(--muted))" strokeWidth={stroke} fill="none" />
         <circle
           cx={size / 2} cy={size / 2} r={r}
-          stroke="url(#xpGrad)" strokeWidth={stroke} fill="none"
+          stroke="hsl(var(--primary))" strokeWidth={stroke} fill="none"
           strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
           style={{ transition: "stroke-dashoffset 0.6s ease" }}
         />
-        <defs>
-          <linearGradient id="xpGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--primary))" />
-            <stop offset="100%" stopColor="hsl(330 81% 60%)" />
-          </linearGradient>
-        </defs>
+        <defs />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <div className="text-xs uppercase tracking-wide text-muted-foreground">Level</div>
@@ -114,7 +109,7 @@ export const BadgeCard = ({
         earned ? "shadow-elevated" : "opacity-60 grayscale hover:grayscale-0 hover:opacity-90",
       )}
     >
-      <div className={cn("relative w-14 h-14 rounded-xl mx-auto flex items-center justify-center text-white", t.bg)}>
+      <div className={cn("relative w-14 h-14 rounded-xl mx-auto flex items-center justify-center text-foreground", t.bg)}>
         {mystery ? <HelpCircle className="w-6 h-6" /> : <Icon className="w-6 h-6" />}
         {!earned && (
           <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-muted text-muted-foreground flex items-center justify-center ring-2 ring-card">
@@ -125,7 +120,7 @@ export const BadgeCard = ({
       <div className="mt-3 font-semibold text-sm leading-tight">{mystery ? "Hidden Badge" : meta?.label ?? code}</div>
       <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{mystery ? "Keep playing to reveal" : meta?.desc ?? ""}</div>
       <div className="mt-2 flex items-center justify-center gap-1">
-        <span className={cn("inline-block text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full text-white", t.bg)}>{effectiveTier}</span>
+        <span className={cn("inline-block text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full text-foreground", t.bg)}>{effectiveTier}</span>
         {meta && !mystery && (
           <span className="inline-block text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{RARITY_LABEL[meta.rarity]}</span>
         )}

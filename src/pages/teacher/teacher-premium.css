@@ -1,29 +1,26 @@
-@import url("https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Manrope:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
 .teacher-premium {
-  --tp-ink: #0f172a;
-  --tp-muted: #64748b;
-  --tp-emerald: #0f1b35;
-  --tp-emerald-2: #3b5bdb;
-  --tp-mint: #e8ecff;
-  --tp-gold: #6882e8;
-  --tp-gold-2: #3b5bdb;
+  --tp-ink: #14252d;
+  --tp-muted: #52646c;
+  --tp-emerald: #2e7b63;
+  --tp-emerald-2: #2a7385;
+  --tp-mint: #dbece4;
+  --tp-gold: #e0b66c;
+  --tp-gold-2: #c65d4b;
   --tp-surface: #ffffff;
-  --tp-soft: #f4f5f7;
-  --tp-line: rgba(148, 163, 184, 0.28);
-  --tp-shadow: 0 18px 50px -28px rgba(15, 27, 53, 0.25);
-  --tp-shadow-strong: 0 32px 80px -36px rgba(15, 27, 53, 0.35);
-  font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --tp-soft: #f3f6f6;
+  --tp-line: #d5e0e2;
+  --tp-shadow: 0 18px 50px -28px rgba(20, 37, 45, 0.2);
+  --tp-shadow-strong: 0 32px 80px -36px rgba(20, 37, 45, 0.3);
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   color: var(--tp-ink);
 }
 
 .teacher-premium .tp-shell {
   border-radius: 2rem;
   padding: 0.35rem;
-  background:
-    radial-gradient(ellipse 72% 38% at 100% 0%, rgba(104, 130, 232, 0.2), transparent 62%),
-    radial-gradient(ellipse 70% 42% at 0% 10%, rgba(232, 236, 255, 0.55), transparent 60%),
-    linear-gradient(180deg, #ffffff 0%, #f4f5f7 42%, #ffffff 100%);
+  background: var(--tp-soft);
 }
 
 .teacher-premium .tp-hero {
@@ -31,13 +28,10 @@
   overflow: hidden;
   border-radius: 2rem;
   padding: clamp(1.35rem, 4vw, 2.35rem);
-  background:
-    radial-gradient(circle at 86% 10%, rgba(104, 130, 232, 0.24), transparent 34%),
-    radial-gradient(circle at 8% 100%, rgba(232, 236, 255, 0.22), transparent 34%),
-    linear-gradient(135deg, #3b5bdb 0%, #1e3a5f 50%, #0f1b35 100%);
-  color: white;
+  background: #193640;
+  color: #f4f7f5;
   box-shadow: var(--tp-shadow-strong);
-  border: 1px solid rgba(232, 236, 255, 0.18);
+  border: 1px solid #48656b;
 }
 
 .teacher-premium .tp-hero::after {
@@ -47,7 +41,7 @@
   width: 22rem;
   height: 22rem;
   border-radius: 999px;
-  background: rgba(255, 223, 151, 0.13);
+  background: rgba(224, 182, 108, 0.13);
   pointer-events: none;
 }
 
@@ -58,8 +52,8 @@
   width: fit-content;
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
-  background: linear-gradient(90deg, var(--tp-gold), var(--tp-gold-2));
-  color: #251a00;
+  background: var(--tp-gold);
+  color: #14252d;
   font-size: 0.65rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -67,7 +61,7 @@
 }
 
 .teacher-premium .tp-display {
-  font-family: "Sora", ui-sans-serif, system-ui, sans-serif;
+  font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   font-weight: 700;
   letter-spacing: -0.035em;
 }
@@ -75,9 +69,7 @@
 .teacher-premium .tp-card {
   border-radius: 1.45rem;
   border: 1px solid var(--tp-line);
-  background:
-    radial-gradient(circle at 100% 0%, rgba(191, 244, 216, 0.18), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 255, 251, 0.96) 100%);
+  background: var(--tp-surface);
   box-shadow: var(--tp-shadow);
   transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
 }
@@ -85,13 +77,13 @@
 .teacher-premium .tp-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--tp-shadow-strong);
-  border-color: rgba(13, 107, 77, 0.24);
+  border-color: rgba(46, 123, 99, 0.3);
 }
 
 .teacher-premium .tp-metric {
   border-radius: 1.35rem;
   border: 1px solid var(--tp-line);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fffb 100%);
+  background: #f8fbfb;
   padding: 1.1rem;
   box-shadow: var(--tp-shadow);
 }
@@ -119,15 +111,15 @@
 .teacher-premium .tp-action {
   border-radius: 1.3rem;
   border: 1px solid var(--tp-line);
-  background: rgba(255, 255, 255, 0.86);
+  background: var(--tp-surface);
   padding: 1rem;
-  box-shadow: 0 12px 34px -28px rgba(3, 38, 26, 0.35);
+  box-shadow: 0 12px 34px -28px rgba(20, 37, 45, 0.35);
 }
 
 .teacher-premium .tp-chip {
   border-radius: 999px;
   padding: 0.35rem 0.7rem;
-  background: rgba(191, 244, 216, 0.32);
+  background: var(--tp-mint);
   color: var(--tp-emerald);
   font-size: 0.72rem;
   font-weight: 800;
@@ -135,15 +127,15 @@
 
 .teacher-premium .tp-row {
   border-radius: 1rem;
-  border: 1px solid rgba(136, 158, 146, 0.22);
-  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid #d5e0e2;
+  background: #f8fbfb;
   padding: 0.8rem 0.95rem;
 }
 
 .teacher-premium .tp-progress {
   height: 0.55rem;
   border-radius: 999px;
-  background: #e2eee7;
+  background: #e8eff0;
   overflow: hidden;
 }
 
@@ -151,12 +143,10 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--tp-emerald), var(--tp-mint));
+  background: var(--tp-emerald);
 }
 
 .teacher-premium .tp-gold-card {
-  background:
-    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.38), transparent 36%),
-    linear-gradient(135deg, #ffffff 0%, #fff9e8 100%);
-  border-color: rgba(233, 189, 85, 0.32);
+  background: #f2e6c8;
+  border-color: rgba(224, 182, 108, 0.42);
 }

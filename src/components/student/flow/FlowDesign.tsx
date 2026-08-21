@@ -52,7 +52,7 @@ export function FlowHero({
   footer?: ReactNode;
 }) {
   return (
-    <section className="sp-hero rounded-3xl overflow-hidden shadow-elevated bg-gradient-to-br from-[#074b37] via-[#003324] to-[#003324]/95 text-primary-foreground p-6 sm:p-8 relative">
+    <section className="sp-hero rounded-3xl overflow-hidden shadow-elevated bg-[#074b37] text-primary-foreground p-6 sm:p-8 relative">
       <div className="absolute top-0 right-0 w-48 h-48 bg-[#b2f0d4]/20 rounded-full blur-3xl pointer-events-none" />
       <div className="relative z-10">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-foreground/70">
@@ -68,14 +68,14 @@ export function FlowHero({
         {metrics.map((m) => (
           <div
             key={m.label}
-            className="rounded-2xl bg-white/10 ring-1 ring-white/15 px-4 py-3 backdrop-blur-sm"
+            className="rounded-2xl bg-black/10 ring-1 ring-black/15 px-4 py-3 backdrop-blur-sm"
           >
             <p className="text-[10px] uppercase tracking-wider text-primary-foreground/65">{m.label}</p>
             <p className="text-xl sm:text-2xl font-semibold mt-1 tabular-nums">{m.value}</p>
           </div>
         ))}
       </div>
-      {footer && <div className="mt-6 pt-6 border-t border-white/15">{footer}</div>}
+      {footer && <div className="mt-6 pt-6 border-t border-black/15">{footer}</div>}
       </div>
     </section>
   );
@@ -179,7 +179,7 @@ export function FlowCoachCard({
   empty?: string;
 }) {
   return (
-    <section className="rounded-2xl border border-border/60 bg-gradient-to-br from-card to-muted/30 p-6 shadow-sm">
+    <section className="rounded-2xl border border-border/60 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Your coach</p>
       <h2 className="text-lg font-semibold text-foreground mt-0.5">{title}</h2>
       {loading ? (
@@ -218,7 +218,7 @@ export function FlowRecoveryCard({
   ctaDisabled?: boolean;
 }) {
   return (
-    <section className="sp-recovery-card rounded-3xl border-2 border-[#97d3b8]/40 bg-gradient-to-br from-[#defaeb]/60 via-card to-[#ffdf97]/10 p-6 sm:p-8 shadow-elevated">
+    <section className="sp-recovery-card rounded-3xl border-2 border-[#97d3b8]/40 p-6 sm:p-8 shadow-elevated">
       <div className="flex flex-col sm:flex-row sm:items-center gap-6">
         <div className="flex-1">
           <p className="text-xs font-bold uppercase tracking-wider text-primary">Recovery zone</p>
@@ -239,7 +239,7 @@ export function FlowRecoveryCard({
                   {weakConcepts.map((c, i) => (
                     <span
                       key={i}
-                      className="text-xs font-medium px-2.5 py-1 rounded-full bg-white border border-orange-200 text-orange-900"
+                      className="text-xs font-medium px-2.5 py-1 rounded-full bg-card border border-orange-200 text-orange-900"
                     >
                       {c}
                     </span>

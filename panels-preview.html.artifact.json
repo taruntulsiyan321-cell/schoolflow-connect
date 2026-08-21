@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "schoolflow-connect/panels-preview.html",
+  "entry": "schoolflow-connect/panels-preview.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-21T01:15:56.071Z",
+  "updatedAt": "2026-08-21T01:15:56.071Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

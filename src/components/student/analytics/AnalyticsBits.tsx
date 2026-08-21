@@ -119,9 +119,9 @@ export function ReadinessRing({ score, size = 112, label }: { score: number; siz
           strokeLinecap="round"
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-foreground">
         <div className="text-3xl font-bold tabular-nums leading-none">{score}%</div>
-        {label && <div className="text-[10px] uppercase tracking-wider text-white/70 mt-1">{label}</div>}
+        {label && <div className="text-[10px] uppercase tracking-wider text-foreground/70 mt-1">{label}</div>}
       </div>
     </div>
   );
@@ -294,10 +294,10 @@ export function MetricTile({
             : "text-foreground";
 
   return (
-    <div className="rounded-xl bg-white/10 border border-white/15 px-4 py-3 backdrop-blur-sm">
-      <div className="text-[10px] uppercase tracking-wider text-white/65">{label}</div>
+    <div className="rounded-xl bg-black/10 border border-black/15 px-4 py-3 backdrop-blur-sm">
+      <div className="text-[10px] uppercase tracking-wider text-foreground/65">{label}</div>
       <div className={cn("text-2xl font-bold tabular-nums mt-1", valueTone)}>{value}</div>
-      {sub && <div className="text-[11px] text-white/60 mt-0.5">{sub}</div>}
+      {sub && <div className="text-[11px] text-foreground/60 mt-0.5">{sub}</div>}
     </div>
   );
 }

@@ -120,7 +120,7 @@ export default function Tests() {
 
   if (!ready || showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading tests…
       </div>
     );
@@ -128,7 +128,7 @@ export default function Tests() {
 
   if (!studentId) {
     return (
-      <div className="text-center text-sm text-[#78788c] py-16">
+      <div className="text-center text-sm text-muted-foreground py-16">
         No student profile linked to this account.
       </div>
     );
@@ -145,16 +145,16 @@ export default function Tests() {
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-3">
         <GlassCard className="p-4 text-center">
-          <div className="text-2xl font-black text-white">{avgPct}%</div>
-          <div className="text-[10px] text-[#78788c]">Exam avg</div>
+          <div className="text-2xl font-black text-foreground">{avgPct}%</div>
+          <div className="text-[10px] text-muted-foreground">Exam avg</div>
         </GlassCard>
         <GlassCard className="p-4 text-center">
           <div className="text-2xl font-black text-[#6882e8]">{testsAvg}%</div>
-          <div className="text-[10px] text-[#78788c]">Tests avg</div>
+          <div className="text-[10px] text-muted-foreground">Tests avg</div>
         </GlassCard>
         <GlassCard className="p-4 text-center">
           <div className="text-2xl font-black text-[#4aa87a]">{marks.length}</div>
-          <div className="text-[10px] text-[#78788c]">Marked exams</div>
+          <div className="text-[10px] text-muted-foreground">Marked exams</div>
         </GlassCard>
       </div>
 
@@ -167,7 +167,7 @@ export default function Tests() {
               "text-[10px] font-bold px-3 py-1.5 rounded-xl capitalize",
               filter === f
                 ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
-                : "text-[#78788c] border border-white/7",
+                : "text-muted-foreground border border-black/7",
             )}
           >
             {f}
@@ -180,7 +180,7 @@ export default function Tests() {
           <SectionLabel>Exam marks</SectionLabel>
           <div className="space-y-3">
             {marks.length === 0 && (
-              <div className="text-xs text-[#46465a] py-6 text-center">No marks published yet.</div>
+              <div className="text-xs text-muted-foreground py-6 text-center">No marks published yet.</div>
             )}
             {marks.map((m) => {
               const exam = examById.get(m.examId);
@@ -191,23 +191,23 @@ export default function Tests() {
               const typeLabel =
                 EXAM_TYPE_LABELS[exam?.examType ?? ""] ?? exam?.examType ?? null;
               return (
-                <div key={m.id} className="p-4 rounded-xl border border-white/7 bg-white/2">
+                <div key={m.id} className="p-4 rounded-xl border border-black/7 bg-black/2">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-white">{exam?.name ?? "Exam"}</div>
+                      <div className="text-sm font-semibold text-foreground">{exam?.name ?? "Exam"}</div>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         {displaySubject(subj) ? <SubjectBadge subject={subj} color={col} /> : null}
                         {typeLabel && (
-                          <span className="text-[10px] text-[#78788c]">{typeLabel}</span>
+                          <span className="text-[10px] text-muted-foreground">{typeLabel}</span>
                         )}
-                        <span className="text-[11px] text-[#78788c]">{exam?.examDate ?? ""}</span>
+                        <span className="text-[11px] text-muted-foreground">{exam?.examDate ?? ""}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-black text-white">
+                      <div className="text-lg font-black text-foreground">
                         {m.marksObtained}/{max}
                       </div>
-                      <div className="text-[10px] text-[#78788c]">{pct}%</div>
+                      <div className="text-[10px] text-muted-foreground">{pct}%</div>
                     </div>
                   </div>
                 </div>
@@ -222,7 +222,7 @@ export default function Tests() {
           <SectionLabel>Class tests</SectionLabel>
           <div className="space-y-3">
             {upcoming.length === 0 && (
-              <div className="text-xs text-[#46465a] py-6 text-center">No class tests scheduled.</div>
+              <div className="text-xs text-muted-foreground py-6 text-center">No class tests scheduled.</div>
             )}
             {upcoming.map((t) => {
               const kindLabel =
@@ -230,24 +230,24 @@ export default function Tests() {
               return (
                 <div
                   key={t.id}
-                  className="p-4 rounded-xl border border-white/7 bg-white/2 flex items-center gap-3"
+                  className="p-4 rounded-xl border border-black/7 bg-black/2 flex items-center gap-3"
                 >
                   <Trophy className="w-4 h-4 text-[#c08a3a] shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-white truncate">{t.title}</div>
-                    <div className="text-[11px] text-[#78788c]">
+                    <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>
+                    <div className="text-[11px] text-muted-foreground">
                       {[displaySubject(t.subject), kindLabel].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                   {t.published ? (
                     <Link
                       to={`/student/dpp/${t.id}/attempt`}
-                      className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#3b5bdb]/15 text-[#818cf8] border border-[#3b5bdb]/25 hover:bg-[#3b5bdb]/25 transition-colors shrink-0"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-xl bg-[#3b5bdb]/15 text-muted-foreground border border-[#3b5bdb]/25 hover:bg-[#3b5bdb]/25 transition-colors shrink-0"
                     >
                       <Play className="w-3 h-3" /> Attempt
                     </Link>
                   ) : (
-                    <span className="text-[10px] text-[#46465a] shrink-0">Not published</span>
+                    <span className="text-[10px] text-muted-foreground shrink-0">Not published</span>
                   )}
                 </div>
               );
@@ -266,8 +266,8 @@ export default function Tests() {
           <div className="space-y-2">
             {bySubject.map((s) => (
               <div key={s.subject} className="flex items-center justify-between text-sm">
-                <span className="text-[#a0aec0]">{displaySubject(s.subject) || s.subject}</span>
-                <span className="font-black text-white">{s.score}%</span>
+                <span className="text-muted-foreground">{displaySubject(s.subject) || s.subject}</span>
+                <span className="font-black text-foreground">{s.score}%</span>
               </div>
             ))}
           </div>

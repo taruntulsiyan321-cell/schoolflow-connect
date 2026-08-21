@@ -224,7 +224,7 @@ function DoubtCard({
 function ReputationCard({ reputation }: { reputation: Reputation | null }) {
   const badges = reputation?.badges?.length ? reputation.badges : ["New Contributor"];
   return (
-    <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-card to-accent/10 p-5">
+    <Card className="overflow-hidden border-primary/20 bg-primary/10 p-5">
       <div className="flex items-center gap-3">
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg">
           <Trophy className="h-6 w-6" />
@@ -334,7 +334,7 @@ function AskDoubtPanel({ onCreated }: { onCreated: (id: string) => void }) {
   };
 
   return (
-    <Card className="border-primary/20 bg-gradient-to-br from-primary/10 via-card to-background p-5 shadow-card">
+    <Card className="border-primary/20 bg-primary/10 p-5 shadow-card">
       <div className="flex items-start gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
           <Plus className="h-5 w-5" />
@@ -464,7 +464,7 @@ function DoubtDetail({
   return (
     <div className="sticky top-4 space-y-4">
       <Card className="overflow-hidden border-primary/20 shadow-card">
-        <div className="bg-gradient-to-br from-primary/15 via-accent/10 to-background p-5">
+        <div className="bg-primary/15 p-5">
           <div className="flex flex-wrap items-center gap-2">
             {statusBadge(selected.status)}
             <Badge variant="outline" className="rounded-full bg-background/70">{selected.subject || "—"}</Badge>
@@ -736,15 +736,15 @@ export function CommunityDoubtPortal({ mode = "student" }: { mode?: "student" | 
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-[#083f2b] via-[#126847] to-[#b28a28] p-0 text-white shadow-elevated">
+      <Card className="overflow-hidden border-primary/20 bg-[#083f2b] p-0 text-white shadow-elevated">
         <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
           <div>
-            <Badge className="mb-4 bg-white/15 text-white border-white/20" variant="outline">
+            <Badge className="mb-4 bg-black/15 text-foreground border-black/20" variant="outline">
               <Users className="mr-1 h-3.5 w-3.5" />
               Community Learning
             </Badge>
             <h2 className="text-3xl font-black tracking-tight">Doubt Portal</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/80">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-foreground/80">
               Ask doubts, find similar solved discussions, learn from classmates, and get trusted teacher explanations in one academic community.
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-4">
@@ -754,29 +754,29 @@ export function CommunityDoubtPortal({ mode = "student" }: { mode?: "student" | 
                 { label: "Teacher guided", value: doubts.filter((doubt) => doubt.teacher_answered).length },
                 { label: "Solved", value: doubts.filter((doubt) => doubt.status === "solved").length },
               ].map((item) => (
-                <div key={item.label} className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
+                <div key={item.label} className="rounded-2xl border border-black/15 bg-black/10 p-3 backdrop-blur">
                   <p className="text-2xl font-black">{item.value}</p>
-                  <p className="text-xs font-semibold text-white/70">{item.label}</p>
+                  <p className="text-xs font-semibold text-foreground/70">{item.label}</p>
                 </div>
               ))}
             </div>
           </div>
-          <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+          <div className="rounded-3xl border border-black/15 bg-black/10 p-5 backdrop-blur">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-primary">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-card text-primary">
                 <Search className="h-5 w-5" />
               </div>
               <div>
                 <p className="font-black">Search before asking</p>
-                <p className="text-xs text-white/70">Reduce duplicate doubts and learn instantly from answered threads.</p>
+                <p className="text-xs text-foreground/70">Reduce duplicate doubts and learn instantly from answered threads.</p>
               </div>
             </div>
             <div className="relative mt-4">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-foreground/60" />
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                className="border-white/20 bg-white/15 pl-9 text-white placeholder:text-white/60"
+                className="border-black/20 bg-black/15 pl-9 text-foreground placeholder:text-foreground/60"
                 placeholder="Search determinants, row operations, photosynthesis..."
               />
             </div>

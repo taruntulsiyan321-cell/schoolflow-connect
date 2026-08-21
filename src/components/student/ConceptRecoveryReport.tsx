@@ -173,7 +173,7 @@ export function ConceptRecoveryReport({
           </h3>
           <p className="wa-body text-xs mt-1">NCERT concept-level breakdown after this session</p>
         </div>
-        <Button size="sm" variant="outline" onClick={fetchAi} disabled={aiLoading} className="rounded-full bg-white/80">
+        <Button size="sm" variant="outline" onClick={fetchAi} disabled={aiLoading} className="rounded-full bg-card">
           {aiLoading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
           {insights?.source === "ai" ? "View insights" : "Get insights"}
         </Button>

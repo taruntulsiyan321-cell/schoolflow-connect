@@ -123,7 +123,7 @@ export function ArenaLiveBattleCard({
         className={cn(
           "w-full py-2.5 rounded-lg ba-label font-bold transition-transform active:scale-[0.98]",
           live
-            ? "bg-[var(--ba-primary-container)] text-white hover:opacity-95"
+            ? "bg-[var(--ba-primary-container)] text-foreground hover:opacity-95"
             : "ba-gold-shimmer text-[var(--ba-on-surface)]",
         )}
       >

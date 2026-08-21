@@ -166,8 +166,8 @@ function GlassCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-[#131316]/90 backdrop-blur-sm",
-        glow ? glowStyle[glow] : "border-white/7",
+        "rounded-2xl border bg-card/90 backdrop-blur-sm",
+        glow ? glowStyle[glow] : "border-black/7",
         className
       )}
     >
@@ -180,7 +180,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-4">
       <div className="w-1 h-4 rounded-full bg-[#3b5bdb]" />
-      <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">{children}</span>
+      <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">{children}</span>
     </div>
   );
 }
@@ -212,7 +212,7 @@ function ReadinessRing({ score }: { score: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-3xl font-black tabular-nums" style={{ color }}>{score}%</span>
-        <span className="text-[10px] uppercase tracking-widest text-[#78788c] mt-1">Ready</span>
+        <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">Ready</span>
       </div>
     </div>
   );
@@ -248,15 +248,15 @@ function XPBar({ xp, level }: { xp: number; level: number }) {
   return (
     <div className="flex flex-col gap-1">
       <div className="flex justify-between items-center">
-        <span className="text-[11px] text-[#78788c]">Level {level}</span>
-        <span className="text-[11px] text-[#78788c]">{xp % 1000} / 1000 XP</span>
+        <span className="text-[11px] text-muted-foreground">Level {level}</span>
+        <span className="text-[11px] text-muted-foreground">{xp % 1000} / 1000 XP</span>
       </div>
-      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-black/5 overflow-hidden">
         <div
           className="h-full rounded-full"
           style={{
             width: `${progress}%`,
-            background: "linear-gradient(90deg, #3b5bdb, #4b9fd4)",
+            background: "#3b5bdb",
             boxShadow: "0 0 8px #4b9fd480",
             transition: "width 1s ease",
           }}
@@ -278,13 +278,13 @@ const tabs: { key: TabKey; label: string }[] = [
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#131316] border border-white/10 rounded-xl px-3 py-2 text-xs shadow-xl">
-      <div className="text-[#78788c] mb-1">{label}</div>
+    <div className="bg-card border border-black/10 rounded-xl px-3 py-2 text-xs shadow-xl">
+      <div className="text-muted-foreground mb-1">{label}</div>
       {payload.map((p) => (
         <div key={p.name} className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
-          <span className="text-[#a0aec0]">{p.name}:</span>
-          <span className="text-white font-semibold">{p.value}</span>
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="text-foreground font-semibold">{p.value}</span>
         </div>
       ))}
     </div>
@@ -300,18 +300,18 @@ export default function AnalyticsPage() {
     <div
       className="min-h-screen w-full"
       style={{
-        background: "radial-gradient(ellipse 80% 60% at 50% -10%, rgba(99,102,241,0.06) 0%, transparent 60%), #0d0d0f",
+        background: "#0d0d0f",
         fontFamily: "'Inter', system-ui, sans-serif",
       }}
     >
       {/* ── Header ────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-white/5 bg-[#0d0d0f]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-black/5 bg-background/80 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center">
-              <BarChart2 className="w-4 h-4 text-white" />
+            <div className="w-7 h-7 rounded-lg bg-[#3b5bdb] flex items-center justify-center">
+              <BarChart2 className="w-4 h-4 text-foreground" />
             </div>
-            <span className="text-sm font-semibold text-white tracking-tight">Analytics Studio</span>
+            <span className="text-sm font-semibold text-foreground tracking-tight">Analytics Studio</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 bg-amber-400/10 border border-amber-400/20 rounded-full px-3 py-1">
@@ -323,8 +323,8 @@ export default function AnalyticsPage() {
               <span className="text-xs font-bold text-blue-400">{student.xp.toLocaleString()} XP</span>
             </div>
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white"
-              style={{ background: "linear-gradient(135deg, #3b5bdb, #6882e8)" }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-foreground"
+              style={{ background: "#3b5bdb" }}
             >
               {student.avatar}
             </div>
@@ -340,16 +340,16 @@ export default function AnalyticsPage() {
             {/* Left: student info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs uppercase tracking-[0.2em] text-[#78788c]">Deep Analysis</span>
+                <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Deep Analysis</span>
                 <div className="flex items-center gap-1 bg-purple-500/15 border border-purple-500/20 rounded-full px-2 py-0.5">
                   <Star className="w-3 h-3 text-purple-400" />
                   <span className="text-[10px] text-purple-400 font-semibold">Rank #{student.rank} / {student.totalStudents}</span>
                 </div>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-black text-foreground leading-tight tracking-tight">
                 Hi, {student.name.split(" ")[0]} 👋
               </h1>
-              <p className="text-[#78788c] mt-1 text-sm">{student.class} · Last updated just now</p>
+              <p className="text-muted-foreground mt-1 text-sm">{student.class} · Last updated just now</p>
 
               <div className="grid grid-cols-3 gap-3 mt-5">
                 {[
@@ -357,8 +357,8 @@ export default function AnalyticsPage() {
                   { label: "Attendance", value: `${student.attendance}%`, color: "#4aa87a" },
                   { label: "Level", value: `Lv.${student.level}`, color: "#6882e8" },
                 ].map((m) => (
-                  <div key={m.label} className="bg-white/4 rounded-xl px-3 py-2.5 border border-white/5">
-                    <div className="text-[10px] uppercase tracking-wider text-[#78788c]">{m.label}</div>
+                  <div key={m.label} className="bg-black/4 rounded-xl px-3 py-2.5 border border-black/5">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.label}</div>
                     <div className="mt-0.5 text-xl font-black tabular-nums" style={{ color: m.color }}>{m.value}</div>
                   </div>
                 ))}
@@ -372,7 +372,7 @@ export default function AnalyticsPage() {
             {/* Right: readiness ring */}
             <div className="flex flex-col items-center gap-3 shrink-0">
               <ReadinessRing score={student.examReadiness} />
-              <span className="text-[11px] text-[#78788c] uppercase tracking-widest">Exam Readiness</span>
+              <span className="text-[11px] text-muted-foreground uppercase tracking-widest">Exam Readiness</span>
             </div>
 
             {/* Right: radar */}
@@ -392,7 +392,7 @@ export default function AnalyticsPage() {
         </GlassCard>
 
         {/* ── Tab Bar ───────────────────────── */}
-        <div className="flex gap-1 bg-white/4 border border-white/7 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 bg-black/4 border border-black/7 rounded-xl p-1 w-fit">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -401,7 +401,7 @@ export default function AnalyticsPage() {
                 "px-4 py-1.5 rounded-lg text-sm transition-all duration-200",
                 activeTab === t.key
                   ? "bg-[#3b5bdb] text-white shadow-lg shadow-[#3b5bdb]/20"
-                  : "text-[#78788c] hover:text-white"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {t.label}
@@ -419,12 +419,6 @@ export default function AnalyticsPage() {
               <div className="h-48">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={accuracyTrend}>
-                    <defs>
-                      <linearGradient id="accGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4b9fd4" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#4b9fd4" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
                     <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
                     <XAxis dataKey="week" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis domain={[50, 100]} tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={30} />
@@ -435,7 +429,8 @@ export default function AnalyticsPage() {
                       name="Accuracy"
                       stroke="#4b9fd4"
                       strokeWidth={2.5}
-                      fill="url(#accGrad)"
+                      fill="#4b9fd4"
+                      fillOpacity={0.15}
                       dot={{ r: 4, fill: "#4b9fd4", strokeWidth: 0 }}
                       activeDot={{ r: 6, fill: "#4b9fd4", strokeWidth: 2, stroke: "#0d0d0f" }}
                     />
@@ -454,13 +449,13 @@ export default function AnalyticsPage() {
               <div className="flex items-start gap-3 mb-4">
                 <div
                   className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background: "linear-gradient(135deg, #6882e8, #3b5bdb)" }}
+                  style={{ background: "#3b5bdb" }}
                 >
-                  <Brain className="w-4 h-4 text-white" />
+                  <Brain className="w-4 h-4 text-foreground" />
                 </div>
                 <div>
-                  <div className="text-white font-semibold text-sm">Nova · Your Academic AI</div>
-                  <div className="text-[#78788c] text-xs mt-0.5">Analysing your last 7 sessions…</div>
+                  <div className="text-foreground font-semibold text-sm">Nova · Your Academic AI</div>
+                  <div className="text-muted-foreground text-xs mt-0.5">Analysing your last 7 sessions…</div>
                 </div>
                 <div className="ml-auto flex items-center gap-1 text-purple-400">
                   <Sparkles className="w-3.5 h-3.5" />
@@ -471,12 +466,12 @@ export default function AnalyticsPage() {
                 {aiInsights.map((line, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 p-3 rounded-xl bg-white/3 border border-white/5 hover:border-purple-400/20 transition-colors"
+                    className="flex items-start gap-3 p-3 rounded-xl bg-black/3 border border-black/5 hover:border-purple-400/20 transition-colors"
                   >
                     <div className="w-5 h-5 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0 mt-0.5">
                       <span className="text-[10px] font-bold text-purple-400">{i + 1}</span>
                     </div>
-                    <p className="text-sm text-[#a0aec0] leading-relaxed">{line}</p>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{line}</p>
                   </div>
                 ))}
               </div>
@@ -491,7 +486,7 @@ export default function AnalyticsPage() {
                   return (
                     <div
                       key={i}
-                      className="flex items-center gap-4 p-3 rounded-xl bg-white/3 border border-white/5 hover:border-white/10 transition-colors group"
+                      className="flex items-center gap-4 p-3 rounded-xl bg-black/3 border border-black/5 hover:border-black/10 transition-colors group"
                     >
                       <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold"
@@ -500,14 +495,14 @@ export default function AnalyticsPage() {
                         {s.subject.slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-white">{s.subject}</div>
-                        <div className="text-[11px] text-[#78788c]">{s.date}</div>
+                        <div className="text-sm font-semibold text-foreground">{s.subject}</div>
+                        <div className="text-[11px] text-muted-foreground">{s.date}</div>
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-sm font-bold" style={{ color: accuracyColor(acc) }}>{acc}%</div>
-                        <div className="text-[11px] text-[#78788c]">{s.correct}/{s.questions} · {s.duration}</div>
+                        <div className="text-[11px] text-muted-foreground">{s.correct}/{s.questions} · {s.duration}</div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-[#78788c] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                      <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                     </div>
                   );
                 })}
@@ -521,20 +516,20 @@ export default function AnalyticsPage() {
           <div className="space-y-6">
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {subjectData.map((s) => (
-                <GlassCard key={s.subject} className="p-5 hover:border-white/15 transition-colors">
+                <GlassCard key={s.subject} className="p-5 hover:border-black/15 transition-colors">
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div>
-                      <div className="text-sm font-bold text-white">{s.subject}</div>
-                      <div className="text-[11px] text-[#78788c] mt-0.5">{s.attempts} attempts</div>
+                      <div className="text-sm font-bold text-foreground">{s.subject}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">{s.attempts} attempts</div>
                     </div>
                     <MiniRing score={s.accuracy} />
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-black/5 overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-700"
                       style={{
                         width: `${s.accuracy}%`,
-                        background: `linear-gradient(90deg, ${accuracyColor(s.accuracy)}, ${accuracyColor(s.accuracy)}88)`,
+                        background: `${accuracyColor(s.accuracy)}`,
                         boxShadow: `0 0 8px ${accuracyColor(s.accuracy)}60`,
                       }}
                     />
@@ -586,8 +581,8 @@ export default function AnalyticsPage() {
                     <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-emerald-400/5 border border-emerald-400/10 hover:border-emerald-400/25 transition-colors">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-white truncate">{c.concept}</div>
-                        <div className="text-[11px] text-[#78788c]">{c.subject}</div>
+                        <div className="text-sm font-semibold text-foreground truncate">{c.concept}</div>
+                        <div className="text-[11px] text-muted-foreground">{c.subject}</div>
                       </div>
                       <div className="text-sm font-bold text-emerald-400 shrink-0">{c.score}%</div>
                     </div>
@@ -603,12 +598,12 @@ export default function AnalyticsPage() {
                     <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-amber-400/5 border border-amber-400/10 hover:border-amber-400/25 transition-colors group cursor-pointer">
                       <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-white truncate">{c.concept}</div>
-                        <div className="text-[11px] text-[#78788c]">{c.subject} · {c.mistakes} mistakes</div>
+                        <div className="text-sm font-semibold text-foreground truncate">{c.concept}</div>
+                        <div className="text-[11px] text-muted-foreground">{c.subject} · {c.mistakes} mistakes</div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className="text-sm font-bold text-amber-400">{c.score}%</span>
-                        <span className="text-[10px] text-[#78788c] opacity-0 group-hover:opacity-100 transition-opacity">Recover →</span>
+                        <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">Recover →</span>
                       </div>
                     </div>
                   ))}
@@ -648,7 +643,7 @@ export default function AnalyticsPage() {
                 ].map((l) => (
                   <div key={l.label} className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-sm" style={{ background: l.color }} />
-                    <span className="text-[11px] text-[#78788c]">{l.label}</span>
+                    <span className="text-[11px] text-muted-foreground">{l.label}</span>
                   </div>
                 ))}
               </div>
@@ -675,12 +670,12 @@ export default function AnalyticsPage() {
                   <div className="flex gap-1 mb-2">
                     <div className="w-8 shrink-0" />
                     {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-                      <div key={d} className="flex-1 text-center text-[10px] text-[#78788c]">{d}</div>
+                      <div key={d} className="flex-1 text-center text-[10px] text-muted-foreground">{d}</div>
                     ))}
                   </div>
                   {heatmapData.map((row) => (
                     <div key={row.week} className="flex items-center gap-1 mb-1">
-                      <div className="w-8 text-[10px] text-[#78788c] shrink-0">{row.week}</div>
+                      <div className="w-8 text-[10px] text-muted-foreground shrink-0">{row.week}</div>
                       {row.days.map((cell) => {
                         const intensity = cell.value / 40;
                         const bg = cell.value === 0
@@ -698,11 +693,11 @@ export default function AnalyticsPage() {
                     </div>
                   ))}
                   <div className="flex items-center gap-2 mt-3 justify-end">
-                    <span className="text-[10px] text-[#78788c]">Less</span>
+                    <span className="text-[10px] text-muted-foreground">Less</span>
                     {[0.1, 0.3, 0.5, 0.7, 1].map((o) => (
                       <div key={o} className="w-3 h-3 rounded-sm" style={{ background: `rgba(34,211,238,${o})` }} />
                     ))}
-                    <span className="text-[10px] text-[#78788c]">More</span>
+                    <span className="text-[10px] text-muted-foreground">More</span>
                   </div>
                 </div>
               </div>
@@ -716,11 +711,11 @@ export default function AnalyticsPage() {
                 { icon: <Zap className="w-5 h-5" />, label: "Total XP", value: student.xp.toLocaleString(), color: "#3b5bdb", bg: "#3b5bdb20" },
                 { icon: <Activity className="w-5 h-5" />, label: "Sessions", value: "38", color: "#4aa87a", bg: "#4aa87a20" },
               ].map((item) => (
-                <GlassCard key={item.label} className="p-4 hover:border-white/15 transition-colors">
+                <GlassCard key={item.label} className="p-4 hover:border-black/15 transition-colors">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: item.bg, color: item.color }}>
                     {item.icon}
                   </div>
-                  <div className="text-xs text-[#78788c]">{item.label}</div>
+                  <div className="text-xs text-muted-foreground">{item.label}</div>
                   <div className="text-2xl font-black tabular-nums mt-1" style={{ color: item.color }}>{item.value}</div>
                 </GlassCard>
               ))}
@@ -743,7 +738,7 @@ export default function AnalyticsPage() {
                       "flex items-center gap-3 p-3 rounded-xl border transition-colors",
                       p.you
                         ? "bg-blue-500/10 border-blue-500/25"
-                        : "bg-white/3 border-white/5 hover:border-white/10"
+                        : "bg-black/3 border-black/5 hover:border-black/10"
                     )}
                   >
                     <div
@@ -756,13 +751,13 @@ export default function AnalyticsPage() {
                       {p.rank}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className={cn("text-sm font-semibold truncate", p.you ? "text-blue-300" : "text-white")}>
+                      <div className={cn("text-sm font-semibold truncate", p.you ? "text-blue-300" : "text-foreground")}>
                         {p.name} {p.you && <span className="text-[10px] text-blue-400 ml-1">YOU</span>}
                       </div>
                     </div>
                     <div className="text-right shrink-0">
                       <div className="text-xs font-bold text-[#6882e8]">{p.xp.toLocaleString()} XP</div>
-                      <div className="text-[10px] text-[#78788c]">{p.accuracy}% acc</div>
+                      <div className="text-[10px] text-muted-foreground">{p.accuracy}% acc</div>
                     </div>
                   </div>
                 ))}
@@ -780,7 +775,7 @@ export default function AnalyticsPage() {
           ].map((a) => (
             <button
               key={a.label}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 hover:border-white/20 text-sm text-[#a0aec0] hover:text-white transition-all duration-200"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-black/10 bg-black/5 hover:bg-black/8 hover:border-black/20 text-sm text-muted-foreground hover:text-foreground transition-all duration-200"
               style={{ "--hover-shadow": `0 0 20px ${a.color}30` } as React.CSSProperties}
             >
               <span style={{ color: a.color }}>{a.icon}</span>

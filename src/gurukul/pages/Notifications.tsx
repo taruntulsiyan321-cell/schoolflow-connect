@@ -41,7 +41,7 @@ export default function Notifications() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading notifications…
       </div>
     );
@@ -51,10 +51,10 @@ export default function Notifications() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-3xl font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
+          <h1 className="text-3xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
             Notifications
           </h1>
-          <p className="text-[#78788c] text-sm mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             {unread > 0 ? `${unread} unread` : "You're all caught up"}
           </p>
           {error && <p className="text-[10px] text-[#cc5069] mt-1">{error}</p>}
@@ -63,7 +63,7 @@ export default function Notifications() {
           <button
             type="button"
             onClick={() => void markAllRead()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-[#a5b4fc] hover:bg-white/10 transition-all"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/5 border border-black/10 text-xs font-bold text-muted-foreground hover:bg-black/10 transition-all"
           >
             <CheckCheck className="w-3.5 h-3.5" /> Mark all read
           </button>
@@ -72,8 +72,8 @@ export default function Notifications() {
 
       {items.length === 0 ? (
         <GlassCard className="p-10 text-center">
-          <Bell className="w-10 h-10 mx-auto mb-3 text-[#46465a]" />
-          <p className="text-sm text-[#78788c]">
+          <Bell className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
             No notifications yet. Homework, battles, and badges will show up here.
           </p>
         </GlassCard>
@@ -92,21 +92,21 @@ export default function Notifications() {
                 <div
                   className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                    n.read ? "bg-white/5 text-[#78788c]" : "bg-[#3b5bdb]/15 text-[#a5b4fc]",
+                    n.read ? "bg-black/5 text-muted-foreground" : "bg-[#3b5bdb]/15 text-muted-foreground",
                   )}
                 >
                   <Icon className="w-5 h-5" />
                 </div>
                 <button type="button" onClick={() => open(n)} className="flex-1 min-w-0 text-left">
-                  <div className="font-semibold text-sm text-white truncate">{n.title}</div>
-                  {n.body && <div className="text-xs text-[#78788c] line-clamp-2">{n.body}</div>}
-                  <div className="text-[10px] text-[#46465a] mt-0.5">{timeAgo(n.created_at)}</div>
+                  <div className="font-semibold text-sm text-foreground truncate">{n.title}</div>
+                  {n.body && <div className="text-xs text-muted-foreground line-clamp-2">{n.body}</div>}
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{timeAgo(n.created_at)}</div>
                 </button>
                 {!n.read && <span className="w-2 h-2 rounded-full bg-[#3b5bdb] shrink-0" />}
                 <button
                   type="button"
                   onClick={() => void remove(n.id)}
-                  className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-[#46465a] hover:text-[#cc5069] hover:bg-white/5 transition-all"
+                  className="h-8 w-8 shrink-0 rounded-lg flex items-center justify-center text-muted-foreground hover:text-[#cc5069] hover:bg-black/5 transition-all"
                   aria-label="Delete"
                 >
                   <Trash2 className="w-4 h-4" />

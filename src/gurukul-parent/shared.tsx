@@ -14,7 +14,7 @@ export function InitialsAvatar({ name, size = "md", color }: { name: string; siz
   const sz = { sm: "w-7 h-7 text-[9px]", md: "w-9 h-9 text-xs", lg: "w-12 h-12 text-sm" }[size];
   const bg = color ?? "#3b5bdb";
   return (
-    <div className={`${sz} rounded-xl flex items-center justify-center font-black text-white shrink-0`} style={{ background: `${bg}30`, color: bg }}>
+    <div className={`${sz} rounded-xl flex items-center justify-center font-black text-foreground shrink-0`} style={{ background: `${bg}30`, color: bg }}>
       {initials}
     </div>
   );
@@ -22,7 +22,7 @@ export function InitialsAvatar({ name, size = "md", color }: { name: string; siz
 
 export function PriorityBadge({ priority }: { priority: "normal" | "important" | "urgent" }) {
   const map = {
-    normal: { bg: "bg-white/8", text: "text-[#78788c]", label: "Normal" },
+    normal: { bg: "bg-black/8", text: "text-muted-foreground", label: "Normal" },
     important: { bg: "bg-[#c08a3a]/15", text: "text-[#c08a3a]", label: "Important" },
     urgent: { bg: "bg-[#cc5069]/15", text: "text-[#cc5069]", label: "Urgent" },
   };
@@ -43,7 +43,7 @@ export function ScoreBar({ value, max, color = ACCENT }: { value: number; max: n
   const pct = Math.round((value / max) * 100);
   return (
     <div className="flex items-center gap-2 w-full">
-      <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-black/5 rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
       </div>
       <span className="text-[10px] font-bold tabular-nums shrink-0" style={{ color }}>{pct}%</span>
@@ -53,7 +53,7 @@ export function ScoreBar({ value, max, color = ACCENT }: { value: number; max: n
 
 export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("bg-[#131316] border border-white/7 rounded-2xl", className)}>
+    <div className={cn("bg-card border border-black/7 rounded-2xl", className)}>
       {children}
     </div>
   );
@@ -62,7 +62,7 @@ export function Card({ children, className }: { children: React.ReactNode; class
 export function SectionHead({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <div className="text-sm font-bold text-white">{title}</div>
+      <div className="text-sm font-bold text-foreground">{title}</div>
       {action}
     </div>
   );

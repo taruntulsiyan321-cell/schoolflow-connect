@@ -78,19 +78,19 @@ export default function Resources() {
   return (
     <div className="space-y-5">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#78788c]" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search resources…"
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50 transition-colors"
+          className="w-full bg-black/5 border border-black/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50 transition-colors"
         />
       </div>
 
       <GlassCard className="p-5">
         <SectionLabel>Study materials</SectionLabel>
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-[#78788c] text-sm">
+          <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground text-sm">
             <Loader2 className="w-4 h-4 animate-spin" /> Loading resources…
           </div>
         ) : (
@@ -103,7 +103,7 @@ export default function Resources() {
                   key={r.id}
                   type="button"
                   onClick={() => openResource(r)}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-white/2 hover:border-white/15 transition-colors group text-left"
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-black/7 bg-black/2 hover:border-black/15 transition-colors group text-left"
                 >
                   <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
@@ -112,26 +112,26 @@ export default function Resources() {
                     {r.type === "Video" ? <Video className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-white truncate">{r.title}</div>
+                    <div className="text-sm font-semibold text-foreground truncate">{r.title}</div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <SubjectBadge subject={r.subject} color={col} />
-                      <span className="text-[11px] text-[#78788c]">
+                      <span className="text-[11px] text-muted-foreground">
                         {r.type} · {formatDate(r.publishedAt)}
                       </span>
                     </div>
                   </div>
-                  <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <span className="w-8 h-8 rounded-lg bg-black/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     {hasLink ? (
-                      <ExternalLink className="w-4 h-4 text-[#78788c]" />
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
                     ) : (
-                      <Download className="w-4 h-4 text-[#78788c]" />
+                      <Download className="w-4 h-4 text-muted-foreground" />
                     )}
                   </span>
                 </button>
               );
             })}
             {filtered.length === 0 && (
-              <div className="text-center py-8 text-[#78788c] text-sm">
+              <div className="text-center py-8 text-muted-foreground text-sm">
                 {q
                   ? "No resources found."
                   : "No study materials uploaded for your class yet."}

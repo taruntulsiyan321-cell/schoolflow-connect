@@ -310,11 +310,11 @@ function Hub({
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="flex-1">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Wisdom Campus</div>
-          <h1 className="text-3xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Wisdom Campus</div>
+          <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
             Practice
           </h1>
-          <p className="text-[#78788c] text-sm mt-1">
+          <p className="text-muted-foreground text-sm mt-1">
             {MODES.length} practice modes · Pick how you want to learn today
           </p>
         </div>
@@ -330,7 +330,7 @@ function Hub({
         <GlassCard className="p-4 border-[#c08a3a]/25">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1 h-4 rounded-full bg-[#c08a3a]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Resume session</span>
+            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Resume session</span>
           </div>
           <div className="space-y-2">
             {incomplete.slice(0, 3).map((s) => (
@@ -338,14 +338,14 @@ function Hub({
                 key={s.id}
                 type="button"
                 onClick={() => onResumeSession(s.id)}
-                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-white/7 hover:border-[#c08a3a]/35 hover:bg-white/[0.03] transition-all text-left"
+                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-black/7 hover:border-[#c08a3a]/35 hover:bg-muted transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg bg-[#c08a3a]/15 flex items-center justify-center shrink-0 text-[#c08a3a]">
                   <RotateCcw className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{s.subject} · {s.chapter !== "—" ? s.chapter : s.practiceType}</div>
-                  <div className="text-[10px] text-[#78788c] mt-0.5">
+                  <div className="text-xs font-bold text-foreground truncate">{s.subject} · {s.chapter !== "—" ? s.chapter : s.practiceType}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
                     {s.practiceType} · {s.attempted}/{s.qs || "?"} answered · {s.date}
                   </div>
                 </div>
@@ -362,17 +362,17 @@ function Hub({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1 h-4 rounded-full bg-[#c08a3a]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Quick Start</span>
+            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Quick Start</span>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {hot.map(m => (
               <button key={m.key} type="button" onClick={() => onMode(m.key)}
-                className="group text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
+                className="group text-left p-4 rounded-2xl border border-black/7 hover:border-black/15 hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
                 <div className="flex items-center gap-2 mb-2" style={{ color: m.color }}>
                   {m.icon}
-                  <span className="text-sm font-bold text-white">{m.label}</span>
+                  <span className="text-sm font-bold text-foreground">{m.label}</span>
                 </div>
-                <div className="text-[11px] text-[#78788c] line-clamp-2">{m.desc}</div>
+                <div className="text-[11px] text-muted-foreground line-clamp-2">{m.desc}</div>
               </button>
             ))}
           </div>
@@ -386,19 +386,19 @@ function Hub({
               <button key={c.key} type="button" onClick={() => setCat(c.key)}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all",
-                  cat === c.key ? "bg-white/12 text-white" : "text-[#78788c] hover:text-white hover:bg-white/5"
+                  cat === c.key ? "bg-black/12 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-black/5"
                 )}>
                 {c.label}
               </button>
             ))}
           </div>
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#78788c]"/>
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search modes…"
-              className="pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20 w-full sm:w-48"
+              className="pl-9 pr-3 py-2 rounded-xl bg-black/5 border border-black/7 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-black/20 w-full sm:w-48"
             />
           </div>
         </div>
@@ -406,14 +406,14 @@ function Hub({
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {visible.map(m => (
             <button key={m.key} type="button" onClick={() => onMode(m.key)}
-              className="group text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
+              className="group text-left p-4 rounded-2xl border border-black/7 hover:border-black/15 hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
               <div className="flex items-start gap-2 mb-2">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                   style={{ background:`${m.color}15`, color:m.color }}>
                   {m.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-white truncate">{m.label}</div>
+                  <div className="text-sm font-bold text-foreground truncate">{m.label}</div>
                 </div>
                 {m.instant && (
                   <span className="shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded-full mt-0.5"
@@ -422,7 +422,7 @@ function Hub({
                   </span>
                 )}
               </div>
-              <div className="text-[11px] text-[#78788c] leading-relaxed mb-3">{m.desc}</div>
+              <div className="text-[11px] text-muted-foreground leading-relaxed mb-3">{m.desc}</div>
               <div className="flex items-center justify-between">
                 <Tag color={m.color}>{m.badge}</Tag>
                 <div className="flex items-center gap-1 text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
@@ -435,8 +435,8 @@ function Hub({
 
           {visible.length === 0 && (
             <div className="col-span-full py-16 text-center">
-              <HelpCircle className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
-              <div className="text-sm text-[#78788c]">No modes match your search</div>
+              <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto mb-3"/>
+              <div className="text-sm text-muted-foreground">No modes match your search</div>
             </div>
           )}
         </div>
@@ -447,7 +447,7 @@ function Hub({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 rounded-full bg-[#4b9fd4]"/>
-              <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Saved Sessions</span>
+              <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Saved Sessions</span>
             </div>
             <button
               type="button"
@@ -460,7 +460,7 @@ function Hub({
           </div>
           <div className="space-y-2.5">
             {saved.length === 0 ? (
-              <div className="py-8 text-center text-xs text-[#78788c]">
+              <div className="py-8 text-center text-xs text-muted-foreground">
                 No saved sessions yet. Finish practice, open analysis, then Save Session — or bookmark your latest finished result here.
               </div>
             ) : saved.map(s => (
@@ -468,17 +468,17 @@ function Hub({
                 key={s.id}
                 type="button"
                 onClick={() => onOpenSession(s.id)}
-                className="group w-full flex items-start gap-3 p-3 rounded-xl border border-white/5 hover:border-white/12 hover:bg-white/3 transition-all text-left"
+                className="group w-full flex items-start gap-3 p-3 rounded-xl border border-black/5 hover:border-black/12 hover:bg-black/3 transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg bg-[#4b9fd4]/10 flex items-center justify-center shrink-0 text-[#4b9fd4]">
                   <Save className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{s.subject} · {s.chapter}</div>
-                  <div className="text-[10px] text-[#78788c] truncate mt-0.5">{s.practiceType} · {s.pct}% · {s.attempted} Qs · {s.xpLabel} XP</div>
-                  <div className="text-[10px] text-[#78788c]/60 mt-0.5">{s.date}</div>
+                  <div className="text-xs font-bold text-foreground truncate">{s.subject} · {s.chapter}</div>
+                  <div className="text-[10px] text-muted-foreground truncate mt-0.5">{s.practiceType} · {s.pct}% · {s.attempted} Qs · {s.xpLabel} XP</div>
+                  <div className="text-[10px] text-muted-foreground/60 mt-0.5">{s.date}</div>
                 </div>
-                <Play className="w-3.5 h-3.5 text-[#78788c] group-hover:text-[#4b9fd4] transition-colors shrink-0 mt-1"/>
+                <Play className="w-3.5 h-3.5 text-muted-foreground group-hover:text-[#4b9fd4] transition-colors shrink-0 mt-1"/>
               </button>
             ))}
           </div>
@@ -488,14 +488,14 @@ function Hub({
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 rounded-full bg-[#6882e8]"/>
-              <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Practice History</span>
+              <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Practice History</span>
             </div>
             <button
               type="button"
               onClick={() => setShowFilters((v) => !v)}
               className={cn(
                 "flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors",
-                showFilters ? "border-[#6882e8]/40 text-[#6882e8]" : "border-white/10 text-[#78788c] hover:text-white"
+                showFilters ? "border-[#6882e8]/40 text-[#6882e8]" : "border-black/10 text-muted-foreground hover:text-foreground"
               )}
             >
               <Filter className="w-3 h-3"/> Filters
@@ -505,21 +505,21 @@ function Hub({
           {showFilters && (
             <div className="grid sm:grid-cols-2 gap-2 mb-4">
               <div className="relative sm:col-span-2">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#78788c]"/>
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/>
                 <input
                   value={historyFilters.search}
                   onChange={(e) => onHistoryFilters({ search: e.target.value })}
                   placeholder="Search subject, chapter, type…"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-black/5 border border-black/7 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-black/20"
                 />
-                <div className="mt-1.5 text-[10px] text-[#78788c]/70">
+                <div className="mt-1.5 text-[10px] text-muted-foreground/70">
                   Showing your most recent 100 sessions
                 </div>
               </div>
               <select
                 value={historyFilters.subject}
                 onChange={(e) => onHistoryFilters({ subject: e.target.value })}
-                className="px-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-black/5 border border-black/7 text-xs text-foreground focus:outline-none"
               >
                 <option value="">All subjects</option>
                 {subjects.map((s) => (
@@ -529,7 +529,7 @@ function Hub({
               <select
                 value={historyFilters.practiceType}
                 onChange={(e) => onHistoryFilters({ practiceType: e.target.value })}
-                className="px-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-black/5 border border-black/7 text-xs text-foreground focus:outline-none"
               >
                 <option value="">All practice types</option>
                 {MODES.map((m) => (
@@ -540,14 +540,14 @@ function Hub({
                 type="date"
                 value={historyFilters.date}
                 onChange={(e) => onHistoryFilters({ date: e.target.value })}
-                className="sm:col-span-2 px-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white focus:outline-none"
+                className="sm:col-span-2 px-3 py-2 rounded-xl bg-black/5 border border-black/7 text-xs text-foreground focus:outline-none"
               />
             </div>
           )}
 
           <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
             {filteredHistory.length === 0 ? (
-              <div className="py-8 text-center text-xs text-[#78788c]">
+              <div className="py-8 text-center text-xs text-muted-foreground">
                 {history.length === 0 ? "No practice history yet" : "No sessions match these filters"}
               </div>
             ) : filteredHistory.map(h => (
@@ -555,7 +555,7 @@ function Hub({
                 key={h.id}
                 type="button"
                 onClick={() => onOpenSession(h.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-all text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-black/5 hover:border-black/10 hover:bg-muted transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background:`${h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069"}15`, color:h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069" }}>
@@ -563,26 +563,26 @@ function Hub({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-white truncate">{h.chapter !== "—" ? h.chapter : h.practiceType}</span>
+                    <span className="text-xs font-semibold text-foreground truncate">{h.chapter !== "—" ? h.chapter : h.practiceType}</span>
                     <StatusTag status={h.status}/>
                     {h.saved && <Tag color="#4b9fd4">Saved</Tag>}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-[10px] text-[#78788c]">{h.subject}</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#78788c]">{h.practiceType}</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#78788c]">{h.difficulty}</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#78788c]">{h.attempted} Qs</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#78788c]">{h.time}</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.subject}</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.practiceType}</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.difficulty}</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.attempted} Qs</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.time}</span>
+                    <span className="text-[10px] text-muted-foreground/40">·</span>
                     <span className="text-[10px] text-[#c08a3a]">{h.xpLabel} XP</span>
                   </div>
                 </div>
-                <div className="text-[10px] text-[#78788c] shrink-0 text-right hidden sm:block">{h.date}</div>
-                <ChevronRight className="w-3.5 h-3.5 text-[#78788c] shrink-0"/>
+                <div className="text-[10px] text-muted-foreground shrink-0 text-right hidden sm:block">{h.date}</div>
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0"/>
               </button>
             ))}
           </div>
@@ -727,7 +727,7 @@ function ConfigView({
           )}
 
           <div>
-            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Difficulty
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -735,18 +735,18 @@ function ConfigView({
                 <button key={d.key} type="button" onClick={() => setSelDifficulty(d.key)}
                   className={cn(
                     "p-4 rounded-2xl border text-left transition-all",
-                    selDifficulty === d.key ? "scale-[1.02]" : "border-white/7 hover:border-white/15"
+                    selDifficulty === d.key ? "scale-[1.02]" : "border-black/7 hover:border-black/15"
                   )}
                   style={selDifficulty === d.key ? { borderColor:`${d.color}40`, background:`${d.color}10` } : {}}>
                   <div className="text-sm font-black mb-1" style={{ color:selDifficulty===d.key?d.color:"white" }}>{d.label}</div>
-                  <div className="text-[11px] text-[#78788c]">{d.desc}</div>
+                  <div className="text-[11px] text-muted-foreground">{d.desc}</div>
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Practice goal
             </div>
             <div className="flex gap-2 mb-4">
@@ -760,7 +760,7 @@ function ConfigView({
                   onClick={() => setGoalType(g.key)}
                   className={cn(
                     "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                    goalType === g.key ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                    goalType === g.key ? "border-transparent" : "border-black/7 text-muted-foreground hover:border-black/15",
                   )}
                   style={goalType === g.key ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}
                 >
@@ -776,7 +776,7 @@ function ConfigView({
                   <button key={n} type="button" onClick={() => setQCount(n)}
                     className={cn(
                       "px-5 py-3 rounded-xl text-sm font-black border transition-all",
-                      qCount === n ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                      qCount === n ? "border-transparent" : "border-black/7 text-muted-foreground hover:border-black/15",
                     )}
                     style={qCount === n ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                     {n} questions
@@ -789,7 +789,7 @@ function ConfigView({
                   <button key={t} type="button" onClick={() => setTimeLimitMin(t)}
                     className={cn(
                       "px-5 py-3 rounded-xl text-sm font-black border transition-all",
-                      timeLimitMin === t ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                      timeLimitMin === t ? "border-transparent" : "border-black/7 text-muted-foreground hover:border-black/15",
                     )}
                     style={timeLimitMin === t ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                     {t} min
@@ -816,15 +816,15 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <p className="text-xs text-[#78788c]">Loads past-paper / exam-year tagged questions from the bank when available.</p>
+          <p className="text-xs text-muted-foreground">Loads past-paper / exam-year tagged questions from the bank when available.</p>
           <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
           <div>
-            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Exam year (optional)</div>
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Exam year (optional)</div>
             <div className="flex gap-2 flex-wrap">
               <button type="button" onClick={() => setPyqYear(null)}
                 className={cn(
                   "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                  pyqYear === null ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                  pyqYear === null ? "border-transparent" : "border-black/7 text-muted-foreground hover:border-black/15",
                 )}
                 style={pyqYear === null ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                 All years
@@ -833,7 +833,7 @@ function ConfigView({
                 <button key={y} type="button" onClick={() => setPyqYear(y)}
                   className={cn(
                     "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                    pyqYear === y ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                    pyqYear === y ? "border-transparent" : "border-black/7 text-muted-foreground hover:border-black/15",
                   )}
                   style={pyqYear === y ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                   {y}
@@ -877,13 +877,13 @@ function ConfigView({
           )}
           {selChapter && (
             <div>
-              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Difficulty</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Difficulty</div>
               <div className="flex gap-2 flex-wrap">
                 {DIFFICULTIES.map(d => (
                   <button key={d.key} onClick={() => setSelDifficulty(d.key)}
                     className={cn(
                       "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      selDifficulty === d.key ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                      selDifficulty === d.key ? "text-foreground shadow-lg" : "border border-black/7 text-muted-foreground hover:border-black/20 hover:text-foreground"
                     )}
                     style={selDifficulty === d.key ? { background:d.color } : {}}>
                     {d.label}
@@ -946,9 +946,9 @@ function EmptyConfig({
 }: { title: string; body: string; actionLabel?: string; onAction?: () => void }) {
   return (
     <div className="py-8 text-center space-y-3">
-      <HelpCircle className="w-8 h-8 text-[#78788c] mx-auto"/>
-      <div className="text-sm font-bold text-white">{title}</div>
-      <p className="text-xs text-[#78788c] leading-relaxed max-w-sm mx-auto">{body}</p>
+      <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto"/>
+      <div className="text-sm font-bold text-foreground">{title}</div>
+      <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">{body}</p>
       {actionLabel && onAction && (
         <button type="button" onClick={onAction}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#3b5bdb] hover:text-blue-300">
@@ -971,16 +971,16 @@ function OptionChips({
 }) {
   return (
     <div>
-      <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{label}</div>
       {options.length === 0 ? (
-        <p className="text-xs text-[#78788c]">{empty ?? "Nothing available yet."}</p>
+        <p className="text-xs text-muted-foreground">{empty ?? "Nothing available yet."}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {allowClear && (
             <button type="button" onClick={() => onSelect(null)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === null ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-black/7 text-muted-foreground hover:border-black/20 hover:text-white"
               )}>Any</button>
           )}
           {options.map((opt) => (
@@ -990,7 +990,7 @@ function OptionChips({
               onClick={() => onSelect(opt.id)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all max-w-full truncate",
-                selected === opt.id ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === opt.id ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-black/7 text-muted-foreground hover:border-black/20 hover:text-white"
               )}
               title={opt.displayName}
             >
@@ -1009,7 +1009,7 @@ function ConfigShell({ mode, onBack, children }: {
 }) {
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-[#78788c] hover:text-white transition-colors">
+      <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4"/> Back to Practice
       </button>
 
@@ -1020,8 +1020,8 @@ function ConfigShell({ mode, onBack, children }: {
             {mode.icon}
           </div>
           <div>
-            <h2 className="text-xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>{mode.label}</h2>
-            <p className="text-sm text-[#78788c] mt-0.5">{mode.desc}</p>
+            <h2 className="text-xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>{mode.label}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{mode.desc}</p>
           </div>
         </div>
         {children}
@@ -1043,9 +1043,9 @@ function SubjectPicker({
 }) {
   return (
     <div>
-      <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{label}</div>
       {subjects.length === 0 ? (
-        <p className="text-xs text-[#78788c]">
+        <p className="text-xs text-muted-foreground">
           {emptyMessage ?? "No subjects in the question bank yet for your class and board."}
         </p>
       ) : (
@@ -1054,14 +1054,14 @@ function SubjectPicker({
             <button type="button" onClick={() => onSelect(null)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-black/7 text-muted-foreground hover:border-black/20 hover:text-white"
               )}>All</button>
           )}
           {subjects.map(s => (
             <button key={s.id} type="button" onClick={() => onSelect(s.name)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === s.name ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === s.name ? "text-foreground shadow-lg" : "border border-black/7 text-muted-foreground hover:border-black/20 hover:text-foreground"
               )}
               style={selected===s.name ? { background:s.color, boxShadow:`0 4px 14px ${s.color}40` } : {}}>
               {displaySubject(s.name) || s.name}
@@ -1078,13 +1078,13 @@ function CountSlider({ value, onChange, color }: { value:number; onChange:(v:num
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider">Number of Questions</div>
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Number of Questions</div>
         <span className="text-sm font-black tabular-nums" style={{color}}>{value}</span>
       </div>
       <input type="range" min={5} max={90} step={5} value={value} onChange={e => onChange(+e.target.value)}
         className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
         style={{ accentColor: color }}/>
-      <div className="flex justify-between text-[10px] text-[#78788c] mt-1"><span>5</span><span>90</span></div>
+      <div className="flex justify-between text-[10px] text-muted-foreground mt-1"><span>5</span><span>90</span></div>
     </div>
   );
 }
@@ -1096,10 +1096,10 @@ function StartButton({ color, disabled=false, onStart, label="Start Practice" }:
   return (
     <button onClick={onStart} disabled={disabled}
       className={cn(
-        "w-full mt-6 py-3.5 rounded-2xl font-black text-sm text-white flex items-center justify-center gap-2 transition-all",
-        disabled ? "opacity-30 cursor-not-allowed bg-white/10" : "hover:opacity-90 hover:scale-[1.02] active:scale-[0.99]"
+        "w-full mt-6 py-3.5 rounded-2xl font-black text-sm text-foreground flex items-center justify-center gap-2 transition-all",
+        disabled ? "opacity-30 cursor-not-allowed bg-black/10" : "hover:opacity-90 hover:scale-[1.02] active:scale-[0.99]"
       )}
-      style={disabled ? {} : { background:`linear-gradient(135deg,${color},${color}cc)`, boxShadow:`0 8px 24px ${color}30` }}>
+      style={disabled ? {} : { background:`${color}`, boxShadow:`0 8px 24px ${color}30` }}>
       <Play className="w-4 h-4"/> {label}
     </button>
   );
@@ -1745,7 +1745,7 @@ function Session({
   if (loadingQs) {
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-3">
-        <div className="text-sm text-[#78788c]">Loading practice questions…</div>
+        <div className="text-sm text-muted-foreground">Loading practice questions…</div>
       </div>
     );
   }
@@ -1754,10 +1754,10 @@ function Session({
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
         <AlertCircle className="w-10 h-10 text-rose-400 mx-auto"/>
-        <div className="text-lg font-bold text-white">Could not start practice</div>
-        <p className="text-sm text-[#78788c]">{loadError}</p>
+        <div className="text-lg font-bold text-foreground">Could not start practice</div>
+        <p className="text-sm text-muted-foreground">{loadError}</p>
         <button onClick={onBack}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-black/7 text-sm text-muted-foreground hover:text-foreground hover:border-black/20 transition-all">
           <ArrowLeft className="w-4 h-4"/> Back to Practice
         </button>
       </div>
@@ -1777,9 +1777,9 @@ function Session({
     };
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
-        <HelpCircle className="w-10 h-10 text-[#78788c] mx-auto"/>
-        <div className="text-lg font-bold text-white">No questions available</div>
-        <p className="text-sm text-[#78788c]">
+        <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto"/>
+        <div className="text-lg font-bold text-foreground">No questions available</div>
+        <p className="text-sm text-muted-foreground">
           {classUnresolved
             ? classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG
             : emptyByMode[config.mode] ??
@@ -1796,7 +1796,7 @@ function Session({
             </button>
           )}
           <button onClick={onBack}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-black/7 text-sm text-muted-foreground hover:text-foreground hover:border-black/20 transition-all">
             <ArrowLeft className="w-4 h-4"/> Back to Practice
           </button>
         </div>
@@ -1812,7 +1812,7 @@ function Session({
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-[#78788c]">{config.label} · Q{displayIndex} of {displayTotal}</span>
+            <span className="text-xs text-muted-foreground">{config.label} · Q{displayIndex} of {displayTotal}</span>
             <div className="flex items-center gap-3">
               {timed && (
                 <div className={cn(
@@ -1822,7 +1822,7 @@ function Session({
                   <Clock className="w-3.5 h-3.5"/>{mm}:{ss}
                 </div>
               )}
-              <span className="text-xs text-[#78788c]">{correct}/{attempted} correct</span>
+              <span className="text-xs text-muted-foreground">{correct}/{attempted} correct</span>
             </div>
           </div>
           <ProgressBar value={priorCount + idx} max={Math.max(displayTotal, 1)} color="#3b5bdb" height="h-1"/>
@@ -1835,18 +1835,18 @@ function Session({
           <div className="flex items-center gap-2 flex-wrap">
             {subj && <SubjectBadge subject={subj.name} color={subj.color}/>}
             <DifficultyBadge level={q.difficulty}/>
-            <span className="text-[10px] text-[#78788c]">{displayChapter(q.chapter)}</span>
+            <span className="text-[10px] text-muted-foreground">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={toggleBookmark} title="Flag for this session (not saved to Mistake Book)"
               className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                bookmarked.includes(idx) ? "text-[#4b9fd4] bg-[#4b9fd4]/15" : "text-[#78788c] hover:text-white hover:bg-white/8"
+                bookmarked.includes(idx) ? "text-[#4b9fd4] bg-[#4b9fd4]/15" : "text-muted-foreground hover:text-white hover:bg-black/8"
               )}>
               <Bookmark className="w-3.5 h-3.5"/>
             </button>
           </div>
         </div>
-        <div className="text-base font-semibold text-white leading-relaxed">
+        <div className="text-base font-semibold text-foreground leading-relaxed">
           <MathText block text={q.question} />
         </div>
       </GlassCard>
@@ -1856,16 +1856,16 @@ function Session({
         {q.options.map((opt, i) => {
           const isChosen = chosen === i;
           const isCorrect = i === q.correct;
-          let bg = "border-white/7 text-[#a0a0b0] hover:border-white/20 hover:text-white hover:bg-white/4";
+          let bg = "border-black/7 text-muted-foreground hover:border-black/20 hover:text-foreground hover:bg-black/4";
           if (phase === "fb") {
             if (isCorrect)              bg = "border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
             else if (isChosen && !isRight) bg = "border-rose-400/40 bg-rose-400/10 text-rose-300";
-            else                        bg = "border-white/4 text-[#78788c] opacity-60";
+            else                        bg = "border-black/4 text-muted-foreground opacity-60";
           }
           return (
             <button key={i} onClick={() => phase === "q" && answer(i)} disabled={phase === "fb" || finishing}
               className={cn("w-full p-4 rounded-2xl border text-left text-sm font-medium transition-all duration-150 flex items-center gap-3", bg)}>
-              <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 bg-white/8">
+              <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 bg-black/8">
                 {String.fromCharCode(65+i)}
               </span>
               <span className="flex-1"><MathText text={opt} /></span>
@@ -1881,8 +1881,8 @@ function Session({
         <GlassCard className="p-4 border-[#c08a3a]/25">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-[#c08a3a] shrink-0 mt-0.5"/>
-            <div className="text-sm text-[#a0a0b0] leading-relaxed">
-              <span className="font-semibold text-white">Hint: </span>
+            <div className="text-sm text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground">Hint: </span>
               <MathText text={hintPreview(q.explanation)} />
             </div>
           </div>
@@ -1894,8 +1894,8 @@ function Session({
         <GlassCard className="p-4 border-blue-500/20">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-[#c08a3a] shrink-0 mt-0.5"/>
-            <div className="text-sm text-[#a0a0b0] leading-relaxed">
-              <span className="font-semibold text-white">Explanation: </span>
+            <div className="text-sm text-muted-foreground leading-relaxed">
+              <span className="font-semibold text-foreground">Explanation: </span>
               <MathText text={q.explanation} />
             </div>
           </div>
@@ -1906,7 +1906,7 @@ function Session({
       <div className="flex items-center gap-3">
         {phase === "q" && (
           <button onClick={() => skip()} disabled={finishing}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-black/7 text-sm text-muted-foreground hover:text-foreground hover:border-black/20 transition-all">
             <SkipForward className="w-3.5 h-3.5"/> Skip
           </button>
         )}
@@ -1923,7 +1923,7 @@ function Session({
           </button>
         )}
         <button onClick={() => void finish()} disabled={finishing}
-          className="px-4 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-rose-400 hover:border-rose-400/20 transition-all">
+          className="px-4 py-2.5 rounded-xl border border-black/7 text-sm text-muted-foreground hover:text-rose-400 hover:border-rose-400/20 transition-all">
           {finishing ? "Saving…" : "End Session"}
         </button>
       </div>
@@ -1977,9 +1977,9 @@ return (
     <div className="max-w-lg mx-auto space-y-5">
       <GlassCard className="p-8 text-center" glow={pct>=75?"green":pct>=55?"amber":"rose"}>
         <div className="text-5xl mb-3">{emoji}</div>
-        <div className="text-[10px] uppercase tracking-widest text-[#78788c] mb-1">{config.label} · Complete</div>
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} · Complete</div>
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
-        <div className="text-[#78788c] text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
+        <div className="text-muted-foreground text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
         {xpLabel && (
           <div className="text-sm font-bold text-[#c08a3a] mb-4 tabular-nums">
             {xpLabel}
@@ -1993,17 +1993,17 @@ return (
             { label:"Skipped",    value:stats.skippedCount,    color:"#c08a3a" },
             { label:"Flagged", value:bookmarked, color:"#4b9fd4" },
           ].map(s => (
-            <div key={s.label} className="bg-white/4 rounded-xl p-2.5 border border-white/5">
+            <div key={s.label} className="bg-black/4 rounded-xl p-2.5 border border-black/5">
               <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-              <div className="text-[9px] uppercase tracking-wider text-[#78788c] mt-0.5">{s.label}</div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
 
         <div className="space-y-2.5">
           <button onClick={onRetry}
-            className="w-full py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
-            style={{ background:`linear-gradient(135deg,#3b5bdb,#4b9fd4)`, boxShadow:"0 8px 24px rgba(59,130,246,0.3)" }}>
+            className="w-full py-3 rounded-2xl font-bold text-sm text-foreground flex items-center justify-center gap-2 transition-all hover:opacity-90"
+            style={{ background:`#3b5bdb`, boxShadow:"0 8px 24px rgba(59,130,246,0.3)" }}>
             <RotateCcw className="w-4 h-4"/> Retry Same Mode
           </button>
           {wrong > 0 && (
@@ -2013,7 +2013,7 @@ return (
             </button>
           )}
           <button onClick={onHub}
-            className="w-full py-3 rounded-2xl border border-white/7 text-[#78788c] font-semibold text-sm hover:text-white hover:border-white/20 transition-all">
+            className="w-full py-3 rounded-2xl border border-black/7 text-muted-foreground font-semibold text-sm hover:text-foreground hover:border-black/20 transition-all">
             Back to Practice Hub
           </button>
         </div>

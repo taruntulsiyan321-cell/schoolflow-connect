@@ -181,10 +181,10 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         <div className="relative">
           <div className="flex flex-wrap gap-2 mb-4">
             <span className="wa-gold-pill">Battle Intelligence</span>
-            {forTeacher && <span className="rounded-full bg-white/12 border border-white/15 px-3 py-1 text-[10px] font-semibold text-white/80">{data.display_name}</span>}
+            {forTeacher && <span className="rounded-full bg-black/12 border border-black/15 px-3 py-1 text-[10px] font-semibold text-foreground/80">{data.display_name}</span>}
           </div>
-          <h1 className="font-['Sora'] text-3xl sm:text-4xl font-semibold tracking-tight text-white">{b.title ?? "Battle report"}</h1>
-          <p className="text-sm text-white/75 mt-1">
+          <h1 className="font-['Sora'] text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">{b.title ?? "Battle report"}</h1>
+          <p className="text-sm text-foreground/75 mt-1">
             {displaySubject(b.subject)}{b.chapter ? ` · ${displayChapter(b.chapter)}` : ""}{b.topic ? ` · ${displayTopic(b.topic)}` : ""}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
@@ -376,8 +376,8 @@ function buildBattleConceptFallback(data: BattleReportPayload): ConceptRecoveryR
 function MiniStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xl font-semibold text-white">{value}</div>
-      <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">{label}</div>
+      <div className="text-xl font-semibold text-foreground">{value}</div>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-foreground/70">{label}</div>
     </div>
   );
 }

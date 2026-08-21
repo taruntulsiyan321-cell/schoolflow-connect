@@ -1,23 +1,23 @@
-/* DesignAuthenticationPage Battleground tokens — scoped to .bg-design */
-@import url("https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap");
+/* DesignAuthenticationPage Battleground tokens — Chalkboard Signal scoped surface */
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
 .bg-design {
-  --bg-c-bg: #0b0f1a;
-  --bg-c-surface: #131828;
-  --bg-c-surface2: #1a2038;
-  --bg-c-border: rgba(255, 255, 255, 0.07);
-  --bg-c-border-hover: rgba(255, 255, 255, 0.14);
-  --bg-c-text: #eef0f6;
-  --bg-c-text2: rgba(238, 240, 246, 0.6);
-  --bg-c-text3: rgba(238, 240, 246, 0.32);
-  --bg-c-blue: #3b82f6;
-  --bg-c-purple: #8b5cf6;
-  --bg-c-gold: #f59e0b;
-  --bg-c-green: #10b981;
-  --bg-c-red: #ef4444;
-  --bg-c-orange: #f97316;
-  --bg-c-pink: #ec4899;
-  font-family: Inter, sans-serif;
+  --bg-c-bg: #10242c;
+  --bg-c-surface: #193640;
+  --bg-c-surface2: #234852;
+  --bg-c-border: #48656b;
+  --bg-c-border-hover: #607d82;
+  --bg-c-text: #f4f7f5;
+  --bg-c-text2: #c6d5d6;
+  --bg-c-text3: #9eb1b4;
+  --bg-c-blue: #80cbd0;
+  --bg-c-purple: #5b7b85;
+  --bg-c-gold: #e0b66c;
+  --bg-c-green: #83cca5;
+  --bg-c-red: #e08b86;
+  --bg-c-orange: #e18a75;
+  --bg-c-pink: #c65d4b;
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   color: var(--bg-c-text);
   background: var(--bg-c-bg);
   box-sizing: border-box;
@@ -52,7 +52,7 @@
 }
 .bg-design .battle-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 12px 40px rgba(16, 36, 44, 0.4) !important;
 }
 .bg-design .action-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -75,17 +75,17 @@
   border-bottom: 2px solid transparent;
 }
 .bg-design .tab-btn.active {
-  border-bottom-color: #3b82f6;
-  color: #3b82f6;
+  border-bottom-color: var(--bg-c-blue);
+  color: var(--bg-c-blue);
 }
 .bg-design .tab-btn:hover:not(.active) {
-  color: rgba(238, 240, 246, 0.85);
+  color: var(--bg-c-text);
 }
 .bg-design .leaderboard-row {
   transition: background 0.15s ease;
 }
 .bg-design .leaderboard-row:hover {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--bg-c-surface2) !important;
 }
 .bg-design .badge-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -101,10 +101,10 @@
   display: inline-block;
 }
 .bg-design .glass {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--bg-c-surface);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--bg-c-border);
 }
 .bg-design .float-anim {
   animation: bg-float 2.5s ease-in-out infinite;

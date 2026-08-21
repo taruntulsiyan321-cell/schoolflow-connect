@@ -18,7 +18,7 @@ export default function TestResults({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading…
       </div>
     );
@@ -34,7 +34,7 @@ export default function TestResults({
 
   if (!child) {
     return (
-      <div className="text-sm text-[#78788c] py-16 text-center">
+      <div className="text-sm text-muted-foreground py-16 text-center">
         No linked children for test results.
       </div>
     );
@@ -53,7 +53,7 @@ export default function TestResults({
                 "px-4 py-2 rounded-xl border text-xs font-semibold",
                 c.id === child.id
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "bg-[#131316] border-white/7 text-[#78788c]",
+                  : "bg-card border-black/7 text-muted-foreground",
               )}
             >
               {c.fullName}
@@ -61,7 +61,7 @@ export default function TestResults({
           ))}
         </div>
       )}
-      <div className="text-base font-black text-white">{child.fullName}</div>
+      <div className="text-base font-black text-foreground">{child.fullName}</div>
       <ParentLiveExams studentId={child.id} classId={child.classId} />
     </div>
   );

@@ -104,7 +104,7 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
 
       {!loading && (
         <div className="space-y-4">
-          <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-[#083f2b] via-[#126847] to-[#b28a28] p-0 text-white shadow-elevated">
+          <Card className="overflow-hidden border-primary/20 bg-[#083f2b] p-0 text-white shadow-elevated">
             <div className="p-5 sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>

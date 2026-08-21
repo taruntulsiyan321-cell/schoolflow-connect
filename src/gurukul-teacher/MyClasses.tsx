@@ -72,7 +72,7 @@ function TabBtn({
         "relative px-4 py-2.5 text-xs font-semibold transition-all whitespace-nowrap border-b-2",
         active
           ? "border-[#3b5bdb] text-[#3b5bdb]"
-          : "border-transparent text-[#78788c] hover:text-white",
+          : "border-transparent text-muted-foreground hover:text-foreground",
       )}
     >
       {label}
@@ -96,7 +96,7 @@ function ClassSelector({
 }) {
   if (classes.length === 0) {
     return (
-      <div className="text-xs text-[#78788c] py-2">
+      <div className="text-xs text-muted-foreground py-2">
         No classes assigned via Teacher–Class–Subject mapping.
       </div>
     );
@@ -111,7 +111,7 @@ function ClassSelector({
             "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
             selected?.id === c.id
               ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-              : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15 hover:text-white",
+              : "bg-card border-black/7 text-muted-foreground hover:border-black/15 hover:text-white",
           )}
         >
           <div
@@ -186,7 +186,7 @@ export default function MyClasses() {
 
   if (loadingClasses) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-sm gap-2">
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading assigned classes…
       </div>
     );
@@ -195,7 +195,7 @@ export default function MyClasses() {
   if (!selectedClass) {
     return (
       <div className="space-y-3 py-10 text-center">
-        <div className="text-sm text-[#78788c]">
+        <div className="text-sm text-muted-foreground">
           {classError ??
             "No classes assigned. Ask admin to create Teacher–Class–Subject mapping."}
         </div>
@@ -215,7 +215,7 @@ export default function MyClasses() {
   return (
     <div className="space-y-5">
       <div>
-        <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-3">
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
           Select Class
         </div>
         <ClassSelector
@@ -228,7 +228,7 @@ export default function MyClasses() {
         />
       </div>
 
-      <div className="border-b border-white/7 flex gap-0 overflow-x-auto -mb-px">
+      <div className="border-b border-black/7 flex gap-0 overflow-x-auto -mb-px">
         {subTabs.map((t) => (
           <TabBtn
             key={t.key}

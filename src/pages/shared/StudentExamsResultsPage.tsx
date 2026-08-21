@@ -36,9 +36,9 @@ const typeColors: Record<string, string> = {
 };
 
 function scoreTone(pct: number) {
-  if (pct >= 75) return { text: "text-emerald-700", bar: "bg-emerald-500", bg: "from-emerald-50 to-white border-emerald-200/60" };
-  if (pct >= 40) return { text: "text-amber-700", bar: "bg-amber-500", bg: "from-amber-50 to-white border-amber-200/60" };
-  return { text: "text-red-700", bar: "bg-red-500", bg: "from-red-50 to-white border-red-200/60" };
+  if (pct >= 75) return { text: "text-emerald-700", bar: "bg-emerald-500", bg: "border-emerald-200/60" };
+  if (pct >= 40) return { text: "text-amber-700", bar: "bg-amber-500", bg: "border-amber-200/60" };
+  return { text: "text-red-700", bar: "bg-red-500", bg: "border-red-200/60" };
 }
 
 function examTypeLabel(type: string | null | undefined) {
@@ -261,7 +261,7 @@ export default function StudentExamsResultsPage() {
               return (
                 <div
                   key={r.id}
-                  className={cn("sd-card rounded-2xl p-5 border bg-gradient-to-br", tone.bg)}
+                  className={cn("sd-card rounded-2xl p-5 border ", tone.bg)}
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4 min-w-0">

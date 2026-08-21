@@ -277,7 +277,7 @@ export function TeacherAttendanceWorkspace({
 
   if (!ready) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-sm gap-2">
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading session…
       </div>
     );
@@ -291,20 +291,20 @@ export function TeacherAttendanceWorkspace({
             <button
               type="button"
               onClick={() => navigate("/teacher/classes")}
-              className="flex items-center gap-1.5 text-[10px] text-[#78788c] hover:text-white mb-2"
+              className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground mb-2"
             >
               <ChevronLeft className="w-3 h-3" /> My Classes
             </button>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-black text-white">Attendance</h2>
+            <h2 className="text-base font-black text-foreground">Attendance</h2>
             {!canMark && (
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg bg-white/10 text-[#a0a0b0]">
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg bg-black/10 text-muted-foreground">
                 <Eye className="w-3 h-3" /> Read Only
               </span>
             )}
           </div>
-          <p className="text-[10px] text-[#46465a] mt-0.5">
+          <p className="text-[10px] text-muted-foreground mt-0.5">
             {canMark
               ? "Everyone starts Present. Tap Absent for absentees — then Save."
               : "View only. Only the class teacher can mark attendance."}
@@ -314,7 +314,7 @@ export function TeacherAttendanceWorkspace({
           type="date"
           value={date}
           onChange={(e) => changeDate(e.target.value)}
-          className="bg-[#131316] border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+          className="bg-card border border-black/10 rounded-xl px-3 py-2 text-xs text-white"
         />
       </div>
 
@@ -340,7 +340,7 @@ export function TeacherAttendanceWorkspace({
                 "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
                 classId === c.id
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15 hover:text-white",
+                  : "bg-card border-black/7 text-muted-foreground hover:border-black/15 hover:text-white",
               )}
             >
               <Users className="w-3.5 h-3.5" />
@@ -354,7 +354,7 @@ export function TeacherAttendanceWorkspace({
             </button>
           ))}
           {classes.length === 0 && !loading && (
-            <div className="text-xs text-[#78788c]">
+            <div className="text-xs text-muted-foreground">
               No classes assigned. Ask admin to map Teacher–Class–Subject.
             </div>
           )}
@@ -362,7 +362,7 @@ export function TeacherAttendanceWorkspace({
       )}
 
       {(selected || fixedClassId) && (
-        <div className="flex flex-wrap gap-3 items-center justify-between sticky top-0 z-10 py-2 bg-[#0c0c0e]/95 backdrop-blur-sm">
+        <div className="flex flex-wrap gap-3 items-center justify-between sticky top-0 z-10 py-2 bg-card/95 backdrop-blur-sm">
           <div className="flex gap-2 flex-wrap items-center">
             {STATUS_OPTIONS.map((s) => (
               <div
@@ -377,9 +377,9 @@ export function TeacherAttendanceWorkspace({
               className={cn(
                 "text-[10px] font-bold px-2.5 py-1 rounded-lg",
                 saveState === "unsaved" && "bg-[#f59e0b]/20 text-[#f59e0b]",
-                saveState === "draft" && "bg-white/10 text-[#a0a0b0]",
+                saveState === "draft" && "bg-black/10 text-muted-foreground",
                 saveState === "submitted" && "bg-[#10b981]/15 text-[#10b981]",
-                saveState === "readonly" && "bg-white/10 text-[#a0a0b0]",
+                saveState === "readonly" && "bg-black/10 text-muted-foreground",
               )}
             >
               {saveState === "unsaved" && "Unsaved Changes"}
@@ -393,7 +393,7 @@ export function TeacherAttendanceWorkspace({
               <button
                 type="button"
                 onClick={markAllPresent}
-                className="px-3 py-2 rounded-xl text-[10px] font-bold bg-white/5 text-[#78788c] hover:text-white hover:bg-white/10"
+                className="px-3 py-2 rounded-xl text-[10px] font-bold bg-black/5 text-muted-foreground hover:text-foreground hover:bg-black/10"
               >
                 All Present
               </button>
@@ -408,7 +408,7 @@ export function TeacherAttendanceWorkspace({
                   ? dirty
                     ? "text-black bg-[#3b5bdb] hover:bg-[#6882e8]"
                     : "text-white bg-[#3b5bdb]/40"
-                  : "text-[#78788c] bg-white/5 opacity-60",
+                  : "text-muted-foreground bg-black/5 opacity-60",
               )}
               title={
                 !canMark
@@ -428,29 +428,29 @@ export function TeacherAttendanceWorkspace({
       )}
 
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2 flex-1 min-w-[180px]">
-          <Search className="w-3.5 h-3.5 text-[#46465a] shrink-0" />
+        <div className="flex items-center gap-2 bg-black/5 border border-black/10 rounded-xl px-3 py-2 flex-1 min-w-[180px]">
+          <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name or roll…"
-            className="flex-1 bg-transparent text-xs text-white placeholder:text-[#46465a] outline-none"
+            className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="bg-[#131316] border border-white/10 rounded-xl px-3 py-2 text-xs text-[#78788c]"
+          className="bg-card border border-black/10 rounded-xl px-3 py-2 text-xs text-muted-foreground"
         >
           <option value="roll">Sort: Roll</option>
           <option value="name">Sort: Name</option>
           <option value="status">Sort: Status</option>
         </select>
-        <div className="text-[10px] text-[#46465a]">{filtered.length} students</div>
+        <div className="text-[10px] text-muted-foreground">{filtered.length} students</div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-[#78788c] text-sm gap-2">
+        <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
           <Loader2 className="w-4 h-4 animate-spin" /> Loading roster…
         </div>
       ) : (
@@ -468,7 +468,7 @@ export function TeacherAttendanceWorkspace({
                     ? "bg-[#cc5069]/10 border-[#cc5069]/30"
                     : isPresent
                       ? "bg-[#10b981]/8 border-[#10b981]/20"
-                      : "bg-[#131316] border-white/7",
+                      : "bg-card border-black/7",
                 )}
               >
                 {s.photoUrl ? (
@@ -477,8 +477,8 @@ export function TeacherAttendanceWorkspace({
                   <InitialsAvatar name={s.fullName} size="sm" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{s.fullName}</div>
-                  <div className="text-[10px] text-[#46465a]">
+                  <div className="text-xs font-bold text-foreground truncate">{s.fullName}</div>
+                  <div className="text-[10px] text-muted-foreground">
                     Roll {s.rollNumber ?? "—"}
                     {s.admissionNumber ? ` · ${s.admissionNumber}` : ""}
                   </div>
@@ -493,7 +493,7 @@ export function TeacherAttendanceWorkspace({
                         "px-3 py-1.5 rounded-lg text-[10px] font-bold min-w-[72px]",
                         isAbsent
                           ? "bg-[#cc5069] text-white"
-                          : "bg-white/5 text-[#78788c] hover:bg-[#cc5069]/20 hover:text-[#cc5069]",
+                          : "bg-black/5 text-muted-foreground hover:bg-[#cc5069]/20 hover:text-[#cc5069]",
                       )}
                     >
                       {isAbsent ? "Absent" : "Mark Absent"}
@@ -507,7 +507,7 @@ export function TeacherAttendanceWorkspace({
                           title={opt.label}
                           className={cn(
                             "w-7 h-7 rounded-lg text-[9px] font-bold transition-all",
-                            status === opt.value ? "text-white" : "text-[#46465a] bg-white/3 hover:bg-white/8",
+                            status === opt.value ? "text-foreground" : "text-muted-foreground bg-black/3 hover:bg-black/8",
                           )}
                           style={
                             status === opt.value
@@ -535,7 +535,7 @@ export function TeacherAttendanceWorkspace({
             );
           })}
           {filtered.length === 0 && (
-            <div className="text-center py-12 text-xs text-[#46465a]">No students in this class.</div>
+            <div className="text-center py-12 text-xs text-muted-foreground">No students in this class.</div>
           )}
         </div>
       )}

@@ -57,20 +57,20 @@ function ThreadList({
   );
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-white/7">
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-          <Search className="w-3 h-3 text-[#46465a] shrink-0" />
+      <div className="p-3 border-b border-black/7">
+        <div className="flex items-center gap-2 bg-black/5 border border-black/10 rounded-xl px-3 py-2">
+          <Search className="w-3 h-3 text-muted-foreground shrink-0" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search chats…"
-            className="flex-1 bg-transparent text-xs text-white placeholder:text-[#46465a] outline-none"
+            className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
       </div>
       <div className="flex-1 overflow-y-auto divide-y divide-white/5">
         {filtered.length === 0 && (
-          <div className="px-4 py-8 text-center text-[10px] text-[#46465a]">No conversations yet.</div>
+          <div className="px-4 py-8 text-center text-[10px] text-muted-foreground">No conversations yet.</div>
         )}
         {filtered.map((t) => {
           const key = t.conversationId || t.userId;
@@ -81,7 +81,7 @@ function ThreadList({
               type="button"
               onClick={() => onSelect(key)}
               className={cn(
-                "w-full flex items-start gap-3 px-4 py-3 hover:bg-white/3 transition-all text-left",
+                "w-full flex items-start gap-3 px-4 py-3 hover:bg-black/3 transition-all text-left",
                 selectedId === key && "bg-[#3b5bdb]/5 border-r-2 border-[#3b5bdb]",
               )}
             >
@@ -93,7 +93,7 @@ function ThreadList({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="text-xs font-bold text-white truncate">{t.name}</div>
+                  <div className="text-xs font-bold text-foreground truncate">{t.name}</div>
                   {t.unread > 0 && (
                     <div className="w-4 h-4 rounded-full bg-[#3b5bdb] text-white text-[8px] font-black flex items-center justify-center shrink-0">
                       {t.unread > 9 ? "9+" : t.unread}
@@ -107,9 +107,9 @@ function ThreadList({
                       ? "Teacher Group"
                       : t.role}
                 </div>
-                <div className="text-[10px] text-[#78788c] truncate mt-0.5">{t.lastMessage || "—"}</div>
+                <div className="text-[10px] text-muted-foreground truncate mt-0.5">{t.lastMessage || "—"}</div>
               </div>
-              <div className="text-[8px] text-[#46465a] shrink-0 mt-0.5">{formatTime(t.lastTime)}</div>
+              <div className="text-[8px] text-muted-foreground shrink-0 mt-0.5">{formatTime(t.lastTime)}</div>
             </button>
           );
         })}
@@ -177,7 +177,7 @@ function ChatView({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-black/7">
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center text-[9px] font-black shrink-0"
           style={{ background: `${color}18`, color }}
@@ -185,7 +185,7 @@ function ChatView({
           {isGroup(contact) ? <Users className="w-4 h-4" /> : teacherInitials(contact.name, "?")}
         </div>
         <div>
-          <div className="text-sm font-bold text-white">{contact.name}</div>
+          <div className="text-sm font-bold text-foreground">{contact.name}</div>
           <div className="text-[9px] capitalize font-semibold" style={{ color }}>
             {contact.kind === "class_group"
               ? "Class Group"
@@ -198,7 +198,7 @@ function ChatView({
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
-          <div className="text-center text-[10px] text-[#46465a] py-10">Start the conversation</div>
+          <div className="text-center text-[10px] text-muted-foreground py-10">Start the conversation</div>
         )}
         {messages.map((m) => {
           const isMe = m.senderId === myUserId;
@@ -216,7 +216,7 @@ function ChatView({
               </div>
               <div className={cn("max-w-[70%]", isMe && "text-right")}>
                 {m.replyPreview && (
-                  <div className="text-[8px] text-[#46465a] mb-1 truncate border-l-2 border-white/20 pl-2">
+                  <div className="text-[8px] text-muted-foreground mb-1 truncate border-l-2 border-black/20 pl-2">
                     {m.replyPreview}
                   </div>
                 )}
@@ -224,10 +224,10 @@ function ChatView({
                   className={cn(
                     "px-3 py-2 rounded-2xl text-xs leading-relaxed",
                     deleted
-                      ? "bg-white/5 text-[#46465a] italic"
+                      ? "bg-black/5 text-muted-foreground italic"
                       : isMe
-                        ? "bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] text-white"
-                        : "bg-white/5 text-[#d0d8f0] border border-white/8",
+                        ? "bg-[#3b5bdb] text-white"
+                        : "bg-black/5 text-muted-foreground border border-black/8",
                   )}
                 >
                   {deleted ? "Message deleted" : m.content}
@@ -245,14 +245,14 @@ function ChatView({
                     ))}
                 </div>
                 <div className="flex items-center gap-2 mt-1 justify-end">
-                  <div className="text-[8px] text-[#46465a]">{formatTime(m.createdAt)}</div>
+                  <div className="text-[8px] text-muted-foreground">{formatTime(m.createdAt)}</div>
                   {!deleted && (
                     <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
                       <button
                         type="button"
                         title="Reply"
                         onClick={() => setReplyTo(m)}
-                        className="text-[#46465a] hover:text-white"
+                        className="text-muted-foreground hover:text-foreground"
                       >
                         <Reply className="w-3 h-3" />
                       </button>
@@ -261,7 +261,7 @@ function ChatView({
                           type="button"
                           title="Delete"
                           onClick={() => void onDelete(m.id)}
-                          className="text-[#46465a] hover:text-[#f43f5e]"
+                          className="text-muted-foreground hover:text-[#f43f5e]"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -277,16 +277,16 @@ function ChatView({
       </div>
 
       {replyTo && (
-        <div className="px-4 py-2 border-t border-white/7 flex items-center gap-2 text-[10px] text-[#78788c]">
+        <div className="px-4 py-2 border-t border-black/7 flex items-center gap-2 text-[10px] text-muted-foreground">
           <Reply className="w-3 h-3" />
           <span className="truncate flex-1">Replying to: {replyTo.content.slice(0, 80)}</span>
-          <button type="button" onClick={() => setReplyTo(null)} className="text-white">
+          <button type="button" onClick={() => setReplyTo(null)} className="text-foreground">
             ×
           </button>
         </div>
       )}
 
-      <div className="p-4 border-t border-white/7">
+      <div className="p-4 border-t border-black/7">
         <div className="flex items-end gap-2">
           <input
             ref={fileRef}
@@ -299,7 +299,7 @@ function ChatView({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={sending || uploading}
-            className="w-9 h-9 rounded-xl bg-white/5 text-[#78788c] flex items-center justify-center hover:text-white hover:bg-white/10 disabled:opacity-40"
+            className="w-9 h-9 rounded-xl bg-black/5 text-muted-foreground flex items-center justify-center hover:text-foreground hover:bg-black/10 disabled:opacity-40"
             title="Attach image or PDF"
           >
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
@@ -315,7 +315,7 @@ function ChatView({
             }}
             rows={2}
             placeholder="Type a message… (Enter to send)"
-            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
+            className="flex-1 bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
           />
           <button
             type="button"
@@ -627,19 +627,19 @@ export default function Communication() {
 
   if (loading && !contactsLoadedRef.current) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-sm gap-2">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading messages…
       </div>
     );
   }
 
   return (
-    <div className="h-[calc(100vh-200px)] min-h-[600px] flex rounded-2xl overflow-hidden border border-white/7 bg-[#0d0d0f]">
-      <div className="w-72 shrink-0 bg-[#131316] border-r border-white/7 flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/7">
+    <div className="h-[calc(100vh-200px)] min-h-[600px] flex rounded-2xl overflow-hidden border border-black/7 bg-background">
+      <div className="w-72 shrink-0 bg-card border-r border-black/7 flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-black/7">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-4 h-4 text-[#3b5bdb]" />
-            <div className="text-sm font-bold text-white">Messages</div>
+            <div className="text-sm font-bold text-foreground">Messages</div>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -680,7 +680,7 @@ export default function Communication() {
           />
         ) : (
           <div className="h-full flex items-center justify-center">
-            <div className="text-center text-[#46465a]">
+            <div className="text-center text-muted-foreground">
               <MessageCircle className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <div className="text-xs">Select a conversation to start messaging</div>
             </div>
@@ -691,29 +691,29 @@ export default function Communication() {
       {showCreate && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
-          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 bg-card border border-black/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-bold text-white">Create Group</div>
-              <button type="button" onClick={() => setShowCreate(false)} className="text-[#78788c] hover:text-white text-lg">
+              <div className="text-sm font-bold text-foreground">Create Group</div>
+              <button type="button" onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground text-lg">
                 ×
               </button>
             </div>
-            <p className="text-[10px] text-[#78788c]">Only Class Group and Teacher Group are supported.</p>
+            <p className="text-[10px] text-muted-foreground">Only Class Group and Teacher Group are supported.</p>
             <button
               type="button"
               disabled={createBusy}
               onClick={() => void createTeacherGroup()}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white/5 hover:bg-white/8 text-left"
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-black/5 hover:bg-black/8 text-left"
             >
               <Users className="w-4 h-4 text-[#f59e0b]" />
               <div>
-                <div className="text-xs font-bold text-white">Teacher Group</div>
-                <div className="text-[10px] text-[#78788c]">All teachers + principal</div>
+                <div className="text-xs font-bold text-foreground">Teacher Group</div>
+                <div className="text-[10px] text-muted-foreground">All teachers + principal</div>
               </div>
             </button>
-            <div className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Class Group</div>
+            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Class Group</div>
             {assignedClasses.length === 0 && (
-              <div className="text-[10px] text-[#46465a]">No assigned classes</div>
+              <div className="text-[10px] text-muted-foreground">No assigned classes</div>
             )}
             <div className="max-h-48 overflow-y-auto space-y-1">
               {assignedClasses.map((c) => (
@@ -722,10 +722,10 @@ export default function Communication() {
                   type="button"
                   disabled={createBusy}
                   onClick={() => void createClassGroup(c.id)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-white/5"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-black/5"
                 >
                   <Users className="w-3.5 h-3.5 text-[#0ea5a0]" />
-                  <span className="text-[11px] text-white">
+                  <span className="text-[11px] text-foreground">
                     {c.name}
                     {c.section ? `-${c.section}` : ""} {c.subject ? `· ${c.subject}` : ""}
                   </span>

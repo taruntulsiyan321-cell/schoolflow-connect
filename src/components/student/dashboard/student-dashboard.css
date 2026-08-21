@@ -15,18 +15,18 @@
 }
 
 .sd-hero {
-  background: linear-gradient(135deg, #064e3b 0%, #003324 42%, #002818 100%);
+  background: #064e;
   box-shadow:
     0 24px 48px -12px rgba(0, 51, 36, 0.35),
     0 0 0 1px rgba(178, 240, 212, 0.12) inset;
 }
 
 .sd-hero-glow {
-  background: radial-gradient(circle at 85% 15%, rgba(232, 196, 104, 0.28) 0%, transparent 55%);
+  background: rgba(232, 196, 104, 0.28);
 }
 
 .sd-hero-orb {
-  background: radial-gradient(circle, rgba(178, 240, 212, 0.22) 0%, transparent 70%);
+  background: rgba(178, 240, 212, 0.22);
 }
 
 .sd-ring-track {
@@ -34,12 +34,12 @@
 }
 
 .sd-ring-fill {
-  stroke: url(#sd-hero-gradient);
+  stroke: #0d5c44;
   filter: drop-shadow(0 0 8px rgba(178, 240, 212, 0.45));
 }
 
 .sd-card {
-  background: linear-gradient(180deg, #ffffff 0%, var(--sd-surface) 100%);
+  background: #ffff;
   border: 1px solid rgba(0, 51, 36, 0.08);
   box-shadow: 0 4px 24px -6px rgba(0, 51, 36, 0.08);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -52,15 +52,15 @@
 }
 
 .sd-metric-card {
-  background: linear-gradient(145deg, #ffffff 0%, #f4fff8 100%);
+  background: #ffff;
 }
 
 .sd-mission-card {
-  background: linear-gradient(160deg, #ffffff 0%, #fafefb 55%, #f0fdf6 100%);
+  background: #ffff;
 }
 
 .sd-recovery {
-  background: linear-gradient(135deg, #defaeb 0%, #ffffff 45%, #fff8e8 100%);
+  background: #defa;
   border: 2px solid rgba(151, 211, 184, 0.5);
   box-shadow:
     0 16px 40px -10px rgba(0, 51, 36, 0.18),
@@ -68,7 +68,7 @@
 }
 
 .sd-battle-card {
-  background: linear-gradient(160deg, #0a2e24 0%, #003324 50%, #064e3b 100%);
+  background: #0a2e;
   color: #f4fff8;
   box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.4);
 }
@@ -79,12 +79,12 @@
 }
 
 .sd-achievement {
-  background: linear-gradient(145deg, #fffef8 0%, #ffffff 50%, #f4fff8 100%);
+  background: #fffe;
   border: 1px solid rgba(232, 196, 104, 0.25);
 }
 
 .sd-radar-center {
-  background: radial-gradient(circle at center, rgba(178, 240, 212, 0.35) 0%, transparent 65%);
+  background: rgba(178, 240, 212, 0.35);
 }
 
 .sd-section-title {

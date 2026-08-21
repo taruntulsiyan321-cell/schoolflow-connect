@@ -35,9 +35,9 @@ function QuickStat({
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-lg font-black tabular-nums text-white">{value}</div>
-        <div className="text-[10px] font-semibold text-[#78788c]">{label}</div>
-        {sub && <div className="text-[9px] text-[#46465a]">{sub}</div>}
+        <div className="text-lg font-black tabular-nums text-foreground">{value}</div>
+        <div className="text-[10px] font-semibold text-muted-foreground">{label}</div>
+        {sub && <div className="text-[9px] text-muted-foreground">{sub}</div>}
       </div>
     </>
   );
@@ -46,14 +46,14 @@ function QuickStat({
       <button
         type="button"
         onClick={onClick}
-        className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-white/15 transition-all w-full"
+        className="bg-card border border-black/7 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-black/15 transition-all w-full"
       >
         {body}
       </button>
     );
   }
   return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center gap-3">
+    <div className="bg-card border border-black/7 rounded-2xl p-4 flex items-center gap-3">
       {body}
     </div>
   );
@@ -113,7 +113,7 @@ export default function ParentDashboard({
 
   if (childrenLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading children…
       </div>
     );
@@ -129,7 +129,7 @@ export default function ParentDashboard({
 
   if (!liveChild) {
     return (
-      <div className="text-sm text-[#78788c] py-16 text-center">
+      <div className="text-sm text-muted-foreground py-16 text-center">
         No linked children. Connect a student to this parent account to see Academic Engine data.
       </div>
     );
@@ -148,7 +148,7 @@ export default function ParentDashboard({
                 "flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
                 activeChildId === c.id || liveChild.id === c.id
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "bg-[#131316] border-white/7 text-[#78788c]",
+                  : "bg-card border-black/7 text-muted-foreground",
               )}
             >
               <div className="text-xs font-bold">{c.fullName}</div>
@@ -158,15 +158,15 @@ export default function ParentDashboard({
         </div>
       )}
 
-      <div className="bg-gradient-to-br from-[#131316] to-[#0d1a14] border border-[#3b5bdb]/15 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <span className="text-lg font-black text-white">
+      <div className="bg-card border border-[#3b5bdb]/15 rounded-2xl p-5 flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-[#3b5bdb] flex items-center justify-center shrink-0">
+          <span className="text-lg font-black text-foreground">
             {liveChild.fullName.split(" ").map((w) => w[0]).slice(0, 2).join("")}
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-black text-white">{liveChild.fullName}</div>
-          <div className="text-xs text-[#78788c] mt-0.5">
+          <div className="text-base font-black text-foreground">{liveChild.fullName}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
             {liveChild.classLabel} · Roll {liveChild.rollNumber ?? "—"}
           </div>
         </div>
@@ -175,12 +175,12 @@ export default function ParentDashboard({
             className={cn(
               "text-xs font-bold px-3 py-1.5 rounded-xl capitalize",
               attendanceLoading || attendanceUnavailable
-                ? "bg-white/8 text-[#78788c]"
+                ? "bg-black/8 text-muted-foreground"
                 : todayStatus === "present" || todayStatus === "late"
                   ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
                   : todayStatus === "absent"
                     ? "bg-[#cc5069]/15 text-[#cc5069]"
-                    : "bg-white/8 text-[#78788c]",
+                    : "bg-black/8 text-muted-foreground",
             )}
           >
             {attendanceLoading
@@ -226,9 +226,9 @@ export default function ParentDashboard({
         <QuickActionCard setPage={setPage} />
       </div>
 
-      <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+      <div className="bg-card border border-black/7 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-sm font-bold text-white flex items-center gap-2">
+          <div className="text-sm font-bold text-foreground flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-[#3b5bdb]" /> Academic Performance
           </div>
           <button
@@ -246,20 +246,20 @@ export default function ParentDashboard({
         <button
           type="button"
           onClick={() => setPage("children")}
-          className="p-4 rounded-2xl border border-white/7 bg-[#131316] text-left"
+          className="p-4 rounded-2xl border border-black/7 bg-card text-left"
         >
           <ClipboardList className="w-4 h-4 text-[#6366f1] mb-2" />
-          <div className="text-xs font-bold text-white">My Children</div>
-          <div className="text-[10px] text-[#78788c]">Attendance · Homework · Exams</div>
+          <div className="text-xs font-bold text-foreground">My Children</div>
+          <div className="text-[10px] text-muted-foreground">Attendance · Homework · Exams</div>
         </button>
         <button
           type="button"
           onClick={() => setPage("test_results")}
-          className="p-4 rounded-2xl border border-white/7 bg-[#131316] text-left"
+          className="p-4 rounded-2xl border border-black/7 bg-card text-left"
         >
           <BookOpen className="w-4 h-4 text-[#3b5bdb] mb-2" />
-          <div className="text-xs font-bold text-white">Test Results</div>
-          <div className="text-[10px] text-[#78788c]">MarksService · TestService</div>
+          <div className="text-xs font-bold text-foreground">Test Results</div>
+          <div className="text-[10px] text-muted-foreground">MarksService · TestService</div>
         </button>
       </div>
     </div>
@@ -271,14 +271,14 @@ function QuickActionCard({ setPage }: { setPage: (p: ParentPageKey) => void }) {
     <button
       type="button"
       onClick={() => setPage("children")}
-      className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-[#3b5bdb]/40"
+      className="bg-card border border-black/7 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-[#3b5bdb]/40"
     >
       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#3b5bdb]/15 text-[#3b5bdb]">
         <ClipboardList className="w-5 h-5" />
       </div>
       <div>
-        <div className="text-lg font-black text-white">Open</div>
-        <div className="text-[10px] font-semibold text-[#78788c]">Child details</div>
+        <div className="text-lg font-black text-foreground">Open</div>
+        <div className="text-[10px] font-semibold text-muted-foreground">Child details</div>
       </div>
     </button>
   );

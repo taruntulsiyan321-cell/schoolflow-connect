@@ -114,7 +114,7 @@ const FEATURED_META: {
     subject: "Mathematics",
     chapter: "Today's mixed set",
     difficulty: "Medium",
-    gradient: "linear-gradient(135deg, #f97316 0%, #ef4444 100%)",
+    gradient: "#f97316",
     border: "rgba(249,115,22,0.25)",
   },
   {
@@ -124,7 +124,7 @@ const FEATURED_META: {
     subject: "Science",
     chapter: "NCERT sprint",
     difficulty: "Hard",
-    gradient: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
+    gradient: "#3b82f6",
     border: "rgba(59,130,246,0.25)",
   },
   {
@@ -134,7 +134,7 @@ const FEATURED_META: {
     subject: "Class focus",
     chapter: "Assigned challenge",
     difficulty: "Easy",
-    gradient: "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
+    gradient: "#8b5cf6",
     border: "rgba(139,92,246,0.25)",
   },
   {
@@ -144,7 +144,7 @@ const FEATURED_META: {
     subject: "Physics",
     chapter: "Climb the ranks",
     difficulty: "Hard",
-    gradient: "linear-gradient(135deg, #f59e0b 0%, #f97316 100%)",
+    gradient: "#f59e0b",
     border: "rgba(245,158,11,0.25)",
   },
   {
@@ -154,7 +154,7 @@ const FEATURED_META: {
     subject: "All Subjects",
     chapter: "Mixed — weekly",
     difficulty: "Hard",
-    gradient: "linear-gradient(135deg, #10b981 0%, #3b82f6 100%)",
+    gradient: "#10b981",
     border: "rgba(16,185,129,0.25)",
   },
 ];
@@ -197,7 +197,7 @@ function Avatar({
         width: size,
         height: size,
         borderRadius: "50%",
-        background: `linear-gradient(135deg, ${color}cc, ${color}66)`,
+        background: `${color}`,
         border: `2px solid ${color}44`,
         display: "flex",
         alignItems: "center",
@@ -412,7 +412,7 @@ function HeroSection({
           padding: "2rem",
           position: "relative",
           overflow: "hidden",
-          background: "linear-gradient(135deg, #131828 0%, #1a2038 60%, #0f1a30 100%)",
+          background: "#1a2038",
           border: "1px solid rgba(59,130,246,0.2)",
         }}
       >
@@ -425,7 +425,7 @@ function HeroSection({
             width: "280px",
             height: "280px",
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)",
+            background: "rgba(59,130,246,0.12)",
             pointerEvents: "none",
           }}
         />
@@ -515,7 +515,7 @@ function HeroSection({
                     {
                       height: "100%",
                       borderRadius: "100px",
-                      background: `linear-gradient(90deg, ${C.purple}, ${C.blue})`,
+                      background: `${C.blue}`,
                       "--xp-w": `${xpPct}%`,
                       width: animated ? `${xpPct}%` : "0%",
                       boxShadow: `0 0 10px ${C.purple}66`,
@@ -544,7 +544,7 @@ function HeroSection({
             flex: 1,
             borderRadius: "18px",
             padding: "1.5rem",
-            background: "linear-gradient(135deg, rgba(245,158,11,0.12) 0%, rgba(249,115,22,0.08) 100%)",
+            background: "rgba(245,158,11,0.12)",
             border: "1px solid rgba(245,158,11,0.25)",
             display: "flex",
             flexDirection: "column",
@@ -580,7 +580,7 @@ function HeroSection({
           style={{
             borderRadius: "14px",
             padding: "1rem 1.25rem",
-            background: "linear-gradient(135deg, rgba(249,115,22,0.12) 0%, rgba(239,68,68,0.08) 100%)",
+            background: "rgba(249,115,22,0.12)",
             border: "1px solid rgba(249,115,22,0.22)",
             display: "flex",
             alignItems: "center",
@@ -622,7 +622,7 @@ function HeroSection({
           style={{
             borderRadius: "14px",
             padding: "0.85rem 1.25rem",
-            background: "linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(59,130,246,0.08) 100%)",
+            background: "rgba(16,185,129,0.1)",
             border: "1px solid rgba(16,185,129,0.22)",
             display: "flex",
             alignItems: "center",
@@ -687,7 +687,7 @@ function QuickActions({
       label: "Create Challenge",
       desc: "Invite a classmate to battle",
       color: C.blue,
-      grad: `linear-gradient(135deg, ${C.blue}22, ${C.blue}08)`,
+      grad: `${C.blue}22`,
       border: "rgba(59,130,246,0.3)",
       onClick: onCreate,
     },
@@ -696,7 +696,7 @@ function QuickActions({
       label: "Join Challenge",
       desc: "Enter a battle with a code",
       color: C.purple,
-      grad: `linear-gradient(135deg, ${C.purple}22, ${C.purple}08)`,
+      grad: `${C.purple}22`,
       border: "rgba(139,92,246,0.3)",
       onClick: onJoin,
     },
@@ -705,7 +705,7 @@ function QuickActions({
       label: "Daily Challenge",
       desc: `Today's challenge — ${dailyXpLabel}`,
       color: C.orange,
-      grad: `linear-gradient(135deg, ${C.orange}22, ${C.orange}08)`,
+      grad: `${C.orange}22`,
       border: "rgba(249,115,22,0.3)",
       onClick: onDaily,
     },
@@ -714,7 +714,7 @@ function QuickActions({
       label: "Championship",
       desc: "Weekly top tournament",
       color: C.gold,
-      grad: `linear-gradient(135deg, ${C.gold}22, ${C.gold}08)`,
+      grad: `${C.gold}22`,
       border: "rgba(245,158,11,0.3)",
       onClick: onWeekly,
     },
@@ -1258,7 +1258,7 @@ function LeaderboardPanel({ entries, classLabel }: { entries: DesignLbEntry[]; c
         {xpGap != null && xpGap > 0 && (
           <div
             style={{
-              background: "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(249,115,22,0.08))",
+              background: "rgba(245,158,11,0.12)",
               border: "1px solid rgba(245,158,11,0.25)",
               borderRadius: "10px",
               padding: "0.75rem 1rem",
@@ -1390,7 +1390,7 @@ function BattleHistoryPanel({
             top: "8px",
             bottom: "8px",
             width: "1px",
-            background: `linear-gradient(to bottom, ${C.blue}66, transparent)`,
+            background: `${C.blue}66`,
           }}
         />
         {entries.length === 0 && (
@@ -1906,7 +1906,7 @@ function CreateBattleWizard({
             </h2>
             {(
               [
-                { key: "1v1" as BattleType, icon: "⚔️", label: "1 vs 1 Challenge", desc: "Go head-to-head against one opponent", color: C.blue },
+                { key: "1v1" as BattleType, icon: "⚔️", label: "1 vs 1 Challenge", desc: "Go head-against one opponent", color: C.blue },
                 { key: "team" as BattleType, icon: "👥", label: "Open Battle", desc: "Share a code — friends join your arena", color: C.purple },
                 { key: "class" as BattleType, icon: "🏫", label: "Class Battle", desc: "Open challenge for the entire class", color: C.gold },
               ] as const
@@ -2643,7 +2643,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
               width: "320px",
               height: "320px",
               borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 70%)",
+              background: "rgba(59,130,246,0.06))",
             }}
           />
           <div
@@ -2654,7 +2654,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
               width: "260px",
               height: "260px",
               borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)",
+              background: "rgba(139,92,246,0.05)",
             }}
           />
         </div>

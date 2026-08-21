@@ -249,7 +249,7 @@ export default function ClassHub({ setPage }: Props) {
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading class hub…
       </div>
     );
@@ -257,7 +257,7 @@ export default function ClassHub({ setPage }: Props) {
 
   if (ready && !studentId) {
     return (
-      <div className="text-center text-sm text-[#78788c] py-16">
+      <div className="text-center text-sm text-muted-foreground py-16">
         No student profile linked to this account.
       </div>
     );
@@ -266,11 +266,11 @@ export default function ClassHub({ setPage }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Student Panel</div>
-        <h1 className="text-3xl font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
+        <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Student Panel</div>
+        <h1 className="text-3xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
           Class
         </h1>
-        <p className="text-[#78788c] text-sm mt-1">
+        <p className="text-muted-foreground text-sm mt-1">
           Academic stats from the Academic Engine — schedule & resources are navigation only.
         </p>
       </div>
@@ -286,7 +286,7 @@ export default function ClassHub({ setPage }: Props) {
             <div className="text-2xl font-black tabular-nums" style={{ color: s.color }}>
               {s.value}
             </div>
-            <div className="text-[11px] text-[#78788c] mt-0.5">{s.label}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{s.label}</div>
           </GlassCard>
         ))}
       </div>
@@ -296,7 +296,7 @@ export default function ClassHub({ setPage }: Props) {
           <button
             key={f.kind === "page" ? `${f.key}-${f.label}` : f.path}
             onClick={() => (f.kind === "page" ? setPage(f.key) : navigate(f.path))}
-            className="group text-left p-5 rounded-2xl border border-white/7 bg-[#131316]/90 transition-all duration-200 hover:border-white/20 hover:scale-[1.02]"
+            className="group text-left p-5 rounded-2xl border border-black/7 bg-card/90 transition-all duration-200 hover:border-black/20 hover:scale-[1.02]"
           >
             <div className="flex items-start justify-between mb-4">
               <div
@@ -305,10 +305,10 @@ export default function ClassHub({ setPage }: Props) {
               >
                 {f.icon}
               </div>
-              <ArrowRight className="w-4 h-4 text-[#78788c] group-hover:text-white transition-all mt-0.5" />
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-all mt-0.5" />
             </div>
-            <div className="text-sm font-black text-white mb-1">{f.label}</div>
-            <div className="text-[11px] text-[#78788c] leading-relaxed mb-3">{f.sub}</div>
+            <div className="text-sm font-black text-foreground mb-1">{f.label}</div>
+            <div className="text-[11px] text-muted-foreground leading-relaxed mb-3">{f.sub}</div>
             <div
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold"
               style={{ color: f.color, background: `${f.color}12`, border: `1px solid ${f.color}25` }}
@@ -323,10 +323,10 @@ export default function ClassHub({ setPage }: Props) {
         <GlassCard className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-4 rounded-full bg-[#4aa87a]" />
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Attendance</span>
+            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Attendance</span>
             <button
               onClick={() => setPage("attendance")}
-              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors"
+              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-muted-foreground transition-colors"
             >
               View →
             </button>
@@ -334,8 +334,8 @@ export default function ClassHub({ setPage }: Props) {
           <div className="flex items-center gap-3 mb-4">
             <MiniRing pct={attPct} color="#4aa87a" />
             <div>
-              <div className="text-xl font-black text-white">{attPct}%</div>
-              <div className="text-[11px] text-[#78788c]">AcademicProfileService</div>
+              <div className="text-xl font-black text-foreground">{attPct}%</div>
+              <div className="text-[11px] text-muted-foreground">AcademicProfileService</div>
             </div>
           </div>
           <ProgressBar value={attPct} color="#4aa87a" height="h-1.5" />
@@ -344,18 +344,18 @@ export default function ClassHub({ setPage }: Props) {
         <GlassCard className="p-5">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-4 rounded-full bg-[#c08a3a]" />
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Homework</span>
+            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Homework</span>
             <button
               onClick={() => setPage("assignments")}
-              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors"
+              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-muted-foreground transition-colors"
             >
               View →
             </button>
           </div>
-          <div className={cn("text-xl font-black text-white mb-1")}>
+          <div className={cn("text-xl font-black text-foreground mb-1")}>
             {hwPending} / {hwTotal} pending
           </div>
-          <div className="text-[11px] text-[#78788c] mb-3">HomeworkService · {hwPct}% completion</div>
+          <div className="text-[11px] text-muted-foreground mb-3">HomeworkService · {hwPct}% completion</div>
           <ProgressBar value={hwPct} color="#c08a3a" height="h-1.5" />
         </GlassCard>
       </div>

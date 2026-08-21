@@ -24,10 +24,10 @@ export default function ConceptMastery() {
           { label: "In progress", value: inProgress.length, color: "#3b82f6", icon: <Target className="w-4 h-4" /> },
           { label: "Need work",   value: needsWork.length,  color: "#f59e0b", icon: <AlertCircle className="w-4 h-4" /> },
         ].map((s) => (
-          <div key={s.label} className="p-4 rounded-2xl border border-white/7 bg-[#0e1322]/70 text-center">
+          <div key={s.label} className="p-4 rounded-2xl border border-black/7 bg-card/70 text-center">
             <div className="flex justify-center mb-1" style={{ color: s.color }}>{s.icon}</div>
             <div className="text-2xl font-black tabular-nums" style={{ color: s.color, fontFamily: "var(--font-display)" }}>{s.value}</div>
-            <div className="text-[11px] text-[#6b7a99] mt-0.5">{s.label}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
@@ -37,7 +37,7 @@ export default function ConceptMastery() {
         {["all", ...subjects.map((s) => s.name)].map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={cn("shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all",
-              filter === f ? "bg-[#3b82f6] text-white" : "border border-white/10 text-[#6b7a99] hover:border-white/25 hover:text-white")}>
+              filter === f ? "bg-[#3b82f6] text-white" : "border border-black/10 text-muted-foreground hover:border-black/25 hover:text-white")}>
             {f}
           </button>
         ))}
@@ -52,21 +52,21 @@ export default function ConceptMastery() {
             const subCol = subjectColor[c.subject] ?? "#6b7a99";
             const statusLabel = c.mastery >= 80 ? "Doing well" : c.mastery >= 60 ? "In progress" : "Needs work";
             return (
-              <div key={c.id} className="flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-white/2 hover:border-white/15 transition-colors">
+              <div key={c.id} className="flex items-center gap-3 p-4 rounded-xl border border-black/7 bg-black/2 hover:border-black/15 transition-colors">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${col}15`, color: col }}>
                   {c.mastery >= 80 ? <CheckCircle2 className="w-4 h-4" /> : c.mastery >= 60 ? <Target className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-semibold text-white">{c.concept}</span>
+                    <span className="text-sm font-semibold text-foreground">{c.concept}</span>
                     <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full font-semibold" style={{ color: col, background: `${col}12` }}>{statusLabel}</span>
                   </div>
-                  <div className="text-[11px] text-[#6b7a99] mb-1.5" style={{ color: subCol }}>{c.subject} · {c.practiced} questions done · Last: {c.lastPracticed}</div>
+                  <div className="text-[11px] text-muted-foreground mb-1.5" style={{ color: subCol }}>{c.subject} · {c.practiced} questions done · Last: {c.lastPracticed}</div>
                   <ProgressBar value={c.mastery} color={col} height="h-1.5" />
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-lg font-black tabular-nums" style={{ color: col }}>{c.mastery}%</div>
-                  {c.mistakes > 0 && <div className="text-[11px] text-[#6b7a99]">{c.mistakes} mistakes</div>}
+                  {c.mistakes > 0 && <div className="text-[11px] text-muted-foreground">{c.mistakes} mistakes</div>}
                 </div>
               </div>
             );

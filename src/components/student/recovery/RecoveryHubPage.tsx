@@ -125,13 +125,13 @@ export function RecoveryHubPage({
               </p>
 
               <div className="grid sm:grid-cols-2 gap-4 mt-8 max-w-xl">
-                <div className="rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur-sm p-5">
+                <div className="rounded-2xl bg-black/10 ring-1 ring-black/15 backdrop-blur-sm p-5">
                   <p className="text-[10px] uppercase tracking-wider text-primary-foreground/65">
                     Recovery questions pending
                   </p>
                   <p className="text-4xl sm:text-5xl font-bold mt-2 tabular-nums">{pending}</p>
                 </div>
-                <div className="rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur-sm p-5">
+                <div className="rounded-2xl bg-black/10 ring-1 ring-black/15 backdrop-blur-sm p-5">
                   <p className="text-[10px] uppercase tracking-wider text-primary-foreground/65">
                     Potential accuracy gain
                   </p>
@@ -151,7 +151,7 @@ export function RecoveryHubPage({
                     {weakConcepts.slice(0, 6).map((c) => (
                       <span
                         key={c}
-                        className="text-sm font-medium px-3 py-1.5 rounded-full bg-white/15 ring-1 ring-white/20"
+                        className="text-sm font-medium px-3 py-1.5 rounded-full bg-black/15 ring-1 ring-black/20"
                       >
                         {c}
                       </span>
@@ -162,7 +162,7 @@ export function RecoveryHubPage({
             </div>
 
             <div className="shrink-0 w-full lg:w-auto flex flex-col items-center lg:items-end">
-              <div className="hidden lg:flex w-32 h-32 rounded-full bg-white/10 items-center justify-center mb-6 ring-1 ring-white/15">
+              <div className="hidden lg:flex w-32 h-32 rounded-full bg-black/10 items-center justify-center mb-6 ring-1 ring-black/15">
                 <Wrench className="w-14 h-14 text-[#e8c468]" />
               </div>
               <Button
@@ -366,7 +366,7 @@ export function RecoveryHubPage({
             {fixedConcepts.map((f) => (
               <div
                 key={f.concept}
-                className="rounded-2xl bg-white/80 border border-emerald-200/50 p-4 shadow-sm"
+                className="rounded-2xl bg-card border border-emerald-200/50 p-4 shadow-sm"
               >
                 <p className="font-semibold text-foreground">{displayConcept(f.concept)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">{displaySubject(f.subject)}</p>
@@ -476,7 +476,7 @@ function ForecastRow({ label, from, to }: { label: string; from: number; to: num
         <span className="text-2xl font-bold tabular-nums">{from}%</span>
         <ArrowRight className="w-5 h-5 text-[#e8c468]" />
         <span className="text-2xl font-bold tabular-nums text-[#e8c468]">{to}%</span>
-        <span className="text-xs ml-auto bg-white/15 px-2 py-1 rounded-full">
+        <span className="text-xs ml-auto bg-black/15 px-2 py-1 rounded-full">
           +{to - from}%
         </span>
       </div>

@@ -1,67 +1,50 @@
-/* Wisdom Campus / Gurukul student panel — principal indigo theme */
+/* Wisdom Campus / Gurukul student panel — Chalkboard Signal dark shell */
 .gurukul-student {
-  --background: 222 47% 8%;
-  --foreground: 220 14% 95%;
-  --card: 222 40% 11%;
-  --card-foreground: 220 14% 95%;
-  --popover: 222 40% 11%;
-  --popover-foreground: 220 14% 95%;
-  --primary: 228 71% 55%;
-  --primary-foreground: 0 0% 100%;
-  --primary-glow: 228 73% 66%;
-  --secondary: 214 52% 18%;
-  --secondary-foreground: 220 10% 66%;
-  --muted: 222 30% 14%;
-  --muted-foreground: 220 8% 52%;
-  --accent: 228 73% 66%;
-  --accent-foreground: 0 0% 100%;
-  --warning: 38 92% 50%;
-  --warning-foreground: 0 0% 100%;
-  --destructive: 348 55% 56%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 222 24% 18%;
-  --input: 222 30% 14%;
-  --ring: 228 71% 55%;
+  --background: 197 47% 12%;
+  --foreground: 140 16% 96%;
+  --card: 195 44% 17%;
+  --card-foreground: 140 16% 96%;
+  --popover: 195 44% 17%;
+  --popover-foreground: 140 16% 96%;
+  --primary: 184 46% 66%;
+  --primary-foreground: 197 47% 12%;
+  --primary-glow: 184 46% 66%;
+  --secondary: 191 40% 26%;
+  --secondary-foreground: 140 16% 96%;
+  --accent: 12 64% 67%;
+  --accent-foreground: 197 47% 12%;
+  --warning: 38 65% 65%;
+  --warning-foreground: 197 47% 12%;
+  --destructive: 3 59% 70%;
+  --destructive-foreground: 197 47% 12%;
+  --muted: 193 40% 23%;
+  --muted-foreground: 188 13% 66%;
+  --border: 190 20% 35%;
+  --input: 190 20% 35%;
+  --ring: 184 46% 66%;
   --radius: 0.875rem;
-
-  --sidebar-background: 222 56% 13%;
-  --sidebar-foreground: 220 14% 90%;
-  --sidebar-primary: 228 71% 55%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 214 52% 24%;
-  --sidebar-accent-foreground: 220 14% 95%;
-  --sidebar-border: 214 52% 20%;
-  --sidebar-ring: 228 71% 55%;
-
-  --gradient-primary: linear-gradient(135deg, #3b5bdb, #6882e8);
-  --gradient-soft: linear-gradient(180deg, #0f1b35, #1e3a5f);
-  --gradient-hero: linear-gradient(135deg, #0f1b35 0%, #1e3a5f 100%);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35);
-  --shadow-elevated: 0 12px 40px -12px rgb(0 0 0 / 0.55);
-
-  --font-display: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
-  --font-body: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
+  --success: 148 42% 66%;
+  --info: 184 46% 66%;
+  --sidebar-background: 197 47% 12%;
+  --sidebar-foreground: 140 16% 96%;
+  --sidebar-primary: 184 46% 66%;
+  --sidebar-primary-foreground: 197 47% 12%;
+  --sidebar-accent: 193 40% 23%;
+  --sidebar-accent-foreground: 140 16% 96%;
+  --sidebar-border: 190 20% 35%;
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
   min-height: 100vh;
-  background: var(--gurukul-navy);
-  color: #f0eff3;
-  font-family: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-body);
 }
 
-.gurukul-student h1,
-.gurukul-student h2,
-.gurukul-student h3,
-.gurukul-student h4 {
-  font-family: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
+.gurukul-student h1, .gurukul-student h2, .gurukul-student h3, .gurukul-student h4 {
+  font-family: var(--font-display);
   letter-spacing: -0.02em;
 }
-
-.gurukul-student ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.gurukul-student ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-}
+.gurukul-student ::-webkit-scrollbar { width: 6px; height: 6px; }
+.gurukul-student ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }

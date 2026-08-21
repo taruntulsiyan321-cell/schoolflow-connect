@@ -131,7 +131,7 @@ export default function Leave() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-sm gap-2">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading leave…
       </div>
     );
@@ -140,17 +140,17 @@ export default function Leave() {
   return (
     <div className="space-y-5 max-w-2xl">
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+        <div className="bg-card border border-black/7 rounded-2xl p-4 text-center">
           <div className="text-xl font-black text-[#10b981]">{approved}</div>
-          <div className="text-[10px] text-[#78788c] mt-0.5">Days Approved</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Days Approved</div>
         </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+        <div className="bg-card border border-black/7 rounded-2xl p-4 text-center">
           <div className="text-xl font-black text-[#3b5bdb]">{pending}</div>
-          <div className="text-[10px] text-[#78788c] mt-0.5">Pending Requests</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Pending Requests</div>
         </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
-          <div className="text-xl font-black text-white">{requests.length}</div>
-          <div className="text-[10px] text-[#78788c] mt-0.5">Total Applications</div>
+        <div className="bg-card border border-black/7 rounded-2xl p-4 text-center">
+          <div className="text-xl font-black text-foreground">{requests.length}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Total Applications</div>
         </div>
       </div>
 
@@ -173,22 +173,22 @@ export default function Leave() {
       )}
 
       {applying && (
-        <div className="bg-[#131316] border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
+        <div className="bg-card border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-bold text-white">Apply for Leave</div>
+            <div className="text-sm font-bold text-foreground">Apply for Leave</div>
             <button type="button" onClick={() => setApplying(false)}>
-              <X className="w-4 h-4 text-[#78788c]" />
+              <X className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Leave Type</label>
+              <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Leave Type</label>
               <select
                 value={form.leaveType}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, leaveType: e.target.value as (typeof leaveTypes)[number] }))
                 }
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                className="bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground outline-none"
               >
                 {leaveTypes.map((t) => (
                   <option key={t} value={t}>
@@ -199,31 +199,31 @@ export default function Leave() {
             </div>
             <div />
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">From Date *</label>
+              <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">From Date *</label>
               <input
                 type="date"
                 value={form.fromDate}
                 onChange={(e) => setForm((p) => ({ ...p, fromDate: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40"
+                className="bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">To Date *</label>
+              <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">To Date *</label>
               <input
                 type="date"
                 value={form.toDate}
                 min={form.fromDate}
                 onChange={(e) => setForm((p) => ({ ...p, toDate: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40"
+                className="bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40"
               />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
-              <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Reason *</label>
+              <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Reason *</label>
               <textarea
                 value={form.reason}
                 onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))}
                 rows={3}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40 resize-none"
+                className="bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
               />
             </div>
           </div>
@@ -231,7 +231,7 @@ export default function Leave() {
             <button
               type="button"
               onClick={() => setApplying(false)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-black/5 hover:bg-black/10"
             >
               Cancel
             </button>
@@ -249,10 +249,10 @@ export default function Leave() {
       )}
 
       <div>
-        <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-3">Leave History</div>
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Leave History</div>
         <div className="space-y-3">
           {requests.map((r) => (
-            <div key={r.id} className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-start gap-3">
+            <div key={r.id} className="bg-card border border-black/7 rounded-2xl p-4 flex items-start gap-3">
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: `${statusColor[r.status]}18`, color: statusColor[r.status] }}
@@ -261,7 +261,7 @@ export default function Leave() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="text-xs font-bold text-white capitalize">{r.leaveType} Leave</div>
+                  <div className="text-xs font-bold text-foreground capitalize">{r.leaveType} Leave</div>
                   <span
                     className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize"
                     style={{ background: `${statusColor[r.status]}18`, color: statusColor[r.status] }}
@@ -269,7 +269,7 @@ export default function Leave() {
                     {r.status}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 mt-1 text-[10px] text-[#78788c]">
+                <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Calendar className="w-2.5 h-2.5" /> {r.fromDate} → {r.toDate}
                   </span>
@@ -277,13 +277,13 @@ export default function Leave() {
                     {r.days} day{r.days !== 1 ? "s" : ""}
                   </span>
                 </div>
-                <div className="text-[10px] text-[#b0b0c0] mt-1.5 leading-relaxed">{r.reason}</div>
+                <div className="text-[10px] text-muted-foreground mt-1.5 leading-relaxed">{r.reason}</div>
               </div>
-              <div className="text-[9px] text-[#46465a] shrink-0">Applied: {r.appliedAt}</div>
+              <div className="text-[9px] text-muted-foreground shrink-0">Applied: {r.appliedAt}</div>
             </div>
           ))}
           {requests.length === 0 && (
-            <div className="text-center py-10 text-xs text-[#46465a]">No leave applications found.</div>
+            <div className="text-center py-10 text-xs text-muted-foreground">No leave applications found.</div>
           )}
         </div>
       </div>

@@ -11,10 +11,10 @@ import type { TeacherProfile } from "./data";
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
+    <div className="bg-card border border-black/7 rounded-2xl overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-black/7">
         <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
-        <div className="text-sm font-bold text-white">{title}</div>
+        <div className="text-sm font-bold text-foreground">{title}</div>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -44,17 +44,17 @@ function Field({
   const isEditable = editing && !disabled;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">{label}</label>
+      <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
       {isEditable ? (
         <input
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="bg-white/5 border border-[#3b5bdb]/30 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/60 transition-all"
+          className="bg-black/5 border border-[#3b5bdb]/30 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-[#3b5bdb]/60 transition-all"
         />
       ) : (
-        <div className="text-sm text-white px-0.5" title={editing && disabled ? disabledHint : undefined}>
-          {value || <span className="text-[#46465a]">Not set</span>}
+        <div className="text-sm text-foreground px-0.5" title={editing && disabled ? disabledHint : undefined}>
+          {value || <span className="text-muted-foreground">Not set</span>}
           {editing && disabled && disabledHint && (
             <span className="block text-[9px] text-[#f59e0b] mt-0.5 font-normal normal-case">{disabledHint}</span>
           )}
@@ -177,7 +177,7 @@ export default function TeacherProfile() {
 
   if (identity.loading || !profile || !draft) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-sm gap-2">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…
       </div>
     );
@@ -199,16 +199,16 @@ export default function TeacherProfile() {
         </div>
       )}
 
-      <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
+      <div className="bg-card border border-black/7 rounded-2xl p-5 flex items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-[#3b5bdb] flex items-center justify-center shrink-0">
           <span className="text-xl font-black text-black">{initials}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-black text-white">{profile.name}</div>
-          <div className="text-xs text-[#78788c] mt-0.5">
+          <div className="text-base font-black text-foreground">{profile.name}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
             {profile.subjects.length ? `${profile.subjects.join(" & ")} Teacher` : "Teacher"}
           </div>
-          <div className="text-[10px] text-[#46465a] mt-0.5">
+          <div className="text-[10px] text-muted-foreground mt-0.5">
             {profile.employeeId} · {profile.department}
           </div>
           {profile.isClassTeacher && (
@@ -236,7 +236,7 @@ export default function TeacherProfile() {
                 setDraft(profile);
                 setEditing(false);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-black/5 hover:bg-black/10 transition-all"
             >
               <X className="w-3.5 h-3.5" /> Cancel
             </button>
@@ -300,8 +300,8 @@ export default function TeacherProfile() {
           />
           <Field label="Joined Date" value={profile.joinedDate || "—"} editing={false} onChange={() => {}} />
           <div className="col-span-2">
-            <div className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider mb-1.5">Role</div>
-            <div className="text-sm text-white">
+            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Role</div>
+            <div className="text-sm text-foreground">
               {profile.isClassTeacher ? (
                 <span>
                   Class Teacher of{" "}
@@ -320,45 +320,45 @@ export default function TeacherProfile() {
 
       <Section title="Linked Accounts" icon={<Link2 className="w-4 h-4" />}>
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-black/3">
             <div className="w-8 h-8 rounded-lg bg-[#ea4335]/15 flex items-center justify-center">
               <Mail className="w-4 h-4 text-[#ea4335]" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-white">Google Account</div>
-              <div className="text-[10px] text-[#78788c]">
+              <div className="text-xs font-semibold text-foreground">Google Account</div>
+              <div className="text-[10px] text-muted-foreground">
                 {profile.googleLinked ? profile.googleEmail : "Not linked via Google sign-in"}
               </div>
             </div>
             {profile.googleLinked ? (
               <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">Linked</span>
             ) : (
-              <span className="text-[9px] font-bold text-[#46465a] bg-white/5 px-2 py-0.5 rounded-full">Not linked</span>
+              <span className="text-[9px] font-bold text-muted-foreground bg-black/5 px-2 py-0.5 rounded-full">Not linked</span>
             )}
           </div>
 
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-black/3">
             <div className="w-8 h-8 rounded-lg bg-[#10b981]/15 flex items-center justify-center">
               <Smartphone className="w-4 h-4 text-[#10b981]" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-white">Mobile Number</div>
-              <div className="text-[10px] text-[#78788c]">{profile.phone || "Not set"}</div>
+              <div className="text-xs font-semibold text-foreground">Mobile Number</div>
+              <div className="text-[10px] text-muted-foreground">{profile.phone || "Not set"}</div>
             </div>
             {profile.mobileLinked ? (
               <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">On file</span>
             ) : (
-              <span className="text-[9px] font-bold text-[#46465a] bg-white/5 px-2 py-0.5 rounded-full">Not set</span>
+              <span className="text-[9px] font-bold text-muted-foreground bg-black/5 px-2 py-0.5 rounded-full">Not set</span>
             )}
           </div>
         </div>
       </Section>
 
       <Section title="Security" icon={<Shield className="w-4 h-4" />}>
-        <div className="flex items-center justify-between p-3 rounded-xl bg-white/3">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-black/3">
           <div>
-            <div className="text-xs font-semibold text-white">Password</div>
-            <div className="text-[10px] text-[#78788c]">Update your sign-in password</div>
+            <div className="text-xs font-semibold text-foreground">Password</div>
+            <div className="text-[10px] text-muted-foreground">Update your sign-in password</div>
           </div>
           <button
             type="button"
@@ -373,10 +373,10 @@ export default function TeacherProfile() {
       {changePwdOpen && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setChangePwdOpen(false)} />
-          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 bg-card border border-black/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-bold text-white">Change Password</div>
-              <button type="button" onClick={() => setChangePwdOpen(false)} className="text-[#78788c] hover:text-white">
+              <div className="text-sm font-bold text-foreground">Change Password</div>
+              <button type="button" onClick={() => setChangePwdOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -385,12 +385,12 @@ export default function TeacherProfile() {
               { label: "Confirm New Password", key: "confirm" as const },
             ].map((f) => (
               <div key={f.key} className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">{f.label}</label>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{f.label}</label>
                 <input
                   type="password"
                   value={pwdForm[f.key]}
                   onChange={(e) => setPwdForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/40"
+                  className="bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-[#3b5bdb]/40"
                 />
               </div>
             ))}
@@ -401,7 +401,7 @@ export default function TeacherProfile() {
               <button
                 type="button"
                 onClick={() => setChangePwdOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-black/5"
               >
                 Cancel
               </button>

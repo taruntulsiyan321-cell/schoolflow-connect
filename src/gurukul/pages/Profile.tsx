@@ -138,7 +138,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…
       </div>
     );
@@ -149,8 +149,8 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
       <GlassCard glow="blue" className="p-6">
         <div className="flex items-start gap-4">
           <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-white shrink-0"
-            style={{ background: "linear-gradient(135deg,#3b5bdb,#6882e8)" }}
+            className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-black text-foreground shrink-0"
+            style={{ background: "#3b5bdb" }}
           >
             {name
               .split(" ")
@@ -160,12 +160,12 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           </div>
           <div className="flex-1 min-w-0">
             <h2
-              className="text-xl font-black text-white leading-tight"
+              className="text-xl font-black text-foreground leading-tight"
               style={{ fontFamily: "var(--font-display)" }}
             >
               {name}
             </h2>
-            <div className="text-sm text-[#78788c]">{classLabel}</div>
+            <div className="text-sm text-muted-foreground">{classLabel}</div>
             <div className="text-xs text-[#3b5bdb] mt-0.5">
               Level {level}
               {league ? ` · ${league}` : ""}
@@ -199,10 +199,10 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           { label: "Homework", value: `${hwPct}%`, color: "#c08a3a", icon: <Medal className="w-4 h-4" /> },
           { label: "Tests avg", value: `${testsAvg}%`, color: "#4b9fd4", icon: <Target className="w-4 h-4" /> },
         ].map((s) => (
-          <div key={s.label} className="p-4 rounded-2xl border border-white/7 bg-[#131316]/70">
+          <div key={s.label} className="p-4 rounded-2xl border border-black/7 bg-card/70">
             <div className="flex items-center gap-2 mb-1" style={{ color: s.color }}>
               {s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-[#78788c]">{s.label}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
             </div>
             <div
               className="text-xl font-black tabular-nums"
@@ -226,7 +226,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             </button>
           )}
         </div>
-        <div className="text-xs text-[#78788c]">
+        <div className="text-xs text-muted-foreground">
           {classRank != null
             ? `Your class XP rank is #${classRank} (Progression Engine).`
             : "Class XP rankings load from ProgressionService on the Rankings page."}
@@ -236,11 +236,11 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
       <GlassCard className="p-5">
         <SectionLabel>Recent milestones</SectionLabel>
         {badgesLoading ? (
-          <div className="flex items-center gap-2 text-[#78788c] text-xs py-2">
+          <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
             <Loader2 className="w-3 h-3 animate-spin" /> Loading badges…
           </div>
         ) : recentMilestones.length === 0 ? (
-          <div className="text-xs text-[#78788c]">No badges earned yet.</div>
+          <div className="text-xs text-muted-foreground">No badges earned yet.</div>
         ) : (
           <div className="flex flex-wrap gap-3">
             {recentMilestones.map((a) => {
@@ -252,12 +252,12 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
                   title={a.label}
                   className="flex items-center gap-2 px-3 py-2 rounded-xl border border-amber-400/15 bg-amber-400/5"
                 >
-                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0", tier.bg)}>
+                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-foreground shrink-0", tier.bg)}>
                     <Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-white">{a.label}</div>
-                    <div className="text-[10px] text-[#78788c]">{formatEarnedDate(a.earned_at)}</div>
+                    <div className="text-xs font-semibold text-foreground">{a.label}</div>
+                    <div className="text-[10px] text-muted-foreground">{formatEarnedDate(a.earned_at)}</div>
                   </div>
                 </div>
               );
