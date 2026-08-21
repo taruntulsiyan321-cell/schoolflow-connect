@@ -116,13 +116,24 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           let above = 0;
           for (const c of day.classes) {
             if (cancelled) break;
-            const profiles = await AcademicProfileService.listForClass(ctx, c.classId, { limit: 200 });
+            const [profiles, roster] = await Promise.all([
+              AcademicProfileService.listForClass(ctx, c.classId, { limit: 200 }),
+              AttendanceService.listClassStudents(ctx, c.classId).catch(() => []),
+            ]);
+            // Report exists so admin/principal can act on "who is at risk" —
+            // a truncated UUID can't be followed up on, and this class's
+            // seed IDs happen to share an 8-char prefix, making every row
+            // in "Below 75%" indistinguishable from every other. Resolve
+            // the actual name; fall back to the id only if the roster
+            // fetch itself failed (never silently drop the row).
+            const nameById = new Map<string, string>();
+            for (const s of roster) nameById.set(s.id, s.fullName);
             for (const p of profiles) {
               const pct = Math.round(p.attendancePct);
               if (pct < 75) below += 1;
               if (pct >= 90) above += 1;
               allRows.push({
-                "Student ID": p.studentId.slice(0, 8),
+                Student: nameById.get(p.studentId) ?? p.studentId.slice(0, 8),
                 Class: `${c.className}-${c.section}`,
                 "Attendance %": pct,
                 Status: pct >= 75 ? "OK" : "Low",

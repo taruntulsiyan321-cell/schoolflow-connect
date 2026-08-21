@@ -128,7 +128,7 @@ export function buildSchoolHealthBrief(input: SchoolHealthAggregateInput): Schoo
     bullets.push(`Attendance risk band (EIE): ${metrics.attendance_risk_band}.`);
   }
   if (metrics.homework_consistency_band) {
-    bullets.push(`Homework consistency band (EIE): ${metrics.homework_consistency_band}.`);
+    bullets.push(`Homework consistency risk band (EIE): ${metrics.homework_consistency_band}.`);
   }
   if (metrics.attendance_band_counts) {
     const elev =

@@ -18,6 +18,8 @@ import {
   PrincipalHomeworkLive,
 } from './PrincipalLiveAcademic'
 import PrincipalMessages from './Messages'
+import LeaveRequests from '../gurukul-admin/LeaveRequests'
+import { InquiriesReport, ComplaintsReport } from '@/pages/shared/OperationalCases'
 import {
   AnnouncementService,
   MessageService,
@@ -31,7 +33,7 @@ import PrincipalClassDetail from '@/pages/principal/PrincipalClassDetail'
 import {
   Search, Bell, Users, GraduationCap, UserCheck, CalendarDays,
   LayoutDashboard, BarChart2, Settings, LogOut, CheckCircle, Clock,
-  MessageSquare, Megaphone, School, Layers, Lock, Loader2,
+  MessageSquare, Megaphone, School, Layers, Lock, Loader2, AlertCircle,
 } from 'lucide-react'
 
 // ── Shared helpers ─────────────────────────────────────────────────────────────
@@ -103,6 +105,8 @@ const navItems: { icon: React.ElementType; key: PrincipalPageKey }[] = [
   { icon: Layers, key: 'classes' },
   { icon: CalendarDays, key: 'examinations' },
   { icon: UserCheck, key: 'attendance' },
+  { icon: Clock, key: 'leaves' },
+  { icon: AlertCircle, key: 'cases' },
   { icon: Megaphone, key: 'announcements' },
   { icon: MessageSquare, key: 'messages' },
   { icon: Settings, key: 'settings' },
@@ -317,6 +321,36 @@ function AnnouncementsPage() {
 
 function MessagesPage() {
   return <PrincipalMessages />
+}
+
+function LeavesPage() {
+  return <LeaveRequests />
+}
+
+function CasesPage() {
+  const [tab, setTab] = useState<'inquiries' | 'complaints'>('inquiries')
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {(['inquiries', 'complaints'] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            style={{
+              padding: '7px 16px', borderRadius: 999, border: '1px solid var(--border)',
+              background: tab === t ? 'rgba(59,91,219,0.15)' : 'transparent',
+              color: tab === t ? 'var(--indigo)' : 'var(--text-muted)',
+              fontSize: 13, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
+            }}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      {tab === 'inquiries' ? <InquiriesReport /> : <ComplaintsReport />}
+    </div>
+  )
 }
 
 function SettingsPage() {
@@ -649,6 +683,8 @@ export default function PrincipalApp() {
             <Route path="classes/:classId" element={<PrincipalClassDetail />} />
             <Route path="exams" element={<ExaminationsPage />} />
             <Route path="attendance" element={<AttendancePage />} />
+            <Route path="leaves" element={<LeavesPage />} />
+            <Route path="cases" element={<CasesPage />} />
             <Route path="announcements" element={<AnnouncementsPage />} />
             <Route path="messages" element={<MessagesPage />} />
             <Route path="settings" element={<SettingsPage />} />
@@ -660,7 +696,6 @@ export default function PrincipalApp() {
             <Route path="timetable" element={<Navigate to="/principal" replace />} />
             <Route path="activity" element={<Navigate to="/principal" replace />} />
             <Route path="profile" element={<Navigate to="/principal/settings" replace />} />
-            <Route path="leaves" element={<Navigate to="/principal" replace />} />
             <Route path="notices" element={<Navigate to="/principal/announcements" replace />} />
             <Route path="leaderboard" element={<Navigate to="/principal/analytics" replace />} />
             <Route path="*" element={<Navigate to="/principal" replace />} />

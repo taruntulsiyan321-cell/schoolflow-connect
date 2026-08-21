@@ -144,6 +144,39 @@ export function motivationCard(input: MotivationCardInput): MotivationCard {
   };
 }
 
+/**
+ * Is a battle's live window actually open right now? `status === 'live'` is
+ * always trusted. For `status === 'scheduled'`, a battle is only live
+ * within [starts_at, starts_at + expected_duration + grace] — NOT simply
+ * "starts_at has passed", which was the bug: no server-side process ever
+ * transitions a teacher-created (non-featured) battle's status once its
+ * window ends (rpc_rotate_featured_battles only expires the 4 auto-generated
+ * featured sources), so a scheduled battle nobody ever actually started
+ * showed as "live"/"active" forever — reproduced live: a battle scheduled
+ * for 2026-08-09 still showed as "Live" in the teacher panel on 2026-08-20,
+ * 11 days later. This was independently reimplemented (all missing the
+ * upper bound) in 4 places; this is now the one shared source of truth.
+ */
+export function isBattleWindowOpen(battle: {
+  status: string;
+  starts_at: string;
+  duration_sec?: number | null;
+  question_count?: number | null;
+  per_question_sec?: number | null;
+}): boolean {
+  if (battle.status === "live") return true;
+  if (battle.status !== "scheduled") return false;
+  const startMs = new Date(battle.starts_at).getTime();
+  if (!Number.isFinite(startMs) || startMs > Date.now()) return false;
+  const windowSec =
+    battle.duration_sec ??
+    (battle.question_count && battle.per_question_sec
+      ? battle.question_count * battle.per_question_sec
+      : 300);
+  const GRACE_SEC = 20 * 60; // generous buffer for players to join/finish
+  return Date.now() <= startMs + (windowSec + GRACE_SEC) * 1000;
+}
+
 export type BattleStatusKind = "waiting" | "active" | "completed" | "won" | "lost" | "draw" | "expired";
 
 export type BattleStatusInput = {
@@ -212,8 +245,10 @@ export function formatBattleStatus(input: BattleStatusInput): BattleStatusInfo {
     kind = "lost";
   } else if (battleStatus === "scheduled" && new Date(startsAt).getTime() > Date.now()) {
     kind = "waiting";
-  } else {
+  } else if (isBattleWindowOpen({ status: battleStatus, starts_at: startsAt })) {
     kind = "active";
+  } else {
+    kind = "expired";
   }
 
   return { kind, ...STATUS_META[kind] };

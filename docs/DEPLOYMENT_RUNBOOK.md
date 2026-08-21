@@ -8,7 +8,7 @@
 
 A Supabase Personal Access Token, generated at `supabase.com/dashboard/account/tokens`, added as a GitHub repo secret named exactly `SUPABASE_ACCESS_TOKEN`. This single credential unlocks steps 2 and 3 below — the edge-function GitHub Actions workflow and the local migration-apply script both read it by that exact name.
 
-Separately, confirm in Lovable's project dashboard whether GitHub-push auto-deploy is actually enabled for this project. If it is, step 1 may already be resolved by the time this runbook runs (the 10 commits were pushed on 2026-08-06; re-check the live bundle hash before starting).
+Separately, confirm whichever frontend host is live (Vercel or otherwise — see `docs/PRODUCTION_DEPLOYMENT_ARCHITECTURE.md`) has GitHub-push auto-deploy actually enabled. If it does, step 1 may already be resolved by the time this runbook runs (the 10 commits were pushed on 2026-08-06; re-check the live bundle hash before starting).
 
 ---
 
@@ -19,10 +19,10 @@ Separately, confirm in Lovable's project dashboard whether GitHub-push auto-depl
 1. Confirm `git status` shows `main` is not ahead of `origin/main` (it shouldn't be — already pushed as of `fb973a3`). If it is ahead again by the time this runs, push first.
 2. Check the live bundle hash:
    ```bash
-   curl -s "https://academybloom-digital.lovable.app/" | grep -oE 'src="/assets/index-[^"]*\.js"'
+   curl -s "https://<live-frontend-host>/" | grep -oE 'src="/assets/index-[^"]*\.js"'
    ```
    Compare against the hash in a fresh local build (`npm run build`, check `dist/index.html`). If they already match, this step is done — skip to §2.
-3. If they don't match, trigger a Lovable republish through whatever mechanism its dashboard exposes (manual "Publish," or re-checking the GitHub sync setting). This step cannot be completed from this environment — it needs Lovable dashboard access.
+3. If they don't match, trigger a redeploy through whatever mechanism the host exposes (Vercel dashboard "Redeploy," or re-checking its GitHub integration). This step cannot be completed from this environment — it needs access to that host's dashboard.
 4. Re-check the bundle hash after triggering. Do not proceed to verification (§4) until it changes.
 
 ## 2. Database migrations
@@ -77,18 +77,18 @@ Run in order; each depends on the previous step having actually landed.
 - [ ] **Notices page:** loads without the `column notices.published_at does not exist` error.
 - [ ] **`ai-gateway`:** direct check returns something other than 404:
   ```bash
-  curl -X OPTIONS https://kdmjipeksjdyojjdokbi.supabase.co/functions/v1/ai-gateway
+  curl -X OPTIONS https://psqxykzqfvxgsvkmgurn.supabase.co/functions/v1/ai-gateway
   ```
 - [ ] **Nova end-to-end:** ask a real question in AI Coach on the live site; confirm an actual answer, not "Learning service unavailable."
 - [ ] **Full student-panel re-audit:** rerun the original sweep (all ~21 previously-verified pages) against production, not a local build this time.
 
 ## 5. Rollback plan
 
-**Frontend:** Lovable-hosted deploys are typically rollback-able from its own dashboard (redeploy a prior build) — this repo has no independent rollback mechanism for the frontend. If the new build breaks something the old one didn't, use Lovable's rollback, not a git revert (a git revert only fixes the *next* deploy, not what's live right now).
+**Frontend:** most hosted-platform deploys (Vercel included) are rollback-able from their own dashboard (redeploy a prior build) — this repo has no independent rollback mechanism for the frontend. If the new build breaks something the old one didn't, use the host's own rollback, not a git revert (a git revert only fixes the *next* deploy, not what's live right now).
 
 **Migrations:** both confirmed-gap migrations are strictly additive (`ADD COLUMN IF NOT EXISTS`) — there is nothing to roll back; worst case they're a no-op. If `doubt_remap_loginable_teachers.sql` turns out to need rerunning and something looks wrong afterward, its effect is a data remap (teacher assignment on doubts) — fix forward with a corrective UPDATE rather than attempting a blind rollback, since there's no "before" snapshot captured by this process.
 
-**Edge functions:** if `ai-gateway` deploys but misbehaves, `supabase functions delete ai-gateway --project-ref kdmjipeksjdyojjdokbi` removes it, reverting to the current (broken but at least *known*) 404 state, which the frontend already handles as "service unavailable" rather than crashing.
+**Edge functions:** if `ai-gateway` deploys but misbehaves, `supabase functions delete ai-gateway --project-ref psqxykzqfvxgsvkmgurn` removes it, reverting to the current (broken but at least *known*) 404 state, which the frontend already handles as "service unavailable" rather than crashing.
 
 **General rule for this window:** do not run any step whose verification you can't check immediately afterward. If §1 (frontend) can't be confirmed working, don't proceed to §2 — a schema change under a broken frontend build is harder to reason about than a schema change under one you know works.
 

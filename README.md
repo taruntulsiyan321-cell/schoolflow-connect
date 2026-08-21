@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# SchoolFlow Connect
 
 TODO: Document your project here

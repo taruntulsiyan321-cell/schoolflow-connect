@@ -11,6 +11,7 @@ import {
   useAcademicLive,
 } from "@/academic";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
+import { isPublishedFlag } from "@/academic/services/testService";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toast } from "@/hooks/use-toast";
@@ -75,7 +76,7 @@ export default function Tests() {
             title: t.title,
             subject: t.subject ?? "",
             testKind: t.test_kind ?? "class_test",
-            published: t.is_published === true || t.status === "published",
+            published: isPublishedFlag(t as Record<string, unknown>),
           })),
         );
         const rejected = settled.filter((s) => s.status === "rejected").length;

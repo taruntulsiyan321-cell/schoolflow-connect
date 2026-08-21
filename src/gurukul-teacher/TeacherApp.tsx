@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-
 import {
   LayoutDashboard, BookOpen, HelpCircle, MessageCircle, Megaphone,
   Calendar, User, ChevronLeft, ChevronRight, GraduationCap, Menu, LogOut,
-  Swords, Library,
+  Swords, Library, Brain,
 } from "lucide-react";
 import { cn } from "./shared";
 import {
@@ -25,6 +25,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { MessageService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import QuestionBankPage from "@/pages/shared/QuestionBankPage";
+import TeacherAICoach from "./TeacherAICoach";
 import TeacherBattleground from "@/pages/teacher/TeacherBattleground";
 import BattleMonitor from "@/pages/teacher/BattleMonitor";
 import BattleTeacherReport from "@/pages/teacher/BattleTeacherReport";
@@ -54,6 +55,7 @@ const navItems: NavItem[] = [
   { key: "myclasses", label: "My Classes", icon: <BookOpen className="w-4 h-4" /> },
   { key: "battleground", label: "Battles", icon: <Swords className="w-4 h-4" /> },
   { key: "questionbank", label: "Question Bank", icon: <Library className="w-4 h-4" /> },
+  { key: "aicoach", label: "AI Coach", icon: <Brain className="w-4 h-4" /> },
   { key: "doubts", label: "Student Doubts", icon: <HelpCircle className="w-4 h-4" /> },
   { key: "communication", label: "Communication", icon: <MessageCircle className="w-4 h-4" /> },
   { key: "announcements", label: "Announcements", icon: <Megaphone className="w-4 h-4" /> },
@@ -294,6 +296,7 @@ export default function TeacherApp() {
               <Route path="leave" element={<Leave />} />
               <Route path="profile" element={<TeacherProfile />} />
               <Route path="question-bank" element={<QuestionBankPage />} />
+              <Route path="ai-coach" element={<TeacherAICoach />} />
               <Route path="practice" element={<Navigate to="/teacher/question-bank" replace />} />
               <Route path="battleground" element={<TeacherBattleground />} />
               <Route path="battleground/monitor/:id" element={<BattleMonitor />} />

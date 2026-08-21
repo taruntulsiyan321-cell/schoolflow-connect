@@ -10,6 +10,7 @@ import { PageHeader, StatCard } from "@/components/ui-bits";
 import { Progress } from "@/components/ui/progress";
 import { ClipboardCheck, NotebookPen, Trophy, Wallet, Bell, TrendingUp, AlertTriangle, Flame, Shield } from "lucide-react";
 import { displayConcept, displaySubject } from "@/lib/academicDisplay";
+import { resolveParentLinkedStudentIds } from "@/lib/parentLinkedStudents";
 
 type ChildInsight = {
   id: string;
@@ -37,7 +38,7 @@ const alertTone: Record<ParentAlert["kind"], string> = {
 };
 
 export default function ParentInsights() {
-  const { user } = useAuth();
+  const { user, schoolId } = useAuth();
   const { ctx, ready } = useAcademicContext();
   const { data: digest, loading: digestLoading, reload: reloadDigest } = useParentWeeklyDigest();
   const [kids, setKids] = useState<ChildInsight[]>([]);
@@ -45,13 +46,18 @@ export default function ParentInsights() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user || !ready || !ctx) return;
+    if (!user || !ready || !ctx || !schoolId) return;
     (async () => {
       setLoading(true);
-      const { data: students } = await supabase
-        .from("students")
-        .select("id, full_name, class_id, classes(name,section)")
-        .eq("parent_user_id", user.id);
+      const childIds = await resolveParentLinkedStudentIds(schoolId, user.id);
+      const students = childIds.length
+        ? (
+            await supabase
+              .from("students")
+              .select("id, full_name, class_id, classes(name,section)")
+              .in("id", childIds)
+          ).data
+        : [];
 
       const insights: ChildInsight[] = [];
       for (const s of students ?? []) {
@@ -112,7 +118,7 @@ export default function ParentInsights() {
       setConceptData(concepts);
       setLoading(false);
     })();
-  }, [user, ready, ctx]);
+  }, [user, ready, ctx, schoolId]);
 
   const fmt = (n: number) =>
     new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n || 0);

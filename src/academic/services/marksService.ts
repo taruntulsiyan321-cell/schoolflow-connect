@@ -90,7 +90,29 @@ export const MarksService = {
     ) {
       throw new ForbiddenError("Exam results have not been published yet");
     }
-    return listMarksForExam(toRepoContext(ctx), examId);
+    const rows = await listMarksForExam(toRepoContext(ctx), examId);
+    // Publish-gating above only answers "may this role see published marks
+    // at all" -- it does not scope WHICH student's row. A student/parent
+    // must only ever see their own (or their own linked children's) marks,
+    // never a classmate's. Reuses assertMayAccessStudent (same authorization
+    // this service already trusts for listForStudent) rather than a new
+    // parent/student-linkage resolution -- exam rosters are small, so a
+    // per-row check is cheap and avoids a 6th reimplementation of the
+    // parent_user_id / parent_students dual-linkage lookup (see
+    // src/lib/parentLinkedStudents.ts's own comment on that exact risk).
+    if (ctx.role === "student" || ctx.role === "parent") {
+      const allowed: MarksRecord[] = [];
+      for (const row of rows) {
+        try {
+          await assertMayAccessStudent(ctx, row.studentId);
+          allowed.push(row);
+        } catch {
+          // Not this caller's own/linked student -- excluded, not an error.
+        }
+      }
+      return allowed;
+    }
+    return rows;
   },
 
   async listForStudent(

@@ -99,6 +99,38 @@ export interface UpsertAttendanceInput {
 }
 
 /**
+ * Locks apply uniformly, including to admins -- the only way to write a
+ * locked day is to explicitly delete the lock first (already a real,
+ * separate admin-only action via RLS), never silently through a write path.
+ * Enforced here (single-row path) and again inside rpc_bulk_upsert_attendance
+ * (bulk path) so neither can be used to bypass the other.
+ */
+async function assertClassDateNotLocked(
+  ctx: RepoContext,
+  classId: string,
+  date: string,
+): Promise<void> {
+  const schoolId = schoolIdOf(ctx);
+  const { data: lock, error } = await getClient(ctx)
+    .from("attendance_locks")
+    .select("class_id")
+    .eq("class_id", classId)
+    .eq("date", date)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+  throwIfError(error, "Failed to check attendance lock");
+  if (lock) {
+    throw new ValidationFailedError([
+      {
+        field: "date",
+        code: "locked",
+        message: "Attendance for this class and date is locked and cannot be edited",
+      },
+    ]);
+  }
+}
+
+/**
  * Upsert one attendance row. Unique (student_id, date) enforced by DB.
  * Triggers emit academic_events + audit automatically.
  */
@@ -139,6 +171,8 @@ export async function upsertAttendance(
       },
     ]);
   }
+
+  await assertClassDateNotLocked(ctx, input.classId, input.date);
 
   const { data, error } = await getClient(ctx)
     .from("attendance")

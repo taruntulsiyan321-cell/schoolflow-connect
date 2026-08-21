@@ -968,6 +968,97 @@ const SUBJECTS = {
       ],
     },
   },
+  // Sanskrit — grammar-topic chapters only (not tied to any specific NCERT
+  // literature reader). NCERT replaced Ruchira->Deepakam (6/7/8) and
+  // Shemushi->Sharada (9) for the current session, with conflicting chapter
+  // counts across secondary sources mid-transition — school Sanskrit
+  // grammar (sandhi/samas/karaka/shabd-roop/dhatu-roop/vachya) is the stable,
+  // standardized part of the curriculum regardless of which reader is
+  // prescribed, same rationale as the Hindi/English grammar-only chapters.
+  sanskrit_6: {
+    name: "Sanskrit",
+    stream: null,
+    chapters: {
+      6: [
+        "व्याकरणम् - शब्दरूपाणि (अकारान्त पुल्लिङ्ग)",
+        "व्याकरणम् - शब्दरूपाणि (आकारान्त स्त्रीलिङ्ग)",
+        "व्याकरणम् - शब्दरूपाणि (अकारान्त नपुंसकलिङ्ग)",
+        "व्याकरणम् - धातुरूपाणि (लट् लकार)",
+        "व्याकरणम् - सर्वनामशब्दाः (तत्, एतत्, किम्)",
+        "व्याकरणम् - वचनम् (एकवचन, द्विवचन, बहुवचन)",
+        "व्याकरणम् - सन्धिः परिचयः (स्वरसन्धिः)",
+        "व्याकरणम् - उपसर्गाः परिचयः",
+        "व्याकरणम् - संख्यावाचकशब्दाः",
+      ],
+    },
+  },
+  sanskrit_7: {
+    name: "Sanskrit",
+    stream: null,
+    chapters: {
+      7: [
+        "व्याकरणम् - धातुरूपाणि (लट्, लृट् लकार)",
+        "व्याकरणम् - शब्दरूपाणि (इकारान्त, उकारान्त)",
+        "व्याकरणम् - सन्धिः (स्वरसन्धिः, व्यञ्जनसन्धिः)",
+        "व्याकरणम् - कारक-विभक्तिः (कर्ता, कर्म)",
+        "व्याकरणम् - सर्वनामशब्दाः (अस्मद्, युष्मद्)",
+        "व्याकरणम् - समासः परिचयः (द्वन्द्वः, तत्पुरुषः)",
+        "व्याकरणम् - अव्ययानि",
+      ],
+    },
+  },
+  sanskrit_8: {
+    name: "Sanskrit",
+    stream: null,
+    chapters: {
+      8: [
+        "व्याकरणम् - धातुरूपाणि (लट्, लृट्, लङ् लकाराः)",
+        "व्याकरणम् - शब्दरूपाणि (ऋकारान्त, हल्न्तशब्दाः)",
+        "व्याकरणम् - सन्धिः (विसर्गसन्धिः सहित)",
+        "व्याकरणम् - समासः (तत्पुरुषः, कर्मधारयः, द्विगुः)",
+        "व्याकरणम् - कारक-विभक्तिः (सर्वाणि कारकाणि)",
+        "व्याकरणम् - वाच्यम् (कर्तरि, कर्मणि प्रयोगः)",
+        "व्याकरणम् - उपसर्ग-प्रत्ययाः",
+        "व्याकरणम् - अनुवादः (हिन्दी-संस्कृतम्)",
+      ],
+    },
+  },
+  sanskrit_9: {
+    name: "Sanskrit",
+    stream: null,
+    chapters: {
+      9: [
+        "व्याकरणम् - धातुरूपाणि (लट्, लृट्, लङ्, विधिलिङ् लकाराः)",
+        "व्याकरणम् - शब्दरूपाणि (सर्वलिङ्गानि विस्तारेण)",
+        "व्याकरणम् - सन्धिः (स्वर-व्यञ्जन-विसर्गसन्धयः)",
+        "व्याकरणम् - समासः (अव्ययीभावः, बहुव्रीहिः सहित सर्वे भेदाः)",
+        "व्याकरणम् - कारक-विभक्ति-प्रयोगः",
+        "व्याकरणम् - वाच्यपरिवर्तनम्",
+        "व्याकरणम् - रचनात्मककार्यम् (चित्रवर्णनम्, निबन्धः)",
+        "व्याकरणम् - अलङ्काराः (उपमा, रूपकपरिचयः)",
+      ],
+    },
+  },
+  sanskrit_10: {
+    name: "Sanskrit",
+    stream: null,
+    chapters: {
+      10: [
+        "व्याकरणम् - सन्धिः (पूर्णविवेचनम्)",
+        "व्याकरणम् - समासः (पूर्णविवेचनम्)",
+        "व्याकरणम् - शब्दरूपाणि (सर्वशब्दाः)",
+        "व्याकरणम् - धातुरूपाणि (सर्वलकाराः, प्रेरणार्थकसहित)",
+        "व्याकरणम् - कारकं विभक्तिश्च (पूर्णम्)",
+        "व्याकरणम् - वाच्यपरिवर्तनम् (कर्तरि, कर्मणि, भावे)",
+        "व्याकरणम् - उपसर्ग-प्रत्ययाः (विस्तारेण)",
+        "व्याकरणम् - अव्ययपदानि",
+        "व्याकरणम् - अनुवादः (उभयतः)",
+        "व्याकरणम् - रचनात्मककार्यम् (पत्रम्, निबन्धः)",
+        "व्याकरणम् - अलङ्काराः",
+        "व्याकरणम् - छन्दः परिचयः",
+      ],
+    },
+  },
 };
 
 function slug(s) {
@@ -1084,10 +1175,25 @@ Rules — follow exactly, these are non-negotiable:
 - No duplicate or near-duplicate questions within your output.
 - "explanation" must genuinely justify why the marked answer is correct, not just restate the question.
 - Difficulty mix across your whole batch: roughly 30% easy, 45% medium, 25% hard.
-- Write every question, option, and explanation in the SAME language as the chapter name given to you (English chapter name -> English content; Hindi/Devanagari chapter name -> full Hindi content, verified spelling/matras). Do not switch language.
+- Write every question, option, and explanation in the SAME language as the chapter name given to you (English chapter name -> English content; Devanagari chapter name for a Hindi subject -> full Hindi content, verified spelling/matras; Devanagari chapter name for a Sanskrit subject -> full Sanskrit content, grammatically rigorous — every sandhi, samasa, vibhakti ending, and dhatu/shabda-roop form must be verifiably correct per standard Panini-based Sanskrit grammar, not merely plausible-looking). Do not switch language.
 - Do not include any text before or after the JSON array. The entire response must be valid JSON starting with [ and ending with ].`;
 
 const DEVANAGARI_RE = /[ऀ-ॿ]/;
+
+// Hindi subjects are keyed "hindi" (Commerce) and "hindi_5".."hindi_10" (per-class);
+// Sanskrit subjects are keyed "sanskrit_6".."sanskrit_10" — both are Devanagari-script
+// subjects that must be exempted from the "reject Devanagari as contamination" gate
+// applied to every other (English-medium) subject. An exact-match check against
+// "hindi" alone misses every per-class/per-subject key and rejects all valid
+// Devanagari content as "contamination", failing 100% of rounds.
+function isDevanagariSubject(subjectKey) {
+  return (
+    subjectKey === "hindi" ||
+    subjectKey.startsWith("hindi_") ||
+    subjectKey === "sanskrit" ||
+    subjectKey.startsWith("sanskrit_")
+  );
+}
 
 async function generateChapter(subjectKey, subjectName, classLevel, chapter, count, existingItems = [], stream = null) {
   const topUp = existingItems.length > 0;
@@ -1121,25 +1227,26 @@ Return the JSON array now.`;
     ) {
       throw new Error("Malformed question object: " + JSON.stringify(item).slice(0, 300));
     }
-    // Language-purity gate: only the "hindi" subject may contain Devanagari.
-    // Every other Commerce subject in this seed is English-medium — a model
-    // that switches language mid-batch (seen from google/gemini-2.5-flash-lite)
+    // Language-purity gate: only Hindi/Sanskrit subjects may contain Devanagari.
+    // Every other subject in this seed is English-medium — a model that
+    // switches language mid-batch (seen from google/gemini-2.5-flash-lite)
     // must have its WHOLE chapter response rejected, not silently kept.
-    if (subjectKey !== "hindi") {
+    if (!isDevanagariSubject(subjectKey)) {
       const blob = item.q + " " + item.o.join(" ") + " " + item.e;
       if (DEVANAGARI_RE.test(blob)) {
         throw new Error(
-          "Language contamination: Devanagari text in a non-Hindi subject. Item: " +
+          "Language contamination: Devanagari text in a non-Devanagari subject. Item: " +
             JSON.stringify(item).slice(0, 200),
         );
       }
     } else {
-      // Inverse check: Hindi subject content must actually BE in Devanagari —
-      // catches the model silently falling back to English despite the
-      // language instruction, which would otherwise pass structural validation.
+      // Inverse check: Hindi/Sanskrit subject content must actually BE in
+      // Devanagari — catches the model silently falling back to English
+      // despite the language instruction, which would otherwise pass
+      // structural validation.
       if (!DEVANAGARI_RE.test(item.q)) {
         throw new Error(
-          "Hindi subject produced non-Devanagari question text: " + JSON.stringify(item).slice(0, 200),
+          "Devanagari subject produced non-Devanagari question text: " + JSON.stringify(item).slice(0, 200),
         );
       }
     }
@@ -1203,7 +1310,7 @@ async function main() {
     let existing = [];
     if (fs.existsSync(cacheFile)) {
       existing = JSON.parse(fs.readFileSync(cacheFile, "utf8")).items;
-      if (subjectKey !== "hindi") {
+      if (!isDevanagariSubject(subjectKey)) {
         const before = existing.length;
         existing = existing.filter((it) => !DEVANAGARI_RE.test(it.q + " " + it.o.join(" ") + " " + it.e));
         const removed = before - existing.length;

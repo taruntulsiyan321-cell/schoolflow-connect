@@ -1,22 +1,27 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { resolveParentLinkedStudentIds } from "@/lib/parentLinkedStudents";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui-bits";
 import { FileText } from "lucide-react";
 import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 
 export default function MyMarksPage({ asParent = false }: { asParent?: boolean }) {
-  const { user } = useAuth();
+  const { user, schoolId } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     (async () => {
       if (!user) return;
       setLoading(true);
-      const col = asParent ? "parent_user_id" : "user_id";
-      const { data: ss } = await supabase.from("students").select("id, full_name").eq(col, user.id);
-      const ids = ss?.map(s => s.id) ?? [];
+      let ids: string[];
+      if (asParent) {
+        ids = schoolId ? await resolveParentLinkedStudentIds(schoolId, user.id) : [];
+      } else {
+        const { data: ss } = await supabase.from("students").select("id").eq("user_id", user.id);
+        ids = ss?.map((s) => s.id) ?? [];
+      }
       if (!ids.length) {
         setRows([]);
         setLoading(false);
@@ -26,7 +31,7 @@ export default function MyMarksPage({ asParent = false }: { asParent?: boolean }
       setRows(data ?? []);
       setLoading(false);
     })();
-  }, [user, asParent]);
+  }, [user, asParent, schoolId]);
 
   return (
     <>

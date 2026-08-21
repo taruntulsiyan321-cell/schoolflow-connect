@@ -1,13 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Points at the live deployed app by default (real Supabase project, real
- * data) rather than a local dev server -- the Practice module bugs found so
- * far only reproduced against the actual database state, not a local build.
- * Override with PLAYWRIGHT_BASE_URL to point at a different environment.
+ * Points at the local dev server by default. Set PLAYWRIGHT_BASE_URL to
+ * target a deployed environment instead -- some bugs only reproduce against
+ * real Supabase project state, not a fresh local build, so pointing this at
+ * a live deployment is sometimes necessary.
  */
-const baseURL =
-  process.env.PLAYWRIGHT_BASE_URL || "https://academybloom-digital.lovable.app";
+const baseURL = process.env.PLAYWRIGHT_BASE_URL || "http://localhost:8080";
 
 export default defineConfig({
   testDir: "./e2e",

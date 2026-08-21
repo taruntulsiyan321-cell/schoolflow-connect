@@ -1,6 +1,7 @@
 // Generate DPP MCQs — OpenRouter (Qwen).
-import { corsHeaders, generateStructured, jsonResponse } from "../_shared/structuredCompletion.ts";
-import { requireUserJwt } from "../_shared/requireAuth.ts";
+import { corsHeaders, generateStructuredWithFallback, jsonResponse } from "../_shared/structuredCompletion.ts";
+import { requireAnyRole, getCallerSchoolId } from "../_shared/requireRole.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 /** Block SSRF via user-supplied source_url (private / link-local / metadata hosts). */
 function isSafePublicHttpUrl(raw: string): boolean {
@@ -47,8 +48,26 @@ function isSafePublicHttpUrl(raw: string): boolean {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  const __auth = await requireUserJwt(req);
+  const __auth = await requireAnyRole(req, ["teacher", "admin", "principal"]);
   if (!__auth.ok) return __auth.response;
+
+  const schoolId = await getCallerSchoolId(__auth.value.user.id);
+  if (!schoolId) {
+    return jsonResponse({ error: "No school context for caller" }, 403);
+  }
+
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  const { data: budgetRow, error: budgetErr } = await admin.rpc("ai_budget_check_and_reserve", {
+    p_school_id: schoolId,
+    p_feature_id: "teacher.dpp.generate_questions",
+    p_units: 2,
+  });
+  if (budgetErr || !budgetRow || (budgetRow as { ok?: boolean }).ok === false) {
+    return jsonResponse({ error: "Daily AI generation budget for this school has been reached" }, 429);
+  }
 
   try {
     const body = await req.json();
@@ -143,12 +162,18 @@ Deno.serve(async (req) => {
       required: ["questions"],
     };
 
-    const result = await generateStructured<{ questions: Array<{
+    // ~180 tokens per MCQ (question + 4 options + explanation) is a safe
+    // working estimate; the default 1200-token cap only covers ~5 questions
+    // and silently truncated/broke JSON parsing for larger batches.
+    const result = await generateStructuredWithFallback<{ questions: Array<{
       question: string;
       options: string[];
       correct_index: number;
       explanation: string;
-    }> }>({ system, user, schema, toolName: "emit_questions" });
+    }> }>(
+      { system, user, schema, toolName: "emit_questions" },
+      { max_tokens: Math.min(4000, Math.max(1200, n * 180)) },
+    );
 
     if (!result.ok) return jsonResponse({ error: result.error }, result.status);
 

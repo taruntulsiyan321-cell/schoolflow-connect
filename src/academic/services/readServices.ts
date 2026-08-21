@@ -9,6 +9,7 @@ import { AnalyticsFoundation } from "../analytics";
 import { AiDataLayer } from "../ai";
 import { AuditService } from "../audit";
 import { assertMayAccessStudent } from "./parentAccess";
+import { getPublishedExamsAverage } from "../repository/marksRepository";
 
 /**
  * Read-side services for analytics, AI summaries, and audit.
@@ -18,7 +19,18 @@ export const AnalyticsService = {
   async forStudent(ctx: ServiceContext, studentId: string) {
     assertCanConsume(ctx, "analytics");
     await assertMayAccessStudent(ctx, studentId);
-    return AnalyticsFoundation.getStudentAnalytics(toRepoContext(ctx), studentId);
+    const bundle = await AnalyticsFoundation.getStudentAnalytics(toRepoContext(ctx), studentId);
+    // exams.averagePct (and profile.examsAvgPct) are computed across ALL
+    // marks including unpublished ones (teacher/principal early-intervention
+    // signal). A student/parent viewing their own bundle must only see the
+    // published-results average — same gate MarksService.listForStudent
+    // already applies to the marks list itself.
+    if (ctx.role === "student" || ctx.role === "parent") {
+      const pub = await getPublishedExamsAverage(toRepoContext(ctx), studentId);
+      bundle.exams = { ...bundle.exams, count: pub.count, averagePct: pub.averagePct };
+      bundle.profile = { ...bundle.profile, examsAvgPct: pub.averagePct, examsRecorded: pub.count };
+    }
+    return bundle;
   },
 
   async forClass(ctx: ServiceContext, classId: string) {
@@ -81,7 +93,17 @@ export const AiSummaryService = {
   async student(ctx: ServiceContext, studentId: string) {
     assertCanConsume(ctx, "ai_insights");
     await assertMayAccessStudent(ctx, studentId);
-    return AiDataLayer.buildStudentAiSummary(toRepoContext(ctx), studentId);
+    const summary = await AiDataLayer.buildStudentAiSummary(toRepoContext(ctx), studentId);
+    // Same publish-gate as AnalyticsService.forStudent/AcademicProfileService.get
+    // — buildStudentAiSummary reads the profile straight from the repository
+    // (bypassing both of those fixes), and this summary feeds
+    // ParentLiveAcademic.tsx's narrative text directly ("Exams average: X%"),
+    // so an ungated value here is a real, visible leak of unpublished marks.
+    if (ctx.role === "student" || ctx.role === "parent") {
+      const pub = await getPublishedExamsAverage(toRepoContext(ctx), studentId);
+      return { ...summary, examsAvgPct: pub.averagePct };
+    }
+    return summary;
   },
 
   async class(ctx: ServiceContext, classId: string) {

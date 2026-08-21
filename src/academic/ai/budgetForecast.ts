@@ -48,6 +48,19 @@ function round1(n: number): number {
 }
 
 /**
+ * projected_soft_pct is a FRACTION (0-1+), not a raw unit count -- round1's
+ * 1-decimal-place rounding is coarse enough on a 0-1 scale to mean "nearest
+ * 10 percentage points", silently flattening any real usage under 5% to a
+ * flat 0. AiAnalytics.tsx's own display already does finer rounding
+ * (`Math.round(pct * 1000) / 10` -> 0.1% precision), so this needs to
+ * preserve at least that much precision going in. Reproduced live: 147
+ * projected units against a 6000 soft cap (2.45%) displayed as "0%".
+ */
+function roundPct(n: number): number {
+  return Math.round(n * 10000) / 10000;
+}
+
+/**
  * Forecast burn from observed decision/usage ledger points.
  * Empty history → insufficient_data with zeros (never invents demo burn).
  */
@@ -72,7 +85,7 @@ export function forecastBudget(input: BudgetForecastInput): BudgetForecast {
       soft_limit_monthly: softMonthly,
       hard_limit_daily: input.hard_limit_daily,
       soft_limit_daily: input.soft_limit_daily,
-      projected_soft_pct: softMonthly > 0 ? round1(monthUsed / softMonthly) : 0,
+      projected_soft_pct: softMonthly > 0 ? roundPct(monthUsed / softMonthly) : 0,
       days_to_soft_breach: null,
       days_to_hard_daily_breach: null,
       at_or_above_80_pct: softMonthly > 0 && monthUsed / softMonthly >= 0.8,
@@ -112,7 +125,7 @@ export function forecastBudget(input: BudgetForecastInput): BudgetForecast {
     soft_limit_monthly: softMonthly,
     hard_limit_daily: input.hard_limit_daily,
     soft_limit_daily: input.soft_limit_daily,
-    projected_soft_pct: round1(softPct),
+    projected_soft_pct: roundPct(softPct),
     days_to_soft_breach,
     days_to_hard_daily_breach,
     at_or_above_80_pct: softPct >= 0.8,

@@ -1,6 +1,13 @@
 // Battle performance AI report — OpenRouter (Qwen).
+// Student-only: this generates a battle report in the student's own voice
+// for the student who played. There is deliberately no teacher-facing
+// variant — teachers see the same raw battle stats without an AI layer
+// (product decision). Ownership is verified server-side: the caller must
+// be the actual participant, not just any authenticated user passing an
+// arbitrary participant_id (the previous version had no such check).
 import { corsHeaders, generateStructured, jsonResponse } from "../_shared/structuredCompletion.ts";
 import { requireUserJwt } from "../_shared/requireAuth.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -13,9 +20,25 @@ Deno.serve(async (req) => {
     const {
       participant_id = "",
       display_name = "Student",
-      for_teacher = false,
       report = {},
     } = body ?? {};
+
+    if (!participant_id) {
+      return jsonResponse({ error: "participant_id is required" }, 400);
+    }
+
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const { data: participant } = await admin
+      .from("battle_participants")
+      .select("id, user_id")
+      .eq("id", participant_id)
+      .maybeSingle();
+    if (!participant || participant.user_id !== __auth.value.user.id) {
+      return jsonResponse({ error: "Not your battle participation" }, 403);
+    }
 
     const battle = report.battle ?? {};
     const summary = report.summary ?? {};
@@ -23,13 +46,9 @@ Deno.serve(async (req) => {
     const speed = report.speed ?? {};
     const comparison = report.comparison ?? {};
 
-    const audience = for_teacher
-      ? "Write for a teacher reviewing this student's battle performance. Be diagnostic and actionable for classroom intervention."
-      : "Write for the student who just played. Be encouraging, specific, and motivating — never harsh.";
-
     const system =
       "You are an expert Indian school academic coach (CBSE/NCERT). " +
-      audience + " " +
+      "Write for the student who just played. Be encouraging, specific, and motivating — never harsh. " +
       "Base insights ONLY on the stats provided — do not invent scores.";
 
     const weakList = (topics.weak ?? [])

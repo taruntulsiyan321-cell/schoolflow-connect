@@ -296,6 +296,8 @@ export function AttendanceOverview() {
                   size="sm"
                   variant="outline"
                   className="flex-1 text-xs"
+                  disabled={c.locked}
+                  title={c.locked ? "Unlock this class/date first to edit attendance" : undefined}
                   onClick={() =>
                     void openEdit({
                       classId: c.classId,
@@ -564,6 +566,7 @@ export function PermissionsMatrix() {
    ============================================================ */
 export function AppSettingsPage() {
   const { user } = useAuth();
+  const { ctx, ready } = useAcademicContext();
   const [settings, setSettings] = useState({
     schoolName: "Vidyalaya Public School", locale: "en-IN", currency: "INR",
     enableNotices: true, enableFees: true, enableLeaves: true,
@@ -572,8 +575,9 @@ export function AppSettingsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!ready || !ctx.schoolId) return;
     (async () => {
-      const { data, error } = await supabase.from("app_settings").select("*").eq("id", true).maybeSingle();
+      const { data, error } = await supabase.from("app_settings").select("*").eq("school_id", ctx.schoolId).maybeSingle();
       if (error) {
         // Fall back to any locally cached settings if the table is unavailable.
         const s = localStorage.getItem("app-settings");
@@ -591,21 +595,25 @@ export function AppSettingsPage() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [ready, ctx.schoolId]);
 
   const save = async () => {
+    if (!ctx.schoolId) return;
     setSaving(true);
-    const { error } = await supabase.from("app_settings").upsert({
-      id: true,
-      school_name: settings.schoolName,
-      locale: settings.locale,
-      currency: settings.currency,
-      enable_notices: settings.enableNotices,
-      enable_fees: settings.enableFees,
-      enable_leaves: settings.enableLeaves,
-      updated_at: new Date().toISOString(),
-      updated_by: user?.id ?? null,
-    });
+    const { error } = await supabase.from("app_settings").upsert(
+      {
+        school_id: ctx.schoolId,
+        school_name: settings.schoolName,
+        locale: settings.locale,
+        currency: settings.currency,
+        enable_notices: settings.enableNotices,
+        enable_fees: settings.enableFees,
+        enable_leaves: settings.enableLeaves,
+        updated_at: new Date().toISOString(),
+        updated_by: user?.id ?? null,
+      },
+      { onConflict: "school_id" },
+    );
     setSaving(false);
     if (error) return toast.error(error.message);
     localStorage.setItem("app-settings", JSON.stringify(settings));
@@ -665,7 +673,7 @@ export function SystemPage() {
           <Database className="w-6 h-6" />
           <div>
             <div className="font-semibold">Database connected</div>
-            <div className="text-xs opacity-80">Lovable Cloud · live</div>
+            <div className="text-xs opacity-80">Supabase · live</div>
           </div>
         </div>
       </Card>
@@ -952,10 +960,18 @@ export function FeesOverview() {
    PRINCIPAL: ACTIVITY LOG
    ============================================================ */
 export function ActivityLogPage() {
+  const { ctx, ready } = useAcademicContext();
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => {
-    supabase.from("audit_logs").select("*").order("created_at", { ascending: false }).limit(100).then(({ data }) => setRows(data ?? []));
-  }, []);
+    if (!ready || !ctx.schoolId) return;
+    supabase
+      .from("audit_logs")
+      .select("*")
+      .eq("school_id", ctx.schoolId)
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .then(({ data }) => setRows(data ?? []));
+  }, [ready, ctx.schoolId]);
   return (
     <>
       <PageHeader title="Activity Logs" subtitle="Recent administrative actions" />

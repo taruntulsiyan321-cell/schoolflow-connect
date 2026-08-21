@@ -6,6 +6,7 @@ import { EquippedBadge } from "@/components/battleground/EquippedBadge";
 import { BADGES, TIER_CLASS, RARITY_LABEL, type BadgeTier } from "@/lib/badges";
 import { displaySubject, displayTopic } from "@/lib/academicPresentation";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
+import { isBattleWindowOpen } from "@/lib/battlegroundHelpers";
 
 /** Level ring — prefer ProgressionService fields; else SQL-mirrored curve (never invent xp%N). */
 export const XPRing = ({
@@ -134,7 +135,7 @@ export const BadgeCard = ({
 };
 
 export const BattleCard = ({ battle, onJoin }: { battle: any; onJoin: () => void }) => {
-  const live = battle.status === "live" || (battle.status === "scheduled" && new Date(battle.starts_at) <= new Date());
+  const live = isBattleWindowOpen(battle);
   const modeLabel =
     battle.mode === "open" ? "Open" : battle.mode === "lobby" ? "Class" : battle.mode === "duel" ? "Duel" : null;
   return (

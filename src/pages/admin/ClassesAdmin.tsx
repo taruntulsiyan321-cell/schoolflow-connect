@@ -12,12 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Pencil, ChevronRight, Layers, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
+import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 
 const CLASS_NAMES = ["PG", "Nursery", "KG", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 const SECTIONS = ["A", "B", "C", "D"];
 
 export default function ClassesAdmin() {
   const nav = useNavigate();
+  const { ctx } = useAcademicContext();
   const [rows, setRows] = useState<any[]>([]);
   const [tab, setTab] = useState<"class" | "batch">("class");
 
@@ -40,7 +42,8 @@ export default function ClassesAdmin() {
   useEffect(() => { load(); }, []);
 
   const addClass = async () => {
-    const { error } = await supabase.from("classes").insert({ name: className, section, kind: "class" });
+    if (!ctx?.schoolId) return toast.error("No school context — try reloading the page");
+    const { error } = await supabase.from("classes").insert({ name: className, section, kind: "class", school_id: ctx.schoolId });
     if (error) return toast.error(error.message);
     toast.success("Class added"); setClassOpen(false); load();
   };
@@ -57,6 +60,7 @@ export default function ClassesAdmin() {
   };
   const saveBatch = async () => {
     if (!batchName.trim()) return toast.error("Batch name required");
+    if (!batchEditId && !ctx?.schoolId) return toast.error("No school context — try reloading the page");
     const payload = {
       kind: "batch",
       display_name: batchName.trim(),
@@ -65,6 +69,7 @@ export default function ClassesAdmin() {
       // satisfy legacy non-empty defaults
       name: batchEditId ? undefined : null,
       section: batchEditId ? undefined : null,
+      school_id: batchEditId ? undefined : ctx!.schoolId,
     };
     const { error } = batchEditId
       ? await supabase.from("classes").update({

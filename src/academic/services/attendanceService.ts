@@ -18,6 +18,7 @@ import {
 import {
   listAssignedClassesForTeacher,
   assertTeacherOwnsClass,
+  isClassTeacherOfClass,
   listStudentsForClass,
   type AssignedClass,
   type ClassStudentRow,
@@ -72,7 +73,14 @@ async function assertTeacherMayMarkClass(ctx: ServiceContext, classId: string): 
   if (ctx.role !== "teacher") {
     throw new ForbiddenError("Only teachers may mark attendance");
   }
-  await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, classId);
+  // Marking (write) is class-teacher-only, matching TeacherAttendancePage's
+  // own canMark = !!selected?.isClassTeacher — a subject-only teacher can
+  // view the roster (assertTeacherOwnsClass, used by the read paths below)
+  // but must not be able to write attendance for a class they don't own.
+  const ok = await isClassTeacherOfClass(toRepoContext(ctx), ctx.userId, classId);
+  if (!ok) {
+    throw new ForbiddenError("Only the class teacher can mark attendance for this class");
+  }
 }
 
 /**
@@ -269,7 +277,8 @@ export const AttendanceService = {
     const { data: locks } = await client
       .from("attendance_locks")
       .select("class_id")
-      .eq("date", date);
+      .eq("date", date)
+      .eq("school_id", schoolId);
 
     const lockedSet = new Set((locks ?? []).map((l: { class_id: string }) => l.class_id));
 

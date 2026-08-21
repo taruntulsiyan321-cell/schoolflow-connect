@@ -1,5 +1,5 @@
 /**
- * Apply question-bank + demo seed to remote Supabase (no Lovable required).
+ * Apply question-bank + demo seed to remote Supabase.
  *
  * Option A — Supabase Personal Access Token (recommended):
  *   1. https://supabase.com/dashboard/account/tokens → New token
@@ -16,7 +16,6 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "kdmjipeksjdyojjdokbi";
 
 function loadEnvFile(name) {
   const path = join(ROOT, name);
@@ -27,8 +26,10 @@ function loadEnvFile(name) {
   }
 }
 
-loadEnvFile(".env");
 loadEnvFile(".env.local");
+loadEnvFile(".env");
+
+const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "psqxykzqfvxgsvkmgurn";
 
 const seedPath = join(ROOT, "supabase", "SEED_DEMO_DATA.sql");
 const sql = readFileSync(seedPath, "utf8");

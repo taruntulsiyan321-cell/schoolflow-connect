@@ -808,7 +808,12 @@ function pickConceptFromEie(
   };
 }
 
-async function fetchParentSummary(admin: SupabaseClient, schoolId: string, studentId: string) {
+async function fetchParentSummary(
+  admin: SupabaseClient,
+  schoolId: string,
+  studentId: string,
+  actorRole?: string,
+) {
   const { data: profile } = await admin
     .from("student_academic_profiles")
     .select(
@@ -834,6 +839,20 @@ async function fetchParentSummary(admin: SupabaseClient, schoolId: string, stude
     return Number.isFinite(n) ? n : null;
   };
 
+  // student_academic_profiles.exams_avg_pct is computed across ALL marks,
+  // published or not (intentional: staff pre-publish visibility). A student
+  // or parent must only ever see the published-results average -- same gate
+  // fetchMarksSummary already applies to the dedicated marks-summary
+  // capability. Recompute via that same function (not a second
+  // reimplementation) whenever the caller isn't staff, so this bundle can
+  // never hand the model a number that contradicts the marks bundle sitting
+  // next to it in the same facts object.
+  let examsAvgPct = pctOrNull(profile?.exams_avg_pct);
+  if (actorRole === "student" || actorRole === "parent") {
+    const marksSummary = await fetchMarksSummary(admin, schoolId, studentId);
+    examsAvgPct = marksSummary.average_pct;
+  }
+
   return {
     projection: "ParentChildSummary",
     version: 1,
@@ -842,7 +861,7 @@ async function fetchParentSummary(admin: SupabaseClient, schoolId: string, stude
     attendance_pct: pctOrNull(profile?.attendance_pct),
     homework_completion_pct: pctOrNull(profile?.homework_completion_pct),
     tests_avg_pct: pctOrNull(profile?.tests_avg_pct),
-    exams_avg_pct: pctOrNull(profile?.exams_avg_pct),
+    exams_avg_pct: examsAvgPct,
     weak_topics: weak,
     strong_topics: strong,
     source_as_of: profile?.refreshed_at ? String(profile.refreshed_at) : null,
@@ -1609,6 +1628,14 @@ export async function routeAiRequest(
     let provenance: Record<string, unknown> | undefined;
 
     const cacheKeyBase = `${cap.feature_id}:${studentId ?? "school"}`;
+    // fetchParentSummary's exams_avg_pct depends on the ACTOR's role (staff see
+    // pre-publish figures, student/parent don't) -- cacheKeyBase alone has no
+    // actor component, so without this suffix a capability reachable by both
+    // tiers for the same studentId (e.g. student.nova.chat) could serve a
+    // staff-scoped cache entry to a student/parent request within the TTL
+    // window, silently defeating the role filter in fetchParentSummary.
+    const examsVisibilityTier =
+      req.actor.role === "student" || req.actor.role === "parent" ? "self" : "staff";
 
     const withCache = async (dataVersion: string, loader: () => Promise<unknown>) => {
       const l1Key = `l1:${req.actor.schoolId}:${cacheKeyBase}:${dataVersion}`;
@@ -1735,8 +1762,9 @@ export async function routeAiRequest(
             message: "Student target required", route_class: cap.route_class,
           });
         }
-        data = await withCache(await probeParentSummary(admin, req.actor.schoolId, studentId), () =>
-          fetchParentSummary(admin, req.actor.schoolId, studentId),
+        data = await withCache(
+          `${await probeParentSummary(admin, req.actor.schoolId, studentId)}:${examsVisibilityTier}`,
+          () => fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
         );
         decision = "answered_deterministic";
         break;
@@ -1749,8 +1777,9 @@ export async function routeAiRequest(
           });
         }
         const [parentSummary, eie] = await Promise.all([
-          withCache(await probeParentSummary(admin, req.actor.schoolId, studentId), () =>
-            fetchParentSummary(admin, req.actor.schoolId, studentId),
+          withCache(
+            `${await probeParentSummary(admin, req.actor.schoolId, studentId)}:${examsVisibilityTier}`,
+            () => fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
           ) as Promise<Awaited<ReturnType<typeof fetchParentSummary>>>,
           withCache(await probeEie(admin, req.actor.schoolId, studentId), () =>
             fetchEie(admin, req.actor.schoolId, studentId),
@@ -3357,7 +3386,7 @@ export async function routeAiRequest(
           probeRecoveryQueue(admin, req.actor.schoolId, studentId),
           probeUpcomingEvents(admin, req.actor.schoolId, studentId),
         ]);
-        const factsBundle = (await withCache(factsVersionSeed, async () => {
+        const factsBundle = (await withCache(`${factsVersionSeed}:${examsVisibilityTier}`, async () => {
           const [
             attendance,
             homework,
@@ -3375,7 +3404,7 @@ export async function routeAiRequest(
             fetchHomeworkDue(admin, req.actor.schoolId, studentId),
             fetchMarksSummary(admin, req.actor.schoolId, studentId),
             fetchEie(admin, req.actor.schoolId, studentId),
-            fetchParentSummary(admin, req.actor.schoolId, studentId),
+            fetchParentSummary(admin, req.actor.schoolId, studentId, req.actor.role),
             fetchProgression(admin, req.actor.schoolId, studentId),
             fetchStudentProfileContext(admin, req.actor.schoolId, studentId),
             fetchPracticeHistory(admin, req.actor.schoolId, studentId),

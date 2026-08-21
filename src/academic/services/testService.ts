@@ -142,10 +142,17 @@ async function assertTeacherCanWriteTest(ctx: ServiceContext, classId: string) {
   await assertTeacherOwnsClass(toRepoContext(ctx), ctx.userId, classId);
 }
 
-function isPublishedFlag(row: Record<string, unknown>): boolean {
-  if (row.status === "published") return true;
-  if (row.is_published === true) return true;
-  return false;
+/**
+ * Sole source of truth for "may a student/parent see this test." Every
+ * write path (create/update/publish/archive/schedule) sets is_published in
+ * lockstep with status, so trusting status as an alternative here only ever
+ * adds risk, never legitimate coverage — a hand-edited or seeded row where
+ * status="published" but is_published=false must stay hidden. Confirmed via
+ * a live incident: a seeded draft DPP with exactly that mismatch was
+ * reachable and attemptable by a real student through this exact OR check.
+ */
+export function isPublishedFlag(row: Record<string, unknown>): boolean {
+  return row.is_published === true;
 }
 
 /**
@@ -254,6 +261,7 @@ export const TestService = {
       title: input.title.trim(),
       subject: input.subject ?? "",
       created_by: ctx.userId,
+      school_id: ctx.schoolId,
       difficulty: input.difficulty ?? "medium",
       duration_sec: input.duration_sec ?? 1800,
       instructions: `${input.instructions ?? ""}${paperNote}`.trim() || null,
@@ -348,6 +356,7 @@ export const TestService = {
       correct: toCorrect(q.kind, q.correct, q.options),
       marks: q.marks ?? 1,
       explanation: q.explanation ?? null,
+      school_id: ctx.schoolId,
     }));
 
     const { data, error } = await getClient(repo)

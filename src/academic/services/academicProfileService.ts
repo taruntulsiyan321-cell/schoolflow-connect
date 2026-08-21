@@ -12,10 +12,28 @@ import {
   listSchoolAcademicProfileExtremes,
   ensureAcademicProfile,
 } from "../repository/academicProfileRepository";
+import { getPublishedExamsAverage } from "../repository/marksRepository";
 import type { StudentAcademicProfile } from "../types";
 import type { PageParams } from "../repository/base";
 import { isSchoolOperator } from "./context";
 import { assertMayAccessStudent } from "./parentAccess";
+
+/**
+ * exams_avg_pct/exams_recorded on the profile are computed across ALL marks
+ * (teacher/principal early-intervention signal, pre-publish included). A
+ * student or parent viewing their own/child's profile must only ever see the
+ * published-results average — same gate MarksService.listForStudent already
+ * applies to the marks list itself.
+ */
+async function withPublishedExamsAverage(
+  ctx: ServiceContext,
+  studentId: string,
+  profile: StudentAcademicProfile | null,
+): Promise<StudentAcademicProfile | null> {
+  if (!profile || !(ctx.role === "student" || ctx.role === "parent")) return profile;
+  const pub = await getPublishedExamsAverage(toRepoContext(ctx), studentId);
+  return { ...profile, examsAvgPct: pub.averagePct, examsRecorded: pub.count };
+}
 
 /**
  * AcademicProfileService — read-only for panels.
@@ -29,13 +47,15 @@ export const AcademicProfileService = {
   ): Promise<StudentAcademicProfile | null> {
     assertCanConsume(ctx, "student_academic_profile");
     await assertMayAccessStudent(ctx, studentId);
-    return getStudentAcademicProfile(toRepoContext(ctx), studentId);
+    const profile = await getStudentAcademicProfile(toRepoContext(ctx), studentId);
+    return withPublishedExamsAverage(ctx, studentId, profile);
   },
 
   async require(ctx: ServiceContext, studentId: string): Promise<StudentAcademicProfile> {
     assertCanConsume(ctx, "student_academic_profile");
     await assertMayAccessStudent(ctx, studentId);
-    return requireStudentAcademicProfile(toRepoContext(ctx), studentId);
+    const profile = await requireStudentAcademicProfile(toRepoContext(ctx), studentId);
+    return (await withPublishedExamsAverage(ctx, studentId, profile)) as StudentAcademicProfile;
   },
 
   async listForClass(

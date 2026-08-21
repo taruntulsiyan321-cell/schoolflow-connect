@@ -8,7 +8,7 @@
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- Lovable library schema: books may lack shelf_location; checkouts use library_books_id
+-- Library schema: books may lack shelf_location; checkouts use library_books_id
 ALTER TABLE public.library_books ADD COLUMN IF NOT EXISTS shelf_location TEXT DEFAULT '';
 
 -- ---------------------------------------------------------------------------
@@ -279,7 +279,7 @@ BEGIN
     (hw1, st2, 'Submitted — pending review', 'submitted', now() - interval '2 hours')
   ON CONFLICT (homework_id, student_id) DO NOTHING;
 
-  -- ===================== LIBRARY (Lovable schema: optional shelf_location; library_books_id) =====================
+  -- ===================== LIBRARY (optional shelf_location; library_books_id) =====================
   INSERT INTO public.library_books (id, title, author, isbn, category, total_copies, available_copies) VALUES
     (lib_book1, 'Mathematics — Class X (NCERT)', 'NCERT', '978-81-7450-634-4', 'Textbook', 5, 4),
     ('d7000001-0002-4000-8000-000000000002', 'Science — Class X (NCERT)', 'NCERT', '978-81-7450-636-8', 'Textbook', 5, 5),

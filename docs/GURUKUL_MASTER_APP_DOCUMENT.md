@@ -435,7 +435,7 @@ Teacher path constants: `src/gurukul-teacher/nav.ts`.
 | Teacher scheduled publish / cron | Deferred per workspace plan |
 | Legacy standalone edge agents (now OpenRouter-backed, not Gateway-governed) | Still present; consolidation into `ai-gateway` incomplete |
 | Landing brand “Vidyalaya” | Inconsistent with Wisdom Campus / Gurukul |
-| README | Still Lovable stub — this document + AI SSOT are the real brief |
+| README | Still a stub — this document + AI SSOT are the real brief |
 | Parent/Principal identity chrome | Some hardcoded display names remain |
 
 ---

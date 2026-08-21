@@ -13,7 +13,6 @@ import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Unauthorized from "./pages/Unauthorized";
 import NotFound from "./pages/NotFound";
-import OAuthConsent from "./pages/OAuthConsent";
 
 // Route-level code splitting keeps the initial bundle lean.
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
@@ -45,7 +44,6 @@ const App = () => (
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/login" element={<Navigate to="/auth" replace />} />
                 <Route path="/signup" element={<Navigate to="/auth" replace />} />
-                <Route path="/.lovable/oauth/consent" element={<OAuthConsent />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/unauthorized" element={<ProtectedRoute><Unauthorized /></ProtectedRoute>} />
                 <Route path="/admin/*" element={<ProtectedRoute allow={["admin", "super_admin"]}><AdminDashboard /></ProtectedRoute>} />

@@ -10,7 +10,6 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "kdmjipeksjdyojjdokbi";
 
 function loadEnvFile(name) {
   const path = join(ROOT, name);
@@ -25,8 +24,10 @@ function loadEnvFile(name) {
   }
 }
 
-loadEnvFile(".env");
 loadEnvFile(".env.local");
+loadEnvFile(".env");
+
+const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "psqxykzqfvxgsvkmgurn";
 
 async function main() {
   const { buildClass12MathCatalog } = await import("./math12Catalog.mjs");

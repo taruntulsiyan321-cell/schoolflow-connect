@@ -99,7 +99,6 @@ export const LeaveService = {
 
   /**
    * School-scoped leave inbox for admin/principal.
-   * leave_requests has no school_id — filter via students / teachers / classes of this tenant.
    */
   async listForSchool(
     ctx: ServiceContext,
@@ -113,17 +112,15 @@ export const LeaveService = {
     const limit = opts?.limit ?? 300;
     const status = opts?.status ?? "all";
 
-    const [studentsRes, teachersRes, classesRes] = await Promise.all([
+    const [studentsRes, teachersRes] = await Promise.all([
       client.from("students").select("id, full_name").eq("school_id", ctx.schoolId),
       client
         .from("teachers")
         .select("id, full_name, user_id, department")
         .eq("school_id", ctx.schoolId),
-      client.from("classes").select("id").eq("school_id", ctx.schoolId),
     ]);
-    throwIfError(studentsRes.error, "Failed to list students for leave filter");
-    throwIfError(teachersRes.error, "Failed to list teachers for leave filter");
-    throwIfError(classesRes.error, "Failed to list classes for leave filter");
+    throwIfError(studentsRes.error, "Failed to list students for leave display");
+    throwIfError(teachersRes.error, "Failed to list teachers for leave display");
 
     const students = (studentsRes.data ?? []) as { id: string; full_name: string }[];
     const teachers = (teachersRes.data ?? []) as {
@@ -132,37 +129,24 @@ export const LeaveService = {
       user_id: string | null;
       department: string | null;
     }[];
-    const classIds = new Set(((classesRes.data ?? []) as { id: string }[]).map((c) => c.id));
     const studentById = new Map(students.map((s) => [s.id, s]));
     const teacherByUserId = new Map(
       teachers.filter((t) => t.user_id).map((t) => [t.user_id as string, t]),
     );
-    const studentIds = [...studentById.keys()];
-    const teacherUserIds = [...teacherByUserId.keys()];
-
-    if (studentIds.length === 0 && teacherUserIds.length === 0 && classIds.size === 0) {
-      return [];
-    }
 
     let query = client
       .from("leave_requests")
       .select("*")
+      .eq("school_id", ctx.schoolId)
       .order("created_at", { ascending: false })
-      .limit(Math.min(800, Math.max(limit * 3, 200)));
+      .limit(limit);
     if (status !== "all") {
       query = query.eq("status", status);
     }
     const { data, error } = await query;
     throwIfError(error, "Failed to list leave requests");
 
-    const scoped = ((data ?? []) as DbLeave[]).filter((row) => {
-      if (row.student_id && studentById.has(row.student_id)) return true;
-      if (row.class_id && classIds.has(row.class_id)) return true;
-      if (row.applicant_kind === "teacher" && teacherByUserId.has(row.applicant_user_id)) {
-        return true;
-      }
-      return false;
-    });
+    const scoped = (data ?? []) as DbLeave[];
 
     return scoped.slice(0, limit).map((row) => {
       const base = mapRow(row);
@@ -226,6 +210,7 @@ export const LeaveService = {
       .from("leave_requests")
       .insert({
         applicant_user_id: ctx.userId,
+        school_id: ctx.schoolId,
         applicant_kind: kind,
         leave_type: leaveType,
         from_date: input.fromDate,

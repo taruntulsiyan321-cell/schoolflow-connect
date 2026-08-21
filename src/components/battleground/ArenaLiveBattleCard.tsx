@@ -2,6 +2,7 @@ import { Award, Clock, Target, UserPlus, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Countdown } from "@/components/battleground/bg-bits";
 import { displaySubject, displayTopic } from "@/lib/academicPresentation";
+import { isBattleWindowOpen } from "@/lib/battlegroundHelpers";
 
 type Participant = { display_name: string; user_id?: string };
 
@@ -34,9 +35,7 @@ export function ArenaLiveBattleCard({
   participants: Participant[];
   onJoin: () => void;
 }) {
-  const live =
-    battle.status === "live" ||
-    (battle.status === "scheduled" && new Date(battle.starts_at) <= new Date());
+  const live = isBattleWindowOpen(battle);
   const p1 = participants[0];
   const p2 = participants[1];
   const openSlot = participants.length < 2;

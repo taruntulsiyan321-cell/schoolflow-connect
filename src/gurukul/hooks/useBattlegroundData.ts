@@ -15,6 +15,7 @@ import {
   accuracyFromXp,
   battleRatingFromXp,
   formatBattleStatus,
+  isBattleWindowOpen,
   motivationCard,
 } from "@/lib/battlegroundHelpers";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
@@ -854,8 +855,16 @@ export function useBattlegroundData(enabled = true) {
           continue;
         }
         const isFeatured = (b.source || "").startsWith("featured_");
-        const status: DesignBattleCard["status"] =
-          b.status === "scheduled" && new Date(b.starts_at).getTime() > Date.now() ? "upcoming" : "live";
+        const isUpcoming = b.status === "scheduled" && new Date(b.starts_at).getTime() > Date.now();
+        // A scheduled battle whose expected live window (question_count *
+        // per_question_sec, plus grace) has also passed was never actually
+        // started by anyone -- nothing server-side ever transitions it out
+        // of 'scheduled' (rpc_rotate_featured_battles only expires the 4
+        // auto-generated featured sources). Don't offer it as joinable.
+        if (!isUpcoming && !isBattleWindowOpen(b)) {
+          continue;
+        }
+        const status: DesignBattleCard["status"] = isUpcoming ? "upcoming" : "live";
         pushCard({
           id: b.id,
           type: modeToType(b.mode),

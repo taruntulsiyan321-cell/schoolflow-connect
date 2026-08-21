@@ -215,9 +215,39 @@ Output STRICT JSON ONLY — an array with one object per input question, in the 
 
 No text before or after the JSON array.`;
 
+const VERIFY_SYSTEM_SANSKRIT = `You are an adversarial Sanskrit-grammar quality reviewer for an RBSE Sanskrit MCQ question bank (Devanagari script, व्याकरण/grammar topics only). You did NOT necessarily write these questions — review them with EXTREME linguistic and grammatical rigor. Sanskrit grammar is rule-based and precisely verifiable (Paninian) — unlike natural-usage judgment calls in other languages, a wrong sandhi/samasa/vibhakti/dhatu-roop form is objectively, unambiguously wrong. Treat every question as guilty until you have independently derived the correct answer yourself.
+
+For EACH question given (indexed 0, 1, 2, ...), independently verify, rule by rule:
+1. SANDHI (सन्धिः) — if the question involves sandhi, independently apply the actual sandhi rule (स्वरसन्धिः/व्यञ्जनसन्धिः/विसर्गसन्धिः) yourself from the given inputs and check the marked answer matches your derivation exactly. Do not trust the given explanation's rule-application — redo it.
+2. SAMASA (समासः) — if the question involves compound formation/identification, independently determine the correct समास-भेद (द्वन्द्व/तत्पुरुष/कर्मधारय/द्विगु/बहुव्रीहि/अव्ययीभाव) and the correct विग्रह (compound-splitting), and verify against the marked answer.
+3. SHABDA-ROOPA (शब्दरूपाणि) — if the question asks for a noun's declined form (case + number), independently determine the correct विभक्ति+वचन form for that शब्द/लिङ्ग and verify.
+4. DHATU-ROOPA (धातुरूपाणि) — if the question asks for a verb's conjugated form, independently determine the correct लकार (tense/mood) + पुरुष (person) + वचन (number) form for that धातु and verify. Confirm the धातु itself is a real, correctly-spelled Sanskrit root.
+5. KARAKA-VIBHAKTI (कारक-विभक्तिः) — if the question involves case usage per karaka relationship (कर्ता/कर्म/करण/सम्प्रदान/अपादान/सम्बन्ध/अधिकरण), independently verify the correct विभक्ति applies to the correct कारक.
+6. VACHYA (वाच्यम्) — if the question involves active/passive/impersonal voice conversion, independently re-derive the converted form and verify.
+7. LANGUAGE INTEGRITY — no corrupted characters, no missing characters, no mojibake (patterns like "à¤"/"à¥"), no broken conjuncts, no missing/misplaced मात्रा, no missing/misapplied अनुस्वार/चन्द्रबिन्दु/विसर्ग/हलन्त.
+8. SPELLING — every Sanskrit word correctly spelled per standard orthography; if unsure whether a word is a genuine Sanskrit form, treat that as a red flag, not a pass.
+9. EXACTLY ONE option must be the unambiguously, grammatically correct answer — the other three must be genuine grammatical errors (not just "less elegant" phrasing).
+10. The explanation must correctly state the grammatical rule being applied, not just restate the question.
+11. Do not invent or guess a grammatical rule or word form you are not fully confident about — if you cannot independently derive/confirm the correct form, that is grounds to REJECT the question, not to approve it.
+
+If ANY doubt exists about grammatical correctness — even if the question "looks right" — treat it as REJECT. Never approve based on probability ("this form is probably right"). When in doubt, drop it. This subject gets extra scrutiny — false negatives (dropping a genuinely correct question) are far cheaper than false positives (approving a wrong one).
+
+Output STRICT JSON ONLY — an array with one object per input question, in the same order, same length as input:
+[{"i": 0, "verdict": "ok"}, {"i": 1, "verdict": "wrong_answer", "correct_index": 2, "reason": "short reason citing the specific grammar rule"}, {"i": 2, "verdict": "drop", "reason": "short reason, e.g. non-existent dhatu form"}, ...]
+
+No text before or after the JSON array.`;
+
+function subjectDevanagariKind(subjectKey) {
+  if (subjectKey === "hindi" || subjectKey.startsWith("hindi_")) return "hindi";
+  if (subjectKey === "sanskrit" || subjectKey.startsWith("sanskrit_")) return "sanskrit";
+  return null;
+}
+
 async function verifyChapterBatch(subjectKey, subjectName, classLevel, chapter, items) {
   const numbered = items.map((it, i) => ({ i, q: it.q, o: it.o, c: it.c, e: it.e }));
-  const system = subjectKey === "hindi" ? VERIFY_SYSTEM_HINDI : VERIFY_SYSTEM;
+  const devanagariKind = subjectDevanagariKind(subjectKey);
+  const system =
+    devanagariKind === "hindi" ? VERIFY_SYSTEM_HINDI : devanagariKind === "sanskrit" ? VERIFY_SYSTEM_SANSKRIT : VERIFY_SYSTEM;
   const user = `Subject: ${subjectName}\nClass: ${classLevel}\nChapter: "${chapter}"\n\nVerify these ${items.length} questions:\n${JSON.stringify(numbered)}\n\nReturn the verdict JSON array now.`;
   const raw = await callModel(system, user);
   const parsed = extractJson(raw);
@@ -256,6 +286,7 @@ async function main() {
     const kept = [];
     let dropped = 0;
     let corrected = 0;
+    let anyChunkFailed = false;
 
     for (let start = 0; start < items.length; start += CHUNK) {
       try {
@@ -300,6 +331,7 @@ async function main() {
       } catch (e) {
         console.log(`FAILED (keeping chunk as-is, unverified): ${e.message}`);
         kept.push(...chunk);
+        anyChunkFailed = true;
       }
       await new Promise((r) => setTimeout(r, 400));
     }
@@ -307,12 +339,16 @@ async function main() {
     totalDropped += dropped;
     totalCorrected += corrected;
 
+    // Only mark the chapter verified if EVERY chunk actually got a verdict —
+    // a chunk that fell into the catch above (429, malformed JSON, etc.) was
+    // never reviewed, so the whole file must stay re-checkable on the next
+    // run instead of being silently skipped as "already verified".
     fs.writeFileSync(
       filePath,
-      JSON.stringify({ ...data, items: kept, verified: true }, null, 2),
+      JSON.stringify({ ...data, items: kept, verified: !anyChunkFailed }, null, 2),
       "utf8",
     );
-    console.log(`  -> ${data.chapter}: ${items.length} -> ${kept.length} (dropped ${dropped}, corrected ${corrected})`);
+    console.log(`  -> ${data.chapter}: ${items.length} -> ${kept.length} (dropped ${dropped}, corrected ${corrected})${anyChunkFailed ? " [INCOMPLETE — will re-verify next run]" : ""}`);
   }
 
   if (budgetStopped) {

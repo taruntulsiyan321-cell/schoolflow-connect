@@ -242,6 +242,7 @@ export const BattleExperienceService = {
         selected_index: args.selectedIndex,
         is_correct: args.isCorrect,
         time_ms: args.timeMs,
+        school_id: ctx.schoolId,
       },
       { onConflict: "participant_id,question_id", ignoreDuplicates: false },
     );
@@ -275,6 +276,7 @@ export const BattleExperienceService = {
       battle_id: battleId,
       invited_user_id: uid,
       inviter_user_id: ctx.userId,
+      school_id: ctx.schoolId,
     }));
     const { error } = await getClient(toRepoContext(ctx))
       .from("battle_invites")
@@ -477,6 +479,7 @@ export const BattleExperienceService = {
         status: "live",
         class_id: opts.classId,
         creator_user_id: ctx.userId,
+        school_id: ctx.schoolId,
         per_question_sec: perQ,
         question_count: opts.questions.length,
         duration_sec: perQ * opts.questions.length,
@@ -498,6 +501,7 @@ export const BattleExperienceService = {
       options: q.options.map((o) => o.trim()),
       correct_index: q.correctIndex,
       points: q.points ?? 10,
+      school_id: ctx.schoolId,
     }));
     const { error: qErr } = await client.from("battle_questions").insert(rows as never);
     if (qErr) {
@@ -592,6 +596,7 @@ export const BattleExperienceService = {
         user_id: ctx.userId,
         student_id: stu?.id ?? null,
         display_name: displayName,
+        school_id: ctx.schoolId,
       })
       .select("id")
       .single();
@@ -646,6 +651,7 @@ export const BattleExperienceService = {
             user_id: ctx.userId,
             student_id: stu?.id ?? null,
             display_name: stu?.full_name || "Challenger",
+            school_id: ctx.schoolId,
           });
           throwIfError(joinErr, "Failed to join battle");
         }

@@ -1,0 +1,32 @@
+-- BUG: "marks classmate read" RLS policy lets ANY student/parent in a
+-- class see EVERY OTHER student's individual marks for that class's exam,
+-- once results are published -- it only checks that the caller is a
+-- classmate of the exam's class, never that marks.student_id is the
+-- caller's own (or their own linked child's) row:
+--   EXISTS (SELECT 1 FROM exams e JOIN students me ON (me.user_id=auth.uid() OR ...)
+--           WHERE e.id = marks.exam_id AND e.class_id = me.class_id
+--             AND e.results_published_at IS NOT NULL)
+-- Currently dormant only because zero exams in the live DB have
+-- results_published_at set -- the moment any teacher publishes ANY exam
+-- (a routine, everyday action), every student and parent in that class
+-- gains raw read access to every classmate's individual marks.
+--
+-- Checked whether this backs a genuine "class results board" feature before
+-- touching it: MarksService.listForExam is the only app code that could
+-- exercise it for a non-staff caller, and its only real caller in the
+-- entire codebase is gurukul-teacher/LiveClassPanels.tsx (teacher-only, has
+-- its own separate "marks teacher manage" grant, unaffected by this
+-- change). No student/parent-facing page calls listForExam anywhere --
+-- every other marks surface (Tests.tsx, MyMarksPage.tsx) already correctly
+-- scopes to MarksService.listForStudent (own marks only). So this was an
+-- unused, over-broad grant, not a working feature -- removing it changes
+-- no observable behavior for any real caller. listForExam itself is fixed
+-- in the same pass (src/academic/services/marksService.ts) to filter to the
+-- caller's own/linked student(s) even for any future caller, so the RLS
+-- policy removal here is defense-in-depth at the true authorization
+-- boundary, not the only fix.
+--
+-- "marks student read" / "marks parent read" (own marks, published-gated)
+-- are untouched and remain sufficient for every real student/parent need.
+
+DROP POLICY IF EXISTS "marks classmate read" ON public.marks;

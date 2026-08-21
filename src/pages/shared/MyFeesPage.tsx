@@ -7,6 +7,7 @@ import { Bell, AlertCircle, CheckCircle2, CreditCard, ReceiptText, Wallet } from
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
+import { resolveParentLinkedStudentIds } from "@/lib/parentLinkedStudents";
 import { cn } from "@/lib/utils";
 
 type FeeStudent = { full_name?: string | null } | null;
@@ -22,7 +23,7 @@ type FeeRow = {
 };
 
 export default function MyFeesPage({ asParent = false, embedded = false }: { asParent?: boolean; embedded?: boolean }) {
-  const { user } = useAuth();
+  const { user, schoolId } = useAuth();
   const [rows, setRows] = useState<FeeRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,19 +38,24 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
         return;
       }
       setLoading(true);
-      const col = asParent ? "parent_user_id" : "user_id";
-      const { data: ss, error: studentErr } = await supabase
-        .from("students")
-        .select("id, full_name")
-        .eq(col, user.id);
-      if (cancelled) return;
-      if (studentErr) {
-        setRows([]);
-        setLoading(false);
-        toast.error(studentErr.message || "Could not load student fee profile");
-        return;
+      let ids: string[];
+      if (asParent) {
+        ids = schoolId ? await resolveParentLinkedStudentIds(schoolId, user.id) : [];
+        if (cancelled) return;
+      } else {
+        const { data: ss, error: studentErr } = await supabase
+          .from("students")
+          .select("id")
+          .eq("user_id", user.id);
+        if (cancelled) return;
+        if (studentErr) {
+          setRows([]);
+          setLoading(false);
+          toast.error(studentErr.message || "Could not load student fee profile");
+          return;
+        }
+        ids = ss?.map((s) => s.id) ?? [];
       }
-      const ids = ss?.map((s) => s.id) ?? [];
       if (!ids.length) {
         setRows([]);
         setLoading(false);
@@ -72,7 +78,7 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
     return () => {
       cancelled = true;
     };
-  }, [user, asParent]);
+  }, [user, asParent, schoolId]);
 
   const overdue = rows.filter((r) => r.status !== "paid" && r.due_date && new Date(r.due_date) < new Date());
   const totalAmount = rows.reduce((sum, row) => sum + Number(row.amount || 0), 0);

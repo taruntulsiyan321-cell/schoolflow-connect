@@ -93,7 +93,6 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
       const { data: ai, error: fnErr } = await invokeEdgeFunction<BattleAiInsights>("ai-battle-report", {
         participant_id: participantId,
         display_name: data.display_name,
-        for_teacher: forTeacher,
         report: data.report,
       });
 
@@ -206,61 +205,64 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         />
       )}
 
-      {/* AI coach */}
-      <Card className="wa-card wa-coach-premium p-5 sm:p-6">
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <span className="wa-ai-orb small"><Sparkles className="w-4 h-4" /></span>
-          <div>
-            <p className="wa-label text-[var(--wa-primary)]">Personal coach</p>
-            <h2 className="wa-headline">Performance Coach</h2>
+      {/* AI coach — student-only. Teachers see the raw stats below without
+          an AI layer (product decision: no AI battle report for teachers). */}
+      {!forTeacher && (
+        <Card className="wa-card wa-coach-premium p-5 sm:p-6">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="wa-ai-orb small"><Sparkles className="w-4 h-4" /></span>
+            <div>
+              <p className="wa-label text-[var(--wa-primary)]">Personal coach</p>
+              <h2 className="wa-headline">Performance Coach</h2>
+            </div>
+            {coachSource && (
+              <span className="ml-auto rounded-full bg-[var(--wa-primary-fixed)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--wa-primary)]">
+                {coachSource === "rule" ? "Instant" : "Live"} insights
+              </span>
+            )}
           </div>
-          {coachSource && (
-            <span className="ml-auto rounded-full bg-[var(--wa-primary-fixed)] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--wa-primary)]">
-              {coachSource === "rule" ? "Instant" : "Live"} insights
-            </span>
+          {aiError && !aiLoading && (
+            <p className="text-xs text-[var(--wa-on-surface-variant)] mb-3 flex items-center gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" /> {aiError}
+            </p>
           )}
-        </div>
-        {aiError && !aiLoading && (
-          <p className="text-xs text-[var(--wa-on-surface-variant)] mb-3 flex items-center gap-1.5">
-            <AlertTriangle className="w-3.5 h-3.5 text-warning shrink-0" /> {aiError}
-          </p>
-        )}
-        {aiLoading && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-            <Loader2 className="w-4 h-4 animate-spin" /> Generating personalized insights…
-          </div>
-        )}
-        {ai && !aiLoading && (
-          <div className="space-y-3">
-            {ai.headline && <p className="font-['Sora'] font-semibold text-lg text-[var(--wa-primary)]">{ai.headline}</p>}
-            {ai.praise && (
-              <p className="text-sm text-emerald-800 flex items-start gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /> {ai.praise}
-              </p>
-            )}
-            {(ai.insights ?? []).map((line: string, i: number) => (
-              <p key={i} className="text-sm text-[var(--wa-on-surface-variant)] flex items-start gap-2">
-                <Brain className="w-4 h-4 shrink-0 mt-0.5 text-primary" /> {line}
-              </p>
-            ))}
-            {(ai.focus_areas ?? []).length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {ai.focus_areas.map((f: string) => (
-                  <span key={f} className="text-xs px-2 py-1 rounded-full bg-warning/15 text-warning font-medium">{f}</span>
-                ))}
-              </div>
-            )}
-            {ai.recommendation && (
-              <p className="text-sm font-medium border-t border-[var(--wa-outline-variant)] pt-3 mt-2">{ai.recommendation}</p>
-            )}
-          </div>
-        )}
-        {!ai && !aiLoading && (
-          <Button variant="outline" size="sm" onClick={fetchAI} className="gap-1.5">
-            <Sparkles className="w-3.5 h-3.5" /> Generate full report
-          </Button>
-        )}
-      </Card>
+          {aiLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+              <Loader2 className="w-4 h-4 animate-spin" /> Generating personalized insights…
+            </div>
+          )}
+          {ai && !aiLoading && (
+            <div className="space-y-3">
+              {ai.headline && <p className="font-['Sora'] font-semibold text-lg text-[var(--wa-primary)]">{ai.headline}</p>}
+              {ai.praise && (
+                <p className="text-sm text-emerald-800 flex items-start gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" /> {ai.praise}
+                </p>
+              )}
+              {(ai.insights ?? []).map((line: string, i: number) => (
+                <p key={i} className="text-sm text-[var(--wa-on-surface-variant)] flex items-start gap-2">
+                  <Brain className="w-4 h-4 shrink-0 mt-0.5 text-primary" /> {line}
+                </p>
+              ))}
+              {(ai.focus_areas ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {ai.focus_areas.map((f: string) => (
+                    <span key={f} className="text-xs px-2 py-1 rounded-full bg-warning/15 text-warning font-medium">{f}</span>
+                  ))}
+                </div>
+              )}
+              {ai.recommendation && (
+                <p className="text-sm font-medium border-t border-[var(--wa-outline-variant)] pt-3 mt-2">{ai.recommendation}</p>
+              )}
+            </div>
+          )}
+          {!ai && !aiLoading && (
+            <Button variant="outline" size="sm" onClick={fetchAI} className="gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" /> Generate full report
+            </Button>
+          )}
+        </Card>
+      )}
 
       {/* Analytics tiles */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

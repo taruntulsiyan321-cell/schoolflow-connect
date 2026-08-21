@@ -7,7 +7,8 @@ export type TeacherPageKey =
   | "leave"
   | "profile"
   | "battleground"
-  | "questionbank";
+  | "questionbank"
+  | "aicoach";
 
 export const TEACHER_PAGE_PATH: Record<TeacherPageKey, string> = {
   dashboard: "/teacher",
@@ -19,6 +20,7 @@ export const TEACHER_PAGE_PATH: Record<TeacherPageKey, string> = {
   profile: "/teacher/profile",
   battleground: "/teacher/battleground",
   questionbank: "/teacher/question-bank",
+  aicoach: "/teacher/ai-coach",
 };
 
 export const TEACHER_PAGE_TITLES: Record<TeacherPageKey, string> = {
@@ -31,6 +33,7 @@ export const TEACHER_PAGE_TITLES: Record<TeacherPageKey, string> = {
   profile: "My Profile",
   battleground: "Battles Monitor",
   questionbank: "Question Bank",
+  aicoach: "AI Coach",
 };
 
 export function teacherPathToPage(pathname: string): TeacherPageKey {
@@ -65,6 +68,7 @@ export function teacherPathToPage(pathname: string): TeacherPageKey {
   if (p.startsWith("/teacher/battleground")) return "battleground";
   if (p.startsWith("/teacher/question-bank") || p.startsWith("/teacher/practice"))
     return "questionbank";
+  if (p.startsWith("/teacher/ai-coach")) return "aicoach";
   if (p === "/teacher") return "dashboard";
 
   const hit = (Object.entries(TEACHER_PAGE_PATH) as [TeacherPageKey, string][]).find(([, path]) => path === p);

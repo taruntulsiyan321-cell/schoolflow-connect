@@ -12,7 +12,7 @@ export function dashboardForRole(role: AppRole | null | undefined): string {
 }
 
 /** Paths safe for post-login redirect when not under a portal prefix. */
-const SAFE_OPEN_PATHS = ["/", "/unauthorized", "/reset-password", "/auth", "/.lovable/oauth/consent"] as const;
+const SAFE_OPEN_PATHS = ["/", "/unauthorized", "/reset-password", "/auth"] as const;
 
 export function canAccessPath(role: AppRole | null | undefined, pathname: string): boolean {
   if (!role) return false;

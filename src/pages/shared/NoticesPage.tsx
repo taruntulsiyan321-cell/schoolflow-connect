@@ -14,11 +14,12 @@ import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { formatDistanceToNow } from "date-fns";
 import { classLabel } from "@/lib/utils";
+import { resolveParentLinkedStudentIds } from "@/lib/parentLinkedStudents";
 
 const EMPTY = { title: "", body: "", audience: "all", class_id: "", expiresIn: "none", customExpiry: "" };
 
 export default function NoticesPage({ canPost = false, viewerRole }: { canPost?: boolean; viewerRole?: string }) {
-  const { user, role } = useAuth();
+  const { user, role, schoolId } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -47,9 +48,12 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
         if (effectiveRole === "student" && user) {
           const { data: s } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
           studentClassId = s?.class_id || null;
-        } else if (effectiveRole === "parent" && user) {
-          const { data: kids } = await supabase.from("students").select("class_id").eq("parent_user_id", user.id);
-          studentClassId = kids?.[0]?.class_id || null;
+        } else if (effectiveRole === "parent" && user && schoolId) {
+          const childIds = await resolveParentLinkedStudentIds(schoolId, user.id);
+          if (childIds.length) {
+            const { data: kids } = await supabase.from("students").select("class_id").in("id", childIds);
+            studentClassId = kids?.[0]?.class_id || null;
+          }
         }
 
         filtered = filtered.filter((n) => {
@@ -72,7 +76,7 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
   useEffect(() => {
     load();
     if (canPost) supabase.from("classes").select("*").order("name").then(({ data }) => setClasses(data ?? []));
-  }, [canPost, user]);
+  }, [canPost, user, schoolId]);
 
   const computeExpiry = (): string | null => {
     if (form.expiresIn === "none") return null;

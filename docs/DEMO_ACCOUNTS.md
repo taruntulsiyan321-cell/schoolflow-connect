@@ -4,7 +4,7 @@ Use these accounts to exercise **every major panel** (admin, principal, teacher,
 
 ## Apply demo data
 
-**Fastest (no Lovable credits):**
+**Fastest:**
 
 1. Copy `.env.local.example` → `.env.local`
 2. Add a [Supabase access token](https://supabase.com/dashboard/account/tokens) as `SUPABASE_ACCESS_TOKEN=sbp_...`
@@ -93,10 +93,6 @@ Teachers auto-link by matching `teachers.email` on signup.
 | Inquiries & complaints | Open cases for principal/admin |
 | Staff attendance | Sample teacher present days |
 | Audit / attendance audit | Sample rows for admin tools |
-
-## Lovable / hosted Supabase
-
-In Lovable, open **Supabase** → run migrations or paste `supabase/migrations/20260604120000_demo_data.sql` in the SQL editor. Confirm **Auth → Users** lists the emails above after the migration.
 
 ## QA automation account (Playwright / E2E)
 

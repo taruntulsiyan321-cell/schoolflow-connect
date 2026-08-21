@@ -7,7 +7,6 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
-const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "kdmjipeksjdyojjdokbi";
 
 function loadEnvFile(name) {
   const path = join(ROOT, name);
@@ -22,8 +21,10 @@ function loadEnvFile(name) {
   }
 }
 
-loadEnvFile(".env");
 loadEnvFile(".env.local");
+loadEnvFile(".env");
+
+const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "psqxykzqfvxgsvkmgurn";
 
 const MARKERS = [
   { id: "20260509065137", label: "Admin connect student/teacher", sql: "SELECT proname FROM pg_proc WHERE proname = 'admin_connect_student_account' LIMIT 1" },

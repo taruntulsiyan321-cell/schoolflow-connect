@@ -26,7 +26,7 @@ setup("authenticate as demo student", async ({ page }) => {
   // /auth via a "Launch Demo" button. Go straight there.
   await page.goto("/auth");
 
-  await page.getByLabel("Email address").fill(EMAIL);
+  await page.getByLabel("Email or Mobile").fill(EMAIL);
   await page.locator("#signin-password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
 

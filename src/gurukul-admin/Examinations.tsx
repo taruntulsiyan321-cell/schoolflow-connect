@@ -3,6 +3,7 @@ import { FileText, Loader2 } from "lucide-react";
 import { EXAM_TYPE_LABELS, MarksService, useAcademicLive } from "@/academic";
 import type { ExamRecord } from "@/academic/repository/marksRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { supabase } from "@/integrations/supabase/client";
 import { cn } from "./shared";
 
 type ExamGroupRow = {
@@ -61,6 +62,7 @@ export default function ExaminationManagement() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "pending" | "published">("all");
+  const [classNameById, setClassNameById] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -68,9 +70,19 @@ export default function ExaminationManagement() {
     (async () => {
       setLoading(true);
       try {
-        const list = await MarksService.listForSchool(ctx, { limit: 200 });
+        const [list, classesRes] = await Promise.all([
+          MarksService.listForSchool(ctx, { limit: 200 }),
+          supabase.from("classes").select("id, name, section").eq("school_id", ctx.schoolId),
+        ]);
         if (!cancelled) {
           setExams(list);
+          // Table displays the class per exam group; classId alone is not
+          // human-distinguishable (this school's class ids all share the
+          // same 8-char prefix, same issue found+fixed in Reports.tsx's
+          // student-attendance report).
+          setClassNameById(
+            new Map((classesRes.data ?? []).map((c) => [c.id, `${c.name}-${c.section}`])),
+          );
           setError(null);
         }
       } catch (e) {
@@ -201,7 +213,7 @@ export default function ExaminationManagement() {
                   <tr key={g.examGroupId} className="border-b border-[#f0f1f3]">
                     <td className="p-3 font-medium">{g.name}</td>
                     <td className="p-3 text-[#46465a]">{typeLabel}</td>
-                    <td className="p-3 font-mono text-xs text-[#46465a]">{g.classId.slice(0, 8)}…</td>
+                    <td className="p-3 text-[#46465a]">{classNameById.get(g.classId) ?? `${g.classId.slice(0, 8)}…`}</td>
                     <td className="p-3 tabular-nums text-[#46465a]">
                       {g.startDate ?? "—"}
                       {g.endDate && g.endDate !== g.startDate ? ` → ${g.endDate}` : ""}

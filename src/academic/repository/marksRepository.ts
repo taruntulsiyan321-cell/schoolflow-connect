@@ -223,6 +223,53 @@ export async function listMarksForStudent(
   return (data ?? []).map((r) => mapMarks(r as MarksRow));
 }
 
+/**
+ * Published-results-only exam average for a student — the number a student
+ * or parent is actually entitled to see (mirrors the publish gate
+ * MarksService.listForStudent already enforces for the marks list itself).
+ * student_academic_profiles.exams_avg_pct is computed across ALL marks
+ * (intentionally, for teacher/principal early-intervention visibility into
+ * unpublished work) and must never be shown to students/parents directly.
+ */
+export async function getPublishedExamsAverage(
+  ctx: RepoContext,
+  studentId: string,
+): Promise<{ count: number; averagePct: number }> {
+  const schoolId = schoolIdOf(ctx);
+  const marks = await listMarksForStudent(ctx, studentId, { limit: 500 });
+  if (marks.length === 0) return { count: 0, averagePct: 0 };
+
+  const examIds = [...new Set(marks.map((m) => m.examId))];
+  const { data: examsRaw, error } = await getClient(ctx)
+    .from("exams")
+    .select("id, max_marks, results_published_at")
+    .eq("school_id", schoolId)
+    .in("id", examIds);
+  throwIfError(error, "Failed to load exams for published-average filter");
+
+  const examMap = new Map(
+    (examsRaw ?? []).map((e) => [
+      String((e as { id: string }).id),
+      {
+        maxMarks: Number((e as { max_marks: number }).max_marks),
+        published: (e as { results_published_at: string | null }).results_published_at != null,
+      },
+    ]),
+  );
+
+  const pcts: number[] = [];
+  for (const m of marks) {
+    const exam = examMap.get(m.examId);
+    if (!exam || !exam.published || !exam.maxMarks) continue;
+    pcts.push((m.marksObtained / exam.maxMarks) * 100);
+  }
+  if (pcts.length === 0) return { count: 0, averagePct: 0 };
+  return {
+    count: pcts.length,
+    averagePct: Math.round((pcts.reduce((a, b) => a + b, 0) / pcts.length) * 100) / 100,
+  };
+}
+
 export interface PublishMarksInput {
   examId: string;
   studentId: string;

@@ -16,7 +16,6 @@ import { fileURLToPath } from "url";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 const MIGRATIONS_DIR = join(ROOT, "supabase", "migrations");
-const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "kdmjipeksjdyojjdokbi";
 
 /**
  * Default npm run db:migrate applies every migration whose filename is on/after
@@ -47,8 +46,10 @@ function listMigrations({ all }) {
   return selected.map((f) => join(MIGRATIONS_DIR, f));
 }
 
-loadEnvFile(".env");
 loadEnvFile(".env.local");
+loadEnvFile(".env");
+
+const PROJECT_REF = process.env.VITE_SUPABASE_PROJECT_ID || "psqxykzqfvxgsvkmgurn";
 
 const useAll = process.argv.includes("--all");
 

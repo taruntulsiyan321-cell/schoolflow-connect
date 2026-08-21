@@ -36,7 +36,7 @@ function loadEnvVar(name: string): string {
   }
   return "";
 }
-const SUPABASE_URL = loadEnvVar("VITE_SUPABASE_URL") || "https://kdmjipeksjdyojjdokbi.supabase.co";
+const SUPABASE_URL = loadEnvVar("VITE_SUPABASE_URL") || "https://psqxykzqfvxgsvkmgurn.supabase.co";
 const SUPABASE_ANON_KEY = loadEnvVar("VITE_SUPABASE_PUBLISHABLE_KEY");
 
 async function getAccessToken(page: Page): Promise<string> {
