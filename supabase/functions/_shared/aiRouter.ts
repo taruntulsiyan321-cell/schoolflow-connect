@@ -2034,6 +2034,7 @@ export async function routeAiRequest(
           const evidence = evidenceFromExplainFacts(facts);
           const validation = validateModelResponse(modelResult.text, evidence, {
             max_chars: pack.token_budget.output * 6,
+            system_template: modelResult.prompt?.system_template,
           });
           validation_ok = validation.ok && !validation.material_failure;
 
@@ -3140,6 +3141,7 @@ export async function routeAiRequest(
           };
           const validation = validateModelResponse(modelResult.text, evidence, {
             max_chars: pack.token_budget.output * 6,
+            system_template: modelResult.prompt?.system_template,
           });
           validation_ok = validation.ok && !validation.material_failure;
           const conf = scoreConfidence({
@@ -3555,6 +3557,7 @@ export async function routeAiRequest(
                   admin.rpc("match_question_bank", {
                     p_query_embedding: queryEmbedding,
                     p_class_level: matchClassLevel,
+                    p_school_id: req.actor.schoolId,
                     p_subjects: matchSubjects,
                     p_match_threshold: 0.65,
                     p_match_count: 2,
@@ -3562,6 +3565,7 @@ export async function routeAiRequest(
                   admin.rpc("match_ai_answer_cache", {
                     p_query_embedding: queryEmbedding,
                     p_class_level: matchClassLevel,
+                    p_school_id: req.actor.schoolId,
                     p_subjects: matchSubjects,
                     p_match_threshold: 0.65,
                     p_match_count: 2,
@@ -3955,6 +3959,7 @@ export async function routeAiRequest(
         const evidence = evidenceFromExplainFacts(facts);
         const validation = validateModelResponse(modelResult.text, evidence, {
           max_chars: pack.token_budget.output * 6,
+          system_template: modelResult.prompt?.system_template,
         });
         validation_ok = validation.ok && !validation.material_failure;
 

@@ -261,7 +261,7 @@ export function runImageDoubtSolve(input: ImageDoubtSolveInput): ImageDoubtSolve
   const validation = validateModelResponse(
     modelText,
     { allowed_pcts: [], avg_mastery: null, attendance_pct: null, average_marks_pct: null },
-    { max_chars: 3500 },
+    { max_chars: 3500, system_template: getBuiltinPrompt("student.image_doubt.solve")?.system_template },
   );
   const conf = scoreConfidence({
     used_model: true,
