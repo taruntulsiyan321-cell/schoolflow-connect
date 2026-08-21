@@ -27,24 +27,23 @@
 -- of these from being seeded. Archive (is_active=false), don't delete — these
 -- may be legitimate content for a future class-5 rollout.
 -- ============================================================================
-ALTER TABLE public.question_bank
-  DROP CONSTRAINT IF EXISTS question_bank_class_level_check;
-ALTER TABLE public.question_bank
-  ADD CONSTRAINT question_bank_class_level_check
-  CHECK (class_level IS NULL OR class_level BETWEEN 6 AND 12) NOT VALID;
-
 UPDATE public.question_bank
 SET is_active = false, updated_at = now()
 WHERE (class_level = 5 OR class_level IS NULL) AND is_active = true;
 
--- Validate now that the offending rows are archived (is_active=false rows
--- still violate the raw CHECK, so validate only after confirming none of the
--- *active* rows do — NOT VALID + a partial validate isn't supported by
--- Postgres CHECK, so this validates the constraint as written above, which
--- allows NULL/5 to exist as long as they're not newly re-activated; the real
--- enforcement point is the application layer + this constraint prevents NEW
--- out-of-range rows from being inserted going forward via is_active=true).
-ALTER TABLE public.question_bank VALIDATE CONSTRAINT question_bank_class_level_check;
+-- Constraint is conditional on is_active — an inactive (archived) row is
+-- exempt, so the class-5/null rows just archived above stay in the table
+-- without needing to satisfy the range check; the check only binds active
+-- rows, present and future. (An unconditional CHECK here would fail
+-- VALIDATE against the very rows this migration just archived, since
+-- `is_active = false` alone doesn't get short-circuited by Postgres's
+-- three-valued OR the way a NULL class_level makes `class_level BETWEEN 6
+-- AND 12` evaluate to UNKNOWN rather than FALSE.)
+ALTER TABLE public.question_bank
+  DROP CONSTRAINT IF EXISTS question_bank_class_level_check;
+ALTER TABLE public.question_bank
+  ADD CONSTRAINT question_bank_class_level_check
+  CHECK (is_active = false OR (class_level IS NOT NULL AND class_level BETWEEN 6 AND 12));
 
 -- ============================================================================
 -- G2-1 (CONFIRMED — independently recomputed, 5/9 sampled rows drifted,
@@ -270,6 +269,25 @@ CREATE TRIGGER trg_homework_is_late
   FOR EACH ROW EXECUTE FUNCTION public.tg_homework_compute_is_late();
 
 -- ============================================================================
+-- G1-12 (CONFIRMED with full Management API access, bypassing RLS — this was
+-- previously unverifiable via anon+JWT REST since a null-student_id row is
+-- invisible to every user's self-scoped RLS by construction): exactly one
+-- dpp_attempts row has student_id IS NULL, id 73af48f5-506b-4bef-87d2-143d8825cade,
+-- status 'in_progress', started_at 2026-08-20 11:32:47 — never submitted, no
+-- score/correct_count recorded. Given the timing (started during this same
+-- audit's live-testing window) and that it carries no real submitted answers,
+-- this reads as test/probe debris rather than a real user's in-progress
+-- attempt or an intentional "anonymous preview" feature (no code path in
+-- src/academic/services/testService.ts creates dpp_attempts without a
+-- student_id). Safe to delete rather than backfill.
+-- ============================================================================
+DELETE FROM public.dpp_attempts
+WHERE student_id IS NULL AND status != 'submitted';
+
+ALTER TABLE public.dpp_attempts
+  ALTER COLUMN student_id SET NOT NULL;
+
+-- ============================================================================
 -- Re-verify after applying (run as any authenticated user via REST, or via
 -- SUPABASE_ACCESS_TOKEN + database/query):
 --   class_level 5/null: select count(*) from question_bank where (class_level=5 or class_level is null) and is_active=true;  -- expect 0
@@ -277,5 +295,6 @@ CREATE TRIGGER trg_homework_is_late
 --   recovery dup:        select user_id, subject, concept, count(*) from recovery_assignments where status in ('pending','in_progress') group by 1,2,3 having count(*)>1;  -- expect 0 rows
 --   revision null:       select count(*) from revision_queue where school_id is null;         -- expect 0
 --   brain null:          select count(*) from student_academic_brain where school_id is null; -- expect 0
+--   dpp orphan:          select count(*) from dpp_attempts where student_id is null;           -- expect 0 (NOT NULL now enforced)
 -- Then: npm run db:types (writes src/integrations/supabase/types.ts) and npm run test.
 -- ============================================================================

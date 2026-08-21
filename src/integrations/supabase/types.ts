@@ -397,6 +397,74 @@ export type Database = {
           },
         ]
       }
+      ai_answer_cache: {
+        Row: {
+          answer: string
+          chapter: string | null
+          class_level: number | null
+          concept: string | null
+          created_at: string
+          embedding: string | null
+          hit_count: number
+          id: string
+          last_used_at: string | null
+          model_id: string | null
+          original_question: string
+          request_id: string | null
+          review_status: string
+          school_id: string | null
+          source_type: string
+          subject: string | null
+          topic: string | null
+        }
+        Insert: {
+          answer: string
+          chapter?: string | null
+          class_level?: number | null
+          concept?: string | null
+          created_at?: string
+          embedding?: string | null
+          hit_count?: number
+          id?: string
+          last_used_at?: string | null
+          model_id?: string | null
+          original_question: string
+          request_id?: string | null
+          review_status?: string
+          school_id?: string | null
+          source_type?: string
+          subject?: string | null
+          topic?: string | null
+        }
+        Update: {
+          answer?: string
+          chapter?: string | null
+          class_level?: number | null
+          concept?: string | null
+          created_at?: string
+          embedding?: string | null
+          hit_count?: number
+          id?: string
+          last_used_at?: string | null
+          model_id?: string | null
+          original_question?: string
+          request_id?: string | null
+          review_status?: string
+          school_id?: string | null
+          source_type?: string
+          subject?: string | null
+          topic?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_answer_cache_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_benchmark_fixtures: {
         Row: {
           created_at: string
@@ -1334,9 +1402,8 @@ export type Database = {
           enable_fees: boolean
           enable_leaves: boolean
           enable_notices: boolean
-          id: boolean
           locale: string
-          school_id: string | null
+          school_id: string
           school_name: string
           updated_at: string
           updated_by: string | null
@@ -1346,9 +1413,8 @@ export type Database = {
           enable_fees?: boolean
           enable_leaves?: boolean
           enable_notices?: boolean
-          id?: boolean
           locale?: string
-          school_id?: string | null
+          school_id: string
           school_name?: string
           updated_at?: string
           updated_by?: string | null
@@ -1358,9 +1424,8 @@ export type Database = {
           enable_fees?: boolean
           enable_leaves?: boolean
           enable_notices?: boolean
-          id?: boolean
           locale?: string
-          school_id?: string | null
+          school_id?: string
           school_name?: string
           updated_at?: string
           updated_by?: string | null
@@ -1369,7 +1434,7 @@ export type Database = {
           {
             foreignKeyName: "app_settings_school_id_fkey"
             columns: ["school_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "schools"
             referencedColumns: ["id"]
           },
@@ -1647,6 +1712,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      auth_verify_attempts: {
+        Row: {
+          created_at: string
+          error_code: string | null
+          id: string
+          identifier: string
+          method: string
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          identifier: string
+          method: string
+          success: boolean
+        }
+        Update: {
+          created_at?: string
+          error_code?: string | null
+          id?: string
+          identifier?: string
+          method?: string
+          success?: boolean
+        }
+        Relationships: []
       }
       battle_answers: {
         Row: {
@@ -2894,7 +2986,7 @@ export type Database = {
           score: number
           started_at: string
           status: Database["public"]["Enums"]["dpp_attempt_status"]
-          student_id: string | null
+          student_id: string
           submitted_at: string | null
           time_spent_sec: number
           total_count: number
@@ -2909,7 +3001,7 @@ export type Database = {
           score?: number
           started_at?: string
           status?: Database["public"]["Enums"]["dpp_attempt_status"]
-          student_id?: string | null
+          student_id: string
           submitted_at?: string | null
           time_spent_sec?: number
           total_count?: number
@@ -2924,7 +3016,7 @@ export type Database = {
           score?: number
           started_at?: string
           status?: Database["public"]["Enums"]["dpp_attempt_status"]
-          student_id?: string | null
+          student_id?: string
           submitted_at?: string | null
           time_spent_sec?: number
           total_count?: number
@@ -4866,6 +4958,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           difficulty: string
+          embed_status: string
+          embedding: string | null
           exam_year: number | null
           explanation: string | null
           id: string
@@ -4880,6 +4974,7 @@ export type Database = {
           stream: string | null
           subconcept: string | null
           subject: string
+          subtopic: string | null
           topic: string | null
           updated_at: string | null
         }
@@ -4892,6 +4987,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           difficulty?: string
+          embed_status?: string
+          embedding?: string | null
           exam_year?: number | null
           explanation?: string | null
           id?: string
@@ -4906,6 +5003,7 @@ export type Database = {
           stream?: string | null
           subconcept?: string | null
           subject: string
+          subtopic?: string | null
           topic?: string | null
           updated_at?: string | null
         }
@@ -4918,6 +5016,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           difficulty?: string
+          embed_status?: string
+          embedding?: string | null
           exam_year?: number | null
           explanation?: string | null
           id?: string
@@ -4932,6 +5032,7 @@ export type Database = {
           stream?: string | null
           subconcept?: string | null
           subject?: string
+          subtopic?: string | null
           topic?: string | null
           updated_at?: string | null
         }
@@ -7313,6 +7414,7 @@ export type Database = {
         Returns: Json
       }
       ai_session_memory_read: { Args: { p_session_id: string }; Returns: Json }
+      bump_ai_answer_cache_hit: { Args: { p_id: string }; Returns: undefined }
       chat_attachment_url_allowed: {
         Args: { _uid?: string; _url: string }
         Returns: boolean
@@ -7435,12 +7537,56 @@ export type Database = {
         Args: { _conversation_id: string; _user_id?: string }
         Returns: boolean
       }
+      is_class_teacher_of_class: {
+        Args: { _class_id: string; _uid: string }
+        Returns: boolean
+      }
       is_class_teacher_of_student: {
         Args: { _student_id: string; _uid: string }
         Returns: boolean
       }
       is_principal_or_admin: { Args: { _uid: string }; Returns: boolean }
       link_portal_on_auth: { Args: { _uid?: string }; Returns: undefined }
+      match_ai_answer_cache: {
+        Args: {
+          p_class_level: number
+          p_match_count?: number
+          p_match_threshold?: number
+          p_query_embedding: string
+          p_subjects?: string[]
+        }
+        Returns: {
+          answer: string
+          chapter: string
+          concept: string
+          id: string
+          original_question: string
+          similarity: number
+          subject: string
+          topic: string
+        }[]
+      }
+      match_question_bank: {
+        Args: {
+          p_class_level: number
+          p_match_count?: number
+          p_match_threshold?: number
+          p_query_embedding: string
+          p_subjects?: string[]
+        }
+        Returns: {
+          chapter: string
+          concept: string
+          correct_index: number
+          explanation: string
+          id: string
+          options: Json
+          question: string
+          similarity: number
+          subject: string
+          topic: string
+        }[]
+      }
       normalize_phone: { Args: { _raw: string }; Returns: string }
       process_academic_event: { Args: { _event_id: string }; Returns: boolean }
       process_pending_academic_events: {
@@ -7519,6 +7665,7 @@ export type Database = {
         }
       }
       rpc_battle_monitor: { Args: { _battle_id: string }; Returns: Json }
+      rpc_bulk_upsert_attendance: { Args: { _rows: Json }; Returns: Json }
       rpc_cache_agent_insight: {
         Args: {
           _agent_type: string
