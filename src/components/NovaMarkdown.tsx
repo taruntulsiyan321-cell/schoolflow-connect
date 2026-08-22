@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -12,7 +12,7 @@ import { fixUtf8Content } from "@/lib/utf8Text";
  * leaking raw "**bold**", "\n", "\[ \]", "$$ $$" syntax to the student.
  *
  * remark-math only recognizes $...$ / $$...$$ delimiters, but models (and the
- * user's own pasted examples) also emit \( \) / \[ \] — so those are normalized
+ * user's own pasted examples) also emit \( \) / \[ \] â€” so those are normalized
  * to dollar-delimited form first, matching what MathText.tsx already tokenizes.
  */
 type Props = {
@@ -28,7 +28,7 @@ function normalizeMathDelimiters(input: string): string {
 
 const components: Components = {
   p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-  strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+  strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,
   em: ({ children }) => <em className="italic">{children}</em>,
   ul: ({ children }) => <ul className="mb-2 ml-4 list-disc space-y-1 last:mb-0">{children}</ul>,
   ol: ({ children }) => <ol className="mb-2 ml-4 list-decimal space-y-1 last:mb-0">{children}</ol>,
@@ -38,9 +38,9 @@ const components: Components = {
   h3: ({ children }) => <h5 className="mb-1 mt-2 text-[13px] font-semibold text-white first:mt-0">{children}</h5>,
   h4: ({ children }) => <h6 className="mb-1 mt-2 text-[13px] font-semibold text-white first:mt-0">{children}</h6>,
   blockquote: ({ children }) => (
-    <blockquote className="mb-2 border-l-2 border-white/20 pl-3 italic text-[#9ca3c0] last:mb-0">{children}</blockquote>
+    <blockquote className="mb-2 border-l-2 border-border pl-3 italic text-[#9ca3c0] last:mb-0">{children}</blockquote>
   ),
-  hr: () => <hr className="my-2 border-white/10" />,
+  hr: () => <hr className="my-2 border-border" />,
   a: ({ children, href }) => (
     <a href={href} target="_blank" rel="noopener noreferrer" className="underline text-[#7aa2f7] hover:text-[#93b4ff]">
       {children}
@@ -71,7 +71,7 @@ const components: Components = {
   ),
   thead: ({ children }) => <thead className="border-b border-border">{children}</thead>,
   tr: ({ children }) => <tr className="border-b border-white/5 last:border-0">{children}</tr>,
-  th: ({ children }) => <th className="px-2 py-1 text-left font-semibold text-white">{children}</th>,
+  th: ({ children }) => <th className="px-2 py-1 text-left font-semibold text-foreground">{children}</th>,
   td: ({ children }) => <td className="px-2 py-1 align-top">{children}</td>,
 };
 

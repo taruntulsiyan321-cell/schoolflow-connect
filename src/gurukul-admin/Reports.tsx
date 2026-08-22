@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   BarChart2, Download, Printer, Filter, ChevronRight,
   GraduationCap, Users, UserCheck, Activity, Globe, Bell,
@@ -120,7 +120,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
               AcademicProfileService.listForClass(ctx, c.classId, { limit: 200 }),
               AttendanceService.listClassStudents(ctx, c.classId).catch(() => []),
             ]);
-            // Report exists so admin/principal can act on "who is at risk" —
+            // Report exists so admin/principal can act on "who is at risk" â€”
             // a truncated UUID can't be followed up on, and this class's
             // seed IDs happen to share an 8-char prefix, making every row
             // in "Below 75%" indistinguishable from every other. Resolve
@@ -148,7 +148,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           ]);
           setRows(allRows.slice(0, 200));
         } else if (reportKey === "teacher-attendance") {
-          // Teacher HR attendance is not an Academic Engine entity yet — honest empty.
+          // Teacher HR attendance is not an Academic Engine entity yet â€” honest empty.
           setSummary([{ label: "Teachers (directory)", value: 0, color: "#4aa87a" }]);
           setRows([]);
         }
@@ -165,8 +165,8 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading Academic Engine report…
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading Academic Engine reportâ€¦
       </div>
     );
   }
@@ -178,22 +178,22 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
         {summary.map((s) => (
           <div key={s.label} className="bg-surface border border-border/70 rounded-2xl p-4">
             <div className="text-lg font-black" style={{ color: s.color }}>{s.value}</div>
-            <div className="text-[10px] text-[#78788c]">{s.label}</div>
+            <div className="text-[10px] text-muted-foreground">{s.label}</div>
           </div>
         ))}
       </div>
       <div className="flex gap-2">
-        <button type="button" onClick={() => exportCSV(reportKey, rows)} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-[#78788c] flex items-center gap-1">
+        <button type="button" onClick={() => exportCSV(reportKey, rows)} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-muted-foreground flex items-center gap-1">
           <Download className="w-3 h-3" /> CSV
         </button>
-        <button type="button" onClick={() => printSection(reportKey, document.getElementById("engine-report")?.innerHTML ?? "")} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-[#78788c] flex items-center gap-1">
+        <button type="button" onClick={() => printSection(reportKey, document.getElementById("engine-report")?.innerHTML ?? "")} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-muted-foreground flex items-center gap-1">
           <Printer className="w-3 h-3" /> Print
         </button>
       </div>
       <div id="engine-report" className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-[#46465a] border-b border-border/70">
+            <tr className="text-left text-muted-foreground border-b border-border/70">
               {Object.keys(rows[0] ?? {}).map((k) => (
                 <th key={k} className="py-2 pr-3 font-semibold">{k}</th>
               ))}
@@ -201,7 +201,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="border-b border-white/5 text-white">
+              <tr key={i} className="border-b border-white/5 text-foreground">
                 {Object.values(r).map((v, j) => (
                   <td key={j} className="py-2 pr-3">{v}</td>
                 ))}
@@ -209,7 +209,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
             ))}
           </tbody>
         </table>
-        {rows.length === 0 && <div className="text-center py-10 text-[#46465a]">No rows.</div>}
+        {rows.length === 0 && <div className="text-center py-10 text-muted-foreground">No rows.</div>}
       </div>
     </div>
   );
@@ -217,7 +217,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
 
 function NonAcademicPlaceholder({ label }: { label: string }) {
   return (
-    <div className="text-xs text-[#78788c] py-16 text-center">
+    <div className="text-xs text-muted-foreground py-16 text-center">
       {label} is not an Academic Engine domain. Use account/platform tools separately.
     </div>
   );
@@ -246,7 +246,7 @@ export default function AdminReports() {
               "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border",
               category === c.key
                 ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                : "border-border/70 text-[#78788c]",
+                : "border-border/70 text-muted-foreground",
             )}
           >
             {c.icon} {c.label}
@@ -265,7 +265,7 @@ export default function AdminReports() {
                 "w-full text-left px-3 py-2.5 rounded-xl text-xs border",
                 active === r.key
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "border-transparent text-[#78788c] hover:bg-muted",
+                  : "border-transparent text-muted-foreground hover:bg-muted",
               )}
             >
               <div className="font-semibold flex items-center gap-2">
@@ -277,10 +277,10 @@ export default function AdminReports() {
         </div>
         <div className="bg-surface border border-border/70 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Filter className="w-4 h-4 text-[#46465a]" />
-            <div className="text-sm font-bold text-white">{def.label}</div>
-            <ChevronRight className="w-3 h-3 text-[#46465a]" />
-            <div className="text-[10px] text-[#46465a]">{def.category}</div>
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <div className="text-sm font-bold text-foreground">{def.label}</div>
+            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+            <div className="text-[10px] text-muted-foreground">{def.category}</div>
           </div>
           {category === "academic" ? (
             <AcademicEngineReport reportKey={active} />

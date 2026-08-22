@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { GlassCard, SectionLabel, XPBar, cn } from "@/gurukul/components/shared";
 import { Trophy, Target, Medal, Loader2, ArrowRight } from "lucide-react";
@@ -21,7 +21,7 @@ function formatEarnedDate(iso: string) {
 }
 
 /**
- * Student Profile — academic metrics from Academic Engine.
+ * Student Profile â€” academic metrics from Academic Engine.
  * Level/XP/league/streak/reputation from ProgressionService (rpc_get_student_progression).
  * Milestones from live student_badges + featured badges from progression snapshot.
  */
@@ -95,7 +95,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
       setName(s?.full_name ?? "Student");
       const cls = s?.classes as { name?: string; section?: string } | null;
       setClassLabel(
-        cls ? `${cls.name ?? ""} ${cls.section ?? ""} · Roll ${s?.roll_number ?? "—"}` : "",
+        cls ? `${cls.name ?? ""} ${cls.section ?? ""} Â· Roll ${s?.roll_number ?? "â€”"}` : "",
       );
       setAttPct(Math.round(profile?.attendancePct ?? analytics?.attendance.pct ?? 0));
       setExamAvg(Math.round(analytics?.exams.averagePct ?? 0));
@@ -138,8 +138,8 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading profileâ€¦
       </div>
     );
   }
@@ -165,12 +165,12 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             >
               {name}
             </h2>
-            <div className="text-sm text-[#78788c]">{classLabel}</div>
+            <div className="text-sm text-muted-foreground">{classLabel}</div>
             <div className="text-xs text-[#3b5bdb] mt-0.5">
               Level {level}
-              {league ? ` · ${league}` : ""}
-              {` · ${xp} XP · Streak ${streak}d · Rep ${reputation}`}
-              {classRank != null ? ` · Rank #${classRank}` : ""}
+              {league ? ` Â· ${league}` : ""}
+              {` Â· ${xp} XP Â· Streak ${streak}d Â· Rep ${reputation}`}
+              {classRank != null ? ` Â· Rank #${classRank}` : ""}
             </div>
             <div className="mt-3">
               <XPBar
@@ -202,7 +202,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           <div key={s.label} className="p-4 rounded-2xl border border-border/70 bg-surface/70">
             <div className="flex items-center gap-2 mb-1" style={{ color: s.color }}>
               {s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-[#78788c]">{s.label}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
             </div>
             <div
               className="text-xl font-black tabular-nums"
@@ -226,7 +226,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
             </button>
           )}
         </div>
-        <div className="text-xs text-[#78788c]">
+        <div className="text-xs text-muted-foreground">
           {classRank != null
             ? `Your class XP rank is #${classRank} (Progression Engine).`
             : "Class XP rankings load from ProgressionService on the Rankings page."}
@@ -236,11 +236,11 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
       <GlassCard className="p-5">
         <SectionLabel>Recent milestones</SectionLabel>
         {badgesLoading ? (
-          <div className="flex items-center gap-2 text-[#78788c] text-xs py-2">
-            <Loader2 className="w-3 h-3 animate-spin" /> Loading badges…
+          <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
+            <Loader2 className="w-3 h-3 animate-spin" /> Loading badgesâ€¦
           </div>
         ) : recentMilestones.length === 0 ? (
-          <div className="text-xs text-[#78788c]">No badges earned yet.</div>
+          <div className="text-xs text-muted-foreground">No badges earned yet.</div>
         ) : (
           <div className="flex flex-wrap gap-3">
             {recentMilestones.map((a) => {
@@ -256,8 +256,8 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
                     <Icon className="w-4 h-4" />
                   </div>
                   <div>
-                    <div className="text-xs font-semibold text-white">{a.label}</div>
-                    <div className="text-[10px] text-[#78788c]">{formatEarnedDate(a.earned_at)}</div>
+                    <div className="text-xs font-semibold text-foreground">{a.label}</div>
+                    <div className="text-[10px] text-muted-foreground">{formatEarnedDate(a.earned_at)}</div>
                   </div>
                 </div>
               );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { ClipboardList, Loader2, Send } from "lucide-react";
 import { HomeworkService, WORK_KIND_LABELS, normalizeWorkKind, useAcademicLive } from "@/academic";
 import type { StudentHomeworkRow } from "@/academic/services/homeworkService";
@@ -14,7 +14,7 @@ function subjectAccent(raw: string): string {
 }
 
 /**
- * Student Assignments — HomeworkService list / submit / feedback (no mock).
+ * Student Assignments â€” HomeworkService list / submit / feedback (no mock).
  */
 export default function Assignments() {
   const { ctx, ready, studentId } = useAcademicContext();
@@ -119,15 +119,15 @@ export default function Assignments() {
 
   if (!ready || loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading assignments…
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading assignmentsâ€¦
       </div>
     );
   }
 
   if (!studentId) {
     return (
-      <div className="text-center text-sm text-[#78788c] py-16">
+      <div className="text-center text-sm text-muted-foreground py-16">
         No student profile linked to this account.
       </div>
     );
@@ -156,7 +156,7 @@ export default function Assignments() {
                 type="button"
                 onClick={() => setFilter(f)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold capitalize ${
-                  filter === f ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                  filter === f ? "bg-[#3b5bdb] text-foreground" : "bg-white/5 text-muted-foreground"
                 }`}
               >
                 {f}
@@ -166,14 +166,14 @@ export default function Assignments() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search…"
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white w-36"
+            placeholder="Searchâ€¦"
+            className="bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-white w-36"
           />
         </div>
 
         <div className="space-y-3">
           {visible.length === 0 && (
-            <div className="text-center py-10 text-xs text-[#46465a]">
+            <div className="text-center py-10 text-xs text-muted-foreground">
               {filter !== "all" || search.trim()
                 ? "No assignments match this filter."
                 : "No homework assigned yet."}
@@ -201,7 +201,7 @@ export default function Assignments() {
                   </div>
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <span className="text-sm font-semibold text-white">{title}</span>
+                      <span className="text-sm font-semibold text-foreground">{title}</span>
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
                         {WORK_KIND_LABELS[normalizeWorkKind(a.workKind)]}
                       </span>
@@ -212,7 +212,7 @@ export default function Assignments() {
                         <span className="text-xs font-bold text-purple-400">{s.grade}</span>
                       )}
                       {s?.marksObtained != null && !isReturned && (
-                        <span className="text-[10px] text-[#78788c]">
+                        <span className="text-[10px] text-muted-foreground">
                           {s.marksObtained}
                           {a.maxMarks != null ? ` / ${a.maxMarks}` : ""}
                         </span>
@@ -220,27 +220,27 @@ export default function Assignments() {
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <SubjectBadge subject={a.subject} color={col} />
-                      <span className="text-[11px] text-[#78788c]">Due {a.dueDate ?? "—"}</span>
+                      <span className="text-[11px] text-muted-foreground">Due {a.dueDate ?? "â€”"}</span>
                       {s?.submittedAt && (
-                        <span className="text-[10px] text-[#46465a]">
+                        <span className="text-[10px] text-muted-foreground">
                           Submitted {new Date(s.submittedAt).toLocaleString()}
                         </span>
                       )}
                     </div>
                     {(a.description || a.instructions) && (
-                      <p className="text-[11px] text-[#78788c] line-clamp-3">
+                      <p className="text-[11px] text-muted-foreground line-clamp-3">
                         {a.instructions || a.description}
                       </p>
                     )}
                     {(a.attachments?.length ?? 0) > 0 && (
                       <div className="space-y-1">
-                        <div className="text-[10px] font-bold text-[#78788c]">Teacher attachments</div>
+                        <div className="text-[10px] font-bold text-muted-foreground">Teacher attachments</div>
                         <AttachmentList items={a.attachments ?? []} dense />
                       </div>
                     )}
                     {(s?.attachments?.length ?? 0) > 0 && (
                       <div className="space-y-1">
-                        <div className="text-[10px] font-bold text-[#78788c]">Your submission files</div>
+                        <div className="text-[10px] font-bold text-muted-foreground">Your submission files</div>
                         <AttachmentList items={s?.attachments ?? []} dense />
                       </div>
                     )}
@@ -262,10 +262,10 @@ export default function Assignments() {
                           onChange={(e) => setContent(e.target.value)}
                           placeholder={
                             isReturned
-                              ? "Revise notes (optional if attaching files)…"
+                              ? "Revise notes (optional if attaching files)â€¦"
                               : "Notes (optional if attaching files)"
                           }
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[70px]"
+                          className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[70px]"
                         />
                         <AttachmentComposer
                           items={attachments}
@@ -277,7 +277,7 @@ export default function Assignments() {
                             type="button"
                             disabled={saving}
                             onClick={() => void submit(a.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-white"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-foreground"
                           >
                             {saving ? (
                               <Loader2 className="w-3 h-3 animate-spin" />
@@ -293,7 +293,7 @@ export default function Assignments() {
                               setContent("");
                               setAttachments([]);
                             }}
-                            className="px-3 py-1.5 rounded-xl text-[10px] font-bold text-[#78788c]"
+                            className="px-3 py-1.5 rounded-xl text-[10px] font-bold text-muted-foreground"
                           >
                             Cancel
                           </button>

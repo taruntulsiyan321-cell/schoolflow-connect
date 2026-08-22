@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchRevisionPlan } from "@/lib/academicBrain";
 import { runRevisionAgent } from "@/lib/academicAgents";
@@ -120,10 +120,10 @@ export default function RevisionQueue() {
       <section className="sp-hero rounded-3xl overflow-hidden shadow-elevated bg-[#074b37] text-white p-6 sm:p-8 relative">
         <div className="absolute top-0 right-0 w-40 h-40 bg-[#b2f0d4]/15 rounded-full blur-2xl pointer-events-none" />
         <div className="relative z-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Revision Center</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground/70">Revision Center</p>
           <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold mt-2 tracking-tight">Your study queue</h1>
-          <p className="text-sm text-white/75 mt-2 max-w-lg">
-            Prioritized from weak concepts, mistake history, and recovery gaps — not random questions.
+          <p className="text-sm text-foreground/75 mt-2 max-w-lg">
+            Prioritized from weak concepts, mistake history, and recovery gaps â€” not random questions.
           </p>
         </div>
       </section>
@@ -154,7 +154,7 @@ export default function RevisionQueue() {
         <section className="rounded-2xl border border-border/60 bg-card p-8 text-center shadow-sm">
           <ListChecks className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
           <p className="text-muted-foreground">
-            Nothing queued yet. Complete practice or DPPs — revision builds from your academic profile.
+            Nothing queued yet. Complete practice or DPPs â€” revision builds from your academic profile.
           </p>
           <div className="flex gap-2 justify-center mt-4">
             <Button asChild><Link to="/student/practice/math12">Start practice</Link></Button>
@@ -177,7 +177,7 @@ export default function RevisionQueue() {
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold">{displayTopic(p.topic)}</div>
                         <div className="text-sm text-muted-foreground">
-                          {[p.chapter ? displayChapter(p.chapter) : null, p.subject].filter(Boolean).join(" · ")}
+                          {[p.chapter ? displayChapter(p.chapter) : null, p.subject].filter(Boolean).join(" Â· ")}
                         </div>
                         <p className="text-sm mt-2">{p.action}</p>
                         {p.reason && (
@@ -203,11 +203,11 @@ export default function RevisionQueue() {
                     <div className="min-w-0 flex-1">
                       <div className="font-semibold">{r.subject}</div>
                       <div className="text-sm text-muted-foreground">
-                        {[r.chapter ? displayChapter(r.chapter) : null, r.topic ? displayTopic(r.topic) : null].filter(Boolean).join(" · ")}
+                        {[r.chapter ? displayChapter(r.chapter) : null, r.topic ? displayTopic(r.topic) : null].filter(Boolean).join(" Â· ")}
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         <Badge variant={priorityTone(r.priority_label) as "default" | "destructive" | "secondary"}>
-                          {r.priority_label ?? "Medium"} · {r.priority}
+                          {r.priority_label ?? "Medium"} Â· {r.priority}
                         </Badge>
                         <span className="text-xs text-muted-foreground">Due {r.due_date}</span>
                       </div>
@@ -222,7 +222,7 @@ export default function RevisionQueue() {
                       onClick={() => complete(r.id)}
                     >
                       {completingId === r.id ? (
-                        <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Saving…</>
+                        <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Savingâ€¦</>
                       ) : (
                         <><Check className="w-4 h-4 mr-1" /> Done</>
                       )}
@@ -240,7 +240,7 @@ export default function RevisionQueue() {
                 {brainPriorities.map((bp, i) => (
                   <div key={i} className="sp-stat-card rounded-2xl border border-border/60 bg-card p-4 shadow-sm">
                     <div className="font-semibold">{displayConcept(bp.concept)}</div>
-                    <div className="text-sm text-muted-foreground">{bp.subject}{bp.chapter ? ` · ${displayChapter(bp.chapter)}` : ""}</div>
+                    <div className="text-sm text-muted-foreground">{bp.subject}{bp.chapter ? ` Â· ${displayChapter(bp.chapter)}` : ""}</div>
                     <p className="text-sm mt-2">{bp.action ?? "Review and practice"}</p>
                     <div className="mt-2">
                       <Button size="sm" variant="outline" className="rounded-full" asChild>

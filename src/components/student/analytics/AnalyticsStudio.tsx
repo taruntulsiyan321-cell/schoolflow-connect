@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import type { StudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
@@ -163,7 +163,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
   const focusBody =
     topGap?.fix_hint ??
     displayInsights?.today_focus ??
-    "Complete practice — your coach builds a drill from each wrong answer in Recovery.";
+    "Complete practice â€” your coach builds a drill from each wrong answer in Recovery.";
 
   const recoveryCount = recovery?.pending_count ?? data.recovery_pending ?? data.mistake_count ?? 0;
   const recoveryPending = Math.max(0, recoveryCount);
@@ -175,7 +175,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
   const weeklyImprovement = improvement != null ? Math.round(improvement) : 0;
 
   const firstName = data.student?.full_name?.split(" ")[0] ?? "Student";
-  const studentClass = pageData?.student_class ?? "—";
+  const studentClass = pageData?.student_class ?? "â€”";
   const strongConcepts = displayMastery
     .filter((m) => m.mastery_score >= 75)
     .sort((a, b) => b.mastery_score - a.mastery_score)
@@ -183,7 +183,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
   const weakConcepts = topicGaps.slice(0, 5);
   const mistakeBuckets = classifyMistakes(aggregates);
   const mostRepeated = repeatedMistake(aggregates);
-  // Align with classifyMistakes SSOT (heavy / concept / careless) — never invent calc/time splits.
+  // Align with classifyMistakes SSOT (heavy / concept / careless) â€” never invent calc/time splits.
   const heavyMistakes = mistakeBuckets.find((b) => b.key === "heavy")?.count ?? 0;
   const conceptErrors = mistakeBuckets.find((b) => b.key === "concept")?.count ?? 0;
   const carelessMistakes = mistakeBuckets.find((b) => b.key === "careless")?.count ?? 0;
@@ -195,14 +195,14 @@ export function AnalyticsStudio({ data, charts }: Props) {
     ...(topGap ? [topGap] : []),
     ...topicGaps.filter((g) => g.topic !== topGap?.topic),
   ].slice(0, 3);
-  // Measured session improvement only — never invent a projected accuracy gain.
+  // Measured session improvement only â€” never invent a projected accuracy gain.
   const measuredGain = improvement != null && improvement > 0 ? Math.round(improvement) : 0;
   const strength =
     strongConcepts[0]?.concept ??
     data.strong_topics?.[0]?.topic ??
     data.strong_topics?.[0]?.chapter ??
-    "—";
-  const weakness = topGap?.topic ?? displayMastery.find((m) => m.mastery_score < 60)?.concept ?? "—";
+    "â€”";
+  const weakness = topGap?.topic ?? displayMastery.find((m) => m.mastery_score < 60)?.concept ?? "â€”";
   const skillGroups = groupMasteryBySubject(displayMastery);
   const trendData = (practiceTrend.length ? practiceTrend : []).slice(-14).map((p) => ({
     label: new Date(p.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
@@ -215,7 +215,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
     return (
       <div className="wisdom-analytics py-16 text-center text-sm text-[var(--wa-on-surface-variant)]">
         <Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
-        Loading your analysis…
+        Loading your analysisâ€¦
       </div>
     );
   }
@@ -226,20 +226,20 @@ export function AnalyticsStudio({ data, charts }: Props) {
         <div className="relative z-10 grid lg:grid-cols-[1.15fr_0.85fr] gap-6 items-stretch">
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-4">
-              <span className="wa-gold-pill">Wisdom Campus · Academic Intelligence Center</span>
-              <span className="rounded-full bg-white/12 border border-border px-3 py-1 text-[10px] font-semibold text-white/80">
+              <span className="wa-gold-pill">Wisdom Campus Â· Academic Intelligence Center</span>
+              <span className="rounded-full bg-white/12 border border-border px-3 py-1 text-[10px] font-semibold text-foreground/80">
                 {studentClass}
               </span>
             </div>
-            <p className="text-sm text-white/70">Hi, {firstName}</p>
+            <p className="text-sm text-foreground/70">Hi, {firstName}</p>
             <h1 className="font-['Sora'] text-3xl sm:text-5xl font-semibold tracking-tight text-white mt-1">
               Academic Health
             </h1>
             <div className="mt-6 flex flex-wrap items-end gap-4">
               <div>
-                <p className="text-[11px] uppercase tracking-[0.18em] text-white/60">Health score</p>
+                <p className="text-[11px] uppercase tracking-[0.18em] text-foreground/60">Health score</p>
                 <p className="text-6xl font-bold tabular-nums text-white leading-none mt-1">
-                  {academicHealth}<span className="text-2xl text-white/55">/100</span>
+                  {academicHealth}<span className="text-2xl text-foreground/55">/100</span>
                 </p>
               </div>
               <div className="rounded-2xl bg-[#ffdf97] text-[#251a00] px-4 py-3 shadow-lg">
@@ -249,7 +249,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
                 </p>
               </div>
             </div>
-            <p className="text-sm text-white/72 mt-5 max-w-xl">
+            <p className="text-sm text-foreground/72 mt-5 max-w-xl">
               This score blends accuracy, concept mastery, recovery completion, and consistency so you can see your academic position instantly.
             </p>
           </div>
@@ -262,7 +262,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
               { label: "Consistency Score", value: consistencyScore },
             ].map((m) => (
               <div key={m.label}>
-                <div className="flex justify-between text-sm font-medium text-white/85 mb-1">
+                <div className="flex justify-between text-sm font-medium text-foreground/85 mb-1">
                   <span>{m.label}</span>
                   <span className="tabular-nums">{m.value}%</span>
                 </div>
@@ -279,7 +279,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
         <div className="flex flex-wrap items-center gap-2 px-1">
           {enhancing && (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--wa-on-surface-variant)] bg-white/80 px-3 py-1 rounded-full border border-[var(--wa-outline-variant)]">
-              <Loader2 className="w-3 h-3 animate-spin" /> Coach analysing your mistakes…
+              <Loader2 className="w-3 h-3 animate-spin" /> Coach analysing your mistakesâ€¦
             </span>
           )}
           {!enhancing && coachLive && (
@@ -303,9 +303,9 @@ export function AnalyticsStudio({ data, charts }: Props) {
             <p className="wa-body mt-1 max-w-2xl">{clipInsightText(focusBody, 120)}</p>
           </div>
           <div className="rounded-2xl bg-[var(--wa-primary)] text-white px-4 py-3">
-            <p className="wa-label text-white/65">Measured gain</p>
+            <p className="wa-label text-foreground/65">Measured gain</p>
             <p className="text-3xl font-bold tabular-nums">
-              {measuredGain > 0 ? `+${measuredGain}%` : "—"}
+              {measuredGain > 0 ? `+${measuredGain}%` : "â€”"}
             </p>
           </div>
         </div>
@@ -317,7 +317,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
               <p className="text-xs text-[var(--wa-on-surface-variant)] mt-1">{displayChapter(topic.chapter)}</p>
             </div>
           )) : (
-            <p className="wa-body md:col-span-3">No priority topics yet — keep practising to surface gaps.</p>
+            <p className="wa-body md:col-span-3">No priority topics yet â€” keep practising to surface gaps.</p>
           )}
         </div>
       </section>
@@ -340,7 +340,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
           <div className="space-y-3">
             {strongConcepts.length > 0 ? strongConcepts.map((c) => (
               <div key={`${c.subject}-${c.concept}`} className="wa-concept-row">
-                <span>✓ {displayConcept(c.concept)}</span>
+                <span>âœ“ {displayConcept(c.concept)}</span>
                 <strong>{Math.round(c.mastery_score)}%</strong>
               </div>
             )) : <p className="wa-body">Strong concepts appear as you complete more practice.</p>}
@@ -353,7 +353,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
           <div className="space-y-3">
             {weakConcepts.length > 0 ? weakConcepts.map((c) => (
               <div key={`${c.subject}-${c.topic}`} className="wa-concept-row">
-                <span>⚠ {displayTopic(c.topic)}</span>
+                <span>âš  {displayTopic(c.topic)}</span>
                 <strong>{c.mistake_count} mistakes</strong>
               </div>
             )) : <p className="wa-body">No major weak concepts detected yet.</p>}
@@ -410,7 +410,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
             </div>
           </div>
         ) : (
-          <p className="wa-body mt-5">No recovery impact yet — complete practice and recovery sessions to track progress.</p>
+          <p className="wa-body mt-5">No recovery impact yet â€” complete practice and recovery sessions to track progress.</p>
         )}
       </section>
 
@@ -446,7 +446,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
 
       <section className="wa-card">
         <h2 className="wa-display text-2xl md:text-3xl mb-2">Skill tree</h2>
-        <p className="wa-body mb-5">Subject → chapter → concept mastery map.</p>
+        <p className="wa-body mb-5">Subject â†’ chapter â†’ concept mastery map.</p>
         {skillGroups.size === 0 ? (
           <p className="wa-body">Concept mastery will appear here after practice attempts sync.</p>
         ) : (
@@ -485,7 +485,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
               <div className="wa-coach-cell"><p>Strength</p><strong>{strength}</strong></div>
               <div className="wa-coach-cell"><p>Weakness</p><strong>{weakness}</strong></div>
               <div className="wa-coach-cell"><p>Recommendation</p><strong>{clipInsightText(topGap?.fix_hint ?? displayInsights?.today_focus ?? "Complete practice to unlock topic recommendations", 70)}</strong></div>
-              <div className="wa-coach-cell"><p>Measured gain</p><strong>{measuredGain > 0 ? `+${measuredGain}% accuracy` : "—"}</strong></div>
+              <div className="wa-coach-cell"><p>Measured gain</p><strong>{measuredGain > 0 ? `+${measuredGain}% accuracy` : "â€”"}</strong></div>
             </div>
           </div>
         </div>
@@ -552,7 +552,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
 
       {!pageLoading && pageData?.recent_sessions?.[0] && (
         <p className="text-center text-xs text-[var(--wa-on-surface-variant)]">
-          Latest session: {displayChapter(pageData.recent_sessions[0].chapter) || "—"} · {pageData.recent_sessions[0].accuracy_pct}% · {formatLastSeen(pageData.recent_sessions[0].finished_at)}
+          Latest session: {displayChapter(pageData.recent_sessions[0].chapter) || "â€”"} Â· {pageData.recent_sessions[0].accuracy_pct}% Â· {formatLastSeen(pageData.recent_sessions[0].finished_at)}
         </p>
       )}
     </div>

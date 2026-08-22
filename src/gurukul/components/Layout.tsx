@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -24,7 +24,7 @@ type NavEntry =
   | { type: "link";  key: PageKey; label: string; icon: ReactNode }
   | { type: "group"; hubKey: PageKey; label: string; icon: ReactNode; color: string; items: NavItem[] };
 
-// ── Sidebar nav — no Profile, no Resources as standalone ─────────────────────
+// â”€â”€ Sidebar nav â€” no Profile, no Resources as standalone â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const sidebarNav: NavEntry[] = [
   { type:"link", key:"dashboard",    label:"Home",         icon:<Home className="w-4 h-4"/> },
   { type:"link", key:"practice",     label:"Practice",     icon:<BookOpen className="w-4 h-4"/> },
@@ -60,7 +60,7 @@ const sidebarNav: NavEntry[] = [
   },
 ];
 
-// ── Mobile bottom nav — 4 tabs, no Profile ────────────────────────────────────
+// â”€â”€ Mobile bottom nav â€” 4 tabs, no Profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const bottomNav: NavItem[] = [
   { key:"dashboard",   label:"Home",     icon:<Home className="w-5 h-5"/> },
   { key:"practice",    label:"Practice", icon:<BookOpen className="w-5 h-5"/> },
@@ -83,7 +83,7 @@ const pageTitle: Record<PageKey, string> = {
   tests:"Tests",            learninghub:"Learning",    classhub:"Class",
 };
 
-// ── Profile dropdown menu items ───────────────────────────────────────────────
+// â”€â”€ Profile dropdown menu items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const profileMenuItems = [
   { label:"My Profile",    icon:<User className="w-3.5 h-3.5"/>,     key:"profile"      as PageKey },
   { label:"Achievements",  icon:<Medal className="w-3.5 h-3.5"/>,    key:"achievements" as PageKey },
@@ -205,7 +205,7 @@ export default function Layout({
     return page === key;
   }
 
-  // ── Sub-item ────────────────────────────────────────────────────────────────
+  // â”€â”€ Sub-item â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const SubLink = ({ item, color }: { item: NavItem; color: string }) => {
     const active = page === item.key;
     return (
@@ -214,7 +214,7 @@ export default function Layout({
         whileTap={reduceMotion ? undefined : { scale: 0.97 }}
         className={cn(
           "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-all duration-150 border border-transparent",
-          !active && "text-[#78788c] hover:text-white hover:bg-white/5"
+          !active && "text-muted-foreground hover:text-white hover:bg-muted"
         )}
         style={active ? { background:`${color}18`, borderColor:`${color}30`, color } : undefined}
         title={collapsed ? item.label : undefined}>
@@ -232,7 +232,7 @@ export default function Layout({
     );
   };
 
-  // ── Top-level link ──────────────────────────────────────────────────────────
+  // â”€â”€ Top-level link â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const TopLink = ({ entry }: { entry: Extract<NavEntry, {type:"link"}> }) => {
     const active = page === entry.key;
     const showChatBadge = entry.key === "chat" && unreadMsg > 0;
@@ -242,7 +242,7 @@ export default function Layout({
         whileTap={reduceMotion ? undefined : { scale: 0.98 }}
         className={cn(
           "relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-colors duration-150",
-          active ? "text-white" : "text-[#78788c] hover:text-white hover:bg-white/5",
+          active ? "text-foreground" : "text-muted-foreground hover:text-white hover:bg-muted",
           collapsed && "justify-center px-2"
         )}
         title={collapsed ? entry.label : undefined}>
@@ -271,7 +271,7 @@ export default function Layout({
     );
   };
 
-  // ── Group entry ─────────────────────────────────────────────────────────────
+  // â”€â”€ Group entry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const GroupEntry = ({ entry }: { entry: Extract<NavEntry, {type:"group"}> }) => {
     const isOpen      = !!openGroups[entry.hubKey];
     const isActive    = entry.items.some(i => i.key === page) || page === entry.hubKey;
@@ -295,7 +295,7 @@ export default function Layout({
             whileTap={reduceMotion ? undefined : { scale: 0.98 }}
             className={cn(
               "relative z-10 flex-1 flex items-center gap-3 px-3 py-2.5 text-left text-sm font-medium transition-all",
-              isHubActive ? "text-white" : isActive ? "text-white" : "text-[#78788c] hover:text-white",
+              isHubActive ? "text-foreground" : isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
               collapsed && "justify-center"
             )}
             style={isActive && !isHubActive ? { color: entry.color } : undefined}
@@ -309,7 +309,7 @@ export default function Layout({
             <button
               onClick={() => toggleGroup(entry.hubKey)}
               className={cn("relative z-10 px-2 py-2.5 shrink-0 transition-colors",
-                isHubActive ? "text-white/70 hover:text-white" : "text-[#78788c] hover:text-white"
+                isHubActive ? "text-foreground/70 hover:text-foreground" : "text-muted-foreground hover:text-foreground"
               )}>
               <motion.span
                 animate={{ rotate: isOpen ? 180 : 0 }}
@@ -341,18 +341,18 @@ export default function Layout({
     );
   };
 
-  // ── Sidebar shell ───────────────────────────────────────────────────────────
+  // â”€â”€ Sidebar shell â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const SidebarContent = () => (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo */}
       <div className={cn("flex items-center gap-3 px-4 py-4 border-b border-white/5 shrink-0", collapsed && "justify-center px-2")}>
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <Brain className="w-4 h-4 text-white"/>
+          <Brain className="w-4 h-4 text-foreground"/>
         </div>
         {!collapsed && (
           <div>
             <div className="text-sm font-black text-white leading-none" style={{fontFamily:"var(--font-display)"}}>Wisdom</div>
-            <div className="text-[10px] text-[#78788c] leading-none mt-0.5">Campus</div>
+            <div className="text-[10px] text-muted-foreground leading-none mt-0.5">Campus</div>
           </div>
         )}
       </div>
@@ -367,7 +367,7 @@ export default function Layout({
             </div>
             <div className="min-w-0">
               <div className="text-xs font-semibold text-white truncate">{student.name}</div>
-              <div className="text-[10px] text-[#78788c]">{student.class}</div>
+              <div className="text-[10px] text-muted-foreground">{student.class}</div>
             </div>
           </div>
           {showXpChrome ? (
@@ -399,7 +399,7 @@ export default function Layout({
       <div className="px-2 py-3 border-t border-white/5 shrink-0">
         <button
           onClick={() => setCollapsed(c => !c)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-[#78788c] hover:text-white hover:bg-white/5 transition-all text-xs">
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:text-white hover:bg-muted transition-all text-xs">
           {collapsed ? <ChevronRight className="w-4 h-4"/> : <><ChevronLeft className="w-4 h-4"/><span>Collapse</span></>}
         </button>
       </div>
@@ -440,7 +440,7 @@ export default function Layout({
                 <motion.button
                   whileTap={reduceMotion ? undefined : { scale: 0.9 }}
                   onClick={() => setMobileOpen(false)}
-                  className="text-[#78788c] hover:text-white">
+                  className="text-muted-foreground hover:text-foreground">
                   <X className="w-5 h-5"/>
                 </motion.button>
               </div>
@@ -453,13 +453,13 @@ export default function Layout({
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Top header — z-40 so backdrop-blur stacking context sits above <main> */}
+        {/* Top header â€” z-40 so backdrop-blur stacking context sits above <main> */}
         <header className="relative z-40 shrink-0 border-b border-white/5 bg-[#0d0d0f]/80 backdrop-blur-xl">
           <div className="h-14 px-4 sm:px-6 flex items-center gap-3">
             {/* Mobile hamburger */}
             <motion.button
               whileTap={reduceMotion ? undefined : { scale: 0.88 }}
-              className="md:hidden text-[#78788c] hover:text-white"
+              className="md:hidden text-muted-foreground hover:text-foreground"
               onClick={() => setMobileOpen(true)}>
               <Menu className="w-5 h-5"/>
             </motion.button>
@@ -483,14 +483,14 @@ export default function Layout({
               <div className="hidden sm:flex items-center gap-1.5 bg-amber-400/10 border border-amber-400/20 rounded-full px-2.5 py-1">
                 <Flame className="w-3 h-3 text-amber-400"/>
                 <span className="text-xs font-bold text-amber-400">
-                  {showXpChrome ? `${student.streak}d` : "—"}
+                  {showXpChrome ? `${student.streak}d` : "â€”"}
                 </span>
               </div>
               {/* XP */}
               <div className="hidden sm:flex items-center gap-1.5 bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-full px-2.5 py-1">
                 <Zap className="w-3 h-3 text-blue-400"/>
                 <span className="text-xs font-bold text-blue-400">
-                  {showXpChrome ? student.xp.toLocaleString() : "—"}
+                  {showXpChrome ? student.xp.toLocaleString() : "â€”"}
                 </span>
               </div>
               {/* Bell -> Notifications (live inbox) */}
@@ -498,7 +498,7 @@ export default function Layout({
                 whileHover={reduceMotion ? undefined : { scale: 1.06 }}
                 whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                 onClick={() => navigate("/student/notifications")}
-                className="relative w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-colors"
+                className="relative w-8 h-8 rounded-full bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
                 title="Notifications"
               >
                 <Bell className="w-4 h-4"/>
@@ -522,7 +522,7 @@ export default function Layout({
                   whileHover={reduceMotion ? undefined : { scale: 1.03 }}
                   whileTap={reduceMotion ? undefined : { scale: 0.96 }}
                   onClick={onOpenAdmin}
-                  className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-[#78788c] hover:text-[#a5b4fc] border border-white/10 hover:border-[#3b5bdb]/40 hover:bg-[#3b5bdb]/8 rounded-full px-2.5 py-1 transition-all"
+                  className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-[#a5b4fc] border border-border hover:border-[#3b5bdb]/40 hover:bg-[#3b5bdb]/8 rounded-full px-2.5 py-1 transition-all"
                   title="Switch to Admin Panel"
                 >
                   <Settings className="w-3 h-3" />
@@ -530,7 +530,7 @@ export default function Layout({
                 </motion.button>
               )}
 
-              {/* Profile avatar — opens dropdown (portaled to body) */}
+              {/* Profile avatar â€” opens dropdown (portaled to body) */}
               <div className="relative" ref={profileRef}>
                 <motion.button
                   whileHover={reduceMotion ? undefined : { scale: 1.06 }}
@@ -558,7 +558,7 @@ export default function Layout({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={reduceMotion ? undefined : { opacity: 0, scale: 0.96, y: -6 }}
                     transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: EASE_OUT }}
-                    className="fixed right-4 top-14 mt-0 w-64 z-overlay rounded-2xl border border-white/10 bg-surface/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
+                    className="fixed right-4 top-14 mt-0 w-64 z-overlay rounded-2xl border border-border bg-surface/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
                   >
                     {/* User info */}
                     <div className="px-4 py-4 border-b border-white/5">
@@ -569,8 +569,8 @@ export default function Layout({
                         </div>
                         <div className="min-w-0">
                           <div className="text-sm font-bold text-white truncate">{student.name}</div>
-                          <div className="text-[11px] text-[#78788c]">
-                            {[student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" · ") || "Your class"}
+                          <div className="text-[11px] text-muted-foreground">
+                            {[student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" Â· ") || "Your class"}
                           </div>
                         </div>
                       </div>
@@ -597,9 +597,9 @@ export default function Layout({
                         <button key={item.key} onClick={() => { setPage(item.key); setProfileOpen(false); }}
                           className={cn(
                             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-all",
-                            page === item.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#a0a0b0] hover:text-white hover:bg-white/5"
+                            page === item.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#a0a0b0] hover:text-white hover:bg-muted"
                           )}>
-                          <span className={page === item.key ? "text-[#3b5bdb]" : "text-[#78788c]"}>{item.icon}</span>
+                          <span className={page === item.key ? "text-[#3b5bdb]" : "text-muted-foreground"}>{item.icon}</span>
                           {item.label}
                           {page === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#3b5bdb]"/>}
                         </button>
@@ -608,9 +608,9 @@ export default function Layout({
                         <button
                           key={item.path}
                           onClick={() => { navigate(item.path); setProfileOpen(false); }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-[#a0a0b0] hover:text-white hover:bg-white/5 transition-all"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-[#a0a0b0] hover:text-white hover:bg-muted transition-all"
                         >
-                          <span className="text-[#78788c]">{item.icon}</span>
+                          <span className="text-muted-foreground">{item.icon}</span>
                           {item.label}
                         </button>
                       ))}
@@ -620,7 +620,7 @@ export default function Layout({
                     <div className="px-2 py-2 border-t border-white/5">
                       <button
                         onClick={handleSignOut}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-[#78788c] hover:text-rose-400 hover:bg-rose-400/5 transition-all"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-muted-foreground hover:text-rose-400 hover:bg-rose-400/5 transition-all"
                       >
                         <LogOut className="w-3.5 h-3.5"/>
                         Sign out
@@ -651,7 +651,7 @@ export default function Layout({
           </AnimatePresence>
         </main>
 
-        {/* Mobile bottom nav — 4 tabs */}
+        {/* Mobile bottom nav â€” 4 tabs */}
         <nav className="md:hidden shrink-0 fixed bottom-0 inset-x-0 border-t border-border/70 bg-[#0d0d0f]/95 backdrop-blur-xl z-40">
           <div className="flex">
             {bottomNav.map(item => {
@@ -662,7 +662,7 @@ export default function Layout({
                   whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                   className={cn(
                     "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-colors relative",
-                    active ? "text-[#3b5bdb]" : "text-[#78788c]"
+                    active ? "text-[#3b5bdb]" : "text-muted-foreground"
                   )}>
                   {active && (
                     <motion.span
@@ -692,7 +692,7 @@ export default function Layout({
               whileTap={reduceMotion ? undefined : { scale: 0.92 }}
               className={cn(
                 "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-colors relative",
-                page === "profile" ? "text-[#3b5bdb]" : "text-[#78788c]"
+                page === "profile" ? "text-[#3b5bdb]" : "text-muted-foreground"
               )}>
               {page === "profile" && (
                 <motion.span
@@ -705,7 +705,7 @@ export default function Layout({
                 animate={{ scale: page === "profile" ? 1.1 : 1 }}
                 transition={reduceMotion ? { duration: 0 } : springSnappy}
                 className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white",
+                  "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-foreground",
                   page === "profile" ? "ring-2 ring-[#3b5bdb] ring-offset-1 ring-offset-[#0d0d0f]" : ""
                 )}
                 style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>

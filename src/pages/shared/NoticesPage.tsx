@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -276,30 +276,30 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
       <Card className="mb-5 overflow-hidden border-primary/20 bg-[#083f2b] p-0 text-white shadow-elevated">
         <div className="grid gap-5 p-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white/75">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-foreground/75">
               <Megaphone className="w-3.5 h-3.5" />
               Campus updates
             </div>
             <h2 className="mt-4 text-2xl font-black">{pinned?.title || "No active notices"}</h2>
-            <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-relaxed text-white/75">
+            <p className="mt-2 line-clamp-2 max-w-2xl text-sm leading-relaxed text-foreground/75">
               {pinned?.body || "Important school announcements, class updates, and reminders will appear here."}
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-2xl border border-border bg-white/10 p-3 text-center">
-              <Sparkles className="w-4 h-4 mx-auto text-white/75" />
+              <Sparkles className="w-4 h-4 mx-auto text-foreground/75" />
               <p className="mt-1 text-xl font-black">{active.length}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/65">Active</p>
+              <p className="text-[10px] uppercase tracking-wider text-foreground/65">Active</p>
             </div>
             <div className="rounded-2xl border border-border bg-white/10 p-3 text-center">
-              <Users className="w-4 h-4 mx-auto text-white/75" />
+              <Users className="w-4 h-4 mx-auto text-foreground/75" />
               <p className="mt-1 text-xl font-black">{classNoticeCount}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/65">Class</p>
+              <p className="text-[10px] uppercase tracking-wider text-foreground/65">Class</p>
             </div>
             <div className="rounded-2xl border border-border bg-white/10 p-3 text-center">
-              <Clock className="w-4 h-4 mx-auto text-white/75" />
+              <Clock className="w-4 h-4 mx-auto text-foreground/75" />
               <p className="mt-1 text-xl font-black">{expired.length}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/65">Expired</p>
+              <p className="text-[10px] uppercase tracking-wider text-foreground/65">Expired</p>
             </div>
           </div>
         </div>

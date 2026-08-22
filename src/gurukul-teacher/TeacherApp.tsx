@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+﻿import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, HelpCircle, MessageCircle, Megaphone,
@@ -107,7 +107,7 @@ function Sidebar({
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className="w-6 h-6 rounded-lg bg-white/5 text-[#46465a] flex items-center justify-center hover:bg-white/10 hover:text-white transition-all shrink-0"
+            className="w-6 h-6 rounded-lg bg-white/5 text-muted-foreground flex items-center justify-center hover:bg-white/10 hover:text-white transition-all shrink-0"
           >
             {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
           </button>
@@ -130,11 +130,11 @@ function Sidebar({
                 collapsed && !mobile && "justify-center px-2",
                 active
                   ? "bg-[#3b5bdb]/10 text-[#3b5bdb]"
-                  : "text-[#78788c] hover:bg-white/5 hover:text-white",
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
               title={collapsed && !mobile ? item.label : undefined}
             >
-              <div className={cn("shrink-0 transition-all", active ? "text-[#3b5bdb]" : "text-[#46465a] group-hover:text-white")}>
+              <div className={cn("shrink-0 transition-all", active ? "text-[#3b5bdb]" : "text-muted-foreground group-hover:text-foreground")}>
                 {item.icon}
               </div>
               {(!collapsed || mobile) && (
@@ -161,14 +161,14 @@ function Sidebar({
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold text-white truncate">{displayName || "Teacher"}</div>
-              <div className="text-[9px] text-[#46465a] truncate">{employeeId || "—"}</div>
+              <div className="text-[9px] text-muted-foreground truncate">{employeeId || "â€”"}</div>
             </div>
           </div>
           {onSignOut && (
             <button
               type="button"
               onClick={onSignOut}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-[#78788c] hover:text-white hover:bg-white/5 text-xs font-medium transition-all"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:text-white hover:bg-muted text-xs font-medium transition-all"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
@@ -213,7 +213,7 @@ export default function TeacherApp() {
   }, [ready, ctx, messageLive, page]);
 
   const displayName = identity.name || "Teacher";
-  const employeeId = identity.employeeId || "—";
+  const employeeId = identity.employeeId || "â€”";
   const initials = teacherInitials(displayName, "?");
 
   const handleSignOut = async () => {
@@ -262,14 +262,14 @@ export default function TeacherApp() {
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#78788c] hover:text-white shrink-0"
+              className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground hover:text-white shrink-0"
             >
               <Menu className="w-4 h-4" />
             </button>
             <div className="min-w-0">
               <div className="text-sm font-black text-white truncate">{TEACHER_PAGE_TITLES[page]}</div>
-              <div className="text-[10px] text-[#46465a] mt-0.5 truncate">
-                {displayName} · {employeeId}
+              <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                {displayName} Â· {employeeId}
               </div>
             </div>
           </div>

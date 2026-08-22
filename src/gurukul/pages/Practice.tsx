@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
@@ -42,7 +42,7 @@ const PremiumEmpty = ({ icon: Icon, title, description }: { icon: React.ReactNod
 const CLASS_LEVEL_UNRESOLVED_MSG =
   "Your class is assigned, but its name or category does not identify a class level. Ask your school admin to use a label such as Class 10, Std 9, XI, or 12-A.";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type Phase   = "hub" | "config" | "session" | "feedback" | "summary";
 type Cat     = "all" | "content" | "source" | "type" | "targeted";
 type ModeKey =
@@ -111,7 +111,7 @@ type HistoryRow = {
   pct: number;
   time: string;
   xp: number;
-  /** Display string — em dash when XP not yet credited by Progression Engine. */
+  /** Display string â€” em dash when XP not yet credited by Progression Engine. */
   xpLabel: string;
   status: string;
   finishedAt: string | null;
@@ -130,7 +130,7 @@ function formatDurationMs(ms: number | null | undefined, startIso?: string, endI
     return `${mins}m`;
   }
   if (startIso && endIso) return formatDuration(startIso, endIso);
-  return "—";
+  return "â€”";
 }
 
 function formatSessionDate(iso: string) {
@@ -156,10 +156,10 @@ function formatDuration(startIso: string, endIso: string) {
   return `${mins}m`;
 }
 
-// ── Static data ──────────────────────────────────────────────────────────────
+// â”€â”€ Static data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Exactly nine modes. Daily, Teacher Assigned, Timed, Untimed and Mock Tests
 // were removed: a time limit is now a Custom Practice goal rather than its own
-// mode. Only the Mock Tests entry point is gone — the teacher test system it
+// mode. Only the Mock Tests entry point is gone â€” the teacher test system it
 // used is untouched and still serves teacher-assigned tests elsewhere.
 const MODES: Mode[] = [
   { key:"subject",    label:"Subject Practice",       desc:"Practice questions from a subject of your choice",
@@ -178,7 +178,7 @@ const MODES: Mode[] = [
     icon:<XCircle className="w-5 h-5"/>,    color:"#cc5069", cat:"targeted", badge:"Retry wrong", instant:true },
   { key:"skipped",    label:"Skipped Questions",      desc:"Solve questions you chose to skip earlier",
     icon:<SkipForward className="w-5 h-5"/>, color:"#c08a3a", cat:"targeted", badge:"Skipped", instant:true },
-  { key:"bookmarked", label:"Bookmarked Questions",   desc:"Questions you bookmarked — they stay until you remove them",
+  { key:"bookmarked", label:"Bookmarked Questions",   desc:"Questions you bookmarked â€” they stay until you remove them",
     icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"Bookmarked", instant:true },
 ];
 
@@ -217,7 +217,7 @@ function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
     mode: row.chapter ? displayChapter(String(row.chapter)) : practiceTypeLabel(row.practice_mode),
     practiceType: snap?.practiceTypeLabel || practiceTypeLabel(row.practice_mode),
     subject: displaySubject(row.subject || "Mixed"),
-    chapter: row.chapter ? displayChapter(String(row.chapter)) : "—",
+    chapter: row.chapter ? displayChapter(String(row.chapter)) : "â€”",
     difficulty: presentAcademicLabel(String(difficultyRaw)) || String(difficultyRaw),
     qs: stats.questionCount,
     attempted: stats.questionCount,
@@ -234,13 +234,13 @@ function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
 }
 
 const DIFFICULTIES = [
-  { key:"easy",   label:"Easy",   color:"#4aa87a", desc:"Foundation level — build confidence" },
-  { key:"medium", label:"Medium", color:"#c08a3a", desc:"Board exam level — solid preparation" },
-  { key:"hard",   label:"Hard",   color:"#cc5069", desc:"Competitive level — push your limits" },
-  { key:"mixed",  label:"Mixed",  color:"#6882e8", desc:"Varied — best for overall practice" },
+  { key:"easy",   label:"Easy",   color:"#4aa87a", desc:"Foundation level â€” build confidence" },
+  { key:"medium", label:"Medium", color:"#c08a3a", desc:"Board exam level â€” solid preparation" },
+  { key:"hard",   label:"Hard",   color:"#cc5069", desc:"Competitive level â€” push your limits" },
+  { key:"mixed",  label:"Mixed",  color:"#6882e8", desc:"Varied â€” best for overall practice" },
 ];
 
-// ── Shared components ────────────────────────────────────────────────────────
+// â”€â”€ Shared components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Tag({ children, color }: { children: React.ReactNode; color: string }) {
   return (
     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -261,7 +261,7 @@ function StatusTag({ status }: { status: string }) {
   return <Tag color={s.color}>{s.label}</Tag>;
 }
 
-// ── Hub view ─────────────────────────────────────────────────────────────────
+// â”€â”€ Hub view â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Hub({
   onMode,
   history,
@@ -319,12 +319,12 @@ function Hub({
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-end gap-4">
         <div className="flex-1">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Wisdom Campus</div>
-          <h1 className="text-3xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Wisdom Campus</div>
+          <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
             Practice
           </h1>
-          <p className="text-[#78788c] text-sm mt-1">
-            {MODES.length} practice modes · Pick how you want to learn today
+          <p className="text-muted-foreground text-sm mt-1">
+            {MODES.length} practice modes Â· Pick how you want to learn today
           </p>
         </div>
         {streak > 0 && (
@@ -339,7 +339,7 @@ function Hub({
         <GlassCard className="p-4 border-[#c08a3a]/25">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1 h-4 rounded-full bg-[#c08a3a]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Resume session</span>
+            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Resume session</span>
           </div>
           <div className="space-y-2">
             {incomplete.slice(0, 3).map((s) => (
@@ -347,15 +347,15 @@ function Hub({
                 key={s.id}
                 type="button"
                 onClick={() => onResumeSession(s.id)}
-                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-border/70 hover:border-[#c08a3a]/35 hover:bg-white/[0.03] transition-all text-left"
+                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-border/70 hover:border-[#c08a3a]/35 hover:bg-muted transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg bg-[#c08a3a]/15 flex items-center justify-center shrink-0 text-[#c08a3a]">
                   <RotateCcw className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{s.subject} · {s.chapter !== "—" ? s.chapter : s.practiceType}</div>
-                  <div className="text-[10px] text-[#78788c] mt-0.5">
-                    {s.practiceType} · {s.attempted}/{s.qs || "?"} answered · {s.date}
+                  <div className="text-xs font-bold text-white truncate">{s.subject} Â· {s.chapter !== "â€”" ? s.chapter : s.practiceType}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">
+                    {s.practiceType} Â· {s.attempted}/{s.qs || "?"} answered Â· {s.date}
                   </div>
                 </div>
                 <span className="text-[11px] font-semibold text-[#c08a3a] flex items-center gap-1 shrink-0">
@@ -371,17 +371,17 @@ function Hub({
         <div>
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1 h-4 rounded-full bg-[#c08a3a]"/>
-            <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Quick Start</span>
+            <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Quick Start</span>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {hot.map(m => (
               <button key={m.key} type="button" onClick={() => onMode(m.key)}
-                className="group text-left p-4 rounded-2xl border border-border/70 hover:border-border hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
+                className="group text-left p-4 rounded-2xl border border-border/70 hover:border-border hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
                 <div className="flex items-center gap-2 mb-2" style={{ color: m.color }}>
                   {m.icon}
-                  <span className="text-sm font-bold text-white">{m.label}</span>
+                  <span className="text-sm font-bold text-foreground">{m.label}</span>
                 </div>
-                <div className="text-[11px] text-[#78788c] line-clamp-2">{m.desc}</div>
+                <div className="text-[11px] text-muted-foreground line-clamp-2">{m.desc}</div>
               </button>
             ))}
           </div>
@@ -395,19 +395,19 @@ function Hub({
               <button key={c.key} type="button" onClick={() => setCat(c.key)}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all",
-                  cat === c.key ? "bg-white/12 text-white" : "text-[#78788c] hover:text-white hover:bg-white/5"
+                  cat === c.key ? "bg-white/12 text-foreground" : "text-muted-foreground hover:text-white hover:bg-muted"
                 )}>
                 {c.label}
               </button>
             ))}
           </div>
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#78788c]"/>
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/>
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search modes…"
-              className="pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20 w-full sm:w-48"
+              placeholder="Search modesâ€¦"
+              className="pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-border w-full sm:w-48"
             />
           </div>
         </div>
@@ -415,7 +415,7 @@ function Hub({
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {visible.map(m => (
             <button key={m.key} type="button" onClick={() => onMode(m.key)}
-              className="group text-left p-4 rounded-2xl border border-border/70 hover:border-border hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
+              className="group text-left p-4 rounded-2xl border border-border/70 hover:border-border hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
               <div className="flex items-start gap-2 mb-2">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                   style={{ background:`${m.color}15`, color:m.color }}>
@@ -431,7 +431,7 @@ function Hub({
                   </span>
                 )}
               </div>
-              <div className="text-[11px] text-[#78788c] leading-relaxed mb-3">{m.desc}</div>
+              <div className="text-[11px] text-muted-foreground leading-relaxed mb-3">{m.desc}</div>
               <div className="flex items-center justify-between">
                 <Tag color={m.color}>{m.badge}</Tag>
                 <div className="flex items-center gap-1 text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
@@ -444,8 +444,8 @@ function Hub({
 
           {visible.length === 0 && (
             <div className="col-span-full py-16 text-center">
-              <HelpCircle className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
-              <div className="text-sm text-[#78788c]">No modes match your search</div>
+              <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto mb-3"/>
+              <div className="text-sm text-muted-foreground">No modes match your search</div>
             </div>
           )}
         </div>
@@ -456,7 +456,7 @@ function Hub({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 rounded-full bg-[#4b9fd4]"/>
-              <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Saved Sessions</span>
+              <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Saved Sessions</span>
             </div>
             <button
               type="button"
@@ -464,13 +464,13 @@ function Hub({
               onClick={onSaveLatest}
               className="flex items-center gap-1 text-[10px] text-[#3b5bdb] hover:text-blue-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <Save className="w-3 h-3"/> {savingLatest ? "Saving…" : "Save latest result"}
+              <Save className="w-3 h-3"/> {savingLatest ? "Savingâ€¦" : "Save latest result"}
             </button>
           </div>
           <div className="space-y-2.5">
             {saved.length === 0 ? (
-              <div className="py-8 text-center text-xs text-[#78788c]">
-                No saved sessions yet. Finish practice, open analysis, then Save Session — or bookmark your latest finished result here.
+              <div className="py-8 text-center text-xs text-muted-foreground">
+                No saved sessions yet. Finish practice, open analysis, then Save Session â€” or bookmark your latest finished result here.
               </div>
             ) : saved.map(s => (
               <button
@@ -483,11 +483,11 @@ function Hub({
                   <Save className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{s.subject} · {s.chapter}</div>
-                  <div className="text-[10px] text-[#78788c] truncate mt-0.5">{s.practiceType} · {s.pct}% · {s.attempted} Qs · {s.xpLabel} XP</div>
-                  <div className="text-[10px] text-[#78788c]/60 mt-0.5">{s.date}</div>
+                  <div className="text-xs font-bold text-white truncate">{s.subject} Â· {s.chapter}</div>
+                  <div className="text-[10px] text-muted-foreground truncate mt-0.5">{s.practiceType} Â· {s.pct}% Â· {s.attempted} Qs Â· {s.xpLabel} XP</div>
+                  <div className="text-[10px] text-muted-foreground/60 mt-0.5">{s.date}</div>
                 </div>
-                <Play className="w-3.5 h-3.5 text-[#78788c] group-hover:text-[#4b9fd4] transition-colors shrink-0 mt-1"/>
+                <Play className="w-3.5 h-3.5 text-muted-foreground group-hover:text-[#4b9fd4] transition-colors shrink-0 mt-1"/>
               </button>
             ))}
           </div>
@@ -497,14 +497,14 @@ function Hub({
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
               <div className="w-1 h-4 rounded-full bg-[#6882e8]"/>
-              <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Practice History</span>
+              <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Practice History</span>
             </div>
             <button
               type="button"
               onClick={() => setShowFilters((v) => !v)}
               className={cn(
                 "flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors",
-                showFilters ? "border-[#6882e8]/40 text-[#6882e8]" : "border-white/10 text-[#78788c] hover:text-white"
+                showFilters ? "border-[#6882e8]/40 text-[#6882e8]" : "border-border text-muted-foreground hover:text-foreground"
               )}
             >
               <Filter className="w-3 h-3"/> Filters
@@ -514,14 +514,14 @@ function Hub({
           {showFilters && (
             <div className="grid sm:grid-cols-2 gap-2 mb-4">
               <div className="relative sm:col-span-2">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#78788c]"/>
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/>
                 <input
                   value={historyFilters.search}
                   onChange={(e) => onHistoryFilters({ search: e.target.value })}
-                  placeholder="Search subject, chapter, type…"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20"
+                  placeholder="Search subject, chapter, typeâ€¦"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-border"
                 />
-                <div className="mt-1.5 text-[10px] text-[#78788c]/70">
+                <div className="mt-1.5 text-[10px] text-muted-foreground/70">
                   Showing your most recent 100 sessions
                 </div>
               </div>
@@ -556,7 +556,7 @@ function Hub({
 
           <div className="space-y-2 max-h-[28rem] overflow-y-auto pr-1">
             {filteredHistory.length === 0 ? (
-              <div className="py-8 text-center text-xs text-[#78788c]">
+              <div className="py-8 text-center text-xs text-muted-foreground">
                 {history.length === 0 ? "No practice history yet" : "No sessions match these filters"}
               </div>
             ) : filteredHistory.map(h => (
@@ -564,7 +564,7 @@ function Hub({
                 key={h.id}
                 type="button"
                 onClick={() => onOpenSession(h.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-white/10 hover:bg-white/[0.02] transition-all text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-border hover:bg-white/[0.02] transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
                   style={{ background:`${h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069"}15`, color:h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069" }}>
@@ -572,26 +572,26 @@ function Hub({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-white truncate">{h.chapter !== "—" ? h.chapter : h.practiceType}</span>
+                    <span className="text-xs font-semibold text-white truncate">{h.chapter !== "â€”" ? h.chapter : h.practiceType}</span>
                     <StatusTag status={h.status}/>
                     {h.saved && <Tag color="#4b9fd4">Saved</Tag>}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                    <span className="text-[10px] text-[#78788c]">{h.subject}</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#78788c]">{h.practiceType}</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#78788c]">{h.difficulty}</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#78788c]">{h.attempted} Qs</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
-                    <span className="text-[10px] text-[#78788c]">{h.time}</span>
-                    <span className="text-[10px] text-[#78788c]/40">·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.subject}</span>
+                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.practiceType}</span>
+                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.difficulty}</span>
+                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.attempted} Qs</span>
+                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
+                    <span className="text-[10px] text-muted-foreground">{h.time}</span>
+                    <span className="text-[10px] text-muted-foreground/40">Â·</span>
                     <span className="text-[10px] text-[#c08a3a]">{h.xpLabel} XP</span>
                   </div>
                 </div>
-                <div className="text-[10px] text-[#78788c] shrink-0 text-right hidden sm:block">{h.date}</div>
-                <ChevronRight className="w-3.5 h-3.5 text-[#78788c] shrink-0"/>
+                <div className="text-[10px] text-muted-foreground shrink-0 text-right hidden sm:block">{h.date}</div>
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0"/>
               </button>
             ))}
           </div>
@@ -601,7 +601,7 @@ function Hub({
   );
 }
 
-// ── Config views ─────────────────────────────────────────────────────────────
+// â”€â”€ Config views â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ConfigView({
   modeKey, onStart, onBack, subjects, onNavigate, classUnresolved, classUnresolvedMessage,
 }: {
@@ -626,7 +626,7 @@ function ConfigView({
   const [qCount,        setQCount]        = useState(20);
   const [timeLimitMin,  setTimeLimitMin]  = useState(20);
   // Custom Practice targets EITHER a question count OR a time limit, never
-  // both — picking one hides the other.
+  // both â€” picking one hides the other.
   const [goalType,      setGoalType]      = useState<"count" | "time">("count");
   const [pyqYear,       setPyqYear]       = useState<number | null>(null);
   const [chapters,      setChapters]      = useState<AcademicTermRef[]>([]);
@@ -700,7 +700,7 @@ function ConfigView({
     : "No subjects in the question bank yet for your class and board.";
 
   if (modeKey === "custom") {
-    // Subject / chapter / topic are all optional here — only difficulty and a
+    // Subject / chapter / topic are all optional here â€” only difficulty and a
     // goal are required.
     const goalReady = goalType === "count" ? qCount > 0 : timeLimitMin > 0;
     return (
@@ -716,7 +716,7 @@ function ConfigView({
           />
           {selSubject && (
             <OptionChips
-              label={metaLoading ? "Loading chapters…" : "2. Chapter (optional)"}
+              label={metaLoading ? "Loading chaptersâ€¦" : "2. Chapter (optional)"}
               options={chapters}
               selected={selChapter}
               onSelect={setSelChapter}
@@ -736,7 +736,7 @@ function ConfigView({
           )}
 
           <div>
-            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Difficulty
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -748,14 +748,14 @@ function ConfigView({
                   )}
                   style={selDifficulty === d.key ? { borderColor:`${d.color}40`, background:`${d.color}10` } : {}}>
                   <div className="text-sm font-black mb-1" style={{ color:selDifficulty===d.key?d.color:"white" }}>{d.label}</div>
-                  <div className="text-[11px] text-[#78788c]">{d.desc}</div>
+                  <div className="text-[11px] text-muted-foreground">{d.desc}</div>
                 </button>
               ))}
             </div>
           </div>
 
           <div>
-            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
               Practice goal
             </div>
             <div className="flex gap-2 mb-4">
@@ -769,7 +769,7 @@ function ConfigView({
                   onClick={() => setGoalType(g.key)}
                   className={cn(
                     "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                    goalType === g.key ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
+                    goalType === g.key ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                   )}
                   style={goalType === g.key ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}
                 >
@@ -785,7 +785,7 @@ function ConfigView({
                   <button key={n} type="button" onClick={() => setQCount(n)}
                     className={cn(
                       "px-5 py-3 rounded-xl text-sm font-black border transition-all",
-                      qCount === n ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
+                      qCount === n ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                     )}
                     style={qCount === n ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                     {n} questions
@@ -798,7 +798,7 @@ function ConfigView({
                   <button key={t} type="button" onClick={() => setTimeLimitMin(t)}
                     className={cn(
                       "px-5 py-3 rounded-xl text-sm font-black border transition-all",
-                      timeLimitMin === t ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
+                      timeLimitMin === t ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                     )}
                     style={timeLimitMin === t ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                     {t} min
@@ -825,15 +825,15 @@ function ConfigView({
     return (
       <ConfigShell mode={mode} onBack={onBack}>
         <div className="space-y-6">
-          <p className="text-xs text-[#78788c]">Loads past-paper / exam-year tagged questions from the bank when available.</p>
+          <p className="text-xs text-muted-foreground">Loads past-paper / exam-year tagged questions from the bank when available.</p>
           <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll label="Subject"/>
           <div>
-            <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Exam year (optional)</div>
+            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Exam year (optional)</div>
             <div className="flex gap-2 flex-wrap">
               <button type="button" onClick={() => setPyqYear(null)}
                 className={cn(
                   "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                  pyqYear === null ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
+                  pyqYear === null ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                 )}
                 style={pyqYear === null ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                 All years
@@ -842,7 +842,7 @@ function ConfigView({
                 <button key={y} type="button" onClick={() => setPyqYear(y)}
                   className={cn(
                     "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                    pyqYear === y ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
+                    pyqYear === y ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                   )}
                   style={pyqYear === y ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                   {y}
@@ -877,7 +877,7 @@ function ConfigView({
           <SubjectPicker selected={selSubject} onSelect={setSelSubject} subjects={subjects} emptyMessage={subjectEmptyMsg} allowAll={false} label="1. Subject"/>
           {selSubject && (
             <OptionChips
-              label={metaLoading ? "Loading chapters…" : "2. Chapter"}
+              label={metaLoading ? "Loading chaptersâ€¦" : "2. Chapter"}
               options={chapters}
               selected={selChapter}
               onSelect={setSelChapter}
@@ -886,13 +886,13 @@ function ConfigView({
           )}
           {selChapter && (
             <div>
-              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">Difficulty</div>
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Difficulty</div>
               <div className="flex gap-2 flex-wrap">
                 {DIFFICULTIES.map(d => (
                   <button key={d.key} onClick={() => setSelDifficulty(d.key)}
                     className={cn(
                       "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      selDifficulty === d.key ? "text-white shadow-lg" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
+                      selDifficulty === d.key ? "text-white shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
                     )}
                     style={selDifficulty === d.key ? { background:d.color } : {}}>
                     {d.label}
@@ -920,7 +920,7 @@ function ConfigView({
               selected={selChapter}
               onSelect={setSelChapter}
               allowClear
-              empty="No chapters yet — pick a topic below if available."
+              empty="No chapters yet â€” pick a topic below if available."
             />
           )}
           {selSubject && (
@@ -955,9 +955,9 @@ function EmptyConfig({
 }: { title: string; body: string; actionLabel?: string; onAction?: () => void }) {
   return (
     <div className="py-8 text-center space-y-3">
-      <HelpCircle className="w-8 h-8 text-[#78788c] mx-auto"/>
-      <div className="text-sm font-bold text-white">{title}</div>
-      <p className="text-xs text-[#78788c] leading-relaxed max-w-sm mx-auto">{body}</p>
+      <HelpCircle className="w-8 h-8 text-muted-foreground mx-auto"/>
+      <div className="text-sm font-bold text-foreground">{title}</div>
+      <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">{body}</p>
       {actionLabel && onAction && (
         <button type="button" onClick={onAction}
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#3b5bdb] hover:text-blue-300">
@@ -980,16 +980,16 @@ function OptionChips({
 }) {
   return (
     <div>
-      <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{label}</div>
       {options.length === 0 ? (
-        <p className="text-xs text-[#78788c]">{empty ?? "Nothing available yet."}</p>
+        <p className="text-xs text-muted-foreground">{empty ?? "Nothing available yet."}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {allowClear && (
             <button type="button" onClick={() => onSelect(null)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === null ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
               )}>Any</button>
           )}
           {options.map((opt) => (
@@ -999,7 +999,7 @@ function OptionChips({
               onClick={() => onSelect(opt.id)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all max-w-full truncate",
-                selected === opt.id ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === opt.id ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
               )}
               title={opt.displayName}
             >
@@ -1018,7 +1018,7 @@ function ConfigShell({ mode, onBack, children }: {
 }) {
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-[#78788c] hover:text-white transition-colors">
+      <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors">
         <ArrowLeft className="w-4 h-4"/> Back to Practice
       </button>
 
@@ -1029,8 +1029,8 @@ function ConfigShell({ mode, onBack, children }: {
             {mode.icon}
           </div>
           <div>
-            <h2 className="text-xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>{mode.label}</h2>
-            <p className="text-sm text-[#78788c] mt-0.5">{mode.desc}</p>
+            <h2 className="text-xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>{mode.label}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{mode.desc}</p>
           </div>
         </div>
         {children}
@@ -1052,9 +1052,9 @@ function SubjectPicker({
 }) {
   return (
     <div>
-      <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider mb-3">{label}</div>
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{label}</div>
       {subjects.length === 0 ? (
-        <p className="text-xs text-[#78788c]">
+        <p className="text-xs text-muted-foreground">
           {emptyMessage ?? "No subjects in the question bank yet for your class and board."}
         </p>
       ) : (
@@ -1063,14 +1063,14 @@ function SubjectPicker({
             <button type="button" onClick={() => onSelect(null)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
               )}>All</button>
           )}
           {subjects.map(s => (
             <button key={s.id} type="button" onClick={() => onSelect(s.name)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === s.name ? "text-white shadow-lg" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === s.name ? "text-white shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
               )}
               style={selected===s.name ? { background:s.color, boxShadow:`0 4px 14px ${s.color}40` } : {}}>
               {displaySubject(s.name) || s.name}
@@ -1087,13 +1087,13 @@ function CountSlider({ value, onChange, color }: { value:number; onChange:(v:num
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider">Number of Questions</div>
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Number of Questions</div>
         <span className="text-sm font-black tabular-nums" style={{color}}>{value}</span>
       </div>
       <input type="range" min={5} max={90} step={5} value={value} onChange={e => onChange(+e.target.value)}
         className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
         style={{ accentColor: color }}/>
-      <div className="flex justify-between text-[10px] text-[#78788c] mt-1"><span>5</span><span>90</span></div>
+      <div className="flex justify-between text-[10px] text-muted-foreground mt-1"><span>5</span><span>90</span></div>
     </div>
   );
 }
@@ -1114,18 +1114,18 @@ function StartButton({ color, disabled=false, onStart, label="Start Practice" }:
   );
 }
 
-// ── Session types ─────────────────────────────────────────────────────────────
+// â”€â”€ Session types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface SessionConfig {
   mode: ModeKey; label: string; subject: string;
   chapter?: string | null; topic?: string | null;
   difficulty: string; qCount: number; timeLimitSec: number | null;
-  /** Previous Year Questions only — restricts to one exam year. */
+  /** Previous Year Questions only â€” restricts to one exam year. */
   pyqYear?: number | null;
   /** When set, continue an unfinished practice_sessions row instead of starting new. */
   resumeSessionId?: string | null;
 }
 
-// ── Session (question-solving) ───────────────────────────────────────────────
+// â”€â”€ Session (question-solving) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Session({
   config, onFinish, onBack, onNavigate, subjects, classUnresolved, classUnresolvedMessage,
 }: {
@@ -1151,7 +1151,7 @@ function Session({
   const [timeLeft,  setTimeLeft]  = useState(config.timeLimitSec ?? 0);
   const [finishing, setFinishing] = useState(false);
   const [hintRevealed, setHintRevealed] = useState(false);
-  /** Prior attempts already on the session (resume) — progress UI must include these. */
+  /** Prior attempts already on the session (resume) â€” progress UI must include these. */
   const [priorCount, setPriorCount] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const sessionIdRef = useRef<string | null>(null);
@@ -1177,7 +1177,7 @@ function Session({
 
   useEffect(() => {
     if (!ctx || !academicReady) {
-      // Academic context is still initializing — this is a normal ~1s state
+      // Academic context is still initializing â€” this is a normal ~1s state
       // on every fresh mount, not a failure, so it must not flash an error.
       // Leave loadingQs at its initial `true` (spinner keeps showing) and
       // let this effect's own dependency array re-run it the instant
@@ -1207,7 +1207,7 @@ function Session({
 
         let excludeIds: string[] = [];
         let remainingCount = config.qCount;
-        /** Effective bank difficulty — prefer config, then session row, then prior attempts. */
+        /** Effective bank difficulty â€” prefer config, then session row, then prior attempts. */
         let effectiveDifficulty = config.difficulty || "mixed";
 
         if (config.resumeSessionId) {
@@ -1298,7 +1298,7 @@ function Session({
           setSkipped(priorSkipped);
           setPriorCount(priorLog.length);
           attemptNumberRef.current = priorLog.length;
-          // Honest timed resume: remaining = persisted limit − elapsed attempt time (never invent 15m).
+          // Honest timed resume: remaining = persisted limit âˆ’ elapsed attempt time (never invent 15m).
           const limitSec =
             typeof existing.time_limit_sec === "number" && existing.time_limit_sec > 0
               ? existing.time_limit_sec
@@ -1312,7 +1312,7 @@ function Session({
           const target = existing.question_count || config.qCount;
           remainingCount = Math.max(0, target - priorLog.length);
           if (remainingCount === 0) {
-            // Nothing left — finish the incomplete session with prior attempts.
+            // Nothing left â€” finish the incomplete session with prior attempts.
             setQs([]);
             return;
           }
@@ -1411,7 +1411,7 @@ function Session({
             };
           })
           .filter((x): x is BankQuestion => x !== null);
-        // Empty new session → finish immediately so Resume is not polluted with 0-question shells.
+        // Empty new session â†’ finish immediately so Resume is not polluted with 0-question shells.
         if (
           mapped.length === 0 &&
           !config.resumeSessionId &&
@@ -1430,7 +1430,7 @@ function Session({
         }
         setQs(mapped);
         // Bookmarked Questions loads only questions that are already
-        // bookmarked in question_records — the toggle button's local state
+        // bookmarked in question_records â€” the toggle button's local state
         // must start reflecting that, or the first click on it (a same-value
         // "set bookmarked=true") is a no-op and the question can never be
         // un-bookmarked from within this mode.
@@ -1449,7 +1449,7 @@ function Session({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx, academicReady, config, classUnresolved, classUnresolvedMessage]);
 
-  // Resume with prior attempts but no remaining bank questions → finish via SSOT RPC.
+  // Resume with prior attempts but no remaining bank questions â†’ finish via SSOT RPC.
   useEffect(() => {
     if (loadingQs || loadError || finishedRef.current) return;
     if (!config.resumeSessionId) return;
@@ -1478,7 +1478,7 @@ function Session({
     setFinishing(true);
     if (timerRef.current) clearInterval(timerRef.current);
 
-    // Unanswered remaining questions → skipped / timed_out so Skipped mode can load them
+    // Unanswered remaining questions â†’ skipped / timed_out so Skipped mode can load them
     if (opts?.timedOut) {
       const loggedBankIds = new Set(
         attemptLog.current.map((a) => a.bankQuestionId).filter(Boolean),
@@ -1614,7 +1614,7 @@ function Session({
     if (trimmed.length <= 120) return trimmed;
     const cut = trimmed.slice(0, 117);
     const lastSpace = cut.lastIndexOf(" ");
-    return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trim()}…`;
+    return `${(lastSpace > 40 ? cut.slice(0, lastSpace) : cut).trim()}â€¦`;
   }
 
   function next() {
@@ -1675,7 +1675,7 @@ function Session({
         schoolId: snap.schoolId ?? ctx.schoolId ?? null,
       });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save this answer — it will retry when you finish");
+      toast.error(e instanceof Error ? e.message : "Could not save this answer â€” it will retry when you finish");
     }
   }
 
@@ -1722,7 +1722,7 @@ function Session({
       : bookmarkedRef.current.filter(x => x !== idx);
     setBookmarked([...bookmarkedRef.current]);
 
-    // Persist. Bookmarks are permanent — answering correctly never clears one.
+    // Persist. Bookmarks are permanent â€” answering correctly never clears one.
     const bankId = qs[idx]?.id;
     if (!bankId || !ctx) {
       toast.message(nextOn ? "Bookmarked for this session." : "Bookmark removed.");
@@ -1754,7 +1754,7 @@ function Session({
   if (loadingQs) {
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-3">
-        <div className="text-sm text-[#78788c]">Loading practice questions…</div>
+        <div className="text-sm text-muted-foreground">Loading practice questionsâ€¦</div>
       </div>
     );
   }
@@ -1763,10 +1763,10 @@ function Session({
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
         <AlertCircle className="w-10 h-10 text-rose-400 mx-auto"/>
-        <div className="text-lg font-bold text-white">Could not start practice</div>
-        <p className="text-sm text-[#78788c]">{loadError}</p>
+        <div className="text-lg font-bold text-foreground">Could not start practice</div>
+        <p className="text-sm text-muted-foreground">{loadError}</p>
         <button onClick={onBack}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-white hover:border-border transition-all">
           <ArrowLeft className="w-4 h-4"/> Back to Practice
         </button>
       </div>
@@ -1775,8 +1775,8 @@ function Session({
 
   if (qs.length === 0) {
     const emptyByMode: Partial<Record<ModeKey, string>> = {
-      weak: `No weak concepts tracked yet (confidence below ${WEAK_CONCEPT_THRESHOLD}%). Finish a practice session, then return here — or open Recovery.`,
-      incorrect: "Nothing to retry — you have no questions currently marked wrong.",
+      weak: `No weak concepts tracked yet (confidence below ${WEAK_CONCEPT_THRESHOLD}%). Finish a practice session, then return here â€” or open Recovery.`,
+      incorrect: "Nothing to retry â€” you have no questions currently marked wrong.",
       skipped: "You have not skipped any bank questions yet.",
       pyq: "No previous-year / exam-tagged questions in the bank for this filter yet.",
       bookmarked: "You have not bookmarked any questions yet. Bookmark one during practice and it stays until you remove it.",
@@ -1786,9 +1786,9 @@ function Session({
     };
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
-        <HelpCircle className="w-10 h-10 text-[#78788c] mx-auto"/>
-        <div className="text-lg font-bold text-white">No questions available</div>
-        <p className="text-sm text-[#78788c]">
+        <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto"/>
+        <div className="text-lg font-bold text-foreground">No questions available</div>
+        <p className="text-sm text-muted-foreground">
           {classUnresolved
             ? classUnresolvedMessage ?? CLASS_UNRESOLVED_MSG
             : emptyByMode[config.mode] ??
@@ -1805,7 +1805,7 @@ function Session({
             </button>
           )}
           <button onClick={onBack}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-white hover:border-border transition-all">
             <ArrowLeft className="w-4 h-4"/> Back to Practice
           </button>
         </div>
@@ -1821,7 +1821,7 @@ function Session({
       <div className="flex items-center gap-3">
         <div className="flex-1">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-[#78788c]">{config.label} · Q{displayIndex} of {displayTotal}</span>
+            <span className="text-xs text-muted-foreground">{config.label} Â· Q{displayIndex} of {displayTotal}</span>
             <div className="flex items-center gap-3">
               {timed && (
                 <div className={cn(
@@ -1831,7 +1831,7 @@ function Session({
                   <Clock className="w-3.5 h-3.5"/>{mm}:{ss}
                 </div>
               )}
-              <span className="text-xs text-[#78788c]">{correct}/{attempted} correct</span>
+              <span className="text-xs text-muted-foreground">{correct}/{attempted} correct</span>
             </div>
           </div>
           <ProgressBar value={priorCount + idx} max={Math.max(displayTotal, 1)} color="#3b5bdb" height="h-1"/>
@@ -1844,12 +1844,12 @@ function Session({
           <div className="flex items-center gap-2 flex-wrap">
             {subj && <SubjectBadge subject={subj.name} color={subj.color}/>}
             <DifficultyBadge level={q.difficulty}/>
-            <span className="text-[10px] text-[#78788c]">{displayChapter(q.chapter)}</span>
+            <span className="text-[10px] text-muted-foreground">{displayChapter(q.chapter)}</span>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={toggleBookmark} title="Flag for this session (not saved to Mistake Book)"
               className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                bookmarked.includes(idx) ? "text-[#4b9fd4] bg-[#4b9fd4]/15" : "text-[#78788c] hover:text-white hover:bg-white/8"
+                bookmarked.includes(idx) ? "text-[#4b9fd4] bg-[#4b9fd4]/15" : "text-muted-foreground hover:text-white hover:bg-white/8"
               )}>
               <Bookmark className="w-3.5 h-3.5"/>
             </button>
@@ -1865,11 +1865,11 @@ function Session({
         {q.options.map((opt, i) => {
           const isChosen = chosen === i;
           const isCorrect = i === q.correct;
-          let bg = "border-border/70 text-[#a0a0b0] hover:border-white/20 hover:text-white hover:bg-white/4";
+          let bg = "border-border/70 text-[#a0a0b0] hover:border-border hover:text-white hover:bg-white/4";
           if (phase === "fb") {
             if (isCorrect)              bg = "border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
             else if (isChosen && !isRight) bg = "border-rose-400/40 bg-rose-400/10 text-rose-300";
-            else                        bg = "border-white/4 text-[#78788c] opacity-60";
+            else                        bg = "border-white/4 text-muted-foreground opacity-60";
           }
           return (
             <button key={i} onClick={() => phase === "q" && answer(i)} disabled={phase === "fb" || finishing}
@@ -1885,13 +1885,13 @@ function Session({
         })}
       </div>
 
-      {/* Hint (question phase — recorded as hint_used on attempt) */}
+      {/* Hint (question phase â€” recorded as hint_used on attempt) */}
       {phase === "q" && q.explanation && hintRevealed && (
         <GlassCard className="p-4 border-[#c08a3a]/25">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-[#c08a3a] shrink-0 mt-0.5"/>
             <div className="text-sm text-[#a0a0b0] leading-relaxed">
-              <span className="font-semibold text-white">Hint: </span>
+              <span className="font-semibold text-foreground">Hint: </span>
               <MathText text={hintPreview(q.explanation)} />
             </div>
           </div>
@@ -1904,7 +1904,7 @@ function Session({
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-[#c08a3a] shrink-0 mt-0.5"/>
             <div className="text-sm text-[#a0a0b0] leading-relaxed">
-              <span className="font-semibold text-white">Explanation: </span>
+              <span className="font-semibold text-foreground">Explanation: </span>
               <MathText text={q.explanation} />
             </div>
           </div>
@@ -1915,7 +1915,7 @@ function Session({
       <div className="flex items-center gap-3">
         {phase === "q" && (
           <button onClick={() => skip()} disabled={finishing}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border/70 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-white hover:border-border transition-all">
             <SkipForward className="w-3.5 h-3.5"/> Skip
           </button>
         )}
@@ -1932,15 +1932,15 @@ function Session({
           </button>
         )}
         <button onClick={() => void finish()} disabled={finishing}
-          className="px-4 py-2.5 rounded-xl border border-border/70 text-sm text-[#78788c] hover:text-rose-400 hover:border-rose-400/20 transition-all">
-          {finishing ? "Saving…" : "End Session"}
+          className="px-4 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-rose-400 hover:border-rose-400/20 transition-all">
+          {finishing ? "Savingâ€¦" : "End Session"}
         </button>
       </div>
     </div>
   );
 }
 
-// ── Results ───────────────────────────────────────────────────────────────────
+// â”€â”€ Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface SessionResults {
   correct: number;
   total: number;
@@ -1966,7 +1966,7 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   results: SessionResults; onRetry: ()=>void; onHub: ()=>void; onRetryIncorrect: ()=>void;
 }) {
   const { correct, total, skipped, bookmarked, config, serverStats, finishFailed } = results;
-  // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats — never invent XP.
+  // Session SSOT: prefer finish-RPC columns via resolvePracticeSessionStats â€” never invent XP.
   const stats = resolvePracticeSessionStats(null, {
     questionCount: serverStats?.questionCount ?? total,
     correctCount: serverStats?.correctCount ?? correct,
@@ -1979,16 +1979,16 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   const wrong = stats.wrongCount;
   const pct = stats.accuracy;
   const color = pct >= 80 ? "#4aa87a" : pct >= 60 ? "#c08a3a" : "#cc5069";
-  const emoji = pct >= 90 ? "🏆" : pct >= 75 ? "🎯" : pct >= 60 ? "📈" : "💪";
+  const emoji = pct >= 90 ? "ðŸ†" : pct >= 75 ? "ðŸŽ¯" : pct >= 60 ? "ðŸ“ˆ" : "ðŸ’ª";
   const xpFormatted = formatSessionXp(stats.xpEarned, stats.xpFromDb);
-  const xpLabel = xpFormatted === "—" ? null : `+${xpFormatted} XP`;
+  const xpLabel = xpFormatted === "â€”" ? null : `+${xpFormatted} XP`;
 return (
     <div className="max-w-lg mx-auto space-y-5">
       <GlassCard className="p-8 text-center" glow={pct>=75?"green":pct>=55?"amber":"rose"}>
         <div className="text-5xl mb-3">{emoji}</div>
-        <div className="text-[10px] uppercase tracking-widest text-[#78788c] mb-1">{config.label} · Complete</div>
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">{config.label} Â· Complete</div>
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
-        <div className="text-[#78788c] text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
+        <div className="text-muted-foreground text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
         {xpLabel && (
           <div className="text-sm font-bold text-[#c08a3a] mb-4 tabular-nums">
             {xpLabel}
@@ -2004,7 +2004,7 @@ return (
           ].map(s => (
             <div key={s.label} className="bg-white/4 rounded-xl p-2.5 border border-white/5">
               <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
-              <div className="text-[9px] uppercase tracking-wider text-[#78788c] mt-0.5">{s.label}</div>
+              <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
@@ -2022,7 +2022,7 @@ return (
             </button>
           )}
           <button onClick={onHub}
-            className="w-full py-3 rounded-2xl border border-border/70 text-[#78788c] font-semibold text-sm hover:text-white hover:border-white/20 transition-all">
+            className="w-full py-3 rounded-2xl border border-border/70 text-muted-foreground font-semibold text-sm hover:text-white hover:border-border transition-all">
             Back to Practice Hub
           </button>
         </div>
@@ -2031,7 +2031,7 @@ return (
   );
 }
 
-// ── Root component ────────────────────────────────────────────────────────────
+// â”€â”€ Root component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const academicIdentity = useGurukulAcademicIdentity();
@@ -2187,7 +2187,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   useEffect(() => {
     if (deepLinkHandled.current || phase !== "hub") return;
 
-    // ?mode=<instant mode> — used by Mistake Book's "Practice again".
+    // ?mode=<instant mode> â€” used by Mistake Book's "Practice again".
     const modeRaw = searchParams.get("mode");
     if (modeRaw && (INSTANT as string[]).includes(modeRaw)) {
       deepLinkHandled.current = true;
@@ -2212,7 +2212,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     setSearchParams({}, { replace: true });
 
     if (!chapter && !subject && !topic) {
-      toast.message("Practice link had no real subject or chapter — pick a mode below.");
+      toast.message("Practice link had no real subject or chapter â€” pick a mode below.");
       return;
     }
 
@@ -2265,7 +2265,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     try {
       const row = await PracticeService.getSession(ctx, sessionId);
       if (!row || row.finished_at) {
-        toast.message("Session already finished — opening analysis");
+        toast.message("Session already finished â€” opening analysis");
         openSessionAnalysis(sessionId);
         return;
       }
@@ -2280,7 +2280,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           : typeof snap?.time_limit_sec === "number" && snap.time_limit_sec > 0
             ? snap.time_limit_sec
             : null;
-      // Never invent a 15-minute clock — timed resume without a stored limit stays untimed.
+      // Never invent a 15-minute clock â€” timed resume without a stored limit stays untimed.
       setModeKey(modeKeyResume);
       setConfig({
         mode: modeKeyResume,
@@ -2307,7 +2307,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
     }
     setSavingLatest(true);
     try {
-      // Absolute latest finished session — ignore history filters.
+      // Absolute latest finished session â€” ignore history filters.
       const recent = await PracticeService.listRecentFinished(ctx, 1);
       const latestRow = recent[0];
       if (!latestRow) {

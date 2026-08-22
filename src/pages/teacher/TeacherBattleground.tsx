@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import {
@@ -150,7 +150,7 @@ export default function TeacherBattleground() {
           correctIndex: q.correct_index,
         })),
       });
-      toast({ title: "Battle published — monitoring live" });
+      toast({ title: "Battle published â€” monitoring live" });
       nav(`/teacher/battleground/monitor/${created.id}`);
     } catch (e) {
       toast({
@@ -165,7 +165,7 @@ export default function TeacherBattleground() {
   if (loading) {
     return (
       <div className="teacher-premium tp-shell flex items-center justify-center py-20 text-muted-foreground gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading battleground…
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading battlegroundâ€¦
       </div>
     );
   }
@@ -177,20 +177,20 @@ export default function TeacherBattleground() {
           <div>
             <div className="tp-kicker mb-4">Battleground Management</div>
             <h1 className="tp-display text-3xl sm:text-4xl">Turn confusion into live competition.</h1>
-            <p className="text-sm text-white/75 mt-2 max-w-2xl">Create class battles, monitor question-wise accuracy, identify struggling students live, and reteach immediately after the match.</p>
+            <p className="text-sm text-foreground/75 mt-2 max-w-2xl">Create class battles, monitor question-wise accuracy, identify struggling students live, and reteach immediately after the match.</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{classes.length}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/60">Classes</p>
+              <p className="text-[10px] uppercase tracking-wider text-foreground/60">Classes</p>
             </div>
             <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{battles.length}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/60">Battles</p>
+              <p className="text-[10px] uppercase tracking-wider text-foreground/60">Battles</p>
             </div>
             <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{perQ}s</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/60">Per Q</p>
+              <p className="text-[10px] uppercase tracking-wider text-foreground/60">Per Q</p>
             </div>
           </div>
         </div>
@@ -230,7 +230,7 @@ export default function TeacherBattleground() {
               <Zap className="w-5 h-5 text-warning" />
               <div>
                 <div className="font-bold">Instant class battle</div>
-                <p className="text-xs text-muted-foreground">Auto-pick questions from the bank — no manual entry.</p>
+                <p className="text-xs text-muted-foreground">Auto-pick questions from the bank â€” no manual entry.</p>
               </div>
             </div>
             <div className="grid md:grid-cols-3 gap-3">
@@ -357,7 +357,7 @@ export default function TeacherBattleground() {
 
           {battles.length > 0 && (
             <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-1.5"><Radio className="w-4 h-4 text-primary" /> Your battles — tap to monitor live</h3>
+              <h3 className="font-semibold mb-3 flex items-center gap-1.5"><Radio className="w-4 h-4 text-primary" /> Your battles â€” tap to monitor live</h3>
               <div className="grid md:grid-cols-2 gap-3">
                 {battles.map((b) => (
                   <BattleCard

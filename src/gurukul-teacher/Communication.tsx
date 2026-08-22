@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Send, MessageCircle, Users, Loader2, Paperclip, Reply, Trash2, Plus,
 } from "lucide-react";
@@ -58,19 +58,19 @@ function ThreadList({
   return (
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-border/70">
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-          <Search className="w-3 h-3 text-[#46465a] shrink-0" />
+        <div className="flex items-center gap-2 bg-white/5 border border-border rounded-xl px-3 py-2">
+          <Search className="w-3 h-3 text-muted-foreground shrink-0" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search chats…"
-            className="flex-1 bg-transparent text-xs text-white placeholder:text-[#46465a] outline-none"
+            placeholder="Search chatsâ€¦"
+            className="flex-1 bg-transparent text-xs text-white placeholder:text-muted-foreground outline-none"
           />
         </div>
       </div>
       <div className="flex-1 overflow-y-auto divide-y divide-white/5">
         {filtered.length === 0 && (
-          <div className="px-4 py-8 text-center text-[10px] text-[#46465a]">No conversations yet.</div>
+          <div className="px-4 py-8 text-center text-[10px] text-muted-foreground">No conversations yet.</div>
         )}
         {filtered.map((t) => {
           const key = t.conversationId || t.userId;
@@ -107,9 +107,9 @@ function ThreadList({
                       ? "Teacher Group"
                       : t.role}
                 </div>
-                <div className="text-[10px] text-[#78788c] truncate mt-0.5">{t.lastMessage || "—"}</div>
+                <div className="text-[10px] text-muted-foreground truncate mt-0.5">{t.lastMessage || "â€”"}</div>
               </div>
-              <div className="text-[8px] text-[#46465a] shrink-0 mt-0.5">{formatTime(t.lastTime)}</div>
+              <div className="text-[8px] text-muted-foreground shrink-0 mt-0.5">{formatTime(t.lastTime)}</div>
             </button>
           );
         })}
@@ -185,7 +185,7 @@ function ChatView({
           {isGroup(contact) ? <Users className="w-4 h-4" /> : teacherInitials(contact.name, "?")}
         </div>
         <div>
-          <div className="text-sm font-bold text-white">{contact.name}</div>
+          <div className="text-sm font-bold text-foreground">{contact.name}</div>
           <div className="text-[9px] capitalize font-semibold" style={{ color }}>
             {contact.kind === "class_group"
               ? "Class Group"
@@ -198,7 +198,7 @@ function ChatView({
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
-          <div className="text-center text-[10px] text-[#46465a] py-10">Start the conversation</div>
+          <div className="text-center text-[10px] text-muted-foreground py-10">Start the conversation</div>
         )}
         {messages.map((m) => {
           const isMe = m.senderId === myUserId;
@@ -216,7 +216,7 @@ function ChatView({
               </div>
               <div className={cn("max-w-[70%]", isMe && "text-right")}>
                 {m.replyPreview && (
-                  <div className="text-[8px] text-[#46465a] mb-1 truncate border-l-2 border-white/20 pl-2">
+                  <div className="text-[8px] text-muted-foreground mb-1 truncate border-l-2 border-border pl-2">
                     {m.replyPreview}
                   </div>
                 )}
@@ -224,9 +224,9 @@ function ChatView({
                   className={cn(
                     "px-3 py-2 rounded-2xl text-xs leading-relaxed",
                     deleted
-                      ? "bg-white/5 text-[#46465a] italic"
+                      ? "bg-white/5 text-muted-foreground italic"
                       : isMe
-                        ? "bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] text-white"
+                        ? "bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] text-foreground"
                         : "bg-white/5 text-[#d0d8f0] border border-white/8",
                   )}
                 >
@@ -245,14 +245,14 @@ function ChatView({
                     ))}
                 </div>
                 <div className="flex items-center gap-2 mt-1 justify-end">
-                  <div className="text-[8px] text-[#46465a]">{formatTime(m.createdAt)}</div>
+                  <div className="text-[8px] text-muted-foreground">{formatTime(m.createdAt)}</div>
                   {!deleted && (
                     <div className="opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity">
                       <button
                         type="button"
                         title="Reply"
                         onClick={() => setReplyTo(m)}
-                        className="text-[#46465a] hover:text-white"
+                        className="text-muted-foreground hover:text-foreground"
                       >
                         <Reply className="w-3 h-3" />
                       </button>
@@ -261,7 +261,7 @@ function ChatView({
                           type="button"
                           title="Delete"
                           onClick={() => void onDelete(m.id)}
-                          className="text-[#46465a] hover:text-[#f43f5e]"
+                          className="text-muted-foreground hover:text-[#f43f5e]"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -277,11 +277,11 @@ function ChatView({
       </div>
 
       {replyTo && (
-        <div className="px-4 py-2 border-t border-border/70 flex items-center gap-2 text-[10px] text-[#78788c]">
+        <div className="px-4 py-2 border-t border-border/70 flex items-center gap-2 text-[10px] text-muted-foreground">
           <Reply className="w-3 h-3" />
           <span className="truncate flex-1">Replying to: {replyTo.content.slice(0, 80)}</span>
-          <button type="button" onClick={() => setReplyTo(null)} className="text-white">
-            ×
+          <button type="button" onClick={() => setReplyTo(null)} className="text-foreground">
+            Ã—
           </button>
         </div>
       )}
@@ -299,7 +299,7 @@ function ChatView({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={sending || uploading}
-            className="w-9 h-9 rounded-xl bg-white/5 text-[#78788c] flex items-center justify-center hover:text-white hover:bg-white/10 disabled:opacity-40"
+            className="w-9 h-9 rounded-xl bg-white/5 text-muted-foreground flex items-center justify-center hover:text-white hover:bg-white/10 disabled:opacity-40"
             title="Attach image or PDF"
           >
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
@@ -314,8 +314,8 @@ function ChatView({
               }
             }}
             rows={2}
-            placeholder="Type a message… (Enter to send)"
-            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
+            placeholder="Type a messageâ€¦ (Enter to send)"
+            className="flex-1 bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
           />
           <button
             type="button"
@@ -345,7 +345,7 @@ export default function Communication() {
   const [showNewDm, setShowNewDm] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
-  /** True after first contacts fetch — liveTick must not flip back to full-page loading. */
+  /** True after first contacts fetch â€” liveTick must not flip back to full-page loading. */
   const contactsLoadedRef = useRef(false);
 
   const selected = useMemo(
@@ -627,8 +627,8 @@ export default function Communication() {
 
   if (loading && !contactsLoadedRef.current) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading messages…
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading messagesâ€¦
       </div>
     );
   }
@@ -639,7 +639,7 @@ export default function Communication() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/70">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-4 h-4 text-[#3b5bdb]" />
-            <div className="text-sm font-bold text-white">Messages</div>
+            <div className="text-sm font-bold text-foreground">Messages</div>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -680,7 +680,7 @@ export default function Communication() {
           />
         ) : (
           <div className="h-full flex items-center justify-center">
-            <div className="text-center text-[#46465a]">
+            <div className="text-center text-muted-foreground">
               <MessageCircle className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <div className="text-xs">Select a conversation to start messaging</div>
             </div>
@@ -691,14 +691,14 @@ export default function Communication() {
       {showCreate && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
-          <div className="relative z-10 bg-surface border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 bg-surface border border-border rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-bold text-white">Create Group</div>
-              <button type="button" onClick={() => setShowCreate(false)} className="text-[#78788c] hover:text-white text-lg">
-                ×
+              <div className="text-sm font-bold text-foreground">Create Group</div>
+              <button type="button" onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-white text-lg">
+                Ã—
               </button>
             </div>
-            <p className="text-[10px] text-[#78788c]">Only Class Group and Teacher Group are supported.</p>
+            <p className="text-[10px] text-muted-foreground">Only Class Group and Teacher Group are supported.</p>
             <button
               type="button"
               disabled={createBusy}
@@ -707,13 +707,13 @@ export default function Communication() {
             >
               <Users className="w-4 h-4 text-[#f59e0b]" />
               <div>
-                <div className="text-xs font-bold text-white">Teacher Group</div>
-                <div className="text-[10px] text-[#78788c]">All teachers + principal</div>
+                <div className="text-xs font-bold text-foreground">Teacher Group</div>
+                <div className="text-[10px] text-muted-foreground">All teachers + principal</div>
               </div>
             </button>
-            <div className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">Class Group</div>
+            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Class Group</div>
             {assignedClasses.length === 0 && (
-              <div className="text-[10px] text-[#46465a]">No assigned classes</div>
+              <div className="text-[10px] text-muted-foreground">No assigned classes</div>
             )}
             <div className="max-h-48 overflow-y-auto space-y-1">
               {assignedClasses.map((c) => (
@@ -722,12 +722,12 @@ export default function Communication() {
                   type="button"
                   disabled={createBusy}
                   onClick={() => void createClassGroup(c.id)}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-white/5"
+                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left hover:bg-muted"
                 >
                   <Users className="w-3.5 h-3.5 text-[#0ea5a0]" />
-                  <span className="text-[11px] text-white">
+                  <span className="text-[11px] text-foreground">
                     {c.name}
-                    {c.section ? `-${c.section}` : ""} {c.subject ? `· ${c.subject}` : ""}
+                    {c.section ? `-${c.section}` : ""} {c.subject ? `Â· ${c.subject}` : ""}
                   </span>
                 </button>
               ))}

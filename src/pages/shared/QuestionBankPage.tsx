@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+﻿import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, QuestionBankService } from "@/academic";
 import { Card } from "@/components/ui/card";
@@ -112,7 +112,7 @@ export default function QuestionBankPage() {
         explanation: a.explanation ?? "",
         include: true,
       })));
-      toast.success(`Generated ${arr.length} questions — review & save`);
+      toast.success(`Generated ${arr.length} questions â€” review & save`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Question generation failed");
     } finally {
@@ -156,7 +156,7 @@ export default function QuestionBankPage() {
     if (rows.length === 0) {
       return toast.error(
         skipped.length > 0
-          ? `No valid rows found — ${skipSummary}`
+          ? `No valid rows found â€” ${skipSummary}`
           : "No valid rows found. Check the format below.",
       );
     }
@@ -165,7 +165,7 @@ export default function QuestionBankPage() {
     try {
       const { count } = await QuestionBankService.insert(ctx, rows);
       if (skipped.length > 0) {
-        toast.warning(`Imported ${count} questions, but skipped ${skipped.length} row(s) — ${skipSummary}`);
+        toast.warning(`Imported ${count} questions, but skipped ${skipped.length} row(s) â€” ${skipSummary}`);
       } else {
         toast.success(`Imported ${count} questions`);
       }
@@ -219,20 +219,20 @@ export default function QuestionBankPage() {
           <div>
             <div className="tp-kicker mb-4">Question Bank</div>
             <h1 className="tp-display text-3xl sm:text-4xl">Build questions around concepts.</h1>
-            <p className="text-sm text-white/75 mt-2 max-w-2xl">Generate, import, preview, and organize questions for practice, recovery assignments, and live battles.</p>
+            <p className="text-sm text-foreground/75 mt-2 max-w-2xl">Generate, import, preview, and organize questions for practice, recovery assignments, and live battles.</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{total}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/60">Questions</p>
+              <p className="text-[10px] uppercase tracking-wider text-foreground/60">Questions</p>
             </div>
             <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{summary.length}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/60">Subjects</p>
+              <p className="text-[10px] uppercase tracking-wider text-foreground/60">Subjects</p>
             </div>
             <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold capitalize">{difficulty}</p>
-              <p className="text-[10px] uppercase tracking-wider text-white/60">Level</p>
+              <p className="text-[10px] uppercase tracking-wider text-foreground/60">Level</p>
             </div>
           </div>
         </div>
@@ -253,7 +253,7 @@ export default function QuestionBankPage() {
           <Badge variant="secondary">{total} questions</Badge>
         </div>
         {summary.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Empty — generate or import to get started.</p>
+          <p className="text-sm text-muted-foreground">Empty â€” generate or import to get started.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {summary.map((s) => (
@@ -292,16 +292,16 @@ export default function QuestionBankPage() {
             <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2 items-end">
               <div>
                 <Label className="text-xs">Topic</Label>
-                <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={`e.g. ${subject} — ${chapter || "chapter"}`} />
+                <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder={`e.g. ${subject} â€” ${chapter || "chapter"}`} />
               </div>
               <div>
                 <Label className="text-xs">Count</Label>
                 <Input type="number" min={1} max={20} value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-20 h-9" />
               </div>
-              <Button size="sm" onClick={generate} disabled={busy}>{busy ? "Generating…" : "Generate"}</Button>
+              <Button size="sm" onClick={generate} disabled={busy}>{busy ? "Generatingâ€¦" : "Generate"}</Button>
             </div>
             <div>
-              <Label className="text-xs">Source URL (Wikipedia, NCERT page, article…)</Label>
+              <Label className="text-xs">Source URL (Wikipedia, NCERT page, articleâ€¦)</Label>
               <Input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://en.wikipedia.org/wiki/..." />
             </div>
             <div>
@@ -315,7 +315,7 @@ export default function QuestionBankPage() {
               <div className="flex items-center justify-between">
                 <span className="font-semibold text-sm">{drafts.filter((d) => d.include).length} of {drafts.length} selected</span>
                 <Button size="sm" onClick={saveDrafts} disabled={saving}>
-                  <Check className="w-4 h-4 mr-1.5" /> {saving ? "Saving…" : "Save to bank"}
+                  <Check className="w-4 h-4 mr-1.5" /> {saving ? "Savingâ€¦" : "Save to bank"}
                 </Button>
               </div>
               <div className="space-y-3">
@@ -373,7 +373,7 @@ export default function QuestionBankPage() {
               placeholder={`What is 2+2?,2,3,4,5,2,Basic addition\nCapital of India?,Mumbai,New Delhi,Chennai,Kolkata,1,New Delhi is the capital`}
             />
             <Button size="sm" onClick={importCsv} disabled={csvBusy || !csv.trim()}>
-              <Upload className="w-4 h-4 mr-1.5" /> {csvBusy ? "Importing…" : "Import to bank"}
+              <Upload className="w-4 h-4 mr-1.5" /> {csvBusy ? "Importingâ€¦" : "Import to bank"}
             </Button>
           </Card>
         </TabsContent>
@@ -429,7 +429,7 @@ function parseCsv(
       continue;
     }
     const [q, a, b, c, d, idxRaw, explanation] = cells;
-    // Repair UTF-8-as-CP1252 paste corruption at ingest (never store à¤… for Hindi).
+    // Repair UTF-8-as-CP1252 paste corruption at ingest (never store Ã Â¤â€¦ for Hindi).
     const options = [a, b, c, d].map((x) => fixUtf8Content(x ?? ""));
     const correct_index = Math.max(0, Math.min(3, parseInt(idxRaw, 10) || 0));
     if (!q?.trim()) {

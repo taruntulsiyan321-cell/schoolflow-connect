@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -108,7 +108,7 @@ export function RecoveryHubPage({
 }: RecoveryHubProps) {
   return (
     <div className="recovery-hub student-premium space-y-8 px-1 sm:px-0">
-      {/* ── HERO ───────────────────────────────────────────── */}
+      {/* â”€â”€ HERO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="rh-hero rounded-[2rem] overflow-hidden relative text-primary-foreground">
         <div className="rh-hero-glow absolute inset-0 pointer-events-none" />
         <div className="relative z-10 p-6 sm:p-8 lg:p-10">
@@ -121,7 +121,7 @@ export function RecoveryHubPage({
                 Recovery Center
               </h1>
               <p className="text-sm text-primary-foreground/75 mt-2 max-w-lg">
-                Turn weaknesses into mastery — guided recovery, not just mistake lists.
+                Turn weaknesses into mastery â€” guided recovery, not just mistake lists.
               </p>
 
               <div className="grid sm:grid-cols-2 gap-4 mt-8 max-w-xl">
@@ -173,7 +173,7 @@ export function RecoveryHubPage({
               >
                 {fixing ? (
                   <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Starting…
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Startingâ€¦
                   </>
                 ) : (
                   <>
@@ -198,11 +198,11 @@ export function RecoveryHubPage({
         </Button>
       </div>
 
-      {/* ── PRIORITIES ─────────────────────────────────────── */}
+      {/* â”€â”€ PRIORITIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section>
         <SectionHeader
           title="Recovery priorities"
-          subtitle="Concepts ranked by impact — tackle these first."
+          subtitle="Concepts ranked by impact â€” tackle these first."
         />
         <div className="space-y-3">
           {priorities.map((p) => (
@@ -240,7 +240,7 @@ export function RecoveryHubPage({
         </div>
       </section>
 
-      {/* ── AI COACH ───────────────────────────────────────── */}
+      {/* â”€â”€ AI COACH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section className="rh-coach rounded-[1.75rem] p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row gap-5">
           <div className="w-14 h-14 rounded-2xl bg-blue-500/10 flex items-center justify-center shrink-0">
@@ -260,9 +260,9 @@ export function RecoveryHubPage({
         </div>
       </section>
 
-      {/* ── JOURNEY ────────────────────────────────────────── */}
+      {/* â”€â”€ JOURNEY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section>
-        <SectionHeader title="Your recovery journey" subtitle="From weakness to mastery — track your path." />
+        <SectionHeader title="Your recovery journey" subtitle="From weakness to mastery â€” track your path." />
         <div className="rh-card rounded-3xl p-6 sm:p-8">
           <div className="hidden sm:block h-1.5 rh-journey-line rounded-full mb-8 opacity-60" />
           <div className="grid sm:grid-cols-4 gap-6">
@@ -275,7 +275,7 @@ export function RecoveryHubPage({
                   className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center shrink-0 z-10",
                     stage.done
-                      ? "bg-emerald-500 text-white"
+                      ? "bg-emerald-500 text-foreground"
                       : stage.active
                         ? "bg-primary text-primary-foreground ring-4 ring-primary/20"
                         : "bg-muted text-muted-foreground",
@@ -298,7 +298,7 @@ export function RecoveryHubPage({
         </div>
       </section>
 
-      {/* ── TASKS ──────────────────────────────────────────── */}
+      {/* â”€â”€ TASKS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <section>
         <SectionHeader title="Recovery tasks" subtitle="Focused sessions to close your gaps." />
         <div className="grid md:grid-cols-2 gap-4">
@@ -316,7 +316,7 @@ export function RecoveryHubPage({
                   <div className="flex justify-between text-xs mb-1.5">
                     <span className="text-muted-foreground">Mastery progress</span>
                     <span className="font-semibold tabular-nums">
-                      {t.currentMastery}% → {t.targetMastery}%
+                      {t.currentMastery}% â†’ {t.targetMastery}%
                     </span>
                   </div>
                   <Progress value={t.currentMastery} className="h-2 [&>div]:bg-primary" />
@@ -343,7 +343,7 @@ export function RecoveryHubPage({
             <Target className="w-12 h-12 mx-auto text-muted-foreground mb-3 opacity-50" />
             <p className="font-medium">No recovery tasks yet</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Complete practice — weak concepts auto-generate recovery work here.
+              Complete practice â€” weak concepts auto-generate recovery work here.
             </p>
             <Button className="mt-4 rounded-full" asChild>
               <Link to="/student/practice/math12">Go to Practice</Link>
@@ -352,14 +352,14 @@ export function RecoveryHubPage({
         )}
       </section>
 
-      {/* ── SUCCESS ────────────────────────────────────────── */}
+      {/* â”€â”€ SUCCESS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {fixedConcepts.length > 0 && (
         <section className="rh-success rounded-[1.75rem] p-6 sm:p-8">
           <div className="flex items-center gap-3 mb-5">
             <Trophy className="w-6 h-6 text-emerald-700" />
             <div>
               <h2 className="font-['Sora'] text-xl font-semibold text-foreground">Recovery wins</h2>
-              <p className="text-sm text-muted-foreground">Concepts you&apos;ve strengthened — keep it up!</p>
+              <p className="text-sm text-muted-foreground">Concepts you&apos;ve strengthened â€” keep it up!</p>
             </div>
           </div>
           <div className="grid sm:grid-cols-3 gap-3">
@@ -380,7 +380,7 @@ export function RecoveryHubPage({
         </section>
       )}
 
-      {/* ── FORECAST + HEAT MAP ────────────────────────────── */}
+      {/* â”€â”€ FORECAST + HEAT MAP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="grid lg:grid-cols-2 gap-6">
         <section className="rh-forecast rounded-[1.75rem] p-6 sm:p-8 text-primary-foreground">
           <p className="text-xs uppercase tracking-wider text-primary-foreground/65">Improvement forecast</p>
@@ -443,7 +443,7 @@ export function RecoveryHubPage({
 
       <div className="flex justify-center pt-2">
         <Button variant="ghost" size="sm" asChild className="text-muted-foreground">
-          <Link to="/student">← Back to Dashboard</Link>
+          <Link to="/student">â† Back to Dashboard</Link>
         </Button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Search, Eye, CheckCircle2, XCircle, Calendar, Loader2, X,
 } from "lucide-react";
@@ -52,30 +52,30 @@ function ResolveModal({
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+      <div className="relative z-10 bg-surface border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl">
         <div className="text-sm font-bold text-white mb-1">{cfg.label}</div>
-        <div className="text-[10px] text-[#78788c] mb-4">
-          {request.applicantName} · {leaveTypeLabel(request.leaveType)} · {request.fromDate}
-          {request.fromDate !== request.toDate && ` → ${request.toDate}`} ({request.days}d)
+        <div className="text-[10px] text-muted-foreground mb-4">
+          {request.applicantName} Â· {leaveTypeLabel(request.leaveType)} Â· {request.fromDate}
+          {request.fromDate !== request.toDate && ` â†’ ${request.toDate}`} ({request.days}d)
         </div>
         <div className="flex flex-col gap-1 mb-5">
-          <label htmlFor="leave-resolve-remarks" className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
-            Remarks (optional — stored on audit event)
+          <label htmlFor="leave-resolve-remarks" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+            Remarks (optional â€” stored on audit event)
           </label>
           <textarea
             id="leave-resolve-remarks"
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
             rows={3}
-            placeholder="Add a note for this decision…"
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#3b5bdb]/50"
+            placeholder="Add a note for this decisionâ€¦"
+            className="bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <div className="flex gap-3 justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all"
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-white bg-white/5 hover:bg-white/10 transition-all"
           >
             Cancel
           </button>
@@ -88,7 +88,7 @@ function ResolveModal({
               cfg.btnClass,
             )}
           >
-            {busy ? "Saving…" : cfg.label}
+            {busy ? "Savingâ€¦" : cfg.label}
           </button>
         </div>
       </div>
@@ -114,8 +114,8 @@ function LeaveDetail({
         <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <InitialsAvatar name={request.applicantName} size="lg" />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-white">{request.applicantName}</div>
-            <div className="text-[10px] text-[#78788c]">
+            <div className="text-sm font-bold text-foreground">{request.applicantName}</div>
+            <div className="text-[10px] text-muted-foreground">
               {request.department ?? request.applicantKind}
             </div>
             <div className="mt-1">
@@ -127,7 +127,7 @@ function LeaveDetail({
               </span>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-[#78788c] hover:text-white shrink-0">
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-white shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -145,19 +145,19 @@ function LeaveDetail({
             },
           ].map((row) => (
             <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
-              <div className="text-[9px] text-[#46465a] uppercase tracking-wider">{row.label}</div>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{row.label}</div>
               <div className="text-xs text-white capitalize">{row.value}</div>
             </div>
           ))}
 
           <div className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
-            <div className="text-[9px] text-[#46465a] uppercase tracking-wider">Reason</div>
-            <div className="text-xs text-[#c8c8d4] leading-relaxed">{request.reason || "—"}</div>
+            <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Reason</div>
+            <div className="text-xs text-[#c8c8d4] leading-relaxed">{request.reason || "â€”"}</div>
           </div>
 
           {request.reviewedAt && (
             <div className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
-              <div className="text-[9px] text-[#46465a] uppercase tracking-wider">Reviewed</div>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Reviewed</div>
               <div className="text-xs text-[#c8c8d4]">
                 {new Date(request.reviewedAt).toLocaleString("en-IN")}
               </div>
@@ -189,7 +189,7 @@ function LeaveDetail({
 }
 
 /**
- * Admin Leave Requests — LeaveService.listForSchool / review only.
+ * Admin Leave Requests â€” LeaveService.listForSchool / review only.
  * No local-only approve toasts; empty when none.
  */
 export default function LeaveRequests() {
@@ -273,8 +273,8 @@ export default function LeaveRequests() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading leave requests…
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading leave requestsâ€¦
       </div>
     );
   }
@@ -287,18 +287,18 @@ export default function LeaveRequests() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#46465a]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by applicant or reason…"
-            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
+            placeholder="Search by applicant or reasonâ€¦"
+            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="bg-surface border border-border/70 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50"
+          className="bg-surface border border-border/70 rounded-xl px-3 py-2.5 text-sm text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
         >
           <option value="all">All Leave Types</option>
           {(Object.keys(LEAVE_TYPE_LABELS) as LeaveType[]).map((k) => (
@@ -326,7 +326,7 @@ export default function LeaveRequests() {
               "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
               statusTab === tab.key
                 ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
-                : "text-[#78788c] hover:text-white",
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {tab.label}
@@ -335,7 +335,7 @@ export default function LeaveRequests() {
                 "text-[9px] px-1.5 py-0.5 rounded-full",
                 statusTab === tab.key
                   ? "bg-[#3b5bdb]/20 text-[#a5b4fc]"
-                  : "bg-white/5 text-[#46465a]",
+                  : "bg-white/5 text-muted-foreground",
               )}
             >
               {tabCounts[tab.key] ?? 0}
@@ -347,9 +347,9 @@ export default function LeaveRequests() {
       <div className="space-y-3">
         {filtered.length === 0 && (
           <div className="flex flex-col items-center gap-3 py-16 bg-surface border border-border/70 rounded-2xl">
-            <Calendar className="w-8 h-8 text-[#46465a]" />
-            <div className="text-sm text-[#78788c]">No leave requests found</div>
-            <div className="text-[10px] text-[#46465a]">LeaveService · school-scoped</div>
+            <Calendar className="w-8 h-8 text-muted-foreground" />
+            <div className="text-sm text-muted-foreground">No leave requests found</div>
+            <div className="text-[10px] text-muted-foreground">LeaveService Â· school-scoped</div>
           </div>
         )}
 
@@ -364,27 +364,27 @@ export default function LeaveRequests() {
                 <InitialsAvatar name={req.applicantName} size="md" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-sm font-bold text-white">{req.applicantName}</span>
+                    <span className="text-sm font-bold text-foreground">{req.applicantName}</span>
                     <span
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                       style={{ background: cfg.bg, color: cfg.color }}
                     >
                       {cfg.label}
                     </span>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-[#78788c]">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-muted-foreground">
                       {leaveTypeLabel(req.leaveType)}
                     </span>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-[#78788c] capitalize">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-muted-foreground capitalize">
                       {req.applicantKind}
                     </span>
                   </div>
-                  <div className="text-[10px] text-[#78788c] mb-1">
-                    {req.department ?? "—"}
+                  <div className="text-[10px] text-muted-foreground mb-1">
+                    {req.department ?? "â€”"}
                   </div>
-                  <div className="flex items-center gap-4 text-[10px] text-[#78788c] mb-2">
+                  <div className="flex items-center gap-4 text-[10px] text-muted-foreground mb-2">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" /> {req.fromDate}
-                      {req.fromDate !== req.toDate ? ` → ${req.toDate}` : ""}
+                      {req.fromDate !== req.toDate ? ` â†’ ${req.toDate}` : ""}
                     </span>
                     <span>
                       {req.days} day{req.days > 1 ? "s" : ""}
@@ -396,14 +396,14 @@ export default function LeaveRequests() {
                       })}
                     </span>
                   </div>
-                  <div className="text-xs text-[#78788c] line-clamp-1">{req.reason || "—"}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-1">{req.reason || "â€”"}</div>
                 </div>
 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                   <button
                     type="button"
                     onClick={() => setDetail(req)}
-                    className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+                    className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
@@ -412,14 +412,14 @@ export default function LeaveRequests() {
                       <button
                         type="button"
                         onClick={() => setResolveModal({ request: req, action: "approve" })}
-                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#4aa87a]/20 flex items-center justify-center text-[#78788c] hover:text-[#4aa87a] transition-all"
+                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#4aa87a]/20 flex items-center justify-center text-muted-foreground hover:text-[#4aa87a] transition-all"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setResolveModal({ request: req, action: "reject" })}
-                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-[#78788c] hover:text-[#cc5069] transition-all"
+                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-muted-foreground hover:text-[#cc5069] transition-all"
                       >
                         <XCircle className="w-3.5 h-3.5" />
                       </button>

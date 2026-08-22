@@ -1,5 +1,5 @@
-/**
- * DESIGN-ONLY — not mounted under StudentDashboard `/student/*`.
+﻿/**
+ * DESIGN-ONLY â€” not mounted under StudentDashboard `/student/*`.
  * Uses fixture data from `@/gurukul/data/mock` for layout review only.
  * Live mastery: `src/components/student/ConceptMastery.tsx` + `useConceptMastery`.
  */
@@ -37,7 +37,7 @@ export default function ConceptMastery() {
         {["all", ...subjects.map((s) => s.name)].map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={cn("shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all",
-              filter === f ? "bg-[#3b82f6] text-white" : "border border-white/10 text-[#6b7a99] hover:border-white/25 hover:text-white")}>
+              filter === f ? "bg-[#3b82f6] text-foreground" : "border border-border text-[#6b7a99] hover:border-white/25 hover:text-foreground")}>
             {f}
           </button>
         ))}
@@ -45,7 +45,7 @@ export default function ConceptMastery() {
 
       {/* Concepts list */}
       <GlassCard className="p-5">
-        <SectionLabel>Topics — how well you know them</SectionLabel>
+        <SectionLabel>Topics â€” how well you know them</SectionLabel>
         <div className="space-y-3">
           {filtered.map((c) => {
             const col = c.mastery >= 80 ? "#34d399" : c.mastery >= 60 ? "#3b82f6" : "#f59e0b";
@@ -58,10 +58,10 @@ export default function ConceptMastery() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-semibold text-white">{c.concept}</span>
+                    <span className="text-sm font-semibold text-foreground">{c.concept}</span>
                     <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full font-semibold" style={{ color: col, background: `${col}12` }}>{statusLabel}</span>
                   </div>
-                  <div className="text-[11px] text-[#6b7a99] mb-1.5" style={{ color: subCol }}>{c.subject} · {c.practiced} questions done · Last: {c.lastPracticed}</div>
+                  <div className="text-[11px] text-[#6b7a99] mb-1.5" style={{ color: subCol }}>{c.subject} Â· {c.practiced} questions done Â· Last: {c.lastPracticed}</div>
                   <ProgressBar value={c.mastery} color={col} height="h-1.5" />
                 </div>
                 <div className="text-right shrink-0">

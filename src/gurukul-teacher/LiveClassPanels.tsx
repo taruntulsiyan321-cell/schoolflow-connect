@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   ChevronRight,
@@ -74,7 +74,7 @@ function errMsg(e: unknown, fallback: string): string {
 
 function Loading({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
+    <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
       <Loader2 className="w-4 h-4 animate-spin" /> {label}
     </div>
   );
@@ -174,7 +174,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         setError(
           profilesOk
             ? null
-            : "Academic profiles failed to load — student percentages shown as —.",
+            : "Academic profiles failed to load â€” student percentages shown as â€”.",
         );
         loadedRef.current = true;
       } catch (e) {
@@ -234,7 +234,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         }
         if (settled[4].status === "fulfilled") setProfile(settled[4].value);
         else setProfile(null);
-        if (errors.length) setDetailError(errors.join(" · "));
+        if (errors.length) setDetailError(errors.join(" Â· "));
       } catch (e) {
         if (!cancelled) setDetailError(errMsg(e, "Failed to load student detail"));
       } finally {
@@ -335,7 +335,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       const academic = testsAvg && examsAvg ? (testsAvg + examsAvg) / 2 : testsAvg || examsAvg;
       if (academic >= 75) answers.push("Performing well in tests/exams");
       else if (academic >= 40) answers.push("Academic scores need improvement");
-      else answers.push("Struggling in assessments — intervention recommended");
+      else answers.push("Struggling in assessments â€” intervention recommended");
     } else {
       answers.push("Not enough test/exam marks yet to judge academic level");
     }
@@ -360,7 +360,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         verdict = "Performing well";
         color = "#10b981";
       } else if (avg >= 60) {
-        verdict = "Stable — watch closely";
+        verdict = "Stable â€” watch closely";
         color = "#3b5bdb";
       } else if (avg >= 40) {
         verdict = "Needs support";
@@ -368,7 +368,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         intervention = true;
         actions.push("Plan a short check-in this week");
       } else {
-        verdict = "At risk — intervene";
+        verdict = "At risk â€” intervene";
         color = "#cc5069";
         intervention = true;
         actions.push("Escalate with class teacher / parent meeting");
@@ -380,7 +380,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     }
 
     if (!actions.length && verdict === "Performing well") {
-      actions.push("Keep encouraging — no urgent action");
+      actions.push("Keep encouraging â€” no urgent action");
     }
 
     return { verdict, color, answers, actions, intervention };
@@ -393,21 +393,21 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     attendanceConcern,
   ]);
 
-  if (loading) return <Loading label="Loading roster…" />;
+  if (loading) return <Loading label="Loading rosterâ€¦" />;
   if (error && rows.length === 0) {
     return <div className="text-xs text-[#cc5069] py-8 text-center">{error}</div>;
   }
 
   if (selected) {
     const parentContact =
-      [selected.parentName, selected.parentMobile].filter(Boolean).join(" · ") || null;
+      [selected.parentName, selected.parentMobile].filter(Boolean).join(" Â· ") || null;
 
     return (
       <div className="space-y-5">
         <button
           type="button"
           onClick={() => setSelected(null)}
-          className="flex items-center gap-1.5 text-[10px] text-[#78788c] hover:text-white"
+          className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground"
         >
           <ChevronRight className="w-3 h-3 rotate-180" /> Back to Students
         </button>
@@ -421,9 +421,9 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             )}
             <div className="flex-1 min-w-0">
               <div className="text-base font-black text-white truncate">{selected.fullName}</div>
-              <div className="text-xs text-[#78788c] mt-0.5">
-                Roll {selected.rollNumber ?? "—"}
-                {parentContact ? ` · Parent ${parentContact}` : ""}
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Roll {selected.rollNumber ?? "â€”"}
+                {parentContact ? ` Â· Parent ${parentContact}` : ""}
               </div>
             </div>
           </div>
@@ -449,27 +449,27 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         )}
 
         {detailLoading ? (
-          <Loading label="Building academic report…" />
+          <Loading label="Building academic reportâ€¦" />
         ) : (
           <>
             <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
-              <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 What you should know
               </div>
               {report.answers.map((line) => (
                 <div key={line} className="text-[12px] text-white leading-snug">
-                  · {line}
+                  Â· {line}
                 </div>
               ))}
             </div>
 
             <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
-              <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Suggested actions
               </div>
               {report.actions.map((line) => (
                 <div key={line} className="text-[12px] text-[#f59e0b] leading-snug">
-                  → {line}
+                  â†’ {line}
                 </div>
               ))}
             </div>
@@ -478,14 +478,14 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               {[
                 {
                   label: "Attendance",
-                  value: selected.attendancePct == null ? "—" : `${selected.attendancePct}%`,
+                  value: selected.attendancePct == null ? "â€”" : `${selected.attendancePct}%`,
                   warn: selected.attendancePct != null && selected.attendancePct < 75,
                 },
                 {
                   label: "Homework",
                   value:
                     selected.homeworkCompletionPct == null
-                      ? "—"
+                      ? "â€”"
                       : `${selected.homeworkCompletionPct}%`,
                   warn:
                     selected.homeworkCompletionPct != null && selected.homeworkCompletionPct < 50,
@@ -497,7 +497,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 },
                 {
                   label: "Tests / Exams",
-                  value: `${selected.testsAvgPct ?? "—"} / ${selected.examsAvgPct ?? "—"}`,
+                  value: `${selected.testsAvgPct ?? "â€”"} / ${selected.examsAvgPct ?? "â€”"}`,
                   warn:
                     (selected.testsAvgPct != null &&
                       selected.testsAvgPct > 0 &&
@@ -517,16 +517,16 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                   >
                     {m.value}
                   </div>
-                  <div className="text-[9px] text-[#78788c] mt-0.5">{m.label}</div>
+                  <div className="text-[9px] text-muted-foreground mt-0.5">{m.label}</div>
                 </div>
               ))}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
-                <div className="text-xs font-bold text-white">Pending homework</div>
+                <div className="text-xs font-bold text-foreground">Pending homework</div>
                 {pendingHomework.length === 0 ? (
-                  <div className="text-[10px] text-[#46465a]">Caught up — nothing pending</div>
+                  <div className="text-[10px] text-muted-foreground">Caught up â€” nothing pending</div>
                 ) : (
                   pendingHomework.slice(0, 6).map((r) => (
                     <div
@@ -538,24 +538,24 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     </div>
                   ))
                 )}
-                <div className="text-[9px] text-[#46465a] pt-1">
+                <div className="text-[9px] text-muted-foreground pt-1">
                   Submitted recently: {submittedHomework.length}
                 </div>
               </div>
               <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
-                <div className="text-xs font-bold text-white">Recent attendance</div>
+                <div className="text-xs font-bold text-foreground">Recent attendance</div>
                 {attendanceHistory.length === 0 ? (
-                  <div className="text-[10px] text-[#46465a]">No records yet</div>
+                  <div className="text-[10px] text-muted-foreground">No records yet</div>
                 ) : (
                   attendanceHistory.slice(0, 8).map((a) => (
-                    <div key={a.id} className="flex justify-between gap-2 text-[11px] text-[#78788c]">
+                    <div key={a.id} className="flex justify-between gap-2 text-[11px] text-muted-foreground">
                       <span>{a.date}</span>
                       <span
                         className={cn(
                           "capitalize font-semibold",
                           a.status === "absent" || a.status === "leave"
                             ? "text-[#cc5069]"
-                            : "text-white",
+                            : "text-foreground",
                         )}
                       >
                         {a.status}
@@ -568,10 +568,10 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
 
             {(weakSubjects.length > 0 || strongSubjects.length > 0 || remarks.length > 0) && (
               <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-3">
-                <div className="text-xs font-bold text-white">Teacher context</div>
+                <div className="text-xs font-bold text-foreground">Teacher context</div>
                 {weakSubjects.length > 0 && (
                   <div className="flex flex-wrap gap-1 items-center">
-                    <span className="text-[10px] text-[#78788c] mr-1">Needs work:</span>
+                    <span className="text-[10px] text-muted-foreground mr-1">Needs work:</span>
                     {weakSubjects.map((s) => (
                       <span
                         key={s}
@@ -584,7 +584,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 )}
                 {strongSubjects.length > 0 && (
                   <div className="flex flex-wrap gap-1 items-center">
-                    <span className="text-[10px] text-[#78788c] mr-1">Strong:</span>
+                    <span className="text-[10px] text-muted-foreground mr-1">Strong:</span>
                     {strongSubjects.map((s) => (
                       <span
                         key={s}
@@ -597,7 +597,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 )}
                 {remarks.slice(0, 4).map((r) => (
                   <div key={r.id} className="text-[11px] text-[#a0a0b0]">
-                    “{r.body}”
+                    â€œ{r.body}â€
                   </div>
                 ))}
                 <div className="pt-2 space-y-2 border-t border-white/5">
@@ -605,8 +605,8 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     value={remarkDraft}
                     onChange={(e) => setRemarkDraft(e.target.value)}
                     rows={2}
-                    placeholder="Add a remark for this student…"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[11px] text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none"
+                    placeholder="Add a remark for this studentâ€¦"
+                    className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-[11px] text-white placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
                   />
                   <button
                     type="button"
@@ -632,7 +632,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     }}
                     className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-[#3b5bdb] text-black disabled:opacity-40"
                   >
-                    {remarkSaving ? "Saving…" : "Save remark"}
+                    {remarkSaving ? "Savingâ€¦" : "Save remark"}
                   </button>
                 </div>
               </div>
@@ -640,14 +640,14 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
 
             {!(weakSubjects.length > 0 || strongSubjects.length > 0 || remarks.length > 0) && (
               <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
-                <div className="text-xs font-bold text-white">Teacher remark</div>
+                <div className="text-xs font-bold text-foreground">Teacher remark</div>
                 <div className="pt-2 space-y-2 border-t border-white/5">
                   <textarea
                     value={remarkDraft}
                     onChange={(e) => setRemarkDraft(e.target.value)}
                     rows={2}
-                    placeholder="Add a remark for this student…"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-[11px] text-white placeholder:text-[#46465a] outline-none focus:border-[#3b5bdb]/40 resize-none"
+                    placeholder="Add a remark for this studentâ€¦"
+                    className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-[11px] text-white placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
                   />
                   <button
                     type="button"
@@ -673,7 +673,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     }}
                     className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-[#3b5bdb] text-black disabled:opacity-40"
                   >
-                    {remarkSaving ? "Saving…" : "Save remark"}
+                    {remarkSaving ? "Savingâ€¦" : "Save remark"}
                   </button>
                 </div>
               </div>
@@ -681,13 +681,13 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
 
             {recentMarks.length > 0 && (
               <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
-                <div className="text-xs font-bold text-white">Latest published marks</div>
+                <div className="text-xs font-bold text-foreground">Latest published marks</div>
                 {recentMarks.slice(0, 5).map((m) => (
                   <div key={m.id} className="flex justify-between gap-2 text-[11px]">
                     <span className="text-[#a0a0b0] truncate">
                       {m.remarks?.trim() || "Result"}
                     </span>
-                    <span className="tabular-nums font-bold text-white">{m.marksObtained}</span>
+                    <span className="tabular-nums font-bold text-foreground">{m.marksObtained}</span>
                   </div>
                 ))}
               </div>
@@ -705,19 +705,19 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           {error}
         </div>
       )}
-      <div className="text-[10px] text-[#46465a]">
-        Open a student for an academic report — who needs help, and why.
+      <div className="text-[10px] text-muted-foreground">
+        Open a student for an academic report â€” who needs help, and why.
       </div>
-      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-        <Search className="w-3.5 h-3.5 text-[#46465a] shrink-0" />
+      <div className="flex items-center gap-2 bg-white/5 border border-border rounded-xl px-3 py-2">
+        <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or roll number…"
-          className="flex-1 bg-transparent text-xs text-white placeholder:text-[#46465a] outline-none"
+          placeholder="Search by name or roll numberâ€¦"
+          className="flex-1 bg-transparent text-xs text-white placeholder:text-muted-foreground outline-none"
         />
       </div>
-      <div className="text-[10px] text-[#46465a]">{filtered.length} students</div>
+      <div className="text-[10px] text-muted-foreground">{filtered.length} students</div>
       <div className="space-y-2">
         {filtered.map((s) => {
           const flag =
@@ -745,18 +745,18 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     </span>
                   )}
                 </div>
-                <div className="text-[10px] text-[#78788c] mt-0.5">
-                  Roll {s.rollNumber ?? "—"} · Att{" "}
-                  {s.attendancePct == null ? "—" : `${s.attendancePct}%`} · HW{" "}
-                  {s.homeworkCompletionPct == null ? "—" : `${s.homeworkCompletionPct}%`}
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  Roll {s.rollNumber ?? "â€”"} Â· Att{" "}
+                  {s.attendancePct == null ? "â€”" : `${s.attendancePct}%`} Â· HW{" "}
+                  {s.homeworkCompletionPct == null ? "â€”" : `${s.homeworkCompletionPct}%`}
                 </div>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-[#46465a] group-hover:text-white" />
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
             </button>
           );
         })}
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-xs text-[#46465a]">No students in this class.</div>
+          <div className="text-center py-12 text-xs text-muted-foreground">No students in this class.</div>
         )}
       </div>
     </div>
@@ -1039,7 +1039,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     if ((source === "manual" || source === "library") && questions.length === 0) {
       setError(
         source === "library"
-          ? "Question library has no content yet — pick Manual or Upload, or add questions once the library is filled"
+          ? "Question library has no content yet â€” pick Manual or Upload, or add questions once the library is filled"
           : "Add at least one question, or switch source",
       );
       setStep(source);
@@ -1116,16 +1116,16 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     }
   };
 
-  if (loading) return <Loading label="Loading tests…" />;
+  if (loading) return <Loading label="Loading testsâ€¦" />;
 
   if (builderOpen) {
     const stepLabel: Record<BuilderStep, string> = {
-      basics: "A · Basics",
-      source: "B · Source",
-      library: "C · Library",
-      manual: "C · Manual questions",
-      upload: "C · Upload paper",
-      review: "D · Review & Publish",
+      basics: "A Â· Basics",
+      source: "B Â· Source",
+      library: "C Â· Library",
+      manual: "C Â· Manual questions",
+      upload: "C Â· Upload paper",
+      review: "D Â· Review & Publish",
     };
 
     return (
@@ -1139,7 +1139,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               else if (step === "review") setStep(source ?? "source");
               else setStep("source");
             }}
-            className="flex items-center gap-1 text-[10px] text-[#78788c] hover:text-white"
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
           >
             <ChevronLeft className="w-3 h-3" />
             {step === "basics" ? "Cancel" : "Back"}
@@ -1148,7 +1148,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
           <button
             type="button"
             onClick={resetBuilder}
-            className="text-[10px] text-[#46465a] hover:text-white"
+            className="text-[10px] text-muted-foreground hover:text-foreground"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -1161,13 +1161,13 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
         )}
 
         {step === "basics" && (
-          <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-3">
-            <div className="text-sm font-bold text-white">Test basics</div>
+          <div className="bg-surface border border-border rounded-2xl p-4 space-y-3">
+            <div className="text-sm font-bold text-foreground">Test basics</div>
             <input
               value={basics.title}
               onChange={(e) => setBasics((f) => ({ ...f, title: e.target.value }))}
               placeholder="Title *"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             />
             <div className="flex flex-wrap gap-2">
               <select
@@ -1175,7 +1175,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 onChange={(e) =>
                   setBasics((f) => ({ ...f, testKind: e.target.value as TestKind }))
                 }
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               >
                 {TEST_KINDS.map((k) => (
                   <option key={k} value={k}>
@@ -1187,20 +1187,20 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 value={basics.durationMin}
                 onChange={(e) => setBasics((f) => ({ ...f, durationMin: e.target.value }))}
                 placeholder="Duration (min)"
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-28"
+                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-28"
               />
               <input
                 value={basics.maxMarks}
                 onChange={(e) => setBasics((f) => ({ ...f, maxMarks: e.target.value }))}
                 placeholder="Max marks"
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
+                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-24"
               />
             </div>
             <textarea
               value={basics.instructions}
               onChange={(e) => setBasics((f) => ({ ...f, instructions: e.target.value }))}
               placeholder="Instructions"
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[60px]"
+              className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[60px]"
             />
             <div className="flex flex-wrap gap-1">
               {(
@@ -1216,8 +1216,8 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   onClick={() => setBasics((f) => ({ ...f, publishMode: m.key }))}
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
                     basics.publishMode === m.key
-                      ? "bg-[#3b5bdb] text-white"
-                      : "bg-white/5 text-[#78788c]"
+                      ? "bg-[#3b5bdb] text-foreground"
+                      : "bg-white/5 text-muted-foreground"
                   }`}
                 >
                   {m.label}
@@ -1229,7 +1229,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 type="datetime-local"
                 value={basics.scheduledAt}
                 onChange={(e) => setBasics((f) => ({ ...f, scheduledAt: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               />
             )}
             <button
@@ -1244,7 +1244,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "source" && (
           <div className="space-y-3">
-            <div className="text-sm font-bold text-white">How will you add questions?</div>
+            <div className="text-sm font-bold text-foreground">How will you add questions?</div>
             {(
               [
                 {
@@ -1271,12 +1271,12 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 key={card.key}
                 type="button"
                 onClick={() => pickSource(card.key)}
-                className="w-full text-left p-4 bg-surface border border-white/10 rounded-2xl hover:border-[#3b5bdb]/50 transition-all flex gap-3"
+                className="w-full text-left p-4 bg-surface border border-border rounded-2xl hover:border-[#3b5bdb]/50 transition-all flex gap-3"
               >
                 <card.icon className="w-5 h-5 text-[#3b5bdb] shrink-0 mt-0.5" />
                 <div>
-                  <div className="text-xs font-bold text-white">{card.title}</div>
-                  <div className="text-[10px] text-[#78788c] mt-0.5">{card.desc}</div>
+                  <div className="text-xs font-bold text-foreground">{card.title}</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">{card.desc}</div>
                 </div>
               </button>
             ))}
@@ -1294,18 +1294,18 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     setLibFilters((f) => ({ ...f, [key]: e.target.value }))
                   }
                   placeholder={key.replace(/([A-Z])/g, " $1")}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white capitalize"
+                  className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white capitalize"
                 />
               ))}
             </div>
             {libLoading ? (
-              <Loading label="Loading library…" />
+              <Loading label="Loading libraryâ€¦" />
             ) : libItems.length > 0 ? (
               <div className="space-y-2">
                 {libItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3 bg-surface border border-border/70 rounded-xl text-xs text-white"
+                    className="p-3 bg-surface border border-border/70 rounded-xl text-xs text-foreground"
                   >
                     {item.question}
                   </div>
@@ -1313,9 +1313,9 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               </div>
             ) : (
               <div className="bg-surface border border-dashed border-border rounded-2xl p-6 text-center space-y-3">
-                <BookOpen className="w-8 h-8 text-[#46465a] mx-auto" />
+                <BookOpen className="w-8 h-8 text-muted-foreground mx-auto" />
                 <div className="text-xs text-[#a0a0b0]">
-                  Library coming soon — NCERT content will be added later. Use Manual or Upload for
+                  Library coming soon â€” NCERT content will be added later. Use Manual or Upload for
                   now.
                 </div>
                 <button
@@ -1332,27 +1332,27 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "manual" && (
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-3 text-[10px] text-[#78788c]">
+            <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
               <span>
                 Total questions:{" "}
-                <strong className="text-white">{questions.length}</strong>
+                <strong className="text-foreground">{questions.length}</strong>
               </span>
               <span>
                 Total marks:{" "}
-                <strong className="text-white">{questionMarksTotal}</strong>
+                <strong className="text-foreground">{questionMarksTotal}</strong>
               </span>
               <span>
-                Duration: <strong className="text-white">{durationMin} min</strong>
+                Duration: <strong className="text-foreground">{durationMin} min</strong>
               </span>
             </div>
 
-            <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2">
+            <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
               <select
                 value={qForm.kind}
                 onChange={(e) =>
                   setQForm((f) => ({ ...f, kind: e.target.value as ManualQuestionKind }))
                 }
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               >
                 {MANUAL_QUESTION_KINDS.map((k) => (
                   <option key={k.value} value={k.value}>
@@ -1364,7 +1364,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 value={qForm.question}
                 onChange={(e) => setQForm((f) => ({ ...f, question: e.target.value }))}
                 placeholder="Question text *"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[50px]"
+                className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[50px]"
               />
               {qForm.kind === "mcq" && (
                 <div className="space-y-2">
@@ -1373,7 +1373,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       type="button"
                       onClick={() => setQForm((f) => ({ ...f, useCsv: false }))}
                       className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        !qForm.useCsv ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                        !qForm.useCsv ? "bg-[#3b5bdb] text-foreground" : "bg-white/5 text-muted-foreground"
                       }`}
                     >
                       4 options
@@ -1382,7 +1382,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       type="button"
                       onClick={() => setQForm((f) => ({ ...f, useCsv: true }))}
                       className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        qForm.useCsv ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                        qForm.useCsv ? "bg-[#3b5bdb] text-foreground" : "bg-white/5 text-muted-foreground"
                       }`}
                     >
                       Comma-separated
@@ -1393,7 +1393,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       value={qForm.optionsCsv}
                       onChange={(e) => setQForm((f) => ({ ...f, optionsCsv: e.target.value }))}
                       placeholder="Options, comma-separated"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                      className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
                     />
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
@@ -1403,7 +1403,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                           value={qForm[key]}
                           onChange={(e) => setQForm((f) => ({ ...f, [key]: e.target.value }))}
                           placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                          className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
                         />
                       ))}
                     </div>
@@ -1414,7 +1414,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 <select
                   value={qForm.correct}
                   onChange={(e) => setQForm((f) => ({ ...f, correct: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                  className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
                 >
                   <option value="">Correct answer *</option>
                   <option value="True">True</option>
@@ -1431,7 +1431,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                         ? "Correct option text *"
                         : "Correct / model answer"
                   }
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                  className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
                 />
               )}
               <div className="flex gap-2">
@@ -1439,7 +1439,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   value={qForm.marks}
                   onChange={(e) => setQForm((f) => ({ ...f, marks: e.target.value }))}
                   placeholder="Marks"
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
+                  className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-24"
                 />
                 <button
                   type="button"
@@ -1459,7 +1459,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-[9px] text-[#3b5bdb] font-bold uppercase">
-                      {q.kind} · {q.marks ?? 1} marks
+                      {q.kind} Â· {q.marks ?? 1} marks
                     </div>
                     <div className="text-xs text-white mt-0.5 line-clamp-2">{q.question}</div>
                   </div>
@@ -1468,7 +1468,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       type="button"
                       disabled={i === 0}
                       onClick={() => moveQuestion(i, -1)}
-                      className="p-1 rounded bg-white/5 text-[#78788c] disabled:opacity-30"
+                      className="p-1 rounded bg-white/5 text-muted-foreground disabled:opacity-30"
                     >
                       <ArrowUp className="w-3 h-3" />
                     </button>
@@ -1476,7 +1476,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       type="button"
                       disabled={i === questions.length - 1}
                       onClick={() => moveQuestion(i, 1)}
-                      className="p-1 rounded bg-white/5 text-[#78788c] disabled:opacity-30"
+                      className="p-1 rounded bg-white/5 text-muted-foreground disabled:opacity-30"
                     >
                       <ArrowDown className="w-3 h-3" />
                     </button>
@@ -1493,7 +1493,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 </div>
               ))}
               {questions.length === 0 && (
-                <div className="text-[10px] text-[#46465a] text-center py-4">
+                <div className="text-[10px] text-muted-foreground text-center py-4">
                   No questions added yet.
                 </div>
               )}
@@ -1518,10 +1518,10 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "upload" && (
           <div className="space-y-3">
-            <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2">
-              <div className="text-[10px] font-bold text-white">Upload question paper</div>
-              <div className="text-[10px] text-[#78788c]">
-                PDF, images, Word, Excel, PowerPoint, or links — same upload experience as Homework.
+            <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
+              <div className="text-[10px] font-bold text-foreground">Upload question paper</div>
+              <div className="text-[10px] text-muted-foreground">
+                PDF, images, Word, Excel, PowerPoint, or links â€” same upload experience as Homework.
               </div>
               <AttachmentComposer items={attachments} onChange={setAttachments} disabled={saving} />
             </div>
@@ -1544,27 +1544,27 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "review" && (
           <div className="space-y-4">
-            <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2 text-xs">
-              <div className="text-sm font-bold text-white">{basics.title || "Untitled"}</div>
-              <div className="text-[#78788c]">
-                {TEST_KIND_LABELS[basics.testKind]} · {durationMin} min
-                {basics.maxMarks ? ` · max ${basics.maxMarks}` : ""}
-                {source === "manual" ? ` · ${questions.length} questions · ${questionMarksTotal} marks` : ""}
-                {source === "upload" ? ` · ${attachments.length} attachment(s)` : ""}
+            <div className="bg-surface border border-border rounded-2xl p-4 space-y-2 text-xs">
+              <div className="text-sm font-bold text-foreground">{basics.title || "Untitled"}</div>
+              <div className="text-muted-foreground">
+                {TEST_KIND_LABELS[basics.testKind]} Â· {durationMin} min
+                {basics.maxMarks ? ` Â· max ${basics.maxMarks}` : ""}
+                {source === "manual" ? ` Â· ${questions.length} questions Â· ${questionMarksTotal} marks` : ""}
+                {source === "upload" ? ` Â· ${attachments.length} attachment(s)` : ""}
               </div>
               {basics.instructions && (
                 <div className="text-[10px] text-[#a0a0b0] pt-1 border-t border-white/5">
                   {basics.instructions}
                 </div>
               )}
-              <div className="text-[10px] text-[#46465a]">
+              <div className="text-[10px] text-muted-foreground">
                 Source:{" "}
                 {source === "manual"
                   ? "Manual questions"
                   : source === "upload"
                     ? "Uploaded paper"
                     : "Library"}{" "}
-                · Preferred:{" "}
+                Â· Preferred:{" "}
                 {basics.publishMode === "now"
                   ? "Publish now"
                   : basics.publishMode === "schedule"
@@ -1612,7 +1612,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-bold text-white">Tests</div>
+        <div className="text-sm font-bold text-foreground">Tests</div>
         <button
           type="button"
           onClick={openBuilder}
@@ -1632,7 +1632,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
         </div>
       )}
 
-      <div className="text-[10px] text-[#46465a]">{tests.length} tests</div>
+      <div className="text-[10px] text-muted-foreground">{tests.length} tests</div>
       <div className="space-y-2">
         {tests.map((t) => {
           const status = resolveTestStatus(t);
@@ -1644,10 +1644,10 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               <div className="flex justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white truncate">{t.title}</div>
-                  <div className="text-[10px] text-[#78788c]">
-                    {TEST_KIND_LABELS[(t.test_kind as TestKind) ?? "class_test"] ?? t.test_kind} ·{" "}
-                    {qCount} Q · {marks != null ? `${marks} marks` : "— marks"}
-                    {t.duration_sec ? ` · ${Math.round(t.duration_sec / 60)} min` : ""}
+                  <div className="text-[10px] text-muted-foreground">
+                    {TEST_KIND_LABELS[(t.test_kind as TestKind) ?? "class_test"] ?? t.test_kind} Â·{" "}
+                    {qCount} Q Â· {marks != null ? `${marks} marks` : "â€” marks"}
+                    {t.duration_sec ? ` Â· ${Math.round(t.duration_sec / 60)} min` : ""}
                   </div>
                 </div>
                 <span
@@ -1658,7 +1658,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       : status === "scheduled"
                         ? "bg-[#6366f1]/15 text-[#6366f1]"
                         : status === "archived"
-                          ? "bg-[#46465a]/40 text-[#78788c]"
+                          ? "bg-[#46465a]/40 text-muted-foreground"
                           : "bg-white/10 text-[#a0a0b0]",
                   )}
                 >
@@ -1720,7 +1720,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     type="button"
                     disabled={saving}
                     onClick={() => {
-                      if (!window.confirm(`Delete “${t.title ?? "this test"}”?`)) return;
+                      if (!window.confirm(`Delete â€œ${t.title ?? "this test"}â€?`)) return;
                       void runAction("Delete", () => TestService.remove(ctx, t.id));
                     }}
                     className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#cc5069]/15 text-[#cc5069] flex items-center gap-1 disabled:opacity-50"
@@ -1735,7 +1735,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     type="datetime-local"
                     value={scheduleAt}
                     onChange={(e) => setScheduleAt(e.target.value)}
-                    className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white"
+                    className="bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
                   />
                   <button
                     type="button"
@@ -1753,7 +1753,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   <button
                     type="button"
                     onClick={() => setScheduleDraftId(null)}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold text-[#78788c]"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold text-muted-foreground"
                   >
                     Cancel
                   </button>
@@ -1765,13 +1765,13 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     placeholder="Title"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white"
+                    className="w-full bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
                   />
                   <textarea
                     value={editInstructions}
                     onChange={(e) => setEditInstructions(e.target.value)}
                     placeholder="Update instructions (optional)"
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white min-h-[50px]"
+                    className="w-full bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-white min-h-[50px]"
                   />
                   <div className="flex gap-2">
                     <button
@@ -1795,7 +1795,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     <button
                       type="button"
                       onClick={() => setEditId(null)}
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold text-[#78788c]"
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold text-muted-foreground"
                     >
                       Cancel
                     </button>
@@ -1805,7 +1805,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
             </div>
           );
         })}
-        {tests.length === 0 && <div className="text-xs text-[#46465a]">No tests yet.</div>}
+        {tests.length === 0 && <div className="text-xs text-muted-foreground">No tests yet.</div>}
       </div>
     </div>
   );
@@ -1985,7 +1985,7 @@ export function LiveExamsMarksTab({
     setError(null);
     try {
       await MarksService.finalizeMarks(ctx, examId);
-      showFlash("Exam finalized — marks locked");
+      showFlash("Exam finalized â€” marks locked");
       setActiveGroup(null);
       await reload();
     } catch (e) {
@@ -2011,7 +2011,7 @@ export function LiveExamsMarksTab({
     }
   };
 
-  if (loading) return <Loading label="Loading exams…" />;
+  if (loading) return <Loading label="Loading examsâ€¦" />;
 
   if (activeExam) {
     return (
@@ -2021,7 +2021,7 @@ export function LiveExamsMarksTab({
           onClick={() => setActiveExam(null)}
           className="text-[10px] font-bold text-[#3b5bdb]"
         >
-          ← Back to exams
+          â† Back to exams
         </button>
         {error && (
           <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
@@ -2034,8 +2034,8 @@ export function LiveExamsMarksTab({
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="text-sm font-bold text-white">
-            {activeExam.name} · {activeExam.subject}
+          <div className="text-sm font-bold text-foreground">
+            {activeExam.name} Â· {activeExam.subject}
           </div>
           {!canEditActive && (
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-white/10 text-[#a0a0b0]">
@@ -2053,13 +2053,13 @@ export function LiveExamsMarksTab({
             </span>
           )}
         </div>
-        <div className="text-[10px] text-[#78788c]">
+        <div className="text-[10px] text-muted-foreground">
           Max {activeExam.maxMarks}
-          {activeExam.passingMarks != null ? ` · pass ${activeExam.passingMarks}` : ""}
+          {activeExam.passingMarks != null ? ` Â· pass ${activeExam.passingMarks}` : ""}
         </div>
 
         {marksLoading ? (
-          <Loading label="Loading roster…" />
+          <Loading label="Loading rosterâ€¦" />
         ) : (
           <div className="space-y-2">
             {roster.map((s) => (
@@ -2068,7 +2068,7 @@ export function LiveExamsMarksTab({
                 className="flex items-center justify-between gap-3 p-3 bg-surface border border-border/70 rounded-xl"
               >
                 <div className="text-xs text-white min-w-0 truncate">
-                  {s.rollNumber ? `#${s.rollNumber} · ` : ""}
+                  {s.rollNumber ? `#${s.rollNumber} Â· ` : ""}
                   {s.fullName}
                 </div>
                 <input
@@ -2078,12 +2078,12 @@ export function LiveExamsMarksTab({
                   onChange={(e) =>
                     setMarksDraft((d) => ({ ...d, [s.id]: e.target.value }))
                   }
-                  className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white w-24 disabled:opacity-50"
+                  className="bg-white/5 border border-border rounded-lg px-2 py-1 text-[11px] text-white w-24 disabled:opacity-50"
                 />
               </div>
             ))}
             {roster.length === 0 && (
-              <div className="text-xs text-[#46465a] text-center py-8">No students in this class.</div>
+              <div className="text-xs text-muted-foreground text-center py-8">No students in this class.</div>
             )}
           </div>
         )}
@@ -2112,7 +2112,7 @@ export function LiveExamsMarksTab({
           onClick={() => setActiveGroup(null)}
           className="text-[10px] font-bold text-[#3b5bdb]"
         >
-          ← Back to exams
+          â† Back to exams
         </button>
         {error && (
           <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
@@ -2124,13 +2124,13 @@ export function LiveExamsMarksTab({
             {flash}
           </div>
         )}
-        <div className="text-sm font-bold text-white">{activeGroup.name}</div>
-        <div className="text-[10px] text-[#78788c]">
-          {activeGroup.startDate ?? "—"}
+        <div className="text-sm font-bold text-foreground">{activeGroup.name}</div>
+        <div className="text-[10px] text-muted-foreground">
+          {activeGroup.startDate ?? "â€”"}
           {activeGroup.endDate && activeGroup.endDate !== activeGroup.startDate
-            ? ` → ${activeGroup.endDate}`
+            ? ` â†’ ${activeGroup.endDate}`
             : ""}{" "}
-          · {activeGroup.subjects.length} subjects
+          Â· {activeGroup.subjects.length} subjects
         </div>
         <div className="space-y-2">
           {activeGroup.subjects.map((s) => (
@@ -2139,7 +2139,7 @@ export function LiveExamsMarksTab({
               className="flex items-center justify-between gap-2 p-3 bg-surface border border-border/70 rounded-xl"
             >
               <div className="text-xs text-white font-semibold">{s.subject}</div>
-              <div className="text-[10px] text-[#78788c]">max {s.maxMarks}</div>
+              <div className="text-[10px] text-muted-foreground">max {s.maxMarks}</div>
             </div>
           ))}
         </div>
@@ -2174,9 +2174,9 @@ export function LiveExamsMarksTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <div className="text-sm font-bold text-white">Exams & Marks</div>
-          <div className="text-[10px] text-[#46465a] mt-0.5">
-            One exam per class · subject teachers enter their own marks
+          <div className="text-sm font-bold text-foreground">Exams & Marks</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">
+            One exam per class Â· subject teachers enter their own marks
           </div>
         </div>
         {isClassTeacher && (
@@ -2201,38 +2201,38 @@ export function LiveExamsMarksTab({
       )}
 
       {creating && isClassTeacher && (
-        <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2">
+        <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
           <input
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Exam name * e.g. Unit Test 1"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
           />
           <div className="flex flex-wrap gap-2">
-            <label className="text-[10px] text-[#78788c] flex flex-col gap-1">
+            <label className="text-[10px] text-muted-foreground flex flex-col gap-1">
               Start date *
               <input
                 type="date"
                 value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               />
             </label>
-            <label className="text-[10px] text-[#78788c] flex flex-col gap-1">
+            <label className="text-[10px] text-muted-foreground flex flex-col gap-1">
               End date
               <input
                 type="date"
                 value={form.endDate}
                 onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               />
             </label>
-            <label className="text-[10px] text-[#78788c] flex flex-col gap-1">
+            <label className="text-[10px] text-muted-foreground flex flex-col gap-1">
               Default max marks
               <input
                 value={form.defaultMaxMarks}
                 onChange={(e) => setForm((f) => ({ ...f, defaultMaxMarks: e.target.value }))}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
+                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-24"
               />
             </label>
           </div>
@@ -2240,10 +2240,10 @@ export function LiveExamsMarksTab({
             value={form.instructions}
             onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))}
             placeholder="Optional instructions"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[50px]"
+            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[50px]"
           />
-          <p className="text-[9px] text-[#46465a]">
-            Subjects are loaded automatically from Teacher–Class–Subject mapping.
+          <p className="text-[9px] text-muted-foreground">
+            Subjects are loaded automatically from Teacherâ€“Classâ€“Subject mapping.
           </p>
           <button
             type="button"
@@ -2259,20 +2259,20 @@ export function LiveExamsMarksTab({
 
       {pending.length > 0 && (
         <div className="space-y-2">
-          <div className="text-xs font-bold text-white">Pending marks</div>
+          <div className="text-xs font-bold text-foreground">Pending marks</div>
           {pending.map((e) => (
             <div
               key={e.id}
               className="flex items-center justify-between gap-2 p-3 bg-[#3b5bdb]/10 border border-[#3b5bdb]/25 rounded-xl"
             >
               <div>
-                <div className="text-xs font-bold text-white">{e.name}</div>
-                <div className="text-[10px] text-[#78788c]">{e.subject} · max {e.maxMarks}</div>
+                <div className="text-xs font-bold text-foreground">{e.name}</div>
+                <div className="text-[10px] text-muted-foreground">{e.subject} Â· max {e.maxMarks}</div>
               </div>
               <button
                 type="button"
                 onClick={() => void openMarks(e, true)}
-                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-[#3b5bdb] text-white"
+                className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold bg-[#3b5bdb] text-foreground"
               >
                 Enter marks
               </button>
@@ -2281,7 +2281,7 @@ export function LiveExamsMarksTab({
         </div>
       )}
 
-      <div className="text-[10px] text-[#46465a]">{groups.length} class exams</div>
+      <div className="text-[10px] text-muted-foreground">{groups.length} class exams</div>
       <div className="space-y-2">
         {groups.map((g) => {
           const mySubjects = g.subjects.filter((s) =>
@@ -2292,10 +2292,10 @@ export function LiveExamsMarksTab({
             <div key={g.examGroupId} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
               <div className="flex justify-between gap-2">
                 <div>
-                  <div className="text-xs font-bold text-white">{g.name}</div>
-                  <div className="text-[10px] text-[#78788c]">
-                    {g.startDate ?? "—"}
-                    {g.endDate && g.endDate !== g.startDate ? ` → ${g.endDate}` : ""} ·{" "}
+                  <div className="text-xs font-bold text-foreground">{g.name}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {g.startDate ?? "â€”"}
+                    {g.endDate && g.endDate !== g.startDate ? ` â†’ ${g.endDate}` : ""} Â·{" "}
                     {g.subjects.map((s) => s.subject).join(", ")}
                   </div>
                 </div>
@@ -2339,9 +2339,9 @@ export function LiveExamsMarksTab({
           );
         })}
         {groups.length === 0 && (
-          <div className="text-xs text-[#46465a]">
+          <div className="text-xs text-muted-foreground">
             {isClassTeacher
-              ? "No exams yet. Create a class exam — subjects are added automatically."
+              ? "No exams yet. Create a class exam â€” subjects are added automatically."
               : "No exams yet. The class teacher creates exams for this class."}
           </div>
         )}
@@ -2376,11 +2376,11 @@ function DecisionSection({
   return (
     <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
       <div>
-        <div className="text-xs font-bold text-white">{title}</div>
-        <div className="text-[10px] text-[#46465a] mt-0.5">{question}</div>
+        <div className="text-xs font-bold text-foreground">{title}</div>
+        <div className="text-[10px] text-muted-foreground mt-0.5">{question}</div>
       </div>
       {rows.length === 0 ? (
-        <div className="text-[10px] text-[#46465a] py-1">{empty}</div>
+        <div className="text-[10px] text-muted-foreground py-1">{empty}</div>
       ) : (
         rows.map((r) => (
           <div
@@ -2389,7 +2389,7 @@ function DecisionSection({
           >
             <div className="min-w-0">
               <div className="text-white font-medium truncate">{r.name}</div>
-              <div className="text-[10px] text-[#78788c] mt-0.5">{r.why}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{r.why}</div>
             </div>
             <div className={cn("tabular-nums font-bold shrink-0 self-start", metricClass)}>
               {r.metric}
@@ -2483,7 +2483,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         if (settled[5].status === "rejected") errs.push(errMsg(settled[5].reason, "Exams"));
         if (settled[6].status === "rejected") errs.push(errMsg(settled[6].reason, "Pending marks"));
         if (settled[7].status === "rejected") errs.push(errMsg(settled[7].reason, "Progression"));
-        setError(errs.length ? errs.join(" · ") : null);
+        setError(errs.length ? errs.join(" Â· ") : null);
         loadedRef.current = true;
       } catch (e) {
         if (!cancelled) setError(errMsg(e, "Failed to load insights"));
@@ -2636,7 +2636,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         parts.push(`tests ${Math.round(p.testsAvgPct)}%`);
       if (p.examsAvgPct > 0 && p.examsAvgPct < 40)
         parts.push(`exams ${Math.round(p.examsAvgPct)}%`);
-      push(p, parts.join(" · ") || "Low avg", "Average under 40%");
+      push(p, parts.join(" Â· ") || "Low avg", "Average under 40%");
     }
     return rows.slice(0, 10);
   }, [lowAttendance, pendingHwStudents, lowAverages, nameById]);
@@ -2648,7 +2648,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         id: `hw-low-${h.id}`,
         name: h.title || "Homework",
         metric: `${Math.round(h.completionPct)}%`,
-        why: `${h.pending} pending · ${h.submitted}/${h.totalStudents} submitted`,
+        why: `${h.pending} pending Â· ${h.submitted}/${h.totalStudents} submitted`,
       });
     }
     for (const h of lateHomework) {
@@ -2665,7 +2665,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         id: `test-${t.id}`,
         name: t.title || "Test",
         metric: resolveTestStatus(t),
-        why: "Draft/scheduled — needs publish",
+        why: "Draft/scheduled â€” needs publish",
       });
     }
     for (const e of examsAwaitingMarks.slice(0, 5)) {
@@ -2692,7 +2692,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       rows.push({
         id: `perf-${p.studentId}`,
         name: displayName(p.studentId),
-        metric: `T ${Math.round(p.testsAvgPct)}% · E ${Math.round(p.examsAvgPct)}%`,
+        metric: `T ${Math.round(p.testsAvgPct)}% Â· E ${Math.round(p.examsAvgPct)}%`,
         why: "Top test/exam performer",
       });
     }
@@ -2719,7 +2719,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         id: `att-${p.studentId}`,
         name: displayName(p.studentId),
         metric: `${Math.round(p.attendancePct)}% att`,
-        why: "Near-perfect attendance (≥95%)",
+        why: "Near-perfect attendance (â‰¥95%)",
       });
     }
     return rows.slice(0, 10);
@@ -2760,10 +2760,10 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           flags.length >= 2
             ? `Consecutive concerns: ${flags.join(", ")}`
             : flags[0] === "low attendance"
-              ? `Lowest attendance · ${Math.round(p.attendancePct)}%`
+              ? `Lowest attendance Â· ${Math.round(p.attendancePct)}%`
               : flags[0] === "missing homework"
-                ? `HW ${Math.round(p.homeworkCompletionPct)}% · missing work`
-                : `Low averages · T ${Math.round(p.testsAvgPct)}% · E ${Math.round(p.examsAvgPct)}%`,
+                ? `HW ${Math.round(p.homeworkCompletionPct)}% Â· missing work`
+                : `Low averages Â· T ${Math.round(p.testsAvgPct)}% Â· E ${Math.round(p.examsAvgPct)}%`,
       }));
   }, [profiles, nameById]);
 
@@ -2790,7 +2790,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     examsAwaitingMarks,
   ]);
 
-  if (loading) return <Loading label="Loading decision dashboard…" />;
+  if (loading) return <Loading label="Loading decision dashboardâ€¦" />;
   if (!analytics && profiles.length === 0) {
     return (
       <div className="text-xs text-[#cc5069] py-8 text-center">
@@ -2808,10 +2808,10 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       )}
 
       <div>
-        <div className="text-sm font-bold text-white">Teacher decision dashboard</div>
-        <div className="text-[10px] text-[#78788c] mt-0.5">
+        <div className="text-sm font-bold text-foreground">Teacher decision dashboard</div>
+        <div className="text-[10px] text-muted-foreground mt-0.5">
           {focusSummary.students === 0 && focusSummary.items === 0
-            ? "Today's focus: none — class looks healthy"
+            ? "Today's focus: none â€” class looks healthy"
             : `Today's focus: ${focusSummary.students} student${focusSummary.students === 1 ? "" : "s"} and ${focusSummary.items} work item${focusSummary.items === 1 ? "" : "s"} need action`}
         </div>
       </div>
@@ -2820,51 +2820,51 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         <div className="bg-surface border border-border/70 rounded-2xl px-3 py-2.5 overflow-x-auto">
           <div className="flex items-center gap-4 sm:gap-5 min-w-max text-[10px]">
             <div>
-              <span className="text-[#46465a]">Attendance </span>
+              <span className="text-muted-foreground">Attendance </span>
               <span className="font-bold text-white tabular-nums">
                 {Math.round(analytics.avgAttendancePct)}%
               </span>
             </div>
             <div>
-              <span className="text-[#46465a]">HW </span>
+              <span className="text-muted-foreground">HW </span>
               <span className="font-bold text-white tabular-nums">
                 {Math.round(analytics.avgHomeworkCompletionPct)}%
               </span>
             </div>
             <div>
-              <span className="text-[#46465a]">Test avg </span>
+              <span className="text-muted-foreground">Test avg </span>
               <span className="font-bold text-white tabular-nums">
                 {Math.round(analytics.avgTestsPct)}%
               </span>
             </div>
             <div>
-              <span className="text-[#46465a]">Exam avg </span>
+              <span className="text-muted-foreground">Exam avg </span>
               <span className="font-bold text-white tabular-nums">
                 {Math.round(analytics.avgExamsPct)}%
               </span>
             </div>
             <div>
-              <span className="text-[#46465a]">Active HW </span>
+              <span className="text-muted-foreground">Active HW </span>
               <span className="font-bold text-white tabular-nums">{activeHomework.length}</span>
             </div>
             <div>
-              <span className="text-[#46465a]">Active tests </span>
+              <span className="text-muted-foreground">Active tests </span>
               <span className="font-bold text-white tabular-nums">{activeTests.length}</span>
             </div>
             <div>
-              <span className="text-[#46465a]">Upcoming exams </span>
+              <span className="text-muted-foreground">Upcoming exams </span>
               <span className="font-bold text-white tabular-nums">{upcomingExams.length}</span>
             </div>
             {progression?.class_engagement && (
               <>
                 <div>
-                  <span className="text-[#46465a]">Avg XP </span>
+                  <span className="text-muted-foreground">Avg XP </span>
                   <span className="font-bold text-white tabular-nums">
                     {progression.class_engagement.avg_xp}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[#46465a]">Practice rate </span>
+                  <span className="text-muted-foreground">Practice rate </span>
                   <span className="font-bold text-white tabular-nums">
                     {progression.class_engagement.practice_rate}%
                   </span>
@@ -2883,7 +2883,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
             rows={(progression.top_xp ?? []).slice(0, 8).map((r) => ({
               id: r.student_id,
               name: r.full_name,
-              metric: `${r.xp} XP · L${r.level}`,
+              metric: `${r.xp} XP Â· L${r.level}`,
               why: `${r.league} league`,
             }))}
             empty="No XP data yet"
@@ -2930,14 +2930,14 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         title="Needs attention today"
         question="Who should I check on before the day ends?"
         rows={needsAttentionRows}
-        empty="None — class looks healthy"
+        empty="None â€” class looks healthy"
       />
 
       <DecisionSection
         title="Academic work creating problems"
         question="Which homework, tests, or exams need my action?"
         rows={workProblemRows}
-        empty="None — work pipeline looks clear"
+        empty="None â€” work pipeline looks clear"
         metricClass="text-[#f59e0b]"
       />
 
@@ -2946,14 +2946,14 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           title="Doing well"
           question="Who can I reinforce or use as peer models?"
           rows={doingWellRows}
-          empty="None yet — not enough positive signals"
+          empty="None yet â€” not enough positive signals"
           metricClass="text-[#10b981]"
         />
         <DecisionSection
           title="Require intervention"
           question="Who has stacked risks that need a conversation?"
           rows={interventionRows}
-          empty="None — no stacked concerns"
+          empty="None â€” no stacked concerns"
         />
       </div>
     </div>

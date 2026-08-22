@@ -1,4 +1,4 @@
-import { type ClassValue, clsx } from "clsx";
+﻿import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -57,8 +57,8 @@ export function SectionHead({ title, subtitle, action }: { title: string; subtit
   return (
     <div className="flex items-center justify-between gap-4 mb-4">
       <div>
-        <div className="text-sm font-bold text-white">{title}</div>
-        {subtitle && <div className="text-[10px] text-[#78788c] mt-0.5">{subtitle}</div>}
+        <div className="text-sm font-bold text-foreground">{title}</div>
+        {subtitle && <div className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</div>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>
@@ -69,7 +69,7 @@ export function StatBox({ label, value, color }: { label: string; value: string 
   return (
     <div className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
       <div className="text-xl font-black tabular-nums" style={{ color: color ?? "#fff" }}>{value}</div>
-      <div className="text-[10px] text-[#78788c] mt-0.5">{label}</div>
+      <div className="text-[10px] text-muted-foreground mt-0.5">{label}</div>
     </div>
   );
 }

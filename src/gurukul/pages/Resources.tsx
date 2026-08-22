@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { FileText, Video, Download, Search, Loader2, ExternalLink } from "lucide-react";
 import { ResourceService, type LearningResourceRow } from "@/academic";
@@ -8,11 +8,11 @@ import { toast } from "sonner";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 
 function formatDate(iso: string | null) {
-  if (!iso) return "—";
+  if (!iso) return "â€”";
   try {
     return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
   } catch {
-    return "—";
+    return "â€”";
   }
 }
 
@@ -78,20 +78,20 @@ export default function Resources() {
   return (
     <div className="space-y-5">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#78788c]" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search resources…"
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50 transition-colors"
+          placeholder="Search resourcesâ€¦"
+          className="w-full bg-white/5 border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50 transition-colors"
         />
       </div>
 
       <GlassCard className="p-5">
         <SectionLabel>Study materials</SectionLabel>
         {loading ? (
-          <div className="flex items-center justify-center gap-2 py-10 text-[#78788c] text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading resources…
+          <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading resourcesâ€¦
           </div>
         ) : (
           <div className="space-y-2">
@@ -115,23 +115,23 @@ export default function Resources() {
                     <div className="text-sm font-semibold text-white truncate">{r.title}</div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <SubjectBadge subject={r.subject} color={col} />
-                      <span className="text-[11px] text-[#78788c]">
-                        {r.type} · {formatDate(r.publishedAt)}
+                      <span className="text-[11px] text-muted-foreground">
+                        {r.type} Â· {formatDate(r.publishedAt)}
                       </span>
                     </div>
                   </div>
                   <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     {hasLink ? (
-                      <ExternalLink className="w-4 h-4 text-[#78788c]" />
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
                     ) : (
-                      <Download className="w-4 h-4 text-[#78788c]" />
+                      <Download className="w-4 h-4 text-muted-foreground" />
                     )}
                   </span>
                 </button>
               );
             })}
             {filtered.length === 0 && (
-              <div className="text-center py-8 text-[#78788c] text-sm">
+              <div className="text-center py-8 text-muted-foreground text-sm">
                 {q
                   ? "No resources found."
                   : "No study materials uploaded for your class yet."}

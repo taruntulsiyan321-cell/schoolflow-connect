@@ -1,4 +1,4 @@
-import type { PageKey } from "@/gurukul/nav";
+﻿import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent, useGurukulShellReady } from "@/gurukul/StudentContext";
 import { GlassCard, SectionLabel, StatTile, XPBar, ProgressBar, cn } from "@/gurukul/components/shared";
 import {
@@ -132,7 +132,7 @@ function WeeklyRing({ sessions }: { sessions: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-2xl font-black tabular-nums" style={{color}}>{sessions}</span>
-        <span className="text-[10px] text-[#78788c]">/ {goal}</span>
+        <span className="text-[10px] text-muted-foreground">/ {goal}</span>
       </div>
     </div>
   );
@@ -223,14 +223,14 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
     [earned],
   );
 
-  const goalLine = student.goal ? ` · Goal: ${student.goal}` : "";
-  const levelLabel = shellReady ? `Lv.${student.level}` : "—";
-  const streakLabel = shellReady ? `${student.streak}-day streak` : "…";
+  const goalLine = student.goal ? ` Â· Goal: ${student.goal}` : "";
+  const levelLabel = shellReady ? `Lv.${student.level}` : "â€”";
+  const streakLabel = shellReady ? `${student.streak}-day streak` : "â€¦";
 
   if (initialLoading) {
     return (
-      <div className="flex items-center justify-center py-24 text-[#78788c] text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading home…
+      <div className="flex items-center justify-center py-24 text-muted-foreground text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading homeâ€¦
       </div>
     );
   }
@@ -238,8 +238,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   if (loadError && !hasLiveData) {
     return (
       <div className="rounded-2xl border border-[#cc5069]/25 bg-[#cc5069]/08 p-6 text-center space-y-3">
-        <p className="text-sm font-semibold text-white">Could not load home data</p>
-        <p className="text-xs text-[#78788c]">{loadError}</p>
+        <p className="text-sm font-semibold text-foreground">Could not load home data</p>
+        <p className="text-xs text-muted-foreground">{loadError}</p>
         <button
           type="button"
           onClick={() => { void reloadSnap(); void reloadCharts(); }}
@@ -263,7 +263,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs uppercase tracking-[0.2em] text-[#78788c]">{timeOfDayGreeting()}</span>
+              <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">{timeOfDayGreeting()}</span>
               <div className="flex items-center gap-1 bg-amber-400/10 border border-amber-400/20 rounded-full px-2 py-0.5">
                 <Flame className="w-3 h-3 text-amber-400"/><span className="text-[10px] font-bold text-amber-400">{streakLabel}</span>
               </div>
@@ -271,10 +271,10 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight" style={{fontFamily:"var(--font-display)"}}>
               {student.firstName}
             </h1>
-            <p className="text-[#78788c] text-sm mt-1">{student.class || (shellReady ? "—" : "…")}{goalLine}</p>
+            <p className="text-muted-foreground text-sm mt-1">{student.class || (shellReady ? "â€”" : "â€¦")}{goalLine}</p>
             <div className="grid grid-cols-3 gap-3 mt-4">
-              <StatTile label="Practice accuracy" value={shellReady ? `${student.accuracy}%` : "—"} color="#4b9fd4"/>
-              <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "—"} color="#c08a3a"/>
+              <StatTile label="Practice accuracy" value={shellReady ? `${student.accuracy}%` : "â€”"} color="#4b9fd4"/>
+              <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "â€”"} color="#c08a3a"/>
               <StatTile label="Level" value={levelLabel} color="#6882e8"/>
             </div>
             <div className="mt-3">
@@ -289,7 +289,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
           </div>
           <div className="flex flex-col items-center shrink-0">
             <WeeklyRing sessions={shellReady ? student.sessionsThisWeek : 0}/>
-            <span className="text-[11px] text-[#78788c] uppercase tracking-widest mt-2">Sessions / Week</span>
+            <span className="text-[11px] text-muted-foreground uppercase tracking-widest mt-2">Sessions / Week</span>
           </div>
         </div>
       </GlassCard>
@@ -302,8 +302,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[10px] uppercase tracking-[0.15em] text-[#4b9fd4] mb-0.5">What should you do next?</div>
-            <div className="text-base font-bold text-white">{mission.nextAction.label}</div>
-            <div className="text-sm text-[#78788c] mt-0.5">{mission.nextAction.reason}</div>
+            <div className="text-base font-bold text-foreground">{mission.nextAction.label}</div>
+            <div className="text-sm text-muted-foreground mt-0.5">{mission.nextAction.reason}</div>
           </div>
           <ArrowRight className="w-5 h-5 text-[#4b9fd4] shrink-0 mt-0.5"/>
         </div>
@@ -324,7 +324,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               {step.label}
               {step.done&&!step.active&&<CheckCircle2 className="w-3 h-3" style={{color:step.color}}/>}
               {step.active&&<span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{background:step.color}}/>}
-              {i<loopSteps.length-1&&<ArrowRight className="w-3 h-3 text-[#78788c]/30 -mr-1"/>}
+              {i<loopSteps.length-1&&<ArrowRight className="w-3 h-3 text-muted-foreground/30 -mr-1"/>}
             </button>
           ))}
         </div>
@@ -342,10 +342,10 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <GlassCard key={m.label} className="p-4 cursor-pointer hover:border-border" onClick={() => setPage(m.page)}>
               <div className="flex items-center gap-2 mb-2">
                 <span style={{color:m.color}}>{m.icon}</span>
-                <span className="text-xs font-semibold text-white">{m.label}</span>
+                <span className="text-xs font-semibold text-foreground">{m.label}</span>
               </div>
               <div className="text-2xl font-black tabular-nums mb-1" style={{color:m.color}}>
-                {m.done}<span className="text-sm text-[#78788c] font-normal">/{m.target}</span>
+                {m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span>
               </div>
               <ProgressBar value={m.done} max={m.target} color={m.color}/>
             </GlassCard>
@@ -363,12 +363,12 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             {label:"Battleground",sub:"Challenge classmates",  icon:<Swords className="w-5 h-5"/>,   color:"#c08a3a", page:"battleground" as PageKey},
             {label:"Analysis",    sub:"View insights",       icon:<BarChart2 className="w-5 h-5"/>,color:"#4b9fd4", page:"analysis" as PageKey},
           ].map((a) => (
-            <GlassCard key={a.label} className="p-4 cursor-pointer hover:border-white/20 group" onClick={() => setPage(a.page)}>
+            <GlassCard key={a.label} className="p-4 cursor-pointer hover:border-border group" onClick={() => setPage(a.page)}>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{background:`${a.color}15`,color:a.color}}>
                 {a.icon}
               </div>
-              <div className="text-sm font-semibold text-white">{a.label}</div>
-              <div className="text-[11px] text-[#78788c] mt-0.5">{a.sub}</div>
+              <div className="text-sm font-semibold text-foreground">{a.label}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5">{a.sub}</div>
             </GlassCard>
           ))}
         </div>
@@ -450,13 +450,13 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                   {a.Icon ? <a.Icon className="w-5 h-5" /> : <Star className="w-5 h-5" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-white">{a.title}</div>
-                  <div className="text-xs text-[#78788c]">{a.desc}</div>
+                  <div className="text-sm font-semibold text-foreground">{a.title}</div>
+                  <div className="text-xs text-muted-foreground">{a.desc}</div>
                 </div>
                 <div className="flex items-center gap-1 text-amber-400 capitalize"><span className="text-xs font-bold">{a.tier}</span></div>
               </div>
             )) : (
-              <p className="text-sm text-[#78788c] text-center py-4">No badges earned yet - keep practicing!</p>
+              <p className="text-sm text-muted-foreground text-center py-4">No badges earned yet - keep practicing!</p>
             )}
             <button onClick={() => setPage("achievements")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors">
               View all achievements {"->"}
@@ -470,15 +470,15 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{background:"linear-gradient(135deg,#c08a3a20,#c08a3a05)",border:"1px solid #c08a3a30"}}>
               <Trophy className="w-7 h-7 text-amber-400"/>
             </div>
-            <div className="text-4xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>
-              {shellReady && student.rank > 0 ? `#${student.rank}` : "—"}
+            <div className="text-4xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
+              {shellReady && student.rank > 0 ? `#${student.rank}` : "â€”"}
             </div>
-            <div className="text-[#78788c] text-sm">
+            <div className="text-muted-foreground text-sm">
               {shellReady && student.totalStudents > 0
                 ? `of ${student.totalStudents} students`
                 : shellReady
                   ? "Not ranked yet"
-                  : "Loading rank…"}
+                  : "Loading rankâ€¦"}
             </div>
             {shellReady && student.rank > 0 && (
               <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-semibold">

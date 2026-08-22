@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,7 +62,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
     }
 
     if (err) { setError(err.message); setLoading(false); return; }
-    if (!res) { setError("Report not found — finish the battle and try again."); setLoading(false); return; }
+    if (!res) { setError("Report not found â€” finish the battle and try again."); setLoading(false); return; }
     const normalized = res;
     setData(normalized as BattleReportPayload);
     if (normalized.ai_insights?.source) {
@@ -81,7 +81,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
       _insights: insights,
     });
     if (saveErr) {
-      /* non-fatal — insights still shown in UI */
+      /* non-fatal â€” insights still shown in UI */
     }
   };
 
@@ -125,7 +125,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
   if (loading) {
     return (
       <div className="py-12 text-center text-muted-foreground flex flex-col items-center gap-2">
-        <Loader2 className="w-6 h-6 animate-spin" /> Loading battle report…
+        <Loader2 className="w-6 h-6 animate-spin" /> Loading battle reportâ€¦
       </div>
     );
   }
@@ -173,7 +173,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
       {/* Expiry urgency */}
       <div className="flex items-center gap-2 text-xs font-semibold text-amber-900 bg-[#fff4d6] border border-[#f2d486] rounded-2xl px-4 py-3 shadow-sm">
         <Timer className="w-3.5 h-3.5 shrink-0" />
-        Detailed report expires {expiresIn} — review while it's available
+        Detailed report expires {expiresIn} â€” review while it's available
       </div>
 
       {/* Hero */}
@@ -181,15 +181,15 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         <div className="relative">
           <div className="flex flex-wrap gap-2 mb-4">
             <span className="wa-gold-pill">Battle Intelligence</span>
-            {forTeacher && <span className="rounded-full bg-white/12 border border-border px-3 py-1 text-[10px] font-semibold text-white/80">{data.display_name}</span>}
+            {forTeacher && <span className="rounded-full bg-white/12 border border-border px-3 py-1 text-[10px] font-semibold text-foreground/80">{data.display_name}</span>}
           </div>
-          <h1 className="font-['Sora'] text-3xl sm:text-4xl font-semibold tracking-tight text-white">{b.title ?? "Battle report"}</h1>
-          <p className="text-sm text-white/75 mt-1">
-            {displaySubject(b.subject)}{b.chapter ? ` · ${displayChapter(b.chapter)}` : ""}{b.topic ? ` · ${displayTopic(b.topic)}` : ""}
+          <h1 className="font-['Sora'] text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">{b.title ?? "Battle report"}</h1>
+          <p className="text-sm text-foreground/75 mt-1">
+            {displaySubject(b.subject)}{b.chapter ? ` Â· ${displayChapter(b.chapter)}` : ""}{b.topic ? ` Â· ${displayTopic(b.topic)}` : ""}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
             <MiniStat label="Score" value={s.score} />
-            <MiniStat label="Rank" value={s.rank ? `#${s.rank}` : "—"} />
+            <MiniStat label="Rank" value={s.rank ? `#${s.rank}` : "â€”"} />
             <MiniStat label="Accuracy" value={`${s.accuracy_pct ?? 0}%`} />
             <MiniStat label="Avg speed" value={`${((s.avg_time_ms ?? 0) / 1000).toFixed(1)}s/q`} />
           </div>
@@ -205,7 +205,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         />
       )}
 
-      {/* AI coach — student-only. Teachers see the raw stats below without
+      {/* AI coach â€” student-only. Teachers see the raw stats below without
           an AI layer (product decision: no AI battle report for teachers). */}
       {!forTeacher && (
         <Card className="wa-card wa-coach-premium p-5 sm:p-6">
@@ -228,7 +228,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
           )}
           {aiLoading && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-              <Loader2 className="w-4 h-4 animate-spin" /> Generating personalized insights…
+              <Loader2 className="w-4 h-4 animate-spin" /> Generating personalized insightsâ€¦
             </div>
           )}
           {ai && !aiLoading && (
@@ -303,17 +303,17 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
                   <span className="text-[10px] font-semibold uppercase text-muted-foreground">Skipped</span>
                 ) : q.is_correct ? (
                   <span className="text-[10px] font-semibold uppercase text-accent flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Correct · {(q.time_ms / 1000).toFixed(1)}s
+                    <CheckCircle2 className="w-3 h-3" /> Correct Â· {(q.time_ms / 1000).toFixed(1)}s
                   </span>
                 ) : (
                   <span className="text-[10px] font-semibold uppercase text-destructive flex items-center gap-1">
-                    <XCircle className="w-3 h-3" /> Wrong · {(q.time_ms / 1000).toFixed(1)}s
+                    <XCircle className="w-3 h-3" /> Wrong Â· {(q.time_ms / 1000).toFixed(1)}s
                   </span>
                 )}
               </div>
               <MathText block className="text-sm font-medium leading-snug" text={q.question} />
               {(q.chapter || q.topic) && (
-                <p className="text-[11px] text-muted-foreground mt-1">{[q.chapter ? displayChapter(q.chapter) : null, q.topic ? displayTopic(q.topic) : null].filter(Boolean).join(" · ")}</p>
+                <p className="text-[11px] text-muted-foreground mt-1">{[q.chapter ? displayChapter(q.chapter) : null, q.topic ? displayTopic(q.topic) : null].filter(Boolean).join(" Â· ")}</p>
               )}
               {!q.skipped && (
                 <ExplainPanel
@@ -376,8 +376,8 @@ function buildBattleConceptFallback(data: BattleReportPayload): ConceptRecoveryR
 function MiniStat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <div className="text-xl font-semibold text-white">{value}</div>
-      <div className="text-[11px] font-medium uppercase tracking-wide text-white/70">{label}</div>
+      <div className="text-xl font-semibold text-foreground">{value}</div>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-foreground/70">{label}</div>
     </div>
   );
 }
@@ -406,7 +406,7 @@ function TopicCard({ title, items, variant }: { title: string; items: any[]; var
           {items.map((t: any, i: number) => (
             <li key={i} className="flex justify-between text-sm">
               <span className="font-medium truncate pr-2">{t.label}</span>
-              <span className="text-muted-foreground shrink-0">{t.correct}/{t.total} · {t.accuracy}%</span>
+              <span className="text-muted-foreground shrink-0">{t.correct}/{t.total} Â· {t.accuracy}%</span>
             </li>
           ))}
         </ul>

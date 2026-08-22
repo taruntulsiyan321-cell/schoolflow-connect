@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2, Plus, Save, Send, Archive, Copy, Eye, CheckCircle2, RotateCcw, CalendarClock,
 } from "lucide-react";
@@ -21,14 +21,14 @@ type PublishMode = "now" | "schedule" | "draft";
 
 function Loading({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-12 text-[#78788c] text-xs">
+    <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground text-xs">
       <Loader2 className="w-4 h-4 animate-spin" /> {label}
     </div>
   );
 }
 
 /**
- * Homework workspace — create / schedule / draft / publish / review with real file uploads.
+ * Homework workspace â€” create / schedule / draft / publish / review with real file uploads.
  */
 export function LiveAcademicWorkTab({
   classId,
@@ -228,7 +228,7 @@ export function LiveAcademicWorkTab({
     }
   };
 
-  if (loading) return <Loading label="Loading homework…" />;
+  if (loading) return <Loading label="Loading homeworkâ€¦" />;
 
   if (reviewHw) {
     const nameById = new Map(roster.map((r) => [r.id, r.fullName]));
@@ -239,33 +239,33 @@ export function LiveAcademicWorkTab({
           onClick={() => setReviewHw(null)}
           className="text-[10px] font-bold text-[#3b5bdb]"
         >
-          ← Back to list
+          â† Back to list
         </button>
         {error && <div className="text-xs text-[#cc5069]">{error}</div>}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="text-sm font-bold text-white">{reviewHw.title}</div>
+          <div className="text-sm font-bold text-foreground">{reviewHw.title}</div>
           <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
             {WORK_KIND_LABELS[reviewHw.workKind ?? "homework"]}
           </span>
         </div>
         {(reviewHw.attachments?.length ?? 0) > 0 && (
           <div className="space-y-1">
-            <div className="text-[10px] font-bold text-[#78788c]">Assigned attachments</div>
+            <div className="text-[10px] font-bold text-muted-foreground">Assigned attachments</div>
             <AttachmentList items={reviewHw.attachments ?? []} dense />
           </div>
         )}
-        <div className="text-[10px] text-[#78788c]">
-          {subs.length} submissions · {reviewHw.awaitingReview ?? 0} awaiting review
+        <div className="text-[10px] text-muted-foreground">
+          {subs.length} submissions Â· {reviewHw.awaitingReview ?? 0} awaiting review
         </div>
         <div className="space-y-2">
           {subs.map((s) => (
-            <div key={s.id} className="p-3 rounded-2xl border border-white/10 bg-surface space-y-2">
+            <div key={s.id} className="p-3 rounded-2xl border border-border bg-surface space-y-2">
               <div className="flex justify-between gap-2">
-                <div className="text-xs font-semibold text-white">
+                <div className="text-xs font-semibold text-foreground">
                   {nameById.get(s.studentId) ?? s.studentId.slice(0, 8)}
                 </div>
-                <div className="text-[10px] text-[#78788c]">
-                  {s.status}{s.isLate ? " · late" : ""} · v{s.version}
+                <div className="text-[10px] text-muted-foreground">
+                  {s.status}{s.isLate ? " Â· late" : ""} Â· v{s.version}
                 </div>
               </div>
               {s.content?.trim() && (
@@ -275,7 +275,7 @@ export function LiveAcademicWorkTab({
                 <AttachmentList items={s.attachments ?? []} dense />
               )}
               {!s.content?.trim() && !(s.attachments?.length ?? 0) && (
-                <div className="text-[11px] text-[#46465a]">No text or files submitted</div>
+                <div className="text-[11px] text-muted-foreground">No text or files submitted</div>
               )}
               {s.teacherRemarks && (
                 <div className="text-[10px] text-[#4aa87a]">Remarks: {s.teacherRemarks}</div>
@@ -290,7 +290,7 @@ export function LiveAcademicWorkTab({
                       [s.id]: { grade: e.target.value, remarks: g[s.id]?.remarks ?? "" },
                     }))
                   }
-                  className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white w-24"
+                  className="bg-white/5 border border-border rounded-lg px-2 py-1 text-[11px] text-white w-24"
                 />
                 <input
                   placeholder="Remarks"
@@ -301,7 +301,7 @@ export function LiveAcademicWorkTab({
                       [s.id]: { grade: g[s.id]?.grade ?? "", remarks: e.target.value },
                     }))
                   }
-                  className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-[11px] text-white flex-1 min-w-[120px]"
+                  className="bg-white/5 border border-border rounded-lg px-2 py-1 text-[11px] text-white flex-1 min-w-[120px]"
                 />
                 <button
                   type="button"
@@ -310,7 +310,7 @@ export function LiveAcademicWorkTab({
                   className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#4aa87a]/20 text-[#4aa87a] flex items-center gap-1 disabled:opacity-50"
                 >
                   <CheckCircle2 className="w-3 h-3" />
-                  {reviewingId === s.id ? "…" : "Grade"}
+                  {reviewingId === s.id ? "â€¦" : "Grade"}
                 </button>
                 <button
                   type="button"
@@ -324,7 +324,7 @@ export function LiveAcademicWorkTab({
             </div>
           ))}
           {subs.length === 0 && (
-            <div className="text-center py-8 text-xs text-[#46465a]">No submissions yet.</div>
+            <div className="text-center py-8 text-xs text-muted-foreground">No submissions yet.</div>
           )}
         </div>
       </div>
@@ -333,7 +333,7 @@ export function LiveAcademicWorkTab({
 
   return (
     <div className="space-y-4">
-      <div className="text-sm font-bold text-white">Homework</div>
+      <div className="text-sm font-bold text-foreground">Homework</div>
       {error && <div className="text-xs text-[#cc5069]">{error}</div>}
 
       <div className="flex flex-wrap gap-2 items-center justify-between">
@@ -344,7 +344,7 @@ export function LiveAcademicWorkTab({
               type="button"
               onClick={() => setStatusFilter(s)}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold capitalize ${
-                statusFilter === s ? "bg-white/15 text-white" : "bg-white/5 text-[#78788c]"
+                statusFilter === s ? "bg-white/15 text-foreground" : "bg-white/5 text-muted-foreground"
               }`}
             >
               {s}
@@ -355,8 +355,8 @@ export function LiveAcademicWorkTab({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search…"
-            className="bg-white/5 border border-white/10 rounded-xl px-3 py-1.5 text-[11px] text-white w-36"
+            placeholder="Searchâ€¦"
+            className="bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-white w-36"
           />
           <button
             type="button"
@@ -369,23 +369,23 @@ export function LiveAcademicWorkTab({
       </div>
 
       {creating && (
-        <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2">
+        <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
           <input
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             placeholder="Title *"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
           />
           <textarea
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             placeholder="Instructions"
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white min-h-[60px]"
+            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[60px]"
           />
           <select
             value={form.workKind}
             onChange={(e) => setForm((f) => ({ ...f, workKind: e.target.value as WorkKind }))}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
           >
             {WORK_KINDS.map((k) => (
               <option key={k} value={k}>
@@ -398,18 +398,18 @@ export function LiveAcademicWorkTab({
               type="date"
               value={form.dueDate}
               onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             />
             <input
               type="time"
               value={form.dueTime}
               onChange={(e) => setForm((f) => ({ ...f, dueTime: e.target.value }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             />
             <select
               value={form.priority}
               onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             >
               <option value="low">Low</option>
               <option value="normal">Normal</option>
@@ -420,11 +420,11 @@ export function LiveAcademicWorkTab({
               value={form.maxMarks}
               onChange={(e) => setForm((f) => ({ ...f, maxMarks: e.target.value }))}
               placeholder="Max marks"
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white w-24"
+              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-24"
             />
           </div>
           <div className="space-y-1">
-            <div className="text-[10px] text-[#78788c] font-semibold">Attachments</div>
+            <div className="text-[10px] text-muted-foreground font-semibold">Attachments</div>
             <AttachmentComposer
               items={attachments}
               onChange={setAttachments}
@@ -444,7 +444,7 @@ export function LiveAcademicWorkTab({
                 type="button"
                 onClick={() => setPublishMode(m.key)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                  publishMode === m.key ? "bg-[#3b5bdb] text-white" : "bg-white/5 text-[#78788c]"
+                  publishMode === m.key ? "bg-[#3b5bdb] text-foreground" : "bg-white/5 text-muted-foreground"
                 }`}
               >
                 {m.label}
@@ -456,7 +456,7 @@ export function LiveAcademicWorkTab({
               type="datetime-local"
               value={form.scheduledPublishAt}
               onChange={(e) => setForm((f) => ({ ...f, scheduledPublishAt: e.target.value }))}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             />
           )}
           <div className="flex gap-2">
@@ -485,35 +485,35 @@ export function LiveAcademicWorkTab({
         </div>
       )}
 
-      <div className="text-[10px] text-[#46465a]">{filtered.length} homework items</div>
+      <div className="text-[10px] text-muted-foreground">{filtered.length} homework items</div>
       <div className="space-y-2">
         {filtered.map((h) => (
           <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-2xl space-y-2">
             <div className="flex justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="text-xs font-bold text-white">{h.title}</div>
+                  <div className="text-xs font-bold text-foreground">{h.title}</div>
                   <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
                     {WORK_KIND_LABELS[h.workKind ?? "homework"]}
                   </span>
                 </div>
-                <div className="text-[10px] text-[#78788c] mt-0.5">
-                  {h.subject} · Due {h.dueDate ?? "—"} · {h.status ?? "draft"} · {h.priority}
+                <div className="text-[10px] text-muted-foreground mt-0.5">
+                  {h.subject} Â· Due {h.dueDate ?? "â€”"} Â· {h.status ?? "draft"} Â· {h.priority}
                   {h.scheduledPublishAt
-                    ? ` · sched ${new Date(h.scheduledPublishAt).toLocaleString()}`
+                    ? ` Â· sched ${new Date(h.scheduledPublishAt).toLocaleString()}`
                     : ""}
                 </div>
               </div>
-              <div className="text-right text-[10px] text-[#46465a]">
-                {h.submitted}/{h.totalStudents} · {h.completionPct}%
+              <div className="text-right text-[10px] text-muted-foreground">
+                {h.submitted}/{h.totalStudents} Â· {h.completionPct}%
                 <div>
-                  {h.graded} graded · {h.awaitingReview} to review · {h.returned} returned ·{" "}
+                  {h.graded} graded Â· {h.awaitingReview} to review Â· {h.returned} returned Â·{" "}
                   {h.pending} missing
                 </div>
               </div>
             </div>
             {h.description && (
-              <div className="text-[10px] text-[#78788c] line-clamp-2">{h.description}</div>
+              <div className="text-[10px] text-muted-foreground line-clamp-2">{h.description}</div>
             )}
             {(h.attachments?.length ?? 0) > 0 && (
               <AttachmentList items={h.attachments ?? []} dense />
@@ -543,7 +543,7 @@ export function LiveAcademicWorkTab({
                   onClick={() =>
                     void runHwAction("Unpublish", () => HomeworkService.unpublish(ctx, h.id))
                   }
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#78788c]"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-muted-foreground"
                 >
                   Unpublish
                 </button>
@@ -565,7 +565,7 @@ export function LiveAcademicWorkTab({
                   onClick={() =>
                     void runHwAction("Duplicate", () => HomeworkService.duplicate(ctx, h.id))
                   }
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#78788c] flex items-center gap-1"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-muted-foreground flex items-center gap-1"
                 >
                   <Copy className="w-3 h-3" /> Duplicate
                 </button>
@@ -574,7 +574,7 @@ export function LiveAcademicWorkTab({
           </div>
         ))}
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-xs text-[#46465a]">
+          <div className="text-center py-12 text-xs text-muted-foreground">
             {items.length === 0 ? "No academic work yet." : "No items match this filter."}
           </div>
         )}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { GlassCard, SectionLabel, cn } from "@/gurukul/components/shared";
 import { Lock, Loader2, Star } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -98,8 +98,8 @@ export default function Achievements() {
 
   if (loading || progLoading) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading milestones…
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading milestonesâ€¦
       </div>
     );
   }
@@ -111,23 +111,23 @@ export default function Achievements() {
           <div className="text-2xl font-black text-amber-400" style={{ fontFamily: "var(--font-display)" }}>
             {unlocked.length}
           </div>
-          <div className="text-[11px] text-[#78788c] mt-0.5">Milestones reached</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Milestones reached</div>
         </div>
         <div className="p-4 rounded-2xl border border-border/70 bg-surface/70 text-center">
           <div className="text-2xl font-black text-[#6882e8]" style={{ fontFamily: "var(--font-display)" }}>
-            {visibleCatalogCount || "—"}
+            {visibleCatalogCount || "â€”"}
           </div>
-          <div className="text-[11px] text-[#78788c] mt-0.5">Total in catalog</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">Total in catalog</div>
         </div>
       </div>
 
       <GlassCard glow="amber" className="p-5">
         <SectionLabel>Featured badges</SectionLabel>
-        <p className="text-[11px] text-[#78788c] mb-3">
+        <p className="text-[11px] text-muted-foreground mb-3">
           Showcase up to {MAX_FEATURED} earned badges on your profile ({featured.length}/{MAX_FEATURED}).
         </p>
         {featured.length === 0 ? (
-          <div className="text-xs text-[#78788c]">None featured yet — star badges below.</div>
+          <div className="text-xs text-muted-foreground">None featured yet â€” star badges below.</div>
         ) : (
           <div className="flex flex-wrap gap-2">
             {featured.map((code) => (
@@ -148,10 +148,10 @@ export default function Achievements() {
               >
                 <Star className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-white">{a.label}</div>
-                  {a.description && <div className="text-[11px] text-[#78788c] mt-0.5">{a.description}</div>}
-                  <div className="text-[10px] text-[#78788c] mt-1 capitalize">
-                    {a.rarity} · {formatEarnedDate(a.earned_at)}
+                  <div className="text-sm font-semibold text-foreground">{a.label}</div>
+                  {a.description && <div className="text-[11px] text-muted-foreground mt-0.5">{a.description}</div>}
+                  <div className="text-[10px] text-muted-foreground mt-1 capitalize">
+                    {a.rarity} Â· {formatEarnedDate(a.earned_at)}
                   </div>
                 </div>
               </div>
@@ -163,10 +163,10 @@ export default function Achievements() {
       <GlassCard glow="amber" className="p-5">
         <SectionLabel>Milestones reached</SectionLabel>
         {unlocked.length === 0 ? (
-          <div className="text-center py-8 text-[#78788c] text-sm">No milestones reached yet. Keep learning and battling to earn badges.</div>
+          <div className="text-center py-8 text-muted-foreground text-sm">No milestones reached yet. Keep learning and battling to earn badges.</div>
         ) : (
           <>
-            <p className="text-[11px] text-[#78788c] mb-3">
+            <p className="text-[11px] text-muted-foreground mb-3">
               Equip one badge publicly. Star up to {MAX_FEATURED} as featured on your profile.
               {equipped ? ` Currently equipped: ${getBadge(equipped)?.label ?? equipped}.` : ""}
             </p>
@@ -184,12 +184,12 @@ export default function Achievements() {
                       isEquipped ? "border-amber-400/40 bg-amber-400/10" : "border-amber-400/15 bg-amber-400/5",
                     )}
                   >
-                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white", tier.bg)}>
+                    <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-foreground", tier.bg)}>
                       <Icon className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-white">{a.label}</div>
-                      <div className="text-[11px] text-[#78788c] mt-0.5">{a.desc}</div>
+                      <div className="text-sm font-bold text-foreground">{a.label}</div>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">{a.desc}</div>
                       <div className="text-[11px] text-amber-400/80 mt-1.5">{formatEarnedDate(a.earned_at)}</div>
                       <div className="flex flex-wrap gap-2 mt-2">
                         <button
@@ -200,7 +200,7 @@ export default function Achievements() {
                             "text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors",
                             isEquipped
                               ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
-                              : "border-white/10 text-[#a0a0b0] hover:text-white hover:border-white/25",
+                              : "border-border text-[#a0a0b0] hover:text-white hover:border-white/25",
                           )}
                         >
                           {isEquipped ? "Unequip" : "Equip"}
@@ -213,7 +213,7 @@ export default function Achievements() {
                             "text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors inline-flex items-center gap-1",
                             isFeatured
                               ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
-                              : "border-white/10 text-[#a0a0b0] hover:text-white hover:border-white/25",
+                              : "border-border text-[#a0a0b0] hover:text-white hover:border-white/25",
                           )}
                         >
                           <Star className={cn("w-3 h-3", isFeatured && "fill-current")} />
@@ -232,7 +232,7 @@ export default function Achievements() {
       <GlassCard className="p-5">
         <SectionLabel>Coming up</SectionLabel>
         {locked.length === 0 ? (
-          <div className="text-center py-8 text-[#78788c] text-sm">You have unlocked every visible milestone.</div>
+          <div className="text-center py-8 text-muted-foreground text-sm">You have unlocked every visible milestone.</div>
         ) : (
           <div className="space-y-3">
             {locked.map((a) => {
@@ -245,9 +245,9 @@ export default function Achievements() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-[#a0a0b0]">{a.label}</span>
-                      <Lock className="w-3 h-3 text-[#78788c]" />
+                      <Lock className="w-3 h-3 text-muted-foreground" />
                     </div>
-                    <div className="text-[11px] text-[#78788c] mt-0.5">{a.desc}</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">{a.desc}</div>
                   </div>
                 </div>
               );

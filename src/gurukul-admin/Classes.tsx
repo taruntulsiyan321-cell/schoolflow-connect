@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import {
   Building2, X, Loader2, UserCheck,
 } from "lucide-react";
@@ -88,7 +88,7 @@ function AttendancePanel({
       }));
     const unmarkedCount = students.length - toSave.length;
     if (toSave.length === 0) {
-      setError("No students are marked yet — nothing to save.");
+      setError("No students are marked yet â€” nothing to save.");
       return;
     }
     setSaving(true);
@@ -98,7 +98,7 @@ function AttendancePanel({
       if (unmountedRef.current) return;
       setFlash(
         unmarkedCount > 0
-          ? `Saved ${toSave.length} of ${students.length} — ${unmarkedCount} still unmarked`
+          ? `Saved ${toSave.length} of ${students.length} â€” ${unmarkedCount} still unmarked`
           : "Saved via AttendanceService",
       );
       setTimeout(() => {
@@ -126,28 +126,28 @@ function AttendancePanel({
             <Building2 className="w-5 h-5 text-[#3b5bdb]" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-white">
-              Attendance — {liveClass.className} {liveClass.section}
+            <div className="text-sm font-bold text-foreground">
+              Attendance â€” {liveClass.className} {liveClass.section}
             </div>
-            <div className="text-[10px] text-[#78788c]">
-              Class ID · {liveClass.classId.slice(0, 8)}… · AttendanceService
+            <div className="text-[10px] text-muted-foreground">
+              Class ID Â· {liveClass.classId.slice(0, 8)}â€¦ Â· AttendanceService
             </div>
           </div>
-          <button onClick={onClose} className="text-[#78788c] hover:text-white shrink-0">
+          <button onClick={onClose} className="text-muted-foreground hover:text-white shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           <div className="flex items-center gap-3">
-            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider shrink-0">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">
               Date
             </label>
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
+              className="flex-1 bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
             />
           </div>
 
@@ -155,32 +155,32 @@ function AttendancePanel({
           {error && <div className="text-xs text-[#cc5069]">{error}</div>}
 
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-[#78788c] text-xs">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading roster…
+            <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground text-xs">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading rosterâ€¦
             </div>
           ) : (
             <>
               <div className="grid grid-cols-4 gap-2">
                 <div className="p-3 rounded-xl bg-muted text-center">
-                  <div className="text-lg font-black text-white">{students.length}</div>
-                  <div className="text-[9px] text-[#78788c]">Total</div>
+                  <div className="text-lg font-black text-foreground">{students.length}</div>
+                  <div className="text-[9px] text-muted-foreground">Total</div>
                 </div>
                 <div className="p-3 rounded-xl bg-[#4aa87a]/10 text-center">
                   <div className="text-lg font-black text-[#4aa87a]">{presentCount}</div>
-                  <div className="text-[9px] text-[#78788c]">Present+</div>
+                  <div className="text-[9px] text-muted-foreground">Present+</div>
                 </div>
                 <div className="p-3 rounded-xl bg-[#cc5069]/10 text-center">
                   <div className="text-lg font-black text-[#cc5069]">{absentCount}</div>
-                  <div className="text-[9px] text-[#78788c]">Absent</div>
+                  <div className="text-[9px] text-muted-foreground">Absent</div>
                 </div>
                 <div className="p-3 rounded-xl bg-white/5 text-center">
-                  <div className="text-lg font-black text-[#78788c]">{unmarkedCount}</div>
-                  <div className="text-[9px] text-[#78788c]">Unmarked</div>
+                  <div className="text-lg font-black text-muted-foreground">{unmarkedCount}</div>
+                  <div className="text-[9px] text-muted-foreground">Unmarked</div>
                 </div>
               </div>
 
               {students.length === 0 ? (
-                <div className="text-xs text-[#78788c] text-center py-8">No students in this class</div>
+                <div className="text-xs text-muted-foreground text-center py-8">No students in this class</div>
               ) : (
                 <div className="space-y-2">
                   {students.map((s) => {
@@ -190,8 +190,8 @@ function AttendancePanel({
                       <div key={s.id} className="bg-muted rounded-xl p-3 flex items-center gap-3">
                         <InitialsAvatar name={s.fullName} size="sm" />
                         <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-white">{s.fullName}</div>
-                          <div className="text-[9px] text-[#78788c]">{s.rollNumber ?? "—"}</div>
+                          <div className="text-xs font-semibold text-foreground">{s.fullName}</div>
+                          <div className="text-[9px] text-muted-foreground">{s.rollNumber ?? "â€”"}</div>
                         </div>
                         <select
                           value={status ?? ""}
@@ -202,8 +202,8 @@ function AttendancePanel({
                             }))
                           }
                           className={cn(
-                            "px-2 py-1 rounded-lg text-xs font-bold bg-white/5 border border-white/10",
-                            status == null ? "text-[#78788c]" : present ? "text-[#4aa87a]" : "text-[#cc5069]",
+                            "px-2 py-1 rounded-lg text-xs font-bold bg-white/5 border border-border",
+                            status == null ? "text-muted-foreground" : present ? "text-[#4aa87a]" : "text-[#cc5069]",
                           )}
                         >
                           <option value="">Unmarked</option>
@@ -228,7 +228,7 @@ function AttendancePanel({
             onClick={() => void save()}
             className="w-full py-2.5 rounded-xl text-sm font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40"
           >
-            {saving ? "Saving…" : "Save via AttendanceService"}
+            {saving ? "Savingâ€¦" : "Save via AttendanceService"}
           </button>
         </div>
       </div>
@@ -283,14 +283,14 @@ function ClassRosterDrawer({
             <Building2 className="w-6 h-6 text-[#3b5bdb]" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-white">
-              {liveClass.className} — {liveClass.section}
+            <div className="text-sm font-bold text-foreground">
+              {liveClass.className} â€” {liveClass.section}
             </div>
-            <div className="text-[10px] text-[#78788c]">
-              {liveClass.studentCount} students · engine roster
+            <div className="text-[10px] text-muted-foreground">
+              {liveClass.studentCount} students Â· engine roster
             </div>
           </div>
-          <button onClick={onClose} className="text-[#78788c] hover:text-white shrink-0">
+          <button onClick={onClose} className="text-muted-foreground hover:text-white shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -298,21 +298,21 @@ function ClassRosterDrawer({
         <div className="grid grid-cols-2 gap-2 p-4 border-b border-border/70">
           {[
             { label: "Profile att.", value: `${Math.round(liveClass.avgAttendancePct)}%` },
-            { label: "Today day-rate", value: liveClass.dayRatePct != null ? `${liveClass.dayRatePct}%` : "—" },
+            { label: "Today day-rate", value: liveClass.dayRatePct != null ? `${liveClass.dayRatePct}%` : "â€”" },
             { label: "Homework", value: `${Math.round(liveClass.avgHomeworkCompletionPct)}%` },
             { label: "Exams", value: `${Math.round(liveClass.avgExamsPct)}%` },
           ].map((item) => (
             <div key={item.label} className="p-3 rounded-xl bg-muted text-center">
-              <div className="text-sm font-black text-white">{item.value}</div>
-              <div className="text-[9px] text-[#78788c] mt-0.5">{item.label}</div>
+              <div className="text-sm font-black text-foreground">{item.value}</div>
+              <div className="text-[9px] text-muted-foreground mt-0.5">{item.label}</div>
             </div>
           ))}
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-12 text-[#78788c] text-xs">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+            <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground text-xs">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loadingâ€¦
             </div>
           ) : error ? (
             <div className="text-xs text-center pt-8 space-y-2">
@@ -326,14 +326,14 @@ function ClassRosterDrawer({
               </button>
             </div>
           ) : students.length === 0 ? (
-            <div className="text-xs text-[#78788c] text-center pt-8">No students in this class</div>
+            <div className="text-xs text-muted-foreground text-center pt-8">No students in this class</div>
           ) : (
             students.map((s) => (
               <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted">
                 <InitialsAvatar name={s.fullName} size="sm" />
                 <div>
-                  <div className="text-xs font-semibold text-white">{s.fullName}</div>
-                  <div className="text-[9px] text-[#78788c]">{s.rollNumber ?? s.admissionNumber ?? "—"}</div>
+                  <div className="text-xs font-semibold text-foreground">{s.fullName}</div>
+                  <div className="text-[9px] text-muted-foreground">{s.rollNumber ?? s.admissionNumber ?? "â€”"}</div>
                 </div>
               </div>
             ))
@@ -354,7 +354,7 @@ function ClassRosterDrawer({
 }
 
 /**
- * Admin Classes — live Academic Engine only (class IDs, roster, attendance).
+ * Admin Classes â€” live Academic Engine only (class IDs, roster, attendance).
  * No mock name matching.
  */
 export default function Classes() {
@@ -410,18 +410,18 @@ export default function Classes() {
 
   return (
     <div className="space-y-4">
-      <div className="text-xs text-[#78788c]">
-        {rows.length} live classes · AnalyticsService.classRollups · AttendanceService
+      <div className="text-xs text-muted-foreground">
+        {rows.length} live classes Â· AnalyticsService.classRollups Â· AttendanceService
       </div>
 
       {error && <div className="text-xs text-[#cc5069]">{error}</div>}
 
       {loading ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-[#78788c] text-xs">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading classes…
+        <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground text-xs">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading classesâ€¦
         </div>
       ) : rows.length === 0 ? (
-        <div className="text-xs text-[#46465a] py-16 text-center">No classes in this school yet.</div>
+        <div className="text-xs text-muted-foreground py-16 text-center">No classes in this school yet.</div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-3">
           {rows.map((c) => (
@@ -431,32 +431,32 @@ export default function Classes() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <div className="text-sm font-bold text-white">
+                  <div className="text-sm font-bold text-foreground">
                     {c.className}-{c.section}
                   </div>
-                  <div className="text-[10px] text-[#46465a] mt-0.5 font-mono">
-                    {c.classId.slice(0, 8)}…
+                  <div className="text-[10px] text-muted-foreground mt-0.5 font-mono">
+                    {c.classId.slice(0, 8)}â€¦
                   </div>
                 </div>
                 <div className="text-right">
                   <div className="text-lg font-black text-[#4aa87a]">
-                    {c.dayRatePct != null ? `${c.dayRatePct}%` : "—"}
+                    {c.dayRatePct != null ? `${c.dayRatePct}%` : "â€”"}
                   </div>
-                  <div className="text-[9px] text-[#78788c]">Today</div>
+                  <div className="text-[9px] text-muted-foreground">Today</div>
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 mt-3">
                 <div className="text-center p-2 rounded-lg bg-muted">
-                  <div className="text-xs font-bold text-white">{c.studentCount}</div>
-                  <div className="text-[8px] text-[#78788c]">Students</div>
+                  <div className="text-xs font-bold text-foreground">{c.studentCount}</div>
+                  <div className="text-[8px] text-muted-foreground">Students</div>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-muted">
-                  <div className="text-xs font-bold text-white">{Math.round(c.avgAttendancePct)}%</div>
-                  <div className="text-[8px] text-[#78788c]">Profile att.</div>
+                  <div className="text-xs font-bold text-foreground">{Math.round(c.avgAttendancePct)}%</div>
+                  <div className="text-[8px] text-muted-foreground">Profile att.</div>
                 </div>
                 <div className="text-center p-2 rounded-lg bg-muted">
-                  <div className="text-xs font-bold text-white">{Math.round(c.avgExamsPct)}%</div>
-                  <div className="text-[8px] text-[#78788c]">Exams</div>
+                  <div className="text-xs font-bold text-foreground">{Math.round(c.avgExamsPct)}%</div>
+                  <div className="text-[8px] text-muted-foreground">Exams</div>
                 </div>
               </div>
               <div className="flex gap-2 mt-3">

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+﻿import type { ReactNode } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Shared motion language for the whole app — every animated primitive below
+ * Shared motion language for the whole app â€” every animated primitive below
  * pulls from these so motion feels like one system, not per-component
  * one-offs. Durations/easing tuned to read as "premium" (quick, soft
  * deceleration) rather than bouncy/toy-like.
@@ -65,7 +65,7 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
   return (
     <div className={cn("flex items-center gap-2 mb-4", className)}>
       <div className="w-1 h-4 rounded-full bg-[#3b5bdb]" />
-      <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">{children}</span>
+      <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">{children}</span>
     </div>
   );
 }
@@ -171,19 +171,19 @@ export function StatTile({ label, value, color, sub }: { label:string; value:str
       whileHover={{ y: -2, background: "rgba(255,255,255,0.06)" }}
       transition={{ duration: 0.3, ease: EASE_OUT }}
     >
-      <div className="text-[10px] uppercase tracking-wider text-[#78788c]">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
       <motion.div
         key={String(value)}
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
         className="mt-0.5 text-xl font-black tabular-nums" style={{color:color??"#e8eaf0"}}>{value}</motion.div>
-      {sub && <div className="text-[10px] text-[#78788c] mt-0.5">{sub}</div>}
+      {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
     </motion.div>
   );
 }
 
-/** Level progress from ProgressionService — mirrors SQL triangular curve when fields omitted. */
+/** Level progress from ProgressionService â€” mirrors SQL triangular curve when fields omitted. */
 export function XPBar({
   xp,
   level,
@@ -212,8 +212,8 @@ export function XPBar({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex justify-between">
-        <span className="text-[11px] text-[#78788c]">Level {level}</span>
-        <span className="text-[11px] text-[#78788c]">{label}</span>
+        <span className="text-[11px] text-muted-foreground">Level {level}</span>
+        <span className="text-[11px] text-muted-foreground">{label}</span>
       </div>
       <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
         <motion.div className="h-full rounded-full"
@@ -233,13 +233,13 @@ export function EmptyState({ icon, title, sub }: { icon:ReactNode; title:string;
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE_OUT }}
     >
-      <motion.div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-[#78788c]"
+      <motion.div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-muted-foreground"
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ ...springSnappy, delay: 0.05 }}
       >{icon}</motion.div>
-      <div className="text-sm font-semibold text-[#78788c]">{title}</div>
-      {sub && <div className="text-xs text-[#78788c]/70">{sub}</div>}
+      <div className="text-sm font-semibold text-muted-foreground">{title}</div>
+      {sub && <div className="text-xs text-muted-foreground/70">{sub}</div>}
     </motion.div>
   );
 }

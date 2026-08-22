@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, Search, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -88,14 +88,14 @@ export function NewChatSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-chat-title"
-        className="relative z-10 w-full sm:max-w-md flex flex-col shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[85vh] sm:max-h-[70vh] bg-surface border border-white/10"
+        className="relative z-10 w-full sm:max-w-md flex flex-col shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[85vh] sm:max-h-[70vh] bg-surface border border-border"
       >
         <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-border/70 shrink-0">
           <div>
-            <h2 id="new-chat-title" className="text-sm font-bold text-white">
+            <h2 id="new-chat-title" className="text-sm font-bold text-foreground">
               New chat
             </h2>
-            <p className="text-[10px] mt-0.5 text-[#78788c]">
+            <p className="text-[10px] mt-0.5 text-muted-foreground">
               Pick a contact to start messaging
             </p>
           </div>
@@ -103,21 +103,21 @@ export function NewChatSheet({
             type="button"
             onClick={onClose}
             disabled={busy || Boolean(pickingId)}
-            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-white/10 text-[#78788c] hover:text-white"
+            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 bg-white/5 border border-border text-muted-foreground hover:text-foreground"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="px-3 py-2.5 border-b border-border/70 shrink-0">
-          <div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-white/5 border border-white/10">
-            <Search className="w-3.5 h-3.5 shrink-0 text-[#46465a]" />
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-white/5 border border-border">
+            <Search className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
             <input
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name or role…"
-              className="flex-1 bg-transparent text-xs outline-none text-white placeholder:text-[#46465a]"
+              placeholder="Search name or roleâ€¦"
+              className="flex-1 bg-transparent text-xs outline-none text-white placeholder:text-muted-foreground"
             />
           </div>
         </div>
@@ -125,8 +125,8 @@ export function NewChatSheet({
         <div className="flex-1 overflow-y-auto divide-y divide-white/5 min-h-0">
           {filtered.length === 0 && (
             <div className="px-4 py-10 text-center">
-              <Users className="w-8 h-8 mx-auto mb-2 opacity-50 text-[#46465a]" />
-              <p className="text-xs text-[#78788c]">
+              <Users className="w-8 h-8 mx-auto mb-2 opacity-50 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">
                 {peers.length === 0
                   ? "No contacts available yet."
                   : "No contacts match your search."}
@@ -135,7 +135,7 @@ export function NewChatSheet({
           )}
           {filtered.map((c) => {
             const pending = pickingId === c.userId;
-            const tone = roleTone[c.role] || "text-[#78788c]";
+            const tone = roleTone[c.role] || "text-muted-foreground";
             return (
               <button
                 key={c.userId}
@@ -155,7 +155,7 @@ export function NewChatSheet({
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs font-bold truncate text-white">{c.name}</div>
+                  <div className="text-xs font-bold truncate text-foreground">{c.name}</div>
                   <div className={cn("text-[10px] font-semibold capitalize mt-0.5", tone)}>
                     {c.role.replace(/_/g, " ")}
                   </div>

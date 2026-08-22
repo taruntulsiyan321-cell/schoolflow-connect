@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+﻿import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import {
   DoubtService,
   useAcademicLive,
@@ -465,7 +465,7 @@ export default function DoubtPortal() {
   if (!ready) {
     return (
       <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading doubts…
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading doubtsâ€¦
       </div>
     );
   }
@@ -514,7 +514,7 @@ export default function DoubtPortal() {
               disabled={subjectsLoading || !!subjectsError || subjects.length === 0}
               className="mt-1 w-full bg-black/5 border border-black/10 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none disabled:opacity-60"
             >
-              {subjectsLoading && <option value="">Loading subjects…</option>}
+              {subjectsLoading && <option value="">Loading subjectsâ€¦</option>}
               {!subjectsLoading && subjectsError && (
                 <option value="">Could not load subjects</option>
               )}
@@ -522,7 +522,7 @@ export default function DoubtPortal() {
                 <option value="">No subjects mapped yet</option>
               )}
               {subjects.map((s) => (
-                <option key={s.subject} value={s.subject} className="bg-card text-white">
+                <option key={s.subject} value={s.subject} className="bg-card text-foreground">
                   {s.subject}
                 </option>
               ))}
@@ -535,7 +535,7 @@ export default function DoubtPortal() {
             )}
             {!subjectsLoading && !subjectsError && subjects.length === 0 && (
               <p className="mt-1.5 text-[11px] text-amber-400/90">
-                Ask admin to assign Teacher–Class–Subject for your class.
+                Ask admin to assign Teacherâ€“Classâ€“Subject for your class.
               </p>
             )}
           </div>
@@ -547,15 +547,15 @@ export default function DoubtPortal() {
               disabled={!askSubject || chapterOptions.length === 0}
               className="mt-1 w-full bg-black/5 border border-black/10 rounded-xl px-3 py-2.5 text-sm text-foreground outline-none disabled:opacity-60"
             >
-              <option value="" className="bg-card text-white">
+              <option value="" className="bg-card text-foreground">
                 {!askSubject
                   ? "Select a subject first"
                   : chapterOptions.length
-                    ? "Select chapter (optional)…"
+                    ? "Select chapter (optional)â€¦"
                     : "No chapters listed"}
               </option>
               {chapterOptions.map((c) => (
-                <option key={c} value={c} className="bg-card text-white">
+                <option key={c} value={c} className="bg-card text-foreground">
                   {c}
                 </option>
               ))}
@@ -567,7 +567,7 @@ export default function DoubtPortal() {
               value={askBody}
               onChange={(e) => setAskBody(e.target.value)}
               rows={6}
-              placeholder="Describe what you’re stuck on…"
+              placeholder="Describe what youâ€™re stuck onâ€¦"
               className="mt-1 w-full bg-black/5 border border-black/10 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none focus:border-[#3b5bdb]/40"
             />
           </div>
@@ -590,13 +590,13 @@ export default function DoubtPortal() {
                   <button
                     key={a.id}
                     type="button"
-                    title={soon ? `${a.label} — ${COMING_SOON_LABEL}` : a.label}
+                    title={soon ? `${a.label} â€” ${COMING_SOON_LABEL}` : a.label}
                     onClick={() => onAskAttachControl(a.id, a.presentation, a.label)}
                     className={cn(
                       "inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border transition-all",
                       soon
                         ? "border-black/10 text-muted-foreground/70 hover:bg-black/5"
-                        : "border-[#3b5bdb]/35 text-muted-foreground hover:bg-[#3b5bdb]/10 hover:text-white",
+                        : "border-[#3b5bdb]/35 text-muted-foreground hover:bg-[#3b5bdb]/10 hover:text-foreground",
                     )}
                   >
                     {DOUBT_ATTACH_ICONS[a.id]}
@@ -612,7 +612,7 @@ export default function DoubtPortal() {
               <button
                 type="button"
                 onClick={() => openAskAttach()}
-                className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-[#3b5bdb]/35 text-muted-foreground hover:bg-[#3b5bdb]/10 hover:text-white"
+                className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-[#3b5bdb]/35 text-muted-foreground hover:bg-[#3b5bdb]/10 hover:text-foreground"
               >
                 <Paperclip className="w-3.5 h-3.5" />
                 Files
@@ -653,7 +653,7 @@ export default function DoubtPortal() {
 
         {detailLoading || !detail ? (
           <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading doubt…
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading doubtâ€¦
           </div>
         ) : (
           <>
@@ -687,7 +687,7 @@ export default function DoubtPortal() {
                   {initials(detail.student_name)}
                 </div>
                 <span>
-                  {detail.student_name} · {formatWhen(detail.created_at).full}
+                  {detail.student_name} Â· {formatWhen(detail.created_at).full}
                 </span>
                 {detail.solved_at && (
                   <span className="ml-auto text-emerald-400/80">
@@ -747,7 +747,7 @@ export default function DoubtPortal() {
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 rows={3}
-                placeholder="Write an answer… (you can still answer after it’s solved)"
+                placeholder="Write an answerâ€¦ (you can still answer after itâ€™s solved)"
                 className="w-full bg-black/5 border border-black/10 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none focus:border-[#3b5bdb]/40"
               />
               <div className="flex flex-wrap items-center gap-3">
@@ -765,7 +765,7 @@ export default function DoubtPortal() {
                     <button
                       key={a.id}
                       type="button"
-                      title={soon ? `${a.label} — ${COMING_SOON_LABEL}` : a.label}
+                      title={soon ? `${a.label} â€” ${COMING_SOON_LABEL}` : a.label}
                       onClick={() => onReplyAttachControl(a.id, a.presentation, a.label)}
                       className={cn(
                         "inline-flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-lg border transition-all",
@@ -816,7 +816,7 @@ export default function DoubtPortal() {
             Doubts
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Class feed — ask questions and help classmates. First answer marks a doubt solved.
+            Class feed â€” ask questions and help classmates. First answer marks a doubt solved.
           </p>
           {error && <p className="text-[10px] text-[#cc5069] mt-1">{error}</p>}
         </div>
@@ -831,7 +831,7 @@ export default function DoubtPortal() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading doubts…
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading doubtsâ€¦
         </div>
       ) : (
       <>
@@ -841,7 +841,7 @@ export default function DoubtPortal() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search doubts…"
+            placeholder="Search doubtsâ€¦"
             className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
@@ -852,9 +852,9 @@ export default function DoubtPortal() {
             onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
             className="bg-transparent text-xs text-foreground outline-none"
           >
-            <option value="all" className="bg-card text-white">All status</option>
-            <option value="open" className="bg-card text-white">Open</option>
-            <option value="solved" className="bg-card text-white">Solved</option>
+            <option value="all" className="bg-card text-foreground">All status</option>
+            <option value="open" className="bg-card text-foreground">Open</option>
+            <option value="solved" className="bg-card text-foreground">Solved</option>
           </select>
         </div>
         <select
@@ -862,9 +862,9 @@ export default function DoubtPortal() {
           onChange={(e) => setSubjectFilter(e.target.value)}
           className="bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground outline-none"
         >
-          <option value="all" className="bg-card text-white">All subjects</option>
+          <option value="all" className="bg-card text-foreground">All subjects</option>
           {subjects.map((s) => (
-            <option key={s.subject} value={s.subject} className="bg-card text-white">
+            <option key={s.subject} value={s.subject} className="bg-card text-foreground">
               {s.subject}
             </option>
           ))}
@@ -874,8 +874,8 @@ export default function DoubtPortal() {
           onChange={(e) => setScopeFilter(e.target.value as ScopeFilter)}
           className="bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground outline-none"
         >
-          <option value="all" className="bg-card text-white">Whole class</option>
-          <option value="mine" className="bg-card text-white">Mine</option>
+          <option value="all" className="bg-card text-foreground">Whole class</option>
+          <option value="mine" className="bg-card text-foreground">Mine</option>
         </select>
       </div>
 
@@ -931,7 +931,7 @@ export default function DoubtPortal() {
                     <p className="text-sm text-foreground leading-snug line-clamp-2">{d.body || d.title}</p>
                     <div className="flex items-center gap-3 mt-2.5 text-[10px] text-muted-foreground">
                       <span>
-                        {d.student_name} · {when.date}
+                        {d.student_name} Â· {when.date}
                       </span>
                       <span className="flex items-center gap-1">
                         <MessageCircle className="w-3 h-3" />

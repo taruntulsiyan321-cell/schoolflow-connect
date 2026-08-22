@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useEffect } from "react";
+﻿import { useCallback, useRef, useState, useEffect } from "react";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
@@ -75,11 +75,11 @@ export function ConfirmModal({
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative z-10 bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+      <div className="relative z-10 bg-surface border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl">
         <div className="text-white font-bold text-base mb-2">{title}</div>
-        <div className="text-[#78788c] text-sm mb-6">{description}</div>
+        <div className="text-muted-foreground text-sm mb-6">{description}</div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all">
+          <button onClick={onCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-white bg-white/5 hover:bg-white/10 transition-all">
             Cancel
           </button>
           <button
@@ -94,7 +94,7 @@ export function ConfirmModal({
   );
 }
 
-// ── Undo-delete toast ────────────────────────────────────────────────────────
+// â”€â”€ Undo-delete toast â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface UndoToastState {
   message: string;
@@ -123,7 +123,7 @@ export function UndoToast({ state, onClose }: { state: UndoToastState; onClose: 
 
   return (
     <div
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border border-white/10 bg-surface min-w-64"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border border-border bg-surface min-w-64"
       style={{ borderLeftColor: color, borderLeftWidth: 3 }}
     >
       <span className="text-white text-sm font-semibold flex-1">{state.message}</span>
@@ -136,7 +136,7 @@ export function UndoToast({ state, onClose }: { state: UndoToastState; onClose: 
           Undo{remaining !== null && remaining > 0 ? ` (${remaining}s)` : ""}
         </button>
       )}
-      <button onClick={onClose} className="text-[#78788c] hover:text-white ml-1 text-lg leading-none">×</button>
+      <button onClick={onClose} className="text-muted-foreground hover:text-white ml-1 text-lg leading-none">Ã—</button>
     </div>
   );
 }
@@ -154,7 +154,7 @@ export function Toast({
   return <UndoToast state={{ message, type }} onClose={onClose} />;
 }
 
-// Hook for undo-delete pattern — 5s window before permanent
+// Hook for undo-delete pattern â€” 5s window before permanent
 export function useUndoDelete<T extends { id: string }>(
   setItems: React.Dispatch<React.SetStateAction<T[]>>
 ) {
@@ -204,7 +204,7 @@ export function useUndoDelete<T extends { id: string }>(
 // Export helpers
 export function exportCSV(filename: string, rows: Record<string, unknown>[]) {
   if (!rows.length) {
-    toast.error("Nothing to export — this report has no rows.");
+    toast.error("Nothing to export â€” this report has no rows.");
     return;
   }
   const headers = Object.keys(rows[0]);

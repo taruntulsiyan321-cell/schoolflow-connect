@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import {
   User, Lock, Link2, Edit2, Save, X, Check, Smartphone, Shield, Loader2,
 } from "lucide-react";
@@ -10,7 +10,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
     <div className="bg-surface border border-border/70 rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-border/70">
         <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
-        <div className="text-sm font-bold text-white">{title}</div>
+        <div className="text-sm font-bold text-foreground">{title}</div>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -34,7 +34,7 @@ function EditableField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">{label}</label>
+      <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
       {editing && !disabled ? (
         <input
           type={type}
@@ -44,7 +44,7 @@ function EditableField({
         />
       ) : (
         <div className="text-sm text-white px-0.5">
-          {value || <span className="text-[#46465a]">Not set</span>}
+          {value || <span className="text-muted-foreground">Not set</span>}
         </div>
       )}
     </div>
@@ -59,7 +59,7 @@ type ParentRow = {
 };
 
 /**
- * Parent profile — live auth profile + parents row. Password via Supabase Auth.
+ * Parent profile â€” live auth profile + parents row. Password via Supabase Auth.
  * No fake Google/link success toasts.
  */
 export default function ParentProfile() {
@@ -227,8 +227,8 @@ export default function ParentProfile() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading profileâ€¦
       </div>
     );
   }
@@ -253,11 +253,11 @@ export default function ParentProfile() {
 
       <div className="bg-surface border border-border/70 rounded-2xl p-5 flex items-center gap-4">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <span className="text-xl font-black text-white">{initials}</span>
+          <span className="text-xl font-black text-foreground">{initials}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-black text-white">{displayName || "Parent"}</div>
-          <div className="text-[10px] text-[#46465a]">{email || "—"}</div>
+          <div className="text-base font-black text-foreground">{displayName || "Parent"}</div>
+          <div className="text-[10px] text-muted-foreground">{email || "â€”"}</div>
         </div>
         {!editing ? (
           <button
@@ -273,7 +273,7 @@ export default function ParentProfile() {
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5 hover:bg-white/10 transition-all"
             >
               <X className="w-3.5 h-3.5" /> Cancel
             </button>
@@ -283,7 +283,7 @@ export default function ParentProfile() {
               disabled={saving}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#3b5bdb] hover:bg-[#6882e8] transition-all disabled:opacity-40"
             >
-              <Save className="w-3.5 h-3.5" /> {saving ? "Saving…" : "Save"}
+              <Save className="w-3.5 h-3.5" /> {saving ? "Savingâ€¦" : "Save"}
             </button>
           </div>
         )}
@@ -316,7 +316,7 @@ export default function ParentProfile() {
         </div>
         {!parentRow && (
           <p className="text-[10px] text-[#c08a3a] mt-3">
-            No parent record linked to this account — contact the school admin to link your profile.
+            No parent record linked to this account â€” contact the school admin to link your profile.
           </p>
         )}
       </Section>
@@ -328,8 +328,8 @@ export default function ParentProfile() {
               <Smartphone className="w-4 h-4 text-[#3b5bdb]" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-white">Signed-in account</div>
-              <div className="text-[10px] text-[#78788c]">{email || "—"}</div>
+              <div className="text-xs font-semibold text-foreground">Signed-in account</div>
+              <div className="text-[10px] text-muted-foreground">{email || "â€”"}</div>
             </div>
             <span className="text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/15 px-2 py-0.5 rounded-full">
               Active
@@ -341,8 +341,8 @@ export default function ParentProfile() {
       <Section title="Security" icon={<Shield className="w-4 h-4" />}>
         <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
           <div>
-            <div className="text-xs font-semibold text-white">Password</div>
-            <div className="text-[10px] text-[#78788c]">Update via Supabase Auth</div>
+            <div className="text-xs font-semibold text-foreground">Password</div>
+            <div className="text-[10px] text-muted-foreground">Update via Supabase Auth</div>
           </div>
           <button
             type="button"
@@ -362,11 +362,11 @@ export default function ParentProfile() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="change-pwd-title"
-            className="relative z-10 bg-surface border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4"
+            className="relative z-10 bg-surface border border-border rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between">
-              <div id="change-pwd-title" className="text-sm font-bold text-white">Change Password</div>
-              <button type="button" onClick={() => setChangePwdOpen(false)} className="text-[#78788c] hover:text-white">
+              <div id="change-pwd-title" className="text-sm font-bold text-foreground">Change Password</div>
+              <button type="button" onClick={() => setChangePwdOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -375,12 +375,12 @@ export default function ParentProfile() {
               { label: "Confirm New Password", key: "confirm" as const },
             ].map((f) => (
               <div key={f.key} className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">{f.label}</label>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{f.label}</label>
                 <input
                   type="password"
                   value={pwdForm[f.key]}
                   onChange={(e) => setPwdForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/40"
+                  className="bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/40"
                 />
               </div>
             ))}
@@ -391,7 +391,7 @@ export default function ParentProfile() {
               <button
                 type="button"
                 onClick={() => setChangePwdOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5 hover:bg-white/10 transition-all"
               >
                 Cancel
               </button>
@@ -401,7 +401,7 @@ export default function ParentProfile() {
                 disabled={pwdSaving || !pwdForm.next || pwdForm.next !== pwdForm.confirm}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
-                {pwdSaving ? "Updating…" : "Change Password"}
+                {pwdSaving ? "Updatingâ€¦" : "Change Password"}
               </button>
             </div>
           </div>

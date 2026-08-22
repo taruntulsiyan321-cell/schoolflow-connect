@@ -1,4 +1,4 @@
-import { clsx, type ClassValue } from "clsx";
+﻿import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -22,7 +22,7 @@ export function InitialsAvatar({ name, size = "md", color }: { name: string; siz
 
 export function PriorityBadge({ priority }: { priority: "normal" | "important" | "urgent" }) {
   const map = {
-    normal: { bg: "bg-white/8", text: "text-[#78788c]", label: "Normal" },
+    normal: { bg: "bg-white/8", text: "text-muted-foreground", label: "Normal" },
     important: { bg: "bg-[#c08a3a]/15", text: "text-[#c08a3a]", label: "Important" },
     urgent: { bg: "bg-[#cc5069]/15", text: "text-[#cc5069]", label: "Urgent" },
   };
@@ -62,7 +62,7 @@ export function Card({ children, className }: { children: React.ReactNode; class
 export function SectionHead({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between mb-4">
-      <div className="text-sm font-bold text-white">{title}</div>
+      <div className="text-sm font-bold text-foreground">{title}</div>
       {action}
     </div>
   );

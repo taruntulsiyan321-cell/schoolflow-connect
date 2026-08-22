@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
@@ -51,8 +51,8 @@ function RevItemCard({
             )}
             {item.bookmarked && <Bookmark className="w-3.5 h-3.5 text-amber-400 fill-amber-400"/>}
           </div>
-          <div className="text-sm font-bold text-white">{displayConcept(item.concept)}</div>
-          <div className="text-[11px] text-[#78788c] mt-0.5">{displayChapter(item.chapter)}</div>
+          <div className="text-sm font-bold text-foreground">{displayConcept(item.concept)}</div>
+          <div className="text-[11px] text-muted-foreground mt-0.5">{displayChapter(item.chapter)}</div>
         </div>
       </div>
       <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -61,7 +61,7 @@ function RevItemCard({
           <Play className="w-3 h-3"/> Practice topic
         </button>
         <Link to="/student/aicoach"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-violet-300 text-xs font-semibold hover:bg-white/10 transition-all">
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-border text-violet-300 text-xs font-semibold hover:bg-white/10 transition-all">
           <Brain className="w-3 h-3"/> Ask Nova
         </Link>
         <Link to="/student/recovery"
@@ -70,7 +70,7 @@ function RevItemCard({
         </Link>
         <button onClick={onComplete} disabled={completing}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/20 transition-all disabled:opacity-50">
-          <CheckCircle2 className="w-3 h-3"/> {completing ? "Saving…" : "Mark done"}
+          <CheckCircle2 className="w-3 h-3"/> {completing ? "Savingâ€¦" : "Mark done"}
         </button>
       </div>
     </GlassCard>
@@ -78,17 +78,17 @@ function RevItemCard({
 }
 
 function RevisionSession({ item, onBack }: { item: RevItem; onBack: () => void }) {
-  const chapter = item.chapter !== "—" ? item.chapter : item.concept;
+  const chapter = item.chapter !== "â€”" ? item.chapter : item.concept;
   const practiceQs = new URLSearchParams();
-  if (chapter && chapter !== "—") practiceQs.set("chapter", chapter);
+  if (chapter && chapter !== "â€”") practiceQs.set("chapter", chapter);
   if (item.subject) practiceQs.set("subject", item.subject);
   return (
     <div className="space-y-5">
       <GlassCard className="p-8 text-center">
         <RotateCcw className="w-8 h-8 text-violet-400 mx-auto mb-3"/>
         <p className="text-sm font-semibold text-white mb-1">Revise {displayConcept(item.concept)}</p>
-        <p className="text-xs text-[#78788c] mb-4">
-          Revision uses live Practice, Recovery, or Nova — there is no separate question bank for this hub.
+        <p className="text-xs text-muted-foreground mb-4">
+          Revision uses live Practice, Recovery, or Nova â€” there is no separate question bank for this hub.
         </p>
         <div className="flex flex-wrap justify-center gap-2">
           <Link
@@ -105,12 +105,12 @@ function RevisionSession({ item, onBack }: { item: RevItem; onBack: () => void }
           </Link>
           <Link
             to="/student/aicoach"
-            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-violet-300 text-sm font-semibold"
+            className="px-4 py-2 rounded-xl bg-white/5 border border-border text-violet-300 text-sm font-semibold"
           >
             Ask Nova
           </Link>
           <button onClick={onBack}
-            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+            className="px-4 py-2 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
             Back
           </button>
         </div>
@@ -126,7 +126,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
   return (
     <div className="space-y-6">
       <GlassCard className="p-6 text-center">
-        <div className="text-[10px] uppercase tracking-[0.15em] text-[#78788c] mb-4">Revision Complete</div>
+        <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-4">Revision Complete</div>
         <div className="flex justify-center mb-4">
           <div className="relative inline-flex" style={{width:size,height:size}}>
             <svg width={size} height={size} className="-rotate-90">
@@ -140,7 +140,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
           </div>
         </div>
         <div className="text-lg font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>{displayConcept(item.concept)}</div>
-        <p className="text-sm text-[#78788c]">{passed ? "Solid revision — this concept is strengthening." : "Need more practice. Consider a recovery session."}</p>
+        <p className="text-sm text-muted-foreground">{passed ? "Solid revision â€” this concept is strengthening." : "Need more practice. Consider a recovery session."}</p>
       </GlassCard>
       <div className="space-y-2">
         {!passed && (
@@ -150,7 +150,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
           </button>
         )}
         <button onClick={onBack}
-          className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+          className="w-full py-3 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
           Back to Revision Hub
         </button>
       </div>
@@ -179,7 +179,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     ],
     [REVISION_ITEMS],
   );
-  // Study streak SSOT: Progression via shell (same as Home) — not raw snapshot xp.
+  // Study streak SSOT: Progression via shell (same as Home) â€” not raw snapshot xp.
   const streak = student.streak;
 
   async function markComplete(item: RevItem) {
@@ -199,9 +199,9 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   }
 
   function openPractice(item: RevItem) {
-    const chapter = item.chapter !== "—" ? item.chapter : item.concept;
+    const chapter = item.chapter !== "â€”" ? item.chapter : item.concept;
     const qs = new URLSearchParams();
-    if (chapter && chapter !== "—") qs.set("chapter", chapter);
+    if (chapter && chapter !== "â€”") qs.set("chapter", chapter);
     if (item.subject) qs.set("subject", item.subject);
     navigate(`/student/practice?${qs.toString()}`);
   }
@@ -217,7 +217,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
   if (!academicReady) {
     return (
       <GlassCard className="p-8 text-center">
-        <p className="text-sm text-[#78788c]">No student profile linked to this account.</p>
+        <p className="text-sm text-muted-foreground">No student profile linked to this account.</p>
       </GlassCard>
     );
   }
@@ -226,8 +226,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
     return (
       <GlassCard className="p-8 text-center">
         <AlertCircle className="w-8 h-8 text-violet-400 mx-auto mb-2"/>
-        <p className="text-sm text-[#78788c]">Could not load revision queue</p>
-        <p className="text-xs text-[#78788c] mt-1">{error || v2Error}</p>
+        <p className="text-sm text-muted-foreground">Could not load revision queue</p>
+        <p className="text-xs text-muted-foreground mt-1">{error || v2Error}</p>
       </GlassCard>
     );
   }
@@ -270,9 +270,9 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Learning Workflow</div>
-          <h1 className="text-3xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>Revision</h1>
-          <p className="text-[#78788c] text-sm mt-1">Spaced-repetition review to move concepts into long-term memory.</p>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Learning Workflow</div>
+          <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Revision</h1>
+          <p className="text-muted-foreground text-sm mt-1">Spaced-repetition review to move concepts into long-term memory.</p>
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
           <Flame className="w-3.5 h-3.5 text-amber-400"/>
@@ -289,7 +289,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
         ].map(s => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-[#78788c]">{s.label}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
             </div>
             <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
           </GlassCard>
@@ -300,11 +300,11 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
       <div className="grid sm:grid-cols-3 gap-3">
         <div
           className="p-4 rounded-2xl border border-border/70 bg-white/[0.02] text-left opacity-60"
-          title="Flashcards — coming soon"
+          title="Flashcards â€” coming soon"
         >
-          <Layers className="w-5 h-5 text-[#78788c] mb-2"/>
-          <div className="text-sm font-bold text-white">Flashcards</div>
-          <div className="text-xs text-[#78788c] mt-0.5">Coming soon</div>
+          <Layers className="w-5 h-5 text-muted-foreground mb-2"/>
+          <div className="text-sm font-bold text-foreground">Flashcards</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Coming soon</div>
         </div>
         <button
           type="button"
@@ -312,12 +312,12 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           onClick={() => {
           const due = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today")[0];
           if (due) openPractice(due);
-          else toast.message("No items due — open any queue card to practice.");
+          else toast.message("No items due â€” open any queue card to practice.");
         }}
           className="p-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 transition-all text-left group disabled:opacity-50 disabled:pointer-events-none">
           <Zap className="w-5 h-5 text-violet-400 mb-2 group-hover:scale-110 transition-transform"/>
-          <div className="text-sm font-bold text-white">Quick Revision</div>
-          <div className="text-xs text-[#78788c] mt-0.5">
+          <div className="text-sm font-bold text-foreground">Quick Revision</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
             {dueNow > 0
               ? `Opens first of ${dueNow} due item${dueNow === 1 ? "" : "s"} in Practice`
               : "No items due"}
@@ -325,11 +325,11 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
         </button>
         <div
           className="p-4 rounded-2xl border border-border/70 bg-white/[0.02] text-left opacity-60"
-          title="Revision notes — coming soon"
+          title="Revision notes â€” coming soon"
         >
-          <FileText className="w-5 h-5 text-[#78788c] mb-2"/>
-          <div className="text-sm font-bold text-white">My Notes</div>
-          <div className="text-xs text-[#78788c] mt-0.5">Coming soon</div>
+          <FileText className="w-5 h-5 text-muted-foreground mb-2"/>
+          <div className="text-sm font-bold text-foreground">My Notes</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Coming soon</div>
         </div>
       </div>
 
@@ -340,17 +340,17 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
             <Brain className="w-4 h-4 text-violet-400"/>
           </div>
           <div>
-            <div className="text-sm font-bold text-white">AI Revision Schedule</div>
-            <div className="text-[11px] text-[#78788c]">From your live revision queue</div>
+            <div className="text-sm font-bold text-foreground">AI Revision Schedule</div>
+            <div className="text-[11px] text-muted-foreground">From your live revision queue</div>
           </div>
         </div>
         <div className="space-y-4">
           {AI_SCHEDULE.filter(s => s.items.length > 0).length === 0 ? (
-            <p className="text-xs text-[#78788c]">No items due — your revision queue is empty.</p>
+            <p className="text-xs text-muted-foreground">No items due â€” your revision queue is empty.</p>
           ) : (
             AI_SCHEDULE.filter(s => s.items.length > 0).map(slot => (
             <div key={slot.time}>
-              <div className="text-[10px] uppercase tracking-wider text-[#78788c] mb-2">{slot.time}</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{slot.time}</div>
               <div className="flex flex-wrap gap-2">
                 {slot.items.map(item => (
                   <button key={item.id} onClick={() => openPractice(item)}
@@ -371,7 +371,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           {(["all","due","upcoming"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={cn("px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all",
-                filter === f ? "bg-violet-500/20 border border-violet-500/40 text-violet-300" : "bg-white/5 border border-white/10 text-[#78788c] hover:bg-white/10")}>
+                filter === f ? "bg-violet-500/20 border border-violet-500/40 text-violet-300" : "bg-white/5 border border-border text-muted-foreground hover:bg-white/10")}>
               {f === "due" ? "Due Today" : f}
             </button>
           ))}
@@ -380,7 +380,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           {subjects.map(s => (
             <button key={s} onClick={() => setSubjectTab(s)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
-                subjectTab === s ? "bg-white/15 border border-white/25 text-white" : "bg-white/5 border border-white/8 text-[#78788c] hover:bg-white/10")}>
+                subjectTab === s ? "bg-white/15 border border-white/25 text-foreground" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
               {s}
             </button>
           ))}
@@ -389,8 +389,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
         <div className="space-y-2">
           {filtered.length === 0 ? (
             <GlassCard className="p-8 text-center">
-              <RotateCcw className="w-8 h-8 text-[#78788c] mx-auto mb-2"/>
-              <p className="text-[#78788c] text-sm">No items match this filter</p>
+              <RotateCcw className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
+              <p className="text-muted-foreground text-sm">No items match this filter</p>
             </GlassCard>
           ) : (
             filtered.map(item => (
@@ -413,12 +413,12 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
             <div className="text-sm font-bold text-white mb-0.5">
               {streak > 0 ? `${streak}-day learning streak` : "Start your revision streak"}
             </div>
-            <div className="text-xs text-[#78788c] mb-2">
+            <div className="text-xs text-muted-foreground mb-2">
               {streak > 0
-                ? "From your XP profile — keep practicing and revising to maintain it."
+                ? "From your XP profile â€” keep practicing and revising to maintain it."
                 : "Revise items from your queue to build a streak."}
             </div>
-            <div className="text-xs text-[#78788c]">
+            <div className="text-xs text-muted-foreground">
               Current streak: <span className="text-amber-300 font-bold tabular-nums">{streak}</span> day{streak === 1 ? "" : "s"}
             </div>
           </div>
@@ -427,12 +427,12 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
 
       {/* History */}
       <div>
-        <div className="flex items-center gap-2 text-xs text-[#78788c] mb-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-3">
           <History className="w-3.5 h-3.5"/>
           Revision History
         </div>
         <GlassCard className="p-6 text-center">
-          <p className="text-xs text-[#78788c]">Revision history is not stored yet — completed items leave the queue above.</p>
+          <p className="text-xs text-muted-foreground">Revision history is not stored yet â€” completed items leave the queue above.</p>
         </GlassCard>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { cn } from "./shared";
 import { type ClassInfo } from "./data";
@@ -47,7 +47,7 @@ function assignedToClassInfo(c: AssignedClass): ClassInfo {
     id: c.id,
     className: c.name,
     section: c.section,
-    subject: c.subject ?? "—",
+    subject: c.subject ?? "â€”",
     isClassTeacher: c.isClassTeacher,
     studentCount: c.studentCount,
     schedule: [],
@@ -72,7 +72,7 @@ function TabBtn({
         "relative px-4 py-2.5 text-xs font-semibold transition-all whitespace-nowrap border-b-2",
         active
           ? "border-[#3b5bdb] text-[#3b5bdb]"
-          : "border-transparent text-[#78788c] hover:text-white",
+          : "border-transparent text-muted-foreground hover:text-foreground",
       )}
     >
       {label}
@@ -96,8 +96,8 @@ function ClassSelector({
 }) {
   if (classes.length === 0) {
     return (
-      <div className="text-xs text-[#78788c] py-2">
-        No classes assigned via Teacher–Class–Subject mapping.
+      <div className="text-xs text-muted-foreground py-2">
+        No classes assigned via Teacherâ€“Classâ€“Subject mapping.
       </div>
     );
   }
@@ -111,7 +111,7 @@ function ClassSelector({
             "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
             selected?.id === c.id
               ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-              : "bg-surface border-border/70 text-[#78788c] hover:border-border hover:text-white",
+              : "bg-surface border-border/70 text-muted-foreground hover:border-border hover:text-foreground",
           )}
         >
           <div
@@ -123,7 +123,7 @@ function ClassSelector({
           >
             {c.section}
           </div>
-          {c.className} {c.section} · {c.subject}
+          {c.className} {c.section} Â· {c.subject}
           {c.isClassTeacher && (
             <span className="text-[8px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-1 py-0.5 rounded-full">
               CT
@@ -136,7 +136,7 @@ function ClassSelector({
 }
 
 /**
- * My Classes — Academic Engine only for academic tabs.
+ * My Classes â€” Academic Engine only for academic tabs.
  * No mock students / homework / tests / assignments.
  */
 export default function MyClasses() {
@@ -186,8 +186,8 @@ export default function MyClasses() {
 
   if (loadingClasses) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading assigned classes…
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading assigned classesâ€¦
       </div>
     );
   }
@@ -195,9 +195,9 @@ export default function MyClasses() {
   if (!selectedClass) {
     return (
       <div className="space-y-3 py-10 text-center">
-        <div className="text-sm text-[#78788c]">
+        <div className="text-sm text-muted-foreground">
           {classError ??
-            "No classes assigned. Ask admin to create Teacher–Class–Subject mapping."}
+            "No classes assigned. Ask admin to create Teacherâ€“Classâ€“Subject mapping."}
         </div>
       </div>
     );
@@ -215,7 +215,7 @@ export default function MyClasses() {
   return (
     <div className="space-y-5">
       <div>
-        <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-3">
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
           Select Class
         </div>
         <ClassSelector

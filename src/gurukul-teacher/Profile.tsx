@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   User, Mail, Lock, Link2,
   Edit2, Save, X, Check, Smartphone, Shield, Briefcase, Loader2,
@@ -14,7 +14,7 @@ function Section({ title, icon, children }: { title: string; icon: React.ReactNo
     <div className="bg-surface border border-border/70 rounded-2xl overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-4 border-b border-border/70">
         <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
-        <div className="text-sm font-bold text-white">{title}</div>
+        <div className="text-sm font-bold text-foreground">{title}</div>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -36,7 +36,7 @@ function Field({
   onChange: (v: string) => void;
   type?: string;
   /** True when this field cannot actually be saved right now (e.g. unlinked
-   * teacher record) — shown read-only with an explanation instead of
+   * teacher record) â€” shown read-only with an explanation instead of
    * silently accepting edits that will be dropped on save. */
   disabled?: boolean;
   disabledHint?: string;
@@ -44,7 +44,7 @@ function Field({
   const isEditable = editing && !disabled;
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider">{label}</label>
+      <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">{label}</label>
       {isEditable ? (
         <input
           type={type}
@@ -54,7 +54,7 @@ function Field({
         />
       ) : (
         <div className="text-sm text-white px-0.5" title={editing && disabled ? disabledHint : undefined}>
-          {value || <span className="text-[#46465a]">Not set</span>}
+          {value || <span className="text-muted-foreground">Not set</span>}
           {editing && disabled && disabledHint && (
             <span className="block text-[9px] text-[#f59e0b] mt-0.5 font-normal normal-case">{disabledHint}</span>
           )}
@@ -137,7 +137,7 @@ export default function TeacherProfile() {
           .eq("id", identity.teacherRowId);
         if (tErr) {
           // The profiles update above already committed, so this is a partial
-          // save, not a no-op — tell the user plainly instead of implying
+          // save, not a no-op â€” tell the user plainly instead of implying
           // nothing was saved, so they know to retry.
           await identity.reload();
           toast.error(
@@ -177,8 +177,8 @@ export default function TeacherProfile() {
 
   if (identity.loading || !profile || !draft) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading profileâ€¦
       </div>
     );
   }
@@ -204,16 +204,16 @@ export default function TeacherProfile() {
           <span className="text-xl font-black text-black">{initials}</span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-black text-white">{profile.name}</div>
-          <div className="text-xs text-[#78788c] mt-0.5">
+          <div className="text-base font-black text-foreground">{profile.name}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
             {profile.subjects.length ? `${profile.subjects.join(" & ")} Teacher` : "Teacher"}
           </div>
-          <div className="text-[10px] text-[#46465a] mt-0.5">
-            {profile.employeeId} · {profile.department}
+          <div className="text-[10px] text-muted-foreground mt-0.5">
+            {profile.employeeId} Â· {profile.department}
           </div>
           {profile.isClassTeacher && (
             <span className="inline-block mt-1 text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-2 py-0.5 rounded-full">
-              Class Teacher — {profile.classTeacherOf?.className} {profile.classTeacherOf?.section}
+              Class Teacher â€” {profile.classTeacherOf?.className} {profile.classTeacherOf?.section}
             </span>
           )}
         </div>
@@ -236,7 +236,7 @@ export default function TeacherProfile() {
                 setDraft(profile);
                 setEditing(false);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5 hover:bg-white/10 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5 hover:bg-white/10 transition-all"
             >
               <X className="w-3.5 h-3.5" /> Cancel
             </button>
@@ -264,7 +264,7 @@ export default function TeacherProfile() {
             onChange={(v) => d("email", v)}
             type="email"
             disabled={!identity.teacherRowId}
-            disabledHint="Can't save — account isn't linked to a teacher record. Ask admin to link it."
+            disabledHint="Can't save â€” account isn't linked to a teacher record. Ask admin to link it."
           />
           <Field
             label="Phone Number"
@@ -280,7 +280,7 @@ export default function TeacherProfile() {
               editing={editing}
               onChange={(v) => d("address", v)}
               disabled={!identity.teacherRowId}
-              disabledHint="Can't save — account isn't linked to a teacher record. Ask admin to link it."
+              disabledHint="Can't save â€” account isn't linked to a teacher record. Ask admin to link it."
             />
           </div>
         </div>
@@ -289,19 +289,19 @@ export default function TeacherProfile() {
       <Section title="Professional Information" icon={<Briefcase className="w-4 h-4" />}>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Department" value={profile.department} editing={false} onChange={() => {}} />
-          <Field label="Subjects" value={profile.subjects.join(", ") || "—"} editing={false} onChange={() => {}} />
+          <Field label="Subjects" value={profile.subjects.join(", ") || "â€”"} editing={false} onChange={() => {}} />
           <Field
             label="Qualification"
             value={editing ? draft.qualification : profile.qualification}
             editing={editing}
             onChange={(v) => d("qualification", v)}
             disabled={!identity.teacherRowId}
-            disabledHint="Can't save — account isn't linked to a teacher record. Ask admin to link it."
+            disabledHint="Can't save â€” account isn't linked to a teacher record. Ask admin to link it."
           />
-          <Field label="Joined Date" value={profile.joinedDate || "—"} editing={false} onChange={() => {}} />
+          <Field label="Joined Date" value={profile.joinedDate || "â€”"} editing={false} onChange={() => {}} />
           <div className="col-span-2">
-            <div className="text-[9px] font-bold text-[#46465a] uppercase tracking-wider mb-1.5">Role</div>
-            <div className="text-sm text-white">
+            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Role</div>
+            <div className="text-sm text-foreground">
               {profile.isClassTeacher ? (
                 <span>
                   Class Teacher of{" "}
@@ -325,15 +325,15 @@ export default function TeacherProfile() {
               <Mail className="w-4 h-4 text-[#ea4335]" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-white">Google Account</div>
-              <div className="text-[10px] text-[#78788c]">
+              <div className="text-xs font-semibold text-foreground">Google Account</div>
+              <div className="text-[10px] text-muted-foreground">
                 {profile.googleLinked ? profile.googleEmail : "Not linked via Google sign-in"}
               </div>
             </div>
             {profile.googleLinked ? (
               <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">Linked</span>
             ) : (
-              <span className="text-[9px] font-bold text-[#46465a] bg-white/5 px-2 py-0.5 rounded-full">Not linked</span>
+              <span className="text-[9px] font-bold text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full">Not linked</span>
             )}
           </div>
 
@@ -342,13 +342,13 @@ export default function TeacherProfile() {
               <Smartphone className="w-4 h-4 text-[#10b981]" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-semibold text-white">Mobile Number</div>
-              <div className="text-[10px] text-[#78788c]">{profile.phone || "Not set"}</div>
+              <div className="text-xs font-semibold text-foreground">Mobile Number</div>
+              <div className="text-[10px] text-muted-foreground">{profile.phone || "Not set"}</div>
             </div>
             {profile.mobileLinked ? (
               <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">On file</span>
             ) : (
-              <span className="text-[9px] font-bold text-[#46465a] bg-white/5 px-2 py-0.5 rounded-full">Not set</span>
+              <span className="text-[9px] font-bold text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full">Not set</span>
             )}
           </div>
         </div>
@@ -357,8 +357,8 @@ export default function TeacherProfile() {
       <Section title="Security" icon={<Shield className="w-4 h-4" />}>
         <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
           <div>
-            <div className="text-xs font-semibold text-white">Password</div>
-            <div className="text-[10px] text-[#78788c]">Update your sign-in password</div>
+            <div className="text-xs font-semibold text-foreground">Password</div>
+            <div className="text-[10px] text-muted-foreground">Update your sign-in password</div>
           </div>
           <button
             type="button"
@@ -373,10 +373,10 @@ export default function TeacherProfile() {
       {changePwdOpen && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setChangePwdOpen(false)} />
-          <div className="relative z-10 bg-surface border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 bg-surface border border-border rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <div className="text-sm font-bold text-white">Change Password</div>
-              <button type="button" onClick={() => setChangePwdOpen(false)} className="text-[#78788c] hover:text-white">
+              <div className="text-sm font-bold text-foreground">Change Password</div>
+              <button type="button" onClick={() => setChangePwdOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -385,12 +385,12 @@ export default function TeacherProfile() {
               { label: "Confirm New Password", key: "confirm" as const },
             ].map((f) => (
               <div key={f.key} className="flex flex-col gap-1">
-                <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">{f.label}</label>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{f.label}</label>
                 <input
                   type="password"
                   value={pwdForm[f.key]}
                   onChange={(e) => setPwdForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                  className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/40"
+                  className="bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/40"
                 />
               </div>
             ))}
@@ -401,7 +401,7 @@ export default function TeacherProfile() {
               <button
                 type="button"
                 onClick={() => setChangePwdOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5"
               >
                 Cancel
               </button>
@@ -411,7 +411,7 @@ export default function TeacherProfile() {
                 disabled={!pwdForm.next || pwdForm.next !== pwdForm.confirm || pwdSaving}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all"
               >
-                {pwdSaving ? "Saving…" : "Change Password"}
+                {pwdSaving ? "Savingâ€¦" : "Change Password"}
               </button>
             </div>
           </div>

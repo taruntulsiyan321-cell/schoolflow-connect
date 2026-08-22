@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+﻿import { useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -84,7 +84,7 @@ export default function DppList() {
           <div>
             <div className="tp-kicker mb-4">Practice Assignment Center</div>
             <h1 className="tp-display text-3xl sm:text-4xl">Assign practice that fixes learning gaps.</h1>
-            <p className="text-sm text-white/75 mt-2 max-w-2xl">Create daily practice, chapter practice, concept practice, revision sets, and recovery assignments from one academic workflow.</p>
+            <p className="text-sm text-foreground/75 mt-2 max-w-2xl">Create daily practice, chapter practice, concept practice, revision sets, and recovery assignments from one academic workflow.</p>
           </div>
           <Button onClick={create} className="bg-white text-emerald-950 hover:bg-white/90"><Plus className="w-4 h-4 mr-1" /> Create DPP</Button>
         </div>
@@ -110,14 +110,14 @@ export default function DppList() {
             <button key={mode} type="button" onClick={create} className="tp-action text-left">
               <Sparkles className="w-4 h-4 text-primary mb-3" />
               <p className="font-semibold text-sm">{mode}</p>
-              <p className="text-xs text-muted-foreground mt-1">Subject · chapter · concept · difficulty · deadline</p>
+              <p className="text-xs text-muted-foreground mt-1">Subject Â· chapter Â· concept Â· difficulty Â· deadline</p>
             </button>
           ))}
         </div>
       </Card>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading…</p>
+        <p className="text-muted-foreground">Loadingâ€¦</p>
       ) : rows.length === 0 ? (
         <Card className="tp-card p-10 text-center">
           <FileText className="w-10 h-10 mx-auto text-muted-foreground mb-2" />
@@ -141,7 +141,7 @@ export default function DppList() {
                   </div>
                   <div className="font-semibold truncate">{d.title}</div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {d.question_count} questions · {Math.round(d.duration_sec / 60)} min · {d.total_marks} marks
+                    {d.question_count} questions Â· {Math.round(d.duration_sec / 60)} min Â· {d.total_marks} marks
                   </div>
                 </div>
                 <div className="flex gap-2">

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
@@ -31,7 +31,7 @@ import { NewChatSheet } from "@/components/chat/NewChatSheet";
 import { CHAT_FILE_ACCEPT } from "@/academic/storage/chatFileUpload";
 import "@/components/chat/chat-panel.css";
 
-/** Role chip colors — Gurukul dark surfaces (same palette as teacher Communication). */
+/** Role chip colors â€” Gurukul dark surfaces (same palette as teacher Communication). */
 const roleColors: Record<string, string> = {
   admin: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
   principal: "bg-rose-500/15 text-rose-400 border-rose-500/25",
@@ -43,8 +43,8 @@ const roleColors: Record<string, string> = {
 };
 
 const EMOJI_QUICK = [
-  "😀", "😁", "😂", "🙂", "😉", "😍", "🤔", "👍", "👏", "🙏",
-  "🔥", "⭐", "✅", "❌", "🎉", "📚", "✏️", "💯", "❤️", "🙌",
+  "ðŸ˜€", "ðŸ˜", "ðŸ˜‚", "ðŸ™‚", "ðŸ˜‰", "ðŸ˜", "ðŸ¤”", "ðŸ‘", "ðŸ‘", "ðŸ™",
+  "ðŸ”¥", "â­", "âœ…", "âŒ", "ðŸŽ‰", "ðŸ“š", "âœï¸", "ðŸ’¯", "â¤ï¸", "ðŸ™Œ",
 ];
 
 function formatTime(iso?: string) {
@@ -78,7 +78,7 @@ function RoleChip({ role }: { role: string }) {
     <span
       className={cn(
         "inline-flex mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full border capitalize",
-        roleColors[role] || "bg-white/5 text-[#78788c] border-white/10",
+        roleColors[role] || "bg-white/5 text-muted-foreground border-border",
       )}
     >
       {role.replace(/_/g, " ")}
@@ -89,8 +89,8 @@ function RoleChip({ role }: { role: string }) {
 function previewOf(m: ChatMessage): string {
   if (m.deletedAt) return "This message was deleted";
   const att = m.attachments?.[0];
-  if (att && !m.content) return `📎 ${att.name}`;
-  return m.content || (att ? `📎 ${att.name}` : "");
+  if (att && !m.content) return `ðŸ“Ž ${att.name}`;
+  return m.content || (att ? `ðŸ“Ž ${att.name}` : "");
 }
 
 function mapRealtimeMessage(raw: Record<string, unknown>): ChatMessage {
@@ -140,7 +140,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   const [startingChat, setStartingChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  /** True after the first contacts fetch settles — live/realtime refreshes must not flip loading. */
+  /** True after the first contacts fetch settles â€” live/realtime refreshes must not flip loading. */
   const contactsLoadedRef = useRef(false);
 
   const reloadContacts = async () => {
@@ -156,7 +156,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
 
   useEffect(() => {
     if (!user || !settled) return;
-    // Settled without school ctx — leave empty state, never spin forever.
+    // Settled without school ctx â€” leave empty state, never spin forever.
     if (!ctx) {
       contactsLoadedRef.current = true;
       setLoading(false);
@@ -166,7 +166,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     }
     let cancelled = false;
     // liveVersion (AcademicLive message bumps / focus / poll) re-runs this effect.
-    // Only show the full-page spinner on the genuine first load — never wipe an already-rendered list.
+    // Only show the full-page spinner on the genuine first load â€” never wipe an already-rendered list.
     const isFirstLoad = !contactsLoadedRef.current;
     (async () => {
       if (isFirstLoad) setLoading(true);
@@ -249,7 +249,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
             }
             return [...prev, newMsg];
           });
-          // Realtime payload has no attachment rows — hydrate so peers/groups see files.
+          // Realtime payload has no attachment rows â€” hydrate so peers/groups see files.
           if (ctx && realtimeHasAttachment(raw) && !newMsg.deletedAt) {
             const msgId = newMsg.id;
             void MessageService.listAttachments(ctx, [msgId]).then((map) => {
@@ -435,8 +435,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
   // First load only. Do not blank the list when live/focus bumps re-run fetches.
   if (!contactsLoadedRef.current && (!settled || loading)) {
     return (
-      <div className="chat-panel flex items-center justify-center py-16 text-sm text-[#78788c] gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading conversations…
+      <div className="chat-panel flex items-center justify-center py-16 text-sm text-muted-foreground gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading conversationsâ€¦
       </div>
     );
   }
@@ -445,10 +445,10 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
     <div className="chat-panel space-y-4 pb-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-lg font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
+          <h1 className="text-lg font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
             {userRole === "teacher" ? "Class Messages" : userRole === "principal" ? "School Messages" : "Chat"}
           </h1>
-          <p className="text-xs text-[#78788c] mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {userRole === "teacher"
               ? "Share announcements, practice links, recovery reminders, and quick guidance with students and families."
               : userRole === "parent"
@@ -462,17 +462,17 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               type="button"
               disabled={creatingGroup}
               onClick={() => void onCreateClassGroup()}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 text-white text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-white/5 hover:bg-white/8 text-white text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
             >
               <Users className="w-3.5 h-3.5 text-teal-400" />
-              {creatingGroup ? "Creating…" : "Class Group"}
+              {creatingGroup ? "Creatingâ€¦" : "Class Group"}
             </button>
             {(userRole === "teacher" || userRole === "principal" || userRole === "admin") && (
               <button
                 type="button"
                 disabled={creatingGroup}
                 onClick={() => void onCreateTeacherGroup()}
-                className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 text-white text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-white/5 hover:bg-white/8 text-white text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
               >
                 <Users className="w-3.5 h-3.5 text-amber-400" />
                 Teacher Group
@@ -492,7 +492,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border/70">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-[#3b5bdb]" />
-              <div className="text-sm font-bold text-white">Chats</div>
+              <div className="text-sm font-bold text-foreground">Chats</div>
             </div>
             <button
               type="button"
@@ -505,12 +505,12 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
           </div>
           <div className="p-3 border-b border-border/70">
             <div className="chat-search flex items-center gap-2 rounded-xl px-3 py-2">
-              <Search className="w-3.5 h-3.5 text-[#46465a] shrink-0" />
+              <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               <input
-                placeholder="Search chats…"
+                placeholder="Search chatsâ€¦"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 bg-transparent text-xs text-white placeholder:text-[#46465a] outline-none"
+                className="flex-1 bg-transparent text-xs text-white placeholder:text-muted-foreground outline-none"
               />
             </div>
           </div>
@@ -527,7 +527,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                     setShowEmoji(false);
                   }}
                   className={cn(
-                    "w-full text-left px-4 py-3 transition-all hover:bg-white/[0.03]",
+                    "w-full text-left px-4 py-3 transition-all hover:bg-muted",
                     active && "chat-contact-active border-r-2 border-[#3b5bdb]",
                   )}
                 >
@@ -541,18 +541,18 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-bold text-xs truncate text-white">{c.name}</span>
+                        <span className="font-bold text-xs truncate text-foreground">{c.name}</span>
                         {c.lastTime && (
-                          <span className="text-[9px] text-[#46465a] shrink-0 tabular-nums">
+                          <span className="text-[9px] text-muted-foreground shrink-0 tabular-nums">
                             {formatTime(c.lastTime)}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center justify-between gap-2 mt-0.5">
                         {c.lastMessage ? (
-                          <span className="text-[10px] text-[#78788c] truncate">{c.lastMessage}</span>
+                          <span className="text-[10px] text-muted-foreground truncate">{c.lastMessage}</span>
                         ) : (
-                          <span className="text-[10px] text-[#46465a] italic">No messages yet</span>
+                          <span className="text-[10px] text-muted-foreground italic">No messages yet</span>
                         )}
                         {c.unread > 0 && (
                           <span className="shrink-0 min-w-[1.1rem] h-4 px-1 rounded-full bg-[#3b5bdb] text-white text-[9px] flex items-center justify-center font-black">
@@ -568,8 +568,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
             })}
             {filtered.length === 0 && (
               <div className="p-8 text-center">
-                <MessageSquare className="w-8 h-8 mx-auto text-[#46465a] mb-2 opacity-60" />
-                <p className="text-xs text-[#78788c] mb-3">
+                <MessageSquare className="w-8 h-8 mx-auto text-muted-foreground mb-2 opacity-60" />
+                <p className="text-xs text-muted-foreground mb-3">
                   {contacts.length === 0
                     ? "No conversations yet. Start a new chat."
                     : "No chats match your search."}
@@ -593,7 +593,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               <div className="flex items-center gap-3 px-4 py-3 border-b border-border/70 bg-surface/80">
                 <button
                   type="button"
-                  className="md:hidden shrink-0 w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white"
+                  className="md:hidden shrink-0 w-8 h-8 rounded-xl bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-foreground"
                   onClick={() => setSelectedContact(null)}
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -606,7 +606,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                   <Avatar name={selectedContact.name} url={selectedContact.avatarUrl} size="sm" />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-sm truncate text-white">{selectedContact.name}</p>
+                  <p className="font-bold text-sm truncate text-foreground">{selectedContact.name}</p>
                   <RoleChip role={selectedContact.role} />
                 </div>
               </div>
@@ -615,8 +615,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 {messages.length === 0 && (
                   <div className="chat-empty-state flex flex-col items-center justify-center h-full py-16 text-center">
                     <MessageSquare className="w-10 h-10 text-[#3b5bdb]/40 mb-3" />
-                    <p className="font-bold text-sm text-white">Start the conversation</p>
-                    <p className="text-xs text-[#78788c] mt-1">
+                    <p className="font-bold text-sm text-foreground">Start the conversation</p>
+                    <p className="text-xs text-muted-foreground mt-1">
                       Send a message to {selectedContact.name}
                     </p>
                   </div>
@@ -632,7 +632,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                           className={cn(
                             "rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed",
                             deleted
-                              ? "bg-white/5 text-[#46465a] italic"
+                              ? "bg-white/5 text-muted-foreground italic"
                               : isMine
                                 ? "chat-bubble-mine rounded-br-md"
                                 : "chat-bubble-theirs rounded-bl-md",
@@ -643,8 +643,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                               className={cn(
                                 "mb-2 rounded-lg px-2.5 py-1.5 text-[10px] border-l-2",
                                 isMine
-                                  ? "bg-white/10 border-white/40 text-white/80"
-                                  : "bg-black/20 border-[#3b5bdb]/50 text-[#78788c]",
+                                  ? "bg-white/10 border-white/40 text-foreground/80"
+                                  : "bg-black/20 border-[#3b5bdb]/50 text-muted-foreground",
                               )}
                             >
                               {m.replyPreview || "Reply"}
@@ -661,7 +661,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                                       <img
                                         src={att.url}
                                         alt={att.name}
-                                        className="max-h-48 rounded-xl object-contain border border-white/10"
+                                        className="max-h-48 rounded-xl object-contain border border-border"
                                       />
                                     </a>
                                   ) : (
@@ -671,7 +671,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                                       rel="noreferrer"
                                       className={cn(
                                         "inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[11px] font-medium",
-                                        isMine ? "bg-white/15" : "bg-white/5 border border-white/10",
+                                        isMine ? "bg-white/15" : "bg-white/5 border border-border",
                                       )}
                                     >
                                       <FileText className="w-3.5 h-3.5" />
@@ -688,7 +688,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                           <div
                             className={cn(
                               "text-[9px] mt-1.5 tabular-nums flex items-center gap-1",
-                              isMine && !deleted ? "text-white/60 justify-end" : "text-[#46465a]",
+                              isMine && !deleted ? "text-foreground/60 justify-end" : "text-muted-foreground",
                             )}
                           >
                             {new Date(m.createdAt).toLocaleTimeString("en-IN", {
@@ -710,7 +710,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                             <button
                               type="button"
                               title="Reply"
-                              className="w-7 h-7 rounded-lg bg-surface border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white"
+                              className="w-7 h-7 rounded-lg bg-surface border border-border flex items-center justify-center text-muted-foreground hover:text-foreground"
                               onClick={() => setReplyTo(m)}
                             >
                               <Reply className="w-3.5 h-3.5" />
@@ -719,7 +719,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                               <button
                                 type="button"
                                 title="Delete"
-                                className="w-7 h-7 rounded-lg bg-surface border border-white/10 flex items-center justify-center text-[#78788c] hover:text-[#cc5069]"
+                                className="w-7 h-7 rounded-lg bg-surface border border-border flex items-center justify-center text-muted-foreground hover:text-[#cc5069]"
                                 onClick={() => void onDelete(m)}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -736,13 +736,13 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
 
               {replyTo && (
                 <div className="px-4 pt-3 flex items-center gap-2 border-t border-border/70 bg-surface/90">
-                  <div className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-[10px] text-[#78788c] truncate">
-                    <span className="font-bold text-white">Replying · </span>
+                  <div className="flex-1 rounded-xl bg-white/5 border border-border px-3 py-2 text-[10px] text-muted-foreground truncate">
+                    <span className="font-bold text-foreground">Replying Â· </span>
                     {previewOf(replyTo).slice(0, 100) || "Message"}
                   </div>
                   <button
                     type="button"
-                    className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white shrink-0"
+                    className="w-8 h-8 rounded-xl bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-white shrink-0"
                     onClick={() => setReplyTo(null)}
                   >
                     <X className="w-3.5 h-3.5" />
@@ -756,7 +756,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                     <button
                       key={e}
                       type="button"
-                      className="w-9 h-9 rounded-lg hover:bg-white/5 text-lg"
+                      className="w-9 h-9 rounded-lg hover:bg-muted text-lg"
                       onClick={() => {
                         setNewMessage((prev) => prev + e);
                         setShowEmoji(false);
@@ -781,7 +781,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                   disabled={sending}
                   onClick={() => setShowEmoji((v) => !v)}
                   title="Emoji"
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white disabled:opacity-40 shrink-0"
+                  className="w-10 h-10 rounded-xl bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-40 shrink-0"
                 >
                   <Smile className="w-4 h-4" />
                 </button>
@@ -790,11 +790,11 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                   disabled={sending}
                   onClick={() => fileInputRef.current?.click()}
                   title="Attach image or document"
-                  className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white disabled:opacity-40 shrink-0"
+                  className="w-10 h-10 rounded-xl bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-white disabled:opacity-40 shrink-0"
                 >
                   <Paperclip className="w-4 h-4" />
                 </button>
-                <div className="flex-1 flex items-end gap-2 bg-white/5 border border-white/10 rounded-2xl px-3 py-2 focus-within:border-[#3b5bdb]/40 transition-all">
+                <div className="flex-1 flex items-end gap-2 bg-white/5 border border-border rounded-2xl px-3 py-2 focus-within:border-[#3b5bdb]/40 transition-all">
                   <input
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
@@ -804,8 +804,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                         void sendText();
                       }
                     }}
-                    placeholder="Type a message…"
-                    className="flex-1 bg-transparent text-sm text-white placeholder:text-[#46465a] outline-none min-h-[24px] py-1"
+                    placeholder="Type a messageâ€¦"
+                    className="flex-1 bg-transparent text-sm text-white placeholder:text-muted-foreground outline-none min-h-[24px] py-1"
                   />
                   <button
                     type="button"
@@ -823,8 +823,8 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               <div className="w-14 h-14 rounded-2xl bg-[#3b5bdb]/15 border border-[#3b5bdb]/25 flex items-center justify-center mb-4">
                 <MessageSquare className="w-7 h-7 text-[#818cf8]" />
               </div>
-              <p className="font-bold text-base text-white">Select a conversation</p>
-              <p className="text-xs text-[#78788c] mt-2 max-w-xs">
+              <p className="font-bold text-base text-foreground">Select a conversation</p>
+              <p className="text-xs text-muted-foreground mt-2 max-w-xs">
                 Choose a contact from the list, or tap New chat to message a classmate, teacher, or principal.
               </p>
               <button

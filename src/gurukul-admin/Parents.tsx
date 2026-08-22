@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Search, Plus, ChevronLeft, ChevronRight, Trash2, Edit2, Eye, X,
   Users, Mail, Phone, GraduationCap, Loader2, Link2,
@@ -108,7 +108,7 @@ function ParentForm({
         const { error: linkErr } = await supabase.from("parent_students").insert(links);
         if (linkErr) {
           throw new Error(
-            `Parent details saved, but re-linking students failed (${linkErr.message}). This parent currently has 0 linked students — please re-link them.`,
+            `Parent details saved, but re-linking students failed (${linkErr.message}). This parent currently has 0 linked students â€” please re-link them.`,
           );
         }
       }
@@ -126,29 +126,29 @@ function ParentForm({
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 bg-[#0d0d0f] border border-white/10 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="relative z-10 bg-[#0d0d0f] border border-border rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-[#0d0d0f] border-b border-border/70 px-6 py-4 flex items-center justify-between">
-          <div className="text-sm font-bold text-white">{parent ? "Edit Parent" : "Add Parent"}</div>
-          <button type="button" onClick={onClose} className="text-[#78788c] hover:text-white">
+          <div className="text-sm font-bold text-foreground">{parent ? "Edit Parent" : "Add Parent"}</div>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="p-6 grid grid-cols-2 gap-4">
           <div className="col-span-2 flex flex-col gap-1">
-            <label htmlFor="parent-full-name" className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Full Name</label>
+            <label htmlFor="parent-full-name" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Full Name</label>
             <input
               id="parent-full-name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className={cn(
                 "bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50",
-                errors.fullName ? "border-[#cc5069]/50" : "border-white/10",
+                errors.fullName ? "border-[#cc5069]/50" : "border-border",
               )}
             />
             {errors.fullName && <span className="text-[9px] text-[#cc5069]">{errors.fullName}</span>}
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="parent-email" className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Email</label>
+            <label htmlFor="parent-email" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Email</label>
             <input
               id="parent-email"
               type="email"
@@ -156,26 +156,26 @@ function ParentForm({
               onChange={(e) => setEmail(e.target.value)}
               className={cn(
                 "bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50",
-                errors.email ? "border-[#cc5069]/50" : "border-white/10",
+                errors.email ? "border-[#cc5069]/50" : "border-border",
               )}
             />
             {errors.email && <span className="text-[9px] text-[#cc5069]">{errors.email}</span>}
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="parent-phone" className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">Phone</label>
+            <label htmlFor="parent-phone" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Phone</label>
             <input
               id="parent-phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
+              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
             />
           </div>
           <div className="col-span-2 flex flex-col gap-2">
-            <label className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               Linked students ({linkedIds.size})
             </label>
             {students.length === 0 ? (
-              <div className="text-xs text-[#78788c]">No students in this school yet.</div>
+              <div className="text-xs text-muted-foreground">No students in this school yet.</div>
             ) : (
               <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border border-border/70 p-2">
                 {students.map((s) => (
@@ -187,7 +187,7 @@ function ParentForm({
                       "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-left text-xs transition-all",
                       linkedIds.has(s.id)
                         ? "bg-[#3b5bdb]/20 text-[#a5b4fc]"
-                        : "text-[#78788c] hover:bg-white/5 hover:text-white",
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
                     <span className="font-semibold truncate">{s.fullName}</span>
@@ -202,7 +202,7 @@ function ParentForm({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-[#78788c] hover:text-white bg-white/5 hover:bg-white/10 transition-all"
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-white bg-white/5 hover:bg-white/10 transition-all"
           >
             Cancel
           </button>
@@ -212,7 +212,7 @@ function ParentForm({
             onClick={() => void handleSave()}
             className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all disabled:opacity-50"
           >
-            {saving ? "Saving…" : parent ? "Save Changes" : "Add Parent"}
+            {saving ? "Savingâ€¦" : parent ? "Save Changes" : "Add Parent"}
           </button>
         </div>
       </div>
@@ -236,54 +236,54 @@ function ParentDetail({
         <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <InitialsAvatar name={parent.fullName} size="lg" />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold text-white">{parent.fullName}</div>
-            <div className="text-[10px] text-[#78788c] mt-1">
+            <div className="text-sm font-bold text-foreground">{parent.fullName}</div>
+            <div className="text-[10px] text-muted-foreground mt-1">
               {parent.userId ? "Portal linked" : "No login linked"}
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-[#78788c] hover:text-white shrink-0">
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-white shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {[
-            { label: "Email", value: parent.email || "—", icon: <Mail className="w-3.5 h-3.5" /> },
-            { label: "Phone", value: parent.phone || "—", icon: <Phone className="w-3.5 h-3.5" /> },
+            { label: "Email", value: parent.email || "â€”", icon: <Mail className="w-3.5 h-3.5" /> },
+            { label: "Phone", value: parent.phone || "â€”", icon: <Phone className="w-3.5 h-3.5" /> },
             {
               label: "Joined",
               value: parent.createdAt
                 ? new Date(parent.createdAt).toLocaleDateString("en-IN")
-                : "—",
+                : "â€”",
               icon: <Users className="w-3.5 h-3.5" />,
             },
           ].map((row) => (
             <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
-              <div className="flex items-center gap-1.5 text-[9px] text-[#46465a] uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground uppercase tracking-wider">
                 {row.icon} {row.label}
               </div>
-              <div className="text-xs text-white">{row.value}</div>
+              <div className="text-xs text-foreground">{row.value}</div>
             </div>
           ))}
           <div className="p-3 rounded-xl bg-muted">
-            <div className="text-[9px] text-[#46465a] uppercase tracking-wider mb-2 flex items-center gap-1">
+            <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
               <GraduationCap className="w-3 h-3" /> Linked Students
             </div>
             {parent.linkedStudents.length === 0 ? (
-              <div className="text-xs text-[#78788c]">No linked students</div>
+              <div className="text-xs text-muted-foreground">No linked students</div>
             ) : (
               parent.linkedStudents.map((s) => (
                 <div key={s.id} className="flex items-center gap-2 mt-1.5">
                   <InitialsAvatar name={s.fullName} size="sm" />
                   <div>
-                    <div className="text-xs font-semibold text-white">{s.fullName}</div>
-                    <div className="text-[9px] text-[#78788c]">{s.classLabel}</div>
+                    <div className="text-xs font-semibold text-foreground">{s.fullName}</div>
+                    <div className="text-[9px] text-muted-foreground">{s.classLabel}</div>
                   </div>
                 </div>
               ))
             )}
           </div>
-          <div className="p-3 rounded-xl bg-muted text-[10px] text-[#78788c] leading-relaxed">
-            Login linking uses the parents.user_id column. Auth invitation / password-reset admin APIs are not wired on this panel — no fake success actions.
+          <div className="p-3 rounded-xl bg-muted text-[10px] text-muted-foreground leading-relaxed">
+            Login linking uses the parents.user_id column. Auth invitation / password-reset admin APIs are not wired on this panel â€” no fake success actions.
           </div>
         </div>
         <div className="p-4 border-t border-border/70">
@@ -301,7 +301,7 @@ function ParentDetail({
 }
 
 /**
- * Admin Parents — live `parents` + `parent_students` for this school.
+ * Admin Parents â€” live `parents` + `parent_students` for this school.
  * No local-only CRUD / fake directories.
  */
 export default function ParentManagement() {
@@ -448,8 +448,8 @@ export default function ParentManagement() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading parents…
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading parentsâ€¦
       </div>
     );
   }
@@ -462,15 +462,15 @@ export default function ParentManagement() {
     <div className="space-y-4">
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#46465a]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Search parents…"
-            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
+            placeholder="Search parentsâ€¦"
+            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <button
@@ -486,16 +486,16 @@ export default function ParentManagement() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border/70">
-              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Parent
               </th>
-              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Contact
               </th>
-              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Login
               </th>
-              <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Linked Students
               </th>
               <th className="px-4 py-3 w-24" />
@@ -507,12 +507,12 @@ export default function ParentManagement() {
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <InitialsAvatar name={p.fullName} size="sm" />
-                    <div className="text-sm font-semibold text-white">{p.fullName}</div>
+                    <div className="text-sm font-semibold text-foreground">{p.fullName}</div>
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="text-xs text-[#78788c]">{p.email || "—"}</div>
-                  <div className="text-[10px] text-[#46465a]">{p.phone || "—"}</div>
+                  <div className="text-xs text-muted-foreground">{p.email || "â€”"}</div>
+                  <div className="text-[10px] text-muted-foreground">{p.phone || "â€”"}</div>
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -520,7 +520,7 @@ export default function ParentManagement() {
                       "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
                       p.userId
                         ? "bg-[#4aa87a]/15 text-[#4aa87a]"
-                        : "bg-white/5 text-[#78788c]",
+                        : "bg-white/5 text-muted-foreground",
                     )}
                   >
                     <Link2 className="w-2.5 h-2.5" />
@@ -530,7 +530,7 @@ export default function ParentManagement() {
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap items-center gap-1">
                     {p.linkedStudents.length === 0 ? (
-                      <span className="text-[10px] text-[#46465a]">None</span>
+                      <span className="text-[10px] text-muted-foreground">None</span>
                     ) : (
                       p.linkedStudents.map((s) => (
                         <span
@@ -548,21 +548,21 @@ export default function ParentManagement() {
                     <button
                       type="button"
                       onClick={() => setDetail(p)}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
                     >
                       <Eye className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditParent(p)}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] hover:text-white transition-all"
+                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(p.id)}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-[#78788c] hover:text-[#cc5069] transition-all"
+                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-muted-foreground hover:text-[#cc5069] transition-all"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -574,29 +574,29 @@ export default function ParentManagement() {
         </table>
         {paged.length === 0 && (
           <div className="flex flex-col items-center gap-3 py-16">
-            <Users className="w-8 h-8 text-[#46465a]" />
-            <div className="text-sm text-[#78788c]">No parents found</div>
+            <Users className="w-8 h-8 text-muted-foreground" />
+            <div className="text-sm text-muted-foreground">No parents found</div>
           </div>
         )}
         <div className="flex items-center justify-between px-4 py-3 border-t border-border/70">
-          <div className="text-xs text-[#78788c]">{filtered.length} parents total</div>
+          <div className="text-xs text-muted-foreground">{filtered.length} parents total</div>
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] disabled:opacity-30 transition-all"
+              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground disabled:opacity-30 transition-all"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="text-xs text-[#78788c]">
+            <span className="text-xs text-muted-foreground">
               {page} / {totalPages}
             </span>
             <button
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-[#78788c] disabled:opacity-30 transition-all"
+              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground disabled:opacity-30 transition-all"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -625,16 +625,16 @@ export default function ParentManagement() {
       {confirmDelete && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmDelete(null)} />
-          <div className="relative z-10 bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <div className="text-sm font-bold text-white">Delete this parent?</div>
-            <div className="text-xs text-[#78788c]">
+          <div className="relative z-10 bg-surface border border-border rounded-2xl p-6 w-full max-w-sm space-y-4">
+            <div className="text-sm font-bold text-foreground">Delete this parent?</div>
+            <div className="text-xs text-muted-foreground">
               Removes the parent row and student links. This cannot be undone from the UI.
             </div>
             <div className="flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setConfirmDelete(null)}
-                className="px-3 py-2 rounded-xl text-xs font-semibold text-[#78788c] bg-white/5"
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5"
               >
                 Cancel
               </button>
@@ -644,7 +644,7 @@ export default function ParentManagement() {
                 onClick={() => void handleDelete(confirmDelete)}
                 className="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#cc5069] disabled:opacity-50"
               >
-                {deleting ? "Deleting…" : "Delete"}
+                {deleting ? "Deletingâ€¦" : "Delete"}
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import {
+﻿import {
   UserCheck, BookOpen, ClipboardList, Bell,
   ChevronRight, TrendingUp, Loader2,
 } from "lucide-react";
@@ -35,9 +35,9 @@ function QuickStat({
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-lg font-black tabular-nums text-white">{value}</div>
-        <div className="text-[10px] font-semibold text-[#78788c]">{label}</div>
-        {sub && <div className="text-[9px] text-[#46465a]">{sub}</div>}
+        <div className="text-lg font-black tabular-nums text-foreground">{value}</div>
+        <div className="text-[10px] font-semibold text-muted-foreground">{label}</div>
+        {sub && <div className="text-[9px] text-muted-foreground">{sub}</div>}
       </div>
     </>
   );
@@ -60,7 +60,7 @@ function QuickStat({
 }
 
 /**
- * Parent Dashboard — academic stats from Academic Engine only.
+ * Parent Dashboard â€” academic stats from Academic Engine only.
  */
 export default function ParentDashboard({
   setPage,
@@ -113,8 +113,8 @@ export default function ParentDashboard({
 
   if (childrenLoading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading children…
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading childrenâ€¦
       </div>
     );
   }
@@ -129,7 +129,7 @@ export default function ParentDashboard({
 
   if (!liveChild) {
     return (
-      <div className="text-sm text-[#78788c] py-16 text-center">
+      <div className="text-sm text-muted-foreground py-16 text-center">
         No linked children. Connect a student to this parent account to see Academic Engine data.
       </div>
     );
@@ -148,7 +148,7 @@ export default function ParentDashboard({
                 "flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
                 activeChildId === c.id || liveChild.id === c.id
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "bg-surface border-border/70 text-[#78788c]",
+                  : "bg-surface border-border/70 text-muted-foreground",
               )}
             >
               <div className="text-xs font-bold">{c.fullName}</div>
@@ -160,14 +160,14 @@ export default function ParentDashboard({
 
       <div className="bg-gradient-to-br from-[#131316] to-[#0d1a14] border border-[#3b5bdb]/15 rounded-2xl p-5 flex items-center gap-4">
         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <span className="text-lg font-black text-white">
+          <span className="text-lg font-black text-foreground">
             {liveChild.fullName.split(" ").map((w) => w[0]).slice(0, 2).join("")}
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-base font-black text-white">{liveChild.fullName}</div>
-          <div className="text-xs text-[#78788c] mt-0.5">
-            {liveChild.classLabel} · Roll {liveChild.rollNumber ?? "—"}
+          <div className="text-base font-black text-foreground">{liveChild.fullName}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {liveChild.classLabel} Â· Roll {liveChild.rollNumber ?? "â€”"}
           </div>
         </div>
         <div className="text-right shrink-0">
@@ -175,16 +175,16 @@ export default function ParentDashboard({
             className={cn(
               "text-xs font-bold px-3 py-1.5 rounded-xl capitalize",
               attendanceLoading || attendanceUnavailable
-                ? "bg-white/8 text-[#78788c]"
+                ? "bg-white/8 text-muted-foreground"
                 : todayStatus === "present" || todayStatus === "late"
                   ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
                   : todayStatus === "absent"
                     ? "bg-[#cc5069]/15 text-[#cc5069]"
-                    : "bg-white/8 text-[#78788c]",
+                    : "bg-white/8 text-muted-foreground",
             )}
           >
             {attendanceLoading
-              ? "Loading…"
+              ? "Loadingâ€¦"
               : attendanceUnavailable
                 ? "Status unavailable"
                 : todayStatus
@@ -197,12 +197,12 @@ export default function ParentDashboard({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickStat
           label="Attendance"
-          value={attendanceLoading ? "…" : attendanceUnavailable ? "—" : `${attendancePct}%`}
+          value={attendanceLoading ? "â€¦" : attendanceUnavailable ? "â€”" : `${attendancePct}%`}
           sub={
             attendanceLoading
-              ? "Loading…"
+              ? "Loadingâ€¦"
               : attendanceUnavailable
-                ? "Unavailable — try again later"
+                ? "Unavailable â€” try again later"
                 : `${presentDays}/${schoolDays} days`
           }
           color="#3b5bdb"
@@ -218,7 +218,7 @@ export default function ParentDashboard({
         <QuickStat
           label="Notifications"
           value={unreadNotifications}
-          sub="unread — tap to open"
+          sub="unread â€” tap to open"
           color={unreadNotifications > 0 ? "#cc5069" : "#78788c"}
           icon={<Bell className="w-5 h-5" />}
           onClick={() => setPage("notifications")}
@@ -249,8 +249,8 @@ export default function ParentDashboard({
           className="p-4 rounded-2xl border border-border/70 bg-surface text-left"
         >
           <ClipboardList className="w-4 h-4 text-[#6366f1] mb-2" />
-          <div className="text-xs font-bold text-white">My Children</div>
-          <div className="text-[10px] text-[#78788c]">Attendance · Homework · Exams</div>
+          <div className="text-xs font-bold text-foreground">My Children</div>
+          <div className="text-[10px] text-muted-foreground">Attendance Â· Homework Â· Exams</div>
         </button>
         <button
           type="button"
@@ -258,8 +258,8 @@ export default function ParentDashboard({
           className="p-4 rounded-2xl border border-border/70 bg-surface text-left"
         >
           <BookOpen className="w-4 h-4 text-[#3b5bdb] mb-2" />
-          <div className="text-xs font-bold text-white">Test Results</div>
-          <div className="text-[10px] text-[#78788c]">MarksService · TestService</div>
+          <div className="text-xs font-bold text-foreground">Test Results</div>
+          <div className="text-[10px] text-muted-foreground">MarksService Â· TestService</div>
         </button>
       </div>
     </div>
@@ -277,8 +277,8 @@ function QuickActionCard({ setPage }: { setPage: (p: ParentPageKey) => void }) {
         <ClipboardList className="w-5 h-5" />
       </div>
       <div>
-        <div className="text-lg font-black text-white">Open</div>
-        <div className="text-[10px] font-semibold text-[#78788c]">Child details</div>
+        <div className="text-lg font-black text-foreground">Open</div>
+        <div className="text-[10px] font-semibold text-muted-foreground">Child details</div>
       </div>
     </button>
   );

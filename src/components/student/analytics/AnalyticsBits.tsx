@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+﻿import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { WeeklyActivityPoint } from "@/hooks/useStudentPerformanceCharts";
 
@@ -79,7 +79,7 @@ export function SoftWeekActivityBars({ days }: { days: WeeklyActivityPoint[] }) 
             </div>
             <div className="text-center w-full">
               <div className="text-[10px] font-medium text-[#8A8578] truncate">{dayLabel}</div>
-              <div className="text-xs font-semibold tabular-nums text-[#2C3E2D]">{total || "—"}</div>
+              <div className="text-xs font-semibold tabular-nums text-[#2C3E2D]">{total || "â€”"}</div>
             </div>
           </div>
         );
@@ -119,9 +119,9 @@ export function ReadinessRing({ score, size = 112, label }: { score: number; siz
           strokeLinecap="round"
         />
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-foreground">
         <div className="text-3xl font-bold tabular-nums leading-none">{score}%</div>
-        {label && <div className="text-[10px] uppercase tracking-wider text-white/70 mt-1">{label}</div>}
+        {label && <div className="text-[10px] uppercase tracking-wider text-foreground/70 mt-1">{label}</div>}
       </div>
     </div>
   );
@@ -226,7 +226,7 @@ export function WeekActivityBars({ days }: { days: WeeklyActivityPoint[] }) {
             </div>
             <div className="text-center w-full">
               <div className="text-[10px] font-medium text-muted-foreground truncate">{dayLabel}</div>
-              <div className="text-xs font-semibold tabular-nums">{total || "—"}</div>
+              <div className="text-xs font-semibold tabular-nums">{total || "â€”"}</div>
             </div>
           </div>
         );
@@ -295,9 +295,9 @@ export function MetricTile({
 
   return (
     <div className="rounded-xl bg-white/10 border border-border px-4 py-3 backdrop-blur-sm">
-      <div className="text-[10px] uppercase tracking-wider text-white/65">{label}</div>
+      <div className="text-[10px] uppercase tracking-wider text-foreground/65">{label}</div>
       <div className={cn("text-2xl font-bold tabular-nums mt-1", valueTone)}>{value}</div>
-      {sub && <div className="text-[11px] text-white/60 mt-0.5">{sub}</div>}
+      {sub && <div className="text-[11px] text-foreground/60 mt-0.5">{sub}</div>}
     </div>
   );
 }

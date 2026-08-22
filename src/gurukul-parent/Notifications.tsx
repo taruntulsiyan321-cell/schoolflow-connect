@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   Bell, UserCheck, BookOpen, ClipboardList, Megaphone, MessageSquare,
   Calendar, Check, CheckCheck, Trash2, Loader2,
@@ -18,7 +18,7 @@ const typeConfig: Record<string, { icon: React.ReactNode; color: string; label: 
 };
 
 /**
- * Parent notifications — live `notifications` rows via useNotifications.
+ * Parent notifications â€” live `notifications` rows via useNotifications.
  */
 export default function ParentNotifications() {
   const { items, unread, loading, error, markRead, markAllRead, remove } = useNotifications();
@@ -29,8 +29,8 @@ export default function ParentNotifications() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading notifications…
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading notificationsâ€¦
       </div>
     );
   }
@@ -47,8 +47,8 @@ export default function ParentNotifications() {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <div className="text-sm font-bold text-white">Notifications</div>
-          <div className="text-[10px] text-[#78788c] mt-0.5">
+          <div className="text-sm font-bold text-foreground">Notifications</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">
             {unread} unread of {items.length} total
           </div>
         </div>
@@ -67,7 +67,7 @@ export default function ParentNotifications() {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
+          className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white outline-none"
         >
           <option value="all">All Types</option>
           {types.map((t) => (
@@ -80,7 +80,7 @@ export default function ParentNotifications() {
 
       <div className="space-y-2">
         {filtered.length === 0 && (
-          <div className="text-center py-10 text-xs text-[#78788c]">No notifications</div>
+          <div className="text-center py-10 text-xs text-muted-foreground">No notifications</div>
         )}
         {filtered.map((n) => {
           const cfg = typeConfig[n.type] ?? {
@@ -95,7 +95,7 @@ export default function ParentNotifications() {
                 hour: "2-digit",
                 minute: "2-digit",
               })
-            : "—";
+            : "â€”";
           return (
             <div
               key={n.id}
@@ -123,8 +123,8 @@ export default function ParentNotifications() {
                       {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb]" />}
                     </div>
                     <div className="text-xs font-semibold text-white mt-1">{n.title}</div>
-                    {n.body && <div className="text-[10px] text-[#78788c] mt-0.5">{n.body}</div>}
-                    <div className="text-[9px] text-[#46465a] mt-1">{when}</div>
+                    {n.body && <div className="text-[10px] text-muted-foreground mt-0.5">{n.body}</div>}
+                    <div className="text-[9px] text-muted-foreground mt-1">{when}</div>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     {!n.read && (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Loader2, Plus, Trash2, X } from "lucide-react";
 import {
   CalendarEventsService,
@@ -52,7 +52,7 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-const inputCls = "w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/60";
+const inputCls = "w-full rounded-lg bg-white/5 border border-border px-3 py-2 text-sm text-white placeholder:text-foreground/30 focus:outline-none focus:border-blue-500/60";
 
 export default function CalendarEventsPage() {
   const { ctx, ready } = useAcademicContext();
@@ -151,7 +151,7 @@ export default function CalendarEventsPage() {
           startsAt,
           allDay: form.allDay,
         });
-        toast.success("Event added — students will see it via the calendar and Nova");
+        toast.success("Event added â€” students will see it via the calendar and Nova");
       }
       setShowForm(false);
       await reload();
@@ -177,7 +177,7 @@ export default function CalendarEventsPage() {
     if (!id) return "";
     const c = classes.find((x) => x.id === id);
     if (!c) return "";
-    return c.section ? `${c.name} — ${c.section}` : c.name;
+    return c.section ? `${c.name} â€” ${c.section}` : c.name;
   }
 
   return (
@@ -187,7 +187,7 @@ export default function CalendarEventsPage() {
           <h1 className="text-xl font-semibold text-white flex items-center gap-2">
             <CalendarDays className="w-5 h-5" /> Academic Calendar
           </h1>
-          <p className="text-sm text-white/50 mt-0.5">
+          <p className="text-sm text-foreground/50 mt-0.5">
             Holidays and school-wide events. Visible to every student in the school (or one class), including via Nova chat.
           </p>
         </div>
@@ -202,8 +202,8 @@ export default function CalendarEventsPage() {
       {error && <div className="mb-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm p-3">{error}</div>}
 
       {loading ? (
-        <div className="flex items-center gap-2 text-white/50 text-sm py-8 justify-center">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+        <div className="flex items-center gap-2 text-foreground/50 text-sm py-8 justify-center">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loadingâ€¦
         </div>
       ) : (
         <>
@@ -212,7 +212,7 @@ export default function CalendarEventsPage() {
             <Section title="Past" events={grouped.past} onEdit={openEdit} onDelete={remove} classLabel={classLabel} muted />
           )}
           {events.length === 0 && (
-            <p className="text-white/40 text-sm text-center py-8">No calendar events yet. Add the first one above.</p>
+            <p className="text-foreground/40 text-sm text-center py-8">No calendar events yet. Add the first one above.</p>
           )}
         </>
       )}
@@ -220,12 +220,12 @@ export default function CalendarEventsPage() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setShowForm(false)}>
           <div
-            className="w-full max-w-md rounded-2xl bg-[#16161a] border border-white/10 p-5"
+            className="w-full max-w-md rounded-2xl bg-[#16161a] border border-border p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-white font-semibold">{form.id ? "Edit event" : "Add event"}</h2>
-              <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white"><X className="w-4 h-4" /></button>
+              <button onClick={() => setShowForm(false)} className="text-foreground/40 hover:text-foreground"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3">
               <input className={inputCls} placeholder="Title (e.g. Gandhi Jayanti)" value={form.title}
@@ -247,9 +247,9 @@ export default function CalendarEventsPage() {
               {form.audience === "class" && (
                 <select className={inputCls} value={form.classId}
                   onChange={(e) => setForm((f) => ({ ...f, classId: e.target.value }))}>
-                  <option value="">Pick a class…</option>
+                  <option value="">Pick a classâ€¦</option>
                   {classes.map((c) => (
-                    <option key={c.id} value={c.id}>{c.section ? `${c.name} — ${c.section}` : c.name}</option>
+                    <option key={c.id} value={c.id}>{c.section ? `${c.name} â€” ${c.section}` : c.name}</option>
                   ))}
                 </select>
               )}
@@ -258,7 +258,7 @@ export default function CalendarEventsPage() {
                 disabled={saving}
                 className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 mt-1"
               >
-                {saving ? "Saving…" : form.id ? "Save changes" : "Add event"}
+                {saving ? "Savingâ€¦" : form.id ? "Save changes" : "Add event"}
               </button>
             </div>
           </div>
@@ -281,23 +281,23 @@ function Section({
   if (!events.length) return null;
   return (
     <div className="mb-6">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-white/40 mb-2">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground/40 mb-2">{title}</h3>
       <div className="space-y-2">
         {events.map((e) => (
           <div
             key={e.id}
             className={cn(
-              "flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3",
+              "flex items-center justify-between gap-3 rounded-xl border border-border bg-white/[0.03] px-4 py-3",
               muted && "opacity-50",
             )}
           >
             <button className="flex-1 text-left" onClick={() => onEdit(e)}>
               <div className="text-sm text-white font-medium">{e.title}</div>
-              <div className="text-xs text-white/40 mt-0.5">
-                {fmtDate(e.startsAt)} · {e.eventType} · {e.audience === "class" ? classLabel(e.classId) || "class" : e.audience}
+              <div className="text-xs text-foreground/40 mt-0.5">
+                {fmtDate(e.startsAt)} Â· {e.eventType} Â· {e.audience === "class" ? classLabel(e.classId) || "class" : e.audience}
               </div>
             </button>
-            <button onClick={() => onDelete(e.id)} className="text-white/30 hover:text-red-400 shrink-0">
+            <button onClick={() => onDelete(e.id)} className="text-foreground/30 hover:text-red-400 shrink-0">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>

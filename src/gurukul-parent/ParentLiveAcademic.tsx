@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
   AcademicProfileService,
@@ -21,7 +21,7 @@ import { cn } from "./shared";
 
 function Loading({ label }: { label: string }) {
   return (
-    <div className="flex items-center justify-center py-12 text-[#78788c] text-xs gap-2">
+    <div className="flex items-center justify-center py-12 text-muted-foreground text-xs gap-2">
       <Loader2 className="w-4 h-4 animate-spin" /> {label}
     </div>
   );
@@ -61,25 +61,25 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
     };
   }, [settled, ready, ctx, studentId, liveVersion]);
 
-  if (loading) return <Loading label="Loading homework…" />;
+  if (loading) return <Loading label="Loading homeworkâ€¦" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
 
   return (
     <div className="space-y-3">
-      <div className="text-[9px] text-[#46465a]">HomeworkService · {rows.length} items</div>
+      <div className="text-[9px] text-muted-foreground">HomeworkService Â· {rows.length} items</div>
       {rows.map(({ homework: h, submission: s, displayStatus }) => (
         <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-2xl">
           <div className="flex justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <div className="text-xs font-bold text-white">{h.title}</div>
+                <div className="text-xs font-bold text-foreground">{h.title}</div>
                 <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-[#3b5bdb]/15 text-[#3b5bdb]">
                   {WORK_KIND_LABELS[normalizeWorkKind(h.workKind)]}
                 </span>
               </div>
-              <div className="text-[10px] text-[#78788c] mt-0.5">
-                {h.subject} · Due {h.dueDate ?? "—"}
-                {s?.submittedAt ? ` · Submitted ${new Date(s.submittedAt).toLocaleString()}` : ""}
+              <div className="text-[10px] text-muted-foreground mt-0.5">
+                {h.subject} Â· Due {h.dueDate ?? "â€”"}
+                {s?.submittedAt ? ` Â· Submitted ${new Date(s.submittedAt).toLocaleString()}` : ""}
               </div>
             </div>
             <div
@@ -106,7 +106,7 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
         </div>
       ))}
       {rows.length === 0 && (
-        <div className="text-center py-10 text-xs text-[#46465a]">No homework assigned yet.</div>
+        <div className="text-center py-10 text-xs text-muted-foreground">No homework assigned yet.</div>
       )}
     </div>
   );
@@ -169,7 +169,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
     };
   }, [settled, ready, ctx, studentId, classId, liveVersion]);
 
-  if (loading) return <Loading label="Loading exams & tests…" />;
+  if (loading) return <Loading label="Loading exams & testsâ€¦" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
 
   const examById = new Map(exams.map((e) => [e.id, e]));
@@ -177,7 +177,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
   return (
     <div className="space-y-6">
       <div>
-        <div className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider mb-3">
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
           Examination marks (MarksService)
         </div>
         <div className="space-y-2">
@@ -188,25 +188,25 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
             return (
               <div key={m.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between">
                 <div>
-                  <div className="text-xs font-bold text-white">{exam?.name ?? m.examId.slice(0, 8)}</div>
-                  <div className="text-[10px] text-[#78788c]">{exam?.subject ?? "—"}</div>
+                  <div className="text-xs font-bold text-foreground">{exam?.name ?? m.examId.slice(0, 8)}</div>
+                  <div className="text-[10px] text-muted-foreground">{exam?.subject ?? "â€”"}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs font-black text-white">
+                  <div className="text-xs font-black text-foreground">
                     {max ? `${m.marksObtained}/${max}` : m.marksObtained}
                   </div>
-                  <div className="text-[10px] text-[#46465a]">{pct !== null ? `${pct}%` : "—"}</div>
+                  <div className="text-[10px] text-muted-foreground">{pct !== null ? `${pct}%` : "â€”"}</div>
                 </div>
               </div>
             );
           })}
           {marks.length === 0 && (
-            <div className="text-xs text-[#46465a] py-6 text-center">No marks published yet.</div>
+            <div className="text-xs text-muted-foreground py-6 text-center">No marks published yet.</div>
           )}
         </div>
       </div>
       <div>
-        <div className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider mb-3">
+        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
           Class tests (TestService)
         </div>
         <div className="space-y-2">
@@ -228,17 +228,17 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
             return (
               <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between gap-3">
                 <div>
-                  <div className="text-xs font-bold text-white">{t.title}</div>
-                  <div className="text-[10px] text-[#78788c]">{t.subject || "—"}</div>
+                  <div className="text-xs font-bold text-foreground">{t.title}</div>
+                  <div className="text-[10px] text-muted-foreground">{t.subject || "â€”"}</div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-xs font-black text-white">{scoreLabel}</div>
+                  <div className="text-xs font-black text-foreground">{scoreLabel}</div>
                 </div>
               </div>
             );
           })}
           {tests.length === 0 && (
-            <div className="text-xs text-[#46465a] py-4 text-center">No class tests scheduled.</div>
+            <div className="text-xs text-muted-foreground py-4 text-center">No class tests scheduled.</div>
           )}
         </div>
       </div>
@@ -305,11 +305,11 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
             ? {
                 xp: prog.xp ?? 0,
                 level: prog.level ?? 0,
-                league: prog.league?.label ?? prog.league?.code ?? "—",
+                league: prog.league?.label ?? prog.league?.code ?? "â€”",
                 studyStreak: prog.study_streak ?? 0,
                 badges: prog.badges?.length ?? 0,
               }
-            : { xp: 0, level: 0, league: "—", studyStreak: 0, badges: 0 },
+            : { xp: 0, level: 0, league: "â€”", studyStreak: 0, badges: 0 },
         );
         setNarrative(
           summary
@@ -336,7 +336,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
     };
   }, [settled, ready, ctx, studentId, liveVersion]);
 
-  if (loading) return <Loading label="Loading performance…" />;
+  if (loading) return <Loading label="Loading performanceâ€¦" />;
   if (error) return <div className="text-xs text-[#cc5069] py-6 text-center">{error}</div>;
 
   const att = analytics?.attendance.pct ?? profile?.attendancePct ?? 0;
@@ -354,8 +354,8 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
           { label: "Tests", value: `${Math.round(tests)}%` },
         ].map((s) => (
           <div key={s.label} className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
-            <div className="text-lg font-black text-white">{s.value}</div>
-            <div className="text-[10px] text-[#78788c]">{s.label}</div>
+            <div className="text-lg font-black text-foreground">{s.value}</div>
+            <div className="text-[10px] text-muted-foreground">{s.label}</div>
           </div>
         ))}
       </div>
@@ -369,14 +369,14 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
           ].map((s) => (
             <div key={s.label} className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
               <div className="text-sm font-black text-white truncate">{s.value}</div>
-              <div className="text-[10px] text-[#78788c]">{s.label}</div>
+              <div className="text-[10px] text-muted-foreground">{s.label}</div>
             </div>
           ))}
         </div>
       )}
       {narrative && (
-        <div className="p-4 rounded-2xl bg-muted text-xs text-[#78788c] leading-relaxed space-y-2">
-          <div className="text-[10px] font-bold text-white">Progress Summary</div>
+        <div className="p-4 rounded-2xl bg-muted text-xs text-muted-foreground leading-relaxed space-y-2">
+          <div className="text-[10px] font-bold text-foreground">Progress Summary</div>
           <p>{narrative.narrative}</p>
           {narrative.bullets.length > 0 && (
             <ul className="list-disc list-inside space-y-0.5">
@@ -385,8 +385,8 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
           )}
         </div>
       )}
-      <p className="text-[9px] text-[#46465a]">
-        AcademicProfileService · AnalyticsService · AiSummaryService · ProgressionService · buildParentScheduledNarrative
+      <p className="text-[9px] text-muted-foreground">
+        AcademicProfileService Â· AnalyticsService Â· AiSummaryService Â· ProgressionService Â· buildParentScheduledNarrative
       </p>
     </div>
   );

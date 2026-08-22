@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+﻿import { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
@@ -37,7 +37,7 @@ import {
   ThumbsUp, ThumbsDown, CalendarDays,
 } from "lucide-react";
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type Role = "nova" | "student";
 
 interface Message {
@@ -46,9 +46,9 @@ interface Message {
   requestId?: string;
   featureId?: string;
   feedback?: "like" | "dislike" | null;
-  /** True for offline/network-failure fallback text — rendered distinctly from a real reply. */
+  /** True for offline/network-failure fallback text â€” rendered distinctly from a real reply. */
   isError?: boolean;
-  /** How many photos/pages were attached — images themselves are never persisted or re-shown. */
+  /** How many photos/pages were attached â€” images themselves are never persisted or re-shown. */
   imageCount?: number;
 }
 
@@ -57,13 +57,13 @@ interface Conversation {
   pinned?: boolean; starred?: boolean; messages: Message[];
   /** Gateway multi-turn session id (when available) */
   sessionId?: string;
-  /** The practice question this conversation was opened about, if any — sent on every turn. */
+  /** The practice question this conversation was opened about, if any â€” sent on every turn. */
   questionContext?: NovaQuestionContext;
 }
 
 const CONVO_STORAGE_KEY = "gurukul.nova.convos.v1";
 
-// ── Honest empty conversation list (never seed demo chats) ────────────────────
+// â”€â”€ Honest empty conversation list (never seed demo chats) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const EMPTY_CONVOS: Conversation[] = [];
 
 function genId(prefix: string): string {
@@ -95,20 +95,20 @@ function loadStoredConvos(): Conversation[] {
   }
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function now() {
   return new Date().toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
 }
 
 function offlineFallback(): string {
   return (
-    "I couldn’t reach the AI Gateway just now. " +
-    "Ask about attendance, homework due, marks, upcoming school events, or mastery/revision — " +
+    "I couldnâ€™t reach the AI Gateway just now. " +
+    "Ask about attendance, homework due, marks, upcoming school events, or mastery/revision â€” " +
     "or use Practice, Doubts, or Recovery for learning paths."
   );
 }
 
-// ── Message bubble ────────────────────────────────────────────────────────────
+// â”€â”€ Message bubble â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
   msg: Message;
   onBookmark: (id: string) => void;
@@ -122,7 +122,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
   function copy() {
     navigator.clipboard.writeText(msg.text).then(
       () => { setCopied(true); setTimeout(()=>setCopied(false), 1500); },
-      () => { toast.error("Could not copy — clipboard access denied"); },
+      () => { toast.error("Could not copy â€” clipboard access denied"); },
     );
   }
 
@@ -142,7 +142,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
       {isNova && (
         <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center mt-1"
           style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb)", boxShadow:"0 0 12px rgba(59,130,246,0.4)" }}>
-          <Brain className="w-4 h-4 text-white"/>
+          <Brain className="w-4 h-4 text-foreground"/>
         </div>
       )}
 
@@ -155,16 +155,16 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
             ? msg.isError
               ? "bg-amber-400/5 border border-amber-400/25 text-[#c8d4e8]"
               : "bg-surface border border-border/70 text-[#c8d4e8]"
-            : "text-white"
+            : "text-foreground"
         )}
         style={!isNova ? { background:"linear-gradient(135deg,#3b5bdb,#2563eb)", boxShadow:"0 4px 16px rgba(59,130,246,0.25)" } : {}}>
           {msg.isError && (
             <div className="flex items-center gap-1.5 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400">
-              <AlertCircle className="w-3 h-3"/> Connection issue — not a live answer
+              <AlertCircle className="w-3 h-3"/> Connection issue â€” not a live answer
             </div>
           )}
           {!!msg.imageCount && (
-            <div className={cn("flex items-center gap-1.5 mb-1.5 text-[10px] font-medium", isNova ? "text-[#78788c]" : "text-white/70")}>
+            <div className={cn("flex items-center gap-1.5 mb-1.5 text-[10px] font-medium", isNova ? "text-muted-foreground" : "text-foreground/70")}>
               <ImageIcon className="w-3 h-3"/> {msg.imageCount} photo{msg.imageCount > 1 ? "s" : ""} attached
             </div>
           )}
@@ -173,18 +173,18 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
 
         {/* Timestamp + actions */}
         <div className={cn("flex items-center gap-2 px-1", isNova ? "flex-row" : "flex-row-reverse")}>
-          <span className="text-[10px] text-[#78788c]">{msg.time}</span>
+          <span className="text-[10px] text-muted-foreground">{msg.time}</span>
           <div className={cn(
             "flex items-center gap-0.5 transition-opacity",
             isNova ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           )}>
             <button onClick={copy} title="Copy"
-              className="w-6 h-6 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/6 transition-all">
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all">
               {copied ? <Check className="w-3 h-3 text-emerald-400"/> : <Copy className="w-3 h-3"/>}
             </button>
             <button onClick={() => onBookmark(msg.id)} title="Bookmark"
               className={cn("w-6 h-6 rounded-lg flex items-center justify-center transition-all",
-                msg.bookmarked ? "text-amber-400 bg-amber-400/10" : "text-[#78788c] hover:text-white hover:bg-white/6"
+                msg.bookmarked ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground hover:text-white hover:bg-white/6"
               )}>
               <Bookmark className="w-3 h-3"/>
             </button>
@@ -197,7 +197,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
                     "w-6 h-6 rounded-lg flex items-center justify-center transition-all",
                     msg.feedback === "like"
                       ? "text-emerald-400 bg-emerald-400/10"
-                      : "text-[#78788c] hover:text-white hover:bg-white/6"
+                      : "text-muted-foreground hover:text-white hover:bg-white/6"
                   )}
                 >
                   <ThumbsUp className="w-3 h-3"/>
@@ -209,7 +209,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
                     "w-6 h-6 rounded-lg flex items-center justify-center transition-all",
                     msg.feedback === "dislike"
                       ? "text-rose-400 bg-rose-400/10"
-                      : "text-[#78788c] hover:text-white hover:bg-white/6"
+                      : "text-muted-foreground hover:text-white hover:bg-white/6"
                   )}
                 >
                   <ThumbsDown className="w-3 h-3"/>
@@ -218,7 +218,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
             )}
             {isNova && isLast && onRegen && (
               <button onClick={onRegen} title="Regenerate"
-                className="w-6 h-6 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/6 transition-all">
+                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all">
                 <RotateCcw className="w-3 h-3"/>
               </button>
             )}
@@ -229,7 +229,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
   );
 }
 
-// ── Context pill ──────────────────────────────────────────────────────────────
+// â”€â”€ Context pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ContextPill({ contextLine }: { contextLine: string }) {
   return (
     <div className="flex justify-center py-3">
@@ -237,16 +237,16 @@ function ContextPill({ contextLine }: { contextLine: string }) {
         className="group flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/70 bg-muted"
       >
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
-        <span className="text-[11px] text-[#78788c]">
-          Nova knows your context{contextLine ? ` · ${contextLine}` : ""}
+        <span className="text-[11px] text-muted-foreground">
+          Nova knows your context{contextLine ? ` Â· ${contextLine}` : ""}
         </span>
-        <Brain className="w-3 h-3 text-[#78788c]"/>
+        <Brain className="w-3 h-3 text-muted-foreground"/>
       </div>
     </div>
   );
 }
 
-// ── Suggestions (empty state) ─────────────────────────────────────────────────
+// â”€â”€ Suggestions (empty state) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function SuggestionGrid({
   onSelect,
   onNavigate,
@@ -270,16 +270,16 @@ function SuggestionGrid({
       {/* Nova orb */}
       <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-5"
         style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb, #4338ca)", boxShadow:"0 0 40px rgba(59,130,246,0.4)" }}>
-        <Brain className="w-9 h-9 text-white"/>
+        <Brain className="w-9 h-9 text-foreground"/>
       </div>
       <h2 className="text-2xl font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
-        Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"} 👋
+        Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"} ðŸ‘‹
       </h2>
-      <p className="text-[#78788c] text-sm mb-8 text-center max-w-xs">
-        I'm Nova — your personal academic tutor. Ask about attendance, homework, marks, school events, or revision.
+      <p className="text-muted-foreground text-sm mb-8 text-center max-w-xs">
+        I'm Nova â€” your personal academic tutor. Ask about attendance, homework, marks, school events, or revision.
       </p>
 
-      {/* Academic context mini-card — live chips only, no placeholders / duplicates */}
+      {/* Academic context mini-card â€” live chips only, no placeholders / duplicates */}
       {chips.length > 0 && (
         <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
           {chips.map((item) => (
@@ -307,7 +307,7 @@ function SuggestionGrid({
 
       {onNavigate && (
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <span className="text-[11px] text-[#78788c] w-full text-center mb-1">Jump to</span>
+          <span className="text-[11px] text-muted-foreground w-full text-center mb-1">Jump to</span>
           {jumpLinks.map((j) => (
             <button
               key={j.page}
@@ -325,7 +325,7 @@ function SuggestionGrid({
   );
 }
 
-// ── Sidebar ───────────────────────────────────────────────────────────────────
+// â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Sidebar({
   convos, activeId, onSelect, onNew, onDelete, onPin, onStar, onRename, onClose,
 }: {
@@ -378,13 +378,13 @@ function Sidebar({
             {c.starred && <Star   className="w-2.5 h-2.5 text-amber-400 fill-amber-400 shrink-0"/>}
             <span className={cn(
               "text-xs font-semibold truncate",
-              isActive ? "text-white" : "text-[#c8d4e8]"
+              isActive ? "text-foreground" : "text-[#c8d4e8]"
             )}>{c.title}</span>
           </div>
-          <div className="text-[10px] text-[#78788c] truncate">{c.preview}</div>
+          <div className="text-[10px] text-muted-foreground truncate">{c.preview}</div>
         </div>
 
-        {/* Context menu button — menu is portaled (overflow-hidden sidebar clips absolute menus) */}
+        {/* Context menu button â€” menu is portaled (overflow-hidden sidebar clips absolute menus) */}
         <button
           type="button"
           onClick={(e) => {
@@ -398,7 +398,7 @@ function Sidebar({
             setMenuPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
             setMenuFor(c.id);
           }}
-          className="w-6 h-6 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/8 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+          className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/8 opacity-0 group-hover:opacity-100 transition-all shrink-0">
           <MoreHorizontal className="w-3.5 h-3.5"/>
         </button>
       </div>
@@ -413,18 +413,18 @@ function Sidebar({
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
               style={{ background:"radial-gradient(circle, #3b5bdb, #4338ca)" }}>
-              <Brain className="w-3.5 h-3.5 text-white"/>
+              <Brain className="w-3.5 h-3.5 text-foreground"/>
             </div>
-            <span className="text-sm font-black text-white" style={{fontFamily:"var(--font-display)"}}>Nova</span>
+            <span className="text-sm font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Nova</span>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={onNew}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/6 transition-all" title="New conversation">
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all" title="New conversation">
               <Plus className="w-4 h-4"/>
             </button>
             {onClose && (
               <button onClick={onClose}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/6 transition-all lg:hidden">
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all lg:hidden">
                 <X className="w-4 h-4"/>
               </button>
             )}
@@ -432,10 +432,10 @@ function Sidebar({
         </div>
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-[#78788c]"/>
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground"/>
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search conversations…"
-            className="w-full bg-white/4 border border-white/6 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder:text-[#78788c] outline-none focus:border-[#3b5bdb]/30 transition-colors"/>
+            placeholder="Search conversationsâ€¦"
+            className="w-full bg-white/4 border border-white/6 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/30 transition-colors"/>
         </div>
       </div>
 
@@ -443,24 +443,24 @@ function Sidebar({
       <div className="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-none" onClick={() => { setMenuFor(null); setMenuPos(null); }}>
         {pinned.length > 0 && (
           <div>
-            <div className="px-3 py-1.5 text-[9px] uppercase tracking-[0.15em] text-[#78788c]/60">Pinned</div>
+            <div className="px-3 py-1.5 text-[9px] uppercase tracking-[0.15em] text-muted-foreground/60">Pinned</div>
             {pinned.map(c => <ConvoItem key={c.id} c={c}/>)}
           </div>
         )}
         {Object.entries(groups).map(([date, cs]) => (
           <div key={date}>
-            <div className="px-3 py-1.5 text-[9px] uppercase tracking-[0.15em] text-[#78788c]/60">{date}</div>
+            <div className="px-3 py-1.5 text-[9px] uppercase tracking-[0.15em] text-muted-foreground/60">{date}</div>
             {cs.map(c => <ConvoItem key={c.id} c={c}/>)}
           </div>
         ))}
         {filtered.length === 0 && (
-          <div className="text-center py-8 text-xs text-[#78788c]">No conversations found</div>
+          <div className="text-center py-8 text-xs text-muted-foreground">No conversations found</div>
         )}
       </div>
 
       {activeMenuConvo && menuPos && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed z-overlay bg-surface border border-white/10 rounded-xl shadow-xl py-1 min-w-[140px]"
+          className="fixed z-overlay bg-surface border border-border rounded-xl shadow-xl py-1 min-w-[140px]"
           style={{ top: menuPos.top, right: menuPos.right }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -476,7 +476,7 @@ function Sidebar({
               onClick={item.action}
               className={cn(
                 "w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
-                item.danger ? "text-rose-400 hover:bg-rose-400/10" : "text-[#a0a0b0] hover:text-white hover:bg-white/5",
+                item.danger ? "text-rose-400 hover:bg-rose-400/10" : "text-[#a0a0b0] hover:text-white hover:bg-muted",
               )}
             >
               {item.icon} {item.label}
@@ -489,7 +489,7 @@ function Sidebar({
   );
 }
 
-// ── Input bar ─────────────────────────────────────────────────────────────────
+// â”€â”€ Input bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function InputBar({
   onSend, onVoiceUnavailable, disabled,
 }: {
@@ -558,7 +558,7 @@ function InputBar({
       {pendingImages.length > 0 && (
         <div className="flex items-center gap-2 mb-2 px-1">
           {pendingImages.map((uri, i) => (
-            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-white/10 shrink-0 group">
+            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-border shrink-0 group">
               <img src={uri} alt="" className="w-full h-full object-cover" />
               <button
                 type="button"
@@ -572,7 +572,7 @@ function InputBar({
           ))}
         </div>
       )}
-      <div className="flex items-end gap-2 bg-surface border border-white/10 rounded-2xl p-2 focus-within:border-[#3b5bdb]/30 transition-all">
+      <div className="flex items-end gap-2 bg-surface border border-border rounded-2xl p-2 focus-within:border-[#3b5bdb]/30 transition-all">
         {attachPresentation !== "hidden" && (
           <>
             <input
@@ -593,10 +593,10 @@ function InputBar({
               disabled={processing}
               title={
                 attachPresentation === "coming_soon"
-                  ? `Attachments — ${COMING_SOON_LABEL}`
+                  ? `Attachments â€” ${COMING_SOON_LABEL}`
                   : "Attach a photo or PDF"
               }
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5 text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4"
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5 text-muted-foreground/50 hover:text-muted-foreground hover:bg-white/4"
             >
               {processing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Paperclip className="w-4 h-4"/>}
             </button>
@@ -606,9 +606,9 @@ function InputBar({
         <textarea
           ref={textareaRef}
           value={text} onChange={e => setText(e.target.value)} onKeyDown={onKey}
-          placeholder={pendingImages.length ? "Add a note (optional)…" : "Ask Nova anything…"}
+          placeholder={pendingImages.length ? "Add a note (optional)â€¦" : "Ask Nova anythingâ€¦"}
           rows={1} disabled={disabled}
-          className="flex-1 bg-transparent text-sm text-white placeholder:text-[#78788c] outline-none resize-none py-1.5 leading-relaxed"
+          className="flex-1 bg-transparent text-sm text-white placeholder:text-muted-foreground outline-none resize-none py-1.5 leading-relaxed"
           style={{ maxHeight:120 }}
         />
 
@@ -618,10 +618,10 @@ function InputBar({
             onClick={onVoiceUnavailable}
             title={
               voicePresentation === "coming_soon"
-                ? `Voice — ${COMING_SOON_LABEL}`
+                ? `Voice â€” ${COMING_SOON_LABEL}`
                 : "Voice"
             }
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-[#78788c]/50 hover:text-[#78788c] hover:bg-white/4 transition-all shrink-0 mb-0.5"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-white/4 transition-all shrink-0 mb-0.5"
           >
             <Mic className="w-4 h-4"/>
           </button>
@@ -634,19 +634,19 @@ function InputBar({
             "w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
             (text.trim() || pendingImages.length > 0) && !disabled && !processing
               ? "bg-[#3b5bdb] text-white hover:bg-blue-500"
-              : "text-[#78788c]/40 cursor-not-allowed"
+              : "text-muted-foreground/40 cursor-not-allowed"
           )}>
           <Send className="w-4 h-4"/>
         </button>
       </div>
       <div className="text-center mt-1.5">
-        <span className="text-[10px] text-[#78788c]/50">Press ⏎ to send · ⇧⏎ for new line · Answers use your live school records</span>
+        <span className="text-[10px] text-muted-foreground/50">Press âŽ to send Â· â‡§âŽ for new line Â· Answers use your live school records</span>
       </div>
     </div>
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void }) {
   const student = useGurukulStudent();
   const { user, role } = useAuth();
@@ -721,7 +721,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   );
 
   const contextLine = useMemo(
-    () => novaChips.map((c) => c.label).join(" · "),
+    () => novaChips.map((c) => c.label).join(" Â· "),
     [novaChips],
   );
 
@@ -730,7 +730,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const [sidebarOpen,setSidebarOpen]= useState(false);
   const [renaming,   setRenaming]   = useState<string|null>(null);
   const [renameVal,  setRenameVal]  = useState("");
-  // Scoped per conversation (not one global flag) — switching conversations while a reply is
+  // Scoped per conversation (not one global flag) â€” switching conversations while a reply is
   // pending must not show/hide the wrong conversation's loading state, and two overlapping
   // requests must not be able to clear each other's indicator early.
   const [pendingConvoIds, setPendingConvoIds] = useState<Set<string>>(() => new Set());
@@ -749,11 +749,11 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   // pre-removal snapshot and fire duplicate gateway calls. A ref check is
   // synchronous and re-render-independent, unlike state.
   const regenBusyRef = useRef(false);
-  // One in-flight AbortController per conversation — lets delete/unmount actually
+  // One in-flight AbortController per conversation â€” lets delete/unmount actually
   // cancel the underlying request instead of letting an orphaned reply keep billing.
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   // Guards against double-submission at the network-call level (not just UI disabled
-  // state) — set synchronously before any await, so a race that slips past the UI
+  // state) â€” set synchronously before any await, so a race that slips past the UI
   // guard still can't fire a second gateway call for the same conversation.
   const pendingConvoIdsRef = useRef<Set<string>>(new Set());
 
@@ -761,7 +761,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   const msgs   = active?.messages ?? [];
   const isTyping = activeId ? pendingConvoIds.has(activeId) : false;
 
-  // One-shot handoff from a result screen ("Ask Nova about this question") — consumed once.
+  // One-shot handoff from a result screen ("Ask Nova about this question") â€” consumed once.
   useEffect(() => {
     const ctx = consumeNovaQuestionContext();
     if (!ctx) return;
@@ -802,7 +802,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   function addMessage(convoId: string, msg: Omit<Message,"id">) {
     setConvos(cs => cs.map(c => c.id === convoId
       ? { ...c, messages:[...c.messages, { ...msg, id:genId("m") }],
-          preview: msg.text.slice(0,60) + (msg.text.length>60?"…":"") }
+          preview: msg.text.slice(0,60) + (msg.text.length>60?"â€¦":"") }
       : c
     ));
   }
@@ -814,7 +814,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   }
 
   async function replyViaGateway(convoId: string, text: string, images?: string[]) {
-    // Network-call-level guard — catches races the UI's disabled state can't (e.g. Regenerate
+    // Network-call-level guard â€” catches races the UI's disabled state can't (e.g. Regenerate
     // firing while a send for the same conversation is already in flight).
     if (pendingConvoIdsRef.current.has(convoId)) return;
     setPending(convoId, true);
@@ -845,7 +845,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         signal: controller.signal,
       });
 
-      if (!result) return; // cancelled (conversation deleted / component unmounted) — no-op
+      if (!result) return; // cancelled (conversation deleted / component unmounted) â€” no-op
 
       const { text: reply, response } = result;
       if (isAiBillingOrCreditsIssue(response)) {
@@ -873,7 +873,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
                     feedback: null,
                   },
                 ],
-                preview: reply.slice(0, 60) + (reply.length > 60 ? "…" : ""),
+                preview: reply.slice(0, 60) + (reply.length > 60 ? "â€¦" : ""),
               }
             : c,
         ),
@@ -951,7 +951,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   function startRename(id: string) {
     const c = convos.find(x => x.id === id);
     if (!c) return;
-    // The rename input only renders in the header for the active conversation — switch to
+    // The rename input only renders in the header for the active conversation â€” switch to
     // it first so renaming a non-active conversation (from the sidebar menu) is visible.
     if (activeIdRef.current !== id) {
       activeIdRef.current = id;
@@ -993,7 +993,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           actor_role: role ?? "student",
           feature_id: last.featureId ?? null,
           signal_type: "retry",
-        }).catch(() => { /* best-effort telemetry — never blocks regenerate */ });
+        }).catch(() => { /* best-effort telemetry â€” never blocks regenerate */ });
       }
       setConvos(cs => cs.map(x => x.id === activeId
         ? { ...x, messages: x.messages.filter(m => m.id !== last.id) }
@@ -1065,7 +1065,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
   return (
     <div className="flex h-[calc(100vh-80px)] -mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden">
 
-      {/* ── Sidebar (desktop always visible, mobile overlay) ── */}
+      {/* â”€â”€ Sidebar (desktop always visible, mobile overlay) â”€â”€ */}
       <div className={cn(
         "shrink-0 border-r border-white/5 transition-all duration-300 overflow-hidden",
         "hidden lg:block",
@@ -1093,12 +1093,12 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         </div>
       )}
 
-      {/* ── Main conversation area ── */}
+      {/* â”€â”€ Main conversation area â”€â”€ */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Conversation header */}
         <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/5">
-          <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/6 transition-all lg:hidden">
+          <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all lg:hidden">
             <ChevronLeft className="w-4 h-4"/>
           </button>
 
@@ -1113,9 +1113,9 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
                 {active?.title ?? "New Conversation"}
               </div>
               {active && (
-                <div className="flex items-center gap-1 text-[10px] text-[#78788c]">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
-                  Nova · Ready
+                  Nova Â· Ready
                 </div>
               )}
             </div>
@@ -1125,24 +1125,24 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           <div className="flex items-center gap-1 shrink-0">
             {active && <>
               <button onClick={() => startRename(active.id)} title="Rename"
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/6 transition-all">
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all">
                 <Edit3 className="w-3.5 h-3.5"/>
               </button>
               <button onClick={() => pinConvo(active.id)} title={active.pinned?"Unpin":"Pin"}
                 className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                  active.pinned ? "text-blue-400 bg-blue-400/10" : "text-[#78788c] hover:text-white hover:bg-white/6"
+                  active.pinned ? "text-blue-400 bg-blue-400/10" : "text-muted-foreground hover:text-white hover:bg-white/6"
                 )}>
                 <Pin className="w-3.5 h-3.5"/>
               </button>
               <button onClick={() => starConvo(active.id)} title={active.starred?"Unstar":"Star"}
                 className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                  active.starred ? "text-amber-400 bg-amber-400/10" : "text-[#78788c] hover:text-white hover:bg-white/6"
+                  active.starred ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground hover:text-white hover:bg-white/6"
                 )}>
                 <Star className={cn("w-3.5 h-3.5", active.starred && "fill-amber-400")}/>
               </button>
             </>}
             <button onClick={newConversation} title="New conversation"
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-[#78788c] hover:text-white hover:bg-white/6 transition-all">
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all">
               <Plus className="w-3.5 h-3.5"/>
             </button>
           </div>
@@ -1172,7 +1172,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
                     style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb)" }}>
-                    <Brain className="w-4 h-4 text-white"/>
+                    <Brain className="w-4 h-4 text-foreground"/>
                   </div>
                   <div className="px-4 py-3 rounded-2xl bg-surface border border-border/70 flex items-center gap-1.5">
                     {[0,1,2].map(i => (

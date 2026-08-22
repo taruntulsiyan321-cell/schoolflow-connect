@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { HomeworkService, MarksService, TestService, CalendarEventsService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
@@ -208,7 +208,7 @@ export default function Calendar() {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        Loading calendar…
+        Loading calendarâ€¦
       </div>
     );
   }
@@ -298,7 +298,7 @@ export default function Calendar() {
                   className={cn(
                     "aspect-square flex flex-col items-center justify-between rounded-xl p-1 transition-all duration-150 text-xs font-semibold relative",
                     isSelected
-                      ? "bg-[#3b5bdb] text-white"
+                      ? "bg-[#3b5bdb] text-foreground"
                       : isToday
                         ? "bg-[#3b5bdb]/15 text-blue-400 border border-[#3b5bdb]/30"
                         : isHoliday
@@ -387,7 +387,7 @@ export default function Calendar() {
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span style={{ color: meta.color }}>{meta.icon}</span>
                           <span className="text-[10px] text-muted-foreground">{dayStr}</span>
-                          {e.subject && <span className="text-[10px] text-muted-foreground">· {displaySubject(e.subject) || e.subject}</span>}
+                          {e.subject && <span className="text-[10px] text-muted-foreground">Â· {displaySubject(e.subject) || e.subject}</span>}
                         </div>
                       </div>
                     </div>

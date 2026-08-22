@@ -1,11 +1,11 @@
-import { ParentLivePerformance, ParentLiveExams } from "./ParentLiveAcademic";
+﻿import { ParentLivePerformance, ParentLiveExams } from "./ParentLiveAcademic";
 import { useParentLiveChildren } from "./ParentLiveAttendance";
 import { cn } from "./shared";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 /**
- * Academic Insights — Academic Engine only (no richInsights mock).
+ * Academic Insights â€” Academic Engine only (no richInsights mock).
  */
 export default function AcademicInsights({
   activeChildId,
@@ -20,8 +20,8 @@ export default function AcademicInsights({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-[#78788c] text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+      <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loadingâ€¦
       </div>
     );
   }
@@ -36,8 +36,8 @@ export default function AcademicInsights({
 
   if (!child) {
     return (
-      <div className="text-sm text-[#78788c] py-16 text-center">
-        No linked children. Academic insights require parent–student mapping.
+      <div className="text-sm text-muted-foreground py-16 text-center">
+        No linked children. Academic insights require parentâ€“student mapping.
       </div>
     );
   }
@@ -55,7 +55,7 @@ export default function AcademicInsights({
                 "px-4 py-2 rounded-xl border text-xs font-semibold",
                 c.id === child.id
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "bg-surface border-border/70 text-[#78788c]",
+                  : "bg-surface border-border/70 text-muted-foreground",
               )}
             >
               {c.fullName}
@@ -64,8 +64,8 @@ export default function AcademicInsights({
         </div>
       )}
       <div>
-        <div className="text-base font-black text-white">{child.fullName}</div>
-        <div className="text-[10px] text-[#78788c]">{child.classLabel}</div>
+        <div className="text-base font-black text-foreground">{child.fullName}</div>
+        <div className="text-[10px] text-muted-foreground">{child.classLabel}</div>
       </div>
       <div className="flex gap-2">
         <button
@@ -73,7 +73,7 @@ export default function AcademicInsights({
           onClick={() => setTab("performance")}
           className={cn(
             "text-[10px] font-semibold px-3 py-1.5 rounded-xl",
-            tab === "performance" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#78788c]",
+            tab === "performance" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-muted-foreground",
           )}
         >
           Performance
@@ -83,7 +83,7 @@ export default function AcademicInsights({
           onClick={() => setTab("exams")}
           className={cn(
             "text-[10px] font-semibold px-3 py-1.5 rounded-xl",
-            tab === "exams" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#78788c]",
+            tab === "exams" ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-muted-foreground",
           )}
         >
           Exams & Tests

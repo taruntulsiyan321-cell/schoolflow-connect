@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -54,7 +54,7 @@ function parseOptions(raw: unknown): string[] {
   return [];
 }
 
-/** Returns null (unknown) when the stored answer is missing/malformed — never
+/** Returns null (unknown) when the stored answer is missing/malformed â€” never
  *  fabricates option A as a guess, since that would misrepresent the actual
  *  correct/chosen answer to the student. */
 function answerIndex(raw: { correct_index?: number; indexes?: number[] } | null): number | null {
@@ -75,7 +75,7 @@ function formatMistakeDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
-    return "—";
+    return "â€”";
   }
 }
 
@@ -104,8 +104,8 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     correct: answerIndex(row.correct_answer),
     chosen: studentIndex(row.student_answer),
     subject: row.subject,
-    chapter: displayChapter(row.chapter) || "—",
-    topic: displayTopic(row.concept ?? row.topic) || "—",
+    chapter: displayChapter(row.chapter) || "â€”",
+    topic: displayTopic(row.concept ?? row.topic) || "â€”",
     chapterRaw,
     conceptRaw,
     difficulty: parseDifficulty(row.difficulty),
@@ -166,7 +166,7 @@ function FreqBadge({ freq }: { freq: number }) {
   const color = freq >= 4 ? "#cc5069" : freq >= 3 ? "#c08a3a" : "#6882e8";
   return (
     <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{color,background:`${color}15`}}>
-      ×{freq}
+      Ã—{freq}
     </span>
   );
 }
@@ -198,20 +198,20 @@ function MistakeCard({
               )}
             </div>
             <p className="text-sm font-semibold text-white leading-snug">{mistake.question}</p>
-            <div className="text-[11px] text-[#78788c] mt-1">{displayChapter(mistake.chapter)} · {displayTopic(mistake.topic)} · {mistake.date}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">{displayChapter(mistake.chapter)} Â· {displayTopic(mistake.topic)} Â· {mistake.date}</div>
           </div>
           <button onClick={() => onToggleBookmark(mistake.id)}
             title={mistake.bookmarked ? "Remove device bookmark" : "Save on this device only"}
             className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 transition-all">
             {mistake.bookmarked
               ? <BookmarkCheck className="w-4 h-4 text-amber-400 fill-amber-400"/>
-              : <Bookmark className="w-4 h-4 text-[#78788c]"/>}
+              : <Bookmark className="w-4 h-4 text-muted-foreground"/>}
           </button>
         </div>
 
         <div className="flex items-center gap-2 mt-3">
           <button onClick={() => setExpanded(e => !e)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-[#78788c] font-semibold hover:bg-white/10 transition-all">
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 border border-border text-xs text-muted-foreground font-semibold hover:bg-white/10 transition-all">
             <Eye className="w-3 h-3"/> Details {expanded ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
           </button>
           <button onClick={onRetry}
@@ -221,7 +221,7 @@ function MistakeCard({
           {!mistake.resolved && (
             <button onClick={onAddRecovery} disabled={addingRecovery}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/25 text-rose-300 text-xs font-bold hover:bg-rose-500/25 transition-all disabled:opacity-50">
-              <RefreshCw className="w-3 h-3"/> {addingRecovery ? "Adding…" : "Add to Recovery"}
+              <RefreshCw className="w-3 h-3"/> {addingRecovery ? "Addingâ€¦" : "Add to Recovery"}
             </button>
           )}
         </div>
@@ -262,7 +262,7 @@ function MistakeCard({
               </div>
             ) : null}
 
-            {/* Why you got it wrong — only when stored */}
+            {/* Why you got it wrong â€” only when stored */}
             {mistake.studentReason ? (
               <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
                 <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -322,7 +322,7 @@ function MistakePractice({
   const [answers, setAnswers] = useState<(number|null)[]>([]);
   const [showExp, setShowExp] = useState(false);
   // Guards the final "See Results" tap from firing the completion write twice
-  // on a double-click — a ref for a synchronous, re-render-independent check
+  // on a double-click â€” a ref for a synchronous, re-render-independent check
   // plus `busy` state to actually disable the button in the DOM.
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -346,7 +346,7 @@ function MistakePractice({
         questionText: qq.question,
         options: qq.options,
         selectedIndex: typeof newAnswers[i] === "number" ? (newAnswers[i] as number) : -1,
-        // Unknown correct answer (malformed/missing source data) — NaN never
+        // Unknown correct answer (malformed/missing source data) â€” NaN never
         // equals a real selectedIndex, so this is graded as not-correct rather
         // than fabricating option A as the right answer.
         correctIndex: qq.correct ?? Number.NaN,
@@ -364,11 +364,11 @@ function MistakePractice({
   if (!q || questions.length === 0) {
     return (
       <GlassCard className="p-8 text-center">
-        <AlertCircle className="w-8 h-8 text-[#78788c] mx-auto mb-3"/>
+        <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-3"/>
         <p className="text-sm font-semibold text-white mb-1">No practice questions available</p>
-        <p className="text-xs text-[#78788c]">This mistake has no answer options to practice with.</p>
+        <p className="text-xs text-muted-foreground">This mistake has no answer options to practice with.</p>
         <button onClick={() => onDone({ score: 0, attempts: [] })}
-          className="mt-4 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+          className="mt-4 px-4 py-2 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
           Back
         </button>
       </GlassCard>
@@ -383,7 +383,7 @@ function MistakePractice({
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-[0.15em] text-rose-400">Mistake Practice</div>
-          <div className="text-sm font-bold text-white">{questions.length} mistakes to work through</div>
+          <div className="text-sm font-bold text-foreground">{questions.length} mistakes to work through</div>
         </div>
       </div>
 
@@ -399,7 +399,7 @@ function MistakePractice({
           <div className="flex items-center gap-2">
             {q.frequency >= 2 && (
               <span className="text-[10px] font-bold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">
-                You've missed this {q.frequency}× before
+                You've missed this {q.frequency}Ã— before
               </span>
             )}
             {q.difficulty ? <DifficultyBadge level={q.difficulty}/> : null}
@@ -410,7 +410,7 @@ function MistakePractice({
 
         <div className="space-y-2">
           {q.options.map((opt, i) => {
-            let cls = "border-white/10 bg-muted hover:bg-white/7 hover:border-white/20";
+            let cls = "border-border bg-muted hover:bg-white/7 hover:border-border";
             if (selected !== null) {
               if (i === q.correct) cls = "border-emerald-400/50 bg-emerald-400/10";
               else if (i === selected && i !== q.correct) cls = "border-rose-400/50 bg-rose-400/10";
@@ -419,8 +419,8 @@ function MistakePractice({
             return (
               <button key={i} onClick={() => submit(i)}
                 className={cn("w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all text-sm", cls)}>
-                <span className="w-6 h-6 rounded-lg border border-border flex items-center justify-center text-xs font-bold text-[#78788c] shrink-0">{["A","B","C","D"][i]}</span>
-                <span className={selected !== null ? (i === q.correct ? "text-emerald-300 font-semibold" : i === selected ? "text-rose-300" : "text-[#78788c]") : "text-white"}>{opt}</span>
+                <span className="w-6 h-6 rounded-lg border border-border flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">{["A","B","C","D"][i]}</span>
+                <span className={selected !== null ? (i === q.correct ? "text-emerald-300 font-semibold" : i === selected ? "text-rose-300" : "text-muted-foreground") : "text-foreground"}>{opt}</span>
               </button>
             );
           })}
@@ -596,7 +596,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       setToast(
         assignmentId
           ? `"${m.topic || m.chapter}" queued for Recovery`
-          : `Could not create recovery for "${m.topic || m.chapter}" — try Practice`,
+          : `Could not create recovery for "${m.topic || m.chapter}" â€” try Practice`,
       );
       setTimeout(() => {
         if (assignmentId) setPage?.("recovery");
@@ -626,7 +626,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         );
       }
       if (!result.persisted) {
-        setToast("Could not save retry attempts — mastery not updated");
+        setToast("Could not save retry attempts â€” mastery not updated");
       }
     } catch (e) {
       console.warn("mistake retry:", e instanceof Error ? e.message : e);
@@ -646,8 +646,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     return (
       <GlassCard className="p-8 text-center">
         <AlertCircle className="w-8 h-8 text-rose-400 mx-auto mb-2"/>
-        <p className="text-sm text-[#78788c]">Could not load mistakes</p>
-        <p className="text-xs text-[#78788c] mt-1">{loadError}</p>
+        <p className="text-sm text-muted-foreground">Could not load mistakes</p>
+        <p className="text-xs text-muted-foreground mt-1">{loadError}</p>
       </GlassCard>
     );
   }
@@ -665,7 +665,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     return (
       <div className="space-y-6">
         <GlassCard className="p-6 text-center">
-          <div className="text-[10px] uppercase tracking-[0.15em] text-[#78788c] mb-4">Mistake Practice Complete</div>
+          <div className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground mb-4">Mistake Practice Complete</div>
           <div className="flex justify-center mb-4">
             <div className="relative inline-flex" style={{width:size,height:size}}>
               <svg width={size} height={size} className="-rotate-90">
@@ -678,7 +678,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
               </div>
             </div>
           </div>
-          <p className="text-sm text-[#78788c]">{passed ? "Great progress on your mistakes!" : "Keep practicing these — consistency is key."}</p>
+          <p className="text-sm text-muted-foreground">{passed ? "Great progress on your mistakes!" : "Keep practicing these â€” consistency is key."}</p>
         </GlassCard>
         <div className="space-y-2">
           {!passed && (
@@ -688,7 +688,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             </button>
           )}
           <button onClick={() => setView("list")}
-            className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-[#78788c] text-sm font-semibold hover:bg-white/10 transition-all">
+            className="w-full py-3 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
             Back to Mistake Book
           </button>
         </div>
@@ -737,9 +737,9 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-[#78788c] mb-1">Learning Workflow</div>
-          <h1 className="text-3xl font-black text-white" style={{fontFamily:"var(--font-display)"}}>Mistake Book</h1>
-          <p className="text-[#78788c] text-sm mt-1">Every mistake you've made — automatically collected and explained.</p>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Learning Workflow</div>
+          <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Mistake Book</h1>
+          <p className="text-muted-foreground text-sm mt-1">Every mistake you've made â€” automatically collected and explained.</p>
         </div>
         <button
           type="button"
@@ -760,11 +760,11 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           { label:"Total Mistakes",  value:mistakes.length, color:"#cc5069", icon:<AlertCircle className="w-4 h-4"/> },
           { label:"Unresolved",      value:unresolved,      color:"#c08a3a", icon:<XCircle className="w-4 h-4"/> },
           { label:"Saved here",      value:bookmarked,      color:"#c08a3a", icon:<Bookmark className="w-4 h-4 fill-amber-400"/> },
-          { label:"Repeated ×3+",   value:repeated,        color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/> },
+          { label:"Repeated Ã—3+",   value:repeated,        color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/> },
         ].map(s => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}
-              <span className="text-[10px] uppercase tracking-wider text-[#78788c]">{s.label}</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.label}</span>
             </div>
             <div className="text-2xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
           </GlassCard>
@@ -775,7 +775,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       <GlassCard className="p-5">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-1 h-4 rounded-full bg-[#cc5069]"/>
-          <span className="text-xs uppercase tracking-[0.15em] text-[#78788c]">Subject Breakdown</span>
+          <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Subject Breakdown</span>
         </div>
         <div className="space-y-3">
           {subjectBreakdown.filter(s => s.count > 0).map(s => (
@@ -793,27 +793,27 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       {/* Filters */}
       <div className="space-y-2">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#78788c]"/>
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search questions, topics, chapters..."
-            className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-rose-500/40"/>
+            className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-white/5 border border-border text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-rose-500/40"/>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5">
-            <SortAsc className="w-3.5 h-3.5 text-[#78788c]"/>
+            <SortAsc className="w-3.5 h-3.5 text-muted-foreground"/>
             {(["date","frequency","subject"] as const).map(s => (
               <button key={s} onClick={() => setSort(s)}
                 className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                  sort === s ? "bg-white/15 border border-white/25 text-white" : "bg-white/5 border border-white/8 text-[#78788c] hover:bg-white/10")}>
+                  sort === s ? "bg-white/15 border border-white/25 text-foreground" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
                 {s}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-[#78788c]"/>
+            <Filter className="w-3.5 h-3.5 text-muted-foreground"/>
             {(["all","unresolved","resolved","bookmarked"] as const).map(f => (
               <button key={f} onClick={() => setFilterResolved(f)}
                 className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                  filterResolved === f ? "bg-rose-500/20 border border-rose-500/40 text-rose-300" : "bg-white/5 border border-white/8 text-[#78788c] hover:bg-white/10")}>
+                  filterResolved === f ? "bg-rose-500/20 border border-rose-500/40 text-rose-300" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
                 {f}
               </button>
             ))}
@@ -823,14 +823,14 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           {sources.map(src => (
             <button key={src} onClick={() => setSourceFilter(src)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                sourceFilter === src ? "bg-white/15 border border-white/25 text-white" : "bg-white/5 border border-white/8 text-[#78788c] hover:bg-white/10")}>
+                sourceFilter === src ? "bg-white/15 border border-white/25 text-foreground" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
               {src === "all" ? "All Sources" : src.charAt(0).toUpperCase() + src.slice(1)}
             </button>
           ))}
           {subjects.map(s => (
             <button key={s} onClick={() => setSubjectFilter(s)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
-                subjectFilter === s ? "bg-violet-500/20 border border-violet-500/40 text-violet-300" : "bg-white/5 border border-white/8 text-[#78788c] hover:bg-white/10")}>
+                subjectFilter === s ? "bg-violet-500/20 border border-violet-500/40 text-violet-300" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
               {s === "all" ? "All Subjects" : s}
             </button>
           ))}
@@ -848,12 +848,12 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       {/* Mistake list */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-xs text-[#78788c]">{filtered.length} mistake{filtered.length !== 1 ? "s" : ""}</span>
+          <span className="text-xs text-muted-foreground">{filtered.length} mistake{filtered.length !== 1 ? "s" : ""}</span>
         </div>
         {filtered.length === 0 ? (
           <GlassCard className="p-8 text-center">
-            <AlertCircle className="w-8 h-8 text-[#78788c] mx-auto mb-2"/>
-            <p className="text-[#78788c] text-sm">
+            <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-2"/>
+            <p className="text-muted-foreground text-sm">
               {mistakes.length === 0
                 ? "No mistakes saved yet. Wrong answers from practice and tests appear here automatically."
                 : "No mistakes match your filters"}

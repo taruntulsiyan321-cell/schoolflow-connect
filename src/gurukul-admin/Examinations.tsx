@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { EXAM_TYPE_LABELS, MarksService, useAcademicLive } from "@/academic";
 import type { ExamRecord } from "@/academic/repository/marksRepository";
@@ -51,7 +51,7 @@ function groupExams(exams: ExamRecord[]): ExamGroupRow[] {
 }
 
 /**
- * Admin examinations monitor — MarksService.listForSchool only.
+ * Admin examinations monitor â€” MarksService.listForSchool only.
  * No local compose / fake exams.
  */
 export default function ExaminationManagement() {
@@ -117,8 +117,8 @@ export default function ExaminationManagement() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-16 text-[#78788c] text-xs">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading examinations…
+      <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground text-xs">
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading examinationsâ€¦
       </div>
     );
   }
@@ -128,14 +128,14 @@ export default function ExaminationManagement() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-[#1a1a2e]">Examinations</h1>
-          <p className="text-xs text-[#78788c]">
-            MarksService.listForSchool — school monitor across classes
+          <p className="text-xs text-muted-foreground">
+            MarksService.listForSchool â€” school monitor across classes
           </p>
         </div>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search exam…"
+          placeholder="Search examâ€¦"
           className="border border-[#e5e7eb] rounded-xl px-3 py-2 text-sm"
         />
       </div>
@@ -153,7 +153,7 @@ export default function ExaminationManagement() {
         ].map((k) => (
           <div key={k.label} className="rounded-2xl border border-[#e5e7eb] bg-white p-4">
             <div className="text-xl font-bold tabular-nums">{k.value}</div>
-            <div className="text-[11px] text-[#78788c]">{k.label}</div>
+            <div className="text-[11px] text-muted-foreground">{k.label}</div>
           </div>
         ))}
       </div>
@@ -172,7 +172,7 @@ export default function ExaminationManagement() {
             onClick={() => setFilter(t.key)}
             className={cn(
               "px-3 py-1.5 rounded-xl text-xs font-semibold transition-all",
-              filter === t.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#78788c]",
+              filter === t.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-muted-foreground",
             )}
           >
             {t.label}
@@ -183,7 +183,7 @@ export default function ExaminationManagement() {
       <div className="rounded-2xl border border-[#e5e7eb] bg-white overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-[#78788c] border-b">
+            <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground border-b">
               <th className="p-3">Examination</th>
               <th className="p-3">Type</th>
               <th className="p-3">Class</th>
@@ -195,7 +195,7 @@ export default function ExaminationManagement() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-10 text-center text-[#78788c]">
+                <td colSpan={6} className="p-10 text-center text-muted-foreground">
                   <FileText className="w-8 h-8 mx-auto mb-2 text-[#c4c4d0]" />
                   No examinations found. Teachers schedule exams via MarksService.
                 </td>
@@ -212,11 +212,11 @@ export default function ExaminationManagement() {
                 return (
                   <tr key={g.examGroupId} className="border-b border-[#f0f1f3]">
                     <td className="p-3 font-medium">{g.name}</td>
-                    <td className="p-3 text-[#46465a]">{typeLabel}</td>
-                    <td className="p-3 text-[#46465a]">{classNameById.get(g.classId) ?? `${g.classId.slice(0, 8)}…`}</td>
-                    <td className="p-3 tabular-nums text-[#46465a]">
-                      {g.startDate ?? "—"}
-                      {g.endDate && g.endDate !== g.startDate ? ` → ${g.endDate}` : ""}
+                    <td className="p-3 text-muted-foreground">{typeLabel}</td>
+                    <td className="p-3 text-muted-foreground">{classNameById.get(g.classId) ?? `${g.classId.slice(0, 8)}â€¦`}</td>
+                    <td className="p-3 tabular-nums text-muted-foreground">
+                      {g.startDate ?? "â€”"}
+                      {g.endDate && g.endDate !== g.startDate ? ` â†’ ${g.endDate}` : ""}
                     </td>
                     <td className="p-3 tabular-nums">{g.subjectCount}</td>
                     <td className="p-3 text-xs">{status}</td>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowUp,
@@ -193,7 +193,7 @@ function DoubtCard({
         <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{doubt.body}</p>
 
         <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">{doubt.subject || "—"}</span>
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 font-semibold text-primary">{doubt.subject || "â€”"}</span>
           <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">{doubt.chapter || "Chapter"}</span>
           {doubt.concept && <span className="rounded-full bg-accent/10 px-2.5 py-1 font-semibold text-accent">{doubt.concept}</span>}
         </div>
@@ -202,7 +202,7 @@ function DoubtCard({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
         <div className="min-w-0 text-xs text-muted-foreground">
           <span className="font-semibold text-foreground">{doubt.student_name}</span>
-          <span> · {doubt.class_label}</span>
+          <span> Â· {doubt.class_label}</span>
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" />{doubt.answer_count}</span>
@@ -467,12 +467,12 @@ function DoubtDetail({
         <div className="bg-gradient-to-br from-primary/15 via-accent/10 to-background p-5">
           <div className="flex flex-wrap items-center gap-2">
             {statusBadge(selected.status)}
-            <Badge variant="outline" className="rounded-full bg-background/70">{selected.subject || "—"}</Badge>
+            <Badge variant="outline" className="rounded-full bg-background/70">{selected.subject || "â€”"}</Badge>
             {selected.chapter && <Badge variant="outline" className="rounded-full bg-background/70">{selected.chapter}</Badge>}
           </div>
           <h2 className="mt-4 text-xl font-black leading-tight">{selected.title}</h2>
           <p className="mt-2 text-xs text-muted-foreground">
-            Asked by <span className="font-semibold text-foreground">{selected.student_name}</span> · {selected.class_label} · {formatDate(selected.created_at)}
+            Asked by <span className="font-semibold text-foreground">{selected.student_name}</span> Â· {selected.class_label} Â· {formatDate(selected.created_at)}
           </p>
         </div>
         <div className="space-y-4 p-5">
@@ -504,7 +504,7 @@ function DoubtDetail({
               <div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-bold">{answer.author_name}</span>
-                  {answer.is_accepted && <Badge className="bg-emerald-600 text-white"><Crown className="mr-1 h-3 w-3" />Best Answer</Badge>}
+                  {answer.is_accepted && <Badge className="bg-emerald-600 text-foreground"><Crown className="mr-1 h-3 w-3" />Best Answer</Badge>}
                   {answer.is_teacher_verified && <Badge variant="outline" className="border-blue-500/30 bg-blue-500/10 text-blue-700"><BadgeCheck className="mr-1 h-3 w-3" />Teacher Verified</Badge>}
                   <span className="text-xs text-muted-foreground">{formatDate(answer.created_at)}</span>
                 </div>
@@ -554,7 +554,7 @@ function DoubtDetail({
                 className="block w-full rounded-xl border bg-background p-3 text-left transition hover:border-primary/40 hover:bg-primary/5"
               >
                 <p className="line-clamp-1 text-sm font-bold">{doubt.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{doubt.answer_count} answers · {doubt.concept || doubt.chapter || doubt.subject}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{doubt.answer_count} answers Â· {doubt.concept || doubt.chapter || doubt.subject}</p>
               </button>
             ))}
           </div>
@@ -739,12 +739,12 @@ export function CommunityDoubtPortal({ mode = "student" }: { mode?: "student" | 
       <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-[#083f2b] via-[#126847] to-[#b28a28] p-0 text-white shadow-elevated">
         <div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
           <div>
-            <Badge className="mb-4 bg-white/15 text-white border-white/20" variant="outline">
+            <Badge className="mb-4 bg-white/15 text-white border-border" variant="outline">
               <Users className="mr-1 h-3.5 w-3.5" />
               Community Learning
             </Badge>
             <h2 className="text-3xl font-black tracking-tight">Doubt Portal</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/80">
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-foreground/80">
               Ask doubts, find similar solved discussions, learn from classmates, and get trusted teacher explanations in one academic community.
             </p>
             <div className="mt-5 grid gap-3 sm:grid-cols-4">
@@ -756,7 +756,7 @@ export function CommunityDoubtPortal({ mode = "student" }: { mode?: "student" | 
               ].map((item) => (
                 <div key={item.label} className="rounded-2xl border border-border bg-white/10 p-3 backdrop-blur">
                   <p className="text-2xl font-black">{item.value}</p>
-                  <p className="text-xs font-semibold text-white/70">{item.label}</p>
+                  <p className="text-xs font-semibold text-foreground/70">{item.label}</p>
                 </div>
               ))}
             </div>
@@ -768,15 +768,15 @@ export function CommunityDoubtPortal({ mode = "student" }: { mode?: "student" | 
               </div>
               <div>
                 <p className="font-black">Search before asking</p>
-                <p className="text-xs text-white/70">Reduce duplicate doubts and learn instantly from answered threads.</p>
+                <p className="text-xs text-foreground/70">Reduce duplicate doubts and learn instantly from answered threads.</p>
               </div>
             </div>
             <div className="relative mt-4">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-foreground/60" />
               <Input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                className="border-white/20 bg-white/15 pl-9 text-white placeholder:text-white/60"
+                className="border-border bg-white/15 pl-9 text-white placeholder:text-foreground/60"
                 placeholder="Search determinants, row operations, photosynthesis..."
               />
             </div>
@@ -839,7 +839,7 @@ export function CommunityDoubtPortal({ mode = "student" }: { mode?: "student" | 
                     className="rounded-xl border bg-background p-3 text-left transition hover:border-emerald-500/50"
                   >
                     <p className="line-clamp-2 text-sm font-bold">{doubt.title}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{doubt.answer_count} answers · {statusCopy[doubt.status]?.label}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{doubt.answer_count} answers Â· {statusCopy[doubt.status]?.label}</p>
                   </button>
                 ))}
               </div>
