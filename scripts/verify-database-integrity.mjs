@@ -314,6 +314,29 @@ async function main() {
     (r) => (r[0]?.prosrc ?? "").includes("w.accuracy >= 60"),
   );
 
+  // --- Gap closure, 2026-08-22: admin/principal cross-school leaks in RPC
+  // bodies (distinct from the RLS-policy sweep done earlier this session)
+  // + a pre-existing nested-aggregate bug that made two functions
+  // completely non-functional
+  // (20260822240000_gap_closure_admin_principal_cross_school_leaks.sql,
+  // 20260822250000_gap_closure_nested_aggregate_bug.sql) ---
+  await check(
+    "admin/principal-branch RPCs all require same_school() (not just has_role) before cross-school-capable reads/writes",
+    `SELECT proname FROM pg_proc WHERE proname IN (
+       'admin_link_user_to_student','admin_link_user_to_teacher','ai_session_memory_close',
+       'rpc_battle_monitor','rpc_mark_best_community_answer','rpc_principal_concept_analytics',
+       'rpc_save_battle_ai_insights','rpc_teacher_class_insights',
+       'rpc_teacher_class_progression_insights','rpc_teacher_concept_analytics',
+       'rpc_teacher_doubt_dashboard','rpc_parent_child_snapshot'
+     ) AND prosrc NOT ILIKE '%same_school%' AND prosrc NOT ILIKE '%get_my_school_id%'`,
+    (r) => r.length === 0,
+  );
+  await check(
+    "rpc_principal_concept_analytics/rpc_teacher_concept_analytics use the fixed row_to_json(...)/plain-column ORDER BY pattern, not the old nested-aggregate one (42803 -- was completely non-functional)",
+    `SELECT proname, prosrc FROM pg_proc WHERE proname IN ('rpc_principal_concept_analytics','rpc_teacher_concept_analytics')`,
+    (r) => r.every((row) => /ORDER BY t\.avg_mastery/i.test(row.prosrc)),
+  );
+
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);
   process.exit(failures === 0 ? 0 : 1);
 }
