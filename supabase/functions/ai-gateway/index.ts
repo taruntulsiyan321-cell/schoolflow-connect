@@ -35,6 +35,7 @@ function json(body: unknown, status = 200) {
 async function resolveActor(
   admin: ReturnType<typeof createClient>,
   userId: string,
+  targetStudentId?: string,
 ): Promise<RouterActor | null> {
   // Valid app_role only — never super_admin
   const roles = ["admin", "principal", "teacher", "student", "parent"] as const;
@@ -77,6 +78,43 @@ async function resolveActor(
         studentId: null,
       };
     }
+    // S-05 fix: a parent's session must not be bound to an arbitrary child's
+    // school when they have more than one. If the request names a specific
+    // child (target_refs.studentId), resolve the school from THAT child --
+    // after verifying the parent is actually linked to them, via either
+    // linking mechanism this schema uses (students.parent_user_id or the
+    // parent_students join table; a parent record can exist under either).
+    if (targetStudentId) {
+      const { data: directChild } = await admin
+        .from("students")
+        .select("school_id, parent_user_id")
+        .eq("id", targetStudentId)
+        .maybeSingle();
+      if (directChild?.parent_user_id === userId && directChild.school_id) {
+        return { userId, role, schoolId: String(directChild.school_id), studentId: String(targetStudentId) };
+      }
+      const { data: linkedChild } = await admin
+        .from("parent_students")
+        .select("student_id, school_id, parents!inner(user_id)")
+        .eq("student_id", targetStudentId)
+        .eq("parents.user_id", userId)
+        .maybeSingle();
+      if (linkedChild?.school_id) {
+        return { userId, role, schoolId: String(linkedChild.school_id), studentId: String(targetStudentId) };
+      }
+      // Named a child this parent isn't actually linked to -- do not fall
+      // through to picking a different, unrelated child's school instead.
+      return null;
+    }
+
+    // No specific child named: keep prior behavior for the common case (a
+    // parent with exactly one child, or a general question not about any one
+    // child in particular). A parent with multiple children across DIFFERENT
+    // schools and no target specified remains an inherent ambiguity this
+    // fallback can't resolve correctly either way -- fixing that properly
+    // means requiring the client to always specify target_refs.studentId for
+    // multi-child parents, which is a product decision, not a silent code
+    // change made here.
     const { data: child } = await admin
       .from("students")
       .select("school_id")
@@ -144,12 +182,24 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const actor = await resolveActor(admin, userData.user.id);
+    const body = await req.json().catch(() => ({}));
+    // Parsed early (before resolveActor) so a parent's session can be bound to
+    // the school of the specific child being asked about, rather than an
+    // arbitrary one -- see resolveActor's parent branch below.
+    const early_target_student_id =
+      body.target_refs?.studentId ??
+      body.target_refs?.student_id ??
+      body.student_id ??
+      undefined;
+    const actor = await resolveActor(
+      admin,
+      userData.user.id,
+      early_target_student_id ? String(early_target_student_id) : undefined,
+    );
     if (!actor) {
       return json({ error: "Unable to resolve actor tenant/role", error_code: "actor_unresolved" }, 403);
     }
 
-    const body = await req.json().catch(() => ({}));
     const feature_id = String(body.feature_id ?? "").trim();
     if (!feature_id) {
       return json({ error: "feature_id is required", error_code: "invalid_envelope" }, 400);
