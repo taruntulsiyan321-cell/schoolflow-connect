@@ -70,9 +70,10 @@ export async function uploadDoubtAttachment(
     throw new Error(msg);
   }
 
-  const { data: signed } = await supabase.storage
+  const { data: signed, error: signedErr } = await supabase.storage
     .from(BUCKET)
     .createSignedUrl(storagePath, 60 * 60 * 24 * 7);
+  if (signedErr) console.warn("[doubtFileUpload] createSignedUrl failed (file uploaded fine):", signedErr.message);
 
   return {
     storagePath,

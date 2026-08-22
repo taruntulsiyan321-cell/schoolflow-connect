@@ -167,6 +167,61 @@ const ALLOWLIST = {
   _backfill_dpp_question_concepts: "No parameters; same pattern over the global dpp_questions catalog.",
   _backfill_question_bank_concepts: "No parameters; same pattern over the global question_bank catalog.",
   _backfill_template_concepts: "No parameters; same pattern over the global question_templates catalog.",
+
+  // --- Gap-closure sweep, 2026-08-22: individually read every one of these
+  // (the last of the originally-flagged 114). Each is self-scoped -- every
+  // query is filtered to `user_id = auth.uid()` (or a table already scoped
+  // that way, e.g. chat_participants.user_id), and any additional
+  // parameter (a session/source/battle/class id) is used only as an EXTRA
+  // filter alongside that self-scoping, never as the sole lookup key -- a
+  // foreign id yields zero rows, not someone else's data. None of these
+  // take an arbitrary target-user-id the way the fixed functions above
+  // did. Fixed the genuinely unsafe ones (12 admin/principal-bypass RPCs +
+  // 2 community-vote functions + battle_participants RLS + the
+  // rpc_*_concept_analytics nested-aggregate bug) earlier in this same
+  // sweep; these are the remainder, confirmed safe by reading the body.
+  rpc_student_academic_snapshot: "Self-scoped: _uid := auth.uid(), every query filtered to that uid. Read body 2026-08-22.",
+  rpc_compute_session_analytics: "Self-scoped; _session_id is an additional filter alongside user_id = auth.uid(), never the sole key.",
+  rpc_get_concept_recovery_report: "Self-scoped; _source_id is an additional filter alongside user_id = auth.uid().",
+  rpc_post_assessment_concept_analysis: "Self-scoped; same pattern as rpc_get_concept_recovery_report.",
+  rpc_save_practice_session: "WHERE id = _session_id AND user_id = auth.uid() -- ownership-scoped.",
+  rpc_complete_revision: "rpc_complete_revision's UPDATE is WHERE id=_id AND user_id=auth.uid() -- ownership-scoped (read body earlier this session).",
+  rpc_get_recovery_assignment: "WHERE id = _assignment_id AND user_id = auth.uid() -- ownership-scoped (read body earlier this session).",
+  rpc_complete_recovery_assignment: "Same ownership-scoping as rpc_get_recovery_assignment (read body earlier this session).",
+  rpc_record_concept_mistake: "Self-scoped via auth.uid(); _source_id/_question_id are opaque grouping keys, not lookups into another user's data (read body earlier this session).",
+  rpc_assign_concept_recovery: "Internal helper called only from rpc_record_concept_mistake/rpc_post_assessment_concept_analysis with an already-derived auth.uid(); not independently exploitable.",
+  rpc_challenge_student: "Explicitly checks student_class_id(_opponent_user_id) matches the caller's own class before allowing a challenge -- can't target a cross-class/cross-school opponent (read body 2026-08-22).",
+  rpc_accept_battle_invite: "Checks _inv.invited_user_id = auth.uid() before accepting -- ownership-scoped (read body 2026-08-22).",
+  rpc_mark_group_messages_read: "WHERE conversation_id = _id AND user_id = auth.uid() -- only ever touches the caller's own read receipt.",
+  rpc_record_community_doubt_view: "Self-scoped view-count increment; worst case is a 1-count inflation on a foreign school's doubt, not a data leak. Read body 2026-08-22.",
+  require_active_profile: "No parameters; operates on the caller's own profile via auth.uid().",
+  get_chat_unread_total: "No parameters; auth.uid()-scoped unread count for the caller only.",
+  rpc_cache_agent_insight: "Self-scoped agent-insight cache keyed by auth.uid().",
+  rpc_get_cached_agent_insight: "Self-scoped; same cache as rpc_cache_agent_insight.",
+  rpc_get_academic_brain: "No parameters; self-scoped via auth.uid().",
+  rpc_academic_revision_plan: "No parameters; self-scoped via auth.uid().",
+  rpc_student_performance_charts: "No parameters; self-scoped via auth.uid().",
+  rpc_student_revision_queue: "No parameters; self-scoped via auth.uid().",
+  rpc_student_improvement_plans: "No parameters; self-scoped via auth.uid().",
+  rpc_student_recovery_zone: "No parameters; self-scoped via auth.uid().",
+  rpc_student_concept_mastery: "No parameters; self-scoped via auth.uid().",
+  rpc_weak_areas_v2: "No parameters; self-scoped via auth.uid().",
+  rpc_revision_plan_v2: "No parameters; self-scoped via auth.uid().",
+  rpc_recovery_v2: "No parameters; self-scoped via auth.uid().",
+  rpc_list_practice_history: "No target-user parameter; self-scoped via auth.uid().",
+  rpc_refresh_academic_brain: "No parameters; self-scoped via auth.uid(). Also independently checked for the nested-aggregate bug found in the two _concept_analytics functions -- already uses the correct row_data/plain-column ORDER BY pattern.",
+  rpc_create_template_solo_battle: "Creates a battle owned by the caller (creator_user_id = auth.uid()); no cross-user target.",
+  rpc_set_featured_badges: "Self-scoped; sets the caller's own featured badge selection via auth.uid().",
+  rpc_classmates: "Self-scoped; resolves the caller's own class via auth.uid() before listing classmates in that same class.",
+  rpc_battle_feed: "uses_teacher_scope_helper; already gated by role + class-teacher check, no cross-school target parameter.",
+  rpc_battle_curriculum: "Global curriculum/topic catalog (both overloads), no user-specific data -- same reasoning as rpc_pick_question_templates.",
+  rpc_pick_question_templates: "Global question_templates catalog by subject/class/chapter, no user-specific data.",
+  process_pending_academic_events: "Called directly from the client-side sync engine (src/academic/sync/engine.ts) on a 90s poll as the app's event-queue drain mechanism -- confirmed via grep this is the only real caller; FOR UPDATE SKIP LOCKED prevents any cross-worker corruption. Intentional, not a gap.",
+  rpc_rotate_featured_battles: "Confirmed caller: battleExperienceService.ts, client-triggered lazy-scheduler pattern (same as publishDueScheduled elsewhere in this codebase). Idempotent UPDATE on globally-shared featured-battle state, not per-tenant.",
+  rpc_refresh_featured_battles: "Same lazy-scheduler pattern and caller as rpc_rotate_featured_battles.",
+  rpc_ensure_featured_battles_all: "Checks auth.uid() and resolves the caller's own class via student_class_id() -- self-scoped despite touching the shared featured-battle system.",
+  rpc_parent_concept_analytics: "has_role('admin') is a GATE to enter the function (parent OR admin), not a data-access bypass -- the actual query is `WHERE s.parent_user_id = _parent OR EXISTS(parent_students...)` keyed on _parent := auth.uid() regardless of role, so an admin who isn't also a linked parent just gets zero rows back, not another school's data. Re-read 2026-08-22 specifically to distinguish this from the 12 fixed admin-bypass functions.",
+  rpc_parent_weekly_digest: "Same gate-not-bypass pattern as rpc_parent_concept_analytics.",
 };
 
 // Lower-priority, NOT fixed by this audit (documented, not silently ignored):

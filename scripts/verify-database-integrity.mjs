@@ -285,6 +285,58 @@ async function main() {
     (r) => r.length === 0,
   );
 
+  // --- User-journey-trace cross-check round 2, 2026-08-22
+  // (20260822200000_phase5_battle_participants_school_check.sql) ---
+  await check(
+    "battle_participants INSERT policy requires the battle's own school_id to match the row being inserted (not just user_id = auth.uid())",
+    `SELECT pg_get_expr(polwithcheck, polrelid) AS chk FROM pg_policy
+     WHERE polname = 'bp self insert' AND polrelid = 'public.battle_participants'::regclass`,
+    (r) => (r[0]?.chk ?? "").includes("get_my_school_id"),
+  );
+
+  // --- Gap-closure pass, 2026-08-22: CHECK constraints + revision-queue
+  // auto-clear (20260822210000_gap_closure_check_constraints.sql,
+  // 20260822220000_gap_closure_revision_queue_auto_clear.sql) ---
+  await check(
+    "all 13 gap-closure CHECK constraints exist",
+    `SELECT conname FROM pg_constraint WHERE conname IN (
+       'approval_requests_status_check','battle_events_kind_check','battle_invites_status_check',
+       'battles_source_check','concept_mastery_classification_check','exams_status_check',
+       'homework_priority_check','notices_status_check','progression_history_source_type_check',
+       'question_attempts_source_check','recovery_assignments_source_type_check',
+       'student_mistakes_assessment_type_check','teachers_status_check'
+     )`,
+    (r) => r.length === 13,
+  );
+  await check(
+    "_rebuild_revision_queue auto-clears revision items whose topic accuracy has recovered",
+    "SELECT prosrc FROM pg_proc WHERE proname = '_rebuild_revision_queue'",
+    (r) => (r[0]?.prosrc ?? "").includes("w.accuracy >= 60"),
+  );
+
+  // --- Gap closure, 2026-08-22: admin/principal cross-school leaks in RPC
+  // bodies (distinct from the RLS-policy sweep done earlier this session)
+  // + a pre-existing nested-aggregate bug that made two functions
+  // completely non-functional
+  // (20260822240000_gap_closure_admin_principal_cross_school_leaks.sql,
+  // 20260822250000_gap_closure_nested_aggregate_bug.sql) ---
+  await check(
+    "admin/principal-branch RPCs all require same_school() (not just has_role) before cross-school-capable reads/writes",
+    `SELECT proname FROM pg_proc WHERE proname IN (
+       'admin_link_user_to_student','admin_link_user_to_teacher','ai_session_memory_close',
+       'rpc_battle_monitor','rpc_mark_best_community_answer','rpc_principal_concept_analytics',
+       'rpc_save_battle_ai_insights','rpc_teacher_class_insights',
+       'rpc_teacher_class_progression_insights','rpc_teacher_concept_analytics',
+       'rpc_teacher_doubt_dashboard','rpc_parent_child_snapshot'
+     ) AND prosrc NOT ILIKE '%same_school%' AND prosrc NOT ILIKE '%get_my_school_id%'`,
+    (r) => r.length === 0,
+  );
+  await check(
+    "rpc_principal_concept_analytics/rpc_teacher_concept_analytics use the fixed row_to_json(...)/plain-column ORDER BY pattern, not the old nested-aggregate one (42803 -- was completely non-functional)",
+    `SELECT proname, prosrc FROM pg_proc WHERE proname IN ('rpc_principal_concept_analytics','rpc_teacher_concept_analytics')`,
+    (r) => r.every((row) => /ORDER BY t\.avg_mastery/i.test(row.prosrc)),
+  );
+
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);
   process.exit(failures === 0 ? 0 : 1);
 }

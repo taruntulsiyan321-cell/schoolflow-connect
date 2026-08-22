@@ -11,15 +11,18 @@ export default function MyMarksPage({ asParent = false }: { asParent?: boolean }
   const { user, schoolId } = useAuth();
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     (async () => {
       if (!user) return;
       setLoading(true);
+      setError(null);
       let ids: string[];
       if (asParent) {
         ids = schoolId ? await resolveParentLinkedStudentIds(schoolId, user.id) : [];
       } else {
-        const { data: ss } = await supabase.from("students").select("id").eq("user_id", user.id);
+        const { data: ss, error: ssErr } = await supabase.from("students").select("id").eq("user_id", user.id);
+        if (ssErr) { setError(ssErr.message); setLoading(false); return; }
         ids = ss?.map((s) => s.id) ?? [];
       }
       if (!ids.length) {
@@ -27,7 +30,8 @@ export default function MyMarksPage({ asParent = false }: { asParent?: boolean }
         setLoading(false);
         return;
       }
-      const { data } = await supabase.from("marks").select("*, exams(name, subject, max_marks, exam_date), students(full_name)").in("student_id", ids).order("created_at", { ascending: false });
+      const { data, error: marksErr } = await supabase.from("marks").select("*, exams(name, subject, max_marks, exam_date), students(full_name)").in("student_id", ids).order("created_at", { ascending: false });
+      if (marksErr) { setError(marksErr.message); setLoading(false); return; }
       setRows(data ?? []);
       setLoading(false);
     })();
@@ -37,7 +41,8 @@ export default function MyMarksPage({ asParent = false }: { asParent?: boolean }
     <>
       <PageHeader title="Marks" subtitle="Recent test results" />
       {loading && <StudentListSkeleton rows={5} />}
-      {!loading && <div className="space-y-2">
+      {!loading && error && <p className="text-sm text-destructive px-1">Could not load marks: {error}</p>}
+      {!loading && !error && <div className="space-y-2">
         {rows.map(r => {
           const pct = r.exams?.max_marks ? (Number(r.marks_obtained) / Number(r.exams.max_marks)) * 100 : 0;
           const tone = pct >= 75 ? "text-accent" : pct >= 40 ? "text-warning" : "text-destructive";

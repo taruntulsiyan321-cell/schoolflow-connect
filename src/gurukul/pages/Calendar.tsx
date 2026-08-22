@@ -45,7 +45,7 @@ function colorForSubject(subject: string, type: EventType): string {
 export default function Calendar() {
   const now = new Date();
   const { ctx, ready, studentId, classId } = useAcademicContext();
-  const liveVersion = useAcademicLive(["homework", "test", "examination", "marks"]);
+  const liveVersion = useAcademicLive(["homework", "test", "examination", "marks", "calendar"]);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);

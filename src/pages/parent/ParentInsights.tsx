@@ -90,7 +90,8 @@ export default function ParentInsights() {
           /* honest zeros if progression RPC not applied yet */
         }
 
-        const { data: fees } = await supabase.from("fees").select("amount, paid_amount, status").eq("student_id", s.id);
+        const { data: fees, error: feesErr } = await supabase.from("fees").select("amount, paid_amount, status").eq("student_id", s.id);
+        if (feesErr) console.warn("[ParentInsights] fees load failed:", feesErr.message);
         const pendingFees = (fees ?? [])
           .filter((f) => f.status !== "paid")
           .reduce((sum, f) => sum + (Number(f.amount) - Number(f.paid_amount || 0)), 0);

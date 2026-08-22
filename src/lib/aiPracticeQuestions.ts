@@ -16,7 +16,8 @@ export async function fetchRecentMistakeContext(opts: {
   concept?: string | null;
   limit?: number;
 }): Promise<{ text: string; concepts: string[] }> {
-  const { data: auth } = await supabase.auth.getUser();
+  const { data: auth, error: authErr } = await supabase.auth.getUser();
+  if (authErr) console.warn("[aiPracticeQuestions] getUser failed:", authErr.message);
   const user = auth.user;
   if (!user) return { text: "", concepts: [] };
 
@@ -30,7 +31,8 @@ export async function fetchRecentMistakeContext(opts: {
 
   if (opts.chapter) query = query.ilike("chapter", `%${opts.chapter}%`);
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) console.warn("[aiPracticeQuestions] fetchRecentMistakeContext failed:", error.message);
   if (!data?.length) return { text: "", concepts: [] };
 
   const concepts = [

@@ -417,7 +417,8 @@ export default function Auth() {
     try {
       const { error: roleErr } = await (supabase.rpc as any)("claim_signup_role", { _role: newAccountRole });
       if (roleErr) throw roleErr;
-      const { data: authData } = await supabase.auth.getUser();
+      const { data: authData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) console.warn("[auth] getUser after signup:", userErr.message);
       if (authData?.user?.id) {
         const { error: profileErr } = await supabase
           .from("profiles")

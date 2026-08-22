@@ -5,6 +5,7 @@ import {
   type ServiceContext,
 } from "./context";
 import { getClient, schoolIdOf, throwIfError } from "../repository/base";
+import { broadcastAcademicWrite } from "../live";
 
 export type CalendarEventType = "holiday" | "exam" | "meeting" | "sports" | "cultural" | "deadline" | "other";
 export type CalendarEventAudience = "all" | "class" | "section" | "teachers" | "parents" | "students";
@@ -131,6 +132,10 @@ export const CalendarEventsService = {
       .select("id, title, description, event_type, audience, class_id, starts_at, ends_at, all_day")
       .single();
     throwIfError(error, "Failed to create calendar event");
+    broadcastAcademicWrite(ctx.schoolId, ["calendar"], {
+      classId: input.audience === "class" ? (input.classId ?? null) : null,
+      source: "CalendarEventsService.create",
+    });
     return mapRow(data);
   },
 
@@ -170,6 +175,10 @@ export const CalendarEventsService = {
       .select("id, title, description, event_type, audience, class_id, starts_at, ends_at, all_day")
       .single();
     throwIfError(error, "Failed to update calendar event");
+    broadcastAcademicWrite(ctx.schoolId, ["calendar"], {
+      classId: patch.classId ?? null,
+      source: "CalendarEventsService.update",
+    });
     return mapRow(data);
   },
 
@@ -184,5 +193,8 @@ export const CalendarEventsService = {
       .eq("id", id)
       .eq("school_id", schoolId);
     throwIfError(error, "Failed to delete calendar event");
+    broadcastAcademicWrite(ctx.schoolId, ["calendar"], {
+      source: "CalendarEventsService.remove",
+    });
   },
 };

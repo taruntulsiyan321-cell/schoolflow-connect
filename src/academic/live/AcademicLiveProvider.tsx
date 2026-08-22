@@ -142,6 +142,16 @@ export function AcademicLiveProvider({ children }: { children: ReactNode }) {
         {
           event: "*",
           schema: "public",
+          table: "school_calendar_events",
+          filter: `school_id=eq.${schoolId}`,
+        },
+        onTable(["calendar"]),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
           table: "student_academic_profiles",
           filter: `school_id=eq.${schoolId}`,
         },

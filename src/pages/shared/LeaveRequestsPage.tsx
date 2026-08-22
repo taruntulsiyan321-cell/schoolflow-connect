@@ -36,7 +36,8 @@ export default function LeaveRequestsPage({ canReview = false, applicantKind }: 
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("leave_requests").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("leave_requests").select("*").order("created_at", { ascending: false });
+    if (error) toast.error("Failed to load leave requests: " + error.message);
     setItems((data as Leave[]) ?? []);
     setLoading(false);
   };

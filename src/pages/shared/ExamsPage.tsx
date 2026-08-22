@@ -31,24 +31,29 @@ export default function ExamsPage({ isAdmin = false }: Props) {
 
   const loadClasses = async () => {
     if (isAdmin) {
-      const { data } = await supabase.from("classes").select("*").order("name");
+      const { data, error } = await supabase.from("classes").select("*").order("name");
+      if (error) return toast.error("Failed to load classes: " + error.message);
       setClasses(data ?? []);
     } else if (user) {
-      const { data: t } = await supabase.from("teachers").select("id, class_teacher_of").eq("user_id", user.id).maybeSingle();
+      const { data: t, error: tErr } = await supabase.from("teachers").select("id, class_teacher_of").eq("user_id", user.id).maybeSingle();
+      if (tErr) return toast.error("Failed to look up your teacher record: " + tErr.message);
       const ids = new Set<string>();
       if (t?.class_teacher_of) ids.add(t.class_teacher_of);
       if (t) {
-        const { data: tc } = await supabase.from("teacher_classes").select("class_id").eq("teacher_id", t.id);
+        const { data: tc, error: tcErr } = await supabase.from("teacher_classes").select("class_id").eq("teacher_id", t.id);
+        if (tcErr) return toast.error("Failed to load assigned classes: " + tcErr.message);
         tc?.forEach(r => ids.add(r.class_id));
       }
       if (ids.size) {
-        const { data: cls } = await supabase.from("classes").select("*").in("id", Array.from(ids));
+        const { data: cls, error: clsErr } = await supabase.from("classes").select("*").in("id", Array.from(ids));
+        if (clsErr) return toast.error("Failed to load classes: " + clsErr.message);
         setClasses(cls ?? []);
       }
     }
   };
   const loadExams = async () => {
-    const { data } = await supabase.from("exams").select("*, classes(name,section)").order("exam_date", { ascending: false }).limit(100);
+    const { data, error } = await supabase.from("exams").select("*, classes(name,section)").order("exam_date", { ascending: false }).limit(100);
+    if (error) return toast.error("Failed to load exams: " + error.message);
     setExams(data ?? []);
   };
   useEffect(() => { loadClasses(); loadExams(); /* eslint-disable-next-line */ }, [user, isAdmin]);
@@ -97,9 +102,11 @@ export default function ExamsPage({ isAdmin = false }: Props) {
 
   const openMarks = async (exam: any) => {
     setActiveExam(exam);
-    const { data: s } = await supabase.from("students").select("*").eq("class_id", exam.class_id).order("roll_number");
+    const { data: s, error: sErr } = await supabase.from("students").select("*").eq("class_id", exam.class_id).order("roll_number");
+    if (sErr) return toast.error("Failed to load students: " + sErr.message);
     setStudents(s ?? []);
-    const { data: m } = await supabase.from("marks").select("student_id, marks_obtained").eq("exam_id", exam.id);
+    const { data: m, error: mErr } = await supabase.from("marks").select("student_id, marks_obtained").eq("exam_id", exam.id);
+    if (mErr) return toast.error("Failed to load existing marks: " + mErr.message);
     const map: Record<string, string> = {};
     m?.forEach(r => { map[r.student_id] = String(r.marks_obtained); });
     setMarks(map);

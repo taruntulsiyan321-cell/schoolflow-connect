@@ -47,6 +47,7 @@ export default function StudentClassesPage() {
   const [attendanceRows, setAttendanceRows] = useState<any[]>([]);
   const [timetableGrid, setTimetableGrid] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<ClassSection>("overview");
 
   useEffect(() => {
@@ -65,12 +66,14 @@ export default function StudentClassesPage() {
   useEffect(() => {
     if (!user) return;
     (async () => {
+      setLoadError(null);
       // Get student record with class info
-      const { data: s } = await supabase
+      const { data: s, error: sErr } = await supabase
         .from("students")
         .select("*, classes(id,name,section)")
         .eq("user_id", user.id)
         .maybeSingle();
+      if (sErr) { setLoadError(sErr.message); setLoading(false); return; }
       setStudent(s);
 
       if (!s?.class_id) {
@@ -79,7 +82,8 @@ export default function StudentClassesPage() {
       }
 
       // Classmates via SECURITY DEFINER RPC (RLS blocks direct peer reads)
-      const { data: mates } = await supabase.rpc("rpc_classmates");
+      const { data: mates, error: matesErr } = await supabase.rpc("rpc_classmates");
+      if (matesErr) console.warn("[StudentClassesPage] classmates load failed:", matesErr.message);
       const rows = (mates ?? []).map((m: any) => ({
         id: m.student_id, full_name: m.full_name, roll_number: m.roll_number,
         user_id: m.user_id, equipped_badge: m.equipped_badge,
@@ -88,18 +92,20 @@ export default function StudentClassesPage() {
       setClassmates(rows.length + 1); // include self
 
       // Get class teacher
-      const { data: ct } = await supabase
+      const { data: ct, error: ctErr } = await supabase
         .from("teachers")
         .select("full_name, subject, mobile")
         .eq("class_teacher_of", s.class_id)
         .maybeSingle();
+      if (ctErr) console.warn("[StudentClassesPage] class teacher load failed:", ctErr.message);
       setClassTeacher(ct);
 
       // Get subject teachers assigned to this class
-      const { data: tc } = await supabase
+      const { data: tc, error: tcErr } = await supabase
         .from("teacher_classes")
         .select("subject, teachers(full_name, is_class_teacher)")
         .eq("class_id", s.class_id);
+      if (tcErr) console.warn("[StudentClassesPage] subject teachers load failed:", tcErr.message);
 
       const subs: SubjectTeacher[] = (tc ?? []).map((r: any) => ({
         subject: r.subject,
@@ -108,19 +114,21 @@ export default function StudentClassesPage() {
       }));
       setSubjects(subs);
 
-      const { data: attendance } = await supabase
+      const { data: attendance, error: attErr } = await supabase
         .from("attendance")
         .select("*")
         .eq("student_id", s.id)
         .order("date", { ascending: false })
         .limit(60);
+      if (attErr) console.warn("[StudentClassesPage] attendance load failed:", attErr.message);
       setAttendanceRows(attendance ?? []);
 
-      const { data: timetable } = await supabase
+      const { data: timetable, error: ttErr } = await supabase
         .from("class_timetables")
         .select("grid")
         .eq("class_id", s.class_id)
         .maybeSingle();
+      if (ttErr) console.warn("[StudentClassesPage] timetable load failed:", ttErr.message);
       setTimetableGrid(normalizeTimetableGrid(timetable?.grid));
 
       setLoading(false);
@@ -129,6 +137,17 @@ export default function StudentClassesPage() {
 
   if (loading) {
     return <p className="text-muted-foreground text-center py-8">Loading…</p>;
+  }
+
+  if (loadError) {
+    return (
+      <>
+        <PageHeader title="My Classes" subtitle="Subjects, schedule, and class info" />
+        <Card className="p-5 border-destructive/30 bg-destructive/5">
+          <p className="text-sm text-destructive">Could not load your class info: {loadError}</p>
+        </Card>
+      </>
+    );
   }
 
   if (!student) {

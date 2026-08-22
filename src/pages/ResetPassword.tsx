@@ -27,7 +27,8 @@ export default function ResetPassword() {
 
     const check = async () => {
       // Hash fragments from recovery links are processed by Supabase client
-      const { data } = await supabase.auth.getSession();
+      const { data, error } = await supabase.auth.getSession();
+      if (error) console.warn("[ResetPassword] getSession failed:", error.message);
       if (!cancelled) {
         setReady(!!data.session);
         setChecking(false);

@@ -162,7 +162,10 @@ export function BattleRoom() {
         if (isStale()) return;
         setBattle(b);
         setQuestions(qs ?? []);
-        const { data: existing } = await supabase.from("battle_participants").select("*").eq("battle_id", id).eq("user_id", user.id).maybeSingle();
+        const { data: existing, error: existingErr } = await supabase.from("battle_participants").select("*").eq("battle_id", id).eq("user_id", user.id).maybeSingle();
+        if (existingErr) {
+          toast({ title: "Could not check your participation", description: existingErr.message, variant: "destructive" });
+        }
         if (isStale()) return;
         let pid = existing?.id;
         if (!pid) {
@@ -258,7 +261,8 @@ export function BattleRoom() {
   useEffect(() => {
     if (!id) return;
     const refresh = async () => {
-      const { data } = await supabase.from("battle_participants").select("*").eq("battle_id", id).order("score", { ascending: false });
+      const { data, error } = await supabase.from("battle_participants").select("*").eq("battle_id", id).order("score", { ascending: false });
+      if (error) { console.warn("[Battleground] leaderboard refresh failed:", error.message); return; }
       setParticipants(data ?? []);
     };
     refresh();
@@ -871,10 +875,11 @@ function MyStats() {
           const ids = [...new Set((flatParts || []).map((p) => p.battle_id))];
           const byId: Record<string, { title: string; subject: string; topic: string | null; starts_at: string }> = {};
           if (ids.length) {
-            const { data: battles } = await supabase
+            const { data: battles, error: battlesErr } = await supabase
               .from("battles")
               .select("id,title,subject,topic,starts_at")
               .in("id", ids);
+            if (battlesErr) console.warn("[Battleground] battle titles for history failed:", battlesErr.message);
             for (const b of battles || []) byId[b.id] = b;
           }
           setHistory(
@@ -887,9 +892,11 @@ function MyStats() {
       } else {
         setHistory(parts ?? []);
       }
-      const { data: stu } = await supabase.from("students").select("id").eq("user_id", user.id).maybeSingle();
+      const { data: stu, error: stuErr } = await supabase.from("students").select("id").eq("user_id", user.id).maybeSingle();
+      if (stuErr) console.warn("[Battleground] student lookup for marks failed:", stuErr.message);
       if (stu) {
-        const { data: m } = await supabase.from("marks").select("marks_obtained, exams(subject, max_marks)").eq("student_id", stu.id);
+        const { data: m, error: marksErr } = await supabase.from("marks").select("marks_obtained, exams(subject, max_marks)").eq("student_id", stu.id);
+        if (marksErr) console.warn("[Battleground] marks load failed:", marksErr.message);
         setMarks(m ?? []);
       }
       setLoading(false);

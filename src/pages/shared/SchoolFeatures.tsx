@@ -398,7 +398,8 @@ export function ReportsPage() {
   }, []);
 
   const exportCSV = async () => {
-    const { data } = await supabase.from("students").select("admission_number,full_name,roll_number,parent_mobile,classes(name,section)");
+    const { data, error } = await supabase.from("students").select("admission_number,full_name,roll_number,parent_mobile,classes(name,section)");
+    if (error) return toast.error("Failed to export students: " + error.message);
     const rows = (data ?? []).map((s: any) =>
       [s.admission_number, s.full_name, s.roll_number, s.parent_mobile, s.classes ? `${s.classes.name}-${s.classes.section}` : ""].join(","));
     const csv = "Admission#,Name,Roll#,Parent Mobile,Class\n" + rows.join("\n");
@@ -743,8 +744,10 @@ export function ClassesReadOnly() {
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => {
     (async () => {
-      const { data: classes } = await supabase.from("classes").select("*").order("name");
-      const { data: students } = await supabase.from("students").select("class_id");
+      const { data: classes, error: classesError } = await supabase.from("classes").select("*").order("name");
+      if (classesError) return toast.error("Failed to load classes: " + classesError.message);
+      const { data: students, error: studentsError } = await supabase.from("students").select("class_id");
+      if (studentsError) toast.error("Failed to load class sizes: " + studentsError.message);
       const counts = new Map<string, number>();
       students?.forEach(s => s.class_id && counts.set(s.class_id, (counts.get(s.class_id) ?? 0) + 1));
       setRows((classes ?? []).map(c => ({ ...c, count: counts.get(c.id) ?? 0 })));
@@ -885,8 +888,10 @@ export function PerformancePage() {
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => {
     (async () => {
-      const { data: exams } = await supabase.from("exams").select("id,class_id,max_marks,classes(name,section)");
-      const { data: marks } = await supabase.from("marks").select("exam_id,marks_obtained");
+      const { data: exams, error: examsError } = await supabase.from("exams").select("id,class_id,max_marks,classes(name,section)");
+      if (examsError) return toast.error("Failed to load exams: " + examsError.message);
+      const { data: marks, error: marksError } = await supabase.from("marks").select("exam_id,marks_obtained");
+      if (marksError) return toast.error("Failed to load marks: " + marksError.message);
       const byClass: Record<string, { total: number; out: number; name: string }> = {};
       exams?.forEach(e => {
         const examMarks = marks?.filter(m => m.exam_id === e.id) ?? [];

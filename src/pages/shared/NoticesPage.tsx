@@ -32,7 +32,8 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
   const isManager = isAdmin || isPrincipal;
 
   const load = async () => {
-    const { data } = await supabase.from("notices").select("*, classes(name,section)").order("created_at", { ascending: false }).limit(200);
+    const { data, error } = await supabase.from("notices").select("*, classes(name,section)").order("created_at", { ascending: false }).limit(200);
+    if (error) { toast.error("Failed to load notices: " + error.message); return; }
     let filtered = data ?? [];
 
     if (!isManager) {
@@ -46,12 +47,14 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
 
         let studentClassId: string | null = null;
         if (effectiveRole === "student" && user) {
-          const { data: s } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
+          const { data: s, error: sErr } = await supabase.from("students").select("class_id").eq("user_id", user.id).maybeSingle();
+          if (sErr) toast.error("Failed to resolve your class: " + sErr.message);
           studentClassId = s?.class_id || null;
         } else if (effectiveRole === "parent" && user && schoolId) {
           const childIds = await resolveParentLinkedStudentIds(schoolId, user.id);
           if (childIds.length) {
-            const { data: kids } = await supabase.from("students").select("class_id").in("id", childIds);
+            const { data: kids, error: kidsErr } = await supabase.from("students").select("class_id").in("id", childIds);
+            if (kidsErr) toast.error("Failed to resolve your child's class: " + kidsErr.message);
             studentClassId = kids?.[0]?.class_id || null;
           }
         }

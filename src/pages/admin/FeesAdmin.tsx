@@ -22,15 +22,22 @@ export default function FeesAdmin() {
   const [open, setOpen] = useState(false);
   const [bulk, setBulk] = useState({ amount: "1000", due_date: "" });
 
-  useEffect(() => { supabase.from("classes").select("*").order("name").then(({ data }) => setClasses(data ?? [])); }, []);
+  useEffect(() => {
+    supabase.from("classes").select("*").order("name").then(({ data, error }) => {
+      if (error) return toast.error("Failed to load classes: " + error.message);
+      setClasses(data ?? []);
+    });
+  }, []);
 
   const load = async () => {
     if (!classId) return;
-    const { data: s } = await supabase.from("students").select("*").eq("class_id", classId).order("roll_number");
+    const { data: s, error: studentsError } = await supabase.from("students").select("*").eq("class_id", classId).order("roll_number");
+    if (studentsError) return toast.error("Failed to load students: " + studentsError.message);
     setStudents(s ?? []);
     const ids = (s ?? []).map(x => x.id);
     if (!ids.length) { setFees({}); return; }
-    const { data: f } = await supabase.from("fees").select("*").eq("month", month).in("student_id", ids);
+    const { data: f, error: feesError } = await supabase.from("fees").select("*").eq("month", month).in("student_id", ids);
+    if (feesError) return toast.error("Failed to load fees: " + feesError.message);
     const map: Record<string, any> = {};
     f?.forEach(r => { map[r.student_id] = r; });
     setFees(map);
@@ -49,7 +56,7 @@ export default function FeesAdmin() {
     setOpen(false); load();
   };
 
-  const statusFor = (paid: number, amount: number) => paid >= amount ? "paid" : paid > 0 ? "partial" : "unpaid";
+  const statusFor = (paid: number, amount: number) => (amount > 0 && paid >= amount) ? "paid" : paid > 0 ? "partial" : "unpaid";
 
   const updatePaid = async (sid: string, paid: number) => {
     const f = fees[sid];
