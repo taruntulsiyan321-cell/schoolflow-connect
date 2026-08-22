@@ -121,11 +121,29 @@ async function resolveActor(
       .eq("parent_user_id", userId)
       .limit(1)
       .maybeSingle();
-    if (!child?.school_id) return null;
+    if (child?.school_id) {
+      return {
+        userId,
+        role,
+        schoolId: String(child.school_id),
+        studentId: null,
+      };
+    }
+    // Same fix as above, for a parent whose only link is via parent_students
+    // rather than students.parent_user_id -- otherwise this fallback (and
+    // therefore the whole gateway) is unusable for exactly the parents the
+    // join table exists to support.
+    const { data: linkedChild } = await admin
+      .from("parent_students")
+      .select("student_id, school_id, parents!inner(user_id)")
+      .eq("parents.user_id", userId)
+      .limit(1)
+      .maybeSingle();
+    if (!linkedChild?.school_id) return null;
     return {
       userId,
       role,
-      schoolId: String(child.school_id),
+      schoolId: String(linkedChild.school_id),
       studentId: null,
     };
   }
