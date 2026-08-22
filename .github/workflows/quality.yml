@@ -17,4 +17,38 @@ jobs:
       - run: npm run quality:student-context
       - run: npm run quality:flow
       - run: npm run quality:guardrails
-      - run: npm run test -- src/lib/practiceSessionStats.test.ts src/lib/utf8MojibakeRepair.test.ts src/lib/qualityGuards.test.ts src/academic/services/progressionMath.test.ts src/academic/services/assertStudentContext.test.ts src/academic/services/resolveStudentContext.test.ts src/lib/productFeatureFlags.test.ts src/academic/taxonomy/taxonomy.test.ts
+      # tsc is a hard gate: the baseline was cleaned to zero errors on
+      # 2026-08-21 specifically so this could be turned on for real.
+      - run: npx tsc --noEmit -p tsconfig.app.json
+      # Full suite, not the old hand-picked 8/35 files.
+      - run: npm run test
+      # Static, credential-free: flags any function touching a school-scoped
+      # table with zero school_id reference -- the exact pattern that caused
+      # the match_question_bank / match_ai_answer_cache cross-school leak.
+      # NOT a blocking gate yet: on its first run (2026-08-21) it flagged 114
+      # functions, and one genuinely was a real bug (recovery_assignments.school_id,
+      # fixed same day) -- but most of the 114 are exact-single-row-ID lookups
+      # (e.g. "does this teacher teach this exact class") where tenant scoping
+      # doesn't apply, which the current regex heuristic can't yet tell apart
+      # from a real gap. Continue-on-error until each of the 114 is triaged
+      # into either a real fix or an ALLOWLIST entry with a specific reason --
+      # rubber-stamping them all into the allowlist today just to turn this
+      # into a passing gate would defeat the entire point of the check.
+      - run: npm run lint:tenant-scope
+        continue-on-error: true
+      #
+      # NOT yet enabled as gates, both need a live SUPABASE_ACCESS_TOKEN this
+      # repo's GitHub Actions secrets don't have (gh secret list is empty --
+      # see docs/PRODUCTION_DEPLOYMENT_ARCHITECTURE.md). Add the secret, then
+      # add these two lines back:
+      #   - run: node scripts/check-pending-migrations.mjs
+      #   - run: npm run db:verify-integrity
+      #
+      # `npm run lint` is intentionally NOT a gate yet: it currently reports
+      # 274 pre-existing errors (almost entirely @typescript-eslint/no-explicit-any)
+      # across files this pass never touched. That's real type-safety debt,
+      # but fixing 274 annotations correctly needs its own deliberate pass --
+      # rubber-stamping them under time pressure to make a CI gate green
+      # would trade real type safety for a passing checkmark. Tracked, not
+      # silently dropped: fix it for real, then turn this on.
+      # - run: npm run lint

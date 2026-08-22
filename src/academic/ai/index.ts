@@ -115,6 +115,7 @@ export {
 export {
   buildParentScheduledNarrative,
   type ParentNarrative,
+  type ParentNarrativeInput,
 } from "./parentNarrative";
 
 export {
