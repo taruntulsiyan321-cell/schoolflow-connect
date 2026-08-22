@@ -146,6 +146,18 @@ async function main() {
     (r) => count(r) === 1,
   );
 
+  // --- 2026-08-22 code-trace fixes ---
+  await check(
+    "attendance_locks.school_id is NOT NULL (a nullable lock-scope column would silently bypass the lock-check trigger)",
+    "SELECT is_nullable FROM information_schema.columns WHERE table_name='attendance_locks' AND column_name='school_id'",
+    (r) => r[0]?.is_nullable === "NO",
+  );
+  await check(
+    "no template-path (bank_question_id null) duplicate question_attempts rows",
+    "SELECT count(*) FROM (SELECT 1 FROM question_attempts WHERE bank_question_id IS NULL AND attempt_number IS NOT NULL GROUP BY session_id, attempt_number HAVING count(*) > 1) x",
+    (r) => count(r) === 0,
+  );
+
   // --- HIGH-tier fixes (20260821200000_high_tier_verified_fixes.sql) ---
   await check(
     "question_bank has no active duplicate (question, class_level, subject) groups",
