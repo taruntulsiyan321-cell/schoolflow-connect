@@ -30,9 +30,11 @@ export default function StudentsAdmin() {
   const [search, setSearch] = useState("");
 
   const load = async () => {
-    const { data } = await supabase.from("students").select("*, classes(name,section,kind,display_name)").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("students").select("*, classes(name,section,kind,display_name)").order("created_at", { ascending: false });
+    if (error) return toast.error("Failed to load students: " + error.message);
     setRows(data ?? []);
-    const { data: c } = await supabase.from("classes").select("*").order("created_at");
+    const { data: c, error: classesError } = await supabase.from("classes").select("*").order("created_at");
+    if (classesError) return toast.error("Failed to load classes: " + classesError.message);
     setClasses(c ?? []);
   };
   useEffect(() => { load(); }, []);
@@ -216,7 +218,8 @@ function StudentAccountAccess({ student, onChanged }: { student: any; onChanged:
   useEffect(() => { setS(student); }, [student]);
 
   const refresh = async () => {
-    const { data } = await supabase.from("students").select("*").eq("id", s.id).single();
+    const { data, error } = await supabase.from("students").select("*").eq("id", s.id).single();
+    if (error) return toast.error("Failed to refresh student: " + error.message);
     setS(data); onChanged();
   };
 

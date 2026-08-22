@@ -108,19 +108,22 @@ export async function loadStudentAcademicIdentity(
   }
 
   let role: AppRole | null = null;
-  const { data: roleRaw } = await supabase.rpc("get_my_role");
+  const { data: roleRaw, error: roleErr } = await supabase.rpc("get_my_role");
+  if (roleErr) console.warn("[resolveStudentContext] get_my_role failed:", roleErr.message);
   role = (roleRaw as AppRole | null) ?? null;
-  const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+  const { data: roles, error: rolesErr } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+  if (rolesErr) console.warn("[resolveStudentContext] user_roles lookup failed:", rolesErr.message);
   const hasStudentRole = (roles ?? []).some((entry) => entry.role === "student");
   if (!role) {
     role = pickRole(roles);
   }
 
-  const { data: stu } = await supabase
+  const { data: stu, error: stuErr } = await supabase
     .from("students")
     .select("id, school_id, class_id, classes(name, section, display_name, category)")
     .eq("user_id", user.id)
     .maybeSingle();
+  if (stuErr) console.warn("[resolveStudentContext] students lookup failed:", stuErr.message);
 
   type ClassJoin = {
     name?: string | null;
@@ -133,7 +136,8 @@ export async function loadStudentAcademicIdentity(
 
   let schoolId = stu?.school_id ?? null;
   if (!schoolId) {
-    const { data: sid } = await supabase.rpc("get_my_school_id");
+    const { data: sid, error: sidErr } = await supabase.rpc("get_my_school_id");
+    if (sidErr) console.warn("[resolveStudentContext] get_my_school_id failed:", sidErr.message);
     schoolId = (sid as string | null) ?? null;
   }
 
@@ -149,11 +153,12 @@ export async function loadStudentAcademicIdentity(
   let classDisplayName = cls?.display_name ?? null;
   let classCategory = cls?.category ?? null;
   if (stu?.class_id && !className && !classDisplayName) {
-    const { data: c } = await supabase
+    const { data: c, error: cErr } = await supabase
       .from("classes")
       .select("name, section, display_name, category")
       .eq("id", stu.class_id)
       .maybeSingle();
+    if (cErr) console.warn("[resolveStudentContext] class fallback lookup failed:", cErr.message);
     if (c) {
       className = c.name ?? null;
       classSection = c.section ?? null;

@@ -14,18 +14,23 @@ export default function ClassInsights() {
   const [classId, setClassId] = useState("");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [classesError, setClassesError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: t } = await supabase.from("teachers").select("id, class_teacher_of").eq("user_id", user.id).maybeSingle();
+      setClassesError(null);
+      const { data: t, error: tErr } = await supabase.from("teachers").select("id, class_teacher_of").eq("user_id", user.id).maybeSingle();
+      if (tErr) return setClassesError(tErr.message);
       if (!t) return;
       const list: any[] = [];
       if (t.class_teacher_of) {
-        const { data: c } = await supabase.from("classes").select("id,name,section,display_name").eq("id", t.class_teacher_of).maybeSingle();
+        const { data: c, error: cErr } = await supabase.from("classes").select("id,name,section,display_name").eq("id", t.class_teacher_of).maybeSingle();
+        if (cErr) return setClassesError(cErr.message);
         if (c) list.push(c);
       }
-      const { data: tc } = await supabase.from("teacher_classes").select("classes(id,name,section,display_name)").eq("teacher_id", t.id);
+      const { data: tc, error: tcErr } = await supabase.from("teacher_classes").select("classes(id,name,section,display_name)").eq("teacher_id", t.id);
+      if (tcErr) return setClassesError(tcErr.message);
       (tc ?? []).forEach((r: any) => {
         if (r.classes && !list.find((x) => x.id === r.classes.id)) list.push(r.classes);
       });
@@ -82,7 +87,11 @@ export default function ClassInsights() {
           </div>
         </div>
       </section>
-      {classes.length === 0 ? (
+      {classesError ? (
+        <Card className="tp-card p-8 text-center">
+          <p className="text-destructive text-sm">Could not load your classes: {classesError}</p>
+        </Card>
+      ) : classes.length === 0 ? (
         <Card className="tp-card p-8 text-center">
           <p className="text-muted-foreground text-sm">No classes assigned yet. Ask admin to link you to a class.</p>
         </Card>

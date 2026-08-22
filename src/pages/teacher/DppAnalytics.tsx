@@ -44,19 +44,23 @@ export default function DppAnalytics() {
         return;
       }
       setDpp(d);
-      const { data: qs } = await supabase.from("dpp_questions").select("id, order_index, question, marks").eq("dpp_id", id).order("order_index");
+      const { data: qs, error: qsErr } = await supabase.from("dpp_questions").select("id, order_index, question, marks").eq("dpp_id", id).order("order_index");
+      if (qsErr) setError(qsErr.message);
       setQuestions(qs ?? []);
-      const { data: att } = await supabase.from("dpp_attempts").select("*, students(full_name, roll_number)").eq("dpp_id", id);
+      const { data: att, error: attErr } = await supabase.from("dpp_attempts").select("*, students(full_name, roll_number)").eq("dpp_id", id);
+      if (attErr) setError(attErr.message);
       setAttempts(att ?? []);
       const ids = (att ?? []).map(a => a.id);
       if (ids.length) {
-        const { data: ans } = await supabase.from("dpp_answers").select("*").in("attempt_id", ids);
+        const { data: ans, error: ansErr } = await supabase.from("dpp_answers").select("*").in("attempt_id", ids);
+        if (ansErr) setError(ansErr.message);
         setAnswers(ans ?? []);
       } else {
         setAnswers([]);
       }
       if (d.class_id) {
-        const { data: cm } = await supabase.from("students").select("id").eq("class_id", d.class_id);
+        const { data: cm, error: cmErr } = await supabase.from("students").select("id").eq("class_id", d.class_id);
+        if (cmErr) setError(cmErr.message);
         setClassmates(cm ?? []);
       } else {
         setClassmates([]);

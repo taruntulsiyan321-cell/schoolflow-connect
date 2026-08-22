@@ -36,7 +36,8 @@ export default function ClassesAdmin() {
   const [batchYear, setBatchYear] = useState(new Date().getFullYear().toString());
 
   const load = async () => {
-    const { data } = await supabase.from("classes").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("classes").select("*").order("created_at", { ascending: false });
+    if (error) return toast.error("Failed to load classes: " + error.message);
     setRows(data ?? []);
   };
   useEffect(() => { load(); }, []);

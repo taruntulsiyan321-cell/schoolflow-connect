@@ -36,10 +36,12 @@ export default function DppList() {
 
   const create = async () => {
     if (!user || !ctx) return;
-    const { data: t } = await supabase.from("teachers").select("id, class_teacher_of").eq("user_id", user.id).maybeSingle();
+    const { data: t, error: tErr } = await supabase.from("teachers").select("id, class_teacher_of").eq("user_id", user.id).maybeSingle();
+    if (tErr) return toast.error("Failed to look up your teacher record: " + tErr.message);
     let classId = t?.class_teacher_of as string | null;
     if (!classId) {
-      const { data: tc } = await supabase.from("teacher_classes").select("class_id").eq("teacher_id", t?.id).limit(1).maybeSingle();
+      const { data: tc, error: tcErr } = await supabase.from("teacher_classes").select("class_id").eq("teacher_id", t?.id).limit(1).maybeSingle();
+      if (tcErr) return toast.error("Failed to look up your assigned classes: " + tcErr.message);
       classId = tc?.class_id ?? null;
     }
     if (!classId) return toast.error("You don't have any classes assigned yet.");

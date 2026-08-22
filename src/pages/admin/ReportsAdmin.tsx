@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -411,7 +412,8 @@ function SalaryReport() {
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("teachers").select("full_name, employee_id, subject, salary, status").order("full_name");
+      const { data, error } = await supabase.from("teachers").select("full_name, employee_id, subject, salary, status").order("full_name");
+      if (error) { toast.error("Failed to load salary report: " + error.message); return; }
       setRows((data ?? []).map((r: any) => ({
         teacher: r.full_name,
         employee_id: r.employee_id || "",

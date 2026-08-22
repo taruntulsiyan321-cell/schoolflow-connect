@@ -98,7 +98,8 @@ export async function fetchMistakesForRecovery(opts: {
   concept?: string | null;
   limit?: number;
 }): Promise<MistakeRecord[]> {
-  const { data: auth } = await supabase.auth.getUser();
+  const { data: auth, error: authErr } = await supabase.auth.getUser();
+  if (authErr) console.warn("[mistakeRecovery] getUser failed:", authErr.message);
   const user = auth.user;
   if (!user) return [];
 
@@ -114,7 +115,8 @@ export async function fetchMistakesForRecovery(opts: {
 
   if (opts.chapter) query = query.ilike("chapter", `%${opts.chapter}%`);
 
-  const { data } = await query;
+  const { data, error } = await query;
+  if (error) console.warn("[mistakeRecovery] fetchMistakesForRetry failed:", error.message);
   if (!data?.length) return [];
 
   let filtered = data;
@@ -128,17 +130,19 @@ export async function fetchMistakesForRecovery(opts: {
 
 /** Unmastered mistakes for analytics (practice, DPP, battles, exams). */
 export async function fetchMistakesForAnalytics(limit = 50): Promise<MistakeRecord[]> {
-  const { data: auth } = await supabase.auth.getUser();
+  const { data: auth, error: authErr } = await supabase.auth.getUser();
+  if (authErr) console.warn("[mistakeRecovery] getUser failed:", authErr.message);
   const user = auth.user;
   if (!user) return [];
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("student_mistakes")
     .select(MISTAKE_SELECT)
     .eq("user_id", user.id)
     .eq("mastered", false)
     .order("last_wrong_at", { ascending: false })
     .limit(limit);
+  if (error) console.warn("[mistakeRecovery] fetchMistakesForAnalytics failed:", error.message);
 
   return (data ?? []).map(mapRow);
 }
@@ -148,11 +152,12 @@ export const fetchPracticeMistakesForAnalytics = fetchMistakesForAnalytics;
 
 /** Most recent unmastered practice mistake (any subject). */
 export async function fetchMostRecentPracticeMistake(): Promise<MistakeRecord | null> {
-  const { data: auth } = await supabase.auth.getUser();
+  const { data: auth, error: authErr } = await supabase.auth.getUser();
+  if (authErr) console.warn("[mistakeRecovery] getUser failed:", authErr.message);
   const user = auth.user;
   if (!user) return null;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("student_mistakes")
     .select(MISTAKE_SELECT)
     .eq("user_id", user.id)
@@ -161,6 +166,7 @@ export async function fetchMostRecentPracticeMistake(): Promise<MistakeRecord | 
     .order("last_wrong_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+  if (error) console.warn("[mistakeRecovery] fetchMostRecentPracticeMistake failed:", error.message);
 
   return data ? mapRow(data) : null;
 }

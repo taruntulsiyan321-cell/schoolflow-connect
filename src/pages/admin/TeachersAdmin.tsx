@@ -34,9 +34,11 @@ export default function TeachersAdmin() {
   const [search, setSearch] = useState("");
 
   const load = async () => {
-    const { data } = await supabase.from("teachers").select("*, class_teacher:classes!class_teacher_of(name,section)").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("teachers").select("*, class_teacher:classes!class_teacher_of(name,section)").order("created_at", { ascending: false });
+    if (error) return toast.error("Failed to load teachers: " + error.message);
     setRows(data ?? []);
-    const { data: c } = await supabase.from("classes").select("*").order("name");
+    const { data: c, error: classesError } = await supabase.from("classes").select("*").order("name");
+    if (classesError) return toast.error("Failed to load classes: " + classesError.message);
     setClasses(c ?? []);
   };
   useEffect(() => { load(); }, []);
@@ -85,7 +87,8 @@ export default function TeachersAdmin() {
 
   const openEdit = async (r: any) => {
     setEditTarget(r);
-    const { data: tc } = await supabase.from("teacher_classes").select("class_id").eq("teacher_id", r.id);
+    const { data: tc, error: tcError } = await supabase.from("teacher_classes").select("class_id").eq("teacher_id", r.id);
+    if (tcError) toast.error("Failed to load assigned classes: " + tcError.message);
     setForm({
       full_name: r.full_name ?? "", subject: r.subject ?? "",
       mobile: r.mobile ?? "", email: r.email ?? "",
@@ -248,7 +251,8 @@ function AccountAccess({ teacher, onChanged }: { teacher: any; onChanged: () => 
     setBusy(false);
     if (error) return toast.error(error.message || "Could not link account");
     toast.success("Account linked — teacher can now sign in");
-    const { data } = await supabase.from("teachers").select("*").eq("id", t.id).single();
+    const { data, error: refreshError } = await supabase.from("teachers").select("*").eq("id", t.id).single();
+    if (refreshError) return toast.error("Action saved, but refreshing the row failed: " + refreshError.message);
     setT(data); onChanged();
   };
 
@@ -258,7 +262,8 @@ function AccountAccess({ teacher, onChanged }: { teacher: any; onChanged: () => 
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success(active ? "Access activated" : "Access deactivated");
-    const { data } = await supabase.from("teachers").select("*").eq("id", t.id).single();
+    const { data, error: refreshError } = await supabase.from("teachers").select("*").eq("id", t.id).single();
+    if (refreshError) return toast.error("Action saved, but refreshing the row failed: " + refreshError.message);
     setT(data); onChanged();
   };
 
@@ -269,7 +274,8 @@ function AccountAccess({ teacher, onChanged }: { teacher: any; onChanged: () => 
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Account disconnected");
-    const { data } = await supabase.from("teachers").select("*").eq("id", t.id).single();
+    const { data, error: refreshError } = await supabase.from("teachers").select("*").eq("id", t.id).single();
+    if (refreshError) return toast.error("Action saved, but refreshing the row failed: " + refreshError.message);
     setT(data); onChanged();
   };
 
