@@ -438,9 +438,15 @@ async function fetchAttendance(admin: SupabaseClient, schoolId: string, studentI
     if (s in counts) (counts as Record<string, number>)[s] += 1;
   }
   const total = list.length;
-  const attendance_pct = total
-    ? Math.round(((counts.present + counts.late * 0.5 + counts.half_day * 0.5) / total) * 1000) / 10
-    : 0;
+  // Matches refresh_student_academic_profile's definition exactly (present-only
+  // over total marked days) -- this used to give late/half_day half credit,
+  // a different formula from the one that actually populates
+  // student_academic_profiles.attendance_pct (what the student/parent/
+  // principal dashboards and the risk-band alerting both read). Nova would
+  // report a different attendance % than every other surface in the app for
+  // the same student whenever a late/half_day row existed. Aligned to the
+  // authoritative source rather than inventing a third definition.
+  const attendance_pct = total ? Math.round((counts.present / total) * 1000) / 10 : 0;
   const latest = list[0]?.date ? String(list[0].date) : null;
   return {
     projection: "StudentAttendanceQuery",

@@ -285,6 +285,15 @@ async function main() {
     (r) => r.length === 0,
   );
 
+  // --- User-journey-trace cross-check round 2, 2026-08-22
+  // (20260822200000_phase5_battle_participants_school_check.sql) ---
+  await check(
+    "battle_participants INSERT policy requires the battle's own school_id to match the row being inserted (not just user_id = auth.uid())",
+    `SELECT pg_get_expr(polwithcheck, polrelid) AS chk FROM pg_policy
+     WHERE polname = 'bp self insert' AND polrelid = 'public.battle_participants'::regclass`,
+    (r) => (r[0]?.chk ?? "").includes("get_my_school_id"),
+  );
+
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);
   process.exit(failures === 0 ? 0 : 1);
 }
