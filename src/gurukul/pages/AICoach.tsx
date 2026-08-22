@@ -154,7 +154,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
           isNova
             ? msg.isError
               ? "bg-amber-400/5 border border-amber-400/25 text-[#c8d4e8]"
-              : "bg-[#131316] border border-white/7 text-[#c8d4e8]"
+              : "bg-surface border border-border/70 text-[#c8d4e8]"
             : "text-white"
         )}
         style={!isNova ? { background:"linear-gradient(135deg,#3b5bdb,#2563eb)", boxShadow:"0 4px 16px rgba(59,130,246,0.25)" } : {}}>
@@ -234,7 +234,7 @@ function ContextPill({ contextLine }: { contextLine: string }) {
   return (
     <div className="flex justify-center py-3">
       <div
-        className="group flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/7 bg-white/3"
+        className="group flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/70 bg-muted"
       >
         <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
         <span className="text-[11px] text-[#78788c]">
@@ -295,7 +295,7 @@ function SuggestionGrid({
       <div className="w-full max-w-lg grid grid-cols-1 sm:grid-cols-2 gap-2">
         {SUGGESTIONS.map((s, i) => (
           <button key={i} onClick={() => onSelect(s.text)}
-            className="group flex items-center gap-3 p-3.5 rounded-2xl border border-white/7 bg-[#131316]/60 hover:border-white/15 hover:bg-[#131316] transition-all text-left">
+            className="group flex items-center gap-3 p-3.5 rounded-2xl border border-border/70 bg-surface/60 hover:border-border hover:bg-surface transition-all text-left">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110"
               style={{ background:`${s.color}15`, color:s.color }}>
               {s.icon}
@@ -460,7 +460,7 @@ function Sidebar({
 
       {activeMenuConvo && menuPos && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed z-overlay bg-[#131316] border border-white/10 rounded-xl shadow-xl py-1 min-w-[140px]"
+          className="fixed z-overlay bg-surface border border-white/10 rounded-xl shadow-xl py-1 min-w-[140px]"
           style={{ top: menuPos.top, right: menuPos.right }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -572,7 +572,7 @@ function InputBar({
           ))}
         </div>
       )}
-      <div className="flex items-end gap-2 bg-[#131316] border border-white/10 rounded-2xl p-2 focus-within:border-[#3b5bdb]/30 transition-all">
+      <div className="flex items-end gap-2 bg-surface border border-white/10 rounded-2xl p-2 focus-within:border-[#3b5bdb]/30 transition-all">
         {attachPresentation !== "hidden" && (
           <>
             <input
@@ -1174,7 +1174,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
                     style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb)" }}>
                     <Brain className="w-4 h-4 text-white"/>
                   </div>
-                  <div className="px-4 py-3 rounded-2xl bg-[#131316] border border-white/7 flex items-center gap-1.5">
+                  <div className="px-4 py-3 rounded-2xl bg-surface border border-border/70 flex items-center gap-1.5">
                     {[0,1,2].map(i => (
                       <div key={i} className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] animate-bounce"
                         style={{ animationDelay:`${i*0.15}s` }}/>

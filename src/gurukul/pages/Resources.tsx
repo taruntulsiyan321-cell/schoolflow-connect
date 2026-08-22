@@ -103,7 +103,7 @@ export default function Resources() {
                   key={r.id}
                   type="button"
                   onClick={() => openResource(r)}
-                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-white/2 hover:border-white/15 transition-colors group text-left"
+                  className="w-full flex items-center gap-3 p-4 rounded-xl border border-border/70 bg-white/2 hover:border-border transition-colors group text-left"
                 >
                   <div
                     className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"

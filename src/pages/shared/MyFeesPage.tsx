@@ -115,15 +115,15 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
+                  <div className="rounded-2xl border border-border bg-white/10 px-3 py-2">
                     <p className="text-lg font-black">₹{totalAmount}</p>
                     <p className="text-[10px] uppercase tracking-wider text-white/65">Total</p>
                   </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
+                  <div className="rounded-2xl border border-border bg-white/10 px-3 py-2">
                     <p className="text-lg font-black">₹{paidAmount}</p>
                     <p className="text-[10px] uppercase tracking-wider text-white/65">Paid</p>
                   </div>
-                  <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2">
+                  <div className="rounded-2xl border border-border bg-white/10 px-3 py-2">
                     <p className="text-lg font-black">{paidCount}/{rows.length}</p>
                     <p className="text-[10px] uppercase tracking-wider text-white/65">Cleared</p>
                   </div>

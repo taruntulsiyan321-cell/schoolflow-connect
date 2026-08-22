@@ -410,7 +410,7 @@ function MistakePractice({
 
         <div className="space-y-2">
           {q.options.map((opt, i) => {
-            let cls = "border-white/10 bg-white/3 hover:bg-white/7 hover:border-white/20";
+            let cls = "border-white/10 bg-muted hover:bg-white/7 hover:border-white/20";
             if (selected !== null) {
               if (i === q.correct) cls = "border-emerald-400/50 bg-emerald-400/10";
               else if (i === selected && i !== q.correct) cls = "border-rose-400/50 bg-rose-400/10";
@@ -419,7 +419,7 @@ function MistakePractice({
             return (
               <button key={i} onClick={() => submit(i)}
                 className={cn("w-full text-left flex items-center gap-3 p-3 rounded-xl border transition-all text-sm", cls)}>
-                <span className="w-6 h-6 rounded-lg border border-white/15 flex items-center justify-center text-xs font-bold text-[#78788c] shrink-0">{["A","B","C","D"][i]}</span>
+                <span className="w-6 h-6 rounded-lg border border-border flex items-center justify-center text-xs font-bold text-[#78788c] shrink-0">{["A","B","C","D"][i]}</span>
                 <span className={selected !== null ? (i === q.correct ? "text-emerald-300 font-semibold" : i === selected ? "text-rose-300" : "text-[#78788c]") : "text-white"}>{opt}</span>
               </button>
             );
@@ -728,7 +728,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
     <div className="space-y-6 relative">
       {/* Toast */}
       {toastMsg && (
-        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-[#131316] border border-rose-500/30 text-rose-300 text-sm font-semibold shadow-2xl animate-in slide-in-from-right">
+        <div className="fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl bg-surface border border-rose-500/30 text-rose-300 text-sm font-semibold shadow-2xl animate-in slide-in-from-right">
           <RefreshCw className="w-4 h-4"/>
           {toastMsg}
         </div>

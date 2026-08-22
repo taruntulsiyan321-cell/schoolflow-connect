@@ -296,7 +296,7 @@ export default function ClassHub({ setPage }: Props) {
           <button
             key={f.kind === "page" ? `${f.key}-${f.label}` : f.path}
             onClick={() => (f.kind === "page" ? setPage(f.key) : navigate(f.path))}
-            className="group text-left p-5 rounded-2xl border border-white/7 bg-[#131316]/90 transition-all duration-200 hover:border-white/20 hover:scale-[1.02]"
+            className="group text-left p-5 rounded-2xl border border-border/70 bg-surface/90 transition-all duration-200 hover:border-white/20 hover:scale-[1.02]"
           >
             <div className="flex items-start justify-between mb-4">
               <div

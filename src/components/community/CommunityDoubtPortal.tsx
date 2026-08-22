@@ -754,14 +754,14 @@ export function CommunityDoubtPortal({ mode = "student" }: { mode?: "student" | 
                 { label: "Teacher guided", value: doubts.filter((doubt) => doubt.teacher_answered).length },
                 { label: "Solved", value: doubts.filter((doubt) => doubt.status === "solved").length },
               ].map((item) => (
-                <div key={item.label} className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur">
+                <div key={item.label} className="rounded-2xl border border-border bg-white/10 p-3 backdrop-blur">
                   <p className="text-2xl font-black">{item.value}</p>
                   <p className="text-xs font-semibold text-white/70">{item.label}</p>
                 </div>
               ))}
             </div>
           </div>
-          <div className="rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur">
+          <div className="rounded-3xl border border-border bg-white/10 p-5 backdrop-blur">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-primary">
                 <Search className="h-5 w-5" />

@@ -273,7 +273,7 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
       <Card className="mb-5 overflow-hidden border-primary/20 bg-gradient-to-br from-[#083f2b] via-[#126847] to-[#b28a28] p-0 text-white shadow-elevated">
         <div className="grid gap-5 p-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white/75">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white/75">
               <Megaphone className="w-3.5 h-3.5" />
               Campus updates
             </div>
@@ -283,17 +283,17 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
             </p>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center">
+            <div className="rounded-2xl border border-border bg-white/10 p-3 text-center">
               <Sparkles className="w-4 h-4 mx-auto text-white/75" />
               <p className="mt-1 text-xl font-black">{active.length}</p>
               <p className="text-[10px] uppercase tracking-wider text-white/65">Active</p>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center">
+            <div className="rounded-2xl border border-border bg-white/10 p-3 text-center">
               <Users className="w-4 h-4 mx-auto text-white/75" />
               <p className="mt-1 text-xl font-black">{classNoticeCount}</p>
               <p className="text-[10px] uppercase tracking-wider text-white/65">Class</p>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-3 text-center">
+            <div className="rounded-2xl border border-border bg-white/10 p-3 text-center">
               <Clock className="w-4 h-4 mx-auto text-white/75" />
               <p className="mt-1 text-xl font-black">{expired.length}</p>
               <p className="text-[10px] uppercase tracking-wider text-white/65">Expired</p>

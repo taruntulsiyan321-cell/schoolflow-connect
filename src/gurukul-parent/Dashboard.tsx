@@ -46,14 +46,14 @@ function QuickStat({
       <button
         type="button"
         onClick={onClick}
-        className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-white/15 transition-all w-full"
+        className="bg-surface border border-border/70 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-border transition-all w-full"
       >
         {body}
       </button>
     );
   }
   return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center gap-3">
+    <div className="bg-surface border border-border/70 rounded-2xl p-4 flex items-center gap-3">
       {body}
     </div>
   );
@@ -148,7 +148,7 @@ export default function ParentDashboard({
                 "flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all",
                 activeChildId === c.id || liveChild.id === c.id
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "bg-[#131316] border-white/7 text-[#78788c]",
+                  : "bg-surface border-border/70 text-[#78788c]",
               )}
             >
               <div className="text-xs font-bold">{c.fullName}</div>
@@ -226,7 +226,7 @@ export default function ParentDashboard({
         <QuickActionCard setPage={setPage} />
       </div>
 
-      <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+      <div className="bg-surface border border-border/70 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm font-bold text-white flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-[#3b5bdb]" /> Academic Performance
@@ -246,7 +246,7 @@ export default function ParentDashboard({
         <button
           type="button"
           onClick={() => setPage("children")}
-          className="p-4 rounded-2xl border border-white/7 bg-[#131316] text-left"
+          className="p-4 rounded-2xl border border-border/70 bg-surface text-left"
         >
           <ClipboardList className="w-4 h-4 text-[#6366f1] mb-2" />
           <div className="text-xs font-bold text-white">My Children</div>
@@ -255,7 +255,7 @@ export default function ParentDashboard({
         <button
           type="button"
           onClick={() => setPage("test_results")}
-          className="p-4 rounded-2xl border border-white/7 bg-[#131316] text-left"
+          className="p-4 rounded-2xl border border-border/70 bg-surface text-left"
         >
           <BookOpen className="w-4 h-4 text-[#3b5bdb] mb-2" />
           <div className="text-xs font-bold text-white">Test Results</div>
@@ -271,7 +271,7 @@ function QuickActionCard({ setPage }: { setPage: (p: ParentPageKey) => void }) {
     <button
       type="button"
       onClick={() => setPage("children")}
-      className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-[#3b5bdb]/40"
+      className="bg-surface border border-border/70 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-[#3b5bdb]/40"
     >
       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-[#3b5bdb]/15 text-[#3b5bdb]">
         <ClipboardList className="w-5 h-5" />

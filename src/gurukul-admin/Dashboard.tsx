@@ -19,7 +19,7 @@ function StatCard({
   icon: React.ReactNode; color: string; delta?: number;
 }) {
   return (
-    <div className="rounded-2xl border border-white/7 bg-[#131316] p-5 flex flex-col gap-3 hover:border-white/12 transition-all">
+    <div className="rounded-2xl border border-border/70 bg-surface p-5 flex flex-col gap-3 hover:border-white/12 transition-all">
       <div className="flex items-start justify-between">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -281,7 +281,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
   return (
     <div className="space-y-6">
       {/* ── Quick Actions (TOP) ── */}
-      <div className="bg-[#131316] border border-white/7 rounded-2xl p-4">
+      <div className="bg-surface border border-border/70 rounded-2xl p-4">
         <div className="text-[10px] font-bold text-[#78788c] uppercase tracking-wider mb-3">Quick Actions</div>
         <div className="flex flex-wrap gap-2">
           {[
@@ -294,7 +294,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             <button
               key={item.label}
               onClick={item.action}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-all group border border-white/7 hover:border-white/12"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-all group border border-border/70 hover:border-white/12"
             >
               <div
                 className="w-7 h-7 rounded-lg flex items-center justify-center transition-all group-hover:scale-110"
@@ -329,7 +329,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
       {/* Middle Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Attendance Summary */}
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 space-y-4">
+        <div className="bg-surface border border-border/70 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-white">{"Today's Attendance"}</div>
             <button onClick={() => setPage("classes")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
@@ -389,7 +389,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         </div>
 
         {/* Recent Students */}
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+        <div className="bg-surface border border-border/70 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-bold text-white">Recent Students</div>
             <button onClick={() => setPage("students")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
@@ -413,7 +413,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         </div>
 
         {/* Recent Teachers */}
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+        <div className="bg-surface border border-border/70 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="text-sm font-bold text-white">Recent Teachers</div>
             <button onClick={() => setPage("teachers")} className="text-[10px] text-[#3b5bdb] hover:underline flex items-center gap-1">
@@ -440,7 +440,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Activity Log */}
-        <div className="lg:col-span-1 bg-[#131316] border border-white/7 rounded-2xl p-5">
+        <div className="lg:col-span-1 bg-surface border border-border/70 rounded-2xl p-5">
           <div className="text-sm font-bold text-white mb-4">Recent Activity</div>
           <div className="space-y-3">
             {!loading && activity.length === 0 && (
@@ -462,14 +462,14 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         </div>
 
         {/* Pending Requests */}
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+        <div className="bg-surface border border-border/70 rounded-2xl p-5">
           <div className="text-sm font-bold text-white mb-4">Pending Leave Requests</div>
           <div className="space-y-3">
             {!loading && pendingLeaves.length === 0 && (
               <div className="text-[10px] text-[#46465a]">No pending requests.</div>
             )}
             {pendingLeaves.map((r) => (
-              <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl bg-white/3 hover:bg-white/5 transition-all cursor-pointer" onClick={() => setPage("leave_requests")}>
+              <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted hover:bg-white/5 transition-all cursor-pointer" onClick={() => setPage("leave_requests")}>
                 <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: priorityColor.medium }} />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-white capitalize">{r.leave_type}</div>
@@ -483,7 +483,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         {/* Right column: Announcements + Quick Actions */}
         <div className="flex flex-col gap-4">
           {/* Announcements */}
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 flex-1">
+          <div className="bg-surface border border-border/70 rounded-2xl p-5 flex-1">
             <div className="flex items-center gap-2 mb-4">
               <Bell className="w-4 h-4 text-[#3b5bdb]" />
               <div className="text-sm font-bold text-white">Announcements</div>
@@ -505,7 +505,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           </div>
 
           {/* Reports shortcut */}
-          <div className="bg-[#131316] border border-white/7 rounded-2xl p-4">
+          <div className="bg-surface border border-border/70 rounded-2xl p-4">
             <button onClick={() => setPage("reports")} className="w-full flex items-center gap-3 group">
               <div className="w-9 h-9 rounded-xl bg-[#4aa87a22] flex items-center justify-center group-hover:scale-110 transition-all">
                 <BarChart2 className="w-4 h-4 text-[#4aa87a]" />

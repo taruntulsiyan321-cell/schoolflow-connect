@@ -124,15 +124,15 @@ export default function DppAnalytics() {
             <p className="text-sm text-white/75 mt-2">{dpp.subject} · {dpp.question_count} questions · DPP mastery snapshot</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+            <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{participation}%</p>
               <p className="text-[10px] uppercase tracking-wider text-white/60">Participation</p>
             </div>
-            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+            <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{avg.toFixed(0)}</p>
               <p className="text-[10px] uppercase tracking-wider text-white/60">Avg score</p>
             </div>
-            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+            <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{hardest.length}</p>
               <p className="text-[10px] uppercase tracking-wider text-white/60">Hard flags</p>
             </div>

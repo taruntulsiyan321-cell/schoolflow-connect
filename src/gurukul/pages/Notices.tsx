@@ -136,7 +136,7 @@ export default function Notices() {
                     "w-full text-left rounded-2xl border transition-all",
                     selected === notice.id
                       ? "bg-[#3b5bdb]/8 border-[#3b5bdb]/25"
-                      : "bg-[#131316]/80 border-white/7 hover:border-white/15",
+                      : "bg-surface/80 border-border/70 hover:border-border",
                   )}
                 >
                   <GlassCard className="p-4 border-0 bg-transparent shadow-none">

@@ -40,7 +40,7 @@ function RevItemCard({
   completing?: boolean;
 }) {
   return (
-    <GlassCard className="p-4 hover:border-white/15 transition-all">
+    <GlassCard className="p-4 hover:border-border transition-all">
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
@@ -299,7 +299,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Quick actions */}
       <div className="grid sm:grid-cols-3 gap-3">
         <div
-          className="p-4 rounded-2xl border border-white/7 bg-white/[0.02] text-left opacity-60"
+          className="p-4 rounded-2xl border border-border/70 bg-white/[0.02] text-left opacity-60"
           title="Flashcards — coming soon"
         >
           <Layers className="w-5 h-5 text-[#78788c] mb-2"/>
@@ -324,7 +324,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           </div>
         </button>
         <div
-          className="p-4 rounded-2xl border border-white/7 bg-white/[0.02] text-left opacity-60"
+          className="p-4 rounded-2xl border border-border/70 bg-white/[0.02] text-left opacity-60"
           title="Revision notes — coming soon"
         >
           <FileText className="w-5 h-5 text-[#78788c] mb-2"/>

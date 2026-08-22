@@ -47,8 +47,8 @@ export function GlassCard({ children, className, glow, onClick }: {
     <motion.div
       onClick={onClick}
       className={cn(
-        "rounded-2xl border bg-[#131316]/90 backdrop-blur-sm",
-        glow ? glows[glow] : "border-white/7",
+        "rounded-2xl border bg-surface/90 backdrop-blur-sm",
+        glow ? glows[glow] : "border-border/70",
         onClick && "cursor-pointer",
         className
       )}

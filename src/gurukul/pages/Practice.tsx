@@ -338,7 +338,7 @@ function Hub({
                 key={s.id}
                 type="button"
                 onClick={() => onResumeSession(s.id)}
-                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-white/7 hover:border-[#c08a3a]/35 hover:bg-white/[0.03] transition-all text-left"
+                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-border/70 hover:border-[#c08a3a]/35 hover:bg-white/[0.03] transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg bg-[#c08a3a]/15 flex items-center justify-center shrink-0 text-[#c08a3a]">
                   <RotateCcw className="w-3.5 h-3.5"/>
@@ -367,7 +367,7 @@ function Hub({
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {hot.map(m => (
               <button key={m.key} type="button" onClick={() => onMode(m.key)}
-                className="group text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
+                className="group text-left p-4 rounded-2xl border border-border/70 hover:border-border hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
                 <div className="flex items-center gap-2 mb-2" style={{ color: m.color }}>
                   {m.icon}
                   <span className="text-sm font-bold text-white">{m.label}</span>
@@ -398,7 +398,7 @@ function Hub({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search modes…"
-              className="pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20 w-full sm:w-48"
+              className="pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20 w-full sm:w-48"
             />
           </div>
         </div>
@@ -406,7 +406,7 @@ function Hub({
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {visible.map(m => (
             <button key={m.key} type="button" onClick={() => onMode(m.key)}
-              className="group text-left p-4 rounded-2xl border border-white/7 hover:border-white/15 hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
+              className="group text-left p-4 rounded-2xl border border-border/70 hover:border-border hover:bg-white/[0.03] transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
               <div className="flex items-start gap-2 mb-2">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                   style={{ background:`${m.color}15`, color:m.color }}>
@@ -468,7 +468,7 @@ function Hub({
                 key={s.id}
                 type="button"
                 onClick={() => onOpenSession(s.id)}
-                className="group w-full flex items-start gap-3 p-3 rounded-xl border border-white/5 hover:border-white/12 hover:bg-white/3 transition-all text-left"
+                className="group w-full flex items-start gap-3 p-3 rounded-xl border border-white/5 hover:border-white/12 hover:bg-muted transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg bg-[#4b9fd4]/10 flex items-center justify-center shrink-0 text-[#4b9fd4]">
                   <Save className="w-3.5 h-3.5"/>
@@ -510,7 +510,7 @@ function Hub({
                   value={historyFilters.search}
                   onChange={(e) => onHistoryFilters({ search: e.target.value })}
                   placeholder="Search subject, chapter, type…"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white placeholder:text-[#78788c] focus:outline-none focus:border-white/20"
                 />
                 <div className="mt-1.5 text-[10px] text-[#78788c]/70">
                   Showing your most recent 100 sessions
@@ -519,7 +519,7 @@ function Hub({
               <select
                 value={historyFilters.subject}
                 onChange={(e) => onHistoryFilters({ subject: e.target.value })}
-                className="px-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white focus:outline-none"
               >
                 <option value="">All subjects</option>
                 {subjects.map((s) => (
@@ -529,7 +529,7 @@ function Hub({
               <select
                 value={historyFilters.practiceType}
                 onChange={(e) => onHistoryFilters({ practiceType: e.target.value })}
-                className="px-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white focus:outline-none"
               >
                 <option value="">All practice types</option>
                 {MODES.map((m) => (
@@ -540,7 +540,7 @@ function Hub({
                 type="date"
                 value={historyFilters.date}
                 onChange={(e) => onHistoryFilters({ date: e.target.value })}
-                className="sm:col-span-2 px-3 py-2 rounded-xl bg-white/5 border border-white/7 text-xs text-white focus:outline-none"
+                className="sm:col-span-2 px-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white focus:outline-none"
               />
             </div>
           )}
@@ -735,7 +735,7 @@ function ConfigView({
                 <button key={d.key} type="button" onClick={() => setSelDifficulty(d.key)}
                   className={cn(
                     "p-4 rounded-2xl border text-left transition-all",
-                    selDifficulty === d.key ? "scale-[1.02]" : "border-white/7 hover:border-white/15"
+                    selDifficulty === d.key ? "scale-[1.02]" : "border-border/70 hover:border-border"
                   )}
                   style={selDifficulty === d.key ? { borderColor:`${d.color}40`, background:`${d.color}10` } : {}}>
                   <div className="text-sm font-black mb-1" style={{ color:selDifficulty===d.key?d.color:"white" }}>{d.label}</div>
@@ -760,7 +760,7 @@ function ConfigView({
                   onClick={() => setGoalType(g.key)}
                   className={cn(
                     "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                    goalType === g.key ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                    goalType === g.key ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
                   )}
                   style={goalType === g.key ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}
                 >
@@ -776,7 +776,7 @@ function ConfigView({
                   <button key={n} type="button" onClick={() => setQCount(n)}
                     className={cn(
                       "px-5 py-3 rounded-xl text-sm font-black border transition-all",
-                      qCount === n ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                      qCount === n ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
                     )}
                     style={qCount === n ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                     {n} questions
@@ -789,7 +789,7 @@ function ConfigView({
                   <button key={t} type="button" onClick={() => setTimeLimitMin(t)}
                     className={cn(
                       "px-5 py-3 rounded-xl text-sm font-black border transition-all",
-                      timeLimitMin === t ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                      timeLimitMin === t ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
                     )}
                     style={timeLimitMin === t ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                     {t} min
@@ -824,7 +824,7 @@ function ConfigView({
               <button type="button" onClick={() => setPyqYear(null)}
                 className={cn(
                   "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                  pyqYear === null ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                  pyqYear === null ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
                 )}
                 style={pyqYear === null ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                 All years
@@ -833,7 +833,7 @@ function ConfigView({
                 <button key={y} type="button" onClick={() => setPyqYear(y)}
                   className={cn(
                     "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
-                    pyqYear === y ? "border-transparent" : "border-white/7 text-[#78788c] hover:border-white/15",
+                    pyqYear === y ? "border-transparent" : "border-border/70 text-[#78788c] hover:border-border",
                   )}
                   style={pyqYear === y ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
                   {y}
@@ -883,7 +883,7 @@ function ConfigView({
                   <button key={d.key} onClick={() => setSelDifficulty(d.key)}
                     className={cn(
                       "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      selDifficulty === d.key ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                      selDifficulty === d.key ? "text-white shadow-lg" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
                     )}
                     style={selDifficulty === d.key ? { background:d.color } : {}}>
                     {d.label}
@@ -980,7 +980,7 @@ function OptionChips({
             <button type="button" onClick={() => onSelect(null)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === null ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
               )}>Any</button>
           )}
           {options.map((opt) => (
@@ -990,7 +990,7 @@ function OptionChips({
               onClick={() => onSelect(opt.id)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all max-w-full truncate",
-                selected === opt.id ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === opt.id ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
               )}
               title={opt.displayName}
             >
@@ -1054,14 +1054,14 @@ function SubjectPicker({
             <button type="button" onClick={() => onSelect(null)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
               )}>All</button>
           )}
           {subjects.map(s => (
             <button key={s.id} type="button" onClick={() => onSelect(s.name)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === s.name ? "text-white shadow-lg" : "border border-white/7 text-[#78788c] hover:border-white/20 hover:text-white"
+                selected === s.name ? "text-white shadow-lg" : "border border-border/70 text-[#78788c] hover:border-white/20 hover:text-white"
               )}
               style={selected===s.name ? { background:s.color, boxShadow:`0 4px 14px ${s.color}40` } : {}}>
               {displaySubject(s.name) || s.name}
@@ -1757,7 +1757,7 @@ function Session({
         <div className="text-lg font-bold text-white">Could not start practice</div>
         <p className="text-sm text-[#78788c]">{loadError}</p>
         <button onClick={onBack}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
           <ArrowLeft className="w-4 h-4"/> Back to Practice
         </button>
       </div>
@@ -1796,7 +1796,7 @@ function Session({
             </button>
           )}
           <button onClick={onBack}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
             <ArrowLeft className="w-4 h-4"/> Back to Practice
           </button>
         </div>
@@ -1856,7 +1856,7 @@ function Session({
         {q.options.map((opt, i) => {
           const isChosen = chosen === i;
           const isCorrect = i === q.correct;
-          let bg = "border-white/7 text-[#a0a0b0] hover:border-white/20 hover:text-white hover:bg-white/4";
+          let bg = "border-border/70 text-[#a0a0b0] hover:border-white/20 hover:text-white hover:bg-white/4";
           if (phase === "fb") {
             if (isCorrect)              bg = "border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
             else if (isChosen && !isRight) bg = "border-rose-400/40 bg-rose-400/10 text-rose-300";
@@ -1906,7 +1906,7 @@ function Session({
       <div className="flex items-center gap-3">
         {phase === "q" && (
           <button onClick={() => skip()} disabled={finishing}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border/70 text-sm text-[#78788c] hover:text-white hover:border-white/20 transition-all">
             <SkipForward className="w-3.5 h-3.5"/> Skip
           </button>
         )}
@@ -1923,7 +1923,7 @@ function Session({
           </button>
         )}
         <button onClick={() => void finish()} disabled={finishing}
-          className="px-4 py-2.5 rounded-xl border border-white/7 text-sm text-[#78788c] hover:text-rose-400 hover:border-rose-400/20 transition-all">
+          className="px-4 py-2.5 rounded-xl border border-border/70 text-sm text-[#78788c] hover:text-rose-400 hover:border-rose-400/20 transition-all">
           {finishing ? "Saving…" : "End Session"}
         </button>
       </div>
@@ -2013,7 +2013,7 @@ return (
             </button>
           )}
           <button onClick={onHub}
-            className="w-full py-3 rounded-2xl border border-white/7 text-[#78788c] font-semibold text-sm hover:text-white hover:border-white/20 transition-all">
+            className="w-full py-3 rounded-2xl border border-border/70 text-[#78788c] font-semibold text-sm hover:text-white hover:border-white/20 transition-all">
             Back to Practice Hub
           </button>
         </div>

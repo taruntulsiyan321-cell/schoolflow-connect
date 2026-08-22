@@ -69,7 +69,7 @@ const components: Components = {
       <table className="w-full border-collapse text-[12.5px]">{children}</table>
     </div>
   ),
-  thead: ({ children }) => <thead className="border-b border-white/15">{children}</thead>,
+  thead: ({ children }) => <thead className="border-b border-border">{children}</thead>,
   tr: ({ children }) => <tr className="border-b border-white/5 last:border-0">{children}</tr>,
   th: ({ children }) => <th className="px-2 py-1 text-left font-semibold text-white">{children}</th>,
   td: ({ children }) => <td className="px-2 py-1 align-top">{children}</td>,

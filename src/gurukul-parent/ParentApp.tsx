@@ -120,10 +120,10 @@ function Sidebar({
 
   return (
     <div className={cn(
-      "flex flex-col h-full bg-[#0a0a0c] border-r border-white/7 transition-all duration-300",
+      "flex flex-col h-full bg-[#0a0a0c] border-r border-border/70 transition-all duration-300",
       mobile ? "w-64" : collapsed ? "w-16" : "w-60"
     )}>
-      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-white/7", collapsed && !mobile && "justify-center px-2")}>
+      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-border/70", collapsed && !mobile && "justify-center px-2")}>
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <BookOpen className="w-4 h-4 text-white" />
         </div>
@@ -144,14 +144,14 @@ function Sidebar({
       </div>
 
       {(!collapsed || mobile) && activeChild && (
-        <div className="px-3 pt-3 pb-2 border-b border-white/7">
+        <div className="px-3 pt-3 pb-2 border-b border-border/70">
           <div className="text-[8px] font-bold text-[#46465a] uppercase tracking-widest px-2 mb-1">Active Child</div>
           {children.map((c) => (
             <div
               key={c.id}
               className={cn(
                 "flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all cursor-pointer",
-                c.id === activeChildId ? "bg-[#3b5bdb]/10 text-[#3b5bdb]" : "hover:bg-white/3 text-[#78788c]",
+                c.id === activeChildId ? "bg-[#3b5bdb]/10 text-[#3b5bdb]" : "hover:bg-muted text-[#78788c]",
               )}
               onClick={() => {
                 setActiveChildId(c.id);
@@ -224,7 +224,7 @@ function Sidebar({
       </nav>
 
       {(!collapsed || mobile) && (
-        <div className="px-3 py-4 border-t border-white/7 space-y-2">
+        <div className="px-3 py-4 border-t border-border/70 space-y-2">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
               <span className="text-[11px] font-black text-white">{initials}</span>
@@ -341,7 +341,7 @@ export default function ParentApp() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-white/7 bg-[#0a0a0c]/80 backdrop-blur-xl">
+        <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-border/70 bg-[#0a0a0c]/80 backdrop-blur-xl">
           <button
             onClick={() => setMobileOpen(true)}
             className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[#78788c] hover:text-white"

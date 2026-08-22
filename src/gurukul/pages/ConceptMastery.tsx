@@ -24,7 +24,7 @@ export default function ConceptMastery() {
           { label: "In progress", value: inProgress.length, color: "#3b82f6", icon: <Target className="w-4 h-4" /> },
           { label: "Need work",   value: needsWork.length,  color: "#f59e0b", icon: <AlertCircle className="w-4 h-4" /> },
         ].map((s) => (
-          <div key={s.label} className="p-4 rounded-2xl border border-white/7 bg-[#0e1322]/70 text-center">
+          <div key={s.label} className="p-4 rounded-2xl border border-border/70 bg-[#0e1322]/70 text-center">
             <div className="flex justify-center mb-1" style={{ color: s.color }}>{s.icon}</div>
             <div className="text-2xl font-black tabular-nums" style={{ color: s.color, fontFamily: "var(--font-display)" }}>{s.value}</div>
             <div className="text-[11px] text-[#6b7a99] mt-0.5">{s.label}</div>
@@ -52,7 +52,7 @@ export default function ConceptMastery() {
             const subCol = subjectColor[c.subject] ?? "#6b7a99";
             const statusLabel = c.mastery >= 80 ? "Doing well" : c.mastery >= 60 ? "In progress" : "Needs work";
             return (
-              <div key={c.id} className="flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-white/2 hover:border-white/15 transition-colors">
+              <div key={c.id} className="flex items-center gap-3 p-4 rounded-xl border border-border/70 bg-white/2 hover:border-border transition-colors">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${col}15`, color: col }}>
                   {c.mastery >= 80 ? <CheckCircle2 className="w-4 h-4" /> : c.mastery >= 60 ? <Target className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                 </div>

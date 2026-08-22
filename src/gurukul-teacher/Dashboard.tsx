@@ -58,7 +58,7 @@ function QuickAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-white/7 bg-[#131316] hover:border-white/15 hover:bg-white/3 transition-all group text-center"
+      className="flex flex-col items-center gap-2 p-4 rounded-2xl border border-border/70 bg-surface hover:border-border hover:bg-muted transition-all group text-center"
     >
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110"
@@ -94,8 +94,8 @@ function AttentionCard({
       onClick={onClick}
       disabled={!onClick}
       className={cn(
-        "bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-start gap-3 text-left w-full",
-        onClick && "hover:border-white/15 hover:bg-white/3 transition-all cursor-pointer",
+        "bg-surface border border-border/70 rounded-2xl p-4 flex items-start gap-3 text-left w-full",
+        onClick && "hover:border-border hover:bg-muted transition-all cursor-pointer",
       )}
     >
       <div
@@ -452,7 +452,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         type="button"
         onClick={() => openTab("students")}
         className={cn(
-          "w-full p-4 rounded-2xl border border-white/7 bg-[#131316] text-left hover:border-[#3b5bdb]/40",
+          "w-full p-4 rounded-2xl border border-border/70 bg-surface text-left hover:border-[#3b5bdb]/40",
         )}
       >
         <div className="text-xs font-bold text-white flex items-center gap-2">

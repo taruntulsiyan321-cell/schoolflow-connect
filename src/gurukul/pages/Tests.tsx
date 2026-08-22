@@ -167,7 +167,7 @@ export default function Tests() {
               "text-[10px] font-bold px-3 py-1.5 rounded-xl capitalize",
               filter === f
                 ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
-                : "text-[#78788c] border border-white/7",
+                : "text-[#78788c] border border-border/70",
             )}
           >
             {f}
@@ -191,7 +191,7 @@ export default function Tests() {
               const typeLabel =
                 EXAM_TYPE_LABELS[exam?.examType ?? ""] ?? exam?.examType ?? null;
               return (
-                <div key={m.id} className="p-4 rounded-xl border border-white/7 bg-white/2">
+                <div key={m.id} className="p-4 rounded-xl border border-border/70 bg-white/2">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-white">{exam?.name ?? "Exam"}</div>
@@ -230,7 +230,7 @@ export default function Tests() {
               return (
                 <div
                   key={t.id}
-                  className="p-4 rounded-xl border border-white/7 bg-white/2 flex items-center gap-3"
+                  className="p-4 rounded-xl border border-border/70 bg-white/2 flex items-center gap-3"
                 >
                   <Trophy className="w-4 h-4 text-[#c08a3a] shrink-0" />
                   <div className="flex-1 min-w-0">

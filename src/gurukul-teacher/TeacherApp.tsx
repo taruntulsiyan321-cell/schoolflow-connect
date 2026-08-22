@@ -90,10 +90,10 @@ function Sidebar({
 }) {
   return (
     <aside className={cn(
-      "flex flex-col h-full bg-[#0a0a0c] border-r border-white/7 transition-all duration-300 shrink-0",
+      "flex flex-col h-full bg-[#0a0a0c] border-r border-border/70 transition-all duration-300 shrink-0",
       mobile ? "w-64" : collapsed ? "w-16" : "w-60",
     )}>
-      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-white/7 min-h-[72px]", collapsed && !mobile && "justify-center px-2")}>
+      <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-border/70 min-h-[72px]", collapsed && !mobile && "justify-center px-2")}>
         <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <GraduationCap className="w-4 h-4 text-black" />
         </div>
@@ -154,7 +154,7 @@ function Sidebar({
       </nav>
 
       {(!collapsed || mobile) && (
-        <div className="p-3 border-t border-white/7 space-y-2">
+        <div className="p-3 border-t border-border/70 space-y-2">
           <div className="flex items-center gap-2 px-1">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
               <span className="text-[11px] font-black text-black">{initials}</span>
@@ -257,7 +257,7 @@ export default function TeacherApp() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="relative z-40 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/7 bg-[#0d0d0f]/80 backdrop-blur-xl shrink-0 gap-4">
+        <header className="relative z-40 flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border/70 bg-[#0d0d0f]/80 backdrop-blur-xl shrink-0 gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"

@@ -111,7 +111,7 @@ function ClassSelector({
             "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
             selected?.id === c.id
               ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-              : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15 hover:text-white",
+              : "bg-surface border-border/70 text-[#78788c] hover:border-border hover:text-white",
           )}
         >
           <div
@@ -228,7 +228,7 @@ export default function MyClasses() {
         />
       </div>
 
-      <div className="border-b border-white/7 flex gap-0 overflow-x-auto -mb-px">
+      <div className="border-b border-border/70 flex gap-0 overflow-x-auto -mb-px">
         {subTabs.map((t) => (
           <TabBtn
             key={t.key}

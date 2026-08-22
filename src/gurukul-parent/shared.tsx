@@ -53,7 +53,7 @@ export function ScoreBar({ value, max, color = ACCENT }: { value: number; max: n
 
 export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("bg-[#131316] border border-white/7 rounded-2xl", className)}>
+    <div className={cn("bg-surface border border-border/70 rounded-2xl", className)}>
       {children}
     </div>
   );

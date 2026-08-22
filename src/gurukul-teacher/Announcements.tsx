@@ -48,7 +48,7 @@ function AnnouncementForm({
   });
 
   return (
-    <div className="bg-[#131316] border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
+    <div className="bg-surface border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="text-sm font-bold text-white">{initial?.id ? "Edit Announcement" : "New Announcement"}</div>
         <button onClick={onCancel} type="button"><X className="w-4 h-4 text-[#78788c]" /></button>
@@ -271,7 +271,7 @@ export default function Announcements() {
               {editingId === a.id ? (
                 <AnnouncementForm classes={classes} initial={a} onSave={(form) => handleEdit(a.id, form)} onCancel={() => setEditingId(null)} saving={saving} />
               ) : (
-                <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+                <div className="bg-surface border border-border/70 rounded-2xl p-5">
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${priorityColor[a.priority]}18`, color: priorityColor[a.priority] }}>
                       <Megaphone className="w-4 h-4" />

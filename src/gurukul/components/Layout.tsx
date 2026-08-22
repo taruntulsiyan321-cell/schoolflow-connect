@@ -558,7 +558,7 @@ export default function Layout({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={reduceMotion ? undefined : { opacity: 0, scale: 0.96, y: -6 }}
                     transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: EASE_OUT }}
-                    className="fixed right-4 top-14 mt-0 w-64 z-overlay rounded-2xl border border-white/10 bg-[#131316]/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
+                    className="fixed right-4 top-14 mt-0 w-64 z-overlay rounded-2xl border border-white/10 bg-surface/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
                   >
                     {/* User info */}
                     <div className="px-4 py-4 border-b border-white/5">
@@ -652,7 +652,7 @@ export default function Layout({
         </main>
 
         {/* Mobile bottom nav — 4 tabs */}
-        <nav className="md:hidden shrink-0 fixed bottom-0 inset-x-0 border-t border-white/7 bg-[#0d0d0f]/95 backdrop-blur-xl z-40">
+        <nav className="md:hidden shrink-0 fixed bottom-0 inset-x-0 border-t border-border/70 bg-[#0d0d0f]/95 backdrop-blur-xl z-40">
           <div className="flex">
             {bottomNav.map(item => {
               const active = isBottomActive(item.key);

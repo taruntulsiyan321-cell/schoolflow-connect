@@ -55,7 +55,7 @@ export default function AcademicInsights({
                 "px-4 py-2 rounded-xl border text-xs font-semibold",
                 c.id === child.id
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "bg-[#131316] border-white/7 text-[#78788c]",
+                  : "bg-surface border-border/70 text-[#78788c]",
               )}
             >
               {c.fullName}

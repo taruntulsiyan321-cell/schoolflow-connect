@@ -188,8 +188,8 @@ export default function Assignments() {
             return (
               <div
                 key={a.id}
-                className={`p-4 rounded-xl border bg-white/2 hover:border-white/15 transition-colors space-y-2 ${
-                  isReturned ? "border-amber-500/40" : "border-white/7"
+                className={`p-4 rounded-xl border bg-white/2 hover:border-border transition-colors space-y-2 ${
+                  isReturned ? "border-amber-500/40" : "border-border/70"
                 }`}
               >
                 <div className="flex items-start gap-3">

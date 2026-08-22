@@ -75,7 +75,7 @@ export function ConfirmModal({
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+      <div className="relative z-10 bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
         <div className="text-white font-bold text-base mb-2">{title}</div>
         <div className="text-[#78788c] text-sm mb-6">{description}</div>
         <div className="flex gap-3 justify-end">
@@ -123,7 +123,7 @@ export function UndoToast({ state, onClose }: { state: UndoToastState; onClose: 
 
   return (
     <div
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border border-white/10 bg-[#131316] min-w-64"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border border-white/10 bg-surface min-w-64"
       style={{ borderLeftColor: color, borderLeftWidth: 3 }}
     >
       <span className="text-white text-sm font-semibold flex-1">{state.message}</span>

@@ -57,7 +57,7 @@ function ThreadList({
   );
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-white/7">
+      <div className="p-3 border-b border-border/70">
         <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
           <Search className="w-3 h-3 text-[#46465a] shrink-0" />
           <input
@@ -81,7 +81,7 @@ function ThreadList({
               type="button"
               onClick={() => onSelect(key)}
               className={cn(
-                "w-full flex items-start gap-3 px-4 py-3 hover:bg-white/3 transition-all text-left",
+                "w-full flex items-start gap-3 px-4 py-3 hover:bg-muted transition-all text-left",
                 selectedId === key && "bg-[#3b5bdb]/5 border-r-2 border-[#3b5bdb]",
               )}
             >
@@ -177,7 +177,7 @@ function ChatView({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-border/70">
         <div
           className="w-9 h-9 rounded-xl flex items-center justify-center text-[9px] font-black shrink-0"
           style={{ background: `${color}18`, color }}
@@ -277,7 +277,7 @@ function ChatView({
       </div>
 
       {replyTo && (
-        <div className="px-4 py-2 border-t border-white/7 flex items-center gap-2 text-[10px] text-[#78788c]">
+        <div className="px-4 py-2 border-t border-border/70 flex items-center gap-2 text-[10px] text-[#78788c]">
           <Reply className="w-3 h-3" />
           <span className="truncate flex-1">Replying to: {replyTo.content.slice(0, 80)}</span>
           <button type="button" onClick={() => setReplyTo(null)} className="text-white">
@@ -286,7 +286,7 @@ function ChatView({
         </div>
       )}
 
-      <div className="p-4 border-t border-white/7">
+      <div className="p-4 border-t border-border/70">
         <div className="flex items-end gap-2">
           <input
             ref={fileRef}
@@ -634,9 +634,9 @@ export default function Communication() {
   }
 
   return (
-    <div className="h-[calc(100vh-200px)] min-h-[600px] flex rounded-2xl overflow-hidden border border-white/7 bg-[#0d0d0f]">
-      <div className="w-72 shrink-0 bg-[#131316] border-r border-white/7 flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/7">
+    <div className="h-[calc(100vh-200px)] min-h-[600px] flex rounded-2xl overflow-hidden border border-border/70 bg-[#0d0d0f]">
+      <div className="w-72 shrink-0 bg-surface border-r border-border/70 flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/70">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-4 h-4 text-[#3b5bdb]" />
             <div className="text-sm font-bold text-white">Messages</div>
@@ -691,7 +691,7 @@ export default function Communication() {
       {showCreate && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
-          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 bg-surface border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-sm font-bold text-white">Create Group</div>
               <button type="button" onClick={() => setShowCreate(false)} className="text-[#78788c] hover:text-white text-lg">

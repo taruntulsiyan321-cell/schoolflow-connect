@@ -68,7 +68,7 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
     <div className="space-y-3">
       <div className="text-[9px] text-[#46465a]">HomeworkService · {rows.length} items</div>
       {rows.map(({ homework: h, submission: s, displayStatus }) => (
-        <div key={h.id} className="p-4 bg-[#131316] border border-white/7 rounded-2xl">
+        <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-2xl">
           <div className="flex justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -186,7 +186,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
             const max = exam?.maxMarks ?? null;
             const pct = max ? Math.round((m.marksObtained / max) * 100) : null;
             return (
-              <div key={m.id} className="p-3 bg-[#131316] border border-white/7 rounded-xl flex justify-between">
+              <div key={m.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between">
                 <div>
                   <div className="text-xs font-bold text-white">{exam?.name ?? m.examId.slice(0, 8)}</div>
                   <div className="text-[10px] text-[#78788c]">{exam?.subject ?? "—"}</div>
@@ -226,7 +226,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
               scoreLabel = "In progress";
             }
             return (
-              <div key={t.id} className="p-3 bg-[#131316] border border-white/7 rounded-xl flex justify-between gap-3">
+              <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold text-white">{t.title}</div>
                   <div className="text-[10px] text-[#78788c]">{t.subject || "—"}</div>
@@ -353,7 +353,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
           { label: "Exams", value: `${Math.round(exams)}%` },
           { label: "Tests", value: `${Math.round(tests)}%` },
         ].map((s) => (
-          <div key={s.label} className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+          <div key={s.label} className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
             <div className="text-lg font-black text-white">{s.value}</div>
             <div className="text-[10px] text-[#78788c]">{s.label}</div>
           </div>
@@ -367,7 +367,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
             { label: "League", value: progression.league },
             { label: "Streak / Badges", value: `${progression.studyStreak} / ${progression.badges}` },
           ].map((s) => (
-            <div key={s.label} className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+            <div key={s.label} className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
               <div className="text-sm font-black text-white truncate">{s.value}</div>
               <div className="text-[10px] text-[#78788c]">{s.label}</div>
             </div>
@@ -375,7 +375,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
         </div>
       )}
       {narrative && (
-        <div className="p-4 rounded-2xl bg-white/3 text-xs text-[#78788c] leading-relaxed space-y-2">
+        <div className="p-4 rounded-2xl bg-muted text-xs text-[#78788c] leading-relaxed space-y-2">
           <div className="text-[10px] font-bold text-white">Progress Summary</div>
           <p>{narrative.narrative}</p>
           {narrative.bullets.length > 0 && (

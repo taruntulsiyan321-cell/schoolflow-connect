@@ -11,8 +11,8 @@ import type { TeacherProfile } from "./data";
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
+    <div className="bg-surface border border-border/70 rounded-2xl overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-border/70">
         <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
         <div className="text-sm font-bold text-white">{title}</div>
       </div>
@@ -199,7 +199,7 @@ export default function TeacherProfile() {
         </div>
       )}
 
-      <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 flex items-center gap-4">
+      <div className="bg-surface border border-border/70 rounded-2xl p-5 flex items-center gap-4">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <span className="text-xl font-black text-black">{initials}</span>
         </div>
@@ -320,7 +320,7 @@ export default function TeacherProfile() {
 
       <Section title="Linked Accounts" icon={<Link2 className="w-4 h-4" />}>
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted">
             <div className="w-8 h-8 rounded-lg bg-[#ea4335]/15 flex items-center justify-center">
               <Mail className="w-4 h-4 text-[#ea4335]" />
             </div>
@@ -337,7 +337,7 @@ export default function TeacherProfile() {
             )}
           </div>
 
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted">
             <div className="w-8 h-8 rounded-lg bg-[#10b981]/15 flex items-center justify-center">
               <Smartphone className="w-4 h-4 text-[#10b981]" />
             </div>
@@ -355,7 +355,7 @@ export default function TeacherProfile() {
       </Section>
 
       <Section title="Security" icon={<Shield className="w-4 h-4" />}>
-        <div className="flex items-center justify-between p-3 rounded-xl bg-white/3">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
           <div>
             <div className="text-xs font-semibold text-white">Password</div>
             <div className="text-[10px] text-[#78788c]">Update your sign-in password</div>
@@ -373,7 +373,7 @@ export default function TeacherProfile() {
       {changePwdOpen && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setChangePwdOpen(false)} />
-          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+          <div className="relative z-10 bg-surface border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-sm font-bold text-white">Change Password</div>
               <button type="button" onClick={() => setChangePwdOpen(false)} className="text-[#78788c] hover:text-white">

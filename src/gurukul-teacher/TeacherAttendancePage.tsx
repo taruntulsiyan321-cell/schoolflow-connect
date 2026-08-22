@@ -314,7 +314,7 @@ export function TeacherAttendanceWorkspace({
           type="date"
           value={date}
           onChange={(e) => changeDate(e.target.value)}
-          className="bg-[#131316] border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+          className="bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
         />
       </div>
 
@@ -340,7 +340,7 @@ export function TeacherAttendanceWorkspace({
                 "flex items-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-semibold transition-all",
                 classId === c.id
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "bg-[#131316] border-white/7 text-[#78788c] hover:border-white/15 hover:text-white",
+                  : "bg-surface border-border/70 text-[#78788c] hover:border-border hover:text-white",
               )}
             >
               <Users className="w-3.5 h-3.5" />
@@ -362,7 +362,7 @@ export function TeacherAttendanceWorkspace({
       )}
 
       {(selected || fixedClassId) && (
-        <div className="flex flex-wrap gap-3 items-center justify-between sticky top-0 z-10 py-2 bg-[#0c0c0e]/95 backdrop-blur-sm">
+        <div className="flex flex-wrap gap-3 items-center justify-between sticky top-0 z-10 py-2 bg-surface/95 backdrop-blur-sm">
           <div className="flex gap-2 flex-wrap items-center">
             {STATUS_OPTIONS.map((s) => (
               <div
@@ -440,7 +440,7 @@ export function TeacherAttendanceWorkspace({
         <select
           value={sortKey}
           onChange={(e) => setSortKey(e.target.value as SortKey)}
-          className="bg-[#131316] border border-white/10 rounded-xl px-3 py-2 text-xs text-[#78788c]"
+          className="bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs text-[#78788c]"
         >
           <option value="roll">Sort: Roll</option>
           <option value="name">Sort: Name</option>
@@ -468,7 +468,7 @@ export function TeacherAttendanceWorkspace({
                     ? "bg-[#cc5069]/10 border-[#cc5069]/30"
                     : isPresent
                       ? "bg-[#10b981]/8 border-[#10b981]/20"
-                      : "bg-[#131316] border-white/7",
+                      : "bg-surface border-border/70",
                 )}
               >
                 {s.photoUrl ? (
@@ -507,7 +507,7 @@ export function TeacherAttendanceWorkspace({
                           title={opt.label}
                           className={cn(
                             "w-7 h-7 rounded-lg text-[9px] font-bold transition-all",
-                            status === opt.value ? "text-white" : "text-[#46465a] bg-white/3 hover:bg-white/8",
+                            status === opt.value ? "text-white" : "text-[#46465a] bg-muted hover:bg-white/8",
                           )}
                           style={
                             status === opt.value

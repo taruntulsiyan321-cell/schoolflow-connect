@@ -227,7 +227,7 @@ export function AnalyticsStudio({ data, charts }: Props) {
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <span className="wa-gold-pill">Wisdom Campus · Academic Intelligence Center</span>
-              <span className="rounded-full bg-white/12 border border-white/15 px-3 py-1 text-[10px] font-semibold text-white/80">
+              <span className="rounded-full bg-white/12 border border-border px-3 py-1 text-[10px] font-semibold text-white/80">
                 {studentClass}
               </span>
             </div>

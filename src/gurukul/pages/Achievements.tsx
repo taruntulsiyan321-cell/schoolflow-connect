@@ -107,13 +107,13 @@ export default function Achievements() {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3">
-        <div className="p-4 rounded-2xl border border-white/7 bg-[#131316]/70 text-center">
+        <div className="p-4 rounded-2xl border border-border/70 bg-surface/70 text-center">
           <div className="text-2xl font-black text-amber-400" style={{ fontFamily: "var(--font-display)" }}>
             {unlocked.length}
           </div>
           <div className="text-[11px] text-[#78788c] mt-0.5">Milestones reached</div>
         </div>
-        <div className="p-4 rounded-2xl border border-white/7 bg-[#131316]/70 text-center">
+        <div className="p-4 rounded-2xl border border-border/70 bg-surface/70 text-center">
           <div className="text-2xl font-black text-[#6882e8]" style={{ fontFamily: "var(--font-display)" }}>
             {visibleCatalogCount || "—"}
           </div>
@@ -144,7 +144,7 @@ export default function Achievements() {
             {achievements.map((a) => (
               <div
                 key={a.code}
-                className="flex items-start gap-3 p-3 rounded-xl border border-white/7 bg-white/2"
+                className="flex items-start gap-3 p-3 rounded-xl border border-border/70 bg-white/2"
               >
                 <Star className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <div className="min-w-0">
@@ -238,7 +238,7 @@ export default function Achievements() {
             {locked.map((a) => {
               const Icon = a.icon;
               return (
-                <div key={a.code} className="flex items-start gap-3 p-4 rounded-xl border border-white/7 bg-white/2">
+                <div key={a.code} className="flex items-start gap-3 p-4 rounded-xl border border-border/70 bg-white/2">
                   <span className="text-2xl shrink-0 opacity-40">
                     <Icon className="w-6 h-6" />
                   </span>

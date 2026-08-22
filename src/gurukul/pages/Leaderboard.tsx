@@ -135,7 +135,7 @@ export default function Leaderboard() {
               "px-3 py-1.5 rounded-xl text-[11px] font-semibold border transition-colors",
               period === p.key
                 ? "border-amber-400/40 bg-amber-400/10 text-amber-300"
-                : "border-white/7 text-[#78788c] hover:text-white",
+                : "border-border/70 text-[#78788c] hover:text-white",
             )}
           >
             {p.label}
@@ -156,7 +156,7 @@ export default function Leaderboard() {
               key={p.userId}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-xl border transition-colors",
-                p.you ? "border-blue-500/30 bg-blue-500/8" : "border-white/7 hover:border-white/12",
+                p.you ? "border-blue-500/30 bg-blue-500/8" : "border-border/70 hover:border-white/12",
               )}
             >
               <div className="w-7 h-7 flex items-center justify-center shrink-0">

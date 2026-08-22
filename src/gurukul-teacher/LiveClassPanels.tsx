@@ -412,7 +412,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           <ChevronRight className="w-3 h-3 rotate-180" /> Back to Students
         </button>
 
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 space-y-4">
+        <div className="bg-surface border border-border/70 rounded-2xl p-5 space-y-4">
           <div className="flex items-center gap-4">
             {selected.photoUrl ? (
               <img src={selected.photoUrl} alt="" className="w-14 h-14 rounded-2xl object-cover" />
@@ -452,7 +452,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
           <Loading label="Building academic report…" />
         ) : (
           <>
-            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+            <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
               <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider">
                 What you should know
               </div>
@@ -463,7 +463,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               ))}
             </div>
 
-            <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+            <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
               <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider">
                 Suggested actions
               </div>
@@ -509,7 +509,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               ].map((m) => (
                 <div
                   key={m.label}
-                  className="bg-[#131316] border border-white/7 rounded-xl p-3 text-center"
+                  className="bg-surface border border-border/70 rounded-xl p-3 text-center"
                 >
                   <div
                     className="text-sm font-black tabular-nums"
@@ -523,7 +523,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
                 <div className="text-xs font-bold text-white">Pending homework</div>
                 {pendingHomework.length === 0 ? (
                   <div className="text-[10px] text-[#46465a]">Caught up — nothing pending</div>
@@ -542,7 +542,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                   Submitted recently: {submittedHomework.length}
                 </div>
               </div>
-              <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
                 <div className="text-xs font-bold text-white">Recent attendance</div>
                 {attendanceHistory.length === 0 ? (
                   <div className="text-[10px] text-[#46465a]">No records yet</div>
@@ -567,7 +567,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             </div>
 
             {(weakSubjects.length > 0 || strongSubjects.length > 0 || remarks.length > 0) && (
-              <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-3">
+              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-3">
                 <div className="text-xs font-bold text-white">Teacher context</div>
                 {weakSubjects.length > 0 && (
                   <div className="flex flex-wrap gap-1 items-center">
@@ -639,7 +639,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             )}
 
             {!(weakSubjects.length > 0 || strongSubjects.length > 0 || remarks.length > 0) && (
-              <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
                 <div className="text-xs font-bold text-white">Teacher remark</div>
                 <div className="pt-2 space-y-2 border-t border-white/5">
                   <textarea
@@ -680,7 +680,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             )}
 
             {recentMarks.length > 0 && (
-              <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+              <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
                 <div className="text-xs font-bold text-white">Latest published marks</div>
                 {recentMarks.slice(0, 5).map((m) => (
                   <div key={m.id} className="flex justify-between gap-2 text-[11px]">
@@ -729,7 +729,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               key={s.id}
               type="button"
               onClick={() => setSelected(s)}
-              className="w-full flex items-center gap-3 p-3 bg-[#131316] border border-white/7 rounded-2xl hover:border-white/15 hover:bg-white/3 transition-all text-left group"
+              className="w-full flex items-center gap-3 p-3 bg-surface border border-border/70 rounded-2xl hover:border-border hover:bg-muted transition-all text-left group"
             >
               {s.photoUrl ? (
                 <img src={s.photoUrl} alt="" className="w-9 h-9 rounded-xl object-cover" />
@@ -1161,7 +1161,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
         )}
 
         {step === "basics" && (
-          <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-3">
+          <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-3">
             <div className="text-sm font-bold text-white">Test basics</div>
             <input
               value={basics.title}
@@ -1271,7 +1271,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 key={card.key}
                 type="button"
                 onClick={() => pickSource(card.key)}
-                className="w-full text-left p-4 bg-[#131316] border border-white/10 rounded-2xl hover:border-[#3b5bdb]/50 transition-all flex gap-3"
+                className="w-full text-left p-4 bg-surface border border-white/10 rounded-2xl hover:border-[#3b5bdb]/50 transition-all flex gap-3"
               >
                 <card.icon className="w-5 h-5 text-[#3b5bdb] shrink-0 mt-0.5" />
                 <div>
@@ -1305,14 +1305,14 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 {libItems.map((item) => (
                   <div
                     key={item.id}
-                    className="p-3 bg-[#131316] border border-white/7 rounded-xl text-xs text-white"
+                    className="p-3 bg-surface border border-border/70 rounded-xl text-xs text-white"
                   >
                     {item.question}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="bg-[#131316] border border-dashed border-white/15 rounded-2xl p-6 text-center space-y-3">
+              <div className="bg-surface border border-dashed border-border rounded-2xl p-6 text-center space-y-3">
                 <BookOpen className="w-8 h-8 text-[#46465a] mx-auto" />
                 <div className="text-xs text-[#a0a0b0]">
                   Library coming soon — NCERT content will be added later. Use Manual or Upload for
@@ -1346,7 +1346,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               </span>
             </div>
 
-            <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
+            <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2">
               <select
                 value={qForm.kind}
                 onChange={(e) =>
@@ -1455,7 +1455,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               {questions.map((q, i) => (
                 <div
                   key={q.localId}
-                  className="p-3 bg-[#131316] border border-white/7 rounded-xl flex gap-2"
+                  className="p-3 bg-surface border border-border/70 rounded-xl flex gap-2"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-[9px] text-[#3b5bdb] font-bold uppercase">
@@ -1518,7 +1518,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "upload" && (
           <div className="space-y-3">
-            <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
+            <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2">
               <div className="text-[10px] font-bold text-white">Upload question paper</div>
               <div className="text-[10px] text-[#78788c]">
                 PDF, images, Word, Excel, PowerPoint, or links — same upload experience as Homework.
@@ -1544,7 +1544,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
 
         {step === "review" && (
           <div className="space-y-4">
-            <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2 text-xs">
+            <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2 text-xs">
               <div className="text-sm font-bold text-white">{basics.title || "Untitled"}</div>
               <div className="text-[#78788c]">
                 {TEST_KIND_LABELS[basics.testKind]} · {durationMin} min
@@ -1640,7 +1640,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
           const qCount = t.question_count ?? 0;
           const canPublish = status === "draft" || status === "scheduled" || (!t.is_published && status !== "published" && status !== "archived");
           return (
-            <div key={t.id} className="p-3 bg-[#131316] border border-white/7 rounded-xl space-y-2">
+            <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
               <div className="flex justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white truncate">{t.title}</div>
@@ -2065,7 +2065,7 @@ export function LiveExamsMarksTab({
             {roster.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center justify-between gap-3 p-3 bg-[#131316] border border-white/7 rounded-xl"
+                className="flex items-center justify-between gap-3 p-3 bg-surface border border-border/70 rounded-xl"
               >
                 <div className="text-xs text-white min-w-0 truncate">
                   {s.rollNumber ? `#${s.rollNumber} · ` : ""}
@@ -2136,7 +2136,7 @@ export function LiveExamsMarksTab({
           {activeGroup.subjects.map((s) => (
             <div
               key={s.id}
-              className="flex items-center justify-between gap-2 p-3 bg-[#131316] border border-white/7 rounded-xl"
+              className="flex items-center justify-between gap-2 p-3 bg-surface border border-border/70 rounded-xl"
             >
               <div className="text-xs text-white font-semibold">{s.subject}</div>
               <div className="text-[10px] text-[#78788c]">max {s.maxMarks}</div>
@@ -2201,7 +2201,7 @@ export function LiveExamsMarksTab({
       )}
 
       {creating && isClassTeacher && (
-        <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
+        <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2">
           <input
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
@@ -2289,7 +2289,7 @@ export function LiveExamsMarksTab({
             (subject && s.subject.toLowerCase() === subject.toLowerCase()),
           );
           return (
-            <div key={g.examGroupId} className="p-3 bg-[#131316] border border-white/7 rounded-xl space-y-2">
+            <div key={g.examGroupId} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
               <div className="flex justify-between gap-2">
                 <div>
                   <div className="text-xs font-bold text-white">{g.name}</div>
@@ -2374,7 +2374,7 @@ function DecisionSection({
   metricClass?: string;
 }) {
   return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 space-y-2">
+    <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
       <div>
         <div className="text-xs font-bold text-white">{title}</div>
         <div className="text-[10px] text-[#46465a] mt-0.5">{question}</div>
@@ -2817,7 +2817,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       </div>
 
       {analytics && (
-        <div className="bg-[#131316] border border-white/7 rounded-2xl px-3 py-2.5 overflow-x-auto">
+        <div className="bg-surface border border-border/70 rounded-2xl px-3 py-2.5 overflow-x-auto">
           <div className="flex items-center gap-4 sm:gap-5 min-w-max text-[10px]">
             <div>
               <span className="text-[#46465a]">Attendance </span>

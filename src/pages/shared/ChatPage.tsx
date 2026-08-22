@@ -489,7 +489,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
             showMobileChat && "hidden md:flex",
           )}
         >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/7">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/70">
             <div className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4 text-[#3b5bdb]" />
               <div className="text-sm font-bold text-white">Chats</div>
@@ -503,7 +503,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               <Plus className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="p-3 border-b border-white/7">
+          <div className="p-3 border-b border-border/70">
             <div className="chat-search flex items-center gap-2 rounded-xl px-3 py-2">
               <Search className="w-3.5 h-3.5 text-[#46465a] shrink-0" />
               <input
@@ -590,7 +590,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         <main className={cn("flex-1 flex flex-col min-w-0 chat-thread-bg", !showMobileChat && "hidden md:flex")}>
           {selectedContact ? (
             <>
-              <div className="flex items-center gap-3 px-4 py-3 border-b border-white/7 bg-[#131316]/80">
+              <div className="flex items-center gap-3 px-4 py-3 border-b border-border/70 bg-surface/80">
                 <button
                   type="button"
                   className="md:hidden shrink-0 w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white"
@@ -710,7 +710,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                             <button
                               type="button"
                               title="Reply"
-                              className="w-7 h-7 rounded-lg bg-[#131316] border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white"
+                              className="w-7 h-7 rounded-lg bg-surface border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white"
                               onClick={() => setReplyTo(m)}
                             >
                               <Reply className="w-3.5 h-3.5" />
@@ -719,7 +719,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                               <button
                                 type="button"
                                 title="Delete"
-                                className="w-7 h-7 rounded-lg bg-[#131316] border border-white/10 flex items-center justify-center text-[#78788c] hover:text-[#cc5069]"
+                                className="w-7 h-7 rounded-lg bg-surface border border-white/10 flex items-center justify-center text-[#78788c] hover:text-[#cc5069]"
                                 onClick={() => void onDelete(m)}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -735,7 +735,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               </div>
 
               {replyTo && (
-                <div className="px-4 pt-3 flex items-center gap-2 border-t border-white/7 bg-[#131316]/90">
+                <div className="px-4 pt-3 flex items-center gap-2 border-t border-border/70 bg-surface/90">
                   <div className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-[10px] text-[#78788c] truncate">
                     <span className="font-bold text-white">Replying · </span>
                     {previewOf(replyTo).slice(0, 100) || "Message"}
@@ -751,7 +751,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               )}
 
               {showEmoji && (
-                <div className="px-4 pt-2 flex flex-wrap gap-1 border-t border-white/5 bg-[#131316]/90">
+                <div className="px-4 pt-2 flex flex-wrap gap-1 border-t border-white/5 bg-surface/90">
                   {EMOJI_QUICK.map((e) => (
                     <button
                       key={e}

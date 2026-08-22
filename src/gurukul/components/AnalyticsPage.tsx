@@ -166,8 +166,8 @@ function GlassCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-[#131316]/90 backdrop-blur-sm",
-        glow ? glowStyle[glow] : "border-white/7",
+        "rounded-2xl border bg-surface/90 backdrop-blur-sm",
+        glow ? glowStyle[glow] : "border-border/70",
         className
       )}
     >
@@ -278,7 +278,7 @@ const tabs: { key: TabKey; label: string }[] = [
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#131316] border border-white/10 rounded-xl px-3 py-2 text-xs shadow-xl">
+    <div className="bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs shadow-xl">
       <div className="text-[#78788c] mb-1">{label}</div>
       {payload.map((p) => (
         <div key={p.name} className="flex items-center gap-2">
@@ -392,7 +392,7 @@ export default function AnalyticsPage() {
         </GlassCard>
 
         {/* ── Tab Bar ───────────────────────── */}
-        <div className="flex gap-1 bg-white/4 border border-white/7 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 bg-white/4 border border-border/70 rounded-xl p-1 w-fit">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -471,7 +471,7 @@ export default function AnalyticsPage() {
                 {aiInsights.map((line, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 p-3 rounded-xl bg-white/3 border border-white/5 hover:border-purple-400/20 transition-colors"
+                    className="flex items-start gap-3 p-3 rounded-xl bg-muted border border-white/5 hover:border-purple-400/20 transition-colors"
                   >
                     <div className="w-5 h-5 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0 mt-0.5">
                       <span className="text-[10px] font-bold text-purple-400">{i + 1}</span>
@@ -491,7 +491,7 @@ export default function AnalyticsPage() {
                   return (
                     <div
                       key={i}
-                      className="flex items-center gap-4 p-3 rounded-xl bg-white/3 border border-white/5 hover:border-white/10 transition-colors group"
+                      className="flex items-center gap-4 p-3 rounded-xl bg-muted border border-white/5 hover:border-white/10 transition-colors group"
                     >
                       <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold"
@@ -521,7 +521,7 @@ export default function AnalyticsPage() {
           <div className="space-y-6">
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {subjectData.map((s) => (
-                <GlassCard key={s.subject} className="p-5 hover:border-white/15 transition-colors">
+                <GlassCard key={s.subject} className="p-5 hover:border-border transition-colors">
                   <div className="flex items-start justify-between gap-2 mb-3">
                     <div>
                       <div className="text-sm font-bold text-white">{s.subject}</div>
@@ -716,7 +716,7 @@ export default function AnalyticsPage() {
                 { icon: <Zap className="w-5 h-5" />, label: "Total XP", value: student.xp.toLocaleString(), color: "#3b5bdb", bg: "#3b5bdb20" },
                 { icon: <Activity className="w-5 h-5" />, label: "Sessions", value: "38", color: "#4aa87a", bg: "#4aa87a20" },
               ].map((item) => (
-                <GlassCard key={item.label} className="p-4 hover:border-white/15 transition-colors">
+                <GlassCard key={item.label} className="p-4 hover:border-border transition-colors">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: item.bg, color: item.color }}>
                     {item.icon}
                   </div>
@@ -743,7 +743,7 @@ export default function AnalyticsPage() {
                       "flex items-center gap-3 p-3 rounded-xl border transition-colors",
                       p.you
                         ? "bg-blue-500/10 border-blue-500/25"
-                        : "bg-white/3 border-white/5 hover:border-white/10"
+                        : "bg-muted border-white/5 hover:border-white/10"
                     )}
                   >
                     <div

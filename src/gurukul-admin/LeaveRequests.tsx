@@ -52,7 +52,7 @@ function ResolveModal({
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+      <div className="relative z-10 bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-md shadow-2xl">
         <div className="text-sm font-bold text-white mb-1">{cfg.label}</div>
         <div className="text-[10px] text-[#78788c] mb-4">
           {request.applicantName} · {leaveTypeLabel(request.leaveType)} · {request.fromDate}
@@ -110,8 +110,8 @@ function LeaveDetail({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-white/7 flex flex-col h-full overflow-hidden">
-        <div className="p-5 border-b border-white/7 flex items-start gap-3">
+      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-border/70 flex flex-col h-full overflow-hidden">
+        <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <InitialsAvatar name={request.applicantName} size="lg" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-white">{request.applicantName}</div>
@@ -144,19 +144,19 @@ function LeaveDetail({
               value: new Date(request.createdAt).toLocaleString("en-IN"),
             },
           ].map((row) => (
-            <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-white/3">
+            <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
               <div className="text-[9px] text-[#46465a] uppercase tracking-wider">{row.label}</div>
               <div className="text-xs text-white capitalize">{row.value}</div>
             </div>
           ))}
 
-          <div className="flex flex-col gap-1 p-3 rounded-xl bg-white/3">
+          <div className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
             <div className="text-[9px] text-[#46465a] uppercase tracking-wider">Reason</div>
             <div className="text-xs text-[#c8c8d4] leading-relaxed">{request.reason || "—"}</div>
           </div>
 
           {request.reviewedAt && (
-            <div className="flex flex-col gap-1 p-3 rounded-xl bg-white/3">
+            <div className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
               <div className="text-[9px] text-[#46465a] uppercase tracking-wider">Reviewed</div>
               <div className="text-xs text-[#c8c8d4]">
                 {new Date(request.reviewedAt).toLocaleString("en-IN")}
@@ -166,7 +166,7 @@ function LeaveDetail({
         </div>
 
         {request.status === "pending" && (
-          <div className="p-4 border-t border-white/7 space-y-2">
+          <div className="p-4 border-t border-border/70 space-y-2">
             <button
               type="button"
               onClick={() => onAction("approve")}
@@ -292,13 +292,13 @@ export default function LeaveRequests() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by applicant or reason…"
-            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
+            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="bg-[#131316] border border-white/7 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50"
+          className="bg-surface border border-border/70 rounded-xl px-3 py-2.5 text-sm text-[#78788c] focus:outline-none focus:border-[#3b5bdb]/50"
         >
           <option value="all">All Leave Types</option>
           {(Object.keys(LEAVE_TYPE_LABELS) as LeaveType[]).map((k) => (
@@ -309,7 +309,7 @@ export default function LeaveRequests() {
         </select>
       </div>
 
-      <div className="flex gap-1 p-1 bg-[#131316] border border-white/7 rounded-2xl w-fit">
+      <div className="flex gap-1 p-1 bg-surface border border-border/70 rounded-2xl w-fit">
         {(
           [
             { key: "all", label: "All" },
@@ -346,7 +346,7 @@ export default function LeaveRequests() {
 
       <div className="space-y-3">
         {filtered.length === 0 && (
-          <div className="flex flex-col items-center gap-3 py-16 bg-[#131316] border border-white/7 rounded-2xl">
+          <div className="flex flex-col items-center gap-3 py-16 bg-surface border border-border/70 rounded-2xl">
             <Calendar className="w-8 h-8 text-[#46465a]" />
             <div className="text-sm text-[#78788c]">No leave requests found</div>
             <div className="text-[10px] text-[#46465a]">LeaveService · school-scoped</div>
@@ -358,7 +358,7 @@ export default function LeaveRequests() {
           return (
             <div
               key={req.id}
-              className="bg-[#131316] border border-white/7 rounded-2xl p-4 hover:border-white/12 transition-all group"
+              className="bg-surface border border-border/70 rounded-2xl p-4 hover:border-white/12 transition-all group"
             >
               <div className="flex items-start gap-4">
                 <InitialsAvatar name={req.applicantName} size="md" />

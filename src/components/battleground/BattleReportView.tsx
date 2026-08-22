@@ -181,7 +181,7 @@ export function BattleReportView({ participantId, forTeacher = false, onBack }: 
         <div className="relative">
           <div className="flex flex-wrap gap-2 mb-4">
             <span className="wa-gold-pill">Battle Intelligence</span>
-            {forTeacher && <span className="rounded-full bg-white/12 border border-white/15 px-3 py-1 text-[10px] font-semibold text-white/80">{data.display_name}</span>}
+            {forTeacher && <span className="rounded-full bg-white/12 border border-border px-3 py-1 text-[10px] font-semibold text-white/80">{data.display_name}</span>}
           </div>
           <h1 className="font-['Sora'] text-3xl sm:text-4xl font-semibold tracking-tight text-white">{b.title ?? "Battle report"}</h1>
           <p className="text-sm text-white/75 mt-1">

@@ -229,7 +229,7 @@ export default function Timetable() {
                 "flex items-stretch gap-4 rounded-2xl border transition-all duration-200",
                 isCurrent
                   ? "border-[#3b5bdb]/40 bg-[#3b5bdb]/8 shadow-[0_0_24px_rgba(59,130,246,0.12)]"
-                  : "border-white/5 bg-[#131316]/70",
+                  : "border-white/5 bg-surface/70",
                 isBreak && "opacity-50",
               )}
             >

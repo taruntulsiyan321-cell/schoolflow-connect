@@ -199,7 +199,7 @@ export default function Profile({ setPage }: { setPage?: (p: PageKey) => void })
           { label: "Homework", value: `${hwPct}%`, color: "#c08a3a", icon: <Medal className="w-4 h-4" /> },
           { label: "Tests avg", value: `${testsAvg}%`, color: "#4b9fd4", icon: <Target className="w-4 h-4" /> },
         ].map((s) => (
-          <div key={s.label} className="p-4 rounded-2xl border border-white/7 bg-[#131316]/70">
+          <div key={s.label} className="p-4 rounded-2xl border border-border/70 bg-surface/70">
             <div className="flex items-center gap-2 mb-1" style={{ color: s.color }}>
               {s.icon}
               <span className="text-[10px] uppercase tracking-wider text-[#78788c]">{s.label}</span>

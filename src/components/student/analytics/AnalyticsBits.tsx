@@ -294,7 +294,7 @@ export function MetricTile({
             : "text-foreground";
 
   return (
-    <div className="rounded-xl bg-white/10 border border-white/15 px-4 py-3 backdrop-blur-sm">
+    <div className="rounded-xl bg-white/10 border border-border px-4 py-3 backdrop-blur-sm">
       <div className="text-[10px] uppercase tracking-wider text-white/65">{label}</div>
       <div className={cn("text-2xl font-bold tabular-nums mt-1", valueTone)}>{value}</div>
       {sub && <div className="text-[11px] text-white/60 mt-0.5">{sub}</div>}

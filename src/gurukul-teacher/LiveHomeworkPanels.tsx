@@ -259,7 +259,7 @@ export function LiveAcademicWorkTab({
         </div>
         <div className="space-y-2">
           {subs.map((s) => (
-            <div key={s.id} className="p-3 rounded-2xl border border-white/10 bg-[#131316] space-y-2">
+            <div key={s.id} className="p-3 rounded-2xl border border-white/10 bg-surface space-y-2">
               <div className="flex justify-between gap-2">
                 <div className="text-xs font-semibold text-white">
                   {nameById.get(s.studentId) ?? s.studentId.slice(0, 8)}
@@ -369,7 +369,7 @@ export function LiveAcademicWorkTab({
       </div>
 
       {creating && (
-        <div className="bg-[#131316] border border-white/10 rounded-2xl p-4 space-y-2">
+        <div className="bg-surface border border-white/10 rounded-2xl p-4 space-y-2">
           <input
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
@@ -488,7 +488,7 @@ export function LiveAcademicWorkTab({
       <div className="text-[10px] text-[#46465a]">{filtered.length} homework items</div>
       <div className="space-y-2">
         {filtered.map((h) => (
-          <div key={h.id} className="p-4 bg-[#131316] border border-white/7 rounded-2xl space-y-2">
+          <div key={h.id} className="p-4 bg-surface border border-border/70 rounded-2xl space-y-2">
             <div className="flex justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">

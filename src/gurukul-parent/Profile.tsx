@@ -7,8 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
+    <div className="bg-surface border border-border/70 rounded-2xl overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-border/70">
         <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
         <div className="text-sm font-bold text-white">{title}</div>
       </div>
@@ -251,7 +251,7 @@ export default function ParentProfile() {
         </div>
       )}
 
-      <div className="bg-[#131316] border border-white/7 rounded-2xl p-5 flex items-center gap-4">
+      <div className="bg-surface border border-border/70 rounded-2xl p-5 flex items-center gap-4">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
           <span className="text-xl font-black text-white">{initials}</span>
         </div>
@@ -323,7 +323,7 @@ export default function ParentProfile() {
 
       <Section title="Account" icon={<Link2 className="w-4 h-4" />}>
         <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-muted">
             <div className="w-8 h-8 rounded-lg bg-[#3b5bdb]/15 flex items-center justify-center">
               <Smartphone className="w-4 h-4 text-[#3b5bdb]" />
             </div>
@@ -339,7 +339,7 @@ export default function ParentProfile() {
       </Section>
 
       <Section title="Security" icon={<Shield className="w-4 h-4" />}>
-        <div className="flex items-center justify-between p-3 rounded-xl bg-white/3">
+        <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
           <div>
             <div className="text-xs font-semibold text-white">Password</div>
             <div className="text-[10px] text-[#78788c]">Update via Supabase Auth</div>
@@ -362,7 +362,7 @@ export default function ParentProfile() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="change-pwd-title"
-            className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4"
+            className="relative z-10 bg-surface border border-white/10 rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between">
               <div id="change-pwd-title" className="text-sm font-bold text-white">Change Password</div>

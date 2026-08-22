@@ -47,7 +47,7 @@ export function StatusDot({ status }: { status: string }) {
 
 export function Card({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("bg-[#131316] border border-white/7 rounded-2xl", className)}>
+    <div className={cn("bg-surface border border-border/70 rounded-2xl", className)}>
       {children}
     </div>
   );
@@ -67,7 +67,7 @@ export function SectionHead({ title, subtitle, action }: { title: string; subtit
 
 export function StatBox({ label, value, color }: { label: string; value: string | number; color?: string }) {
   return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+    <div className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
       <div className="text-xl font-black tabular-nums" style={{ color: color ?? "#fff" }}>{value}</div>
       <div className="text-[10px] text-[#78788c] mt-0.5">{label}</div>
     </div>

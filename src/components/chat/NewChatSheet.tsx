@@ -88,9 +88,9 @@ export function NewChatSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="new-chat-title"
-        className="relative z-10 w-full sm:max-w-md flex flex-col shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[85vh] sm:max-h-[70vh] bg-[#131316] border border-white/10"
+        className="relative z-10 w-full sm:max-w-md flex flex-col shadow-2xl rounded-t-2xl sm:rounded-2xl max-h-[85vh] sm:max-h-[70vh] bg-surface border border-white/10"
       >
-        <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-white/7 shrink-0">
+        <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-b border-border/70 shrink-0">
           <div>
             <h2 id="new-chat-title" className="text-sm font-bold text-white">
               New chat
@@ -109,7 +109,7 @@ export function NewChatSheet({
           </button>
         </div>
 
-        <div className="px-3 py-2.5 border-b border-white/7 shrink-0">
+        <div className="px-3 py-2.5 border-b border-border/70 shrink-0">
           <div className="flex items-center gap-2 rounded-xl px-3 py-2 bg-white/5 border border-white/10">
             <Search className="w-3.5 h-3.5 shrink-0 text-[#46465a]" />
             <input

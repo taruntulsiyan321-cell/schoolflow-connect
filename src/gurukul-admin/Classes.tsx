@@ -120,8 +120,8 @@ function AttendancePanel({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-96 sm:w-[480px] bg-[#0a0a0c] border-l border-white/7 flex flex-col h-full overflow-hidden">
-        <div className="p-5 border-b border-white/7 flex items-start gap-3">
+      <div className="relative z-50 w-96 sm:w-[480px] bg-[#0a0a0c] border-l border-border/70 flex flex-col h-full overflow-hidden">
+        <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
             <Building2 className="w-5 h-5 text-[#3b5bdb]" />
           </div>
@@ -161,7 +161,7 @@ function AttendancePanel({
           ) : (
             <>
               <div className="grid grid-cols-4 gap-2">
-                <div className="p-3 rounded-xl bg-white/3 text-center">
+                <div className="p-3 rounded-xl bg-muted text-center">
                   <div className="text-lg font-black text-white">{students.length}</div>
                   <div className="text-[9px] text-[#78788c]">Total</div>
                 </div>
@@ -187,7 +187,7 @@ function AttendancePanel({
                     const status = statusByStudent[s.id];
                     const present = status === "present" || status === "late" || status === "half_day";
                     return (
-                      <div key={s.id} className="bg-white/3 rounded-xl p-3 flex items-center gap-3">
+                      <div key={s.id} className="bg-muted rounded-xl p-3 flex items-center gap-3">
                         <InitialsAvatar name={s.fullName} size="sm" />
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-semibold text-white">{s.fullName}</div>
@@ -222,7 +222,7 @@ function AttendancePanel({
           )}
         </div>
 
-        <div className="p-4 border-t border-white/7">
+        <div className="p-4 border-t border-border/70">
           <button
             disabled={saving || loading || students.length === 0}
             onClick={() => void save()}
@@ -277,8 +277,8 @@ function ClassRosterDrawer({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-white/7 flex flex-col h-full overflow-hidden">
-        <div className="p-5 border-b border-white/7 flex items-start gap-3">
+      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-border/70 flex flex-col h-full overflow-hidden">
+        <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <div className="w-12 h-12 rounded-2xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
             <Building2 className="w-6 h-6 text-[#3b5bdb]" />
           </div>
@@ -295,14 +295,14 @@ function ClassRosterDrawer({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 p-4 border-b border-white/7">
+        <div className="grid grid-cols-2 gap-2 p-4 border-b border-border/70">
           {[
             { label: "Profile att.", value: `${Math.round(liveClass.avgAttendancePct)}%` },
             { label: "Today day-rate", value: liveClass.dayRatePct != null ? `${liveClass.dayRatePct}%` : "—" },
             { label: "Homework", value: `${Math.round(liveClass.avgHomeworkCompletionPct)}%` },
             { label: "Exams", value: `${Math.round(liveClass.avgExamsPct)}%` },
           ].map((item) => (
-            <div key={item.label} className="p-3 rounded-xl bg-white/3 text-center">
+            <div key={item.label} className="p-3 rounded-xl bg-muted text-center">
               <div className="text-sm font-black text-white">{item.value}</div>
               <div className="text-[9px] text-[#78788c] mt-0.5">{item.label}</div>
             </div>
@@ -329,7 +329,7 @@ function ClassRosterDrawer({
             <div className="text-xs text-[#78788c] text-center pt-8">No students in this class</div>
           ) : (
             students.map((s) => (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/3">
+              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted">
                 <InitialsAvatar name={s.fullName} size="sm" />
                 <div>
                   <div className="text-xs font-semibold text-white">{s.fullName}</div>
@@ -340,7 +340,7 @@ function ClassRosterDrawer({
           )}
         </div>
 
-        <div className="p-4 border-t border-white/7">
+        <div className="p-4 border-t border-border/70">
           <button
             onClick={onAttendance}
             className="w-full py-2.5 rounded-xl text-sm font-semibold text-[#4b9fd4] bg-[#4b9fd4]/10 hover:bg-[#4b9fd4]/20 flex items-center justify-center gap-2"
@@ -427,7 +427,7 @@ export default function Classes() {
           {rows.map((c) => (
             <div
               key={c.classId}
-              className="bg-[#131316] border border-white/7 rounded-2xl p-4 hover:border-white/15 transition-all"
+              className="bg-surface border border-border/70 rounded-2xl p-4 hover:border-border transition-all"
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -446,15 +446,15 @@ export default function Classes() {
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-2 mt-3">
-                <div className="text-center p-2 rounded-lg bg-white/3">
+                <div className="text-center p-2 rounded-lg bg-muted">
                   <div className="text-xs font-bold text-white">{c.studentCount}</div>
                   <div className="text-[8px] text-[#78788c]">Students</div>
                 </div>
-                <div className="text-center p-2 rounded-lg bg-white/3">
+                <div className="text-center p-2 rounded-lg bg-muted">
                   <div className="text-xs font-bold text-white">{Math.round(c.avgAttendancePct)}%</div>
                   <div className="text-[8px] text-[#78788c]">Profile att.</div>
                 </div>
-                <div className="text-center p-2 rounded-lg bg-white/3">
+                <div className="text-center p-2 rounded-lg bg-muted">
                   <div className="text-xs font-bold text-white">{Math.round(c.avgExamsPct)}%</div>
                   <div className="text-[8px] text-[#78788c]">Exams</div>
                 </div>

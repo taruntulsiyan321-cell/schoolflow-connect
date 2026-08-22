@@ -197,7 +197,7 @@ export default function LearningHub({ setPage }: Props) {
         {features.map(f => (
           <button key={f.key} onClick={() => setPage(f.key)}
             className={cn(
-              "group text-left p-5 rounded-2xl border border-white/7 bg-[#131316]/90 transition-all duration-200",
+              "group text-left p-5 rounded-2xl border border-border/70 bg-surface/90 transition-all duration-200",
               "hover:border-white/20 hover:scale-[1.02]",
               f.glow
             )}>

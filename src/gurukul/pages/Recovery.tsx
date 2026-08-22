@@ -145,7 +145,7 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
   const [expanded, setExpanded] = useState(false);
   const m = PRIORITY_META[topic.priority];
   return (
-    <GlassCard className={cn("overflow-hidden transition-all duration-200 hover:border-white/15")}>
+    <GlassCard className={cn("overflow-hidden transition-all duration-200 hover:border-border")}>
       <div className="p-4" style={{borderLeft:`3px solid ${m.color}`}}>
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
@@ -307,7 +307,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
             { label:"Previous", value:`${topic.mastery}%`,   color:"#78788c" },
             { label:"Change",   value: score >= topic.mastery ? `+${score - topic.mastery}%` : `${score - topic.mastery}%`, color: score > topic.mastery ? "#4aa87a" : "#cc5069" },
           ].map(s => (
-            <div key={s.label} className="p-3 rounded-xl bg-white/3 border border-white/8">
+            <div key={s.label} className="p-3 rounded-xl bg-muted border border-white/8">
               <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
               <div className="text-[10px] text-[#78788c] mt-0.5">{s.label}</div>
             </div>

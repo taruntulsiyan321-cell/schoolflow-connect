@@ -70,7 +70,7 @@ function scoreColor(v: number) {
 const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#131316] border border-white/10 rounded-xl px-3 py-2 text-xs shadow-2xl">
+    <div className="bg-surface border border-white/10 rounded-xl px-3 py-2 text-xs shadow-2xl">
       <div className="text-[#78788c] mb-1">{label}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
@@ -672,7 +672,7 @@ export default function Analysis() {
       </div>
 
       {/* ── Tab bar ─────────────────────── */}
-      <div className="flex gap-0 overflow-x-auto border-b border-white/7 -mx-1 px-1">
+      <div className="flex gap-0 overflow-x-auto border-b border-border/70 -mx-1 px-1">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -774,7 +774,7 @@ export default function Analysis() {
             {personalInsights.length > 0 ? (
             <div className="grid sm:grid-cols-2 gap-3">
               {personalInsights.map((ins) => (
-                <div key={ins.label} className="flex items-start gap-3 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/15 transition-colors">
+                <div key={ins.label} className="flex items-start gap-3 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${ins.color}15`, color: ins.color }}>
                     {ins.icon}
                   </div>
@@ -820,7 +820,7 @@ export default function Analysis() {
               {subjectData.length === 0 ? (
                 <p className="text-sm text-[#78788c] py-6 text-center">No subjects tracked yet</p>
               ) : subjectData.map((s) => (
-                <div key={s.name} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                <div key={s.name} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
                   <div className="w-2 h-10 rounded-full shrink-0" style={{ background: s.color }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -864,7 +864,7 @@ export default function Analysis() {
                 };
                 const st = statusLabel[c.status];
                 return (
-                  <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                  <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
                         <div className="text-sm font-semibold text-white">{displayChapter(c.chapter)}</div>
@@ -917,7 +917,7 @@ export default function Analysis() {
               { label: "Topics in progress", value: learningProgress.inProgress, color: "#3b5bdb", icon: <BookOpen className="w-5 h-5" /> },
               { label: "Yet to begin",        value: learningProgress.notStarted, color: "#78788c", icon: <Minus className="w-5 h-5" /> },
             ].map((item) => (
-              <div key={item.label} className="p-4 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+              <div key={item.label} className="p-4 rounded-xl border border-border/70 bg-surface/60 text-center">
                 <div className="flex justify-center mb-2" style={{ color: item.color }}>{item.icon}</div>
                 <div className="text-2xl font-black tabular-nums" style={{ color: item.color }}>{item.value}</div>
                 <div className="text-[11px] text-[#78788c] mt-0.5">{item.label}</div>
@@ -976,7 +976,7 @@ export default function Analysis() {
                 {topicGroups.improving.length === 0 ? (
                   <p className="text-sm text-[#78788c] py-4 text-center">No improvement trends yet</p>
                 ) : topicGroups.improving.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
                     <TrendingUp className="w-4 h-4 text-[#3b5bdb] shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
@@ -1013,11 +1013,11 @@ export default function Analysis() {
             <div>
               <SLabel>Topics you practiced again</SLabel>
               <div className="grid grid-cols-2 gap-3 mb-3">
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+                <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-white">{recoveryProgress.completed}</div>
                   <div className="text-[11px] text-[#78788c]">Completed</div>
                 </div>
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+                <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-amber-400">{recoveryProgress.stillPending}</div>
                   <div className="text-[11px] text-[#78788c]">Still pending</div>
                 </div>
@@ -1026,7 +1026,7 @@ export default function Analysis() {
                 {recoveryTopics.length === 0 ? (
                   <p className="text-sm text-[#78788c] py-4 text-center">No recovery topics yet</p>
                 ) : recoveryTopics.map((r) => (
-                  <div key={r.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/7 bg-[#131316]/60">
+                  <div key={r.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
                     {r.status === "completed"
                       ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       : <Clock className="w-4 h-4 text-amber-400 shrink-0" />
@@ -1047,15 +1047,15 @@ export default function Analysis() {
             <div>
               <SLabel>Revision status</SLabel>
               <div className="grid grid-cols-3 gap-3 mb-3">
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+                <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-emerald-400">{revisionData.completed}</div>
                   <div className="text-[11px] text-[#78788c]">Done</div>
                 </div>
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+                <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-amber-400">{revisionData.pending}</div>
                   <div className="text-[11px] text-[#78788c]">Pending</div>
                 </div>
-                <div className="p-3 rounded-xl border border-white/7 bg-[#131316]/60 text-center">
+                <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
                   <div className="text-xl font-black text-white">{revisionData.dueToday.length}</div>
                   <div className="text-[11px] text-[#78788c]">Due today</div>
                 </div>
@@ -1126,7 +1126,7 @@ export default function Analysis() {
               {testResults.map((t) => {
                 const col = scoreColor(t.score);
                 return (
-                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
                     <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black" style={{ background: `${col}15`, color: col }}>
                       {t.score}
                     </div>
@@ -1268,7 +1268,7 @@ export default function Analysis() {
                 const pct = row.lastM > 0 ? Math.round((diff / row.lastM) * 100) : 0;
                 const up = diff > 0;
                 return (
-                  <div key={row.label} className="text-center p-3 rounded-xl border border-white/7 bg-[#131316]/60">
+                  <div key={row.label} className="text-center p-3 rounded-xl border border-border/70 bg-surface/60">
                     <div className="text-[10px] text-[#78788c] uppercase tracking-wider mb-1">{row.label}</div>
                     <div className="text-xl font-black text-white">{row.thisM}{row.unit}</div>
                     <div className="text-[10px] text-[#78788c] mt-0.5">{row.lastM > 0 ? `vs ${row.lastM}${row.unit} last month` : "No prior month data"}</div>
@@ -1296,7 +1296,7 @@ export default function Analysis() {
             ) : (
             <div className="space-y-3">
               {milestones.map((m) => (
-                <div key={m.title} className="flex items-start gap-4 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/12 transition-colors">
+                <div key={m.title} className="flex items-start gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
                   <span className="text-2xl shrink-0 mt-0.5">{m.icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -1322,7 +1322,7 @@ export default function Analysis() {
               {upcomingMilestones.map((m) => {
                 const pct = Math.round((m.progress / m.target) * 100);
                 return (
-                  <div key={m.title} className="p-4 rounded-xl border border-white/7 bg-[#131316]/60">
+                  <div key={m.title} className="p-4 rounded-xl border border-border/70 bg-surface/60">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-semibold text-white">{m.title}</span>
                       <span className="text-xs text-[#78788c]">{m.progress}/{m.target} {m.unit}</span>
@@ -1380,7 +1380,7 @@ export default function Analysis() {
                       () => toast.info("Sharing is not available on this device."),
                     );
                   }}
-                  className="flex items-center gap-3 p-4 rounded-xl border border-white/7 bg-[#131316]/60 hover:border-white/20 hover:bg-[#131316] transition-all text-left group"
+                  className="flex items-center gap-3 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-white/20 hover:bg-surface transition-all text-left group"
                 >
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform" style={{ background: `${r.color}15`, color: r.color }}>
                     {r.icon}
@@ -1404,7 +1404,7 @@ export default function Analysis() {
 
 function Card({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="p-5 rounded-2xl border border-white/7 bg-[#131316]/60">
+    <div className="p-5 rounded-2xl border border-border/70 bg-surface/60">
       <SLabel>{label}</SLabel>
       {children}
     </div>
@@ -1422,7 +1422,7 @@ function SLabel({ children }: { children: React.ReactNode }) {
 
 function Metric({ label, value, color, sub }: { label: string; value: string | number; color?: string; sub?: string }) {
   return (
-    <div className="p-4 rounded-xl border border-white/7 bg-[#131316]/60">
+    <div className="p-4 rounded-xl border border-border/70 bg-surface/60">
       <div className="text-[10px] uppercase tracking-[0.12em] text-[#78788c] mb-1">{label}</div>
       <div className="text-2xl font-black tabular-nums leading-none" style={{ color: color ?? "#e8eaf0", fontFamily: "var(--font-display)" }}>{value}</div>
       {sub && <div className="text-[11px] text-[#78788c] mt-1">{sub}</div>}

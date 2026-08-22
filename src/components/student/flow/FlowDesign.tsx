@@ -75,7 +75,7 @@ export function FlowHero({
           </div>
         ))}
       </div>
-      {footer && <div className="mt-6 pt-6 border-t border-white/15">{footer}</div>}
+      {footer && <div className="mt-6 pt-6 border-t border-border">{footer}</div>}
       </div>
     </section>
   );

@@ -19,14 +19,14 @@ export function AccountLinkingPanel({ entityName, entityType, status }: AccountL
         Use Students / Teachers admin pages for live portal linking RPCs. Status shown: {status || "—"}.
       </p>
 
-      <div className="p-3 rounded-xl bg-white/3 space-y-2 opacity-60">
+      <div className="p-3 rounded-xl bg-muted space-y-2 opacity-60">
         <div className="text-[9px] font-bold text-[#78788c] uppercase tracking-wider">Google Account</div>
         <div className="flex items-center gap-2 text-xs text-[#46465a]">
           <Mail className="w-3.5 h-3.5" /> Not available here
         </div>
       </div>
 
-      <div className="p-3 rounded-xl bg-white/3 space-y-2 opacity-60">
+      <div className="p-3 rounded-xl bg-muted space-y-2 opacity-60">
         <div className="text-[9px] font-bold text-[#78788c] uppercase tracking-wider">Mobile Number</div>
         <div className="flex items-center gap-2 text-xs text-[#46465a]">
           <Smartphone className="w-3.5 h-3.5" /> Not available here

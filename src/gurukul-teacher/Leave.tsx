@@ -140,15 +140,15 @@ export default function Leave() {
   return (
     <div className="space-y-5 max-w-2xl">
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+        <div className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
           <div className="text-xl font-black text-[#10b981]">{approved}</div>
           <div className="text-[10px] text-[#78788c] mt-0.5">Days Approved</div>
         </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+        <div className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
           <div className="text-xl font-black text-[#3b5bdb]">{pending}</div>
           <div className="text-[10px] text-[#78788c] mt-0.5">Pending Requests</div>
         </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-4 text-center">
+        <div className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
           <div className="text-xl font-black text-white">{requests.length}</div>
           <div className="text-[10px] text-[#78788c] mt-0.5">Total Applications</div>
         </div>
@@ -173,7 +173,7 @@ export default function Leave() {
       )}
 
       {applying && (
-        <div className="bg-[#131316] border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
+        <div className="bg-surface border border-[#3b5bdb]/20 rounded-2xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-white">Apply for Leave</div>
             <button type="button" onClick={() => setApplying(false)}>
@@ -252,7 +252,7 @@ export default function Leave() {
         <div className="text-[10px] font-bold text-[#46465a] uppercase tracking-wider mb-3">Leave History</div>
         <div className="space-y-3">
           {requests.map((r) => (
-            <div key={r.id} className="bg-[#131316] border border-white/7 rounded-2xl p-4 flex items-start gap-3">
+            <div key={r.id} className="bg-surface border border-border/70 rounded-2xl p-4 flex items-start gap-3">
               <div
                 className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                 style={{ background: `${statusColor[r.status]}18`, color: statusColor[r.status] }}

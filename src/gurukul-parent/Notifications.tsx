@@ -101,7 +101,7 @@ export default function ParentNotifications() {
               key={n.id}
               className={cn(
                 "flex items-start gap-3 p-4 rounded-2xl border transition-all group",
-                n.read ? "bg-[#131316] border-white/7" : "bg-[#3b5bdb]/5 border-[#3b5bdb]/20",
+                n.read ? "bg-surface border-border/70" : "bg-[#3b5bdb]/5 border-[#3b5bdb]/20",
               )}
             >
               <div

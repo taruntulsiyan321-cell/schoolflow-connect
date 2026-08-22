@@ -339,7 +339,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             {label:"Recovery", done:mission.recoveryDone, target:mission.recoveryTarget, color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/>, page:"recovery" as PageKey},
             {label:"Revision", done:mission.revisionDone, target:mission.revisionTarget, color:"#6882e8", icon:<RotateCcw className="w-4 h-4"/>, page:"revision" as PageKey},
           ].map((m) => (
-            <GlassCard key={m.label} className="p-4 cursor-pointer hover:border-white/15" onClick={() => setPage(m.page)}>
+            <GlassCard key={m.label} className="p-4 cursor-pointer hover:border-border" onClick={() => setPage(m.page)}>
               <div className="flex items-center gap-2 mb-2">
                 <span style={{color:m.color}}>{m.icon}</span>
                 <span className="text-xs font-semibold text-white">{m.label}</span>
@@ -405,7 +405,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         {subjects.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {subjects.map((s) => (
-              <GlassCard key={s.id} className="p-4 hover:border-white/15 cursor-pointer" onClick={() => setPage("practice")}>
+              <GlassCard key={s.id} className="p-4 hover:border-border cursor-pointer" onClick={() => setPage("practice")}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold shrink-0" style={{background:`${s.color}15`,color:s.color}}>{s.icon}</div>

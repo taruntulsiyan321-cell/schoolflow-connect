@@ -176,7 +176,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {summary.map((s) => (
-          <div key={s.label} className="bg-[#131316] border border-white/7 rounded-2xl p-4">
+          <div key={s.label} className="bg-surface border border-border/70 rounded-2xl p-4">
             <div className="text-lg font-black" style={{ color: s.color }}>{s.value}</div>
             <div className="text-[10px] text-[#78788c]">{s.label}</div>
           </div>
@@ -193,7 +193,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
       <div id="engine-report" className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
-            <tr className="text-left text-[#46465a] border-b border-white/7">
+            <tr className="text-left text-[#46465a] border-b border-border/70">
               {Object.keys(rows[0] ?? {}).map((k) => (
                 <th key={k} className="py-2 pr-3 font-semibold">{k}</th>
               ))}
@@ -246,7 +246,7 @@ export default function AdminReports() {
               "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border",
               category === c.key
                 ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                : "border-white/7 text-[#78788c]",
+                : "border-border/70 text-[#78788c]",
             )}
           >
             {c.icon} {c.label}
@@ -265,7 +265,7 @@ export default function AdminReports() {
                 "w-full text-left px-3 py-2.5 rounded-xl text-xs border",
                 active === r.key
                   ? "bg-[#3b5bdb]/10 border-[#3b5bdb]/30 text-[#3b5bdb]"
-                  : "border-transparent text-[#78788c] hover:bg-white/3",
+                  : "border-transparent text-[#78788c] hover:bg-muted",
               )}
             >
               <div className="font-semibold flex items-center gap-2">
@@ -275,7 +275,7 @@ export default function AdminReports() {
             </button>
           ))}
         </div>
-        <div className="bg-[#131316] border border-white/7 rounded-2xl p-5">
+        <div className="bg-surface border border-border/70 rounded-2xl p-5">
           <div className="flex items-center gap-2 mb-4">
             <Filter className="w-4 h-4 text-[#46465a]" />
             <div className="text-sm font-bold text-white">{def.label}</div>

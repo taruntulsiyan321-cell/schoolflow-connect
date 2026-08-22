@@ -181,15 +181,15 @@ export default function StudentPerformancePage() {
             <p className="text-sm text-white/75 mt-2 max-w-xl">Attendance, marks, trend direction, and risk signals for every student in the selected class.</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+            <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{students.length}</p>
               <p className="text-[10px] uppercase tracking-wider text-white/60">Students</p>
             </div>
-            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+            <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{atRiskCount}</p>
               <p className="text-[10px] uppercase tracking-wider text-white/60">At risk</p>
             </div>
-            <div className="rounded-2xl bg-white/12 border border-white/15 p-3 text-center">
+            <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
               <p className="text-2xl font-bold">{improvingCount}</p>
               <p className="text-[10px] uppercase tracking-wider text-white/60">Improving</p>
             </div>

@@ -127,7 +127,7 @@ function ParentForm({
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 bg-[#0d0d0f] border border-white/10 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="sticky top-0 bg-[#0d0d0f] border-b border-white/7 px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-[#0d0d0f] border-b border-border/70 px-6 py-4 flex items-center justify-between">
           <div className="text-sm font-bold text-white">{parent ? "Edit Parent" : "Add Parent"}</div>
           <button type="button" onClick={onClose} className="text-[#78788c] hover:text-white">
             <X className="w-5 h-5" />
@@ -177,7 +177,7 @@ function ParentForm({
             {students.length === 0 ? (
               <div className="text-xs text-[#78788c]">No students in this school yet.</div>
             ) : (
-              <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border border-white/7 p-2">
+              <div className="max-h-40 overflow-y-auto space-y-1 rounded-xl border border-border/70 p-2">
                 {students.map((s) => (
                   <button
                     key={s.id}
@@ -198,7 +198,7 @@ function ParentForm({
             )}
           </div>
         </div>
-        <div className="sticky bottom-0 bg-[#0d0d0f] border-t border-white/7 px-6 py-4 flex justify-end gap-3">
+        <div className="sticky bottom-0 bg-[#0d0d0f] border-t border-border/70 px-6 py-4 flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -232,8 +232,8 @@ function ParentDetail({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-white/7 flex flex-col h-full overflow-hidden">
-        <div className="p-5 border-b border-white/7 flex items-start gap-3">
+      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-border/70 flex flex-col h-full overflow-hidden">
+        <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <InitialsAvatar name={parent.fullName} size="lg" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-bold text-white">{parent.fullName}</div>
@@ -257,14 +257,14 @@ function ParentDetail({
               icon: <Users className="w-3.5 h-3.5" />,
             },
           ].map((row) => (
-            <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-white/3">
+            <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
               <div className="flex items-center gap-1.5 text-[9px] text-[#46465a] uppercase tracking-wider">
                 {row.icon} {row.label}
               </div>
               <div className="text-xs text-white">{row.value}</div>
             </div>
           ))}
-          <div className="p-3 rounded-xl bg-white/3">
+          <div className="p-3 rounded-xl bg-muted">
             <div className="text-[9px] text-[#46465a] uppercase tracking-wider mb-2 flex items-center gap-1">
               <GraduationCap className="w-3 h-3" /> Linked Students
             </div>
@@ -282,11 +282,11 @@ function ParentDetail({
               ))
             )}
           </div>
-          <div className="p-3 rounded-xl bg-white/3 text-[10px] text-[#78788c] leading-relaxed">
+          <div className="p-3 rounded-xl bg-muted text-[10px] text-[#78788c] leading-relaxed">
             Login linking uses the parents.user_id column. Auth invitation / password-reset admin APIs are not wired on this panel — no fake success actions.
           </div>
         </div>
-        <div className="p-4 border-t border-white/7">
+        <div className="p-4 border-t border-border/70">
           <button
             type="button"
             onClick={onEdit}
@@ -470,7 +470,7 @@ export default function ParentManagement() {
               setPage(1);
             }}
             placeholder="Search parents…"
-            className="w-full bg-[#131316] border border-white/7 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
+            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-[#46465a] focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <button
@@ -482,10 +482,10 @@ export default function ParentManagement() {
         </button>
       </div>
 
-      <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
+      <div className="bg-surface border border-border/70 rounded-2xl overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-white/7">
+            <tr className="border-b border-border/70">
               <th className="px-4 py-3 text-left text-[10px] font-bold text-[#78788c] uppercase tracking-wider">
                 Parent
               </th>
@@ -578,7 +578,7 @@ export default function ParentManagement() {
             <div className="text-sm text-[#78788c]">No parents found</div>
           </div>
         )}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-white/7">
+        <div className="flex items-center justify-between px-4 py-3 border-t border-border/70">
           <div className="text-xs text-[#78788c]">{filtered.length} parents total</div>
           <div className="flex items-center gap-2">
             <button
@@ -625,7 +625,7 @@ export default function ParentManagement() {
       {confirmDelete && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60" onClick={() => setConfirmDelete(null)} />
-          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4">
+          <div className="relative z-10 bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-sm space-y-4">
             <div className="text-sm font-bold text-white">Delete this parent?</div>
             <div className="text-xs text-[#78788c]">
               Removes the parent row and student links. This cannot be undone from the UI.

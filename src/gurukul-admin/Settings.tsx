@@ -22,8 +22,8 @@ const EMPTY: SchoolSettings = {
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-[#131316] border border-white/7 rounded-2xl overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-white/7">
+    <div className="bg-surface border border-border/70 rounded-2xl overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-border/70">
         <div className="w-8 h-8 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center text-[#3b5bdb]">{icon}</div>
         <div className="text-sm font-bold text-white">{title}</div>
       </div>
@@ -253,7 +253,7 @@ export default function Settings() {
       {showUnsavedWarning && (
         <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowUnsavedWarning(false)} />
-          <div className="relative z-10 bg-[#131316] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+          <div className="relative z-10 bg-surface border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
             <div className="flex items-center gap-3 mb-2">
               <AlertTriangle className="w-5 h-5 text-[#c08a3a]" />
               <div className="text-sm font-bold text-white">Discard changes?</div>

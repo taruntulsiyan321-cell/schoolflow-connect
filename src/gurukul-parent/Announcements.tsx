@@ -125,7 +125,7 @@ export default function ParentAnnouncements() {
                   "w-full text-left p-4 rounded-2xl border transition-all",
                   selected === a.id
                     ? "bg-[#3b5bdb]/8 border-[#3b5bdb]/25"
-                    : "bg-[#131316] border-white/7 hover:border-white/15",
+                    : "bg-surface border-border/70 hover:border-border",
                 )}
               >
                 <div className="flex items-start gap-3">
@@ -150,7 +150,7 @@ export default function ParentAnnouncements() {
         </div>
 
         {detail && (
-          <div className="lg:col-span-3 bg-[#131316] border border-white/7 rounded-2xl p-5 space-y-4">
+          <div className="lg:col-span-3 bg-surface border border-border/70 rounded-2xl p-5 space-y-4">
             <div className="flex items-start justify-between gap-3">
               <PriorityBadge priority={detail.priority} />
               <button

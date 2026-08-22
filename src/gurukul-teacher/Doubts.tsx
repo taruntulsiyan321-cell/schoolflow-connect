@@ -358,7 +358,7 @@ export default function Doubts() {
                 key={row.id}
                 type="button"
                 onClick={() => jumpToDoubt(row.id)}
-                className="w-full flex items-center gap-3 rounded-xl bg-[#131316] border border-white/7 hover:border-white/15 px-3 py-2.5 text-left transition-all"
+                className="w-full flex items-center gap-3 rounded-xl bg-surface border border-border/70 hover:border-border px-3 py-2.5 text-left transition-all"
               >
                 <RiskBadge band={urgency.band} size="sm" />
                 <div className="min-w-0 flex-1">
@@ -437,14 +437,14 @@ export default function Doubts() {
             <div
               key={row.id}
               className={cn(
-                "bg-[#131316] border rounded-2xl overflow-hidden transition-all",
-                status === "open" ? "border-[#3b5bdb]/20" : "border-white/7",
+                "bg-surface border rounded-2xl overflow-hidden transition-all",
+                status === "open" ? "border-[#3b5bdb]/20" : "border-border/70",
               )}
             >
               <button
                 type="button"
                 onClick={() => setExpandedId(expandedId === row.id ? null : row.id)}
-                className="w-full flex items-start gap-3 p-4 hover:bg-white/3 transition-all text-left"
+                className="w-full flex items-start gap-3 p-4 hover:bg-muted transition-all text-left"
               >
                 <InitialsAvatar
                   name={row.student_name || "Student"}
@@ -498,8 +498,8 @@ export default function Doubts() {
               </button>
 
               {expandedId === row.id && (
-                <div className="border-t border-white/7 px-4 pb-4 space-y-3 pt-4">
-                  <div className="p-3 rounded-xl bg-white/3 text-xs text-[#b0b0c0] leading-relaxed whitespace-pre-wrap">
+                <div className="border-t border-border/70 px-4 pb-4 space-y-3 pt-4">
+                  <div className="p-3 rounded-xl bg-muted text-xs text-[#b0b0c0] leading-relaxed whitespace-pre-wrap">
                     {row.body || row.title}
                   </div>
                   <AttachmentChips rows={attachments} />
