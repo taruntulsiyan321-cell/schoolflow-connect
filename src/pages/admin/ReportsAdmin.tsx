@@ -201,7 +201,7 @@ function ReportPanel({ tab, from, to }: { tab: TabKey; from: string; to: string 
 
 const Section = ({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) => (
   <Card className="p-0 rounded-2xl shadow-card hover:shadow-elevated transition-shadow overflow-hidden animate-fade-in">
-    <div className="px-5 py-3.5 border-b border-border/70 flex items-center justify-between bg-gradient-to-r from-muted/40 to-transparent">
+    <div className="px-5 py-3.5 border-b border-border/70 flex items-center justify-between bg-muted/40">
       <h3 className="font-semibold text-sm tracking-tight">{title}</h3>
       {action}
     </div>

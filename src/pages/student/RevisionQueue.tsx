@@ -117,7 +117,7 @@ export default function RevisionQueue() {
     <FlowPage>
       <FlowTopBar backTo="/student" />
 
-      <section className="sp-hero rounded-3xl overflow-hidden shadow-elevated bg-gradient-to-br from-[#074b37] via-[#003324] to-[#003324]/95 text-white p-6 sm:p-8 relative">
+      <section className="sp-hero rounded-3xl overflow-hidden shadow-elevated bg-[#074b37] text-white p-6 sm:p-8 relative">
         <div className="absolute top-0 right-0 w-40 h-40 bg-[#b2f0d4]/15 rounded-full blur-2xl pointer-events-none" />
         <div className="relative z-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/70">Revision Center</p>
@@ -129,7 +129,7 @@ export default function RevisionQueue() {
       </section>
 
       {displayCoachHeadline && (
-        <section className="rounded-2xl border border-[#97d3b8]/40 bg-gradient-to-br from-[#defaeb]/50 to-white p-5 shadow-sm">
+        <section className="rounded-2xl border border-[#97d3b8]/40 bg-[#defaeb] p-5 shadow-sm">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-[#074b37]">Coach note</p>
           <p className="text-sm font-medium text-foreground mt-1">{displayCoachHeadline}</p>
         </section>

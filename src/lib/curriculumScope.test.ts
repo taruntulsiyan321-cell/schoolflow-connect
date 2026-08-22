@@ -24,10 +24,17 @@ describe("curriculumScope — class level", () => {
     expect(parseClassLevel("Std 9")).toBe(9);
     expect(parseClassLevel("XI-A")).toBe(11);
     expect(parseClassLevel("Class XII Science")).toBe(12);
-    expect(parseClassLevel("IX-B")).toBe(null);
+    expect(parseClassLevel("IX-B")).toBe(9);
     expect(parseClassLevel("10")).toBe(10);
     expect(parseClassLevel("9-C")).toBe(9);
     expect(parseClassLevel(null)).toBe(null);
+  });
+
+  it("parses the previously-unsupported Roman numerals VI-IX", () => {
+    expect(parseClassLevel("Class VI")).toBe(6);
+    expect(parseClassLevel("Class VII")).toBe(7);
+    expect(parseClassLevel("Class VIII")).toBe(8);
+    expect(parseClassLevel("Class IX")).toBe(9);
   });
 });
 

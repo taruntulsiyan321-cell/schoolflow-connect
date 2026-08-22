@@ -150,7 +150,7 @@ export function NewChatSheet({
                 {c.avatarUrl ? (
                   <img src={c.avatarUrl} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
                 ) : (
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0 bg-[#3b5bdb]/20 text-[#818cf8]">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-[10px] font-black shrink-0 bg-primary/20 text-primary">
                     {initials(c.name)}
                   </div>
                 )}
@@ -160,7 +160,7 @@ export function NewChatSheet({
                     {c.role.replace(/_/g, " ")}
                   </div>
                 </div>
-                {pending ? <Loader2 className="w-4 h-4 animate-spin shrink-0 text-[#818cf8]" /> : null}
+                {pending ? <Loader2 className="w-4 h-4 animate-spin shrink-0 text-primary" /> : null}
               </button>
             );
           })}

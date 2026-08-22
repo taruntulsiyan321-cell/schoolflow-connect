@@ -97,7 +97,7 @@ export default function Attendance() {
 
   if (!ready || loading) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading attendance…
       </div>
     );
@@ -105,7 +105,7 @@ export default function Attendance() {
 
   if (!studentId) {
     return (
-      <div className="text-center text-sm text-[#78788c] py-16">
+      <div className="text-center text-sm text-muted-foreground py-16">
         No student profile linked to this account.
       </div>
     );
@@ -116,11 +116,11 @@ export default function Attendance() {
       <GlassCard glow={pct >= 90 ? "green" : "amber"} className="p-6 flex items-center gap-6">
         <OverallRing pct={pct} col={col} />
         <div>
-          <div className="text-sm text-[#78788c] mb-0.5">Overall attendance (Academic Engine)</div>
+          <div className="text-sm text-muted-foreground mb-0.5">Overall attendance (Academic Engine)</div>
           <div className="text-4xl font-black" style={{ color: col, fontFamily: "var(--font-display)" }}>
             {pct}%
           </div>
-          <div className="text-xs text-[#78788c] mt-1">
+          <div className="text-xs text-muted-foreground mt-1">
             {present} present-equivalent · {total} days marked
           </div>
         </div>
@@ -130,7 +130,7 @@ export default function Attendance() {
         <SectionLabel>Recent attendance</SectionLabel>
         <div className="grid grid-cols-7 gap-1">
           {calendarDays.length === 0 && (
-            <div className="col-span-7 text-center text-xs text-[#46465a] py-8">
+            <div className="col-span-7 text-center text-xs text-muted-foreground py-8">
               No attendance recorded yet.
             </div>
           )}
@@ -143,7 +143,7 @@ export default function Attendance() {
                   ? "bg-rose-400/20 text-rose-400"
                   : day.status === "late" || day.status === "half_day"
                     ? "bg-amber-400/20 text-amber-400"
-                    : "bg-white/5 text-[#78788c]";
+                    : "bg-black/5 text-muted-foreground";
             return (
               <div
                 key={`${day.date}-${day.id}`}
@@ -169,7 +169,7 @@ export default function Attendance() {
               status === "present" ? "#4aa87a" : status === "absent" ? "#cc5069" : "#c08a3a";
             return (
               <div key={status} className="flex items-center gap-3">
-                <div className="w-28 text-sm text-[#a0aec0] shrink-0 capitalize">
+                <div className="w-28 text-sm text-muted-foreground shrink-0 capitalize">
                   {status.replace("_", " ")}
                 </div>
                 <div className="flex-1">
@@ -182,7 +182,7 @@ export default function Attendance() {
             );
           })}
           {Object.keys(byStatus).length === 0 && (
-            <div className="text-xs text-[#46465a]">No status records yet.</div>
+            <div className="text-xs text-muted-foreground">No status records yet.</div>
           )}
         </div>
       </GlassCard>

@@ -152,7 +152,7 @@ export function buildQuestionPaperMarkingScheme(
       attendance_pct: null,
       average_marks_pct: null,
     },
-    { max_chars: 4500 },
+    { max_chars: 4500, system_template: getBuiltinPrompt("teacher.question_paper.marking_scheme")?.system_template },
   );
 
   if (validation.material_failure) {

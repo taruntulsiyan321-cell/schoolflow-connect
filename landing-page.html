@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vidyalaya — School Management Platform</title>
+    <meta name="description" content="Vidyalaya is a modern, secure school management platform for students, teachers, parents and administrators." />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+      :root {
+        --bg: 180 14% 96%;
+        --fg: 199 38% 13%;
+        --muted: 188 21% 93%;
+        --muted-fg: 198 8% 52%;
+        --border: 189 18% 86%;
+        --accent: 9 52% 54%;
+        --accent-fg: 0 0% 100%;
+        --primary: 193 68% 28%;
+        --primary-fg: 0 0% 100%;
+        --card: 0 0% 100%;
+        --card-fg: 199 38% 13%;
+        --radius: 0.75rem;
+        --shadow-card: 0 1px 3px rgba(20, 37, 45, 0.07), 0 1px 2px rgba(20, 37, 45, 0.05);
+        --shadow-elevated: 0 8px 20px -8px rgba(20, 37, 45, 0.16), 0 2px 4px rgba(20, 37, 45, 0.08);
+        --display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+        --body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+        --mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Courier New", monospace;
+      }
+
+      .dark {
+        --bg: 197 47% 12%;
+        --fg: 140 16% 96%;
+        --muted: 193 40% 23%;
+        --muted-fg: 188 13% 66%;
+        --border: 190 20% 35%;
+        --accent: 12 64% 67%;
+        --accent-fg: 197 47% 12%;
+        --primary: 184 46% 66%;
+        --primary-fg: 197 47% 12%;
+        --card: 195 44% 17%;
+        --card-fg: 140 16% 96%;
+      }
+
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+      html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+      body {
+        font-family: var(--body);
+        background: hsl(var(--bg));
+        color: hsl(var(--fg));
+        line-height: 1.6;
+      }
+
+      h1, h2, h3, h4 { font-family: var(--display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+      h1 { font-size: clamp(2.5rem, 5vw, 4rem); letter-spacing: -0.03em; }
+      h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); }
+      h3 { font-size: clamp(1.25rem, 2vw, 1.5rem); }
+      p { font-size: 1.125rem; color: hsl(var(--muted-fg)); max-width: 65ch; }
+
+      .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+      .section { padding: 6rem 0; }
+      @media (max-width: 768px) { .section { padding: 4rem 0; } }
+
+      /* Header / Nav */
+      .header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: hsl(var(--bg) / 0.8); backdrop-filter: saturate(180%) blur(12px); border-bottom: 1px solid hsl(var(--border)); }
+      .nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+      .logo { display: flex; align-items: center; gap: 0.5rem; font-family: var(--display); font-weight: 700; font-size: 1.25rem; color: hsl(var(--fg)); text-decoration: none; }
+      .logo-mark { width: 36px; height: 36px; border-radius: 10px; background: hsl(var(--primary)); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.125rem; font-weight: 700; }
+      .nav-links { display: flex; align-items: center; gap: 2rem; }
+      .nav-link { color: hsl(var(--muted-fg)); text-decoration: none; font-weight: 500; font-size: 0.9375rem; transition: color 0.2s; }
+      .nav-link:hover { color: hsl(var(--fg)); }
+      .nav-cta { display: flex; gap: 0.75rem; align-items: center; }
+      .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1.25rem; border-radius: var(--radius); font-weight: 600; font-size: 0.9375rem; text-decoration: none; border: none; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+      .btn-primary { background: hsl(var(--primary)); color: hsl(var(--primary-fg)); }
+      .btn-primary:hover { background: hsl(var(--primary) / 0.9); transform: translateY(-1px); box-shadow: var(--shadow-elevated); }
+      .btn-secondary { background: transparent; color: hsl(var(--fg)); border: 1px solid hsl(var(--border)); }
+      .btn-secondary:hover { background: hsl(var(--muted)); border-color: hsl(var(--muted-fg) / 0.3); }
+
+      /* Hero */
+      .hero { padding: 14rem 0 8rem; position: relative; overflow: hidden; background: hsl(var(--muted) / 0.4); }
+      .hero-content { position: relative; text-align: center; max-width: 800px; margin: 0 auto; }
+      .hero-badge { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.375rem 1rem; background: hsl(var(--accent) / 0.12); border: 1px solid hsl(var(--accent) / 0.2); border-radius: 999px; font-size: 0.8125rem; font-weight: 600; color: hsl(var(--accent)); margin-bottom: 1.5rem; }
+      .hero-title { margin-bottom: 1.5rem; }
+      .hero-desc { font-size: 1.25rem; margin: 0 auto 2.5rem; max-width: 60ch; }
+      .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 3rem; }
+      .hero-stats { display: flex; justify-content: center; gap: 3rem; flex-wrap: wrap; padding-top: 2rem; border-top: 1px solid hsl(var(--border)); }
+      .hero-stat { text-align: center; }
+      .hero-stat-value { font-family: var(--mono); font-size: 2.5rem; font-weight: 700; color: hsl(var(--primary)); line-height: 1; }
+      .hero-stat-label { font-size: 0.875rem; color: hsl(var(--muted-fg)); margin-top: 0.25rem; }
+
+      /* Features */
+      .features { background: hsl(var(--muted) / 0.5); }
+      .features-header { text-align: center; margin-bottom: 4rem; }
+      .features-header .section-label { color: hsl(var(--primary)); }
+      .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; }
+      @media (max-width: 920px) { .features-grid { grid-template-columns: 1fr; } }
+      .feature-card { background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 1rem; padding: 2rem; transition: all 0.3s; }
+      .feature-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-elevated); border-color: hsl(var(--primary) / 0.2); }
+      .feature-icon { width: 48px; height: 48px; border-radius: 12px; background: hsl(var(--primary) / 0.1); color: hsl(var(--primary)); display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem; }
+      .feature-title { margin-bottom: 0.75rem; }
+      .feature-desc { color: hsl(var(--muted-fg)); font-size: 1rem; line-height: 1.7; }
+
+      /* Stats */
+      .stats { background: hsl(var(--card)); border-top: 1px solid hsl(var(--border)); border-bottom: 1px solid hsl(var(--border)); }
+      .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem; text-align: center; }
+      @media (max-width: 920px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }
+      .stat-value { font-family: var(--mono); font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 700; color: hsl(var(--primary)); line-height: 1; margin-bottom: 0.5rem; }
+      .stat-label { color: hsl(var(--muted-fg)); font-size: 1rem; font-weight: 500; }
+
+      /* Testimonial / Quote */
+      .testimonial { background: hsl(var(--muted) / 0.3); }
+      .testimonial-card { max-width: 800px; margin: 0 auto; background: hsl(var(--card)); border: 1px solid hsl(var(--border)); border-radius: 1.5rem; padding: 3rem; position: relative; }
+      .testimonial-card::before { content: '"'; position: absolute; top: 1.5rem; left: 1.5rem; font-family: Georgia, serif; font-size: 6rem; color: hsl(var(--primary) / 0.1); line-height: 1; }
+      .testimonial-text { position: relative; font-size: 1.5rem; line-height: 1.6; color: hsl(var(--fg)); margin-bottom: 2rem; }
+      .testimonial-author { display: flex; align-items: center; gap: 1rem; }
+      .author-avatar { width: 56px; height: 56px; border-radius: 50%; background: hsl(var(--primary)); display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 1.25rem; }
+      .author-name { font-weight: 600; color: hsl(var(--fg)); }
+      .author-role { font-size: 0.875rem; color: hsl(var(--muted-fg)); }
+
+      /* CTA */
+      .cta { text-align: center; position: relative; overflow: hidden; background: hsl(var(--muted) / 0.4); }
+      .cta-content { position: relative; max-width: 600px; margin: 0 auto; }
+      .cta-title { margin-bottom: 1rem; }
+      .cta-desc { margin: 0 auto 2rem; }
+      .cta-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+
+      /* Footer */
+      .footer { background: hsl(var(--card)); border-top: 1px solid hsl(var(--border)); padding: 4rem 0 2rem; }
+      .footer-grid { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 3rem; margin-bottom: 3rem; }
+      @media (max-width: 920px) { .footer-grid { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 480px) { .footer-grid { grid-template-columns: 1fr; } }
+      .footer-brand { max-width: 300px; }
+      .footer-logo { margin-bottom: 1rem; }
+      .footer-desc { font-size: 0.9375rem; color: hsl(var(--muted-fg)); margin-bottom: 1.5rem; }
+      .footer-social { display: flex; gap: 0.75rem; }
+      .social-link { width: 40px; height: 40px; border-radius: 50%; background: hsl(var(--muted)); color: hsl(var(--muted-fg)); display: flex; align-items: center; justify-content: center; text-decoration: none; transition: all 0.2s; }
+      .social-link:hover { background: hsl(var(--primary)); color: hsl(var(--primary-fg)); }
+      .footer-title { font-size: 0.875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: hsl(var(--muted-fg)); margin-bottom: 1.25rem; }
+      .footer-links { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+      .footer-link { color: hsl(var(--fg)); text-decoration: none; font-size: 0.9375rem; transition: color 0.2s; }
+      .footer-link:hover { color: hsl(var(--primary)); }
+      .footer-bottom { padding-top: 2rem; border-top: 1px solid hsl(var(--border)); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+      .footer-copyright { font-size: 0.875rem; color: hsl(var(--muted-fg)); }
+      .footer-legal { display: flex; gap: 2rem; }
+      .footer-legal a { font-size: 0.875rem; color: hsl(var(--muted-fg)); text-decoration: none; transition: color 0.2s; }
+      .footer-legal a:hover { color: hsl(var(--fg)); }
+
+      /* Utilities */
+      .section-label { display: inline-block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+      .ph-img { background: hsl(var(--muted)); border-radius: var(--radius); display: block; }
+      .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header" data-od-id="header">
+      <div class="container">
+        <nav class="nav" role="navigation" aria-label="Main navigation">
+          <a href="#" class="logo" aria-label="Vidyalaya Home">
+            <span class="logo-mark" aria-hidden="true">V</span>
+            Vidyalaya
+          </a>
+          <div class="nav-links">
+            <a href="#features" class="nav-link">Features</a>
+            <a href="#testimonial" class="nav-link">Testimonials</a>
+            <a href="#pricing" class="nav-link">Pricing</a>
+            <a href="#about" class="nav-link">About</a>
+          </div>
+          <div class="nav-cta">
+            <a href="panels-preview.html" class="btn btn-secondary">Sign In</a>
+            <a href="panels-preview.html" class="btn btn-primary">Get Started</a>
+          </div>
+        </nav>
+      </div>
+    </header>
+
+    <main id="content">
+      <section class="hero" data-od-id="hero" aria-labelledby="hero-title">
+        <div class="container">
+          <div class="hero-content">
+            <span class="hero-badge">New: AI-Powered Analytics &amp; Doubt Portal</span>
+            <h1 id="hero-title" class="hero-title">The Complete School Management Platform for Modern Education</h1>
+            <p class="hero-desc">Unify academics, administration, and communication. From attendance to AI-driven learning analytics — Vidyalaya empowers every stakeholder in your school ecosystem.</p>
+            <div class="hero-actions">
+              <a href="panels-preview.html" class="btn btn-primary">Start Free Trial</a>
+              <a href="#demo" class="btn btn-secondary">Watch Demo</a>
+            </div>
+            <div class="hero-stats">
+              <div class="hero-stat">
+                <div class="hero-stat-value">500+</div>
+                <div class="hero-stat-label">Schools</div>
+              </div>
+              <div class="hero-stat">
+                <div class="hero-stat-value">2.5L+</div>
+                <div class="hero-stat-label">Students</div>
+              </div>
+              <div class="hero-stat">
+                <div class="hero-stat-value">99.9%</div>
+                <div class="hero-stat-label">Uptime</div>
+              </div>
+              <div class="hero-stat">
+                <div class="hero-stat-value">40%</div>
+                <div class="hero-stat-label">Time Saved</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="features section" data-od-id="features" aria-labelledby="features-title">
+        <div class="container">
+          <header class="features-header">
+            <span class="section-label">Core Capabilities</span>
+            <h2 id="features-title">Everything You Need to Run a School</h2>
+            <p>Five role-based dashboards. One unified platform. Built for Indian curricula (CBSE, ICSE, State Boards) with bilingual support.</p>
+          </header>
+          <div class="features-grid">
+            <article class="feature-card" data-od-id="feature-academics">
+              <div class="feature-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+              </div>
+              <h3 class="feature-title">Academic Management</h3>
+              <p class="feature-desc">Timetables, curriculum mapping (RBSE/CBSE), lesson plans, homework, exams, and marks — all aligned to Indian board standards with Devanagari support.</p>
+            </article>
+            <article class="feature-card" data-od-id="feature-analytics">
+              <div class="feature-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
+              </div>
+              <h3 class="feature-title">AI Learning Analytics</h3>
+              <p class="feature-desc">Real-time dashboards for principals and teachers. Weak-area detection, concept mastery tracking, and predictive performance modeling per student.</p>
+            </article>
+            <article class="feature-card" data-od-id="feature-communication">
+              <div class="feature-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+              </div>
+              <h3 class="feature-title">Unified Communication</h3>
+              <p class="feature-desc">Announcements, threaded chat, doubt portal, and parent-teacher messaging — all in one place with role-based permissions and read receipts.</p>
+            </article>
+            <article class="feature-card" data-od-id="feature-practice">
+              <div class="feature-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+              </div>
+              <h3 class="feature-title">Adaptive Practice &amp; DPPs</h3>
+              <p class="feature-desc">Daily Practice Problems, chapter-wise quizzes, AI coach sessions, and battle-mode gamification. Spaced repetition engine personalizes every student's path.</p>
+            </article>
+            <article class="feature-card" data-od-id="feature-attendance">
+              <div class="feature-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+              <h3 class="feature-title">Attendance &amp; Leave</h3>
+              <p class="feature-desc">Biometric/QR/Geo-fenced check-in. Auto leave approval workflows. Real-time dashboards for parents and admin with compliance reports.</p>
+            </article>
+            <article class="feature-card" data-od-id="feature-finance">
+              <div class="feature-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              </div>
+              <h3 class="feature-title">Fees &amp; Finance</h3>
+              <p class="feature-desc">Fee structures, installment plans, online payments (UPI/Card/NetBanking), receipts, outstanding tracking, and GST-compliant reports.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="stats section" data-od-id="stats" aria-labelledby="stats-title">
+        <div class="container">
+          <header style="text-align:center;margin-bottom:3rem;">
+            <span class="section-label" style="color:hsl(var(--primary))">Trusted by Educators</span>
+            <h2 id="stats-title" style="max-width:600px;margin:0 auto 1rem;">Measurable Impact Across Schools</h2>
+            <p style="margin:0 auto;">Real outcomes from schools using Vidyalaya daily.</p>
+          </header>
+          <div class="stats-grid">
+            <div>
+              <div class="stat-value">85%</div>
+              <div class="stat-label">Reduction in admin workload</div>
+            </div>
+            <div>
+              <div class="stat-value">92%</div>
+              <div class="stat-label">Parent engagement rate</div>
+            </div>
+            <div>
+              <div class="stat-value">3×</div>
+              <div class="stat-label">Faster report generation</div>
+            </div>
+            <div>
+              <div class="stat-value">40%</div>
+              <div class="stat-label">Improvement in practice completion</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="testimonial section" data-od-id="testimonial" aria-labelledby="testimonial-title">
+        <div class="container">
+          <header style="text-align:center;margin-bottom:3rem;">
+            <span class="section-label" style="color:hsl(var(--primary))">Testimonial</span>
+            <h2 id="testimonial-title">What Leaders Say</h2>
+          </header>
+          <article class="testimonial-card">
+            <blockquote class="testimonial-text">
+              "Vidyalaya transformed how our school operates. The AI analytics alone helped us identify at-risk students 3 months earlier than before. Our teachers save 10+ hours weekly on administrative tasks."
+            </blockquote>
+            <div class="testimonial-author">
+              <div class="author-avatar" aria-hidden="true">RS</div>
+              <div>
+                <div class="author-name">Dr. Rajesh Sharma</div>
+                <div class="author-role">Principal, Delhi Public School, Jaipur</div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="cta section" data-od-id="cta" aria-labelledby="cta-title">
+        <div class="container">
+          <div class="cta-content">
+            <span class="section-label" style="color:hsl(var(--accent))">Ready to Begin?</span>
+            <h2 id="cta-title" class="cta-title">Join 500+ Schools on Vidyalaya</h2>
+            <p class="cta-desc">Start your 30-day free trial. No credit card required. Full access to all features.</p>
+            <div class="cta-actions">
+              <a href="panels-preview.html" class="btn btn-primary" style="padding:0.875rem 2rem;font-size:1rem;">Start Free Trial</a>
+              <a href="#contact" class="btn btn-secondary" style="padding:0.875rem 2rem;font-size:1rem;">Contact Sales</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer" data-od-id="footer" role="contentinfo">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <a href="#" class="footer-logo logo" aria-label="Vidyalaya Home">
+              <span class="logo-mark" aria-hidden="true">V</span>
+              Vidyalaya
+            </a>
+            <p class="footer-desc">The complete school management platform for modern Indian education. Built for CBSE, ICSE, and State Boards.</p>
+            <div class="footer-social">
+              <a href="#" class="social-link" aria-label="Twitter"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"></path></svg></a>
+              <a href="#" class="social-link" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg></a>
+              <a href="#" class="social-link" aria-label="YouTube"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.5.46 8.5.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg></a>
+            </div>
+          </div>
+          <nav>
+            <h3 class="footer-title">Product</h3>
+            <ul class="footer-links">
+              <li><a href="#features" class="footer-link">Features</a></li>
+              <li><a href="#pricing" class="footer-link">Pricing</a></li>
+              <li><a href="#demo" class="footer-link">Demo</a></li>
+              <li><a href="#integrations" class="footer-link">Integrations</a></li>
+              <li><a href="#changelog" class="footer-link">Changelog</a></li>
+            </ul>
+          </nav>
+          <nav>
+            <h3 class="footer-title">Roles</h3>
+            <ul class="footer-links">
+              <li><a href="#admin" class="footer-link">For Administrators</a></li>
+              <li><a href="#principal" class="footer-link">For Principals</a></li>
+              <li><a href="#teacher" class="footer-link">For Teachers</a></li>
+              <li><a href="#student" class="footer-link">For Students</a></li>
+              <li><a href="#parent" class="footer-link">For Parents</a></li>
+            </ul>
+          </nav>
+          <nav>
+            <h3 class="footer-title">Resources</h3>
+            <ul class="footer-links">
+              <li><a href="#help" class="footer-link">Help Center</a></li>
+              <li><a href="#api" class="footer-link">API Docs</a></li>
+              <li><a href="#community" class="footer-link">Community</a></li>
+              <li><a href="#blog" class="footer-link">Blog</a></li>
+              <li><a href="#webinars" class="footer-link">Webinars</a></li>
+            </ul>
+          </nav>
+        </div>
+        <div class="footer-bottom">
+          <p class="footer-copyright">© 2025 Vidyalaya. All rights reserved.</p>
+          <nav class="footer-legal" aria-label="Legal">
+            <a href="#privacy">Privacy Policy</a>
+            <a href="#terms">Terms of Service</a>
+            <a href="#cookies">Cookie Policy</a>
+          </nav>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

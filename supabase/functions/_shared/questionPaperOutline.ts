@@ -179,7 +179,7 @@ export function buildQuestionPaperOutline(input: {
       attendance_pct: null,
       average_marks_pct: null,
     },
-    { max_chars: 4000 },
+    { max_chars: 4000, system_template: getBuiltinPrompt("teacher.question_paper.generate_outline")?.system_template },
   );
 
   if (validation.material_failure) {

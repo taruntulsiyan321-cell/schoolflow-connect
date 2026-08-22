@@ -1,0 +1,382 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vidyalaya — Role Panels Preview</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
+
+      :root {
+        --navy:#10242c; --indigo:#80cbd0; --indigo-light:#d9ecef;
+        --teal:#2a7385; --emerald:#83cca5; --amber:#e0b66c; --rose:#e08b86;
+        --coral:#e18a75; --violet:#5b7b85; --sky:#80cbd0;
+        --text:#f4f7f5; --text-2:#c6d5d6; --text-muted:#9eb1b4; --surface-2:#234852;
+        --font-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+        --font-body:"Plus Jakarta Sans",ui-sans-serif,system-ui,sans-serif;
+        --font-mono:"JetBrains Mono",ui-monospace,"Cascadia Code","SF Mono",Consolas,"Liberation Mono",monospace;
+      }
+      .panel-dark{
+        --bg:#10242c; --surface:#193640; --surface-2:#234852;
+        --border:#48656b; --border-strong:#607d82;
+        --text:#f4f7f5; --text-2:#c6d5d6; --text-muted:#9eb1b4;
+        --primary:#80cbd0; --primary-soft:#28535d; --accent:#2a7385;
+        --success:#83cca5; --success-soft:#83cca526; --warning:#e0b66c; --warning-soft:#e0b66c26; --danger:#e08b86; --danger-soft:#e08b8626; --info-soft:#80cbd026;
+        --shadow:0 10px 30px -12px rgba(16,36,44,0.4);
+        background:var(--bg); color:var(--text); font-family:var(--font-body);
+      }
+      .panel-light{
+        --bg:#f3f6f6; --surface:#ffffff; --surface-2:#e8eff0;
+        --border:#d5e0e2; --border-strong:#c3d2d5;
+        --text:#14252d; --text-2:#52646c; --text-muted:#7b898f;
+        --indigo:#17657a; --indigo-light:#d9ecef; --teal:#2a7385;
+        --primary:#17657a; --primary-soft:#d9ecef; --accent:#c65d4b;
+        --success:#2e7b63; --success-soft:#dbece4; --warning:#99661d; --warning-soft:#f2e6c8; --danger:#a94e4d; --danger-soft:#f2dad8; --info-soft:#d9ecef;
+        --shadow:0 8px 28px -12px rgba(20,37,45,0.18);
+        background:var(--bg); color:var(--text); font-family:var(--font-body);
+      }
+      *{box-sizing:border-box;margin:0;padding:0;}
+      body{font-family:var(--font-body);background:#10242c;}
+      h1,h2,h3,h4{font-family:var(--font-display);letter-spacing:-0.02em;font-weight:700;}
+      .mono{font-family:var(--font-mono);}
+      .topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.5rem;padding:0 1.5rem;height:60px;background:#10242c;border-bottom:1px solid #48656b;}
+      .topbar .brand{display:flex;align-items:center;gap:0.55rem;color:#fff;font-family:var(--font-display);font-weight:700;font-size:1.05rem;white-space:nowrap;}
+      .topbar .brand .mark{width:30px;height:30px;border-radius:8px;background:var(--indigo);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;}
+      .role-tabs{display:flex;gap:0.4rem;flex-wrap:wrap;}
+      .role-tab{appearance:none;border:1px solid #48656b;background:transparent;color:#c6d5d6;font-family:var(--font-body);font-weight:600;font-size:0.82rem;padding:0.45rem 0.9rem;border-radius:999px;cursor:pointer;transition:all .18s;white-space:nowrap;}
+      .role-tab:hover{color:#f4f7f5;border-color:#607d82;}
+      .role-tab[aria-selected="true"]{background:var(--indigo);color:#10242c;border-color:var(--indigo);}
+      .shell{display:flex;min-height:calc(100vh - 60px);}
+      .sidebar{width:244px;flex-shrink:0;padding:1.5rem 1rem;border-right:1px solid var(--border);background:var(--surface);}
+      .side-brand{display:flex;align-items:center;gap:0.6rem;padding:0 0.5rem 1.2rem;}
+      .side-brand .logo{width:36px;height:36px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-family:var(--font-display);}
+      .side-brand .name{font-family:var(--font-display);font-weight:700;font-size:1.05rem;color:var(--text);}
+      .side-brand .role-tag{font-size:0.7rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;}
+      .nav-group{margin-bottom:1.3rem;}
+      .nav-group-label{font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);padding:0 0.6rem 0.5rem;font-weight:700;}
+      .nav-item{display:flex;align-items:center;gap:0.7rem;padding:0.6rem 0.65rem;border-radius:10px;color:var(--text-2);text-decoration:none;font-size:0.9rem;font-weight:500;transition:all .16s;cursor:pointer;}
+      .nav-item svg{width:18px;height:18px;flex-shrink:0;}
+      .nav-item:hover{background:var(--surface-2);color:var(--text);}
+      .nav-item.active{background:var(--primary-soft);color:var(--primary);font-weight:600;}
+      .panel-light .nav-item.active{color:var(--indigo);}
+      .nav-badge{margin-left:auto;background:var(--rose);color:#fff;font-size:0.68rem;font-weight:700;padding:0.05rem 0.4rem;border-radius:999px;}
+      .main{flex:1;padding:1.75rem 2rem 3rem;min-width:0;}
+      .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:1.6rem;flex-wrap:wrap;}
+      .page-head h1{font-size:1.7rem;}
+      .page-head .sub{color:var(--text-2);font-size:0.95rem;margin-top:0.25rem;}
+      .head-actions{display:flex;gap:0.6rem;}
+      .btn{display:inline-flex;align-items:center;gap:0.4rem;padding:0.6rem 1.1rem;border-radius:10px;font-weight:600;font-size:0.88rem;cursor:pointer;border:1px solid transparent;transition:all .16s;text-decoration:none;white-space:nowrap;}
+      .btn-primary{background:var(--primary);color:#fff;}
+      .btn-primary:hover{filter:brightness(1.08);}
+      .btn-ghost{background:transparent;color:var(--text);border-color:var(--border-strong);}
+      .btn-ghost:hover{background:var(--surface-2);}
+      .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.6rem;}
+      @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+      @media(max-width:560px){.kpi-grid{grid-template-columns:1fr;}}
+      .kpi{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.1rem 1.2rem;box-shadow:var(--shadow);}
+      .kpi .k-top{display:flex;align-items:center;justify-content:space-between;}
+      .kpi .k-label{font-size:0.8rem;color:var(--text-muted);font-weight:600;}
+      .kpi .k-icon{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;}
+      .kpi .k-value{font-family:var(--font-mono);font-size:1.85rem;font-weight:700;color:var(--text);margin:0.55rem 0 0.2rem;line-height:1;}
+      .kpi .k-trend{font-size:0.78rem;font-weight:600;}
+      .trend-up{color:var(--emerald);} .trend-down{color:var(--rose);}
+      .grid-2{display:grid;grid-template-columns:1.6fr 1fr;gap:1.2rem;margin-bottom:1.2rem;}
+      .grid-2b{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem;}
+      @media(max-width:1100px){.grid-2,.grid-2b{grid-template-columns:1fr;}}
+      .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.3rem 1.4rem;box-shadow:var(--shadow);}
+      .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.1rem;}
+      .card-title{font-size:1.05rem;font-weight:700;color:var(--text);}
+      .card-link{font-size:0.82rem;color:var(--primary);text-decoration:none;font-weight:600;}
+      .prog-row{display:flex;align-items:center;gap:0.9rem;padding:0.55rem 0;}
+      .prog-row .p-name{width:120px;flex-shrink:0;font-size:0.88rem;color:var(--text-2);}
+      .prog-track{flex:1;height:9px;background:var(--surface-2);border-radius:999px;overflow:hidden;}
+      .prog-fill{height:100%;border-radius:999px;}
+      .prog-val{width:42px;text-align:right;font-family:var(--font-mono);font-size:0.85rem;color:var(--text);font-weight:600;}
+      .bars{display:flex;align-items:flex-end;gap:0.7rem;height:170px;padding-top:0.5rem;}
+      .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:0.5rem;height:100%;justify-content:flex-end;}
+      .bar{width:100%;max-width:34px;border-radius:7px 7px 3px 3px;}
+      .bar-label{font-size:0.72rem;color:var(--text-muted);}
+      .list-row{display:flex;align-items:center;gap:0.85rem;padding:0.7rem 0;border-top:1px solid var(--border);}
+      .list-row:first-child{border-top:none;}
+      .avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:0.85rem;flex-shrink:0;}
+      .l-main{min-width:0;flex:1;}
+      .l-title{font-size:0.9rem;font-weight:600;color:var(--text);}
+      .l-sub{font-size:0.8rem;color:var(--text-muted);}
+      .pill{font-size:0.72rem;font-weight:700;padding:0.2rem 0.6rem;border-radius:999px;white-space:nowrap;}
+      .pill-ok{background:rgba(16,185,129,0.16);color:var(--emerald);}
+      .pill-warn{background:rgba(245,158,11,0.16);color:var(--amber);}
+      .pill-info{background:var(--primary-soft);color:var(--primary);}
+      .pill-rose{background:rgba(244,63,94,0.16);color:var(--rose);}
+      table{width:100%;border-collapse:collapse;}
+      th{text-align:left;font-size:0.74rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);padding:0.6rem 0.7rem;border-bottom:1px solid var(--border);}
+      td{padding:0.75rem 0.7rem;font-size:0.88rem;color:var(--text-2);border-bottom:1px solid var(--border);}
+      tbody tr:last-child td{border-bottom:none;}
+      .role-panel{display:none;} .role-panel.active{display:block;}
+      .hero-banner{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:1.5rem 1.6rem;margin-bottom:1.4rem;display:flex;align-items:center;gap:1.4rem;box-shadow:var(--shadow);}
+      .hero-banner .hb-icon{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+      .hero-banner h2{font-size:1.3rem;} .hero-banner p{color:var(--text-2);font-size:0.92rem;margin-top:0.25rem;}
+      .leaderboard{display:flex;flex-direction:column;gap:0.2rem;}
+      .lb-row{display:flex;align-items:center;gap:0.8rem;padding:0.55rem 0.2rem;}
+      .lb-rank{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;background:var(--surface-2);color:var(--text-2);}
+      .lb-rank.r1{background:#fde68a;color:#92400e;} .lb-rank.r2{background:#e2e8f0;color:#334155;} .lb-rank.r3{background:#fed7aa;color:#9a3412;}
+      .msg{display:flex;gap:0.8rem;padding:0.8rem 0;border-top:1px solid var(--border);} .msg:first-child{border-top:none;}
+      .msg .m-dot{width:8px;height:8px;border-radius:50%;margin-top:7px;flex-shrink:0;}
+      .fee-row{display:flex;align-items:center;justify-content:space-between;padding:0.7rem 0;border-top:1px solid var(--border);}
+      .fee-row:first-child{border-top:none;}
+      .streak{display:inline-flex;align-items:center;gap:0.4rem;background:var(--primary-soft);color:var(--primary);font-weight:700;font-size:0.85rem;padding:0.35rem 0.8rem;border-radius:999px;}
+
+      /* Keep legacy inline status treatments on the shared Chalkboard ramp. */
+      [style*="rgba(59,91,219"] { background: var(--info-soft) !important; }
+      [style*="rgba(16,185,129"] { background: var(--success-soft) !important; }
+      [style*="rgba(10,165,160"] { background: var(--info-soft) !important; }
+      [style*="rgba(245,158,11"] { background: var(--warning-soft) !important; }
+      [style*="rgba(244,63,94"] { background: var(--danger-soft) !important; }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="brand"><span class="mark">V</span> Vidyalaya</div>
+      <a href="landing-page.html" class="nav-link" style="color:var(--text-2);text-decoration:none;font-size:0.88rem;font-weight:500;margin-left:auto;padding:0.4rem 0.8rem;border-radius:8px;transition:all .16s;" onmouseover="this.style.background='var(--surface-2)';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-2)'">← Back to Landing</a>
+      <div class="role-tabs" role="tablist" aria-label="Role panels">
+        <button class="role-tab" role="tab" data-target="admin" aria-selected="true">Admin</button>
+        <button class="role-tab" role="tab" data-target="principal" aria-selected="false">Principal</button>
+        <button class="role-tab" role="tab" data-target="teacher" aria-selected="false">Teacher</button>
+        <button class="role-tab" role="tab" data-target="student" aria-selected="false">Student</button>
+        <button class="role-tab" role="tab" data-target="parent" aria-selected="false">Parent</button>
+      </div>
+    </div>
+    <!-- ============ ADMIN ============ -->
+    <section class="role-panel panel-dark active" id="admin" data-od-id="panel-admin">
+      <div class="shell">
+        <aside class="sidebar">
+          <div class="side-brand"><span class="logo">V</span><div><div class="name">Vidyalaya</div><div class="role-tag">Super Admin</div></div></div>
+          <div class="nav-group"><div class="nav-group-label">Manage</div>
+            <a class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>Dashboard</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg><span>Schools</span><span class="nav-badge">512</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg><span>Users</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Billing</span></a>
+          </div>
+          <div class="nav-group"><div class="nav-group-label">System</div>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Settings</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Audit Log</span></a>
+          </div>
+        </aside>
+        <main class="main">
+          <div class="page-head"><div><h1>Platform Overview</h1><div class="sub">Real-time health across all subscribed schools</div></div>
+            <div class="head-actions"><a class="btn btn-ghost">Export</a><a class="btn btn-primary">Add School</a></div></div>
+          <div class="kpi-grid">
+            <div class="kpi"><div class="k-top"><span class="k-label">Schools</span><span class="k-icon" style="background:rgba(59,91,219,.16);color:var(--indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg></span></div><div class="k-value">512</div><div class="k-trend trend-up">▲ 18 this month</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Active Users</span><span class="k-icon" style="background:rgba(16,185,129,.16);color:var(--emerald)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg></span></div><div class="k-value">2.4L</div><div class="k-trend trend-up">▲ 9.2%</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Monthly Revenue</span><span class="k-icon" style="background:rgba(245,158,11,.16);color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span></div><div class="k-value">₹38L</div><div class="k-trend trend-up">▲ 12%</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Open Tickets</span><span class="k-icon" style="background:rgba(244,63,94,.16);color:var(--rose)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg></span></div><div class="k-value">23</div><div class="k-trend trend-down">▼ 4 since last week</div></div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-head"><span class="card-title">Top Schools by Activity</span><a class="card-link" href="#">View all</a></div>
+              <table><thead><tr><th>School</th><th>Plan</th><th>Students</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td>Delhi Public School</td><td>Enterprise</td><td>4,210</td><td><span class="pill pill-ok">Active</span></td></tr>
+                <tr><td>Jaipur Vidya Mandir</td><td>Pro</td><td>2,890</td><td><span class="pill pill-ok">Active</span></td></tr>
+                <tr><td>Mount View Academy</td><td>Pro</td><td>1,540</td><td><span class="pill pill-warn">Trial</span></td></tr>
+                <tr><td>Springfield Intl.</td><td>Enterprise</td><td>3,020</td><td><span class="pill pill-ok">Active</span></td></tr>
+              </tbody></table>
+            </div>
+            <div class="card"><div class="card-head"><span class="card-title">Signups (7d)</span></div>
+              <div class="bars">
+                <div class="bar-col"><div class="bar" style="height:55%;background:var(--indigo)"></div><span class="bar-label">M</span></div>
+                <div class="bar-col"><div class="bar" style="height:70%;background:var(--indigo)"></div><span class="bar-label">T</span></div>
+                <div class="bar-col"><div class="bar" style="height:45%;background:var(--indigo)"></div><span class="bar-label">W</span></div>
+                <div class="bar-col"><div class="bar" style="height:82%;background:var(--indigo)"></div><span class="bar-label">T</span></div>
+                <div class="bar-col"><div class="bar" style="height:60%;background:var(--indigo)"></div><span class="bar-label">F</span></div>
+                <div class="bar-col"><div class="bar" style="height:95%;background:var(--teal)"></div><span class="bar-label">S</span></div>
+                <div class="bar-col"><div class="bar" style="height:78%;background:var(--indigo)"></div><span class="bar-label">S</span></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </section>
+
+    <!-- ============ PRINCIPAL ============ -->
+    <section class="role-panel panel-light" id="principal" data-od-id="panel-principal">
+      <div class="shell">
+        <aside class="sidebar">
+          <div class="side-brand"><span class="logo">V</span><div><div class="name">Vidyalaya</div><div class="role-tag">Principal</div></div></div>
+          <div class="nav-group"><div class="nav-group-label">Insights</div>
+            <a class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg><span>Overview</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg><span>Teachers</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Students</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 3h12v6a6 6 0 0 1-12 0zM9 21h6M12 15v6"/></svg><span>Performance</span></a>
+          </div>
+          <div class="nav-group"><div class="nav-group-label">Operations</div>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Notices</span><span class="nav-badge">5</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Reports</span></a>
+          </div>
+        </aside>
+        <main class="main">
+          <div class="page-head"><div><h1>School Performance</h1><div class="sub">Delhi Public School · Academic Year 2025–26</div></div>
+            <div class="head-actions"><a class="btn btn-ghost">Print</a><a class="btn btn-primary">New Notice</a></div></div>
+          <div class="hero-banner"><div class="hb-icon" style="background:var(--indigo-light);color:var(--indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 3h12v6a6 6 0 0 1-12 0zM9 21h6M12 15v6"/></svg></div>
+            <div><h2>Attendance holding strong at 94.2%</h2><p>Up 3.1 points versus last term. 28 at-risk students flagged for intervention.</p></div></div>
+          <div class="kpi-grid">
+            <div class="kpi"><div class="k-top"><span class="k-label">Students</span><span class="k-icon" style="background:var(--indigo-light);color:var(--indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span></div><div class="k-value">4,210</div><div class="k-trend trend-up">▲ 120 new</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Avg Score</span><span class="k-icon" style="background:rgba(16,185,129,.14);color:var(--emerald)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span></div><div class="k-value">78%</div><div class="k-trend trend-up">▲ 4 pts</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Attendance</span><span class="k-icon" style="background:rgba(10,165,160,.14);color:var(--teal)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span></div><div class="k-value">94.2%</div><div class="k-trend trend-up">▲ 3.1</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">At-Risk</span><span class="k-icon" style="background:rgba(244,63,94,.14);color:var(--rose)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg></span></div><div class="k-value">28</div><div class="k-trend trend-down">▼ 6 fixed</div></div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-head"><span class="card-title">Subject Performance</span><a class="card-link" href="#">Detail</a></div>
+              <div class="prog-row"><span class="p-name">Mathematics</span><div class="prog-track"><div class="prog-fill" style="width:86%;background:var(--indigo)"></div></div><span class="prog-val">86</span></div>
+              <div class="prog-row"><span class="p-name">Science</span><div class="prog-track"><div class="prog-fill" style="width:79%;background:var(--teal)"></div></div><span class="prog-val">79</span></div>
+              <div class="prog-row"><span class="p-name">English</span><div class="prog-track"><div class="prog-fill" style="width:72%;background:var(--emerald)"></div></div><span class="prog-val">72</span></div>
+              <div class="prog-row"><span class="p-name">Social</span><div class="prog-track"><div class="prog-fill" style="width:68%;background:var(--amber)"></div></div><span class="prog-val">68</span></div>
+              <div class="prog-row"><span class="p-name">Hindi</span><div class="prog-track"><div class="prog-fill" style="width:81%;background:var(--violet)"></div></div><span class="prog-val">81</span></div>
+            </div>
+            <div class="card"><div class="card-head"><span class="card-title">Recent Notices</span></div>
+              <div class="list-row"><div class="l-main"><div class="l-title">PTM scheduled — Aug 30</div><div class="l-sub">Sent to 4,210 parents</div></div><span class="pill pill-info">Sent</span></div>
+              <div class="list-row"><div class="l-main"><div class="l-title">Unit Test 2 timetable</div><div class="l-sub">Published to students</div></div><span class="pill pill-ok">Live</span></div>
+              <div class="list-row"><div class="l-main"><div class="l-title">Fee deferral window open</div><div class="l-sub">Closes Sep 10</div></div><span class="pill pill-warn">Due</span></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </section>
+    <!-- ============ TEACHER ============ -->
+    <section class="role-panel panel-dark" id="teacher" data-od-id="panel-teacher">
+      <div class="shell">
+        <aside class="sidebar">
+          <div class="side-brand"><span class="logo">V</span><div><div class="name">Vidyalaya</div><div class="role-tag">Teacher</div></div></div>
+          <div class="nav-group"><div class="nav-group-label">Teaching</div>
+            <a class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span>Dashboard</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5V3a2.5 2.5 0 0 1 2.5-1z"/></svg><span>My Classes</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Attendance</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>Homework</span><span class="nav-badge">14</span></a>
+          </div>
+          <div class="nav-group"><div class="nav-group-label">Engage</div>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Doubts</span><span class="nav-badge">9</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg><span>Analytics</span></a>
+          </div>
+        </aside>
+        <main class="main">
+          <div class="page-head"><div><h1>Good morning, Priya</h1><div class="sub">3 classes today · Grade 11 & 12 Mathematics</div></div>
+            <div class="head-actions"><a class="btn btn-ghost">Schedule</a><a class="btn btn-primary">Take Attendance</a></div></div>
+          <div class="kpi-grid">
+            <div class="kpi"><div class="k-top"><span class="k-label">Classes</span><span class="k-icon" style="background:rgba(59,91,219,.16);color:var(--indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5V3a2.5 2.5 0 0 1 2.5-1z"/></svg></span></div><div class="k-value">3</div><div class="k-trend trend-up">Today</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Pending Doubts</span><span class="k-icon" style="background:rgba(244,63,94,.16);color:var(--rose)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span></div><div class="k-value">9</div><div class="k-trend trend-down">SLA 4h</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Homework Due</span><span class="k-icon" style="background:rgba(245,158,11,.16);color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span></div><div class="k-value">14</div><div class="k-trend trend-up">Due Fri</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Avg Score</span><span class="k-icon" style="background:rgba(16,185,129,.16);color:var(--emerald)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span></div><div class="k-value">81%</div><div class="k-trend trend-up">▲ 5 pts</div></div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-head"><span class="card-title">Today's Classes</span><a class="card-link" href="#">Plan</a></div>
+              <div class="list-row"><div class="avatar" style="background:var(--indigo)">11</div><div class="l-main"><div class="l-title">Mathematics · Grade 11</div><div class="l-sub">09:00 – 09:45 · Room 204</div></div><span class="pill pill-info">Up next</span></div>
+              <div class="list-row"><div class="avatar" style="background:var(--teal)">12</div><div class="l-main"><div class="l-title">Mathematics · Grade 12</div><div class="l-sub">11:00 – 11:45 · Room 204</div></div><span class="pill pill-ok">Scheduled</span></div>
+              <div class="list-row"><div class="avatar" style="background:var(--violet)">11</div><div class="l-main"><div class="l-title"> remedial · Grade 11</div><div class="l-sub">02:00 – 02:45 · Lab 2</div></div><span class="pill pill-warn">Prep</span></div>
+            </div>
+            <div class="card"><div class="card-head"><span class="card-title">Open Doubts</span><a class="card-link" href="#">Answer</a></div>
+              <div class="msg"><div class="m-dot" style="background:var(--rose)"></div><div class="l-main"><div class="l-title">Integration by parts — Ex 4.3</div><div class="l-sub">Aarav · 12 mins ago</div></div></div>
+              <div class="msg"><div class="m-dot" style="background:var(--amber)"></div><div class="l-main"><div class="l-title">Probability: Bayes theorem</div><div class="l-sub">Isha · 41 mins ago</div></div></div>
+              <div class="msg"><div class="m-dot" style="background:var(--indigo)"></div><div class="l-main"><div class="l-title">3D geometry direction cosines</div><div class="l-sub">Kabir · 1 hr ago</div></div></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </section>
+
+    <!-- ============ STUDENT ============ -->
+    <section class="role-panel panel-dark" id="student" data-od-id="panel-student">
+      <div class="shell">
+        <aside class="sidebar">
+          <div class="side-brand"><span class="logo">V</span><div><div class="name">Vidyalaya</div><div class="role-tag">Student</div></div></div>
+          <div class="nav-group"><div class="nav-group-label">Learn</div>
+            <a class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Home</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Practice</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 3h12v6a6 6 0 0 1-12 0zM9 21h6M12 15v6"/></svg><span>Battles</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg><span>Analysis</span></a>
+          </div>
+          <div class="nav-group"><div class="nav-group-label">Help</div>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Doubts</span><span class="nav-badge">2</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Profile</span></a>
+          </div>
+        </aside>
+        <main class="main">
+          <div class="hero-banner"><div class="hb-icon" style="background:rgba(245,158,11,.16);color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 3h12v6a6 6 0 0 1-12 0zM9 21h6M12 15v6"/></svg></div>
+            <div><h2>12-day streak — keep it going!</h2><p>Rank #47 in Grade 12 · 1,280 XP this week</p></div>
+            <span class="streak">🔥 12 days</span></div>
+          <div class="kpi-grid">
+            <div class="kpi"><div class="k-top"><span class="k-label">Practice Done</span><span class="k-icon" style="background:rgba(59,91,219,.16);color:var(--indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span></div><div class="k-value">146</div><div class="k-trend trend-up">▲ 22 this wk</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Accuracy</span><span class="k-icon" style="background:rgba(16,185,129,.16);color:var(--emerald)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span></div><div class="k-value">84%</div><div class="k-trend trend-up">▲ 6%</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Battles Won</span><span class="k-icon" style="background:rgba(244,63,94,.16);color:var(--rose)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4M6 3h12v6a6 6 0 0 1-12 0zM9 21h6M12 15v6"/></svg></span></div><div class="k-value">31</div><div class="k-trend trend-up">▲ 4</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Weak Areas</span><span class="k-icon" style="background:rgba(245,158,11,.16);color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span></div><div class="k-value">3</div><div class="k-trend trend-down">Focus</div></div>
+          </div>
+          <div class="grid-2">
+            <div class="card"><div class="card-head"><span class="card-title">Subject Mastery</span><a class="card-link" href="#">Analyze</a></div>
+              <div class="prog-row"><span class="p-name">Mathematics</span><div class="prog-track"><div class="prog-fill" style="width:88%;background:var(--indigo)"></div></div><span class="prog-val">88</span></div>
+              <div class="prog-row"><span class="p-name">Physics</span><div class="prog-track"><div class="prog-fill" style="width:74%;background:var(--teal)"></div></div><span class="prog-val">74</span></div>
+              <div class="prog-row"><span class="p-name">Chemistry</span><div class="prog-track"><div class="prog-fill" style="width:69%;background:var(--emerald)"></div></div><span class="prog-val">69</span></div>
+              <div class="prog-row"><span class="p-name">English</span><div class="prog-track"><div class="prog-fill" style="width:91%;background:var(--violet)"></div></div><span class="prog-val">91</span></div>
+            </div>
+            <div class="card"><div class="card-head"><span class="card-title">Class Leaderboard</span><a class="card-link" href="#">All</a></div>
+              <div class="leaderboard">
+                <div class="lb-row"><span class="lb-rank r1">1</span><div class="avatar" style="background:var(--amber);width:30px;height:30px;font-size:0.75rem">SK</div><div class="l-main"><div class="l-title">Sara Kapoor</div></div><span class="mono" style="color:var(--text-2)">2,410</span></div>
+                <div class="lb-row"><span class="lb-rank r2">2</span><div class="avatar" style="background:var(--indigo);width:30px;height:30px;font-size:0.75rem">RM</div></div><div class="l-main"><div class="l-title">Rohan Mehta</div></div><span class="mono" style="color:var(--text-2)">2,180</span></div>
+                <div class="lb-row"><span class="lb-rank r3">3</span><div class="avatar" style="background:var(--teal);width:30px;height:30px;font-size:0.75rem">AN</div></div><div class="l-main"><div class="l-title">Anika Nair</div></div><span class="mono" style="color:var(--text-2)">1,990</span></div>
+                <div class="lb-row"><span class="lb-rank">4</span><div class="avatar" style="background:var(--violet);width:30px;height:30px;font-size:0.75rem">YT</div></div><div class="l-main"><div class="l-title">You (Yash T)</div></div><span class="mono" style="color:var(--primary)">1,870</span></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </section>
+
+    <!-- ============ PARENT ============ -->
+    <section class="role-panel panel-dark" id="parent" data-od-id="panel-parent">
+      <div class="shell">
+        <aside class="sidebar">
+          <div class="side-brand"><span class="logo">V</span><div><div class="name">Vidyalaya</div><div class="role-tag">Parent</div></div></div>
+          <div class="nav-group"><div class="nav-group-label">Child</div>
+            <a class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span>Overview</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Attendance</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Fees</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg><span>Performance</span></a>
+          </div>
+          <div class="nav-group"><div class="nav-group-label">Connect</div>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Messages</span><span class="nav-badge">3</span></a>
+            <a class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Notices</span></a>
+          </div>
+        </aside>
+        <main class="main">
+          <div class="page-head"><div><h1>Aarav's Progress</h1><div class="sub">Grade 11 · Delhi Public School</div></div>
+            <div class="head-actions"><a class="btn btn-ghost">Message Teacher</a><a class="btn btn-primary">Pay Fees</a></div></div>
+          <div class="kpi-grid">
+            <div class="kpi"><div class="k-top"><span class="k-label">Attendance</span><span class="k-icon" style="background:rgba(16,185,129,.16);color:var(--emerald)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span></div><div class="k-value">96%</div><div class="k-trend trend-up">▲ 2%</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Avg Score</span><span class="k-icon" style="background:rgba(59,91,219,.16);color:var(--indigo)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span></div><div class="k-value">83%</div><div class="k-trend trend-up">▲ 4 pts</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Pending Fees</span><span class="k-icon" style="background:rgba(245,158,11,.16);color:var(--amber)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span></div><div class="k-value">₹4.2k</div><div class="k-trend trend-down">Due Sep 10</div></div>
+            <div class="kpi"><div class="k-top"><span class="k-label">Doubts</span><span class="k-icon" style="background:rgba(244,63,94,.16);color:var(--rose)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span></div><div class="k-value">2</div><div class="k-trend trend-up">Open</div></div>
+          </div>
+          <div class="grid-2b">
+            <div class="card"><div class="card-head"><span class="card-title">Fee Status</span><a class="card-link" href="#">Pay</a></div>
+              <div class="fee-row"><div><div class="l-title">Term 2 Tuition</div><div class="l-sub">Due Sep 10, 2025</div></div><span class="pill pill-warn">₹4,200</span></div>
+              <div class="fee-row"><div><div class="l-title">Transport</div><div class="l-sub">Paid Aug 01</div></div><span class="pill pill-ok">Cleared</span></div>
+              <div class="fee-row"><div><div class="l-title">Exam Fee</div><div class="l-sub">Paid Jul 15</div></div><span class="pill pill-ok">Cleared</span></div>
+            </div>
+            <div class="card"><div class="card-head"><span class="card-title">Teacher Messages</span><a class="card-link" href="#">Reply</a></div>
+              <div class="msg"><div class="m-dot" style="background:var(--indigo)"></div><div class="l-main"><div class="l-title">Priya Ma'am · Maths</div><div class="l-sub">"Aarav did well in today's test."</div></div></div>
+              <div class="msg"><div class="m-dot" style="background:var(--teal)"></div><div class="l-main"><div class="l-title">Class Teacher</div><div class="l-sub">"Please submit the consent form."</div></div></div>
+              <div class="msg"><div class="m-dot" style="background:var(--amber)"></div><div class="l-main"><div class="l-title">Sports Dept</div><div class="l-sub">"Practice on Saturday 8 AM."</div></div></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </section>
+
+    <script>
+      const tabs = document.querySelectorAll('.role-tab');
+      const panels = document.querySelectorAll('.role-panel');
+      tabs.forEach(t => t.addEventListener('click', () => {
+        const target = t.dataset.target;
+        tabs.forEach(x => x.setAttribute('aria-selected', x === t ? 'true' : 'false'));
+        panels.forEach(p => p.classList.toggle('active', p.id === target));
+      }));
+    </script>
+  </body>
+</html>

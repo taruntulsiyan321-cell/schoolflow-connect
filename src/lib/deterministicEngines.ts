@@ -88,20 +88,3 @@ export function classifyMistake(input: {
 export function mistakeTypeLabel(type: MistakeErrorType | string): string {
   return ERROR_LABELS[type as MistakeErrorType] ?? type;
 }
-
-export function computeMasteryScore(input: {
-  total_attempts: number;
-  correct_attempts: number;
-  mistake_count: number;
-  recovery_attempts?: number;
-  recovery_correct?: number;
-}): number {
-  const attempts = Math.max(input.total_attempts, 1);
-  const raw =
-    (input.correct_attempts / attempts) * 70 -
-    Math.min(input.mistake_count * 4, 30) +
-    (input.recovery_attempts && input.recovery_attempts > 0
-      ? ((input.recovery_correct ?? 0) / input.recovery_attempts) * 15
-      : 0);
-  return Math.max(0, Math.min(100, Math.round(raw * 10) / 10));
-}

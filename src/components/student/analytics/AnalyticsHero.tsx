@@ -25,7 +25,7 @@ function ScoreTile({ value, label }: { value: number; label: string }) {
       <p className="text-4xl font-bold tabular-nums text-[#003324] leading-none mt-1">{value}%</p>
       <div className="mt-3 h-2 rounded-full bg-[#003324]/10 overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#003324] to-[#97d3b8]"
+          className="h-full rounded-full "
           style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
         />
       </div>
@@ -55,15 +55,15 @@ export function AnalyticsHero({
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <span className="wa-gold-pill">Wisdom Campus · Insights</span>
               {improvement != null && improvement > 0 && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/15 text-[var(--wa-secondary-fixed)]">
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-black/15 text-[var(--wa-secondary-fixed)]">
                   +{improvement}% momentum
                 </span>
               )}
             </div>
-            <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold tracking-tight text-white">
+            <h1 className="font-['Sora'] text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
               Hi, {firstName}
             </h1>
-            <p className="text-sm text-white/75 mt-1.5">
+            <p className="text-sm text-foreground/75 mt-1.5">
               {studentClass} · Level {level}
               {rank ? ` · Class rank #${rank}` : ""}
             </p>
@@ -73,23 +73,23 @@ export function AnalyticsHero({
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
           <div className="wa-stat-chip">
-            <span className="wa-label text-white/60">Accuracy</span>
-            <span className="value text-white tabular-nums">{accuracy}%</span>
+            <span className="wa-label text-foreground/60">Accuracy</span>
+            <span className="value text-foreground tabular-nums">{accuracy}%</span>
           </div>
           <div className="wa-stat-chip">
-            <span className="wa-label text-white/60">Streak</span>
-            <span className="value text-white tabular-nums">{streak}d</span>
+            <span className="wa-label text-foreground/60">Streak</span>
+            <span className="value text-foreground tabular-nums">{streak}d</span>
           </div>
           <div className="wa-stat-chip">
-            <span className="wa-label text-white/60">Class rank</span>
-            <span className="value text-white tabular-nums flex items-center gap-1">
+            <span className="wa-label text-foreground/60">Class rank</span>
+            <span className="value text-foreground tabular-nums flex items-center gap-1">
               {rank ? `#${rank}` : "—"}
               {rank === 1 && <Trophy className="w-4 h-4 text-[var(--wa-secondary-fixed)]" />}
             </span>
           </div>
           <div className="wa-stat-chip">
-            <span className="wa-label text-white/60">Class size</span>
-            <span className="value text-white tabular-nums">{classSize > 0 ? classSize : "—"}</span>
+            <span className="wa-label text-foreground/60">Class size</span>
+            <span className="value text-foreground tabular-nums">{classSize > 0 ? classSize : "—"}</span>
           </div>
         </div>
 

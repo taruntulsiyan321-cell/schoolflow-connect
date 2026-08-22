@@ -81,7 +81,7 @@ export function ArenaLeaderboard() {
   if (loading) {
     return (
       <div className="ba-leaderboard-panel p-5 flex items-center justify-center min-h-[280px]">
-        <Loader2 className="w-6 h-6 animate-spin text-white/70" />
+        <Loader2 className="w-6 h-6 animate-spin text-foreground/70" />
       </div>
     );
   }
@@ -90,7 +90,7 @@ export function ArenaLeaderboard() {
     return (
       <div className="ba-leaderboard-panel p-5 text-center space-y-2">
         <Trophy className="w-8 h-8 mx-auto text-[var(--ba-secondary-fixed)] opacity-80" />
-        <p className="text-sm text-white/75">No class rankings yet. Earn XP to appear here.</p>
+        <p className="text-sm text-foreground/75">No class rankings yet. Earn XP to appear here.</p>
         <Link to="/student/battleground" className="ba-label text-[var(--ba-secondary-fixed)] hover:underline">
           View arena
         </Link>
@@ -104,11 +104,11 @@ export function ArenaLeaderboard() {
     <div className="ba-leaderboard-panel p-4 md:p-5 space-y-4">
       <div className="flex items-center gap-2">
         <Trophy className="w-4 h-4 text-[var(--ba-secondary-fixed)]" />
-        <h3 className="ba-headline text-sm uppercase tracking-tight text-white">Class leaderboard</h3>
+        <h3 className="ba-headline text-sm uppercase tracking-tight text-foreground">Class leaderboard</h3>
       </div>
 
       {top3.length > 0 && (
-        <div className="flex justify-around items-end pt-2 pb-3 border-b border-white/10">
+        <div className="flex justify-around items-end pt-2 pb-3 border-b border-black/10">
           {podiumOrder.map((r) => {
             const rank = top3.indexOf(r) + 1;
             const isFirst = rank === 1;
@@ -120,10 +120,10 @@ export function ArenaLeaderboard() {
                 {isFirst && <Crown className="w-4 h-4 text-[var(--ba-secondary-fixed)] mb-1" />}
                 <div
                   className={cn(
-                    "rounded-full border-2 overflow-hidden flex items-center justify-center font-bold text-xs bg-white/10",
+                    "rounded-full border-2 overflow-hidden flex items-center justify-center font-bold text-xs bg-black/10",
                     isFirst
                       ? "w-14 h-14 border-[var(--ba-secondary-fixed)]"
-                      : "w-11 h-11 border-white/30",
+                      : "w-11 h-11 border-black/30",
                   )}
                 >
                   {initials(r.full_name)}
@@ -131,11 +131,11 @@ export function ArenaLeaderboard() {
                 <div className={cn("font-semibold text-xs mt-1.5 truncate max-w-[72px]", isFirst && "text-[var(--ba-secondary-fixed)]")}>
                   {r.full_name.split(" ")[0]}
                 </div>
-                <div className="text-[10px] text-white/60">{Number(r.score).toLocaleString()} XP</div>
+                <div className="text-[10px] text-foreground/60">{Number(r.score).toLocaleString()} XP</div>
                 <div
                   className={cn(
                     "mt-1.5 rounded-t flex items-center justify-center font-bold text-[var(--ba-primary-container)]",
-                    isFirst ? "h-14 w-9 bg-[var(--ba-secondary-fixed)] text-sm" : rank === 2 ? "h-10 w-7 bg-white/15 text-xs" : "h-8 w-7 bg-white/10 text-xs",
+                    isFirst ? "h-14 w-9 bg-[var(--ba-secondary-fixed)] text-sm" : rank === 2 ? "h-10 w-7 bg-black/15 text-xs" : "h-8 w-7 bg-black/10 text-xs",
                   )}
                 >
                   {rank}
@@ -150,10 +150,10 @@ export function ArenaLeaderboard() {
         {rest.map((r, i) => (
           <div
             key={r.user_id}
-            className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10 text-sm"
+            className="flex items-center justify-between p-2 rounded-lg bg-black/5 border border-black/10 text-sm"
           >
             <div className="flex items-center gap-3 min-w-0">
-              <span className="font-mono text-white/40 text-xs w-5">{String(i + 4).padStart(2, "0")}</span>
+              <span className="font-mono text-foreground/40 text-xs w-5">{String(i + 4).padStart(2, "0")}</span>
               <span className="truncate">{r.full_name.split(" ")[0]}</span>
             </div>
             <span className="font-mono font-semibold text-[var(--ba-secondary-fixed)] text-xs shrink-0">

@@ -206,7 +206,7 @@ export default function Calendar() {
 
   if (showLoading(loading)) {
     return (
-      <div className="flex items-center justify-center py-16 text-[#78788c]">
+      <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />
         Loading calendar…
       </div>
@@ -215,7 +215,7 @@ export default function Calendar() {
 
   if (ready && !studentId) {
     return (
-      <div className="text-center text-sm text-[#78788c] py-16">
+      <div className="text-center text-sm text-muted-foreground py-16">
         No student profile linked to this account.
       </div>
     );
@@ -227,10 +227,10 @@ export default function Calendar() {
       <GlassCard glow="cyan" className="p-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
+            <h2 className="text-2xl font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
               Class Calendar
             </h2>
-            <p className="text-sm text-[#78788c] mt-0.5">Tests, exams, events & deadlines</p>
+            <p className="text-sm text-muted-foreground mt-0.5">Tests, exams, events & deadlines</p>
           </div>
           <div className="flex items-center gap-2">
             {(Object.entries(TYPE_META) as [EventType, (typeof TYPE_META)[EventType]][]).slice(0, 4).map(([type, meta]) => (
@@ -254,16 +254,16 @@ export default function Calendar() {
           <div className="flex items-center justify-between mb-5">
             <button
               onClick={prevMonth}
-              className="w-8 h-8 rounded-xl border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white hover:border-white/25 transition-all"
+              className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-black/25 transition-all"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <h3 className="text-base font-black text-white" style={{ fontFamily: "var(--font-display)" }}>
+            <h3 className="text-base font-black text-foreground" style={{ fontFamily: "var(--font-display)" }}>
               {MONTH_NAMES[month]} {year}
             </h3>
             <button
               onClick={nextMonth}
-              className="w-8 h-8 rounded-xl border border-white/10 flex items-center justify-center text-[#78788c] hover:text-white hover:border-white/25 transition-all"
+              className="w-8 h-8 rounded-xl border border-black/10 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-black/25 transition-all"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -272,7 +272,7 @@ export default function Calendar() {
           {/* Weekday headers */}
           <div className="grid grid-cols-7 mb-2">
             {WEEKDAYS.map((d) => (
-              <div key={d} className="text-center text-[10px] uppercase tracking-widest text-[#78788c] py-1.5">
+              <div key={d} className="text-center text-[10px] uppercase tracking-widest text-muted-foreground py-1.5">
                 {d}
               </div>
             ))}
@@ -302,8 +302,8 @@ export default function Calendar() {
                       : isToday
                         ? "bg-[#3b5bdb]/15 text-blue-400 border border-[#3b5bdb]/30"
                         : isHoliday
-                          ? "opacity-40 text-[#78788c]"
-                          : "text-[#a0aec0] hover:bg-white/5 hover:text-white",
+                          ? "opacity-40 text-muted-foreground"
+                          : "text-muted-foreground hover:bg-black/5 hover:text-foreground",
                   )}
                 >
                   <span className="mt-1">{day}</span>
@@ -322,8 +322,8 @@ export default function Calendar() {
 
           {/* Selected day events */}
           {selectedDate && selectedEvents.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
-              <div className="text-xs font-semibold text-[#78788c] uppercase tracking-wider">
+            <div className="mt-4 pt-4 border-t border-black/5 space-y-2">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-IN", {
                   weekday: "long",
                   day: "numeric",
@@ -340,8 +340,8 @@ export default function Calendar() {
                   >
                     <span style={{ color: e.color }}>{meta.icon}</span>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{e.title}</div>
-                      {e.subject && <div className="text-[11px] text-[#78788c]">{displaySubject(e.subject) || e.subject}</div>}
+                      <div className="text-sm font-semibold text-foreground truncate">{e.title}</div>
+                      {e.subject && <div className="text-[11px] text-muted-foreground">{displaySubject(e.subject) || e.subject}</div>}
                     </div>
                     <span
                       className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0"
@@ -361,7 +361,7 @@ export default function Calendar() {
           <GlassCard glow="rose" className="p-5">
             <SectionLabel>Upcoming</SectionLabel>
             {upcoming.length === 0 ? (
-              <p className="text-xs text-[#78788c] py-4 text-center">No upcoming events</p>
+              <p className="text-xs text-muted-foreground py-4 text-center">No upcoming events</p>
             ) : (
               <div className="space-y-2.5">
                 {upcoming.map((e) => {
@@ -372,7 +372,7 @@ export default function Calendar() {
                   return (
                     <div
                       key={e.id}
-                      className="flex items-start gap-3 p-3 rounded-xl border border-white/5 hover:border-white/10 transition-all cursor-pointer"
+                      className="flex items-start gap-3 p-3 rounded-xl border border-black/5 hover:border-black/10 transition-all cursor-pointer"
                       onClick={() => setSelectedDate(e.date)}
                     >
                       <div
@@ -383,11 +383,11 @@ export default function Calendar() {
                         <span className="text-[9px] leading-none mt-0.5 opacity-70">{weekday}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-white truncate">{e.title}</div>
+                        <div className="text-xs font-semibold text-foreground truncate">{e.title}</div>
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span style={{ color: meta.color }}>{meta.icon}</span>
-                          <span className="text-[10px] text-[#78788c]">{dayStr}</span>
-                          {e.subject && <span className="text-[10px] text-[#78788c]">· {displaySubject(e.subject) || e.subject}</span>}
+                          <span className="text-[10px] text-muted-foreground">{dayStr}</span>
+                          {e.subject && <span className="text-[10px] text-muted-foreground">· {displaySubject(e.subject) || e.subject}</span>}
                         </div>
                       </div>
                     </div>
@@ -404,7 +404,7 @@ export default function Calendar() {
               {(Object.entries(TYPE_META) as [EventType, (typeof TYPE_META)[EventType]][]).map(([type, meta]) => (
                 <div key={type} className="flex items-center gap-2.5">
                   <div className="w-3 h-3 rounded-full shrink-0" style={{ background: meta.color }} />
-                  <span className="text-xs text-[#a0aec0]">{meta.label}</span>
+                  <span className="text-xs text-muted-foreground">{meta.label}</span>
                 </div>
               ))}
             </div>

@@ -53,6 +53,8 @@ export function emptyStudentProfile(studentId: string, schoolId: string): Studen
     homeworkAssigned: 0,
     homeworkSubmitted: 0,
     homeworkCompletionPct: 0,
+    attendanceRiskBand: "unknown",
+    homeworkConsistencyBand: "unknown",
     testsAttempted: 0,
     testsAvgPct: 0,
     examsRecorded: 0,

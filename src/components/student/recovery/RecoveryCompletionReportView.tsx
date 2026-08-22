@@ -209,7 +209,7 @@ export function RecoveryCompletionReportView({ report }: Props) {
           </div>
           <div className="rc-health-bar">
             <div
-              className="rc-health-before flex items-center justify-center text-xs font-medium text-white"
+              className="rc-health-before flex items-center justify-center text-xs font-medium text-foreground"
               style={{ width: `${r.academicHealth.before}%` }}
             >
               {r.academicHealth.before}
@@ -332,8 +332,8 @@ export function RecoveryCompletionReportView({ report }: Props) {
       <section>
         <div className="rc-card-coach rounded-2xl p-6 sm:p-8">
           <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#0d5c44] to-[#97d3b8] flex items-center justify-center shrink-0">
-              <Sparkles className="w-6 h-6 text-white" />
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0">
+              <Sparkles className="w-6 h-6 text-foreground" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Academic coach</p>
@@ -415,7 +415,7 @@ export function RecoveryCompletionReportView({ report }: Props) {
                 a.earned ? "rc-badge-earned" : "rc-badge-locked",
               )}
             >
-              <div className="mx-auto w-10 h-10 rounded-xl flex items-center justify-center mb-2 bg-white/80">
+              <div className="mx-auto w-10 h-10 rounded-xl flex items-center justify-center mb-2 bg-card">
                 {a.id === "streak" && <Flame className={cn("w-5 h-5", a.earned ? "text-orange-500" : "text-gray-400")} />}
                 {a.id === "mastery" && <Medal className={cn("w-5 h-5", a.earned ? "text-[#e8c468]" : "text-gray-400")} />}
                 {a.id === "conqueror" && <Trophy className={cn("w-5 h-5", a.earned ? "text-emerald-600" : "text-gray-400")} />}

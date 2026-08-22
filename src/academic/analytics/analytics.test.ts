@@ -17,6 +17,8 @@ const sample: StudentAcademicProfile = {
   homeworkAssigned: 10,
   homeworkSubmitted: 8,
   homeworkCompletionPct: 80,
+  attendanceRiskBand: "low",
+  homeworkConsistencyBand: "low",
   testsAttempted: 3,
   testsAvgPct: 70,
   examsRecorded: 2,

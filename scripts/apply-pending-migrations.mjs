@@ -116,10 +116,19 @@ Verify with: npm run db:check-migrations
       continue;
     }
     const name = path.split(/[/\\]/).pop();
+    const version = name.replace(/\.sql$/, "");
     console.log(`Running ${name}…`);
     const sql = readFileSync(path, "utf8");
     try {
       await runSql(sql, name);
+      // Record in the ledger (scripts/verify-database-integrity.mjs and any
+      // future tooling read this instead of a hand-maintained marker list).
+      // Best-effort: a pre-ledger environment or a race with the ledger's
+      // own migration shouldn't fail an otherwise-successful apply.
+      await runSql(
+        `INSERT INTO public.schema_migrations (version) VALUES ('${version.replace(/'/g, "''")}') ON CONFLICT (version) DO NOTHING;`,
+        `${name} (ledger record)`,
+      ).catch((e) => console.warn(`  (ledger record skipped: ${e.message})`));
       console.log(`  OK: ${name}`);
     } catch (e) {
       if (e.message === "missing_credentials") throw e;

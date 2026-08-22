@@ -30,9 +30,9 @@
 .wisdom-analytics.wa-gradient-bg,
 .wisdom-analytics .wa-gradient-bg {
   background:
-    radial-gradient(ellipse 80% 45% at 95% 0%, rgba(178, 240, 212, 0.62) 0%, transparent 58%),
-    radial-gradient(ellipse 65% 50% at 0% 12%, rgba(255, 223, 151, 0.28) 0%, transparent 52%),
-    linear-gradient(180deg, #fbfffc 0%, #f2fbf6 48%, #ffffff 100%);
+    rgba(178, 240, 212, 0.62),
+    rgba(255, 223, 151, 0.28),
+    #fbff;
   border-radius: 1.75rem;
   padding: 0.35rem;
 }
@@ -74,7 +74,7 @@
 }
 
 .wisdom-analytics .wa-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 253, 250, 0.96) 100%);
+  background: rgba(255, 255, 255, 0.96);
   border: 1px solid var(--wa-outline-variant);
   border-radius: 1.35rem;
   padding: 1.25rem;
@@ -98,8 +98,8 @@
 
 .wisdom-analytics .wa-hero {
   background:
-    radial-gradient(circle at 90% 20%, rgba(255, 223, 151, 0.24), transparent 34%),
-    linear-gradient(135deg, #0c5f47 0%, var(--wa-primary) 45%, #001f15 100%);
+    rgba(255, 223, 151, 0.24),
+    #0c5f;
   border-radius: 2rem;
   color: var(--wa-on-primary);
   box-shadow: var(--wa-shadow-elevated);
@@ -115,7 +115,7 @@
   right: -20%;
   width: 60%;
   height: 120%;
-  background: radial-gradient(circle, rgba(178, 240, 212, 0.25) 0%, transparent 70%);
+  background: rgba(178, 240, 212, 0.25);
   pointer-events: none;
 }
 
@@ -128,7 +128,7 @@
 }
 
 .wisdom-analytics .wa-gold-pill {
-  background: linear-gradient(90deg, var(--wa-secondary-fixed) 0%, var(--wa-secondary-fixed-dim) 100%);
+  background: var(--wa-secondary-fixed);
   color: #251a00;
   font-size: 0.625rem;
   font-weight: 700;
@@ -164,7 +164,7 @@
 .wisdom-analytics .wa-hero-score-tile {
   width: 9.5rem;
   border-radius: 1.35rem;
-  background: linear-gradient(135deg, #fff8df 0%, #ffffff 62%, #dff8eb 100%);
+  background: #fff8;
   border: 1px solid rgba(255, 223, 151, 0.55);
   padding: 1rem;
   box-shadow: 0 20px 42px -24px rgba(0, 0, 0, 0.55);
@@ -277,15 +277,15 @@
   border-radius: 1.15rem;
   border: 1px solid var(--wa-outline-variant);
   background:
-    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.25), transparent 35%),
-    linear-gradient(135deg, white 0%, var(--wa-surface-low) 100%);
+    rgba(255, 223, 151, 0.25),
+    var(--wa-surface-low);
   box-shadow: var(--wa-shadow);
 }
 
 .wisdom-analytics .wa-deep-card {
   border-radius: 1.35rem;
   border: 1px solid var(--wa-outline-variant);
-  background: linear-gradient(180deg, white 0%, #fbfffc 100%);
+  background: #fbff;
   padding: 1.25rem;
   box-shadow: var(--wa-shadow);
 }
@@ -304,14 +304,14 @@
 
 .wisdom-analytics .wa-feature-card {
   background:
-    radial-gradient(circle at 100% 0%, rgba(178, 240, 212, 0.38), transparent 34%),
-    linear-gradient(135deg, #ffffff 0%, #f2fff8 100%);
+    rgba(178, 240, 212, 0.38),
+    #ffff;
 }
 
 .wisdom-analytics .wa-skill-tree-card {
   background:
-    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.18), transparent 35%),
-    linear-gradient(180deg, #ffffff 0%, #f7fffa 100%);
+    rgba(255, 223, 151, 0.18),
+    #ffff;
 }
 
 .wisdom-analytics .wa-mastery-spotlight {
@@ -324,15 +324,15 @@
 
 .wisdom-analytics .wa-coach-focus-card {
   background:
-    radial-gradient(circle at 100% 0%, rgba(178, 240, 212, 0.34), transparent 35%),
-    linear-gradient(135deg, #ffffff 0%, #f2fff8 100%);
+    rgba(178, 240, 212, 0.34),
+    #ffff;
   border: 1px solid rgba(151, 211, 184, 0.55);
 }
 
 .wisdom-analytics .wa-topic-card {
   border-radius: 1.25rem;
   border: 1px solid var(--wa-outline-variant);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfffc 100%);
+  background: #ffff;
   padding: 1rem;
   box-shadow: var(--wa-shadow);
 }
@@ -358,8 +358,8 @@
 
 .wisdom-analytics .wa-rhythm-card {
   background:
-    radial-gradient(circle at 90% 10%, rgba(255, 223, 151, 0.28), transparent 36%),
-    linear-gradient(135deg, #ffffff 0%, #f6fff9 100%);
+    rgba(255, 223, 151, 0.28),
+    #ffff;
 }
 
 .wisdom-analytics .wa-standing-row {
@@ -389,7 +389,7 @@
   gap: 0.75rem;
   padding: 1.25rem;
   border-radius: 1rem;
-  background: linear-gradient(180deg, var(--wa-surface-low) 0%, white 100%);
+  background: var(--wa-surface-low);
   border: 1px solid var(--wa-outline-variant);
 }
 
@@ -405,9 +405,9 @@
   border-radius: 2rem;
   padding: clamp(1.5rem, 4vw, 2.5rem);
   background:
-    radial-gradient(circle at 86% 12%, rgba(255, 223, 151, 0.28), transparent 35%),
-    radial-gradient(circle at 8% 90%, rgba(178, 240, 212, 0.18), transparent 32%),
-    linear-gradient(135deg, #0d5c44 0%, #003324 48%, #001e14 100%);
+    rgba(255, 223, 151, 0.28),
+    rgba(178, 240, 212, 0.18),
+    #0d5c;
   box-shadow: var(--wa-shadow-elevated);
   border: 1px solid rgba(178, 240, 212, 0.18);
 }
@@ -437,8 +437,8 @@
   border-radius: 1.5rem;
   padding: 1.5rem;
   background:
-    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.3), transparent 34%),
-    linear-gradient(135deg, #ffffff 0%, #f3fff8 100%);
+    rgba(255, 223, 151, 0.3),
+    #ffff;
   border: 1px solid rgba(151, 211, 184, 0.55);
   box-shadow: var(--wa-shadow);
 }
@@ -454,23 +454,23 @@
 .wisdom-analytics .wa-intel-card {
   border-radius: 1.35rem;
   padding: 1.25rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fffa 100%);
+  background: #ffff;
   border: 1px solid var(--wa-outline-variant);
   box-shadow: var(--wa-shadow);
 }
 
 .wisdom-analytics .wa-intel-card.tone-gold {
-  background: linear-gradient(180deg, #fffaf0 0%, #ffffff 100%);
+  background: #fffa;
   border-color: rgba(255, 223, 151, 0.55);
 }
 
 .wisdom-analytics .wa-intel-card.tone-blue {
-  background: linear-gradient(180deg, #f2f8ff 0%, #ffffff 100%);
+  background: #f2f8;
   border-color: rgba(147, 197, 253, 0.5);
 }
 
 .wisdom-analytics .wa-intel-card.tone-red {
-  background: linear-gradient(180deg, #fff6f4 0%, #ffffff 100%);
+  background: #fff6;
   border-color: rgba(252, 165, 165, 0.45);
 }
 
@@ -486,15 +486,15 @@
 }
 
 .wisdom-analytics .wa-bar-emerald {
-  background: linear-gradient(90deg, #003324, #97d3b8);
+  background: #0033;
 }
 
 .wisdom-analytics .wa-bar-gold {
-  background: linear-gradient(90deg, #e9c261, #ffdf97);
+  background: #e9c2;
 }
 
 .wisdom-analytics .wa-bar-red {
-  background: linear-gradient(90deg, #ba1a1a, #ffb4ab);
+  background: #ba1a;
 }
 
 .wisdom-analytics .wa-concept-panel {
@@ -502,11 +502,11 @@
 }
 
 .wisdom-analytics .wa-concept-panel.strong {
-  background: linear-gradient(145deg, #ffffff 0%, #effdf5 100%);
+  background: #ffff;
 }
 
 .wisdom-analytics .wa-concept-panel.weak {
-  background: linear-gradient(145deg, #ffffff 0%, #fff8eb 100%);
+  background: #ffff;
 }
 
 .wisdom-analytics .wa-concept-row {
@@ -535,8 +535,8 @@
 
 .wisdom-analytics .wa-recovery-impact {
   background:
-    radial-gradient(circle at 100% 0%, rgba(178, 240, 212, 0.28), transparent 36%),
-    linear-gradient(135deg, #ffffff 0%, #f5fff9 100%);
+    rgba(178, 240, 212, 0.28),
+    #ffff;
 }
 
 .wisdom-analytics .wa-before-after {
@@ -550,7 +550,7 @@
 }
 
 .wisdom-analytics .wa-before-after.after {
-  background: linear-gradient(135deg, #defaeb 0%, #ffffff 100%);
+  background: #defa;
   border-color: rgba(151, 211, 184, 0.65);
 }
 
@@ -571,14 +571,14 @@
 .wisdom-analytics .wa-subject-card {
   border-radius: 1.25rem;
   padding: 1.15rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fffb 100%);
+  background: #f8fffb;
   border: 1px solid var(--wa-outline-variant);
   box-shadow: var(--wa-shadow);
 }
 
 .wisdom-analytics .wa-skill-map-subject {
   border-radius: 1.35rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fffa 100%);
+  background: #ffff;
   border: 1px solid rgba(151, 211, 184, 0.45);
   padding: 1rem;
 }
@@ -606,8 +606,8 @@
 
 .wisdom-analytics .wa-ai-coach {
   background:
-    radial-gradient(circle at 96% 8%, rgba(255, 223, 151, 0.28), transparent 36%),
-    linear-gradient(135deg, #f6fff9 0%, #ffffff 100%);
+    rgba(255, 223, 151, 0.28),
+    #f6ff;
   border-color: rgba(151, 211, 184, 0.55);
 }
 
@@ -666,16 +666,16 @@
 /* Shared premium report surfaces */
 .wisdom-analytics.wa-report-shell {
   background:
-    radial-gradient(ellipse 55% 26% at 100% 0%, rgba(255, 223, 151, 0.34) 0%, transparent 62%),
-    radial-gradient(ellipse 60% 34% at 0% 8%, rgba(178, 240, 212, 0.42) 0%, transparent 60%),
-    linear-gradient(180deg, #fbfffc 0%, #f5fff9 46%, #ffffff 100%);
+    rgba(255, 223, 151, 0.34),
+    rgba(178, 240, 212, 0.42),
+    #fbff;
 }
 
 .wisdom-analytics .wa-report-hero {
   background:
-    radial-gradient(circle at 88% 12%, rgba(255, 223, 151, 0.24), transparent 34%),
-    radial-gradient(circle at 12% 100%, rgba(178, 240, 212, 0.18), transparent 34%),
-    linear-gradient(135deg, #0d5c44 0%, #003324 52%, #001e14 100%);
+    rgba(255, 223, 151, 0.24),
+    rgba(178, 240, 212, 0.18),
+    #0d5c;
   border: 1px solid rgba(178, 240, 212, 0.2);
   border-radius: 2rem;
   box-shadow: var(--wa-shadow-elevated);
@@ -694,23 +694,23 @@
 
 .wisdom-analytics .wa-coach-premium {
   background:
-    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.25), transparent 35%),
-    linear-gradient(135deg, #ffffff 0%, #f5fff9 100%);
+    rgba(255, 223, 151, 0.25),
+    #ffff;
   border-color: rgba(151, 211, 184, 0.58);
 }
 
 .wisdom-analytics .wa-question-card {
   border-radius: 1.25rem;
   border: 1px solid var(--wa-outline-variant);
-  background: linear-gradient(180deg, #ffffff 0%, #fbfffc 100%);
+  background: #ffff;
   box-shadow: var(--wa-shadow);
 }
 
 .wisdom-analytics .wa-concept-report-card {
   background:
-    radial-gradient(circle at 100% 0%, rgba(178, 240, 212, 0.32), transparent 36%),
-    radial-gradient(circle at 0% 100%, rgba(255, 223, 151, 0.18), transparent 32%),
-    linear-gradient(135deg, #ffffff 0%, #f6fff9 100%);
+    rgba(178, 240, 212, 0.32),
+    rgba(255, 223, 151, 0.18),
+    #ffff;
   border-color: rgba(151, 211, 184, 0.55);
 }
 
@@ -727,7 +727,7 @@
 
 .wisdom-analytics .wa-insight-panel {
   background:
-    radial-gradient(circle at 100% 0%, rgba(255, 223, 151, 0.2), transparent 35%),
+    rgba(255, 223, 151, 0.2),
     rgba(255, 255, 255, 0.82);
   border: 1px solid rgba(151, 211, 184, 0.5);
 }

@@ -131,7 +131,7 @@ export function WeakConceptInsights({
 
   return (
     <Card className="wisdom-analytics wa-card overflow-hidden p-0">
-      <div className="p-5 sm:p-6 border-b border-[var(--wa-outline-variant)] bg-[radial-gradient(circle_at_100%_0%,rgba(255,223,151,0.24),transparent_36%),linear-gradient(135deg,#ffffff_0%,#f4fff8_100%)]">
+      <div className="p-5 sm:p-6 border-b border-[var(--wa-outline-variant)] bg-[rgba(255,223,151,0.24)]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="wa-label text-[var(--wa-primary)]">Diagnostic intelligence</p>

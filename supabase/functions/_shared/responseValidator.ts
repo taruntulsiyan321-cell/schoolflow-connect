@@ -14,7 +14,8 @@ export type ValidationCode =
   | "numeric_mismatch"
   | "empty_response"
   | "too_long"
-  | "forbidden_claim";
+  | "forbidden_claim"
+  | "injection_signal";
 
 export type ValidationResult = {
   ok: boolean;
@@ -50,6 +51,17 @@ const XP_RE = /\b(\d{1,7})\s*(?:XP|xp)\b/g;
 const LEVEL_RE = /\b(?:level|Lv\.?|lvl)\s*(\d{1,3})\b/gi;
 const STREAK_RE = /\b(\d{1,4})\s*(?:-?\s*day\s+)?(?:study\s+)?streak\b/gi;
 
+// Cheap, deterministic tripwires for a successful prompt-injection response —
+// NOT a substitute for the input-side spotlighting in promptLibrary.ts, only
+// a second layer. Catches the two lowest-effort/highest-payoff outcomes: the
+// model echoing role-marker syntax from the raw chat format (a strong signal
+// it followed injected formatting instructions rather than staying in
+// character), and the model reproducing recognizable phrases from its own
+// system_template (a leak, whether prompted by injection or not).
+const ROLE_MARKER_RE = /(^|\n)\s*(system|assistant|user)\s*:/i;
+const META_INSTRUCTION_RE =
+  /\b(ignore (the |all )?(previous|prior|above) (instructions|rules|prompt)|reveal (your |the )?(system )?prompt|you are now|new instructions?:|disregard (the |all )?(above|prior))\b/i;
+
 function nearEqual(a: number, b: number, tol = 0.6): boolean {
   return Math.abs(a - b) <= tol;
 }
@@ -83,7 +95,7 @@ function buildAllowList(facts: EvidenceFacts): number[] {
 export function validateModelResponse(
   text: string,
   facts: EvidenceFacts,
-  opts: { max_chars?: number } = {},
+  opts: { max_chars?: number; system_template?: string } = {},
 ): ValidationResult {
   const codes: ValidationCode[] = [];
   const maxChars = opts.max_chars ?? 2500;
@@ -184,6 +196,24 @@ export function validateModelResponse(
     codes.push("forbidden_claim");
   }
 
+  // Injection tripwires — see the regex comments above. A false positive here
+  // just triggers the existing degraded/material_failure path (same as an
+  // invented number would), not an error, so these are intentionally cheap
+  // and a little over-eager rather than trying to be a precise classifier.
+  if (ROLE_MARKER_RE.test(text) || META_INSTRUCTION_RE.test(text)) {
+    codes.push("injection_signal");
+  } else if (opts.system_template) {
+    const words = opts.system_template.toLowerCase().split(/\s+/).filter(Boolean);
+    const responseLower = text.toLowerCase();
+    for (let i = 0; i + 8 <= words.length; i += 4) {
+      const window = words.slice(i, i + 8).join(" ");
+      if (window.length > 20 && responseLower.includes(window)) {
+        codes.push("injection_signal");
+        break;
+      }
+    }
+  }
+
   const unique = [...new Set(codes)];
   const material = unique.some((c) =>
     [
@@ -195,6 +225,7 @@ export function validateModelResponse(
       "invented_streak",
       "numeric_mismatch",
       "forbidden_claim",
+      "injection_signal",
       "empty_response",
     ].includes(c),
   );

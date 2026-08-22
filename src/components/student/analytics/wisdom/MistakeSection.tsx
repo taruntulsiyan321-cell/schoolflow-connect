@@ -89,20 +89,20 @@ export function MistakeSection({
           )}
         </section>
 
-        <section className="wa-card md:col-span-4 bg-[var(--wa-primary)] text-white relative overflow-hidden flex flex-col justify-between">
+        <section className="wa-card md:col-span-4 bg-[var(--wa-primary)] text-foreground relative overflow-hidden flex flex-col justify-between">
           <div className="absolute top-0 right-0 w-24 h-24 bg-[var(--wa-primary-container)] rounded-full opacity-40 -mr-6 -mt-6" />
           <div className="relative z-10 space-y-3">
             <div className="inline-flex p-2 bg-[var(--wa-secondary-fixed)] rounded-lg text-[var(--wa-secondary)]">
               <TrendingUp className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="wa-headline text-white mb-1">Recovery path</h3>
+              <h3 className="wa-headline text-foreground mb-1">Recovery path</h3>
               <p className="text-sm text-[var(--wa-surface-dim)] opacity-90">
                 {recoveryCount} questions waiting — fix the pattern, not just the mark.
               </p>
             </div>
             {priorityTarget && (
-              <div className="bg-white/10 border border-white/20 rounded-lg p-3 backdrop-blur-sm">
+              <div className="bg-black/10 border border-black/20 rounded-lg p-3 backdrop-blur-sm">
                 <p className="wa-label text-[var(--wa-secondary-fixed)] mb-1">Priority target</p>
                 <p className="text-sm font-medium">{priorityTarget}</p>
               </div>
@@ -125,8 +125,8 @@ export function MistakeSection({
                   key={i}
                   className={`rounded-r-lg p-3 flex gap-3 border-l-4 ${
                     i % 2 === 0
-                      ? "border-[var(--wa-primary)] bg-gradient-to-br from-[var(--wa-surface-high)] to-white"
-                      : "border-[var(--wa-error)] bg-gradient-to-br from-[var(--wa-error-container)]/40 to-white"
+                      ? "border-[var(--wa-primary)] "
+                      : "border-[var(--wa-error)] "
                   }`}
                 >
                   <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${i % 2 === 0 ? "text-[var(--wa-primary)]" : "text-[var(--wa-error)]"}`} />

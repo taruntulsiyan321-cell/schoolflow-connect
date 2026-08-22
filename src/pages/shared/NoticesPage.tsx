@@ -165,7 +165,7 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
       {list.map(r => (
         <Card key={r.id} className={`overflow-hidden border-border/70 bg-card/95 p-0 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-elevated ${showState ? "opacity-70" : ""}`}>
           <div className="flex items-start gap-4 p-5">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/15 to-accent/15 text-primary flex items-center justify-center shrink-0 ring-1 ring-primary/10">
+            <div className="w-12 h-12 rounded-2xl bg-primary/15 text-primary flex items-center justify-center shrink-0 ring-1 ring-primary/10">
               <Bell className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
@@ -270,7 +270,7 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
           </Dialog>
         )} />
 
-      <Card className="mb-5 overflow-hidden border-primary/20 bg-gradient-to-br from-[#083f2b] via-[#126847] to-[#b28a28] p-0 text-white shadow-elevated">
+      <Card className="mb-5 overflow-hidden border-primary/20 bg-[#083f2b] p-0 text-white shadow-elevated">
         <div className="grid gap-5 p-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-border bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white/75">

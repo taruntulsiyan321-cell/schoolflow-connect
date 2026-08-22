@@ -43,16 +43,16 @@ const stats = [
 
 export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boolean } = {}) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="landing-page min-h-screen bg-background">
       {/* Nav */}
-      <header className="sticky top-0 z-30 backdrop-blur bg-background/80 border-b border-border">
-        <div className="container mx-auto flex items-center justify-between px-4 h-16">
+      <header className="landing-nav sticky top-0 z-30">
+        <div className="container mx-auto flex items-center justify-between px-4 h-[72px]">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-card">
+            <div className="landing-mark w-9 h-9 rounded-xl flex items-center justify-center shadow-card">
               <GraduationCap className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-lg">Vidyalaya</span>
-            <Badge variant="secondary" className="ml-1">Prototype</Badge>
+            <span className="font-display font-bold text-lg tracking-tight">Vidyalaya</span>
+            <span className="landing-status ml-1"><span className="live-dot" /> Live workspace</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition">Features</a>
@@ -61,7 +61,7 @@ export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boole
             <a href="#stack" className="hover:text-foreground transition">Stack</a>
           </nav>
           <Link to="/auth">
-            <Button className="bg-gradient-primary text-primary-foreground shadow-card">
+            <Button className="landing-nav-cta">
               {noRoleBanner ? "Account" : "Launch Demo"} <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
@@ -77,55 +77,54 @@ export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boole
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-hero text-white">
-        <div className="container mx-auto px-4 py-20 md:py-28 grid md:grid-cols-2 gap-12 items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 py-1 text-xs mb-5 backdrop-blur">
+      <section className="landing-hero relative overflow-hidden text-foreground">
+        <div className="landing-hero-grid container mx-auto px-4 py-20 md:py-28 grid md:grid-cols-[1.05fr_.95fr] gap-12 items-center">
+          <div className="relative z-10">
+            <div className="landing-kicker inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs mb-5">
               <Sparkles className="w-3.5 h-3.5" /> Production-ready foundation
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold leading-tight tracking-tight">
-              The complete School Management platform.
+            <h1 className="landing-hero-title text-4xl md:text-6xl font-bold leading-tight tracking-tight">
+              The calm command center for a busy school.
             </h1>
-            <p className="text-lg md:text-xl text-white/85 mt-5 max-w-xl">
-              One app for Admin, Teachers, Students & Parents. Attendance, Exams,
-              Fees, Notices and more — built mobile-first, secure by default,
-              and ready to scale.
+            <p className="text-lg md:text-xl text-foreground/70 mt-5 max-w-xl leading-relaxed">
+              Vidyalaya brings school operations and student growth into one clear,
+              secure workspace for every role.
             </p>
             <div className="flex flex-wrap gap-3 mt-8">
               <Link to="/auth">
-                <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-elevated">
-                  Try the live demo <ArrowRight className="w-4 h-4 ml-1" />
+                <Button size="lg" className="landing-primary-button">
+                  Enter the workspace <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
               </Link>
               <a href="#features">
-                <Button size="lg" variant="outline" className="bg-transparent border-white/40 text-white hover:bg-white/10 hover:text-white">
+                <Button size="lg" variant="outline" className="bg-transparent border-border text-foreground hover:bg-muted hover:text-foreground">
                   See features
                 </Button>
               </a>
             </div>
 
-            <div className="grid grid-cols-4 gap-4 mt-10 max-w-md">
+            <div className="landing-stats grid grid-cols-4 gap-4 mt-10 max-w-md">
               {stats.map(s => (
                 <div key={s.v}>
                   <div className="text-2xl md:text-3xl font-bold">{s.k}</div>
-                  <div className="text-xs text-white/70 mt-1">{s.v}</div>
+                  <div className="text-xs text-foreground/60 mt-1">{s.v}</div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Hero mock */}
-          <div className="relative">
-            <div className="absolute -inset-6 bg-white/10 rounded-[2rem] blur-2xl" />
-            <Card className="relative p-6 bg-white/95 text-foreground shadow-elevated rounded-2xl">
-              <div className="flex items-center justify-between mb-4">
+          <div className="landing-preview-wrap relative">
+            <div className="landing-preview-label">Today at a glance <span>08:42 AM</span></div>
+            <Card className="landing-preview relative p-6 text-foreground shadow-elevated rounded-2xl">
+              <div className="flex items-center justify-between mb-5">
                 <div>
                   <div className="text-xs text-muted-foreground">Today</div>
-                  <div className="font-semibold">Class 8 — Section A</div>
+                  <div className="font-semibold">Class 8 / Section A</div>
                 </div>
                 <Badge className="bg-accent text-accent-foreground">Live</Badge>
               </div>
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-3 gap-3 mb-5">
                 {[
                   { l: "Present", v: "42", c: "bg-accent/10 text-accent" },
                   { l: "Absent", v: "3", c: "bg-destructive/10 text-destructive" },
@@ -175,7 +174,7 @@ export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boole
           <SectionHeading
             eyebrow="Built for everyone"
             title="One platform. Four tailored experiences."
-            desc="Every role gets a focused dashboard with role-based access control enforced end-to-end."
+            desc="Every role gets a focused dashboard with role-based access control enforced end-"
           />
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 mt-10">
             {roles.map(r => (
@@ -225,16 +224,15 @@ export default function Landing({ noRoleBanner = false }: { noRoleBanner?: boole
 
       {/* CTA */}
       <section className="container mx-auto px-4 py-20">
-        <Card className="relative overflow-hidden p-10 md:p-14 text-center bg-gradient-hero text-white border-0 shadow-elevated">
+        <Card className="relative overflow-hidden p-10 md:p-14 text-center bg-gradient-hero text-foreground border-0 shadow-elevated">
           <h2 className="text-3xl md:text-4xl font-bold">Ready to digitize your school?</h2>
-          <p className="text-white/85 mt-3 max-w-2xl mx-auto">
-            Launch the live demo, sign in as Admin / Teacher / Student / Parent and explore every flow end-to-end.
-          </p>
+          <p className="text-foreground/75 mt-3 max-w-2xl mx-auto">
+            Launch the live demo, sign in as Admin / Teacher / Student / Parent and explore every flow end-</p>
           <div className="mt-8 flex flex-wrap gap-3 justify-center">
             <Link to="/auth">
-              <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-elevated">
-                Launch demo <ArrowRight className="w-4 h-4 ml-1" />
-              </Button>
+                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-elevated">
+                  Launch demo <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
             </Link>
           </div>
         </Card>

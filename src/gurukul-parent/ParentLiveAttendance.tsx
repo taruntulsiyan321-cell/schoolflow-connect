@@ -98,7 +98,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12 text-[#78788c] text-xs gap-2">
+      <div className="flex items-center justify-center py-12 text-muted-foreground text-xs gap-2">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading live attendance…
       </div>
     );
@@ -115,13 +115,13 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
           <div className="text-lg font-black text-[#3b5bdb]">{unavailable ? "—" : present}</div>
           <div className="text-[9px] text-[#3b5bdb] uppercase tracking-wide font-bold">Present equiv.</div>
         </div>
-        <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-white">{unavailable ? "—" : total}</div>
-          <div className="text-[9px] text-[#78788c] uppercase tracking-wide font-bold">Days marked</div>
+        <div className="bg-black/5 border border-black/10 rounded-xl p-3 text-center">
+          <div className="text-lg font-black text-foreground">{unavailable ? "—" : total}</div>
+          <div className="text-[9px] text-muted-foreground uppercase tracking-wide font-bold">Days marked</div>
         </div>
-        <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
-          <div className="text-lg font-black text-white">{unavailable ? "—" : `${pct}%`}</div>
-          <div className="text-[9px] text-[#78788c] uppercase tracking-wide font-bold">Engine rate</div>
+        <div className="bg-black/5 border border-black/10 rounded-xl p-3 text-center">
+          <div className="text-lg font-black text-foreground">{unavailable ? "—" : `${pct}%`}</div>
+          <div className="text-[9px] text-muted-foreground uppercase tracking-wide font-bold">Engine rate</div>
         </div>
       </div>
 
@@ -134,15 +134,15 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
       )}
 
       {risk && risk.band !== "low" && (
-        <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2.5">
+        <div className="flex items-center gap-2 bg-black/5 border border-black/10 rounded-xl px-3 py-2.5">
           <RiskBadge band={risk.band} />
-          <span className="text-[11px] text-[#c8c8d8]">{riskReasonText(risk.reason_codes)}</span>
+          <span className="text-[11px] text-muted-foreground">{riskReasonText(risk.reason_codes)}</span>
         </div>
       )}
 
       <div className="flex flex-wrap gap-3">
         {Object.entries(statusColor).map(([k, c]) => (
-          <div key={k} className="flex items-center gap-1.5 text-[10px] text-[#78788c] capitalize">
+          <div key={k} className="flex items-center gap-1.5 text-[10px] text-muted-foreground capitalize">
             <div className="w-2.5 h-2.5 rounded-sm" style={{ background: c }} />
             {k.replace("_", " ")}
           </div>
@@ -151,7 +151,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
 
       <div className="grid grid-cols-7 gap-1">
         {calendarDays.length === 0 && (
-          <div className="col-span-7 text-center text-xs text-[#46465a] py-8">
+          <div className="col-span-7 text-center text-xs text-muted-foreground py-8">
             No attendance recorded yet.
           </div>
         )}
@@ -170,7 +170,7 @@ export function ParentLiveAttendance({ studentId }: { studentId: string }) {
           );
         })}
       </div>
-      <p className="text-[9px] text-[#46465a]">
+      <p className="text-[9px] text-muted-foreground">
         Attendance % from AcademicProfileService. Day grid from AttendanceService.
       </p>
     </div>

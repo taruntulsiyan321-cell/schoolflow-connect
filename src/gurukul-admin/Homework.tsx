@@ -56,7 +56,7 @@ export default function HomeworkAdmin() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-16 text-[#78788c] text-xs">
+      <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground text-xs">
         <Loader2 className="w-4 h-4 animate-spin" /> Loading homework…
       </div>
     );
@@ -66,8 +66,8 @@ export default function HomeworkAdmin() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-bold text-[#1a1a2e]">Homework</h1>
-          <p className="text-xs text-[#78788c]">HomeworkService · AnalyticsService — school monitor</p>
+          <h1 className="text-lg font-bold text-muted-foreground">Homework</h1>
+          <p className="text-xs text-muted-foreground">HomeworkService · AnalyticsService — school monitor</p>
         </div>
         <input
           value={search}
@@ -89,18 +89,18 @@ export default function HomeworkAdmin() {
             { label: "Submissions", value: summary.submissionCount },
             { label: "Graded", value: summary.gradedCount },
           ].map((k) => (
-            <div key={k.label} className="rounded-2xl border border-[#e5e7eb] bg-white p-4">
+            <div key={k.label} className="rounded-2xl border border-[#e5e7eb] bg-card p-4">
               <div className="text-xl font-bold tabular-nums">{k.value}</div>
-              <div className="text-[11px] text-[#78788c]">{k.label}</div>
+              <div className="text-[11px] text-muted-foreground">{k.label}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="rounded-2xl border border-[#e5e7eb] bg-white overflow-x-auto">
+      <div className="rounded-2xl border border-[#e5e7eb] bg-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-[#78788c] border-b">
+            <tr className="text-left text-[11px] uppercase tracking-wide text-muted-foreground border-b">
               <th className="p-3">Title</th>
               <th className="p-3">Subject</th>
               <th className="p-3">Status</th>
@@ -112,7 +112,7 @@ export default function HomeworkAdmin() {
             {visible.map((h) => (
               <tr key={h.id} className="border-b border-[#f0f1f3]">
                 <td className="p-3 font-medium">{h.title}</td>
-                <td className="p-3 text-[#46465a]">{h.subject}</td>
+                <td className="p-3 text-muted-foreground">{h.subject}</td>
                 <td className="p-3 capitalize">{h.status}</td>
                 <td className="p-3 tabular-nums">{h.dueDate ?? "—"}</td>
                 <td className="p-3 capitalize">{h.priority}</td>
@@ -121,7 +121,7 @@ export default function HomeworkAdmin() {
           </tbody>
         </table>
         {visible.length === 0 && (
-          <div className="text-center text-xs text-[#78788c] py-12">
+          <div className="text-center text-xs text-muted-foreground py-12">
             {items.length === 0 ? "No homework found." : "No homework matches this search."}
           </div>
         )}

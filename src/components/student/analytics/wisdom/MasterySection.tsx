@@ -59,7 +59,7 @@ export function MasterySection({
               return (
                 <div
                   key={`${c.subject}-${c.concept}-${c.chapter}`}
-                  className={`rounded-xl border-2 ${border} bg-white/80 p-3`}
+                  className={`rounded-xl border-2 ${border} bg-card p-3`}
                 >
                   <div className="flex justify-between items-start gap-2 mb-2">
                     <div className="min-w-0">
@@ -151,7 +151,7 @@ function ButtonLink() {
   return (
     <Link
       to="/student/recovery"
-      className="inline-flex w-full h-11 items-center justify-center gap-2 rounded-lg bg-[var(--wa-primary)] text-white text-sm font-semibold hover:bg-[var(--wa-primary-container)] transition-colors shadow-md"
+      className="inline-flex w-full h-11 items-center justify-center gap-2 rounded-lg bg-[var(--wa-primary)] text-foreground text-sm font-semibold hover:bg-[var(--wa-primary-container)] transition-colors shadow-md"
     >
       Start focused drill
     </Link>

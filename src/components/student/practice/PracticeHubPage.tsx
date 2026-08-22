@@ -39,21 +39,21 @@ const PRACTICE_MODES = [
     icon: Target,
     title: "Topic Practice",
     description: "Practice questions from specific concepts.",
-    accent: "from-emerald-500/20 to-emerald-600/5 text-emerald-700",
+    accent: "text-emerald-700",
   },
   {
     id: "chapter",
     icon: BookOpen,
     title: "Chapter Practice",
     description: "Practice an entire chapter end to end.",
-    accent: "from-blue-500/15 to-blue-600/5 text-blue-700",
+    accent: "text-blue-700",
   },
   {
     id: "timed",
     icon: Timer,
     title: "Timed Practice",
     description: "Focus on speed and accuracy under pressure.",
-    accent: "from-violet-500/15 to-violet-600/5 text-violet-700",
+    accent: "text-violet-700",
   },
 ];
 
@@ -87,7 +87,7 @@ const DIFFICULTIES = ["Easy", "Medium", "Hard"] as const;
 function HeroIllustration() {
   return (
     <div className="ph-illustration relative w-full max-w-[220px] aspect-square mx-auto lg:mx-0 lg:ml-auto rounded-[2rem] flex items-center justify-center">
-      <div className="absolute inset-4 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm" />
+      <div className="absolute inset-4 rounded-3xl border border-black/10 bg-black/5 backdrop-blur-sm" />
       <div className="relative z-10 grid grid-cols-2 gap-3 p-6">
         <div className="w-14 h-14 rounded-2xl bg-[#e8c468]/25 flex items-center justify-center">
           <Calculator className="w-7 h-7 text-[#e8c468]" />
@@ -95,8 +95,8 @@ function HeroIllustration() {
         <div className="w-14 h-14 rounded-2xl bg-[#b2f0d4]/25 flex items-center justify-center mt-4">
           <Target className="w-7 h-7 text-[#b2f0d4]" />
         </div>
-        <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center -mt-2">
-          <Brain className="w-7 h-7 text-white/90" />
+        <div className="w-14 h-14 rounded-2xl bg-black/15 flex items-center justify-center -mt-2">
+          <Brain className="w-7 h-7 text-foreground/90" />
         </div>
         <div className="w-14 h-14 rounded-2xl bg-[#e8c468]/20 flex items-center justify-center">
           <Zap className="w-7 h-7 text-[#e8c468]" />
@@ -327,7 +327,7 @@ export default function PracticeHubPage() {
                 ].map((s) => (
                   <div
                     key={s.label}
-                    className="rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur-sm px-4 py-3"
+                    className="rounded-2xl bg-black/10 ring-1 ring-black/15 backdrop-blur-sm px-4 py-3"
                   >
                     <p className="text-[10px] uppercase tracking-wider text-primary-foreground/65">{s.label}</p>
                     <p className="text-xl sm:text-2xl font-bold mt-1 tabular-nums">{s.value}</p>
@@ -340,7 +340,7 @@ export default function PracticeHubPage() {
                   <span>Activity today</span>
                   <span className="font-semibold">{loading ? "…" : questionsToday}</span>
                 </div>
-                <Progress value={0} className="h-2.5 bg-white/15 [&>div]:bg-[#e8c468]" />
+                <Progress value={0} className="h-2.5 bg-black/15 [&>div]:bg-[#e8c468]" />
                 <p className="text-xs text-primary-foreground/60 mt-2">
                   {loading ? "…" : `${questionsToday} practice activity point${questionsToday === 1 ? "" : "s"} today — no daily goal configured`}
                 </p>
@@ -368,7 +368,7 @@ export default function PracticeHubPage() {
               >
                 <div
                   className={cn(
-                    "w-12 h-12 rounded-2xl bg-gradient-to-br flex items-center justify-center mb-4",
+                    "w-12 h-12 rounded-2xl flex items-center justify-center mb-4",
                     m.accent,
                   )}
                 >
@@ -395,7 +395,7 @@ export default function PracticeHubPage() {
             className="ph-mode-card ph-card rounded-2xl p-5 flex flex-col cursor-pointer transition-transform hover:-translate-y-0.5"
             onClick={() => nav("/student/practice")}
           >
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-600/5 text-amber-700 flex items-center justify-center mb-4">
+            <div className="w-12 h-12 rounded-2xl text-amber-700 flex items-center justify-center mb-4">
               <Sparkles className="w-6 h-6" />
             </div>
             <h3 className="font-semibold text-foreground">All practice modes</h3>

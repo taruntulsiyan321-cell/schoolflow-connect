@@ -24,7 +24,7 @@
 }
 
 .wisdom-arena .ba-gradient {
-  background: radial-gradient(circle at top right, #b2f0d4 0%, #e7fff2 60%);
+  background: #b2f0;
   border-radius: 1rem;
   padding: 0.25rem;
 }
@@ -76,7 +76,7 @@
 }
 
 .wisdom-arena .ba-gold-shimmer {
-  background: linear-gradient(90deg, #ffdf97 0%, #e9c261 50%, #ffdf97 100%);
+  background: #ffdf;
   background-size: 200% auto;
   animation: ba-shimmer 3s linear infinite;
 }

@@ -523,7 +523,7 @@ export default function Auth() {
               <SegmentedControl
                 ariaLabel="Account type"
                 value={accountType}
-                onChange={setAccountType}
+                onChange={(v) => setAccountType(v)}
                 disabled={busy || mobileBusy || emailOtpBusy}
                 options={[
                   { value: "individual", label: "Individual" },
@@ -546,7 +546,7 @@ export default function Auth() {
                     <SegmentedControl
                       ariaLabel="Sign in with"
                       value={signInMode}
-                      onChange={setSignInMode}
+                      onChange={(v) => setSignInMode(v)}
                       disabled={busy || mobileBusy || emailOtpBusy}
                       options={[
                         { value: "password", label: "Password" },

@@ -1,14 +1,30 @@
-/* Gurukul brand tokens — principal executive palette (shared app-wide) */
+/* Chalkboard Signal brand aliases — shared across every Gurukul surface */
 :root {
-  --gurukul-navy: #0f1b35;
-  --gurukul-navy-mid: #1e3a5f;
-  --gurukul-indigo: #3b5bdb;
-  --gurukul-indigo-light: #e8ecff;
-  --gurukul-indigo-mid: #6882e8;
-  --gurukul-bg: #f4f5f7;
+  /* Legacy alias names remain stable for existing consumers. */
+  --gurukul-navy: #10242c;
+  --gurukul-navy-mid: #193640;
+  --gurukul-indigo: #17657a;
+  --gurukul-indigo-light: #d9ecef;
+  --gurukul-indigo-mid: #80cbd0;
+  --gurukul-bg: #f3f6f6;
   --gurukul-surface: #ffffff;
-  --gurukul-teal: #0ea5a0;
-  --gurukul-emerald: #10b981;
-  --gurukul-amber: #f59e0b;
-  --gurukul-rose: #f43f5e;
+  --gurukul-teal: #2a7385;
+  --gurukul-emerald: #2e7b63;
+  --gurukul-amber: #99661d;
+  --gurukul-rose: #a94e4d;
+  --gurukul-coral: #c65d4b;
+  --gurukul-violet: #5b7b85;
+  --gurukul-sky: #80cbd0;
+
+  --gurukul-primary: #17657a;
+  --gurukul-primary-soft: #d9ecef;
+  --gurukul-accent: #c65d4b;
+  --gurukul-accent-soft: #f3deda;
+  --gurukul-success: #2e7b63;
+  --gurukul-success-soft: #dbece4;
+  --gurukul-warning: #99661d;
+  --gurukul-warning-soft: #f2e6c8;
+  --gurukul-danger: #a94e4d;
+  --gurukul-danger-soft: #f2dad8;
+  --gurukul-info: #2a7385;
 }

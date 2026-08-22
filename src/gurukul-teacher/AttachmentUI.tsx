@@ -54,7 +54,7 @@ export function AttachmentList({
   dense?: boolean;
 }) {
   if (!items.length) {
-    return <div className="text-[10px] text-[#46465a]">{emptyLabel}</div>;
+    return <div className="text-[10px] text-muted-foreground">{emptyLabel}</div>;
   }
   return (
     <div className={cn("space-y-1.5", dense && "space-y-1")}>
@@ -65,24 +65,24 @@ export function AttachmentList({
         return (
           <div
             key={`${a.url}-${i}`}
-            className="flex items-center gap-2 p-2 rounded-xl bg-white/5 border border-white/8"
+            className="flex items-center gap-2 p-2 rounded-xl bg-black/5 border border-black/8"
           >
             {isImage ? (
               <a href={a.url} target="_blank" rel="noreferrer" className="shrink-0">
                 <img
                   src={a.url}
                   alt=""
-                  className="w-10 h-10 rounded-lg object-cover border border-white/10"
+                  className="w-10 h-10 rounded-lg object-cover border border-black/10"
                 />
               </a>
             ) : (
-              <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-black/5 flex items-center justify-center shrink-0">
                 <KindIcon kind={kind} />
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-semibold text-white truncate">{a.name}</div>
-              <div className="text-[9px] text-[#78788c]">
+              <div className="text-[11px] font-semibold text-foreground truncate">{a.name}</div>
+              <div className="text-[9px] text-muted-foreground">
                 {size || (kind === "link" ? "Link" : kind.toUpperCase())}
               </div>
             </div>
@@ -90,7 +90,7 @@ export function AttachmentList({
               href={a.url}
               target="_blank"
               rel="noreferrer"
-              className="p-1.5 rounded-lg text-[#78788c] hover:text-white hover:bg-white/10"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/10"
               title="Open / download"
             >
               <Download className="w-3.5 h-3.5" />
@@ -99,7 +99,7 @@ export function AttachmentList({
               <button
                 type="button"
                 onClick={() => onRemove(i)}
-                className="p-1.5 rounded-lg text-[#78788c] hover:text-[#cc5069] hover:bg-[#cc5069]/10"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-[#cc5069] hover:bg-[#cc5069]/10"
                 title="Remove"
               >
                 <X className="w-3.5 h-3.5" />
@@ -179,7 +179,7 @@ export function AttachmentComposer({
           {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Paperclip className="w-3 h-3" />}
           {uploading ? "Uploading…" : "Upload files"}
         </button>
-        <span className="text-[9px] text-[#46465a]">
+        <span className="text-[9px] text-muted-foreground">
           PDF · Images · Word · Excel · PowerPoint · up to 20 MB
         </span>
         <input
@@ -198,20 +198,20 @@ export function AttachmentComposer({
           onChange={(e) => setLinkName(e.target.value)}
           disabled={disabled}
           placeholder="Link label (optional)"
-          className="flex-1 min-w-[120px] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+          className="flex-1 min-w-[120px] bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground"
         />
         <input
           value={linkUrl}
           onChange={(e) => setLinkUrl(e.target.value)}
           disabled={disabled}
           placeholder="https://… paste a link"
-          className="flex-[2] min-w-[160px] bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white"
+          className="flex-[2] min-w-[160px] bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground"
         />
         <button
           type="button"
           disabled={disabled || !linkUrl.trim()}
           onClick={addLink}
-          className="flex items-center gap-1 px-3 py-2 rounded-xl text-[10px] font-bold bg-white/10 text-[#a0a0b0] disabled:opacity-40"
+          className="flex items-center gap-1 px-3 py-2 rounded-xl text-[10px] font-bold bg-black/10 text-muted-foreground disabled:opacity-40"
         >
           <Plus className="w-3 h-3" /> Add link
         </button>

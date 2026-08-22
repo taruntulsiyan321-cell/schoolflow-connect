@@ -66,7 +66,7 @@ describe("repairUtf8Mojibake (structural CP1252→UTF-8)", () => {
   });
 });
 
-describe("end-to-end Hindi chapter presentation hop", () => {
+describe("end-Hindi chapter presentation hop", () => {
   it("Practice chip path: DB mojibake → displayChapter readable Hindi", () => {
     expect(fixMojibake(HINDI_SEED_MOJI)).toBe("आलो आँधारि");
     expect(displayChapter(HINDI_SEED_MOJI)).toBe("आलो आँधारि");
