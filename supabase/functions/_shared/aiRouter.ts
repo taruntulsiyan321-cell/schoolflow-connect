@@ -2600,11 +2600,17 @@ export async function routeAiRequest(
           rawSummary.flags && typeof rawSummary.flags === "object"
             ? (rawSummary.flags as Record<string, unknown>)
             : {};
+        // AI-02 fix: outlineInSession/outlineFromSession gate whether a marking
+        // scheme can be drafted at all — they must only ever be satisfied by
+        // session memory (written server-side after generate_outline actually
+        // ran), never by structured.outline_text, which is client-supplied on
+        // this very request. Trusting the client payload here let a teacher
+        // call marking_scheme directly with an arbitrary made-up "outline",
+        // skipping the intended generate_outline step entirely.
         const outlineFromSession =
           (typeof flagsObj.outline_text === "string" && flagsObj.outline_text.trim()
             ? flagsObj.outline_text
             : null) ??
-          (typeof structured.outline_text === "string" ? structured.outline_text : null) ??
           (typeof rawSummary.outline_text === "string" ? rawSummary.outline_text : null);
         const planHash =
           (typeof flagsObj.plan_hash === "string" ? flagsObj.plan_hash : null) ??

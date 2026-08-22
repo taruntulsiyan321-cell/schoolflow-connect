@@ -77,9 +77,11 @@ export function parseClassLevel(label?: string | null): number | null {
   const text = String(label);
   const m = text.match(/\b(6|7|8|9|10|11|12)\b/);
   if (m) return Number(m[1]);
-  const roman = text.toUpperCase().match(/\b(XII|XI|X)\b/);
+  const roman = text.toUpperCase().match(/\b(XII|XI|IX|X|VIII|VII|VI)\b/);
   if (!roman) return null;
-  const romanLevels: Record<string, number> = { X: 10, XI: 11, XII: 12 };
+  const romanLevels: Record<string, number> = {
+    VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12,
+  };
   return romanLevels[roman[1]] ?? null;
 }
 

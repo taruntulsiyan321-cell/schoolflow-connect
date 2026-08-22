@@ -1309,7 +1309,7 @@ function Session({
           }
         } else {
           const sid = await PracticeService.start(ctx, {
-            _subject: config.subject === "Mixed" ? "" : config.subject,
+            _subject: config.subject,
             _chapter: chapterForStart,
             _count: config.qCount,
             _practice_mode: config.mode,
