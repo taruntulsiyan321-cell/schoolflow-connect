@@ -49,7 +49,7 @@ export default function FeesAdmin() {
     setOpen(false); load();
   };
 
-  const statusFor = (paid: number, amount: number) => paid >= amount ? "paid" : paid > 0 ? "partial" : "unpaid";
+  const statusFor = (paid: number, amount: number) => (amount > 0 && paid >= amount) ? "paid" : paid > 0 ? "partial" : "unpaid";
 
   const updatePaid = async (sid: string, paid: number) => {
     const f = fees[sid];

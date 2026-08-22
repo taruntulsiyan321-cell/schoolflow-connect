@@ -7,6 +7,7 @@ import {
   type CalendarEventAudience,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { useAcademicLive } from "@/academic";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "./shared";
 import { toast } from "sonner";
@@ -55,6 +56,7 @@ const inputCls = "w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 
 
 export default function CalendarEventsPage() {
   const { ctx, ready } = useAcademicContext();
+  const liveVersion = useAcademicLive(["calendar"]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [classes, setClasses] = useState<ClassRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,7 +83,7 @@ export default function CalendarEventsPage() {
   useEffect(() => {
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, ctx]);
+  }, [ready, ctx, liveVersion]);
 
   useEffect(() => {
     supabase.from("classes").select("id, name, section").order("name").then(({ data }) => {

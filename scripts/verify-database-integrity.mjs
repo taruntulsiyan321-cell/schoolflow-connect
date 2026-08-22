@@ -294,6 +294,26 @@ async function main() {
     (r) => (r[0]?.chk ?? "").includes("get_my_school_id"),
   );
 
+  // --- Gap-closure pass, 2026-08-22: CHECK constraints + revision-queue
+  // auto-clear (20260822210000_gap_closure_check_constraints.sql,
+  // 20260822220000_gap_closure_revision_queue_auto_clear.sql) ---
+  await check(
+    "all 13 gap-closure CHECK constraints exist",
+    `SELECT conname FROM pg_constraint WHERE conname IN (
+       'approval_requests_status_check','battle_events_kind_check','battle_invites_status_check',
+       'battles_source_check','concept_mastery_classification_check','exams_status_check',
+       'homework_priority_check','notices_status_check','progression_history_source_type_check',
+       'question_attempts_source_check','recovery_assignments_source_type_check',
+       'student_mistakes_assessment_type_check','teachers_status_check'
+     )`,
+    (r) => r.length === 13,
+  );
+  await check(
+    "_rebuild_revision_queue auto-clears revision items whose topic accuracy has recovered",
+    "SELECT prosrc FROM pg_proc WHERE proname = '_rebuild_revision_queue'",
+    (r) => (r[0]?.prosrc ?? "").includes("w.accuracy >= 60"),
+  );
+
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);
   process.exit(failures === 0 ? 0 : 1);
 }
