@@ -30,6 +30,15 @@ import {
 
 const CLASS_UNRESOLVED_MSG =
   "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
+
+/* Premium empty state - reusable */
+const PremiumEmpty = ({ icon: Icon, title, description }: { icon: React.ReactNode; title: string; description: string }) => (
+  <div className="premium-empty py-10">
+    <div className="premium-empty-icon">{icon}</div>
+    <p className="text-sm font-medium text-foreground">{title}</p>
+    <p className="text-xs text-muted-foreground mt-1">{description}</p>
+  </div>
+);
 const CLASS_LEVEL_UNRESOLVED_MSG =
   "Your class is assigned, but its name or category does not identify a class level. Ask your school admin to use a label such as Class 10, Std 9, XI, or 12-A.";
 

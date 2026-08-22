@@ -252,14 +252,14 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 premium-page">
       {loadError && (
         <div className="rounded-xl border border-[#c08a3a]/30 bg-[#c08a3a]/10 px-4 py-2 text-xs text-[#c08a3a]">
           Some live stats failed to refresh: {loadError}
         </div>
       )}
-      {/* Hero */}
-      <GlassCard glow="blue" className="p-6 sm:p-8">
+      {/* Hero - premium light with subtle orbs */}
+      <GlassCard glow="blue" className="p-6 sm:p-8 premium-card relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center gap-5">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
@@ -294,8 +294,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         </div>
       </GlassCard>
 
-      {/* What to do next */}
-      <GlassCard glow="cyan" className="p-5" onClick={() => setPage(mission.nextAction.page)}>
+      {/* What to do next - premium hover */}
+      <GlassCard glow="cyan" className="p-5 premium-card cursor-pointer" onClick={() => setPage(mission.nextAction.page)}>
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-xl bg-[#4b9fd4]/10 border border-[#4b9fd4]/20 flex items-center justify-center shrink-0">
             <RefreshCw className="w-5 h-5 text-[#4b9fd4]"/>
@@ -309,8 +309,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         </div>
       </GlassCard>
 
-      {/* Learning Loop */}
-      <GlassCard className="p-5">
+      {/* Learning Loop - premium */}
+      <GlassCard className="p-5 premium-card animate-premium-enter" style={{animationDelay: "0.12s"}}>
         <SectionLabel>Your Learning Loop</SectionLabel>
         <div className="flex flex-wrap gap-2">
           {loopSteps.map((step, i) => (
@@ -330,10 +330,10 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         </div>
       </GlassCard>
 
-      {/* Today's Mission */}
-      <div>
+      {/* Today's Mission - premium stagger */}
+      <div className="animate-premium-enter" style={{animationDelay: "0.08s"}}>
         <SectionLabel>{"Today's Mission"}</SectionLabel>
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid sm:grid-cols-3 gap-4 animate-premium-stagger">
           {[
             {label:"Practice", done:mission.practiceDone, target:mission.practiceTarget, color:"#3b5bdb", icon:<BookOpen className="w-4 h-4"/>, page:"practice" as PageKey},
             {label:"Recovery", done:mission.recoveryDone, target:mission.recoveryTarget, color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/>, page:"recovery" as PageKey},
@@ -353,10 +353,10 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div>
+      {/* Quick Actions - premium stagger */}
+      <div className="animate-premium-enter" style={{animationDelay: "0.16s"}}>
         <SectionLabel>Quick Actions</SectionLabel>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-premium-stagger">
           {[
             {label:"Practice",    sub:"Start a session",       icon:<BookOpen className="w-5 h-5"/>,  color:"#3b5bdb", page:"practice" as PageKey},
             {label:"AI Coach",    sub:"Chat with Nova",        icon:<Brain className="w-5 h-5"/>,    color:"#6882e8", page:"aicoach" as PageKey},
@@ -378,7 +378,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
       <GlassCard className="p-5">
         <SectionLabel>Weekly Activity</SectionLabel>
         {weeklyActivity.length > 0 ? (
-          <div className="h-36">
+          <div className="h-36 animate-premium-enter">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={weeklyActivity}>
                 <defs>
@@ -388,28 +388,32 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="day" tick={{fill:"#78788c",fontSize:10}} axisLine={false} tickLine={false}/>
-                <Tooltip contentStyle={{background:"#131316",border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,fontSize:12}} labelStyle={{color:"#78788c"}}/>
+                <Tooltip contentStyle={{background:"#ffffff",border:"1px solid #e5e7eb",borderRadius:12,fontSize:12,boxShadow:"0 4px 16px rgba(0,0,0,0.07)"}} labelStyle={{color:"#9ca3af"}}/>
                 <Area type="monotone" dataKey="total" name="Questions" stroke="#3b5bdb" strokeWidth={2} fill="url(#dash-actGrad)"
-                  isAnimationActive={false} dot={{r:3,fill:"#3b5bdb",strokeWidth:0}} activeDot={{r:5,fill:"#3b5bdb"}}/>
+                  isAnimationActive={true} animationDuration={800} dot={{r:3,fill:"#3b5bdb",strokeWidth:0}} activeDot={{r:5,fill:"#3b5bdb"}}/>
               </AreaChart>
             </ResponsiveContainer>
           </div>
         ) : (
-          <p className="text-sm text-[#78788c] py-8 text-center">No activity recorded this week yet.</p>
+          <div className="premium-empty py-10">
+            <div className="premium-empty-icon"><BarChart2 className="w-6 h-6" /></div>
+            <p className="text-sm font-medium text-foreground">No activity yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Complete practice to see your weekly trend</p>
+          </div>
         )}
       </GlassCard>
 
-      {/* Subjects */}
-      <div>
+      {/* Subjects - premium stagger */}
+      <div className="animate-premium-enter" style={{animationDelay: "0.20s"}}>
         <SectionLabel>Subject Performance</SectionLabel>
         {subjects.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {subjects.map((s) => (
-              <GlassCard key={s.id} className="p-4 hover:border-border cursor-pointer" onClick={() => setPage("practice")}>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-premium-stagger">
+            {subjects.map((s, idx) => (
+              <GlassCard key={s.id} className="p-4 premium-card group hover:border-primary/30 cursor-pointer" onClick={() => setPage("practice")} style={{animationDelay: `${idx * 0.04}s`}}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold shrink-0" style={{background:`${s.color}15`,color:s.color}}>{s.icon}</div>
-                    <span className="text-sm font-semibold text-white">{s.name}</span>
+                    <span className="text-sm font-semibold text-foreground">{s.name}</span>
                   </div>
                   {s.trend !== 0 && (
                     <div className="flex items-center gap-1 text-xs" style={{color:s.trend>=0?"#4aa87a":"#cc5069"}}>
@@ -419,7 +423,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                   )}
                 </div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-[#78788c]">{s.attempts} attempts</span>
+                  <span className="text-xs text-muted-foreground">{s.attempts} attempts</span>
                   <span className="text-sm font-black tabular-nums" style={{color:s.color}}>{s.accuracy}%</span>
                 </div>
                 <ProgressBar value={s.accuracy} color={s.color}/>
@@ -427,9 +431,11 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             ))}
           </div>
         ) : (
-          <GlassCard className="p-6 text-center">
-            <p className="text-sm text-[#78788c]">No subject data yet - complete practice to see performance.</p>
-          </GlassCard>
+          <div className="premium-empty py-10">
+            <div className="premium-empty-icon"><BarChart2 className="w-6 h-6" /></div>
+            <p className="text-sm font-medium text-foreground">No subject data yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Complete practice to see performance</p>
+          </div>
         )}
       </div>
 
@@ -479,12 +485,16 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 <Star className="w-4 h-4"/>Class rank
               </div>
             )}
-          </div>
           <button onClick={() => setPage("leaderboard")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors mt-2">
             See full leaderboard {"->"}
           </button>
+          </div>
         </GlassCard>
       </div>
+      {/* Premium decorative orbs - subtle, no layout shift */}
+      <div className="premium-orb premium-orb--indigo" style={{top: "8%", right: "4%", width: "240px", height: "240px"}} aria-hidden="true" />
+      <div className="premium-orb premium-orb--emerald" style={{bottom: "12%", left: "3%", width: "180px", height: "180px"}} aria-hidden="true" />
+      <div className="premium-orb premium-orb--amber" style={{bottom: "25%", right: "6%", width: "140px", height: "140px"}} aria-hidden="true" />
     </div>
   );
 }
