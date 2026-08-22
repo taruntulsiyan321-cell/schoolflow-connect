@@ -189,6 +189,102 @@ async function main() {
     (r) => count(r) === 0,
   );
 
+  // --- Phase 1 audit (2026-08-22): school_id gap closure on tables whose
+  // only live writer never set it (20260822150000_phase1_school_id_gap_closure.sql) ---
+  await check(
+    "concept_mastery.school_id fully backfilled (expect 0 null)",
+    "SELECT count(*) FROM concept_mastery WHERE school_id IS NULL",
+    (r) => count(r) === 0,
+  );
+  await check(
+    "student_mistakes.school_id fully backfilled (expect 0 null)",
+    "SELECT count(*) FROM student_mistakes WHERE school_id IS NULL",
+    (r) => count(r) === 0,
+  );
+  await check(
+    "academic_daily_activity.school_id fully backfilled (expect 0 null)",
+    "SELECT count(*) FROM academic_daily_activity WHERE school_id IS NULL",
+    (r) => count(r) === 0,
+  );
+  await check(
+    "recovery_assignment_questions.school_id fully backfilled (expect 0 null)",
+    "SELECT count(*) FROM recovery_assignment_questions WHERE school_id IS NULL",
+    (r) => count(r) === 0,
+  );
+  await check(
+    "attendance.school_id fully backfilled (expect 0 null)",
+    "SELECT count(*) FROM attendance WHERE school_id IS NULL",
+    (r) => count(r) === 0,
+  );
+  await check(
+    "concept_mastery/student_mistakes/academic_daily_activity/recovery_assignment_questions all have a school_id-setting trigger (prevents regression to NULL on new writes)",
+    `SELECT c.relname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_proc p ON p.oid = t.tgfoid
+     WHERE p.proname = 'tg_set_school_id_from_session' AND NOT t.tgisinternal
+       AND c.relname IN ('concept_mastery','student_mistakes','academic_daily_activity','recovery_assignment_questions')`,
+    (r) => r.length === 4,
+  );
+
+  // --- Phase 2 audit (2026-08-22): homework late-detection forgery + IST
+  // timezone fix, mastery-score volatility fix
+  // (20260822160000_phase2_homework_late_forgery_and_tz.sql,
+  // 20260822170000_phase2_mastery_score_volatility_fix.sql) ---
+  await check(
+    "tg_homework_compute_is_late forces submitted_at server-side (no longer trusts client input)",
+    "SELECT prosrc FROM pg_proc WHERE proname = 'tg_homework_compute_is_late'",
+    (r) => (r[0]?.prosrc ?? "").includes("NEW.submitted_at := now()"),
+  );
+  await check(
+    "tg_homework_compute_is_late compares against IST wall-clock, not an implicit UTC session cast",
+    "SELECT prosrc FROM pg_proc WHERE proname = 'tg_homework_compute_is_late'",
+    (r) => (r[0]?.prosrc ?? "").includes("Asia/Kolkata"),
+  );
+  await check(
+    "_compute_mastery_score is STABLE, not mislabeled IMMUTABLE (it reads now())",
+    "SELECT provolatile FROM pg_proc WHERE proname = '_compute_mastery_score'",
+    (r) => r[0]?.provolatile === "s",
+  );
+
+  // --- Phase 5 audit (2026-08-22): critical account-takeover hole closed +
+  // internal-helper lockdown (20260822180000_phase5_revoke_internal_helper_execute.sql) ---
+  await check(
+    "_demo_upsert_auth_user (unauthenticated auth.users password-overwrite primitive) no longer exists",
+    "SELECT count(*) FROM pg_proc WHERE proname = '_demo_upsert_auth_user'",
+    (r) => count(r) === 0,
+  );
+  await check(
+    "internal data-forgery/leak helpers are no longer callable by anon or authenticated",
+    `SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public' AND p.proname = ANY(ARRAY[
+       '_upsert_concept_mastery','_upsert_question_record','_bump_academic_activity',
+       '_exam_readiness','_rebuild_revision_queue','_weak_topics_for_user',
+       '_notify_student_parents','_award_badge','_maybe_finish_battle'
+     ])
+     AND (has_function_privilege('anon', p.oid, 'EXECUTE') OR has_function_privilege('authenticated', p.oid, 'EXECUTE'))`,
+    (r) => r.length === 0,
+  );
+  await check(
+    "new functions created by postgres no longer default to anon/authenticated EXECUTE (foundation fix)",
+    `SELECT defaclacl FROM pg_default_acl WHERE defaclrole = 'postgres'::regrole AND defaclnamespace = 'public'::regnamespace AND defaclobjtype = 'f'`,
+    (r) => {
+      const acl = String(r[0]?.defaclacl ?? "");
+      return !acl.includes("anon=X") && !acl.includes("authenticated=X");
+    },
+  );
+
+  // --- Phase 5 audit continued (20260822190000_phase5_parent_join_table_and_snapshot_lockdown.sql) ---
+  await check(
+    "rpc_student_academic_snapshot_internal (private per-student data, no ownership check) is no longer callable by anon or authenticated",
+    `SELECT 1 WHERE has_function_privilege('anon', 'public.rpc_student_academic_snapshot_internal(uuid,uuid)', 'EXECUTE')
+        OR has_function_privilege('authenticated', 'public.rpc_student_academic_snapshot_internal(uuid,uuid)', 'EXECUTE')`,
+    (r) => r.length === 0,
+  );
+  await check(
+    "rpc_parent_child_snapshot/rpc_parent_concept_analytics/rpc_parent_weekly_digest also check the parent_students join table, not just the legacy parent_user_id column",
+    `SELECT proname FROM pg_proc WHERE proname IN ('rpc_parent_child_snapshot','rpc_parent_concept_analytics','rpc_parent_weekly_digest')
+       AND prosrc NOT ILIKE '%parent_students%'`,
+    (r) => r.length === 0,
+  );
+
   console.log(`\n${failures === 0 ? "All checks passed." : `${failures} check(s) failed.`}`);
   process.exit(failures === 0 ? 0 : 1);
 }

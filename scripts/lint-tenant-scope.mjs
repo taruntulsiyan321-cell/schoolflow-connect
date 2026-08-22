@@ -63,7 +63,123 @@ const ALLOWLIST = {
     "Confirmed 2026-08-21: a single shared service-role-only batch worker (analogous to a cron job), not a per-tenant request handler. FOR UPDATE SKIP LOCKED prevents cross-worker double-claim races; each returned job is already tagged with its own school_id so no cross-tenant data mixing occurs downstream.",
   bump_ai_answer_cache_hit:
     "Confirmed 2026-08-21: SECURITY INVOKER (prosecdef=false) on ai_answer_cache, which has RLS enabled with zero policies -- any authenticated/anon caller's UPDATE is blocked by RLS regardless of the id argument, so the missing school_id check is structurally unreachable, not just unlikely.",
+
+  // --- Phase 5 audit, 2026-08-22 ---
+  // Trigger functions: fire per-row on already-authorized INSERT/UPDATE/DELETE
+  // of the single NEW/OLD row that triggered them; they never look up other
+  // tenants' rows, so a school_id check inside them is a category error, not
+  // a missing check. Individually read every body before allowlisting.
+  tg_homework_compute_is_late: "Trigger (BEFORE INSERT OR UPDATE on homework_submissions): operates only on NEW, the single row already being written by an already-authorized caller. Confirmed by reading the body (this audit's own fix, 20260822160000).",
+  tg_homework_submission_student_guard: "Trigger (BEFORE UPDATE on homework_submissions): compares NEW/OLD on the single row being updated only. Read body 2026-08-22.",
+  tg_marks_within_max: "Trigger (BEFORE INSERT/UPDATE on marks): validates NEW.marks_obtained against NEW's own exam_id's max_marks, single row only. Read body 2026-08-22.",
+  tg_students_prevent_orphan_history: "Trigger (BEFORE DELETE on students): checks whether OLD.id (the one row being deleted) has related history rows; no cross-tenant lookup. Read body 2026-08-22.",
+  trg_messages_notify_receiver: "Trigger (AFTER INSERT on messages): notifies only the participants of NEW's own conversation_id/receiver_id, both already tenant-scoped upstream. Read body 2026-08-22.",
+
+  // RLS-policy scoping primitives: pure boolean/scalar predicates used
+  // directly inside USING/WITH CHECK clauses on other tables. They MUST stay
+  // executable by `authenticated` for RLS itself to evaluate -- revoking
+  // would break every policy that references them. Reading arbitrary IDs
+  // through them leaks at most a yes/no fact (e.g. "is X the teacher of
+  // class Y"), not row data.
+  is_class_teacher_of_class: "RLS-policy primitive (used directly in USING clauses); must remain callable by authenticated. Pure boolean, no row data exposed.",
+  is_class_teacher_of_student: "RLS-policy primitive; same as is_class_teacher_of_class.",
+  teacher_teaches_class: "RLS-policy primitive; same reasoning.",
+  teacher_teaches_class_subject: "RLS-policy primitive; same reasoning.",
+  student_class_id: "RLS-policy/helper primitive returning a single scalar (class_id), no row data.",
+  is_chat_participant: "RLS-policy primitive; pure boolean.",
+  is_battle_participant: "RLS-policy primitive; pure boolean.",
+
+  // Internal helpers revoked from anon/authenticated in this audit
+  // (20260822180000_phase5_revoke_internal_helper_execute.sql,
+  // 20260822190000_phase5_parent_join_table_and_snapshot_lockdown.sql) after
+  // confirming zero direct external callers (grepped src/ and
+  // supabase/functions/ for `.rpc("name"` -- no matches for any of these).
+  // A revoked function can no longer be reached with an attacker-controlled
+  // argument at all, which is what the missing school_id check would have
+  // guarded against -- the access-control fix supersedes the need for a
+  // school_id predicate for these specifically.
+  _award_engagement_badges: "Revoked from anon/authenticated 2026-08-22 (internal helper, zero external callers).",
+  _build_concept_recovery_report: "Revoked from anon/authenticated 2026-08-22.",
+  _bump_academic_activity: "Revoked from anon/authenticated 2026-08-22 (both overloads).",
+  _class_grade: "Revoked from anon/authenticated 2026-08-22.",
+  _community_author_name: "Revoked from anon/authenticated 2026-08-22.",
+  _community_refresh_reputation: "Revoked from anon/authenticated 2026-08-22.",
+  _dim_consistency: "Revoked from anon/authenticated 2026-08-22.",
+  _dim_evidence_strength: "Revoked from anon/authenticated 2026-08-22.",
+  _dim_growth_trend: "Revoked from anon/authenticated 2026-08-22.",
+  _dim_recovery_need: "Revoked from anon/authenticated 2026-08-22.",
+  _dim_retention: "Revoked from anon/authenticated 2026-08-22.",
+  _dim_understanding: "Revoked from anon/authenticated 2026-08-22.",
+  _maybe_finish_battle: "Revoked from anon/authenticated 2026-08-22.",
+  _notify_class_students: "Revoked from anon/authenticated 2026-08-22 (notification-spam vector otherwise).",
+  _notify_class_teacher: "Revoked from anon/authenticated 2026-08-22.",
+  _notify_student_circle: "Revoked from anon/authenticated 2026-08-22.",
+  _notify_student_parents: "Revoked from anon/authenticated 2026-08-22.",
+  _peek_teacher_featured_battle: "Revoked from anon/authenticated 2026-08-22.",
+  _practice_grade_from_bank: "Revoked from anon/authenticated 2026-08-22.",
+  _progression_bump_homework_count: "Revoked from anon/authenticated 2026-08-22.",
+  _progression_bump_study_streak: "Revoked from anon/authenticated 2026-08-22.",
+  _progression_check_milestones: "Revoked from anon/authenticated 2026-08-22.",
+  _rebuild_revision_queue: "Revoked from anon/authenticated 2026-08-22.",
+  _recompute_concept_confidence_for_session: "Revoked from anon/authenticated 2026-08-22.",
+  _revision_recently_completed: "Revoked from anon/authenticated 2026-08-22.",
+  _revision_topic_priority: "Revoked from anon/authenticated 2026-08-22.",
+  _snapshot_battle_report: "Revoked from anon/authenticated 2026-08-22.",
+  _upsert_concept_mastery: "Revoked from anon/authenticated 2026-08-22 (this was the concrete forgery vector verified live during this audit).",
+  _weak_topics_for_user: "Revoked from anon/authenticated 2026-08-22.",
+  rpc_student_academic_snapshot_internal: "Revoked from anon/authenticated 2026-08-22 -- this was a real, confirmed private-data leak (any uid's full academic snapshot, no ownership check) until this audit closed it.",
+  ensure_student_academic_profile: "Revoked from anon/authenticated 2026-08-22 (letting anyone force a recompute for an arbitrary student; no data leak but no reason to stay public).",
+  refresh_student_academic_profile: "Revoked from anon/authenticated 2026-08-22; same reasoning as ensure_student_academic_profile.",
+  _battle_event: "Revoked from anon/authenticated 2026-08-22.",
+  _exam_readiness: "Revoked from anon/authenticated 2026-08-22 -- was a genuine cross-student privacy leak (arbitrary uid's exam readiness) until access was revoked.",
+  _capture_battle_mistakes: "Revoked from anon/authenticated 2026-08-22.",
+  _capture_dpp_mistakes: "Revoked from anon/authenticated 2026-08-22.",
+  _ensure_student_xp: "Revoked from anon/authenticated 2026-08-22.",
+  _community_user_role: "Revoked from anon/authenticated 2026-08-22.",
+  _award_achievement: "Revoked from anon/authenticated 2026-08-22.",
+  _award_badge: "Revoked from anon/authenticated 2026-08-22.",
+  _upsert_question_record: "Revoked from anon/authenticated 2026-08-22.",
+  _fanout_announcement_published: "Revoked from anon/authenticated 2026-08-22 (notification-spam vector otherwise).",
+  _notify: "Revoked from anon/authenticated 2026-08-22.",
+  _featured_system_creator: "Revoked from anon/authenticated 2026-08-22.",
+  _fill_featured_battle_questions: "Revoked from anon/authenticated 2026-08-22.",
+  _pick_featured_subject: "Revoked from anon/authenticated 2026-08-22.",
+  _seed_featured_battle_for_class: "Revoked from anon/authenticated 2026-08-22.",
+
+  // rpc_* functions confirmed to use ownership-via-auth.uid() scoping rather
+  // than school_id scoping -- a legitimate, different model for
+  // participant/session/assignment-owned data, not a gap. Spot-checked
+  // bodies individually 2026-08-22.
+  rpc_finish_battle: "Resolves the acting participant row and checks battle_participants.user_id = auth.uid() before any write; ownership-scoped, not school-scoped, by design (a battle's participants can legitimately span the challenger's and opponent's own contexts). Read body 2026-08-22.",
+
+  // Self-contained authorization checks that don't use auth.uid()/has_role
+  // but do gate correctly by another mechanism -- read bodies 2026-08-22.
+  ai_kms_complete_chunk_embed: "Body starts with `IF current_user <> 'service_role' AND coalesce(auth.role(),'') <> 'service_role' THEN RAISE EXCEPTION`; a non-service-role caller (anon/authenticated) hits this immediately regardless of grants.",
+  ai_kms_defer_unset_embeddings: "Same service_role-only guard as ai_kms_complete_chunk_embed.",
+  rpc_create_class_group: "Thin wrapper -- immediately delegates to rpc_ensure_class_group, which checks auth.uid(), get_my_school_id(), and chat_can_create_class_group() before any write.",
+  rpc_create_teacher_group: "Thin wrapper -- immediately delegates to rpc_ensure_teacher_group, which checks auth.uid(), get_my_school_id(), and the caller's role before any write.",
+
+  // No user-identifying parameters at all -- nothing for an attacker to
+  // target regardless of who calls them.
+  _generate_battle_code: "No parameters; generates a random code, no table read scoped to any user.",
+  _enforce_duel_capacity: "No parameters; checks/enforces a global capacity limit, not user-specific.",
+  _backfill_battle_question_concepts: "No parameters; one-time/idempotent batch backfill over the global battle_questions catalog, not per-tenant.",
+  _backfill_dpp_question_concepts: "No parameters; same pattern over the global dpp_questions catalog.",
+  _backfill_question_bank_concepts: "No parameters; same pattern over the global question_bank catalog.",
+  _backfill_template_concepts: "No parameters; same pattern over the global question_templates catalog.",
 };
+
+// Lower-priority, NOT fixed by this audit (documented, not silently ignored):
+// process_pending_academic_events, rpc_refresh_featured_battles,
+// rpc_rotate_featured_battles have no auth.uid() check and no service_role
+// guard, so any authenticated (or anon) caller can trigger them on demand.
+// All three operate on GLOBAL, non-tenant-scoped state (a shared event queue
+// / the shared featured-battle rotation), so unauthorized triggering forces
+// early/duplicate processing rather than leaking or corrupting any one
+// school's data -- annoying, not a tenant-isolation breach. Left off the
+// allowlist deliberately (they still show up in the FAIL list below) rather
+// than allowlisted, since "low impact" isn't the same as "confirmed safe" --
+// they should still eventually get a service_role-only guard.
 
 function listMigrationFiles() {
   return readdirSync(MIGRATIONS_DIR)
