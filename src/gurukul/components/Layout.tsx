@@ -250,7 +250,7 @@ export default function Layout({
           <motion.div
             layoutId="sidebarActivePill"
             transition={reduceMotion ? { duration: 0 } : springSnappy}
-            className="absolute inset-0 rounded-xl bg-[#3b5bdb] shadow-lg shadow-[#3b5bdb]/15"
+            className="absolute inset-0 rounded-xl bg-primary shadow-lg shadow-primary/15"
           />
         )}
         <span className="relative z-10 shrink-0">
@@ -287,7 +287,7 @@ export default function Layout({
             <motion.div
               layoutId="sidebarActivePill"
               transition={reduceMotion ? { duration: 0 } : springSnappy}
-              className="absolute inset-0 rounded-xl bg-[#3b5bdb] shadow-lg shadow-[#3b5bdb]/15"
+              className="absolute inset-0 rounded-xl bg-primary shadow-lg shadow-primary/15"
             />
           )}
           <motion.button
@@ -345,13 +345,13 @@ export default function Layout({
   const SidebarContent = () => (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Logo */}
-      <div className={cn("flex items-center gap-3 px-4 py-4 border-b border-white/5 shrink-0", collapsed && "justify-center px-2")}>
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0">
-          <Brain className="w-4 h-4 text-foreground"/>
+      <div className={cn("flex items-center gap-3 px-4 py-4 border-b border-border shrink-0", collapsed && "justify-center px-2")}>
+        <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
+          <Brain className="w-4 h-4 text-primary-foreground"/>
         </div>
         {!collapsed && (
           <div>
-            <div className="text-sm font-black text-white leading-none" style={{fontFamily:"var(--font-display)"}}>Wisdom</div>
+            <div className="text-sm font-black text-foreground leading-none" style={{fontFamily:"var(--font-display)"}}>Wisdom</div>
             <div className="text-[10px] text-muted-foreground leading-none mt-0.5">Campus</div>
           </div>
         )}
@@ -359,14 +359,14 @@ export default function Layout({
 
       {/* XP card */}
       {!collapsed && (
-        <div className="px-3 py-3 border-b border-white/5 shrink-0">
+        <div className="px-3 py-3 border-b border-border shrink-0">
           <div className="flex items-center gap-2.5 mb-2.5">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0"
-              style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-primary-foreground shrink-0"
+              style={{background:"hsl(var(--primary))"}}>
               {student.avatar}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-semibold text-white truncate">{student.name}</div>
+              <div className="text-xs font-semibold text-foreground truncate">{student.name}</div>
               <div className="text-[10px] text-muted-foreground">{student.class}</div>
             </div>
           </div>
@@ -379,8 +379,8 @@ export default function Layout({
               progressPct={student.levelProgressPct}
             />
           ) : (
-            <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-              <div className="h-full w-1/3 rounded-full bg-white/10 animate-pulse" />
+            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="h-full w-1/3 rounded-full bg-border animate-pulse" />
             </div>
           )}
         </div>
@@ -396,7 +396,7 @@ export default function Layout({
       </nav>
 
       {/* Collapse */}
-      <div className="px-2 py-3 border-t border-white/5 shrink-0">
+      <div className="px-2 py-3 border-t border-border shrink-0">
         <button
           onClick={() => setCollapsed(c => !c)}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:text-white hover:bg-muted transition-all text-xs">
@@ -408,11 +408,11 @@ export default function Layout({
 
   return (
     <div className="flex h-screen overflow-hidden"
-      style={{background:"radial-gradient(ellipse 80% 50% at 50% -5%,rgba(99,102,241,0.05) 0%,transparent 55%),#0d0d0f"}}>
+      style={{background:"hsl(var(--background))"}}>
 
       {/* Desktop sidebar */}
       <aside className={cn(
-        "hidden md:flex flex-col border-r border-white/5 bg-[#0d0d0f]/80 backdrop-blur-xl transition-all duration-300 shrink-0",
+        "hidden md:flex flex-col border-r border-border bg-card/95 backdrop-blur-xl transition-all duration-300 shrink-0",
         collapsed ? "w-16" : "w-56"
       )}>
         <SidebarContent/>
@@ -435,7 +435,7 @@ export default function Layout({
               animate={{ x: 0 }}
               exit={reduceMotion ? undefined : { x: "-100%" }}
               transition={reduceMotion ? { duration: 0 } : springSoft}
-              className="absolute left-0 top-0 h-full w-64 bg-[#0d0d0f] border-r border-white/5 flex flex-col">
+              className="absolute left-0 top-0 h-full w-64 bg-card border-r border-border flex flex-col">
               <div className="flex justify-end p-3 shrink-0">
                 <motion.button
                   whileTap={reduceMotion ? undefined : { scale: 0.9 }}
@@ -454,7 +454,7 @@ export default function Layout({
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Top header â€” z-40 so backdrop-blur stacking context sits above <main> */}
-        <header className="relative z-40 shrink-0 border-b border-white/5 bg-[#0d0d0f]/80 backdrop-blur-xl">
+        <header className="relative z-40 shrink-0 border-b border-border bg-card/95 backdrop-blur-xl">
           <div className="h-14 px-4 sm:px-6 flex items-center gap-3">
             {/* Mobile hamburger */}
             <motion.button
@@ -472,7 +472,7 @@ export default function Layout({
                 animate={{ opacity: 1, y: 0 }}
                 exit={reduceMotion ? undefined : { opacity: 0, y: 4 }}
                 transition={{ duration: 0.15, ease: EASE_OUT }}
-                className="text-sm font-bold text-white flex-1 tracking-tight" style={{fontFamily:"var(--font-display)"}}>
+                className="text-sm font-bold text-foreground flex-1 tracking-tight" style={{fontFamily:"var(--font-display)"}}>
                 {headerTitle}
               </motion.h1>
             </AnimatePresence>
@@ -498,7 +498,7 @@ export default function Layout({
                 whileHover={reduceMotion ? undefined : { scale: 1.06 }}
                 whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                 onClick={() => navigate("/student/notifications")}
-                className="relative w-8 h-8 rounded-full bg-white/5 border border-border flex items-center justify-center text-muted-foreground hover:text-white transition-colors"
+                className="relative w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
                 title="Notifications"
               >
                 <Bell className="w-4 h-4"/>
@@ -537,11 +537,11 @@ export default function Layout({
                   whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                   onClick={() => setProfileOpen(o => !o)}
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white transition-all ring-2 ring-offset-2 ring-offset-[#0d0d0f]",
-                    profileOpen ? "ring-[#3b5bdb]" : "ring-transparent hover:ring-white/20",
-                    page === "profile" && "ring-[#3b5bdb]"
+                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-primary-foreground transition-all ring-2 ring-offset-2 ring-offset-background",
+                    profileOpen ? "ring-primary" : "ring-transparent hover:ring-border",
+                    page === "profile" && "ring-primary"
                   )}
-                  style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}
+                  style={{background:"hsl(var(--primary))"}}
                   aria-haspopup="menu"
                   aria-expanded={profileOpen}
                 >
@@ -558,17 +558,17 @@ export default function Layout({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={reduceMotion ? undefined : { opacity: 0, scale: 0.96, y: -6 }}
                     transition={reduceMotion ? { duration: 0 } : { duration: 0.16, ease: EASE_OUT }}
-                    className="fixed right-4 top-14 mt-0 w-64 z-overlay rounded-2xl border border-border bg-surface/95 backdrop-blur-xl shadow-2xl shadow-black/50 overflow-hidden"
+                    className="fixed right-4 top-14 mt-0 w-64 z-overlay rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-elevated overflow-hidden"
                   >
                     {/* User info */}
-                    <div className="px-4 py-4 border-b border-white/5">
+                    <div className="px-4 py-4 border-b border-border">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-white shrink-0"
-                          style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black text-primary-foreground shrink-0"
+                          style={{background:"hsl(var(--primary))"}}>
                           {student.avatar}
                         </div>
                         <div className="min-w-0">
-                          <div className="text-sm font-bold text-white truncate">{student.name}</div>
+                          <div className="text-sm font-bold text-foreground truncate">{student.name}</div>
                           <div className="text-[11px] text-muted-foreground">
                             {[student.class, student.rank > 0 ? `Rank #${student.rank}` : null].filter(Boolean).join(" Â· ") || "Your class"}
                           </div>
@@ -584,8 +584,8 @@ export default function Layout({
                             progressPct={student.levelProgressPct}
                           />
                         ) : (
-                          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                            <div className="h-full w-1/3 rounded-full bg-white/10 animate-pulse" />
+                          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                            <div className="h-full w-1/3 rounded-full bg-border animate-pulse" />
                           </div>
                         )}
                       </div>
@@ -597,7 +597,7 @@ export default function Layout({
                         <button key={item.key} onClick={() => { setPage(item.key); setProfileOpen(false); }}
                           className={cn(
                             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-all",
-                            page === item.key ? "bg-[#3b5bdb]/15 text-[#3b5bdb]" : "text-[#a0a0b0] hover:text-white hover:bg-muted"
+                            page === item.key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                           )}>
                           <span className={page === item.key ? "text-[#3b5bdb]" : "text-muted-foreground"}>{item.icon}</span>
                           {item.label}
@@ -608,7 +608,7 @@ export default function Layout({
                         <button
                           key={item.path}
                           onClick={() => { navigate(item.path); setProfileOpen(false); }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-[#a0a0b0] hover:text-white hover:bg-muted transition-all"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                         >
                           <span className="text-muted-foreground">{item.icon}</span>
                           {item.label}
@@ -617,7 +617,7 @@ export default function Layout({
                     </div>
 
                     {/* Footer */}
-                    <div className="px-2 py-2 border-t border-white/5">
+                    <div className="px-2 py-2 border-t border-border">
                       <button
                         onClick={handleSignOut}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-muted-foreground hover:text-rose-400 hover:bg-rose-400/5 transition-all"
@@ -637,7 +637,7 @@ export default function Layout({
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto bg-[#0d0d0f]">
+        <main className="flex-1 overflow-y-auto bg-background">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={page}
@@ -652,7 +652,7 @@ export default function Layout({
         </main>
 
         {/* Mobile bottom nav â€” 4 tabs */}
-        <nav className="md:hidden shrink-0 fixed bottom-0 inset-x-0 border-t border-border/70 bg-[#0d0d0f]/95 backdrop-blur-xl z-40">
+        <nav className="md:hidden shrink-0 fixed bottom-0 inset-x-0 border-t border-border/70 bg-card/95 backdrop-blur-xl z-40">
           <div className="flex">
             {bottomNav.map(item => {
               const active = isBottomActive(item.key);
@@ -668,7 +668,7 @@ export default function Layout({
                     <motion.span
                       layoutId="bottomNavDot"
                       transition={reduceMotion ? { duration: 0 } : springSnappy}
-                      className="absolute top-0 w-8 h-0.5 rounded-full bg-[#3b5bdb]"
+                      className="absolute top-0 w-8 h-0.5 rounded-full bg-primary"
                     />
                   )}
                   <motion.span
@@ -706,9 +706,9 @@ export default function Layout({
                 transition={reduceMotion ? { duration: 0 } : springSnappy}
                 className={cn(
                   "w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-foreground",
-                  page === "profile" ? "ring-2 ring-[#3b5bdb] ring-offset-1 ring-offset-[#0d0d0f]" : ""
+                  page === "profile" ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""
                 )}
-                style={{background:"linear-gradient(135deg,#3b5bdb,#6882e8)"}}>
+                style={{background:"hsl(var(--primary))"}}>
                 {student.avatar}
               </motion.div>
               Profile
