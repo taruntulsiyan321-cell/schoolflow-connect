@@ -181,7 +181,7 @@
   border: 1px solid rgba(59, 91, 219, 0.08);
   box-shadow: 0 1px 3px rgba(20, 37, 45, 0.04), 0 8px 16px rgba(20, 37, 45, 0.02);
 }
-.gurukul-parent button[class*="bg-[#3b5bdb]"], .gurukul-parent [class*="text-[#3b5bdb]"] {
+.gurukul-parent button[class*="bg-[#3b5bdb]"]:not([class*="bg-[#3b5bdb]/"]) {
   background: linear-gradient(135deg, #4c6ef5 0%, #3b5bdb 100%) !important;
   color: white !important;
   box-shadow: 0 2px 8px rgba(59, 91, 219, 0.25);

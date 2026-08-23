@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
+import { cn } from "@/lib/utils";
 import { useAuth } from '@/hooks/useAuth'
 import { useNotifications } from '@/hooks/useNotifications'
 import {
@@ -516,62 +517,23 @@ export default function PrincipalApp() {
 
   return (
     <div className="gurukul-principal" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
-      <style>{`
-        .gurukul-principal aside.principal-sidebar {
-          background: #10242c !important;
-          color: rgba(255,255,255,0.5) !important;
-          border-color: rgba(255,255,255,0.06) !important;
-        }
-        .gurukul-principal aside.principal-sidebar *:not(svg):not(path) {
-          color: inherit !important;
-        }
-        .gurukul-principal aside.principal-sidebar button {
-          color: rgba(255,255,255,0.5) !important;
-          font-weight: 400 !important;
-          background: transparent !important;
-          box-shadow: none !important;
-        }
-        .gurukul-principal aside.principal-sidebar button:hover {
-          transform: none !important;
-          box-shadow: none !important;
-        }
-        .gurukul-principal aside.principal-sidebar button[data-active="true"] {
-          color: #fff !important;
-          font-weight: 600 !important;
-          background: rgba(59,91,219,0.25) !important;
-        }
-        .gurukul-principal aside.principal-sidebar [data-sidebar-title] {
-          color: #fff !important;
-        }
-        .gurukul-principal aside.principal-sidebar [data-sidebar-subtitle] {
-          color: rgba(255,255,255,0.4) !important;
-        }
-        .gurukul-principal aside.principal-sidebar [data-sidebar-section-label] {
-          color: rgba(255,255,255,0.3) !important;
-        }
-        .gurukul-principal aside.principal-sidebar [data-sidebar-user-name] {
-          color: #fff !important;
-          font-weight: 600 !important;
-        }
-        .gurukul-principal aside.principal-sidebar [data-sidebar-user-role] {
-          color: rgba(255,255,255,0.4) !important;
-        }
-      `}</style>
-      <aside className="principal-sidebar" style={{ width: 228, flexShrink: 0, background: '#10242c', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
-        <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 9, background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <School size={18} color="#fff" />
-            </div>
-            <div>
-              <div data-sidebar-title className="font-display" style={{ fontSize: 17, lineHeight: 1 }}>Gurukul</div>
-              <div data-sidebar-subtitle style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 1 }}>Principal Portal</div>
-            </div>
+      <aside className="w-60 flex flex-col h-screen sticky top-0 bg-card border-r border-border shrink-0 select-none">
+        {/* Header / Brand */}
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-border/70 min-h-[72px]">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0 shadow-sm">
+            <School className="w-4 h-4 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-black text-foreground leading-none tracking-tight">Gurukul</div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-[#3b5bdb] mt-1">Principal Portal</div>
           </div>
         </div>
 
-        <nav style={{ padding: '16px 12px', flex: 1 }}>
-          <div data-sidebar-section-label style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 12px', marginBottom: 8 }}>Menu</div>
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+          <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-muted-foreground px-3 py-1.5 mb-1">
+            Menu
+          </div>
           {navItems.map(({ icon: Icon, key }) => {
             const label = PRINCIPAL_NAV_LABEL[key]
             const active = page === key
@@ -579,38 +541,46 @@ export default function PrincipalApp() {
               <button
                 key={key}
                 type="button"
-                data-active={active ? "true" : "false"}
                 onClick={() => setPage(key)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px',
-                  borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 2,
-                  background: active ? 'rgba(59,91,219,0.25)' : 'transparent',
-                  fontSize: 13, textAlign: 'left',
-                  transition: 'all 0.15s',
-                  borderLeft: active ? '2px solid var(--indigo)' : '2px solid transparent',
-                }}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs font-semibold transition-all duration-150 group",
+                  active
+                    ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25 shadow-sm font-bold"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
+                )}
               >
-                <Icon size={15} />
-                <span style={{ flex: 1 }}>{label}</span>
+                <Icon className={cn("w-4 h-4 shrink-0 transition-colors", active ? "text-[#3b5bdb]" : "text-muted-foreground group-hover:text-foreground")} />
+                <span className="flex-1 truncate">{label}</span>
                 {key === 'messages' && unreadMsg > 0 && (
-                  <span style={{ minWidth: 16, height: 16, borderRadius: 999, background: '#f43f5e', color: '#fff', fontSize: 9, fontWeight: 800, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                  <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center">
                     {unreadMsg > 9 ? '9+' : unreadMsg}
                   </span>
+                )}
+                {active && key !== 'messages' && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb] ml-auto shrink-0" />
                 )}
               </button>
             )
           })}
         </nav>
 
-        <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>{initials}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div data-sidebar-user-name style={{ fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</div>
-              <div data-sidebar-user-role style={{ fontSize: 10 }}>Principal</div>
+        {/* User Profile Footer */}
+        <div className="p-3 border-t border-border/70 mt-auto bg-muted/30">
+          <div className="flex items-center gap-3 px-1">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center shrink-0 text-[11px] font-black text-white shadow-sm">
+              {initials}
             </div>
-            <button type="button" onClick={handleSignOut} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}>
-              <LogOut size={13} color="rgba(255,255,255,0.3)" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-bold text-foreground truncate">{displayName}</div>
+              <div className="text-[10px] font-medium text-muted-foreground">Principal</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              title="Sign out"
+              className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-muted rounded-lg transition-colors ml-auto"
+            >
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         </div>

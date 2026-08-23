@@ -157,7 +157,7 @@
   .gurukul-admin aside,
   .gurukul-parent aside,
   .gurukul-teacher aside,
-  .gurukul-principal aside:not(.principal-sidebar) {
+  .gurukul-principal aside {
     background: hsl(var(--card)) !important;
     color: hsl(var(--foreground));
     border-color: hsl(var(--border)) !important;
@@ -588,47 +588,3 @@
   }
 }
 
-/* ═══ PRINCIPAL SIDEBAR — absolute-last override ═══
-   The sidebar is dark (#10242c) with white text. Multiple earlier rules
-   (both in @layer utilities and in theme.css) use !important to force
-   white backgrounds and dark text on every element. This block, placed
-   outside any @layer and at the very end of the file, is the final word. */
-.gurukul-principal aside.principal-sidebar {
-  background: #10242c !important;
-  color: rgba(255,255,255,0.5) !important;
-  border-color: rgba(255,255,255,0.06) !important;
-}
-.gurukul-principal aside.principal-sidebar *:not(svg):not(path) {
-  color: inherit !important;
-}
-.gurukul-principal aside.principal-sidebar button {
-  color: rgba(255,255,255,0.5) !important;
-  font-weight: 400 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-.gurukul-principal aside.principal-sidebar button:hover {
-  transform: none !important;
-  box-shadow: none !important;
-}
-.gurukul-principal aside.principal-sidebar button[data-active="true"] {
-  color: #fff !important;
-  font-weight: 600 !important;
-  background: rgba(59,91,219,0.25) !important;
-}
-.gurukul-principal aside.principal-sidebar [data-sidebar-title] {
-  color: #fff !important;
-}
-.gurukul-principal aside.principal-sidebar [data-sidebar-subtitle] {
-  color: rgba(255,255,255,0.4) !important;
-}
-.gurukul-principal aside.principal-sidebar [data-sidebar-section-label] {
-  color: rgba(255,255,255,0.3) !important;
-}
-.gurukul-principal aside.principal-sidebar [data-sidebar-user-name] {
-  color: #fff !important;
-  font-weight: 600 !important;
-}
-.gurukul-principal aside.principal-sidebar [data-sidebar-user-role] {
-  color: rgba(255,255,255,0.4) !important;
-}
