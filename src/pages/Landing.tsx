@@ -4,8 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   GraduationCap, Users, ClipboardCheck, Megaphone, Wallet, BookOpen, Trophy,
-  Bell, ShieldCheck, Smartphone, Languages, Bus, Brain, Video, Camera,
-  IdCard, ArrowRight, Sparkles, CheckCircle2,
+  Bell, ShieldCheck, Smartphone, Languages, Brain,
+  ArrowRight, Sparkles, CheckCircle2,
 } from "lucide-react";
 
 const roles = [
@@ -27,11 +27,7 @@ const liveModules = [
 const upcoming = [
   { icon: Bell, title: "Push Notifications", desc: "Native FCM alerts for notices, fees, results." },
   { icon: Smartphone, title: "Phone OTP Login", desc: "SMS-based sign-in via Twilio." },
-  { icon: Bus, title: "Bus Tracking", desc: "Live route + ETA for parents." },
   { icon: Brain, title: "Homework Assistant", desc: "Smart doubt solver for students." },
-  { icon: Video, title: "Online Classes", desc: "Built-in live class scheduling & links." },
-  { icon: Camera, title: "Live CCTV Alerts", desc: "Smart safety alerts to admin." },
-  { icon: IdCard, title: "Digital ID Cards", desc: "Auto-generated student & staff IDs." },
 ];
 
 const stats = [
