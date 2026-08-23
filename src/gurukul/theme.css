@@ -706,3 +706,139 @@
 .gurukul-student .text-info { color: hsl(var(--info)) !important; }
 .gurukul-student .text-muted-foreground { color: hsl(var(--muted-foreground)) !important; }
 .gurukul-student .text-foreground { color: hsl(var(--foreground)) !important; }
+/* ══════════════════════════════════════════════════════════════════════════════
+   PROFESSIONAL ANIMATIONS - Enhanced motion design
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Slide-in animations for panels and modals */
+@keyframes slide-in-bottom {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slide-in-left {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Scale and bounce animations */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes bounce-in {
+  0% { opacity: 0; transform: scale(0.3); }
+  50% { opacity: 1; transform: scale(1.05); }
+  70% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+/* Attention animations */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 5px hsl(var(--primary) / 0.2), 0 0 10px hsl(var(--primary) / 0.1); }
+  50% { box-shadow: 0 0 10px hsl(var(--primary) / 0.3), 0 0 20px hsl(var(--primary) / 0.15); }
+}
+
+/* Utility animations */
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* Apply to common elements */
+.gurukul-student [role="dialog"],
+.gurukul-student [role="alertdialog"],
+.gurukul-student .modal {
+  animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gurukul-student [role="tooltip"],
+.gurukul-student .tooltip {
+  animation: scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gurukul-student .notification,
+.gurukul-student [class*="toast"] {
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* List stagger */
+.gurukul-student .stagger > *:nth-child(1) { animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0s backwards; }
+.gurukul-student .stagger > *:nth-child(2) { animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.05s backwards; }
+.gurukul-student .stagger > *:nth-child(3) { animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.1s backwards; }
+.gurukul-student .stagger > *:nth-child(4) { animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.15s backwards; }
+.gurukul-student .stagger > *:nth-child(5) { animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards; }
+.gurukul-student .stagger > *:nth-child(6) { animation: slide-in-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0.25s backwards; }
+
+/* Hover lift */
+.gurukul-student .lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Shimmer effect for loading */
+.gurukul-student .shimmer {
+  background: linear-gradient(90deg, hsl(var(--muted)) 0%, hsl(var(--muted) / 0.6) 20%, hsl(var(--muted)) 40%, hsl(var(--muted)) 100%);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+/* Success/error states */
+.gurukul-student .success { animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+.gurukul-student .error { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.gurukul-student .pulse { animation: pulse-soft 2s ease-in-out infinite; }
+.gurukul-student .spinner { animation: spin 1s linear infinite; }
+
+/* Button ripple effect */
+.gurukul-student button { position: relative; overflow: hidden; }
+.gurukul-student button::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: hsl(var(--primary) / 0.2);
+  border-radius: inherit;
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
+.gurukul-student button:active::after { animation: ripple 0.6s ease-out; }
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .gurukul-student *,
+  .gurukul-student *::before,
+  .gurukul-student *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

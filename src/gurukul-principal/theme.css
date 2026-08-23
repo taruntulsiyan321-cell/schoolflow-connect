@@ -141,3 +141,26 @@
 .gurukul-principal a:hover svg {
   transform: scale(1.08);
 }
+
+/* Professional Animations */
+@keyframes slide-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes scale-in { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 25%, 75% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+
+.${panel} [role="dialog"] { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.${panel} [role="tooltip"] { animation: scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
+.${panel} .notification { animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.${panel} .stagger > * { animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.${panel} .stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.${panel} .stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.${panel} .stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.${panel} .spinner { animation: spin 1s linear infinite; }
+.${panel} .pulse { animation: pulse 2s ease-in-out infinite; }
+.${panel} .error { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  .${panel} * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
