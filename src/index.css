@@ -157,7 +157,7 @@
   .gurukul-admin aside,
   .gurukul-parent aside,
   .gurukul-teacher aside,
-  .gurukul-principal aside {
+  .gurukul-principal aside:not([data-principal-sidebar]) {
     background: hsl(var(--card)) !important;
     color: hsl(var(--foreground));
     border-color: hsl(var(--border)) !important;
