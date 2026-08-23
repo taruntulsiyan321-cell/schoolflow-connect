@@ -268,14 +268,21 @@
 
 /* ══════════════════════════════════════════════════════════════════════════════
    SIDEBAR EXCLUSION — The sidebar is dark (#10242c) with white text.
-   All the !important color overrides above must NOT apply inside the sidebar.
+   CSS !important overrides above kill inline styles, so we must re-declare
+   every sidebar color here with even-higher-specificity !important.
    ══════════════════════════════════════════════════════════════════════════════ */
-.gurukul-principal aside[data-principal-sidebar] * {
+.gurukul-principal aside[data-principal-sidebar] {
+  color: rgba(255,255,255,0.5) !important;
+}
+.gurukul-principal aside[data-principal-sidebar] div {
+  color: inherit !important;
+}
+.gurukul-principal aside[data-principal-sidebar] span {
   color: inherit !important;
 }
 .gurukul-principal aside[data-principal-sidebar] button {
-  color: inherit !important;
-  font-weight: inherit !important;
+  color: rgba(255,255,255,0.5) !important;
+  font-weight: 400 !important;
   box-shadow: none !important;
   transform: none !important;
 }
@@ -283,3 +290,25 @@
   transform: none !important;
   box-shadow: none !important;
 }
+.gurukul-principal aside[data-principal-sidebar] button[data-active="true"] {
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+.gurukul-principal aside[data-principal-sidebar] [data-sidebar-title] {
+  color: #fff !important;
+  font-weight: 700 !important;
+}
+.gurukul-principal aside[data-principal-sidebar] [data-sidebar-subtitle] {
+  color: rgba(255,255,255,0.4) !important;
+}
+.gurukul-principal aside[data-principal-sidebar] [data-sidebar-section-label] {
+  color: rgba(255,255,255,0.3) !important;
+}
+.gurukul-principal aside[data-principal-sidebar] [data-sidebar-user-name] {
+  color: #fff !important;
+  font-weight: 600 !important;
+}
+.gurukul-principal aside[data-principal-sidebar] [data-sidebar-user-role] {
+  color: rgba(255,255,255,0.4) !important;
+}
+

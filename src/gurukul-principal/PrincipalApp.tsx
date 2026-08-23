@@ -523,14 +523,14 @@ export default function PrincipalApp() {
               <School size={18} color="#fff" />
             </div>
             <div>
-              <div className="font-display" style={{ fontSize: 17, color: '#fff', lineHeight: 1 }}>Gurukul</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 1 }}>Principal Portal</div>
+              <div data-sidebar-title className="font-display" style={{ fontSize: 17, lineHeight: 1 }}>Gurukul</div>
+              <div data-sidebar-subtitle style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 1 }}>Principal Portal</div>
             </div>
           </div>
         </div>
 
         <nav style={{ padding: '16px 12px', flex: 1 }}>
-          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 12px', marginBottom: 8 }}>Menu</div>
+          <div data-sidebar-section-label style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 12px', marginBottom: 8 }}>Menu</div>
           {navItems.map(({ icon: Icon, key }) => {
             const label = PRINCIPAL_NAV_LABEL[key]
             const active = page === key
@@ -538,13 +538,13 @@ export default function PrincipalApp() {
               <button
                 key={key}
                 type="button"
+                data-active={active ? "true" : "false"}
                 onClick={() => setPage(key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px',
                   borderRadius: 8, border: 'none', cursor: 'pointer', marginBottom: 2,
                   background: active ? 'rgba(59,91,219,0.25)' : 'transparent',
-                  color: active ? '#fff' : 'rgba(255,255,255,0.5)',
-                  fontSize: 13, fontWeight: active ? 600 : 400, textAlign: 'left',
+                  fontSize: 13, textAlign: 'left',
                   transition: 'all 0.15s',
                   borderLeft: active ? '2px solid var(--indigo)' : '2px solid transparent',
                 }}
@@ -565,8 +565,8 @@ export default function PrincipalApp() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--indigo)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>{initials}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</div>
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Principal</div>
+              <div data-sidebar-user-name style={{ fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</div>
+              <div data-sidebar-user-role style={{ fontSize: 10 }}>Principal</div>
             </div>
             <button type="button" onClick={handleSignOut} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}>
               <LogOut size={13} color="rgba(255,255,255,0.3)" />
