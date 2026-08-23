@@ -271,44 +271,44 @@
    CSS !important overrides above kill inline styles, so we must re-declare
    every sidebar color here with even-higher-specificity !important.
    ══════════════════════════════════════════════════════════════════════════════ */
-.gurukul-principal aside[data-principal-sidebar] {
+.gurukul-principal aside.principal-sidebar {
   color: rgba(255,255,255,0.5) !important;
 }
-.gurukul-principal aside[data-principal-sidebar] div {
+.gurukul-principal aside.principal-sidebar div {
   color: inherit !important;
 }
-.gurukul-principal aside[data-principal-sidebar] span {
+.gurukul-principal aside.principal-sidebar span {
   color: inherit !important;
 }
-.gurukul-principal aside[data-principal-sidebar] button {
+.gurukul-principal aside.principal-sidebar button {
   color: rgba(255,255,255,0.5) !important;
   font-weight: 400 !important;
   box-shadow: none !important;
   transform: none !important;
 }
-.gurukul-principal aside[data-principal-sidebar] button:hover {
+.gurukul-principal aside.principal-sidebar button:hover {
   transform: none !important;
   box-shadow: none !important;
 }
-.gurukul-principal aside[data-principal-sidebar] button[data-active="true"] {
+.gurukul-principal aside.principal-sidebar button[data-active="true"] {
   color: #fff !important;
   font-weight: 600 !important;
 }
-.gurukul-principal aside[data-principal-sidebar] [data-sidebar-title] {
+.gurukul-principal aside.principal-sidebar [data-sidebar-title] {
   color: #fff !important;
   font-weight: 700 !important;
 }
-.gurukul-principal aside[data-principal-sidebar] [data-sidebar-subtitle] {
+.gurukul-principal aside.principal-sidebar [data-sidebar-subtitle] {
   color: rgba(255,255,255,0.4) !important;
 }
-.gurukul-principal aside[data-principal-sidebar] [data-sidebar-section-label] {
+.gurukul-principal aside.principal-sidebar [data-sidebar-section-label] {
   color: rgba(255,255,255,0.3) !important;
 }
-.gurukul-principal aside[data-principal-sidebar] [data-sidebar-user-name] {
+.gurukul-principal aside.principal-sidebar [data-sidebar-user-name] {
   color: #fff !important;
   font-weight: 600 !important;
 }
-.gurukul-principal aside[data-principal-sidebar] [data-sidebar-user-role] {
+.gurukul-principal aside.principal-sidebar [data-sidebar-user-role] {
   color: rgba(255,255,255,0.4) !important;
 }
 
