@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import type { PageKey } from "@/gurukul/nav";
@@ -300,8 +300,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Quick actions */}
       <div className="grid sm:grid-cols-3 gap-3">
         <div
-          className=”p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60”
-          title=”Flashcards â€” coming soon”
+          className="p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60"
+          title="Flashcards — coming soon"
         >
           <Layers className="w-5 h-5 text-muted-foreground mb-2"/>
           <div className="text-sm font-bold text-foreground">Flashcards</div>
@@ -313,7 +313,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           onClick={() => {
           const due = REVISION_ITEMS.filter(r => r.dueIn === "Now" || r.dueIn === "Today")[0];
           if (due) openPractice(due);
-          else toast.message("No items due â€” open any queue card to practice.");
+          else toast.message("No items due — open any queue card to practice.");
         }}
           className="p-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 transition-all text-left group disabled:opacity-50 disabled:pointer-events-none">
           <Zap className="w-5 h-5 text-violet-400 mb-2 group-hover:scale-110 transition-transform"/>
@@ -325,8 +325,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           </div>
         </button>
         <div
-          className=”p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60”
-          title=”Revision notes â€” coming soon”
+          className="p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60"
+          title="Revision notes — coming soon"
         >
           <FileText className="w-5 h-5 text-muted-foreground mb-2"/>
           <div className="text-sm font-bold text-foreground">My Notes</div>

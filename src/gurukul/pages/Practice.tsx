@@ -355,7 +355,7 @@ function Hub({
                   <RotateCcw className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className=”text-xs font-bold text-foreground truncate”>{s.subject} Â· {s.chapter !== “â€”” ? s.chapter : s.practiceType}</div>
+                  <div className="text-xs font-bold text-foreground truncate">{s.subject} · {s.chapter !== "—" ? s.chapter : s.practiceType}</div>
                   <div className="text-[10px] text-muted-foreground mt-0.5">
                     {s.practiceType} Â· {s.attempted}/{s.qs || "?"} answered Â· {s.date}
                   </div>

@@ -1,4 +1,4 @@
-﻿/* Gurukul Parent â€” Chalkboard Signal light executive theme */
+/* Gurukul Parent â€” Chalkboard Signal light executive theme */
 .gurukul-parent {
   --font-display: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -157,19 +157,19 @@
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 25%, 75% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
 
-.${panel} [role="dialog"] { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-.${panel} [role="tooltip"] { animation: scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
-.${panel} .notification { animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-.${panel} .stagger > * { animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
-.${panel} .stagger > *:nth-child(2) { animation-delay: 0.05s; }
-.${panel} .stagger > *:nth-child(3) { animation-delay: 0.1s; }
-.${panel} .stagger > *:nth-child(4) { animation-delay: 0.15s; }
-.${panel} .spinner { animation: spin 1s linear infinite; }
-.${panel} .pulse { animation: pulse 2s ease-in-out infinite; }
-.${panel} .error { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.gurukul-parent [role="dialog"] { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.gurukul-parent [role="tooltip"] { animation: scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
+.gurukul-parent .notification { animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.gurukul-parent .stagger > * { animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.gurukul-parent .stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.gurukul-parent .stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.gurukul-parent .stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.gurukul-parent .spinner { animation: spin 1s linear infinite; }
+.gurukul-parent .pulse { animation: pulse 2s ease-in-out infinite; }
+.gurukul-parent .error { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 
 @media (prefers-reduced-motion: reduce) {
-  .${panel} * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  .gurukul-parent * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 /* Enhanced Visibility & Vibrant Design */

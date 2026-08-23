@@ -153,19 +153,19 @@
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 @keyframes shake { 0%, 100% { transform: translateX(0); } 25%, 75% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
 
-.${panel} [role="dialog"] { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
-.${panel} [role="tooltip"] { animation: scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
-.${panel} .notification { animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-.${panel} .stagger > * { animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
-.${panel} .stagger > *:nth-child(2) { animation-delay: 0.05s; }
-.${panel} .stagger > *:nth-child(3) { animation-delay: 0.1s; }
-.${panel} .stagger > *:nth-child(4) { animation-delay: 0.15s; }
-.${panel} .spinner { animation: spin 1s linear infinite; }
-.${panel} .pulse { animation: pulse 2s ease-in-out infinite; }
-.${panel} .error { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+.gurukul-principal [role="dialog"] { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.gurukul-principal [role="tooltip"] { animation: scale-in 0.15s cubic-bezier(0.16, 1, 0.3, 1); }
+.gurukul-principal .notification { animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.gurukul-principal .stagger > * { animation: slide-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards; }
+.gurukul-principal .stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.gurukul-principal .stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.gurukul-principal .stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.gurukul-principal .spinner { animation: spin 1s linear infinite; }
+.gurukul-principal .pulse { animation: pulse 2s ease-in-out infinite; }
+.gurukul-principal .error { animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
 
 @media (prefers-reduced-motion: reduce) {
-  .${panel} * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  .gurukul-principal * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
 
 /* Enhanced Visibility & Vibrant Design */
