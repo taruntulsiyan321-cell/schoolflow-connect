@@ -516,6 +516,47 @@ export default function PrincipalApp() {
 
   return (
     <div className="gurukul-principal" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
+      <style>{`
+        .gurukul-principal aside.principal-sidebar {
+          background: #10242c !important;
+          color: rgba(255,255,255,0.5) !important;
+          border-color: rgba(255,255,255,0.06) !important;
+        }
+        .gurukul-principal aside.principal-sidebar *:not(svg):not(path) {
+          color: inherit !important;
+        }
+        .gurukul-principal aside.principal-sidebar button {
+          color: rgba(255,255,255,0.5) !important;
+          font-weight: 400 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+        }
+        .gurukul-principal aside.principal-sidebar button:hover {
+          transform: none !important;
+          box-shadow: none !important;
+        }
+        .gurukul-principal aside.principal-sidebar button[data-active="true"] {
+          color: #fff !important;
+          font-weight: 600 !important;
+          background: rgba(59,91,219,0.25) !important;
+        }
+        .gurukul-principal aside.principal-sidebar [data-sidebar-title] {
+          color: #fff !important;
+        }
+        .gurukul-principal aside.principal-sidebar [data-sidebar-subtitle] {
+          color: rgba(255,255,255,0.4) !important;
+        }
+        .gurukul-principal aside.principal-sidebar [data-sidebar-section-label] {
+          color: rgba(255,255,255,0.3) !important;
+        }
+        .gurukul-principal aside.principal-sidebar [data-sidebar-user-name] {
+          color: #fff !important;
+          font-weight: 600 !important;
+        }
+        .gurukul-principal aside.principal-sidebar [data-sidebar-user-role] {
+          color: rgba(255,255,255,0.4) !important;
+        }
+      `}</style>
       <aside className="principal-sidebar" style={{ width: 228, flexShrink: 0, background: '#10242c', display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto' }}>
         <div style={{ padding: '28px 24px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
