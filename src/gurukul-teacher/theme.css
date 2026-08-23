@@ -4,13 +4,13 @@
   --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "Courier New", monospace;
   --background: 180 14% 96%;
-  --foreground: 199 38% 13%;
+  --foreground: 199 45% 8%;
   --card: 0 0% 100%;
   --card-foreground: 199 38% 13%;
   --primary: 193 68% 28%;
   --primary-foreground: 0 0% 100%;
   --muted: 188 21% 93%;
-  --muted-foreground: 198 8% 52%;
+  --muted-foreground: 198 15% 30%;
   --accent: 9 52% 54%;
   --warning: 35 68% 36%;
   --destructive: 1 37% 48%;
@@ -315,4 +315,66 @@
 
 .gurukul-teacher button:not([class*="bg-[#3b5bdb]"]) {
   color: hsl(var(--foreground)) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MAXIMUM READABILITY - No more washed out text!
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* All text defaults to very dark */
+.gurukul-teacher { color: hsl(199 45% 10%) !important; }
+
+/* Headings are extremely bold and dark */
+.gurukul-teacher h1, .gurukul-teacher h2, .gurukul-teacher h3, .gurukul-teacher h4, .gurukul-teacher h5, .gurukul-teacher h6 {
+  color: hsl(199 50% 5%) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+}
+
+/* Stat numbers are massive and bold */
+.gurukul-teacher [class*="text-xl"], .gurukul-teacher [class*="text-2xl"],
+.gurukul-teacher [class*="text-3xl"], .gurukul-teacher [class*="text-4xl"] {
+  color: hsl(199 50% 5%) !important;
+  font-weight: 900 !important;
+}
+
+/* Small text/labels are dark gray, not light */
+.gurukul-teacher [class*="text-xs"], .gurukul-teacher [class*="text-sm"],
+.gurukul-teacher label {
+  color: hsl(199 30% 20%) !important;
+  font-weight: 600 !important;
+}
+
+/* Muted text is DARK gray, not washed out */
+.gurukul-teacher [class*="text-muted"], .gurukul-teacher .text-muted-foreground {
+  color: hsl(199 20% 35%) !important;
+  font-weight: 500 !important;
+}
+
+/* Table text is bold and dark */
+.gurukul-teacher td { color: hsl(199 40% 12%) !important; font-weight: 500 !important; }
+.gurukul-teacher th { color: hsl(199 50% 5%) !important; font-weight: 800 !important; }
+
+/* Buttons have strong text */
+.gurukul-teacher button { font-weight: 700 !important; }
+.gurukul-teacher button:not([class*="bg-[#"]]) { color: hsl(199 50% 5%) !important; }
+
+/* Inputs are very readable */
+.gurukul-teacher input, .gurukul-teacher textarea, .gurukul-teacher select {
+  color: hsl(199 45% 8%) !important;
+  font-weight: 500 !important;
+}
+
+.gurukul-teacher input::placeholder, .gurukul-teacher textarea::placeholder {
+  color: hsl(199 15% 40%) !important;
+}
+
+/* Override inline pale colors */
+.gurukul-teacher [class*="text-gray"], .gurukul-teacher [class*="text-slate"] {
+  color: hsl(199 30% 20%) !important;
+}
+
+/* Ensure nothing is washed out */
+.gurukul-teacher * {
+  text-shadow: none !important;
 }

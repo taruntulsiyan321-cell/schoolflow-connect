@@ -1,7 +1,7 @@
 /* Wisdom Campus / Gurukul student panel — Chalkboard Signal light shell */
 .gurukul-student {
   --background: 180 14% 96%;
-  --foreground: 199 38% 13%;
+  --foreground: 199 45% 8%;
   --card: 0 0% 100%;
   --card-foreground: 199 38% 13%;
   --popover: 0 0% 100%;
@@ -18,7 +18,7 @@
   --destructive: 1 37% 48%;
   --destructive-foreground: 0 0% 100%;
   --muted: 188 21% 93%;
-  --muted-foreground: 198 8% 52%;
+  --muted-foreground: 198 15% 30%;
   --border: 189 18% 86%;
   --input: 189 18% 86%;
   --ring: 193 68% 28%;
@@ -993,4 +993,48 @@
   border-radius: 12px;
   padding: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MAXIMUM READABILITY - Student panel high contrast
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.gurukul-student { color: hsl(199 45% 10%) !important; }
+
+.gurukul-student h1, .gurukul-student h2, .gurukul-student h3,
+.gurukul-student h4, .gurukul-student h5, .gurukul-student h6 {
+  color: hsl(199 50% 5%) !important;
+  font-weight: 800 !important;
+}
+
+.gurukul-student [class*="text-xl"], .gurukul-student [class*="text-2xl"],
+.gurukul-student [class*="text-3xl"], .gurukul-student [class*="text-4xl"] {
+  color: hsl(199 50% 5%) !important;
+  font-weight: 900 !important;
+}
+
+.gurukul-student [class*="text-xs"], .gurukul-student [class*="text-sm"],
+.gurukul-student label {
+  color: hsl(199 30% 20%) !important;
+  font-weight: 600 !important;
+}
+
+.gurukul-student [class*="text-muted"], .gurukul-student .text-muted-foreground {
+  color: hsl(199 20% 35%) !important;
+  font-weight: 500 !important;
+}
+
+.gurukul-student td { color: hsl(199 40% 12%) !important; font-weight: 500 !important; }
+.gurukul-student th { color: hsl(199 50% 5%) !important; font-weight: 800 !important; }
+
+.gurukul-student button { font-weight: 700 !important; }
+.gurukul-student button:not([class*="bg-[#"]]) { color: hsl(199 50% 5%) !important; }
+
+.gurukul-student input, .gurukul-student textarea, .gurukul-student select {
+  color: hsl(199 45% 8%) !important;
+  font-weight: 500 !important;
+}
+
+.gurukul-student input::placeholder, .gurukul-student textarea::placeholder {
+  color: hsl(199 15% 40%) !important;
 }

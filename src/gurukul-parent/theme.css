@@ -4,13 +4,13 @@
   --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "Courier New", monospace;
   --background: 180 14% 96%;
-  --foreground: 199 38% 13%;
+  --foreground: 199 45% 8%;
   --card: 0 0% 100%;
   --card-foreground: 199 38% 13%;
   --primary: 193 68% 28%;
   --primary-foreground: 0 0% 100%;
   --muted: 188 21% 93%;
-  --muted-foreground: 198 8% 52%;
+  --muted-foreground: 198 15% 30%;
   --accent: 9 52% 54%;
   --warning: 35 68% 36%;
   --destructive: 1 37% 48%;
@@ -207,3 +207,65 @@
 }
 .gurukul-parent button { font-weight: 600 !important; }
 .gurukul-parent button:not([class*="bg-[#3b5bdb]"]) { color: hsl(var(--foreground)) !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MAXIMUM READABILITY - No more washed out text!
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* All text defaults to very dark */
+.gurukul-parent { color: hsl(199 45% 10%) !important; }
+
+/* Headings are extremely bold and dark */
+.gurukul-parent h1, .gurukul-parent h2, .gurukul-parent h3, .gurukul-parent h4, .gurukul-parent h5, .gurukul-parent h6 {
+  color: hsl(199 50% 5%) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+}
+
+/* Stat numbers are massive and bold */
+.gurukul-parent [class*="text-xl"], .gurukul-parent [class*="text-2xl"],
+.gurukul-parent [class*="text-3xl"], .gurukul-parent [class*="text-4xl"] {
+  color: hsl(199 50% 5%) !important;
+  font-weight: 900 !important;
+}
+
+/* Small text/labels are dark gray, not light */
+.gurukul-parent [class*="text-xs"], .gurukul-parent [class*="text-sm"],
+.gurukul-parent label {
+  color: hsl(199 30% 20%) !important;
+  font-weight: 600 !important;
+}
+
+/* Muted text is DARK gray, not washed out */
+.gurukul-parent [class*="text-muted"], .gurukul-parent .text-muted-foreground {
+  color: hsl(199 20% 35%) !important;
+  font-weight: 500 !important;
+}
+
+/* Table text is bold and dark */
+.gurukul-parent td { color: hsl(199 40% 12%) !important; font-weight: 500 !important; }
+.gurukul-parent th { color: hsl(199 50% 5%) !important; font-weight: 800 !important; }
+
+/* Buttons have strong text */
+.gurukul-parent button { font-weight: 700 !important; }
+.gurukul-parent button:not([class*="bg-[#"]]) { color: hsl(199 50% 5%) !important; }
+
+/* Inputs are very readable */
+.gurukul-parent input, .gurukul-parent textarea, .gurukul-parent select {
+  color: hsl(199 45% 8%) !important;
+  font-weight: 500 !important;
+}
+
+.gurukul-parent input::placeholder, .gurukul-parent textarea::placeholder {
+  color: hsl(199 15% 40%) !important;
+}
+
+/* Override inline pale colors */
+.gurukul-parent [class*="text-gray"], .gurukul-parent [class*="text-slate"] {
+  color: hsl(199 30% 20%) !important;
+}
+
+/* Ensure nothing is washed out */
+.gurukul-parent * {
+  text-shadow: none !important;
+}
