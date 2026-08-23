@@ -22,12 +22,12 @@ const liveModules = [
   { icon: Wallet, title: "Fees", desc: "Monthly fee generation, paid/partial/unpaid tracking." },
   { icon: Megaphone, title: "Notices", desc: "Targeted announcements: all, role, class or section." },
   { icon: Users, title: "User Linking", desc: "Map signed-up users to student/parent/teacher records." },
+  { icon: Bell, title: "Push Notifications", desc: "Live native FCM alerts for notices, fees, results." },
+  { icon: Smartphone, title: "Phone OTP Login", desc: "Live SMS-based sign-in via MSG91." },
 ];
 
 const upcoming = [
-  { icon: Bell, title: "Push Notifications", desc: "Native FCM alerts for notices, fees, results." },
-  { icon: Smartphone, title: "Phone OTP Login", desc: "SMS-based sign-in via Twilio." },
-  { icon: Brain, title: "Homework Assistant", desc: "Smart doubt solver for students." },
+  { icon: Brain, title: "Homework Assistant", desc: "Smart doubt solver for students — coming soon." },
 ];
 
 const stats = [
