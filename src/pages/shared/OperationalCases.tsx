@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { toEnumLabel } from "@/lib/presentation";
 
 type CaseStatus = "open" | "in_progress" | "resolved" | "closed";
 const STATUS_OPTIONS: CaseStatus[] = ["open", "in_progress", "resolved", "closed"];
@@ -90,7 +91,7 @@ export function InquiriesReport() {
               </div>
             </div>
             <Badge variant="outline" className={statusTone(r.status)}>
-              {r.status.replace("_", " ")}
+              {toEnumLabel(r.status, "case_status")}
             </Badge>
           </div>
           <p className="text-sm">{r.message}</p>
@@ -101,7 +102,7 @@ export function InquiriesReport() {
             <SelectContent>
               {STATUS_OPTIONS.map((s) => (
                 <SelectItem key={s} value={s}>
-                  {s.replace("_", " ")}
+                  {toEnumLabel(s, "case_status")}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -220,7 +221,7 @@ export function ComplaintsReport({ allowSubmit = false }: { allowSubmit?: boolea
                   </div>
                 </div>
                 <Badge variant="outline" className={statusTone(r.status)}>
-                  {r.status.replace("_", " ")}
+                  {toEnumLabel(r.status, "case_status")}
                 </Badge>
               </div>
               <p className="text-sm">{r.body}</p>
@@ -231,7 +232,7 @@ export function ComplaintsReport({ allowSubmit = false }: { allowSubmit?: boolea
                 <SelectContent>
                   {STATUS_OPTIONS.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {s.replace("_", " ")}
+                      {toEnumLabel(s, "case_status")}
                     </SelectItem>
                   ))}
                 </SelectContent>

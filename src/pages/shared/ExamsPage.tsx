@@ -13,6 +13,7 @@ import { Plus, FileText, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/ui-bits";
 import { classLabel } from "@/lib/utils";
+import { toErrorMessage } from "@/lib/presentation";
 
 interface Props { isAdmin?: boolean; }
 
@@ -84,7 +85,7 @@ export default function ExamsPage({ isAdmin = false }: Props) {
       toast.success(editId ? "Exam updated" : "Exam created");
       setOpen(false); setEditId(null); setForm(emptyForm); loadExams();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save exam");
+      toast.error(toErrorMessage(err, "Failed to save exam"));
     }
   };
 
@@ -96,7 +97,7 @@ export default function ExamsPage({ isAdmin = false }: Props) {
       toast.success("Exam deleted");
       loadExams();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete exam");
+      toast.error(toErrorMessage(err, "Failed to delete exam"));
     }
   };
 
@@ -123,7 +124,7 @@ export default function ExamsPage({ isAdmin = false }: Props) {
       toast.success("Marks saved");
       setActiveExam(null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save marks");
+      toast.error(toErrorMessage(err, "Failed to save marks"));
     }
   };
 

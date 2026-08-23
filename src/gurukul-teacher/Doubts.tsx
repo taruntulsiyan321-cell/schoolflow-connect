@@ -30,6 +30,7 @@ import {
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
 import { toast } from "sonner";
+import { toErrorMessage } from "@/lib/presentation";
 
 type Assignment = {
   classId: string;
@@ -207,8 +208,8 @@ export default function Doubts() {
       } catch (e) {
         if (!cancelled) {
           setDoubts([]);
-          setError(e instanceof Error ? e.message : "Could not load doubts");
-          toast.error(e instanceof Error ? e.message : "Could not load doubts");
+          setError(toErrorMessage(e, "Could not load doubts"));
+          toast.error(toErrorMessage(e, "Could not load doubts"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -304,7 +305,7 @@ export default function Doubts() {
       setReplyFiles((p) => ({ ...p, [id]: [] }));
       toast.success("Reply posted");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not post reply");
+      toast.error(toErrorMessage(e, "Could not post reply"));
     } finally {
       setBusyIds((prev) => {
         const next = new Set(prev);

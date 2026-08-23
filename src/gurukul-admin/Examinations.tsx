@@ -5,6 +5,7 @@ import type { ExamRecord } from "@/academic/repository/marksRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "./shared";
+import { toErrorMessage } from "@/lib/presentation";
 
 type ExamGroupRow = {
   examGroupId: string;
@@ -88,7 +89,7 @@ export default function ExaminationManagement() {
       } catch (e) {
         if (!cancelled) {
           setExams([]);
-          setError(e instanceof Error ? e.message : "Failed to load examinations");
+          setError(toErrorMessage(e, "Failed to load examinations"));
         }
       } finally {
         if (!cancelled) setLoading(false);

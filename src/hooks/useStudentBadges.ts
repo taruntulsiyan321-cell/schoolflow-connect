@@ -7,6 +7,7 @@ import {
   type EarnedBadgeRow,
 } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
+import { toErrorMessage } from "@/lib/presentation";
 
 export type EarnedBadge = EarnedBadgeRow;
 
@@ -34,7 +35,7 @@ export function useStudentBadges(userId: string | undefined) {
     } catch (err) {
       setEarned([]);
       setEquipped(null);
-      toast.error(err instanceof Error ? err.message : "Could not load badges");
+      toast.error(toErrorMessage(err, "Could not load badges"));
     } finally {
       endLoading(setLoading);
     }
@@ -53,7 +54,7 @@ export function useStudentBadges(userId: string | undefined) {
       setEquipped(badgeCode);
       toast.success(badgeCode ? "Badge equipped — visible to your class." : "Badge unequipped.");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not equip badge");
+      toast.error(toErrorMessage(err, "Could not equip badge"));
     } finally {
       setSaving(false);
     }

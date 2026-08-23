@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
   AcademicProfileService,
@@ -18,6 +18,7 @@ import {
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { localDateKey } from "@/lib/localDate";
 import { cn } from "./shared";
+import { toDisplayText, toErrorMessage } from "@/lib/presentation";
 
 function Loading({ label }: { label: string }) {
   return (
@@ -51,7 +52,7 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
           setError(null);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load homework");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load homework"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -159,7 +160,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
         setTests(testRows);
         setAttemptsByDpp(attemptMap);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load exams");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load exams"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -189,7 +190,7 @@ export function ParentLiveExams({ studentId, classId }: { studentId: string; cla
               <div key={m.id} className="p-3 bg-surface border border-border/70 rounded-xl flex justify-between">
                 <div>
                   <div className="text-xs font-bold text-foreground">{exam?.name ?? m.examId.slice(0, 8)}</div>
-                  <div className="text-[10px] text-muted-foreground">{exam?.subject ?? "â€”"}</div>
+                  <div className="text-[10px] text-muted-foreground">{exam?.subject ?? "—"}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-xs font-black text-foreground">
@@ -291,7 +292,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
         if (cancelled) return;
         if (results.slice(0, 3).every((s) => s.status === "rejected")) {
           const first = results[0] as PromiseRejectedResult;
-          setError(first.reason instanceof Error ? first.reason.message : "Failed to load performance");
+          setError(toErrorMessage(first.reason, "Failed to load performance"));
           return;
         }
         const p = results[0].status === "fulfilled" ? results[0].value : null;
@@ -326,7 +327,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
             : null,
         );
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load performance");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load performance"));
       } finally {
         if (!cancelled) setLoading(false);
       }

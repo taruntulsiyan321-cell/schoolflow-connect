@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { FileText, Video, Download, Search, Loader2, ExternalLink } from "lucide-react";
 import { ResourceService, type LearningResourceRow } from "@/academic";
@@ -6,6 +6,7 @@ import { publicAcademicFileUrl } from "@/academic/storage/academicFileUpload";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 function formatDate(iso: string | null) {
   if (!iso) return "â€”";
@@ -44,7 +45,7 @@ export default function Resources() {
       } catch (e) {
         if (!cancelled) {
           setRows([]);
-          toast.error(e instanceof Error ? e.message : "Failed to load resources");
+          toast.error(toErrorMessage(e, "Failed to load resources"));
         }
       } finally {
         if (!cancelled) endLoading(setLoading);
@@ -116,7 +117,7 @@ export default function Resources() {
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <SubjectBadge subject={r.subject} color={col} />
                       <span className="text-[11px] text-muted-foreground">
-                        {r.type} Â· {formatDate(r.publishedAt)}
+                        {toEnumLabel(r.type, "resource_type")} · {formatDate(r.publishedAt)}
                       </span>
                     </div>
                   </div>

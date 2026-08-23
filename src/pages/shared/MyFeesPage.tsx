@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 import { resolveParentLinkedStudentIds } from "@/lib/parentLinkedStudents";
 import { cn } from "@/lib/utils";
+import { toEnumLabel } from "@/lib/presentation";
 
 type FeeStudent = { full_name?: string | null } | null;
 
@@ -168,8 +169,8 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
                             {r.month}
                             {asParent && <> Â· {r.students?.full_name}</>}
                           </h3>
-                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium capitalize ${tone(r.status)}`}>
-                            {r.status}
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${tone(r.status)}`}>
+                            {toEnumLabel(r.status, "fee_status")}
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">

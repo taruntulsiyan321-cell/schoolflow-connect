@@ -9,6 +9,7 @@ import {
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "@/hooks/use-toast";
 import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/shared";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 /**
  * Student Attendance — AcademicProfileService + AttendanceService only.
@@ -70,7 +71,7 @@ export default function Attendance() {
           setTotal(0);
           toast({
             title: "Could not load attendance",
-            description: e instanceof Error ? e.message : "Unknown error",
+            description: toErrorMessage(e, "Unknown error"),
             variant: "destructive",
           });
         }
@@ -147,7 +148,7 @@ export default function Attendance() {
             return (
               <div
                 key={`${day.date}-${day.id}`}
-                title={`${day.date}: ${day.status}`}
+                title={`${day.date}: ${toEnumLabel(day.status, "attendance_status")}`}
                 className={cn(
                   "h-8 rounded-lg flex items-center justify-center text-xs font-semibold",
                   bg,

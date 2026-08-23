@@ -6,6 +6,7 @@ import { cn, InitialsAvatar, UndoToast } from "./shared";
 import { LeaveService, useAcademicLive, type SchoolLeaveRequestRow } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
+import { toErrorMessage } from "@/lib/presentation";
 
 type LeaveStatus = "pending" | "approved" | "rejected";
 type LeaveType = "casual" | "sick" | "earned" | "maternity" | "paternity" | "emergency" | "unpaid";
@@ -219,7 +220,7 @@ export default function LeaveRequests() {
       setDetail((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? null : null));
     } catch (e) {
       setRequests([]);
-      setError(e instanceof Error ? e.message : "Failed to load leave requests");
+      setError(toErrorMessage(e, "Failed to load leave requests"));
     } finally {
       setLoading(false);
     }
@@ -257,7 +258,7 @@ export default function LeaveRequests() {
       setTimeout(() => setToastMsg(null), 3000);
       await reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Review failed");
+      toast.error(toErrorMessage(e, "Review failed"));
     } finally {
       setBusy(false);
     }

@@ -3,6 +3,7 @@ import katex from "katex";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 import { fixUtf8Content } from "@/lib/utf8Text";
+import { toDisplayText } from "@/lib/presentation";
 
 /**
  * Renders text with inline math. Detection rules:
@@ -17,7 +18,14 @@ import { fixUtf8Content } from "@/lib/utf8Text";
  * The output is rendered "on screen" (proper typeset glyphs), not as raw typed text.
  */
 type Props = {
-  text?: string | null;
+  /**
+   * Deliberately `unknown`: question stems, options and correct answers come
+   * from untyped `jsonb`, and AI output is not guaranteed to be a string.
+   * This component screens whatever it is given through the presentation
+   * boundary, so accepting `unknown` is the honest signature — it stops
+   * callers from having to cast, which is how "[object Object]" got on screen.
+   */
+  text?: unknown;
   className?: string;
   block?: boolean;
 };
@@ -68,7 +76,15 @@ function render(html: string, kind: "inline" | "block") {
 }
 
 export function MathText({ text, className, block }: Props) {
-  const cleaned = useMemo(() => fixUtf8Content(text), [text]);
+  // `text` is declared as string, but the values that actually reach it come
+  // from `any`-typed question payloads (`options: any`, `correct: any`) and
+  // from AI output. Handing a non-string to fixUtf8Content produced
+  // "[object Object]" on screen, so the presentation boundary screens it first
+  // and yields an intentional empty string instead of a stringified object.
+  const cleaned = useMemo(
+    () => fixUtf8Content(toDisplayText(text, { fallback: "", allowEmpty: true })),
+    [text],
+  );
   const segs = useMemo(() => tokenize(cleaned), [cleaned]);
   const Tag = block ? "div" : "span";
   return (

@@ -10,6 +10,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "@/lib/utils";
 import { Award, Star } from "lucide-react";
 import { toast } from "sonner";
+import { toErrorMessage } from "@/lib/presentation";
 
 const MAX_FEATURED = 5;
 
@@ -77,7 +78,7 @@ export function BadgeEquipPanel({ userId, compact }: Props) {
       await ProgressionService.setFeaturedBadges(ctx, next);
       setFeatured(next);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not update featured badges");
+      toast.error(toErrorMessage(e, "Could not update featured badges"));
     } finally {
       setFeatSaving(false);
     }

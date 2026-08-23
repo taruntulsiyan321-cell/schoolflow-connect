@@ -16,6 +16,7 @@ import {
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toast } from "@/hooks/use-toast";
+import { toErrorMessage } from "@/lib/presentation";
 
 type Props = { setPage: (p: PageKey) => void };
 
@@ -132,7 +133,7 @@ export default function ClassHub({ setPage }: Props) {
           setHwPct(0);
           toast({
             title: "Could not load class stats",
-            description: e instanceof Error ? e.message : "Unknown error",
+            description: toErrorMessage(e, "Unknown error"),
             variant: "destructive",
           });
         }

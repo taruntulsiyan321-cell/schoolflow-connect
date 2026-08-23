@@ -8,6 +8,7 @@ import {
   type AnnouncementPriority,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toErrorMessage } from "@/lib/presentation";
 
 /**
  * Parent announcements â€” AnnouncementService.listPublishedForParent only.
@@ -41,7 +42,7 @@ export default function ParentAnnouncements() {
       } catch (e) {
         if (!cancelled) {
           setAnnouncements([]);
-          setError(e instanceof Error ? e.message : "Failed to load announcements");
+          setError(toErrorMessage(e, "Failed to load announcements"));
         }
       } finally {
         if (!cancelled) setLoading(false);

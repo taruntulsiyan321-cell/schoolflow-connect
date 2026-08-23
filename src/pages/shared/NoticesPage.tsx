@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui-bits";
 import { formatDistanceToNow } from "date-fns";
 import { classLabel } from "@/lib/utils";
 import { resolveParentLinkedStudentIds } from "@/lib/parentLinkedStudents";
+import { toEnumLabel } from "@/lib/presentation";
 
 const EMPTY = { title: "", body: "", audience: "all", class_id: "", expiresIn: "none", customExpiry: "" };
 
@@ -181,7 +182,7 @@ export default function NoticesPage({ canPost = false, viewerRole }: { canPost?:
               </div>
               <p className="text-sm text-muted-foreground mt-2 whitespace-pre-wrap leading-relaxed">{r.body}</p>
               <div className="mt-4 flex gap-2 text-xs flex-wrap items-center">
-                <span className={`px-2.5 py-1 rounded-full border font-semibold capitalize ${audienceTone(r.audience)}`}>{r.audience}</span>
+                <span className={`px-2.5 py-1 rounded-full border font-semibold ${audienceTone(r.audience)}`}>{toEnumLabel(r.audience, "notice_audience")}</span>
                 {r.classes && <span className="px-2.5 py-1 rounded-full bg-accent/10 text-accent border border-accent/20 font-semibold">{classLabel(r.classes)}</span>}
                 {showState === "expired" && <span className="px-2.5 py-1 rounded-full bg-muted font-semibold">Expired</span>}
                 {showState === "revoked" && <span className="px-2.5 py-1 rounded-full bg-destructive/10 text-destructive font-semibold">Revoked</span>}

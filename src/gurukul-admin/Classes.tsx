@@ -12,6 +12,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { localDateKey } from "@/lib/localDate";
+import { toErrorMessage } from "@/lib/presentation";
 
 type LiveClass = {
   classId: string;
@@ -66,7 +67,7 @@ function AttendancePanel({
         setStudents(roster);
         setStatusByStudent(map);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load attendance");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load attendance"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -105,7 +106,7 @@ function AttendancePanel({
         if (!unmountedRef.current) setFlash(null);
       }, 2500);
     } catch (e) {
-      if (!unmountedRef.current) setError(e instanceof Error ? e.message : "Save failed");
+      if (!unmountedRef.current) setError(toErrorMessage(e, "Save failed"));
     } finally {
       if (!unmountedRef.current) setSaving(false);
     }
@@ -263,7 +264,7 @@ function ClassRosterDrawer({
       } catch (e) {
         if (!cancelled) {
           setStudents([]);
-          setError(e instanceof Error ? e.message : "Failed to load roster");
+          setError(toErrorMessage(e, "Failed to load roster"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -398,7 +399,7 @@ export default function Classes() {
           })),
         );
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load classes");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load classes"));
       } finally {
         if (!cancelled) setLoading(false);
       }

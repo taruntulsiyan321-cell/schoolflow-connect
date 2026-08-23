@@ -31,6 +31,7 @@ import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { useAcademicContext, PracticeService, WEAK_CONCEPT_THRESHOLD } from "@/academic";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import { resolvePracticeSessionStats } from "@/lib/practiceSessionStats";
+import { toDisplayText } from "@/lib/presentation";
 
 /* Mode chrome only — not academic stats */
 const PRACTICE_MODES = [
@@ -609,8 +610,8 @@ export default function PracticeHubPage() {
                   </div>
                   <div className="flex flex-wrap gap-4 sm:gap-6">
                     <Stat label="Accuracy" value={`${s.accuracy}%`} highlight={s.accuracy >= 75} />
-                    <Stat label="Correct" value={String(s.correct)} />
-                    <Stat label="Incorrect" value={String(s.incorrect)} warn />
+                    <Stat label="Correct" value={toDisplayText(s.correct)} />
+                    <Stat label="Incorrect" value={toDisplayText(s.incorrect)} warn />
                   </div>
                 </div>
               </button>

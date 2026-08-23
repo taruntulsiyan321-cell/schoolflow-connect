@@ -45,6 +45,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import type { ExamRecord, MarksRecord } from "@/academic/repository/marksRepository";
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 export {
   LiveHomeworkTab,
@@ -558,7 +559,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                             : "text-foreground",
                         )}
                       >
-                        {a.status}
+                        {toEnumLabel(a.status, "attendance_status")}
                       </span>
                     </div>
                   ))
@@ -1861,7 +1862,7 @@ export function LiveExamsMarksTab({
       setError(null);
       loadedRef.current = true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load exams");
+      setError(toErrorMessage(e, "Failed to load exams"));
     } finally {
       setLoading(false);
     }
@@ -1914,7 +1915,7 @@ export function LiveExamsMarksTab({
       showFlash("Exam created for all class subjects");
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create exam");
+      setError(toErrorMessage(e, "Failed to create exam"));
     } finally {
       setSaving(false);
     }
@@ -1939,7 +1940,7 @@ export function LiveExamsMarksTab({
       }
       setMarksDraft(draft);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load marks entry");
+      setError(toErrorMessage(e, "Failed to load marks entry"));
     } finally {
       setMarksLoading(false);
     }
@@ -1973,7 +1974,7 @@ export function LiveExamsMarksTab({
       const refreshed = await MarksService.getExam(ctx, activeExam.id);
       setActiveExam(refreshed);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save marks");
+      setError(toErrorMessage(e, "Failed to save marks"));
     } finally {
       setSaving(false);
     }
@@ -1989,7 +1990,7 @@ export function LiveExamsMarksTab({
       setActiveGroup(null);
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Finalize failed");
+      setError(toErrorMessage(e, "Finalize failed"));
     } finally {
       setSaving(false);
     }
@@ -2005,7 +2006,7 @@ export function LiveExamsMarksTab({
       setActiveGroup(null);
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Publish results failed");
+      setError(toErrorMessage(e, "Publish results failed"));
     } finally {
       setSaving(false);
     }

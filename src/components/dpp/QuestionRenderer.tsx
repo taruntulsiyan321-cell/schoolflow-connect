@@ -3,17 +3,42 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { Check, X } from "lucide-react";
 import { MathText } from "@/components/MathText";
+import { toDisplayText } from "@/lib/presentation";
+
+/**
+ * `options` and `correct` arrive as untyped `jsonb` from the question bank and
+ * from generated DPPs, so they are modelled as `unknown` and narrowed below.
+ * They were previously `any`, which is what allowed a non-string option to
+ * reach the renderer and display as "[object Object]".
+ */
+export type DppCorrect = {
+  indexes?: unknown;
+  value?: unknown;
+  tolerance?: unknown;
+  text?: unknown;
+};
 
 export type DppQuestion = {
   id: string;
   order_index: number;
   kind: "mcq" | "multi" | "numerical" | "short";
   question: string;
-  options: any;
-  correct?: any;
+  options: unknown;
+  correct?: DppCorrect | null;
   marks: number;
   explanation?: string | null;
 };
+
+/** Options that are safe to render, in their original order. */
+function readOptions(raw: unknown): unknown[] {
+  return Array.isArray(raw) ? raw : [];
+}
+
+/** Correct-answer indexes, ignoring anything that is not a real index. */
+function readCorrectIndexes(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((n): n is number => Number.isInteger(n) && (n as number) >= 0);
+}
 
 export type Response = { indexes?: number[]; value?: number; text?: string };
 
@@ -27,8 +52,8 @@ type Props = {
 
 export function QuestionRenderer({ question, mode, value, onChange, isCorrect }: Props) {
   const q = question;
-  const opts: string[] = Array.isArray(q.options) ? q.options : [];
-  const correctIdx: number[] = Array.isArray(q.correct?.indexes) ? q.correct.indexes : [];
+  const opts = readOptions(q.options);
+  const correctIdx = readCorrectIndexes(q.correct?.indexes);
   const selected = value.indexes ?? [];
 
   const toggle = (i: number) => {
@@ -100,14 +125,28 @@ export function QuestionRenderer({ question, mode, value, onChange, isCorrect }:
       {mode === "review" && (
         <div className="text-xs space-y-1 mt-2">
           {q.kind === "numerical" && q.correct?.value !== undefined && (
-            <div>Correct answer: <span className="font-semibold">{q.correct.value}</span>{q.correct.tolerance ? ` (±${q.correct.tolerance})` : ""}</div>
+            <div>
+              Correct answer:{" "}
+              <span className="font-semibold">
+                {toDisplayText(q.correct.value, { kind: "label" })}
+              </span>
+              {q.correct.tolerance != null
+                ? ` (±${toDisplayText(q.correct.tolerance, { kind: "label", fallback: "" })})`
+                : ""}
+            </div>
           )}
           {q.kind === "short" && q.correct?.text && (
-            <div>Expected: <span className="font-semibold">{q.correct.text}</span></div>
+            /* Expected answers come from the bank and carry the same encoding
+               risk as the stem, so they go through MathText like everything
+               else the student reads. */
+            <div>
+              Expected: <MathText className="font-semibold" text={q.correct.text} />
+            </div>
           )}
           {q.explanation && (
             <div className="rounded-md bg-muted p-3 text-muted-foreground mt-2">
-              <span className="font-semibold text-foreground">Explanation: </span>{q.explanation}
+              <span className="font-semibold text-foreground">Explanation: </span>
+              <MathText text={q.explanation} />
             </div>
           )}
           {isCorrect != null && (

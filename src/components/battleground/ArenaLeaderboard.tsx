@@ -5,6 +5,7 @@ import { ProgressionService, useAcademicContext } from "@/academic";
 import { Crown, Loader2, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { toErrorMessage } from "@/lib/presentation";
 
 type Row = {
   user_id: string;
@@ -55,7 +56,7 @@ export function ArenaLeaderboard() {
         if (!cancelled) {
           toast({
             title: "Could not load leaderboard",
-            description: e instanceof Error ? e.message : "Try again",
+            description: toErrorMessage(e, "Try again"),
             variant: "destructive",
           });
           setRows([]);

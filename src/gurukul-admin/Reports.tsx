@@ -12,6 +12,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Loader2 } from "lucide-react";
+import { toErrorMessage, toPersonName } from "@/lib/presentation";
 
 type ReportCategory = "academic" | "account" | "platform" | "communication";
 type ReportKey =
@@ -133,7 +134,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
               if (pct < 75) below += 1;
               if (pct >= 90) above += 1;
               allRows.push({
-                Student: nameById.get(p.studentId) ?? p.studentId.slice(0, 8),
+                Student: toPersonName(nameById.get(p.studentId), { kind: "student" }),
                 Class: `${c.className}-${c.section}`,
                 "Attendance %": pct,
                 Status: pct >= 75 ? "OK" : "Low",
@@ -153,7 +154,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           setRows([]);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load report");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load report"));
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -39,6 +39,7 @@ import {
   FileText,
   Mic,
 } from "lucide-react";
+import { toErrorMessage } from "@/lib/presentation";
 
 const DOUBT_ATTACH_ICONS: Record<DoubtAttachKind, ReactNode> = {
   image: <Image className="w-3.5 h-3.5" />,
@@ -243,7 +244,7 @@ export default function DoubtPortal() {
         );
       } catch (e) {
         if (cancelled) return;
-        const msg = e instanceof Error ? e.message : "Could not load class subjects";
+        const msg = toErrorMessage(e, "Could not load class subjects");
         setSubjects([]);
         setSubjectsError(msg);
         toast.error(msg);
@@ -296,8 +297,8 @@ export default function DoubtPortal() {
       } catch (e) {
         if (!cancelled) {
           setItems([]);
-          setError(e instanceof Error ? e.message : "Could not load doubts");
-          toast.error(e instanceof Error ? e.message : "Could not load doubts");
+          setError(toErrorMessage(e, "Could not load doubts"));
+          toast.error(toErrorMessage(e, "Could not load doubts"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -380,7 +381,7 @@ export default function DoubtPortal() {
       );
       setAnswerAttachments(byAnswer);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not open doubt");
+      toast.error(toErrorMessage(e, "Could not open doubt"));
       setView("feed");
     } finally {
       setDetailLoading(false);
@@ -418,7 +419,7 @@ export default function DoubtPortal() {
       setView("feed");
       await openDetail(String(id));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not post doubt");
+      toast.error(toErrorMessage(e, "Could not post doubt"));
     } finally {
       setAsking(false);
     }
@@ -444,7 +445,7 @@ export default function DoubtPortal() {
       toast.success("Answer posted");
       await openDetail(detail.id);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not post answer");
+      toast.error(toErrorMessage(e, "Could not post answer"));
     } finally {
       setReplying(false);
     }

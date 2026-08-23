@@ -8,6 +8,7 @@ import { ProgressionService, type ProgressionSnapshot, useAcademicLive } from "@
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
 import { EquippedBadge } from "@/components/battleground/EquippedBadge";
+import { toErrorMessage } from "@/lib/presentation";
 
 const MAX_FEATURED = 5;
 
@@ -41,7 +42,7 @@ export default function Achievements() {
     } catch (e) {
       setFeatured([]);
       setAchievements([]);
-      toast.error(e instanceof Error ? e.message : "Could not load progression achievements");
+      toast.error(toErrorMessage(e, "Could not load progression achievements"));
     } finally {
       setProgLoading(false);
     }
@@ -90,7 +91,7 @@ export default function Achievements() {
       setFeatured(next);
       toast.success(next.includes(code) ? "Added to featured" : "Removed from featured");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not update featured badges");
+      toast.error(toErrorMessage(e, "Could not update featured badges"));
     } finally {
       setFeatSaving(false);
     }

@@ -21,6 +21,7 @@ import {
   uploadAcademicFile,
 } from "@/academic/storage/academicFileUpload";
 import { cn } from "@/gurukul-teacher/shared";
+import { toErrorMessage } from "@/lib/presentation";
 
 function KindIcon({ kind }: { kind: ReturnType<typeof fileKindFromName> }) {
   const cls = "w-4 h-4 shrink-0";
@@ -143,7 +144,7 @@ export function AttachmentComposer({
           current = [...current, meta];
           onChange(current);
         } catch (e) {
-          failures.push(`${file.name} (${e instanceof Error ? e.message : "upload failed"})`);
+          failures.push(`${file.name} (${toErrorMessage(e, "upload failed")})`);
         }
       }
       if (failures.length) {
@@ -163,7 +164,7 @@ export function AttachmentComposer({
       setLinkUrl("");
       setLinkName("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Invalid link");
+      setError(toErrorMessage(e, "Invalid link"));
     }
   };
 

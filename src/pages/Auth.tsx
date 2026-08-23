@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { openMsg91Widget, closeMsg91Widget, classifyMsg91Failure, isMsg91WidgetConfigured } from "@/lib/msg91Widget";
 import { completeMsg91SignIn, phoneToSyntheticEmail } from "@/lib/msg91Auth";
 import { normalizePhone } from "@/lib/phone";
+import { toErrorMessage } from "@/lib/presentation";
 
 const nameSchema = z.string().trim().min(1).max(100);
 
@@ -433,7 +434,7 @@ export default function Auth() {
       await refreshAuth();
       toast.success("You're all set!");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not finish setting up your account");
+      toast.error(toErrorMessage(err, "Could not finish setting up your account"));
     } finally {
       setProfileBusy(false);
     }

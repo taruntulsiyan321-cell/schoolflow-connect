@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { cn } from "./shared";
 import { useNotifications } from "@/hooks/useNotifications";
+import { humanizeEnumValue } from "@/lib/presentation";
 
 const typeConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
   attendance: { icon: <UserCheck className="w-3.5 h-3.5" />, color: "#3b5bdb", label: "Attendance" },
@@ -72,7 +73,7 @@ export default function ParentNotifications() {
           <option value="all">All Types</option>
           {types.map((t) => (
             <option key={t} value={t}>
-              {typeConfig[t]?.label ?? t}
+              {typeConfig[t]?.label ?? humanizeEnumValue(t)}
             </option>
           ))}
         </select>

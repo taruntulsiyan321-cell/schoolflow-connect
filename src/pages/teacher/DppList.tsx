@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, BarChart3, FileText, Trash2, Target, Clock, CheckCircle2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import "./teacher-premium.css";
+import { toErrorMessage } from "@/lib/presentation";
 
 export default function DppList() {
   const { user } = useAuth();
@@ -55,7 +56,7 @@ export default function DppList() {
       });
       nav(`/teacher/classes`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create DPP");
+      toast.error(toErrorMessage(err, "Failed to create DPP"));
     }
   };
 
@@ -67,7 +68,7 @@ export default function DppList() {
       toast.success("DPP deleted");
       setRows(prev => prev.filter(row => row.id !== d.id));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete DPP");
+      toast.error(toErrorMessage(err, "Failed to delete DPP"));
     }
   };
 

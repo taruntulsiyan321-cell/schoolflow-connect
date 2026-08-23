@@ -6,6 +6,7 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 import { fixUtf8Content } from "@/lib/utf8Text";
+import { toAssistantMarkdown } from "@/lib/presentation";
 
 /**
  * Renders an AI assistant reply as properly typeset markdown + math, instead of
@@ -16,7 +17,12 @@ import { fixUtf8Content } from "@/lib/utf8Text";
  * to dollar-delimited form first, matching what MathText.tsx already tokenizes.
  */
 type Props = {
-  text?: string | null;
+  /**
+   * `unknown` on purpose — model output is not guaranteed to be a string, and
+   * this component screens it through the presentation boundary before it is
+   * treated as markdown. See MathText for the same reasoning.
+   */
+  text?: unknown;
   className?: string;
 };
 
@@ -76,7 +82,25 @@ const components: Components = {
 };
 
 export function NovaMarkdown({ text, className }: Props) {
-  const normalized = useMemo(() => normalizeMathDelimiters(fixUtf8Content(text) ?? ""), [text]);
+  // Model output is screened before it is treated as prose: tool-call blocks,
+  // internal markers, bare identifiers and whole-JSON replies never reach the
+  // renderer. See src/lib/presentation/aiText.ts for why this lives here
+  // rather than at each call site.
+  const screened = useMemo(() => toAssistantMarkdown(text), [text]);
+  const normalized = useMemo(
+    () => (screened.unusable ? "" : normalizeMathDelimiters(fixUtf8Content(screened.markdown))),
+    [screened],
+  );
+
+  if (screened.unusable) {
+    // An intentional message beats rendering the machinery that produced it.
+    return (
+      <div className={cn("text-sm leading-relaxed text-[#9ca3c0] italic", className)}>
+        This answer couldn&apos;t be displayed. Please ask again.
+      </div>
+    );
+  }
+
   return (
     <div className={cn("math-text text-sm leading-relaxed", className)}>
       <ReactMarkdown

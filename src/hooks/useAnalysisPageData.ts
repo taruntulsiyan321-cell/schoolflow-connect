@@ -5,6 +5,7 @@ import { ProgressionService, resolveStudentServiceContext, useAcademicLive } fro
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { toErrorMessage } from "@/lib/presentation";
 
 export type PracticeSessionSummary = {
   id: string;
@@ -220,7 +221,7 @@ export function useAnalysisPageData(enabled = true) {
         },
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load analysis");
+      setError(toErrorMessage(e, "Could not load analysis"));
       setData({
         class_rank: null,
         leaderboard_top: [],

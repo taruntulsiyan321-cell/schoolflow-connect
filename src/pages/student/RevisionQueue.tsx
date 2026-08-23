@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchRevisionPlan } from "@/lib/academicBrain";
 import { runRevisionAgent } from "@/lib/academicAgents";
@@ -14,6 +14,7 @@ import { ListChecks, Check, Info, Clock, Loader2 } from "lucide-react";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { toast } from "sonner";
 import { displayChapter, displayConcept, displayTopic } from "@/lib/academicDisplay";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 type RevisionItem = {
   id: string;
@@ -74,7 +75,7 @@ export default function RevisionQueue() {
         setCoachHeadline(revisionInsight.headline ?? "");
       }
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Could not load revision plan");
+      setLoadError(toErrorMessage(e, "Could not load revision plan"));
     } finally {
       setLoading(false);
     }
@@ -94,7 +95,7 @@ export default function RevisionQueue() {
       setRows((prev) => prev.filter((r) => r.id !== id));
       toast.success("Revision done!");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not complete revision");
+      toast.error(toErrorMessage(e, "Could not complete revision"));
     } finally {
       setCompletingId(null);
     }
@@ -207,7 +208,7 @@ export default function RevisionQueue() {
                       </div>
                       <div className="flex flex-wrap items-center gap-2 mt-2">
                         <Badge variant={priorityTone(r.priority_label) as "default" | "destructive" | "secondary"}>
-                          {r.priority_label ?? "Medium"} Â· {r.priority}
+                          {r.priority_label ?? "Medium"} · {toEnumLabel(r.priority, "severity")}
                         </Badge>
                         <span className="text-xs text-muted-foreground">Due {r.due_date}</span>
                       </div>

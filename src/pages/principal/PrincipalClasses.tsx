@@ -6,6 +6,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui-bits";
 import { Users, ChevronRight, BookOpen } from "lucide-react";
+import { toErrorMessage } from "@/lib/presentation";
 
 type ClassRow = {
   id: string;
@@ -82,7 +83,7 @@ export default function PrincipalClasses() {
         );
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load classes");
+          setError(toErrorMessage(e, "Failed to load classes"));
           setRows([]);
         }
       } finally {

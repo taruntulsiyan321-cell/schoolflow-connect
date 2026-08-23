@@ -11,6 +11,7 @@ import { AnalyticsService, AttendanceService, useAcademicLive } from "@/academic
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { localDateKey } from "@/lib/localDate";
+import { toErrorMessage } from "@/lib/presentation";
 
 function StatCard({
   label, value, sub, icon, color, delta,
@@ -268,7 +269,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         );
         setNotices((noticeRows.data ?? []) as NoticeRow[]);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load dashboard");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load dashboard"));
       } finally {
         if (!cancelled) setLoading(false);
       }

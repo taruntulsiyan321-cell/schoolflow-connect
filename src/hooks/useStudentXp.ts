@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAcademicContext, ProgressionService, type StudentXpRow } from "@/academic";
 import { notifyStudentXpUpdated } from "@/lib/studentXpNotify";
+import { toErrorMessage } from "@/lib/presentation";
 
 export type { StudentXpRow };
 
@@ -68,7 +69,7 @@ export function useStudentXp() {
       }
     } catch (e) {
       setXp(EMPTY_XP(user.id));
-      toast.error(e instanceof Error ? e.message : "Could not load XP");
+      toast.error(toErrorMessage(e, "Could not load XP"));
     } finally {
       setLoading(false);
     }

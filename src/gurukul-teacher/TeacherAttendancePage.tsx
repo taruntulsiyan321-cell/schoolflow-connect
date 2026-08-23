@@ -19,6 +19,7 @@ import {
 } from "@/academic/services/attendanceService";
 import { useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toErrorMessage } from "@/lib/presentation";
 
 const STATUS_OPTIONS: {
   value: AttendanceStatus;
@@ -109,7 +110,7 @@ export function TeacherAttendanceWorkspace({
         setError("You are not assigned to that class.");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load assigned classes");
+      setError(toErrorMessage(e, "Failed to load assigned classes"));
       setClasses([]);
     }
   }, [ctx, classId, fixedClassId]);
@@ -144,7 +145,7 @@ export function TeacherAttendanceWorkspace({
       }
       rosterKeyRef.current = key;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load attendance");
+      setError(toErrorMessage(e, "Failed to load attendance"));
       setStudents([]);
     } finally {
       if (!quiet) setLoading(false);
@@ -269,7 +270,7 @@ export function TeacherAttendanceWorkspace({
       showFlash("Attendance saved");
       await loadRoster();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save attendance");
+      setError(toErrorMessage(e, "Failed to save attendance"));
     } finally {
       setSaving(false);
     }

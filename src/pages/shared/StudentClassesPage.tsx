@@ -12,6 +12,7 @@ import { CommunityDoubtPortal } from "@/components/community/CommunityDoubtPorta
 import StudentHomeworkPage from "@/pages/shared/StudentHomeworkPage";
 import StudentExamsResultsPage from "@/pages/shared/StudentExamsResultsPage";
 import { cn } from "@/lib/utils";
+import { toEnumLabel } from "@/lib/presentation";
 
 interface SubjectTeacher {
   subject: string | null;
@@ -361,8 +362,8 @@ export default function StudentClassesPage() {
                 <span className="font-medium">
                   {new Date(row.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}
                 </span>
-                <span className={cn("text-xs px-2.5 py-1 rounded-full capitalize font-medium", ATTENDANCE_COLORS[row.status] ?? "bg-muted text-muted-foreground")}>
-                  {row.status}
+                <span className={cn("text-xs px-2.5 py-1 rounded-full font-medium", ATTENDANCE_COLORS[row.status] ?? "bg-muted text-muted-foreground")}>
+                  {toEnumLabel(row.status, "attendance_status")}
                 </span>
               </Card>
             ))}

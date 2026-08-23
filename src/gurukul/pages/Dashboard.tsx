@@ -16,6 +16,7 @@ import { useStudentBadges } from "@/hooks/useStudentBadges";
 import { getBadge } from "@/lib/badges";
 import { dedupeSubjectChartPoints } from "@/lib/qualityGuards";
 import { displaySubject } from "@/lib/academicDisplay";
+import { toEnumLabel } from "@/lib/presentation";
 
 const SUBJECT_COLOR_VARS: Record<string, string> = {
   Mathematics: "var(--primary)",
@@ -459,7 +460,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                   <div className="text-sm font-semibold text-foreground">{a.title}</div>
                   <div className="text-xs text-muted-foreground">{a.desc}</div>
                 </div>
-                <div className="flex items-center gap-1 text-amber-400 capitalize"><span className="text-xs font-bold">{a.tier}</span></div>
+                <div className="flex items-center gap-1 text-amber-400"><span className="text-xs font-bold">{toEnumLabel(a.tier, "badge_tier")}</span></div>
               </div>
             )) : (
               <p className="text-sm text-muted-foreground text-center py-4">No badges earned yet - keep practicing!</p>

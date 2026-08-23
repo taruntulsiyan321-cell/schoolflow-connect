@@ -7,6 +7,7 @@ import { PageHeader, StatCard } from "@/components/ui-bits";
 import { FileText, Calendar, Clock, BookOpen } from "lucide-react";
 import { displaySubject } from "@/lib/academicPresentation";
 import { StudentErrorState } from "@/components/student/StudentPanelStates";
+import { toErrorMessage } from "@/lib/presentation";
 
 const typeColors: Record<string, string> = {
   class_test: "bg-blue-500/10 text-blue-600 border-blue-500/30",
@@ -48,7 +49,7 @@ export default function StudentExamsPage() {
       const rows = await MarksService.listExamsForClass(ctx, classId, { limit: 100 });
       setExams(rows);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load exams");
+      setError(toErrorMessage(e, "Could not load exams"));
       setExams([]);
     } finally {
       setLoading(false);

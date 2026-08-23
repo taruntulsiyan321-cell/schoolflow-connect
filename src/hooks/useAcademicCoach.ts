@@ -13,6 +13,7 @@ import {
 } from "@/lib/analyticsInsights";
 import { useConceptMastery } from "@/hooks/useConceptMastery";
 import { displayTopic, displaySubject, displayConcept, displayChapter } from "@/lib/academicDisplay";
+import { toErrorMessage } from "@/lib/presentation";
 
 export function useAcademicCoach(snapshot: AcademicSnapshot | null, enabled = true) {
   const { items: mastery, loading: masteryLoading } = useConceptMastery(enabled);
@@ -46,7 +47,7 @@ export function useAcademicCoach(snapshot: AcademicSnapshot | null, enabled = tr
       setBundle(pipeline);
     } catch (e) {
       if (requestId !== requestIdRef.current) return;
-      setError(e instanceof Error ? e.message : "Could not load coach insights");
+      setError(toErrorMessage(e, "Could not load coach insights"));
     } finally {
       if (requestId === requestIdRef.current) {
         setEnhancing(false);

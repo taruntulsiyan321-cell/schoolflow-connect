@@ -10,6 +10,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { GlassCard, cn } from "@/gurukul/components/shared";
 import { toast } from "sonner";
+import { toErrorMessage } from "@/lib/presentation";
 
 const PRIORITY_STYLES: Record<
   AnnouncementPriority,
@@ -63,7 +64,7 @@ export default function Notices() {
       } catch (e) {
         if (!cancelled) {
           setRows([]);
-          const msg = e instanceof Error ? e.message : "Failed to load notices";
+          const msg = toErrorMessage(e, "Failed to load notices");
           setError(msg);
           toast.error(msg);
         }

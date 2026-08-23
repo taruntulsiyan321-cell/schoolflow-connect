@@ -8,6 +8,7 @@ import {
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn } from "./shared";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 /**
  * Admin announcements monitor — AnnouncementService.listForSchool only.
@@ -36,7 +37,7 @@ export default function AnnouncementManagement() {
     } catch (e) {
       if (reloadIdRef.current !== requestId) return;
       setRows([]);
-      setError(e instanceof Error ? e.message : "Failed to load announcements");
+      setError(toErrorMessage(e, "Failed to load announcements"));
     } finally {
       if (reloadIdRef.current === requestId) setLoading(false);
     }
@@ -83,7 +84,7 @@ export default function AnnouncementManagement() {
       });
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Publish failed");
+      setError(toErrorMessage(e, "Publish failed"));
     } finally {
       setBusyId(null);
     }
@@ -180,13 +181,13 @@ export default function AnnouncementManagement() {
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="text-sm font-bold text-muted-foreground">{ann.title}</span>
                       <span
-                        className="text-[9px] font-bold px-2 py-0.5 rounded-full capitalize"
+                        className="text-[9px] font-bold px-2 py-0.5 rounded-full"
                         style={{ background: `${statusColor}18`, color: statusColor }}
                       >
-                        {ann.status}
+                        {toEnumLabel(ann.status, "announcement_status")}
                       </span>
                       <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                        {ann.audience}
+                        {toEnumLabel(ann.audience, "notice_audience")}
                       </span>
                     </div>
                     <div className="text-xs text-muted-foreground">

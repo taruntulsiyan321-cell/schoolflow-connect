@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2, Plus, Save, Send, Archive, Copy, Eye, CheckCircle2, RotateCcw, CalendarClock,
 } from "lucide-react";
@@ -13,6 +13,7 @@ import {
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
+import { toEnumLabel, toErrorMessage, toPersonName } from "@/lib/presentation";
 
 type StatsRow = Awaited<ReturnType<typeof HomeworkService.listForClassWithStats>>[number];
 type SubRow = Awaited<ReturnType<typeof HomeworkService.listSubmissions>>[number];
@@ -76,7 +77,7 @@ export function LiveAcademicWorkTab({
       setError(null);
       loadedRef.current = true;
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
+      setError(toErrorMessage(e, "Failed to load"));
     } finally {
       setLoading(false);
     }
@@ -163,7 +164,7 @@ export function LiveAcademicWorkTab({
       setPublishMode("now");
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create");
+      setError(toErrorMessage(e, "Failed to create"));
     } finally {
       setSaving(false);
     }
@@ -189,7 +190,7 @@ export function LiveAcademicWorkTab({
       setSubs(list);
       setRoster(students.map((s) => ({ id: s.id, fullName: s.fullName })));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load submissions");
+      setError(toErrorMessage(e, "Failed to load submissions"));
     }
   };
 
@@ -208,7 +209,7 @@ export function LiveAcademicWorkTab({
       if (reviewHw) await openReview(reviewHw);
       await reload();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Review failed");
+      setError(toErrorMessage(e, "Review failed"));
     } finally {
       setReviewingId(null);
     }
@@ -262,10 +263,10 @@ export function LiveAcademicWorkTab({
             <div key={s.id} className="p-3 rounded-2xl border border-border bg-surface space-y-2">
               <div className="flex justify-between gap-2">
                 <div className="text-xs font-semibold text-foreground">
-                  {nameById.get(s.studentId) ?? s.studentId.slice(0, 8)}
+                  {toPersonName(nameById.get(s.studentId), { kind: "student" })}
                 </div>
                 <div className="text-[10px] text-muted-foreground">
-                  {s.status}{s.isLate ? " Â· late" : ""} Â· v{s.version}
+                  {toEnumLabel(s.status, "submission_status")}{s.isLate ? " · late" : ""} · v{s.version}
                 </div>
               </div>
               {s.content?.trim() && (
@@ -498,7 +499,7 @@ export function LiveAcademicWorkTab({
                   </span>
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  {h.subject} Â· Due {h.dueDate ?? "â€”"} Â· {h.status ?? "draft"} Â· {h.priority}
+                  {h.subject} · Due {h.dueDate ?? "—"} · {toEnumLabel(h.status ?? "draft", "homework_status")} · {toEnumLabel(h.priority, "homework_priority")}
                   {h.scheduledPublishAt
                     ? ` Â· sched ${new Date(h.scheduledPublishAt).toLocaleString()}`
                     : ""}

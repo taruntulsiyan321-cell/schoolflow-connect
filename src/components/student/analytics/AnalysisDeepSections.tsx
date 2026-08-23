@@ -12,6 +12,7 @@ import type {
 import { FlowSectionTitle } from "@/components/student/flow/FlowDesign";
 import { AlertTriangle, BookOpen, Calendar, Clock, TrendingDown, TrendingUp } from "lucide-react";
 import { displayChapter, displayConcept, displayTopic, displaySubject } from "@/lib/academicDisplay";
+import { toEnumLabel } from "@/lib/presentation";
 
 function severityBadge(severity: TopicGapInsight["severity"]) {
   const styles = {
@@ -269,7 +270,7 @@ export function WeeklyStudyPlan({ plan, variant = "default" }: { plan: StudyPlan
             )}
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary font-bold text-sm">
-              {item.priority}
+              {toEnumLabel(item.priority, "severity")}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">

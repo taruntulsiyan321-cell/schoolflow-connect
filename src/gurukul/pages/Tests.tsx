@@ -17,6 +17,7 @@ import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toast } from "@/hooks/use-toast";
 import { displaySubject } from "@/lib/academicPresentation";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/gurukul/components/shared";
+import { toErrorMessage } from "@/lib/presentation";
 
 /**
  * Student Tests â€” MarksService + TestService + AnalyticsService (no mock catalogs).
@@ -89,7 +90,7 @@ export default function Tests() {
         }
         setError(null);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load tests");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load tests"));
       } finally {
         if (!cancelled) endLoading(setLoading);
       }

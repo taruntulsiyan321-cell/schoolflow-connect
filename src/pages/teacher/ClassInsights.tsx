@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertTriangle, TrendingUp, Trophy, Lightbulb, Target, CheckCircle2, Clock, Brain } from "lucide-react";
 import "./teacher-premium.css";
 import { displayChapter, displayConcept, displaySubject } from "@/lib/academicDisplay";
+import { toEnumLabel } from "@/lib/presentation";
 
 export default function ClassInsights() {
   const { user } = useAuth();
@@ -225,7 +226,7 @@ export default function ClassInsights() {
           <div key={i} className="tp-row mb-2">
             <div className="flex items-center gap-2 mb-1">
               <Badge variant={item.priority === "high" ? "destructive" : item.priority === "medium" ? "default" : "outline"}>
-                {item.priority}
+                {toEnumLabel(item.priority, "severity")}
               </Badge>
               <span className="font-medium text-sm">{item.action}</span>
             </div>

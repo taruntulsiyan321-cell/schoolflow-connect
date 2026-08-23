@@ -4,6 +4,7 @@ import { DecisionEngineService, type RevisionRecommendation } from "@/academic/s
 import { isPlaceholderAcademicLabel } from "@/academic/taxonomy";
 import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 import type { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
+import { toErrorMessage } from "@/lib/presentation";
 
 /**
  * Revision.tsx's item shape and legacy (snapshot.revision_queue-derived)
@@ -97,7 +98,7 @@ export function useRevisionItems(
         // swallowed failure here would look identical to a healthy, empty
         // queue, masking a broken pilot. Surfaced via Revision.tsx's own
         // existing error UI (widened OR-condition), not a new one.
-        setV2Error(e instanceof Error ? e.message : "Failed to load revision plan");
+        setV2Error(toErrorMessage(e, "Failed to load revision plan"));
       });
     return () => {
       cancelled = true;

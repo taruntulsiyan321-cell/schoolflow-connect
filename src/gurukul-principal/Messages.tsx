@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { NewChatSheet } from "@/components/chat/NewChatSheet";
+import { toErrorMessage } from "@/lib/presentation";
 
 const roleColor: Record<string, string> = {
   student: "#0ea5a0",
@@ -120,7 +121,7 @@ export default function PrincipalMessages() {
       } catch (e) {
         if (!cancelled) {
           setContacts([]);
-          toast.error(e instanceof Error ? e.message : "Could not load messages");
+          toast.error(toErrorMessage(e, "Could not load messages"));
         }
       } finally {
         if (!cancelled) {
@@ -157,7 +158,7 @@ export default function PrincipalMessages() {
           );
         }
       } catch (e) {
-        if (!cancelled) toast.error(e instanceof Error ? e.message : "Could not load thread");
+        if (!cancelled) toast.error(toErrorMessage(e, "Could not load thread"));
       }
     })();
     return () => {
@@ -257,7 +258,7 @@ export default function PrincipalMessages() {
         ),
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not send");
+      toast.error(toErrorMessage(e, "Could not send"));
     } finally {
       setSending(false);
     }
@@ -304,7 +305,7 @@ export default function PrincipalMessages() {
         ),
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Upload failed");
+      toast.error(toErrorMessage(e, "Upload failed"));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -323,7 +324,7 @@ export default function PrincipalMessages() {
         ),
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not delete");
+      toast.error(toErrorMessage(e, "Could not delete"));
     }
   }
 
@@ -348,7 +349,7 @@ export default function PrincipalMessages() {
       setSelectedKey(next.conversationId || next.userId);
       setShowNewDm(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not open chat");
+      toast.error(toErrorMessage(e, "Could not open chat"));
     } finally {
       setStartingChat(false);
     }
@@ -364,7 +365,7 @@ export default function PrincipalMessages() {
       setShowCreate(false);
       toast.success("Class group ready");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not create class group");
+      toast.error(toErrorMessage(e, "Could not create class group"));
     } finally {
       setCreateBusy(false);
     }
@@ -380,7 +381,7 @@ export default function PrincipalMessages() {
       setShowCreate(false);
       toast.success("Teacher group ready");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not create teacher group");
+      toast.error(toErrorMessage(e, "Could not create teacher group"));
     } finally {
       setCreateBusy(false);
     }

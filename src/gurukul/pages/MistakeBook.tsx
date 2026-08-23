@@ -14,6 +14,7 @@ import {
   Play, History, BarChart2, SortAsc, Eye,
 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
+import { toErrorMessage } from "@/lib/presentation";
 
 type MBView = "list" | "practice" | "results";
 
@@ -603,7 +604,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         else setPage?.("practice");
       }, 800);
     } catch (e) {
-      setToast(e instanceof Error ? e.message : "Could not add to Recovery");
+      setToast(toErrorMessage(e, "Could not add to Recovery"));
     } finally {
       setRecoveringId(null);
     }
@@ -630,7 +631,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       }
     } catch (e) {
       console.warn("mistake retry:", e instanceof Error ? e.message : e);
-      setToast(e instanceof Error ? e.message : "Could not save mistake practice");
+      setToast(toErrorMessage(e, "Could not save mistake practice"));
     }
   }
 

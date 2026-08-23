@@ -14,6 +14,7 @@ import {
   Play, Layers, RefreshCw, Calendar,
   Zap, FileText, BookOpen,
 } from "lucide-react";
+import { toErrorMessage } from "@/lib/presentation";
 
 type RevView = "overview" | "session" | "results";
 
@@ -192,7 +193,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
       await PracticeService.completeRevision(ctx, item.id);
       await reload?.();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not mark revision complete");
+      toast.error(toErrorMessage(e, "Could not mark revision complete"));
     } finally {
       setCompletingId(null);
     }

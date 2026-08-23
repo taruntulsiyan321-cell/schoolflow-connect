@@ -63,6 +63,7 @@ function isRecoveryQuestionUuid(id: string | undefined | null): boolean {
 
 
 import { displayChapter, displayConcept, displaySubject, isPlaceholderAcademicLabel } from "@/lib/academicDisplay";
+import { toErrorMessage } from "@/lib/presentation";
 
 
 
@@ -471,7 +472,7 @@ export default function RecoverySession() {
         questionsCorrect: correct,
       });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not complete recovery — try again");
+      toast.error(toErrorMessage(e, "Could not complete recovery — try again"));
       return;
     }
     persistRecoveryResult(nav, {
@@ -615,7 +616,7 @@ export default function RecoverySession() {
         }
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save recovery answer");
+      toast.error(toErrorMessage(e, "Could not save recovery answer"));
     }
 
   };

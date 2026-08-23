@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import type { TeacherProfile } from "./data";
+import { toErrorMessage } from "@/lib/presentation";
 
 export type TeacherIdentity = TeacherProfile & {
   teacherRowId: string | null;
@@ -132,7 +133,7 @@ export function useTeacherIdentity(): TeacherIdentity {
         mobileLinked: Boolean(phone),
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load teacher profile");
+      setError(toErrorMessage(e, "Failed to load teacher profile"));
       setProfile({
         ...EMPTY,
         name: user.email ?? "Teacher",

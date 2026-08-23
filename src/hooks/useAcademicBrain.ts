@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchAcademicBrain, refreshAcademicBrain, type AcademicBrain } from "@/lib/academicBrain";
+import { toErrorMessage } from "@/lib/presentation";
 
 export function useAcademicBrain(enabled = true) {
   const [brain, setBrain] = useState<AcademicBrain | null>(null);
@@ -14,7 +15,7 @@ export function useAcademicBrain(enabled = true) {
       const data = force ? await refreshAcademicBrain() : await fetchAcademicBrain();
       setBrain(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load academic profile");
+      setError(toErrorMessage(e, "Could not load academic profile"));
     } finally {
       setLoading(false);
     }

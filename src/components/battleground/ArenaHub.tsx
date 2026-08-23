@@ -26,6 +26,7 @@ import { getNcertSubjects, parseClassGrade } from "@/lib/ncertSyllabus";
 import { PracticeService, BattleExperienceService, resolveStudentServiceContext, useAcademicContext, ProgressionService } from "@/academic";
 import { progressionLevelProgress } from "@/academic/services/progressionMath";
 import "./battle-arena.css";
+import { toErrorMessage } from "@/lib/presentation";
 
 const BG_BASE = "/student/battleground";
 
@@ -249,7 +250,7 @@ export function ArenaHub() {
       nav(`${BG_BASE}/battle/${id}`);
     } catch (e: unknown) {
       toast({
-        title: e instanceof Error ? e.message : "Could not start battle",
+        title: toErrorMessage(e, "Could not start battle"),
         variant: "destructive",
       });
     } finally {

@@ -15,6 +15,7 @@ import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumSc
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
 import { BattleExperienceService, PracticeService, useAcademicContext } from "@/academic";
 import { displaySubject } from "@/lib/academicDisplay";
+import { toErrorMessage } from "@/lib/presentation";
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
 const FALLBACK = ["Mathematics", "English"];
@@ -94,7 +95,7 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
       toast({ title: `Challenge sent to ${opponent.full_name.split(" ")[0]}!`, description: "Jump in — your battle is live." });
       nav(`/student/battleground/battle/${id}`);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Could not send challenge";
+      const msg = toErrorMessage(e, "Could not send challenge");
       toast({
         title: isEmptyQuestionBankError(msg) ? NO_BANK_MSG : msg,
         description: isEmptyQuestionBankError(msg)

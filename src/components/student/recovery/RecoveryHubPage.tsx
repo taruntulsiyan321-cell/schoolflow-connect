@@ -21,6 +21,7 @@ import {
 import { displayConcept, displaySubject } from "@/lib/academicPresentation";
 import "./recovery-hub.css";
 import "../dashboard/student-dashboard.css";
+import { toDisplayText } from "@/lib/presentation";
 
 export type RecoveryPriority = {
   rank: number;
@@ -233,7 +234,7 @@ export function RecoveryHubPage({
               <div className="grid grid-cols-3 gap-4 sm:gap-6 text-center sm:text-left">
                 <MiniStat label="Accuracy" value={`${p.accuracy}%`} warn={p.accuracy < 50} />
                 <MiniStat label="Mastery" value={`${p.mastery}%`} />
-                <MiniStat label="Questions" value={String(p.questionsAssigned)} />
+                <MiniStat label="Questions" value={toDisplayText(p.questionsAssigned)} />
               </div>
             </div>
           ))}

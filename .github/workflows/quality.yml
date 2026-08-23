@@ -17,6 +17,13 @@ jobs:
       - run: npm run quality:student-context
       - run: npm run quality:flow
       - run: npm run quality:guardrails
+      # Blocking gate from day one (2026-08-23). Unlike lint:tenant-scope
+      # below, this one was driven to zero findings in the same pass that
+      # introduced it: every hit was either fixed by routing the value through
+      # @/lib/presentation, or given an ALLOWLIST entry with a specific,
+      # checkable reason. It stays meaningful only while that stays true --
+      # a new finding means a raw internal value can reach the screen again.
+      - run: npm run lint:render-safety
       # tsc is a hard gate: the baseline was cleaned to zero errors on
       # 2026-08-21 specifically so this could be turned on for real.
       - run: npx tsc --noEmit -p tsconfig.app.json

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import "@/components/student/dashboard/student-dashboard.css";
+import { toErrorMessage } from "@/lib/presentation";
 
 const typeColors: Record<string, string> = {
   class_test: "bg-blue-500/10 text-blue-700 border-blue-500/25",
@@ -76,7 +77,7 @@ export default function StudentExamsResultsPage() {
         setError("Could not load exams");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load exams");
+      setError(toErrorMessage(e, "Could not load exams"));
       setExams([]);
       setMarks([]);
     } finally {

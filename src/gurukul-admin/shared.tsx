@@ -2,6 +2,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { toast } from "sonner";
+import { toDisplayText } from "@/lib/presentation";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -208,7 +209,7 @@ export function exportCSV(filename: string, rows: Record<string, unknown>[]) {
     return;
   }
   const headers = Object.keys(rows[0]);
-  const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => JSON.stringify(r[h] ?? "")).join(","))].join("\n");
+  const csv = [headers.join(","), ...rows.map((r) => headers.map((h) => JSON.stringify(toDisplayText(r[h], { allowEmpty: true, fallback: "" }))).join(","))].join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

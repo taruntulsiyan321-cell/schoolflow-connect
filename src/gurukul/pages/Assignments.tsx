@@ -7,6 +7,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { displaySubject, presentAcademicLabel } from "@/lib/academicPresentation";
 import { GlassCard, SectionLabel, SubjectBadge, subjectColor } from "@/gurukul/components/shared";
 import { AttachmentComposer, AttachmentList } from "@/gurukul-teacher/AttachmentUI";
+import { toErrorMessage } from "@/lib/presentation";
 
 function subjectAccent(raw: string): string {
   const label = displaySubject(raw) || raw;
@@ -53,7 +54,7 @@ export default function Assignments() {
           loadedRef.current = true;
         }
       } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Failed to load assignments");
+        if (!cancelled) setLoadError(toErrorMessage(e, "Failed to load assignments"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -111,7 +112,7 @@ export default function Assignments() {
       setAttachments([]);
       await reload();
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : "Submit failed");
+      setActionError(toErrorMessage(e, "Submit failed"));
     } finally {
       setSaving(false);
     }

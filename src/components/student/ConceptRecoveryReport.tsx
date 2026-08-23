@@ -13,6 +13,7 @@ import {
 import { AlertTriangle, CheckCircle2, Loader2, Sparkles, Target, Timer } from "lucide-react";
 import { displayConcept } from "@/lib/academicDisplay";
 import "@/components/student/analytics/wisdom/wisdom-analytics.css";
+import { toAiLine } from "@/lib/presentation";
 
 type Props = {
   sourceType: "dpp_attempt" | "battle_participant" | "practice_session" | "recovery_assignment";
@@ -222,15 +223,15 @@ export function ConceptRecoveryReport({
 
       {insights && (
         <div className="wa-insight-panel p-4 rounded-2xl mb-4">
-          <p className="font-medium text-sm">{insights.headline}</p>
+          <p className="font-medium text-sm">{toAiLine(insights.headline)}</p>
           <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc pl-4">
-            {insights.bullets.map((b, i) => <li key={i}>{b}</li>)}
+            {insights.bullets.map((b, i) => <li key={i}>{toAiLine(b)}</li>)}
           </ul>
           {insights.next_steps.length > 0 && (
             <>
               <p className="text-xs font-medium mt-3 mb-1">Next steps</p>
               <ul className="text-sm text-muted-foreground space-y-1 list-decimal pl-4">
-                {insights.next_steps.map((s, i) => <li key={i}>{s}</li>)}
+                {insights.next_steps.map((s, i) => <li key={i}>{toAiLine(s)}</li>)}
               </ul>
             </>
           )}

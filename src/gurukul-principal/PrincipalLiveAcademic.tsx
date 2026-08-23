@@ -15,6 +15,7 @@ import {
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { localDateKey } from "@/lib/localDate";
+import { toEnumLabel, toErrorMessage, toPersonName } from "@/lib/presentation";
 
 /**
  * Principal live academic panels — sourced from the Academic Engine only.
@@ -95,7 +96,7 @@ export function PrincipalSchoolOverview() {
         setSchool(s);
         setToday(d);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load school overview");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load school overview"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -190,7 +191,7 @@ export function PrincipalClassRollups() {
         const data = await AnalyticsService.classRollups(ctx);
         if (!cancelled) setRows(data);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load class rollups");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load class rollups"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -339,7 +340,7 @@ export function PrincipalStudentRankings() {
         }
         const toRanked = (p: StudentAcademicProfile): RankedStudent => ({
           studentId: p.studentId,
-          fullName: names.get(p.studentId)?.fullName ?? p.studentId.slice(0, 8),
+          fullName: toPersonName(names.get(p.studentId)?.fullName, { kind: "student" }),
           classLabel: names.get(p.studentId)?.classLabel ?? "—",
           examsAvgPct: p.examsAvgPct,
           attendancePct: p.attendancePct,
@@ -352,7 +353,7 @@ export function PrincipalStudentRankings() {
           setHasAnyRows(ids.length > 0);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load rankings");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load rankings"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -458,7 +459,7 @@ export function PrincipalAttendanceLive() {
         const data = await AttendanceService.summarizeSchoolDate(ctx, date);
         if (!cancelled) setSummary(data);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load attendance");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load attendance"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -609,7 +610,7 @@ export function PrincipalTeachersLive() {
         );
         if (!cancelled) setRows(enriched);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load teachers");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load teachers"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -684,7 +685,7 @@ export function PrincipalTeachersLive() {
                   <td style={{ padding: "12px 16px", fontSize: 12 }} className="font-mono-data">
                     {t.classCount ? `${Math.round(t.avgTestsPct)}%` : "-"}
                   </td>
-                  <td style={{ padding: "12px 16px", fontSize: 11, textTransform: "capitalize", color: "var(--text-muted)" }}>{t.status}</td>
+                  <td style={{ padding: "12px 16px", fontSize: 11, color: "var(--text-muted)" }}>{toEnumLabel(t.status, "severity")}</td>
                 </tr>
               ))}
             </tbody>
@@ -724,7 +725,7 @@ export function PrincipalHomeworkLive() {
           setError(null);
         }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load homework analytics");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load homework analytics"));
       } finally {
         if (!cancelled) setLoading(false);
       }

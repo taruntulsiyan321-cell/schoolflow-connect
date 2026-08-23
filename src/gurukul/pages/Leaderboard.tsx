@@ -4,6 +4,7 @@ import { ProgressionService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { useAuth } from "@/hooks/useAuth";
 import { GlassCard, SectionLabel, ProgressBar, cn } from "@/gurukul/components/shared";
+import { toErrorMessage, toPersonName } from "@/lib/presentation";
 
 type LbRow = {
   userId: string;
@@ -48,7 +49,7 @@ export default function Leaderboard() {
         setRows(
           lb.rows.map((r) => ({
             userId: r.user_id,
-            name: r.name || r.user_id.slice(0, 8),
+            name: toPersonName(r.name, { kind: "student" }),
             value: Number(r.value) || 0,
             level: Number(r.level) || 1,
             league: r.league || "bronze",
@@ -59,7 +60,7 @@ export default function Leaderboard() {
       } catch (e) {
         if (!cancelled) {
           setRows([]);
-          setError(e instanceof Error ? e.message : "Failed to load rankings");
+          setError(toErrorMessage(e, "Failed to load rankings"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -85,7 +86,7 @@ export default function Leaderboard() {
           setRows(
             lb.rows.map((r) => ({
               userId: r.user_id,
-              name: r.name || r.user_id.slice(0, 8),
+              name: toPersonName(r.name, { kind: "student" }),
               value: Number(r.value) || 0,
               level: Number(r.level) || 1,
               league: r.league || "bronze",

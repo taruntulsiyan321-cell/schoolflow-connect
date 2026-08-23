@@ -10,6 +10,7 @@ import { PageHeader, StatCard } from "@/components/ui-bits";
 
 import { Activity, ClipboardCheck, Target, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { displayConcept, displaySubject } from "@/lib/academicDisplay";
+import { toDisplayText } from "@/lib/presentation";
 
 
 
@@ -174,7 +175,7 @@ export default function SchoolEngagement() {
           <h3 className="font-semibold mb-3 mt-6">School-wide concept health</h3>
           <div className="grid sm:grid-cols-2 gap-4 mb-4">
             <StatCard icon={<Target className="w-5 h-5" />} label="Recovery rate" value={`${concepts.recovery_rate ?? 0}%`} />
-            <StatCard icon={<Activity className="w-5 h-5" />} label="Recovery participation (30d)" value={String(concepts.recovery_participation ?? 0)} />
+            <StatCard icon={<Activity className="w-5 h-5" />} label="Recovery participation (30d)" value={toDisplayText(concepts.recovery_participation ?? 0)} />
           </div>
           <Card className="p-4 shadow-card mb-4">
             <h4 className="font-semibold mb-2">Weakest concepts (school-wide)</h4>

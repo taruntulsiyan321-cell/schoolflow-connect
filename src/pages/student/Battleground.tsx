@@ -24,6 +24,7 @@ import { useAcademicContext, BattleExperienceService, resolveStudentServiceConte
 import { StudentAnalyticsSkeleton, StudentDashboardSkeleton, StudentSessionSkeleton } from "@/components/student/StudentPanelStates";
 import { MathText } from "@/components/MathText";
 import { displaySubject, displayTopic } from "@/lib/academicDisplay";
+import { toErrorMessage } from "@/lib/presentation";
 
 const BG_BASE = "/student/battleground";
 
@@ -193,7 +194,7 @@ export function BattleRoom() {
             pid = await BattleExperienceService.joinById(joinCtx, id);
           } catch (joinErr) {
             toast({
-              title: joinErr instanceof Error ? joinErr.message : "Could not join battle",
+              title: toErrorMessage(joinErr, "Could not join battle"),
               variant: "destructive",
             });
             return;
@@ -333,7 +334,7 @@ export function BattleRoom() {
           timeMs: elapsed,
         });
       } catch (rpcErr) {
-        const msg = rpcErr instanceof Error ? rpcErr.message : "";
+        const msg = toErrorMessage(rpcErr, "");
         if (msg !== "BATTLE_SUBMIT_RPC_MISSING") throw rpcErr;
         // Fallback for when rpc_submit_battle_answer is unreachable. This branch
         // deliberately does NOT attempt to grade the answer: battle_questions.correct_index
@@ -391,7 +392,7 @@ export function BattleRoom() {
       answeredQRef.current.delete(currentQ.id);
       answeringRef.current = false;
       setAnswerSyncFailed(true);
-      const msg = writeErr instanceof Error ? writeErr.message : "Network sync had a problem";
+      const msg = toErrorMessage(writeErr, "Network sync had a problem");
       toast({
         title: "Could not save answer â€” retry before continuing",
         description: msg,
@@ -454,7 +455,7 @@ export function BattleRoom() {
             .maybeSingle();
           if (!fresh?.finished_at) {
             toast({
-              title: finishErr instanceof Error ? finishErr.message : "Could not finish battle",
+              title: toErrorMessage(finishErr, "Could not finish battle"),
               variant: "destructive",
             });
             return;

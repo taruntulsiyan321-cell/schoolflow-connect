@@ -9,6 +9,7 @@ import { QuestionRenderer, DppQuestion, Response } from "@/components/dpp/Questi
 import { toast } from "sonner";
 import { StudentSessionSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { displaySubject } from "@/lib/academicPresentation";
+import { toErrorMessage } from "@/lib/presentation";
 
 export default function DppAttempt() {
   const { id } = useParams<{ id: string }>();
@@ -93,7 +94,7 @@ export default function DppAttempt() {
       });
       setResponses(m);
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Could not start test");
+      setLoadError(toErrorMessage(e, "Could not start test"));
     } finally {
       setLoading(false);
     }
@@ -145,7 +146,7 @@ export default function DppAttempt() {
           response: r as Record<string, unknown>,
         });
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not save answer");
+        toast.error(toErrorMessage(e, "Could not save answer"));
       }
     });
     saveChainRef.current[qid] = chained;
@@ -159,7 +160,7 @@ export default function DppAttempt() {
       await TestService.submitAttempt(serviceCtx, attemptId);
       nav(`/student/dpp/${id}/result`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not submit test");
+      toast.error(toErrorMessage(e, "Could not submit test"));
     } finally {
       setSubmitting(false);
     }

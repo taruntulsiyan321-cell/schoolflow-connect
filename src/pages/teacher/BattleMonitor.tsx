@@ -10,6 +10,7 @@ import {
   Zap, CheckCircle2, Radio, Flag, BarChart3, Loader2, FileBarChart, Sparkles,
 } from "lucide-react";
 import { useAcademicContext, BattleExperienceService } from "@/academic";
+import { toErrorMessage } from "@/lib/presentation";
 
 type Participant = {
   user_id: string; display_name: string; score: number;
@@ -64,7 +65,7 @@ export default function BattleMonitor() {
         /* reports optional while monitor is live */
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load monitor");
+      setError(toErrorMessage(e, "Failed to load monitor"));
       setLoading(false);
     }
   }, [id, academicReady, ctx]);
@@ -109,7 +110,7 @@ export default function BattleMonitor() {
       refresh();
     } catch (e) {
       toast({
-        title: e instanceof Error ? e.message : "Failed to end battle",
+        title: toErrorMessage(e, "Failed to end battle"),
         variant: "destructive",
       });
     } finally {

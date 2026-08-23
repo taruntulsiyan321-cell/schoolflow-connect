@@ -6,6 +6,7 @@ import { displaySubject } from "@/lib/academicPresentation";
 import { GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { ChevronLeft, ChevronRight, CalendarDays, BookOpen, ClipboardList, AlertCircle, Star, Loader2 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
+import { toErrorMessage } from "@/lib/presentation";
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -150,7 +151,7 @@ export default function Calendar() {
           setCalendarEvents([]);
           toast({
             title: "Could not load calendar",
-            description: e instanceof Error ? e.message : "Unknown error",
+            description: toErrorMessage(e, "Unknown error"),
             variant: "destructive",
           });
         }

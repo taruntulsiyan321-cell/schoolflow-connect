@@ -17,6 +17,7 @@ import {
   practiceAccuracyFromSnapshot,
   studyActiveDaysFromSnapshot,
 } from "@/lib/learningMetrics";
+import { toDisplayText } from "@/lib/presentation";
 
 const barConfig = { accuracy: { label: "Accuracy %", color: "hsl(var(--primary))" } };
 const lineConfig = { total: { label: "Activity", color: "hsl(var(--accent))" } };
@@ -162,7 +163,7 @@ export default function AcademicReport() {
                     <tbody>
                       {(charts?.weekly_activity ?? []).map((row) => (
                         <tr key={row.date} className="border-b border-border/50">
-                          <td className="py-2 pr-4">{String(row.date).slice(5)}</td>
+                          <td className="py-2 pr-4">{toDisplayText(row.date, { fallback: "" }).slice(5)}</td>
                           <td className="py-2 pr-4 font-medium">{row.total}</td>
                           <td className="py-2 pr-4">{row.dpp}</td>
                           <td className="py-2 pr-4">{row.battles}</td>

@@ -15,6 +15,7 @@ import { normalizeIncomingAcademicTerm, presentAcademicLabel } from "@/lib/acade
 import { fixUtf8Content } from "@/lib/utf8Text";
 import { supabase } from "@/integrations/supabase/client";
 import "@/pages/teacher/teacher-premium.css";
+import { toErrorMessage } from "@/lib/presentation";
 
 const SUBJECTS = [
   "Mathematics",
@@ -80,7 +81,7 @@ export default function QuestionBankPage() {
       setSummary(rows);
       setTotal(rows.reduce((n, r) => n + r.count, 0));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not load question bank");
+      toast.error(toErrorMessage(e, "Could not load question bank"));
       setSummary([]);
       setTotal(0);
     }
@@ -114,7 +115,7 @@ export default function QuestionBankPage() {
       })));
       toast.success(`Generated ${arr.length} questions â€” review & save`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Question generation failed");
+      toast.error(toErrorMessage(e, "Question generation failed"));
     } finally {
       setBusy(false);
     }
@@ -144,7 +145,7 @@ export default function QuestionBankPage() {
       setDrafts([]);
       void loadSummary();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Save failed");
+      toast.error(toErrorMessage(e, "Save failed"));
     } finally {
       setSaving(false);
     }
@@ -172,7 +173,7 @@ export default function QuestionBankPage() {
       setCsv("");
       void loadSummary();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Import failed");
+      toast.error(toErrorMessage(e, "Import failed"));
     } finally {
       setCsvBusy(false);
     }

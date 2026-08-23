@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Megaphone, Plus, Edit2, Trash2, X, Save, Clock, Check, Paperclip, Calendar,
 } from "lucide-react";
@@ -12,6 +12,7 @@ import {
   type AnnouncementPriority,
   type AnnouncementStatus,
 } from "@/academic";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 const priorityColor = { normal: "#78788c", important: "#f59e0b", urgent: "#cc5069" };
 const statusColor = { draft: "#46465a", published: "#10b981", scheduled: "#6366f1" };
@@ -168,7 +169,7 @@ export default function Announcements() {
         if (!cancelled) {
           setClasses([]);
           setItems([]);
-          setError(e instanceof Error ? e.message : "Could not load announcements");
+          setError(toErrorMessage(e, "Could not load announcements"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -193,7 +194,7 @@ export default function Announcements() {
       setCreating(false);
       showFlash(form.status === "published" ? "Announcement published" : form.status === "scheduled" ? "Announcement scheduled" : "Draft saved");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save announcement");
+      setError(toErrorMessage(e, "Could not save announcement"));
     } finally {
       setSaving(false);
     }
@@ -215,7 +216,7 @@ export default function Announcements() {
       setEditingId(null);
       showFlash("Announcement updated");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not update announcement");
+      setError(toErrorMessage(e, "Could not update announcement"));
     } finally {
       setSaving(false);
     }
@@ -229,7 +230,7 @@ export default function Announcements() {
       await reload(classes);
       showFlash("Announcement deleted");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not delete announcement");
+      setError(toErrorMessage(e, "Could not delete announcement"));
     }
   }
 
@@ -279,8 +280,8 @@ export default function Announcements() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="text-sm font-bold text-foreground">{a.title}</div>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: `${statusColor[a.status]}18`, color: statusColor[a.status] }}>{a.status}</span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: `${priorityColor[a.priority]}18`, color: priorityColor[a.priority] }}>{a.priority}</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: `${statusColor[a.status]}18`, color: statusColor[a.status] }}>{toEnumLabel(a.status, "announcement_status")}</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: `${priorityColor[a.priority]}18`, color: priorityColor[a.priority] }}>{toEnumLabel(a.priority, "announcement_priority")}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
                         <span>{a.targetClass} {a.targetSection}</span>

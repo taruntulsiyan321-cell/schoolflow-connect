@@ -20,6 +20,7 @@ import {
   AttendanceService,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { humanizeEnumValue, toDisplayText } from "@/lib/presentation";
 
 type TabKey =
   | "financial"
@@ -599,13 +600,13 @@ function SimpleTable({ rows }: { rows: any[] }) {
       <table className="w-full text-sm">
         <thead className="sticky top-0 z-10">
           <tr className="bg-muted/80 backdrop-blur text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-            {cols.map(c => <th key={c} className="px-5 py-2.5 font-semibold whitespace-nowrap">{c.replace(/_/g, " ")}</th>)}
+            {cols.map(c => <th key={c} className="px-5 py-2.5 font-semibold whitespace-nowrap">{humanizeEnumValue(c)}</th>)}
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={i} className={`border-t border-border/60 transition-colors hover:bg-primary/5 ${i % 2 ? "bg-muted/20" : ""}`}>
-              {cols.map(c => <td key={c} className="px-5 py-2.5 truncate max-w-[240px]">{String(r[c] ?? "")}</td>)}
+              {cols.map(c => <td key={c} className="px-5 py-2.5 truncate max-w-[240px]">{toDisplayText(r[c], { allowEmpty: true, fallback: "—" })}</td>)}
             </tr>
           ))}
         </tbody>

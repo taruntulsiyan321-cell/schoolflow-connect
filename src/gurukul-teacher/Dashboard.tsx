@@ -25,6 +25,7 @@ import {
   useAcademicLive,
 } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toErrorMessage } from "@/lib/presentation";
 
 export type TeacherClassTab =
   | "students"
@@ -291,7 +292,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
         );
         loadedRef.current = true;
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load dashboard");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load dashboard"));
       } finally {
         if (!cancelled) setLoading(false);
       }

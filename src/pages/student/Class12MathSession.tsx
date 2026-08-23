@@ -21,6 +21,7 @@ import {
   recordPracticeAttemptBestEffort,
   type PracticeAttemptSnapshot,
 } from "@/lib/practiceSessionPersistence";
+import { toErrorMessage } from "@/lib/presentation";
 
 type SessionItem = {
   template: QuestionTemplateRow;
@@ -75,7 +76,7 @@ export default function Class12MathSession() {
           _count: count,
         });
         if (sErr) {
-          setLoadError(sErr.message || (startErr instanceof Error ? startErr.message : "Could not start session"));
+          setLoadError(sErr.message || (toErrorMessage(startErr, "Could not start session")));
           setLoading(false);
           return;
         }

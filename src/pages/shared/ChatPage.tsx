@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { NewChatSheet } from "@/components/chat/NewChatSheet";
 import { CHAT_FILE_ACCEPT } from "@/academic/storage/chatFileUpload";
 import "@/components/chat/chat-panel.css";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 /** Role chip colors â€” Gurukul dark surfaces (same palette as teacher Communication). */
 const roleColors: Record<string, string> = {
@@ -81,7 +82,7 @@ function RoleChip({ role }: { role: string }) {
         roleColors[role] || "bg-white/5 text-muted-foreground border-border",
       )}
     >
-      {role.replace(/_/g, " ")}
+      {toEnumLabel(role, "app_role")}
     </span>
   );
 }
@@ -183,7 +184,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         if (!cancelled) {
           setContacts([]);
           setCanCreateGroup(false);
-          toast.error(e instanceof Error ? e.message : "Could not load contacts");
+          toast.error(toErrorMessage(e, "Could not load contacts"));
         }
       } finally {
         if (!cancelled) {
@@ -213,7 +214,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
           prev.map((c) => (contactKey(c) === contactKey(selectedContact) ? { ...c, unread: 0 } : c)),
         );
       } catch (e) {
-        if (!cancelled) toast.error(e instanceof Error ? e.message : "Could not load messages");
+        if (!cancelled) toast.error(toErrorMessage(e, "Could not load messages"));
       }
     })();
     return () => {
@@ -334,7 +335,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       setSearch("");
       setShowNewChat(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not open chat");
+      toast.error(toErrorMessage(e, "Could not open chat"));
     } finally {
       setStartingChat(false);
     }
@@ -354,7 +355,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       setShowEmoji(false);
       applySentToContact(data, selectedContact, previewOf(data));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to send message");
+      toast.error(toErrorMessage(e, "Failed to send message"));
     } finally {
       setSending(false);
     }
@@ -376,7 +377,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       setReplyTo(null);
       applySentToContact(data, selectedContact, previewOf(data));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to send file");
+      toast.error(toErrorMessage(e, "Failed to send file"));
     } finally {
       setSending(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -395,7 +396,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
         ),
       );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete message");
+      toast.error(toErrorMessage(e, "Failed to delete message"));
     }
   };
 
@@ -408,7 +409,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       setSelectedContact(group);
       toast.success("Teacher Group ready");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not create Teacher Group");
+      toast.error(toErrorMessage(e, "Could not create Teacher Group"));
     } finally {
       setCreatingGroup(false);
     }
@@ -423,7 +424,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
       setSelectedContact(group);
       toast.success("Class Group ready");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not create Class Group");
+      toast.error(toErrorMessage(e, "Could not create Class Group"));
     } finally {
       setCreatingGroup(false);
     }

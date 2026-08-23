@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, Bell, MessageSquare, User,
@@ -26,6 +26,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { MessageService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
+import { toErrorMessage } from "@/lib/presentation";
 
 export type { ParentPageKey } from "./nav";
 
@@ -197,6 +198,7 @@ function Sidebar({
                     "w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left transition-all duration-150 mb-0.5",
                     collapsed && !mobile && "justify-center px-2",
                     active
+                    active
                       ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent",
                   )}
@@ -288,7 +290,7 @@ export default function ParentApp() {
       .catch((e) => {
         if (!cancelled) {
           setUnreadMsg(0);
-          toast.error(e instanceof Error ? e.message : "Could not load unread messages");
+          toast.error(toErrorMessage(e, "Could not load unread messages"));
         }
       });
     return () => {

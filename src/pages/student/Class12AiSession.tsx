@@ -18,6 +18,7 @@ import {
   type PracticeAttemptSnapshot,
 } from "@/lib/practiceSessionPersistence";
 import { loadMath12TemplatePractice } from "@/lib/templatePracticeLoader";
+import { toErrorMessage } from "@/lib/presentation";
 
 type AiQuestion = {
   id: string;
@@ -88,7 +89,7 @@ export default function Class12AiSession() {
           _count: count,
         });
         if (sErr) {
-          setLoadError(sErr.message || (startErr instanceof Error ? startErr.message : "Could not start session"));
+          setLoadError(sErr.message || (toErrorMessage(startErr, "Could not start session")));
           setLoading(false);
           return;
         }

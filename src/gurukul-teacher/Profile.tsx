@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useTeacherIdentity, teacherInitials } from "./useTeacherIdentity";
 import type { TeacherProfile } from "./data";
+import { toErrorMessage } from "@/lib/presentation";
 
 function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -152,7 +153,7 @@ export default function TeacherProfile() {
       showFlash("Profile updated successfully");
       toast.success("Profile updated");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save profile");
+      toast.error(toErrorMessage(e, "Could not save profile"));
     } finally {
       setSaving(false);
     }
@@ -169,7 +170,7 @@ export default function TeacherProfile() {
       showFlash("Password changed successfully");
       toast.success("Password updated");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not change password");
+      toast.error(toErrorMessage(e, "Could not change password"));
     } finally {
       setPwdSaving(false);
     }

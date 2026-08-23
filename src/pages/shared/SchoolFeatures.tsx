@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { classLabel } from "@/lib/utils";
+import { toErrorMessage } from "@/lib/presentation";
 
 /* ============================================================
    USERS DIRECTORY (admin)
@@ -151,7 +152,7 @@ export function AttendanceOverview() {
       setSummary(day);
       setSchoolAvg(Math.round(school.avgAttendancePct));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to load attendance");
+      toast.error(toErrorMessage(e, "Failed to load attendance"));
     } finally {
       setLoading(false);
     }
@@ -189,7 +190,7 @@ export function AttendanceOverview() {
       setEditMarks(m);
       setEditClass(c);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to open editor");
+      toast.error(toErrorMessage(e, "Failed to open editor"));
     }
   };
 
@@ -212,7 +213,7 @@ export function AttendanceOverview() {
       setEditClass(null);
       await reload();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save attendance");
+      toast.error(toErrorMessage(err, "Failed to save attendance"));
     }
   };
 

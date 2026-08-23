@@ -11,6 +11,7 @@ import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumSc
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
 import { BattleExperienceService, PracticeService, useAcademicContext } from "@/academic";
 import { displaySubject } from "@/lib/academicDisplay";
+import { toErrorMessage } from "@/lib/presentation";
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
 const FALLBACK = ["Mathematics", "English"];
@@ -70,7 +71,7 @@ export function QuickPlay({ defaultClassId }: { defaultClassId?: string | null }
       toast({ title: "Quick battle ready!" });
       nav(`/student/battleground/battle/${id}`);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Could not start battle";
+      const msg = toErrorMessage(e, "Could not start battle");
       toast({
         title: isEmptyQuestionBankError(msg) ? NO_BANK_MSG : msg,
         description: isEmptyQuestionBankError(msg)

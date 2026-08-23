@@ -32,6 +32,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import { toErrorMessage } from "@/lib/presentation";
 
 type Klass = { id: string; name: string; section: string; academic_year: string | null };
 type Student = { id: string; full_name: string; roll_number: string | null; admission_number: string };
@@ -139,7 +140,7 @@ export default function PrincipalClassDetail() {
         }
       } catch (e) {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : "Failed to load class");
+          setError(toErrorMessage(e, "Failed to load class"));
         }
       } finally {
         if (!cancelled) setLoading(false);

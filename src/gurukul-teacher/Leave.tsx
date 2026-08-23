@@ -1,8 +1,9 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Calendar, Check, Clock, X, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { LeaveService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { toast } from "sonner";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 const statusColor = { pending: "#f59e0b", approved: "#10b981", rejected: "#cc5069" };
 const statusIcon = {
@@ -79,8 +80,8 @@ export default function Leave() {
       } catch (e) {
         if (!cancelled) {
           setRequests([]);
-          setError(e instanceof Error ? e.message : "Could not load leave requests");
-          toast.error(e instanceof Error ? e.message : "Could not load leave requests");
+          setError(toErrorMessage(e, "Could not load leave requests"));
+          toast.error(toErrorMessage(e, "Could not load leave requests"));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -120,7 +121,7 @@ export default function Leave() {
       showFlash("Leave application submitted successfully");
       toast.success("Leave application submitted");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not submit leave");
+      toast.error(toErrorMessage(e, "Could not submit leave"));
     } finally {
       setSaving(false);
     }
@@ -261,12 +262,12 @@ export default function Leave() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="text-xs font-bold text-foreground capitalize">{r.leaveType} Leave</div>
+                  <div className="text-xs font-bold text-foreground">{toEnumLabel(r.leaveType, "leave_type")}</div>
                   <span
-                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize"
+                    className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
                     style={{ background: `${statusColor[r.status]}18`, color: statusColor[r.status] }}
                   >
-                    {r.status}
+                    {toEnumLabel(r.status, "leave_status")}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">

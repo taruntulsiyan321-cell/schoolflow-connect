@@ -8,6 +8,7 @@ import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { normalizePhone } from "@/lib/phone";
+import { toErrorMessage } from "@/lib/presentation";
 
 type LinkedStudent = {
   id: string;
@@ -117,7 +118,7 @@ function ParentForm({
       onSaved();
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save parent");
+      toast.error(toErrorMessage(e, "Failed to save parent"));
     } finally {
       setSaving(false);
     }
@@ -392,7 +393,7 @@ export default function ParentManagement() {
       );
     } catch (e) {
       setParents([]);
-      setError(e instanceof Error ? e.message : "Failed to load parents");
+      setError(toErrorMessage(e, "Failed to load parents"));
     } finally {
       setLoading(false);
     }
@@ -440,7 +441,7 @@ export default function ParentManagement() {
       setPage((p) => Math.min(p, newTotalPages));
       await load();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Delete failed");
+      toast.error(toErrorMessage(e, "Delete failed"));
     } finally {
       setDeleting(false);
     }

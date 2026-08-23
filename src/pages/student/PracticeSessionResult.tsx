@@ -26,6 +26,7 @@ import {
 import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
 import { displayChapter, displaySubject } from "@/lib/academicPresentation";
 import { setNovaQuestionContext } from "@/gurukul/novaQuestionContext";
+import { toErrorMessage } from "@/lib/presentation";
 
 function readLocalState(id: string): PracticeSessionResultState | null {
   try {
@@ -252,7 +253,7 @@ export default function PracticeSessionResult() {
         if (rows?.length) setAttempts(rows as AttemptRow[]);
         setDbLoading(false);
       } catch (e) {
-        setLoadError(e instanceof Error ? e.message : "Could not load session");
+        setLoadError(toErrorMessage(e, "Could not load session"));
         setDbLoading(false);
       }
     })();
@@ -310,7 +311,7 @@ export default function PracticeSessionResult() {
       if (res.already_saved) toast.message("Session already saved");
       else toast.success("Session saved — find it under Saved Sessions");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save session");
+      toast.error(toErrorMessage(e, "Could not save session"));
     } finally {
       setSaving(false);
     }

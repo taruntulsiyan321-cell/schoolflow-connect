@@ -27,6 +27,7 @@ import {
   ListChecks,
 } from "lucide-react";
 import "./recovery-completion.css";
+import { toAiLine } from "@/lib/presentation";
 
 type Props = {
   report: RecoveryCompletionReport;
@@ -337,17 +338,17 @@ export function RecoveryCompletionReportView({ report }: Props) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Academic coach</p>
-              <h3 className="font-['Sora'] text-lg sm:text-xl font-semibold mt-1 leading-snug">{r.coach.headline}</h3>
+              <h3 className="font-['Sora'] text-lg sm:text-xl font-semibold mt-1 leading-snug">{toAiLine(r.coach.headline)}</h3>
               <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
                 {r.coach.bullets.map((b, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <Zap className="w-4 h-4 text-[#e8c468] shrink-0 mt-0.5" />
-                    {b}
+                    {toAiLine(b)}
                   </li>
                 ))}
               </ul>
               <p className="mt-4 text-sm font-medium text-foreground bg-emerald-500/10 rounded-xl px-4 py-3 border border-emerald-500/15">
-                {r.coach.focusNext}
+                {toAiLine(r.coach.focusNext)}
               </p>
             </div>
           </div>

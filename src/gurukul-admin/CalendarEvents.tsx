@@ -11,6 +11,7 @@ import { useAcademicLive } from "@/academic";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "./shared";
 import { toast } from "sonner";
+import { toErrorMessage } from "@/lib/presentation";
 
 const EVENT_TYPES: { value: CalendarEventType; label: string }[] = [
   { value: "holiday", label: "Holiday" },
@@ -74,7 +75,7 @@ export default function CalendarEventsPage() {
       setError(null);
     } catch (e) {
       setEvents([]);
-      setError(e instanceof Error ? e.message : "Failed to load calendar events");
+      setError(toErrorMessage(e, "Failed to load calendar events"));
     } finally {
       setLoading(false);
     }
@@ -156,7 +157,7 @@ export default function CalendarEventsPage() {
       setShowForm(false);
       await reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to save event");
+      toast.error(toErrorMessage(e, "Failed to save event"));
     } finally {
       setSaving(false);
     }
@@ -169,7 +170,7 @@ export default function CalendarEventsPage() {
       toast.success("Event removed");
       await reload();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to remove event");
+      toast.error(toErrorMessage(e, "Failed to remove event"));
     }
   }
 

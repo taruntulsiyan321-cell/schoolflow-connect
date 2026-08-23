@@ -317,8 +317,15 @@ export default function StudentDashboard() {
           <Route path="practice/math12/session" element={<Class12MathSession />} />
           <Route path="practice/ai/session" element={<Class12AiSession />} />
           <Route path="practice/session/:id/result" element={<PracticeSessionResult />} />
-          {/* Internal debug tool, Decision Engine Slice 1 -- not linked from any nav */}
-          <Route path="_debug/weak-areas-v2" element={<WeakAreasV2Debug />} />
+          {/*
+            Internal debug tool, Decision Engine Slice 1. Not linked from any
+            nav — but "unlinked" is not "unreachable": any signed-in student
+            could open /student/_debug/weak-areas-v2 directly and read a raw
+            JSON dump of the RPC payload. Mounted in development only.
+          */}
+          {import.meta.env.DEV && (
+            <Route path="_debug/weak-areas-v2" element={<WeakAreasV2Debug />} />
+          )}
           <Route path="dpp" element={<Navigate to="/student/tests" replace />} />
           <Route path="dpp/:id/attempt" element={<DppAttempt />} />
           <Route path="dpp/:id/result" element={<DppResult />} />

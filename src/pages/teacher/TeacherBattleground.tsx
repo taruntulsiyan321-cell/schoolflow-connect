@@ -17,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Sword, Radio, Zap, Loader2, Target, Users, Clock, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import "./teacher-premium.css";
+import { toErrorMessage } from "@/lib/presentation";
 
 type ClassOption = { id: string; label: string };
 
@@ -75,7 +76,7 @@ export default function TeacherBattleground() {
           setClasses([]);
           setBattles([]);
           toast({
-            title: e instanceof Error ? e.message : "Could not load battleground",
+            title: toErrorMessage(e, "Could not load battleground"),
             variant: "destructive",
           });
         }
@@ -123,7 +124,7 @@ export default function TeacherBattleground() {
       nav(`/teacher/battleground/monitor/${created.id}`);
     } catch (e) {
       toast({
-        title: e instanceof Error ? e.message : "Could not publish battle",
+        title: toErrorMessage(e, "Could not publish battle"),
         variant: "destructive",
       });
     } finally {
@@ -154,7 +155,7 @@ export default function TeacherBattleground() {
       nav(`/teacher/battleground/monitor/${created.id}`);
     } catch (e) {
       toast({
-        title: e instanceof Error ? e.message : "Could not publish battle",
+        title: toErrorMessage(e, "Could not publish battle"),
         variant: "destructive",
       });
     } finally {

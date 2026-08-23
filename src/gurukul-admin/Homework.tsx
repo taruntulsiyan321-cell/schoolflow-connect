@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { AnalyticsService, HomeworkService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 /**
  * Admin Homework monitor — HomeworkService + AnalyticsService only.
@@ -33,7 +34,7 @@ export default function HomeworkAdmin() {
         setItems(list);
         setError(null);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load homework");
+        if (!cancelled) setError(toErrorMessage(e, "Failed to load homework"));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -113,9 +114,9 @@ export default function HomeworkAdmin() {
               <tr key={h.id} className="border-b border-[#f0f1f3]">
                 <td className="p-3 font-medium">{h.title}</td>
                 <td className="p-3 text-muted-foreground">{h.subject}</td>
-                <td className="p-3 capitalize">{h.status}</td>
+                <td className="p-3">{toEnumLabel(h.status, "homework_status")}</td>
                 <td className="p-3 tabular-nums">{h.dueDate ?? "—"}</td>
-                <td className="p-3 capitalize">{h.priority}</td>
+                <td className="p-3">{toEnumLabel(h.priority, "homework_priority")}</td>
               </tr>
             ))}
           </tbody>

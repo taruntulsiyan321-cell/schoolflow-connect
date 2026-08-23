@@ -12,6 +12,7 @@ import {
 } from "./LiveClassPanels";
 import { AttendanceService, type AssignedClass } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toErrorMessage } from "@/lib/presentation";
 
 type SubTab =
   | "students"
@@ -171,7 +172,7 @@ export default function MyClasses() {
         });
       } catch (e) {
         if (!cancelled) {
-          setClassError(e instanceof Error ? e.message : "Failed to load assigned classes");
+          setClassError(toErrorMessage(e, "Failed to load assigned classes"));
           setLiveClasses([]);
           setSelectedClass(null);
         }

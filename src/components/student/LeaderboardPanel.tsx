@@ -13,6 +13,7 @@ import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumSc
 import { getNcertSubjects } from "@/lib/ncertSyllabus";
 import { PracticeService, ProgressionService, useAcademicContext } from "@/academic";
 import { toast } from "sonner";
+import { toErrorMessage } from "@/lib/presentation";
 
 type Scope = "class" | "school";
 type Category =
@@ -150,7 +151,7 @@ export function LeaderboardPanel({ embedded = false }: Props) {
         } catch (e) {
           if (!cancelled) {
             setRows([]);
-            toast.error(e instanceof Error ? e.message : "Could not load progression leaderboard");
+            toast.error(toErrorMessage(e, "Could not load progression leaderboard"));
             setLoading(false);
             return;
           }

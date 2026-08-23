@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/ui-bits";
 import { Check, X, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { toEnumLabel } from "@/lib/presentation";
 
 type Leave = {
   id: string; applicant_user_id: string; applicant_kind: "student" | "teacher";
@@ -126,7 +127,7 @@ export default function LeaveRequestsPage({ canReview = false, applicantKind }: 
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="outline" className="capitalize">{l.applicant_kind}</Badge>
                     <span className="font-medium capitalize">{l.leave_type}</span>
-                    <Badge variant="outline" className={STATUS_TONE[l.status]}>{l.status}</Badge>
+                    <Badge variant="outline" className={STATUS_TONE[l.status]}>{toEnumLabel(l.status, "leave_status")}</Badge>
                   </div>
                   <div className="text-sm text-muted-foreground mt-1">
                     {new Date(l.from_date).toLocaleDateString()} → {new Date(l.to_date).toLocaleDateString()}

@@ -4,6 +4,7 @@ import { Loader2, Search, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatContact } from "@/academic";
 import { MessageService } from "@/academic";
+import { toEnumLabel } from "@/lib/presentation";
 
 function isGroup(c: ChatContact) {
   return (
@@ -157,7 +158,7 @@ export function NewChatSheet({
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-bold truncate text-foreground">{c.name}</div>
                   <div className={cn("text-[10px] font-semibold capitalize mt-0.5", tone)}>
-                    {c.role.replace(/_/g, " ")}
+                    {toEnumLabel(c.role, "app_role")}
                   </div>
                 </div>
                 {pending ? <Loader2 className="w-4 h-4 animate-spin shrink-0 text-primary" /> : null}

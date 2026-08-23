@@ -12,6 +12,7 @@ import { ExplainPanel } from "@/components/learn/ExplainPanel";
 import { ConceptRecoveryReport } from "@/components/student/ConceptRecoveryReport";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { displayChapter, displaySubject, displayTopic } from "@/lib/academicPresentation";
+import { toDisplayText, toErrorMessage } from "@/lib/presentation";
 
 export default function DppResult() {
   const { id } = useParams<{ id: string }>();
@@ -52,7 +53,7 @@ export default function DppResult() {
         setAnswers({});
       }
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Could not load results");
+      setLoadError(toErrorMessage(e, "Could not load results"));
       setDpp(null);
       setAttempt(null);
     } finally {
@@ -139,7 +140,7 @@ export default function DppResult() {
           <ArrowLeft className="w-4 h-4" /> Tests
         </Link>
       </Button>
-      <PageHeader title={String(dpp.title ?? "Test")} subtitle={subtitleParts.join(" · ")} />
+      <PageHeader title={toDisplayText(dpp.title, { kind: "label", fallback: "Test" })} subtitle={subtitleParts.join(" · ")} />
 
       {attempt.id && (
         <ConceptRecoveryReport
@@ -215,8 +216,12 @@ export default function DppResult() {
               ? (q.correct as { correct_index: number }).correct_index
               : null;
           const selectedIdx = Array.isArray(resp.indexes) ? resp.indexes[0] ?? null : null;
+          // `q.correct` is untyped jsonb, so both branches go through the
+          // presentation boundary rather than String(), which would render an
+          // unexpected object shape as "[object Object]".
           const correctText =
-            q.correct?.text ?? (q.correct?.value !== undefined ? String(q.correct.value) : "");
+            toDisplayText(q.correct?.text, { fallback: "", allowEmpty: true }) ||
+            toDisplayText(q.correct?.value, { fallback: "", allowEmpty: true });
           const selectedText =
             resp.text ?? (resp.value !== undefined ? String(resp.value) : "");
           const qTopic = displayTopic(String((q as { topic?: string }).topic ?? "")) || "";

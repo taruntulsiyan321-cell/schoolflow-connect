@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import type { PageKey } from "@/gurukul/nav";
 import { useGurukulAcademicIdentity, useGurukulShellReady, useGurukulStudent } from "@/gurukul/StudentContext";
@@ -28,6 +28,7 @@ import {
   Save, Bookmark, BookMarked, Lightbulb,
   RotateCcw, HelpCircle, TrendingDown, FileText, AlertCircle, Filter,
 } from "lucide-react";
+import { toErrorMessage } from "@/lib/presentation";
 
 const CLASS_UNRESOLVED_MSG =
   "We couldn't determine your class. Ask your school admin to assign you to a class (e.g. 10-A, 11-B, or 12-C) so practice can show subjects for your class level only.";
@@ -1441,7 +1442,7 @@ function Session({
           setBookmarked(allIdx);
         }
       } catch (e) {
-        if (!cancelled) setLoadError(e instanceof Error ? e.message : "Could not start practice");
+        if (!cancelled) setLoadError(toErrorMessage(e, "Could not start practice"));
       } finally {
         if (!cancelled) setLoadingQs(false);
       }
@@ -1553,7 +1554,7 @@ function Session({
         if (typeof serverStats.questionCount === "number") results.total = serverStats.questionCount;
         if (typeof serverStats.skippedCount === "number") results.skipped = serverStats.skippedCount;
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Could not save practice session");
+        toast.error(toErrorMessage(e, "Could not save practice session"));
         results.serverStats = null;
         onFinish({ ...results, finishFailed: true });
         return;
@@ -1676,7 +1677,7 @@ function Session({
         schoolId: snap.schoolId ?? ctx.schoolId ?? null,
       });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save this answer â€” it will retry when you finish");
+      toast.error(toErrorMessage(e, "Could not save this answer — it will retry when you finish"));
     }
   }
 
@@ -2100,7 +2101,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
         if (!cancelled) {
           setSubjects([]);
           setCurriculumScope(null);
-          toast.error(e instanceof Error ? e.message : "Could not load subjects");
+          toast.error(toErrorMessage(e, "Could not load subjects"));
         }
       }
     })();
@@ -2158,7 +2159,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
           setHistory([]);
           setSaved([]);
           setIncomplete([]);
-          toast.error(e instanceof Error ? e.message : "Could not load practice history");
+          toast.error(toErrorMessage(e, "Could not load practice history"));
         }
       }
     })();
@@ -2297,7 +2298,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       });
       setPhase("session");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not resume session");
+      toast.error(toErrorMessage(e, "Could not resume session"));
     }
   }
 
@@ -2338,7 +2339,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
       else toast.success("Session saved");
       setHistoryTick((t) => t + 1);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Could not save session");
+      toast.error(toErrorMessage(e, "Could not save session"));
     } finally {
       setSavingLatest(false);
     }

@@ -19,6 +19,7 @@ import {
   type DecisionEngineRolloutSummary,
 } from "@/academic/services/decisionEngineAnalytics";
 import { cn } from "./shared";
+import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 function Stat({
   label,
@@ -95,7 +96,7 @@ export default function AiAnalyticsPanel() {
         }),
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load AI analytics");
+      setError(toErrorMessage(e, "Failed to load AI analytics"));
       setSummary(null);
       setForecast(null);
     } finally {
@@ -110,7 +111,7 @@ export default function AiAnalyticsPanel() {
       const data = await fetchDecisionEngineRolloutSummary(supabase);
       setRollout(data);
     } catch (e) {
-      setRolloutError(e instanceof Error ? e.message : "Failed to load rollout summary");
+      setRolloutError(toErrorMessage(e, "Failed to load rollout summary"));
       setRollout(null);
     } finally {
       setRolloutLoading(false);
@@ -211,7 +212,7 @@ export default function AiAnalyticsPanel() {
                   value={`${Math.round(forecast.projected_soft_pct * 1000) / 10}%`}
                   hint="Default soft cap — not school policy"
                 />
-                <Stat label="Status" value={forecast.status} />
+                <Stat label="Status" value={toEnumLabel(forecast.status, "budget_forecast_status")} />
               </div>
             )}
           </div>

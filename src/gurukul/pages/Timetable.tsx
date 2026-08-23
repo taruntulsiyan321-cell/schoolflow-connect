@@ -5,6 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import { GlassCard, SectionLabel, cn, subjectColor } from "@/gurukul/components/shared";
 import { Clock, MapPin, User, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
+import { toErrorMessage } from "@/lib/presentation";
 
 const PERIODS = ["1", "2", "3", "4", "Lunch", "5", "6", "7"] as const;
 const DAY_MAP = [
@@ -100,7 +101,7 @@ export default function Timetable() {
         setHasTimetable(false);
         toast({
           title: "Could not load timetable",
-          description: e instanceof Error ? e.message : "Unknown error",
+          description: toErrorMessage(e, "Unknown error"),
           variant: "destructive",
         });
       } finally {

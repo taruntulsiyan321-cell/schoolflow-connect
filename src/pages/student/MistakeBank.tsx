@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { BookMarked, RotateCcw, Wrench } from "lucide-react";
 import { StudentListSkeleton, StudentErrorState } from "@/components/student/StudentPanelStates";
 import { displayChapter } from "@/lib/academicDisplay";
+import { toErrorMessage } from "@/lib/presentation";
 
 type MistakeRow = Awaited<ReturnType<typeof PracticeService.listMistakeBook>>[number];
 
@@ -34,7 +35,7 @@ export default function MistakeBank() {
     try {
       setRows(await PracticeService.listMistakeBook(ctx, { limit: 50 }));
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Could not load your mistakes.");
+      setLoadError(toErrorMessage(e, "Could not load your mistakes."));
     } finally {
       setLoading(false);
     }

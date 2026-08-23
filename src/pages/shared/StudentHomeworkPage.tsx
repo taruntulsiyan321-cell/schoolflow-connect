@@ -17,6 +17,7 @@ import { NotebookPen, Clock, CheckCircle, Send, Calendar, BookOpen } from "lucid
 import { toast } from "sonner";
 import { StudentListSkeleton } from "@/components/student/StudentPanelStates";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
+import { toErrorMessage } from "@/lib/presentation";
 
 /**
  * Student homework — HomeworkService only (list / submit / feedback).
@@ -51,7 +52,7 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
         const list = await HomeworkService.listForStudent(ctx, ctxStudentId);
         if (!cancelled) setRows(list);
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Failed to load homework");
+        toast.error(toErrorMessage(e, "Failed to load homework"));
         if (!cancelled) setRows([]);
       } finally {
         if (!cancelled) endLoading(setLoading);
@@ -81,7 +82,7 @@ export default function StudentHomeworkPage({ embedded = false }: { embedded?: b
       setRows(list);
       setSubmitText((p) => ({ ...p, [hwId]: "" }));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to submit");
+      toast.error(toErrorMessage(err, "Failed to submit"));
     }
     setSubmitting(null);
   };

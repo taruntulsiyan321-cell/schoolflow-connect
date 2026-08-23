@@ -42,6 +42,7 @@ import {
   scoreAxisDomain,
 } from "@/lib/studentAnalysisMetrics";
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
+import { toErrorMessage } from "@/lib/presentation";
 
 const SUBJECT_COLORS: Record<string, string> = {
   Mathematics: "hsl(var(--primary))",
@@ -157,7 +158,7 @@ export default function Analysis() {
         if (!cancelled) {
           setMarks([]);
           setExams([]);
-          toast.error(e instanceof Error ? e.message : "Could not load marks for reports");
+          toast.error(toErrorMessage(e, "Could not load marks for reports"));
         }
       }
     })();

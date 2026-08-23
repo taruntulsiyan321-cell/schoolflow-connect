@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { acceptBattleInvite } from "@/gurukul/hooks/useBattlegroundData";
 import { displayChapter, displayTopic, displaySubject } from "@/lib/academicDisplay";
 import { BattleExperienceService, resolveStudentServiceContext } from "@/academic";
+import { toErrorMessage } from "@/lib/presentation";
 
 type InviteBattle = {
   id: string;
@@ -74,7 +75,7 @@ export function InviteFriends({ battleId, classId }: { battleId: string; classId
       setPicked({});
     } catch (e) {
       toast({
-        title: e instanceof Error ? e.message : "Could not send invites",
+        title: toErrorMessage(e, "Could not send invites"),
         variant: "destructive",
       });
     } finally {
@@ -217,7 +218,7 @@ export function MyInvites() {
     } catch (e) {
       toast({
         title: "Could not decline challenge",
-        description: e instanceof Error ? e.message : "Try again",
+        description: toErrorMessage(e, "Try again"),
         variant: "destructive",
       });
     }
