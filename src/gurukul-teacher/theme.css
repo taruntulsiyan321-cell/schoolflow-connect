@@ -1,5 +1,8 @@
 ﻿/* Gurukul Teacher â€” Chalkboard Signal light executive theme */
 .gurukul-teacher {
+  --font-display: "Bricolage Grotesque", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-body: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Courier New", monospace;
   --background: 180 14% 96%;
   --foreground: 199 38% 13%;
   --card: 0 0% 100%;
@@ -217,4 +220,99 @@
 
 @media (prefers-reduced-motion: reduce) {
   .${panel} * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ENHANCED VISUAL REFINEMENTS - Vibrant, visible design
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Ensure text is ALWAYS visible with strong contrast */
+.gurukul-teacher * {
+  color: hsl(var(--foreground));
+}
+
+.gurukul-teacher [class*="text-muted"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Add subtle background tints instead of pure white */
+.gurukul-teacher {
+  background: linear-gradient(to bottom, #f8fafb 0%, #f3f6f7 100%);
+}
+
+.gurukul-teacher [class*="bg-surface"],
+.gurukul-teacher [class*="rounded-2xl"]:not(button) {
+  background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%) !important;
+  border: 1px solid rgba(59, 91, 219, 0.08);
+  box-shadow: 0 1px 3px rgba(20, 37, 45, 0.04), 0 8px 16px rgba(20, 37, 45, 0.02);
+}
+
+/* Vibrant primary colors */
+.gurukul-teacher button[class*="bg-[#3b5bdb]"],
+.gurukul-teacher [class*="text-[#3b5bdb]"] {
+  background: linear-gradient(135deg, #4c6ef5 0%, #3b5bdb 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(59, 91, 219, 0.25);
+}
+
+/* Stat cards with vibrant gradients */
+.gurukul-teacher [class*="stat"],
+.gurukul-teacher [class*="grid"] > div[class*="p-"] {
+  background: linear-gradient(135deg, white 0%, #f8f9fc 100%);
+  border-left: 3px solid hsl(var(--primary));
+}
+
+/* Enhanced table visibility */
+.gurukul-teacher table {
+  background: white;
+}
+
+.gurukul-teacher th {
+  background: linear-gradient(to bottom, #f8fafb, #f3f6f7);
+  color: hsl(var(--foreground)) !important;
+  font-weight: 700;
+  border-bottom: 2px solid hsl(var(--primary) / 0.15);
+}
+
+.gurukul-teacher td {
+  color: hsl(var(--foreground)) !important;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.gurukul-teacher tr:hover td {
+  background: hsl(var(--primary) / 0.03);
+}
+
+/* Input fields with better visibility */
+.gurukul-teacher input,
+.gurukul-teacher textarea,
+.gurukul-teacher select {
+  background: white !important;
+  border: 1.5px solid hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  font-weight: 500;
+}
+
+.gurukul-teacher input:focus,
+.gurukul-teacher textarea:focus,
+.gurukul-teacher select:focus {
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.1);
+}
+
+/* Vibrant badges and pills */
+.gurukul-teacher [class*="badge"],
+.gurukul-teacher [class*="px-"][class*="rounded-full"] {
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced button visibility */
+.gurukul-teacher button {
+  font-weight: 600 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.gurukul-teacher button:not([class*="bg-[#3b5bdb]"]) {
+  color: hsl(var(--foreground)) !important;
 }
