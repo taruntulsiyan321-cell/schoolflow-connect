@@ -265,3 +265,21 @@
 .gurukul-principal * {
   text-shadow: none !important;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SIDEBAR EXCLUSION — The sidebar is dark (#10242c) with white text.
+   All the !important color overrides above must NOT apply inside the sidebar.
+   ══════════════════════════════════════════════════════════════════════════════ */
+.gurukul-principal aside[data-principal-sidebar] * {
+  color: inherit !important;
+}
+.gurukul-principal aside[data-principal-sidebar] button {
+  color: inherit !important;
+  font-weight: inherit !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.gurukul-principal aside[data-principal-sidebar] button:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
