@@ -104,6 +104,59 @@
   background: hsl(var(--primary)) !important;
 }
 
+/* Page tabs use a legacy dark utility vocabulary. Translate it at the student
+   boundary so every tab inherits the same light surfaces and readable text. */
+.gurukul-student [class*="bg-white/"],
+.gurukul-student [class*="bg-black/"],
+.gurukul-student [class*="bg-[#0d0d0f]"],
+.gurukul-student [class*="bg-[#111827]"],
+.gurukul-student [class*="bg-[#0f172a]"] {
+  background-color: hsl(var(--muted)) !important;
+}
+
+.gurukul-student [class*="border-white/"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+.gurukul-student [class*="text-white"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+.gurukul-student [class*="text-[#78788c]"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.gurukul-student [class*="bg-[#3b5bdb]"],
+.gurukul-student [class*="bg-[#6882e8]"],
+.gurukul-student [class*="bg-[#4b9fd4]"] {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+.gurukul-student [class*="text-[#3b5bdb]"],
+.gurukul-student [class*="text-[#6882e8]"],
+.gurukul-student [class*="text-[#4b9fd4]"] {
+  color: hsl(var(--primary)) !important;
+}
+
+.gurukul-student [class*="border-[#3b5bdb]"],
+.gurukul-student [class*="border-[#6882e8]"],
+.gurukul-student [class*="border-[#4b9fd4]"] {
+  border-color: hsl(var(--primary) / 0.3) !important;
+}
+
+.gurukul-student [class*="bg-[#cc5069]"],
+.gurukul-student [class*="bg-[#c08a3a]"],
+.gurukul-student [class*="bg-[#4aa87a]"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+.gurukul-student [style*="rgba(255,255,255"],
+.gurukul-student [style*="rgba(13,13,15"],
+.gurukul-student [style*="rgba(15,23,42"] {
+  background-color: hsl(var(--muted)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
 .gurukul-student h1, .gurukul-student h2, .gurukul-student h3, .gurukul-student h4 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;

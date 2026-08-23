@@ -47,7 +47,7 @@ export function GlassCard({ children, className, glow, onClick }: {
     <motion.div
       onClick={onClick}
       className={cn(
-        "rounded-2xl border bg-surface/90 backdrop-blur-sm",
+        "rounded-2xl border bg-card/95 shadow-card backdrop-blur-sm",
         glow ? glows[glow] : "border-border/70",
         onClick && "cursor-pointer",
         className
@@ -55,7 +55,7 @@ export function GlassCard({ children, className, glow, onClick }: {
       initial={reduceMotion ? undefined : { opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: EASE_OUT }}
-      whileHover={onClick && !reduceMotion ? { y: -3, borderColor: "rgba(255,255,255,0.15)" } : undefined}
+      whileHover={onClick && !reduceMotion ? { y: -3, borderColor: "hsl(var(--primary) / 0.35)" } : undefined}
       whileTap={onClick && !reduceMotion ? { scale: 0.985, y: -1 } : undefined}
     >{children}</motion.div>
   );
@@ -131,7 +131,7 @@ export function ProgressRing({ score, size=80, color }: { score:number; size?:nu
   return (
     <div className="relative inline-flex" style={{width:size,height:size}}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke}/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke}/>
         <motion.circle cx={size/2} cy={size/2} r={r} fill="none" stroke={col} strokeWidth={stroke}
           strokeDasharray={c} strokeLinecap="round"
           style={{filter:`drop-shadow(0 0 6px ${col})`}}
@@ -153,7 +153,7 @@ export function ProgressBar({ value, max=100, color="#3b5bdb", height="h-2" }: {
 }) {
   const pct = Math.min(100,(value/max)*100);
   return (
-    <div className={cn("w-full rounded-full bg-white/5 overflow-hidden", height)}>
+    <div className={cn("w-full rounded-full bg-muted overflow-hidden", height)}>
       <motion.div className="h-full rounded-full"
         style={{background:color}}
         initial={{ width: 0 }}
@@ -165,10 +165,10 @@ export function ProgressBar({ value, max=100, color="#3b5bdb", height="h-2" }: {
 
 export function StatTile({ label, value, color, sub }: { label:string; value:string|number; color?:string; sub?:string }) {
   return (
-    <motion.div className="bg-white/4 rounded-xl px-3 py-2.5 border border-white/5"
+    <motion.div className="bg-muted/70 rounded-xl px-3 py-2.5 border border-border"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -2, background: "rgba(255,255,255,0.06)" }}
+      whileHover={{ y: -2, background: "hsl(var(--secondary))" }}
       transition={{ duration: 0.3, ease: EASE_OUT }}
     >
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
@@ -177,7 +177,7 @@ export function StatTile({ label, value, color, sub }: { label:string; value:str
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="mt-0.5 text-xl font-black tabular-nums" style={{color:color??"#e8eaf0"}}>{value}</motion.div>
+        className="mt-0.5 text-xl font-black tabular-nums" style={{color:color??"hsl(var(--foreground))"}}>{value}</motion.div>
       {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
     </motion.div>
   );
@@ -215,7 +215,7 @@ export function XPBar({
         <span className="text-[11px] text-muted-foreground">Level {level}</span>
         <span className="text-[11px] text-muted-foreground">{label}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
         <motion.div className="h-full rounded-full"
           style={{background:"linear-gradient(90deg,#3b5bdb,#6882e8)"}}
           initial={{ width: 0 }}
@@ -233,7 +233,7 @@ export function EmptyState({ icon, title, sub }: { icon:ReactNode; title:string;
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: EASE_OUT }}
     >
-      <motion.div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-muted-foreground"
+      <motion.div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center text-muted-foreground"
         initial={{ scale: 0.7, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ ...springSnappy, delay: 0.05 }}
