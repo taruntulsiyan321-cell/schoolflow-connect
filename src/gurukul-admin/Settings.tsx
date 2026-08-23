@@ -234,7 +234,7 @@ export default function Settings() {
       </Section>
 
       {isDirty && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between px-6 py-4 bg-[#0a0a0c]/95 border-t border-border backdrop-blur-xl">
+        <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center justify-between px-6 py-4 bg-card/95 border-t border-border backdrop-blur-xl">
           <div className="flex items-center gap-2 text-sm text-[#c08a3a]">
             <AlertTriangle className="w-4 h-4" />
             You have unsaved changes. Save before leaving this page.

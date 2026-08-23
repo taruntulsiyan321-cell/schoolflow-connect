@@ -634,7 +634,7 @@ export default function Communication() {
   }
 
   return (
-    <div className="h-[calc(100vh-200px)] min-h-[600px] flex rounded-2xl overflow-hidden border border-border/70 bg-[#0d0d0f]">
+    <div className="h-[calc(100vh-200px)] min-h-[600px] flex rounded-2xl overflow-hidden border border-border bg-background">
       <div className="w-72 shrink-0 bg-surface border-r border-border/70 flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/70">
           <div className="flex items-center gap-2">

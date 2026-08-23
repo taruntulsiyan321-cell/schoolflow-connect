@@ -1,15 +1,15 @@
 /* Premium practice hub */
 .practice-hub {
-  --ph-emerald: #003324;
-  --ph-mint: #b2f0d4;
-  --ph-gold: #e8c468;
+  --ph-emerald: #17657a;
+  --ph-mint: #d9ecef;
+  --ph-gold: #99661d;
   max-width: 72rem;
   margin-inline: auto;
   padding-bottom: 2.5rem;
 }
 
 .practice-hub .ph-hero {
-  background: #0a4d;
+  background: #17657a;
   box-shadow: 0 24px 48px -12px rgba(0, 51, 36, 0.35);
 }
 

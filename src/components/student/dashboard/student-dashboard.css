@@ -1,9 +1,9 @@
 /* Student mission control dashboard — premium visual layer */
 .sd-dashboard {
-  --sd-emerald: #003324;
-  --sd-emerald-mid: #0d5c44;
-  --sd-mint: #b2f0d4;
-  --sd-gold: #e8c468;
+  --sd-emerald: #17657a;
+  --sd-emerald-mid: #2a7385;
+  --sd-mint: #d9ecef;
+  --sd-gold: #99661d;
   --sd-gold-soft: #fff4d6;
   --sd-surface: #f7fdf9;
 }
@@ -15,7 +15,7 @@
 }
 
 .sd-hero {
-  background: #064e;
+  background: #17657a;
   box-shadow:
     0 24px 48px -12px rgba(0, 51, 36, 0.35),
     0 0 0 1px rgba(178, 240, 212, 0.12) inset;
@@ -68,8 +68,8 @@
 }
 
 .sd-battle-card {
-  background: #0a2e;
-  color: #f4fff8;
+  background: #e8eff0;
+  color: #14252d;
   box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.4);
 }
 

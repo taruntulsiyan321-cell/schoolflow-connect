@@ -305,7 +305,7 @@ export default function AnalyticsPage() {
       }}
     >
       {/* â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <header className="sticky top-0 z-30 border-b border-white/5 bg-[#0d0d0f]/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center">

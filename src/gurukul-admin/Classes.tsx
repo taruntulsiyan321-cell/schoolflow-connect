@@ -120,7 +120,7 @@ function AttendancePanel({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-96 sm:w-[480px] bg-[#0a0a0c] border-l border-border/70 flex flex-col h-full overflow-hidden">
+      <div className="relative z-50 w-96 sm:w-[480px] bg-card border-l border-border flex flex-col h-full overflow-hidden">
         <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
             <Building2 className="w-5 h-5 text-[#3b5bdb]" />
@@ -277,7 +277,7 @@ function ClassRosterDrawer({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-border/70 flex flex-col h-full overflow-hidden">
+      <div className="relative z-50 w-80 sm:w-96 bg-card border-l border-border flex flex-col h-full overflow-hidden">
         <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <div className="w-12 h-12 rounded-2xl bg-[#3b5bdb]/15 flex items-center justify-center shrink-0">
             <Building2 className="w-6 h-6 text-[#3b5bdb]" />

@@ -2,21 +2,21 @@
 @import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
 .bg-design {
-  --bg-c-bg: #10242c;
-  --bg-c-surface: #193640;
-  --bg-c-surface2: #234852;
-  --bg-c-border: #48656b;
-  --bg-c-border-hover: #607d82;
-  --bg-c-text: #f4f7f5;
-  --bg-c-text2: #c6d5d6;
-  --bg-c-text3: #9eb1b4;
-  --bg-c-blue: #80cbd0;
-  --bg-c-purple: #5b7b85;
-  --bg-c-gold: #e0b66c;
-  --bg-c-green: #83cca5;
-  --bg-c-red: #e08b86;
-  --bg-c-orange: #e18a75;
-  --bg-c-pink: #c65d4b;
+  --bg-c-bg: hsl(180 14% 96%);
+  --bg-c-surface: hsl(0 0% 100%);
+  --bg-c-surface2: hsl(188 21% 93%);
+  --bg-c-border: hsl(189 18% 86%);
+  --bg-c-border-hover: hsl(189 18% 76%);
+  --bg-c-text: hsl(199 38% 13%);
+  --bg-c-text2: hsl(198 8% 52%);
+  --bg-c-text3: hsl(198 8% 52% / 0.72);
+  --bg-c-blue: hsl(193 68% 28%);
+  --bg-c-purple: hsl(192 52% 34%);
+  --bg-c-gold: hsl(35 68% 36%);
+  --bg-c-green: hsl(161 46% 33%);
+  --bg-c-red: hsl(1 37% 48%);
+  --bg-c-orange: hsl(9 52% 54%);
+  --bg-c-pink: hsl(9 52% 54%);
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   color: var(--bg-c-text);
   background: var(--bg-c-bg);
@@ -52,7 +52,7 @@
 }
 .bg-design .battle-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 40px rgba(16, 36, 44, 0.4) !important;
+  box-shadow: 0 12px 40px rgba(20, 37, 45, 0.14) !important;
 }
 .bg-design .action-card {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -122,4 +122,9 @@
   .bg-design .sm-hide {
     display: none !important;
   }
+}
+
+.bg-design,
+.bg-design * {
+  font-family: var(--font-body);
 }

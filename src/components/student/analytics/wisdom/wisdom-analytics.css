@@ -2,27 +2,27 @@
 @import url("https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Manrope:wght@400;500;600&display=swap");
 
 .wisdom-analytics {
-  --wa-primary: #003324;
-  --wa-primary-container: #074b37;
+  --wa-primary: #17657a;
+  --wa-primary-container: #2a7385;
   --wa-on-primary: #ffffff;
-  --wa-surface: #f0fff7;
-  --wa-surface-low: #e6faef;
-  --wa-surface-high: #d5f1e1;
-  --wa-surface-variant: #d7e8df;
-  --wa-surface-container-lowest: #fbfffc;
-  --wa-outline-variant: #d6e1da;
-  --wa-on-surface: #072017;
-  --wa-on-surface-variant: #404944;
+  --wa-surface: #ffffff;
+  --wa-surface-low: #f3f6f6;
+  --wa-surface-high: #e8eff0;
+  --wa-surface-variant: #d9ecef;
+  --wa-surface-container-lowest: #ffffff;
+  --wa-outline-variant: #d5e0e2;
+  --wa-on-surface: #14252d;
+  --wa-on-surface-variant: #52646c;
   --wa-secondary-fixed: #ffdf97;
   --wa-secondary-fixed-dim: #e9c261;
   --wa-secondary-container: #fed572;
   --wa-error: #ba1a1a;
   --wa-error-container: #ffdad6;
-  --wa-primary-fixed: #b2f0d4;
-  --wa-primary-fixed-dim: #97d3b8;
-  --wa-surface-tint: #2e6953;
-  --wa-shadow: 0 8px 30px -16px rgba(8, 33, 24, 0.2);
-  --wa-shadow-elevated: 0 24px 60px -22px rgba(8, 33, 24, 0.28);
+  --wa-primary-fixed: #d9ecef;
+  --wa-primary-fixed-dim: #b8d9dd;
+  --wa-surface-tint: #2a7385;
+  --wa-shadow: 0 8px 30px -16px rgba(20, 37, 45, 0.14);
+  --wa-shadow-elevated: 0 24px 60px -22px rgba(20, 37, 45, 0.18);
   font-family: "Manrope", ui-sans-serif, system-ui, sans-serif;
   color: var(--wa-on-surface);
 }
@@ -97,11 +97,9 @@
 }
 
 .wisdom-analytics .wa-hero {
-  background:
-    rgba(255, 223, 151, 0.24),
-    #0c5f;
+  background: var(--wa-primary-container);
   border-radius: 2rem;
-  color: var(--wa-on-primary);
+  color: #ffffff;
   box-shadow: var(--wa-shadow-elevated);
   position: relative;
   overflow: hidden;

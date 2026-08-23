@@ -110,7 +110,7 @@ function LeaveDetail({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-border/70 flex flex-col h-full overflow-hidden">
+      <div className="relative z-50 w-80 sm:w-96 bg-card border-l border-border flex flex-col h-full overflow-hidden">
         <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <InitialsAvatar name={request.applicantName} size="lg" />
           <div className="flex-1 min-w-0">

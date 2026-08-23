@@ -44,20 +44,20 @@ const SUBJECT_OPTIONS = [
 
 // ── Design tokens (DesignAuthenticationPage) ─────────────────────────────────
 const C = {
-  bg: "#0b0f1a",
-  surface: "#131828",
-  surface2: "#1a2038",
-  border: "rgba(255,255,255,0.07)",
-  text: "#eef0f6",
-  text2: "rgba(238,240,246,0.6)",
-  text3: "rgba(238,240,246,0.32)",
-  blue: "#3b82f6",
-  purple: "#8b5cf6",
-  gold: "#f59e0b",
-  green: "#10b981",
-  red: "#ef4444",
-  orange: "#f97316",
-  pink: "#ec4899",
+  bg: "#f3f6f6",
+  surface: "#ffffff",
+  surface2: "#e8eff0",
+  border: "#d5e0e2",
+  text: "#14252d",
+  text2: "#52646c",
+  text3: "#7b898f",
+  blue: "#17657a",
+  purple: "#2a7385",
+  gold: "#99661d",
+  green: "#2e7b63",
+  red: "#a94e4d",
+  orange: "#c65d4b",
+  pink: "#c65d4b",
 };
 
 type LeagueName = "Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond";
@@ -412,8 +412,8 @@ function HeroSection({
           padding: "2rem",
           position: "relative",
           overflow: "hidden",
-          background: "#1a2038",
-          border: "1px solid rgba(59,130,246,0.2)",
+          background: C.surface,
+          border: `1px solid ${C.blue}33`,
         }}
       >
         <div
@@ -442,7 +442,7 @@ function HeroSection({
                   height: "14px",
                   borderRadius: "50%",
                   background: C.green,
-                  border: "2.5px solid #131828",
+                  border: `2.5px solid ${C.surface}`,
                 }}
               />
             </div>
@@ -1429,7 +1429,7 @@ function BattleHistoryPanel({
                     height: "10px",
                     borderRadius: "50%",
                     background: tone,
-                    border: "2px solid #0b0f1a",
+                    border: `2px solid ${C.bg}`,
                     zIndex: 1,
                   }}
                 />

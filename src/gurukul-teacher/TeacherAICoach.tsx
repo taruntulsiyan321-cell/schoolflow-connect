@@ -81,7 +81,7 @@ export default function TeacherAICoach() {
               id="ai-coach-class"
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
-              className="bg-[#0a0a0c] border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
+              className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
             >
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -99,7 +99,7 @@ export default function TeacherAICoach() {
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
               disabled={students.length === 0}
-              className="bg-[#0a0a0c] border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50 disabled:opacity-50"
+              className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50 disabled:opacity-50"
             >
               {students.map((s) => (
                 <option key={s.id} value={s.id}>

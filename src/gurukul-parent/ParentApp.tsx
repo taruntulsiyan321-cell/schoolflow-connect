@@ -120,7 +120,7 @@ function Sidebar({
 
   return (
     <div className={cn(
-      "flex flex-col h-full bg-[#0a0a0c] border-r border-border/70 transition-all duration-300",
+      "flex flex-col h-full bg-card border-r border-border transition-all duration-300",
       mobile ? "w-64" : collapsed ? "w-16" : "w-60"
     )}>
       <div className={cn("flex items-center gap-3 px-4 py-5 border-b border-border/70", collapsed && !mobile && "justify-center px-2")}>
@@ -341,7 +341,7 @@ export default function ParentApp() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-border/70 bg-[#0a0a0c]/80 backdrop-blur-xl">
+        <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-border bg-card/95 backdrop-blur-xl">
           <button
             onClick={() => setMobileOpen(true)}
             className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground hover:text-foreground"
@@ -391,7 +391,7 @@ export default function ParentApp() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto bg-[#0d0d0f]">
+        <main className="flex-1 overflow-y-auto bg-background">
           <div className="p-4 sm:p-6 max-w-[1400px] mx-auto">
             <Routes>
               <Route

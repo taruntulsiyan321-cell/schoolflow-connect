@@ -126,8 +126,8 @@ function ParentForm({
   return (
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 bg-[#0d0d0f] border border-border rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="sticky top-0 bg-[#0d0d0f] border-b border-border/70 px-6 py-4 flex items-center justify-between">
+      <div className="relative z-10 bg-card border border-border rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-elevated">
+        <div className="sticky top-0 bg-card border-b border-border px-6 py-4 flex items-center justify-between">
           <div className="text-sm font-bold text-foreground">{parent ? "Edit Parent" : "Add Parent"}</div>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="w-5 h-5" />
@@ -198,7 +198,7 @@ function ParentForm({
             )}
           </div>
         </div>
-        <div className="sticky bottom-0 bg-[#0d0d0f] border-t border-border/70 px-6 py-4 flex justify-end gap-3">
+        <div className="sticky bottom-0 bg-card border-t border-border px-6 py-4 flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
@@ -232,7 +232,7 @@ function ParentDetail({
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative z-50 w-80 sm:w-96 bg-[#0a0a0c] border-l border-border/70 flex flex-col h-full overflow-hidden">
+      <div className="relative z-50 w-80 sm:w-96 bg-card border-l border-border flex flex-col h-full overflow-hidden">
         <div className="p-5 border-b border-border/70 flex items-start gap-3">
           <InitialsAvatar name={parent.fullName} size="lg" />
           <div className="flex-1 min-w-0">

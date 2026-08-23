@@ -3,10 +3,10 @@
 .teacher-premium {
   --tp-ink: #14252d;
   --tp-muted: #52646c;
-  --tp-emerald: #2e7b63;
+  --tp-emerald: #17657a;
   --tp-emerald-2: #2a7385;
-  --tp-mint: #dbece4;
-  --tp-gold: #e0b66c;
+  --tp-mint: #d9ecef;
+  --tp-gold: #99661d;
   --tp-gold-2: #c65d4b;
   --tp-surface: #ffffff;
   --tp-soft: #f3f6f6;
@@ -28,10 +28,10 @@
   overflow: hidden;
   border-radius: 2rem;
   padding: clamp(1.35rem, 4vw, 2.35rem);
-  background: #193640;
+  background: #17657a;
   color: #f4f7f5;
   box-shadow: var(--tp-shadow-strong);
-  border: 1px solid #48656b;
+  border: 1px solid #2a7385;
 }
 
 .teacher-premium .tp-hero::after {

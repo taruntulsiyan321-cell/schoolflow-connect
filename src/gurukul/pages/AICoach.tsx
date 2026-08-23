@@ -406,7 +406,7 @@ function Sidebar({
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#0d0d0f]">
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="p-3 border-b border-white/5">
         <div className="flex items-center justify-between mb-3">
