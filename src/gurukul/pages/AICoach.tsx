@@ -130,7 +130,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
   function renderText(txt: string) {
     return txt.split("\n").map((line, i) => {
       const parts = line.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
-        p.startsWith("**") ? <strong key={j} className="text-white font-semibold">{p.slice(2,-2)}</strong> : p
+        p.startsWith("**") ? <strong key={j} className="text-foreground font-semibold">{p.slice(2,-2)}</strong> : p
       );
       return <span key={i}>{parts}{i < txt.split("\n").length - 1 && <br/>}</span>;
     });
@@ -153,8 +153,8 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
           "px-4 py-3 rounded-2xl text-sm leading-relaxed",
           isNova
             ? msg.isError
-              ? "bg-amber-400/5 border border-amber-400/25 text-[#c8d4e8]"
-              : "bg-surface border border-border/70 text-[#c8d4e8]"
+              ? "bg-amber-400/5 border border-amber-400/25 text-foreground"
+              : "bg-surface border border-border/70 text-foreground"
             : "text-foreground"
         )}
         style={!isNova ? { background:"linear-gradient(135deg,#3b5bdb,#2563eb)", boxShadow:"0 4px 16px rgba(59,130,246,0.25)" } : {}}>
@@ -179,12 +179,12 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
             isNova ? "opacity-100" : "opacity-0 group-hover:opacity-100"
           )}>
             <button onClick={copy} title="Copy"
-              className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all">
+              className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
               {copied ? <Check className="w-3 h-3 text-emerald-400"/> : <Copy className="w-3 h-3"/>}
             </button>
             <button onClick={() => onBookmark(msg.id)} title="Bookmark"
               className={cn("w-6 h-6 rounded-lg flex items-center justify-center transition-all",
-                msg.bookmarked ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground hover:text-white hover:bg-white/6"
+                msg.bookmarked ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}>
               <Bookmark className="w-3 h-3"/>
             </button>
@@ -197,7 +197,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
                     "w-6 h-6 rounded-lg flex items-center justify-center transition-all",
                     msg.feedback === "like"
                       ? "text-emerald-400 bg-emerald-400/10"
-                      : "text-muted-foreground hover:text-white hover:bg-white/6"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
                   <ThumbsUp className="w-3 h-3"/>
@@ -209,7 +209,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
                     "w-6 h-6 rounded-lg flex items-center justify-center transition-all",
                     msg.feedback === "dislike"
                       ? "text-rose-400 bg-rose-400/10"
-                      : "text-muted-foreground hover:text-white hover:bg-white/6"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
                   <ThumbsDown className="w-3 h-3"/>
@@ -218,7 +218,7 @@ function MessageBubble({ msg, onBookmark, onRegen, onFeedback, isLast }: {
             )}
             {isNova && isLast && onRegen && (
               <button onClick={onRegen} title="Regenerate"
-                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all">
+                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
                 <RotateCcw className="w-3 h-3"/>
               </button>
             )}
@@ -272,8 +272,8 @@ function SuggestionGrid({
         style={{ background:"radial-gradient(circle at 35% 35%, #60a5fa, #3b5bdb, #4338ca)", boxShadow:"0 0 40px rgba(59,130,246,0.4)" }}>
         <Brain className="w-9 h-9 text-foreground"/>
       </div>
-      <h2 className="text-2xl font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
-        Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"} ðŸ‘‹
+      <h2 className="text-2xl font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>
+        Hi {firstName && !isPlaceholderLabel(firstName) ? firstName : "there"} ðŸ’‹
       </h2>
       <p className="text-muted-foreground text-sm mb-8 text-center max-w-xs">
         I'm Nova â€” your personal academic tutor. Ask about attendance, homework, marks, school events, or revision.
@@ -300,7 +300,7 @@ function SuggestionGrid({
               style={{ background:`${s.color}15`, color:s.color }}>
               {s.icon}
             </div>
-            <span className="text-sm text-[#a0a0b0] group-hover:text-white transition-colors leading-snug">{s.text}</span>
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors leading-snug">{s.text}</span>
           </button>
         ))}
       </div>
@@ -370,7 +370,7 @@ function Sidebar({
     return (
       <div className={cn(
         "group relative flex items-start gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-all",
-        isActive ? "bg-[#3b5bdb]/12 border border-[#3b5bdb]/20" : "hover:bg-white/4"
+        isActive ? "bg-[#3b5bdb]/12 border border-[#3b5bdb]/20" : "hover:bg-muted"
       )} onClick={() => onSelect(c.id)}>
         <div className="flex-1 min-w-0 pt-0.5">
           <div className="flex items-center gap-1.5 mb-0.5">
@@ -378,7 +378,7 @@ function Sidebar({
             {c.starred && <Star   className="w-2.5 h-2.5 text-amber-400 fill-amber-400 shrink-0"/>}
             <span className={cn(
               "text-xs font-semibold truncate",
-              isActive ? "text-foreground" : "text-[#c8d4e8]"
+              isActive ? "text-foreground" : "text-muted-foreground"
             )}>{c.title}</span>
           </div>
           <div className="text-[10px] text-muted-foreground truncate">{c.preview}</div>
@@ -398,7 +398,7 @@ function Sidebar({
             setMenuPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
             setMenuFor(c.id);
           }}
-          className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/8 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+          className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all shrink-0">
           <MoreHorizontal className="w-3.5 h-3.5"/>
         </button>
       </div>
@@ -408,7 +408,7 @@ function Sidebar({
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="p-3 border-b border-white/5">
+      <div className="p-3 border-b border-border">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
@@ -419,12 +419,12 @@ function Sidebar({
           </div>
           <div className="flex items-center gap-1">
             <button onClick={onNew}
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all" title="New conversation">
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title="New conversation">
               <Plus className="w-4 h-4"/>
             </button>
             {onClose && (
               <button onClick={onClose}
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all lg:hidden">
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all lg:hidden">
                 <X className="w-4 h-4"/>
               </button>
             )}
@@ -435,7 +435,7 @@ function Sidebar({
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground"/>
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search conversationsâ€¦"
-            className="w-full bg-white/4 border border-white/6 rounded-lg pl-7 pr-3 py-1.5 text-xs text-white placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/30 transition-colors"/>
+            className="w-full bg-muted border border-border rounded-lg pl-7 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/30 transition-colors"/>
         </div>
       </div>
 
@@ -476,7 +476,7 @@ function Sidebar({
               onClick={item.action}
               className={cn(
                 "w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
-                item.danger ? "text-rose-400 hover:bg-rose-400/10" : "text-[#a0a0b0] hover:text-white hover:bg-muted",
+                item.danger ? "text-rose-400 hover:bg-rose-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted",
               )}
             >
               {item.icon} {item.label}
@@ -564,7 +564,7 @@ function InputBar({
                 type="button"
                 onClick={() => removePendingImage(i)}
                 aria-label="Remove attachment"
-                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <X className="w-2.5 h-2.5"/>
               </button>
@@ -596,7 +596,7 @@ function InputBar({
                   ? `Attachments â€” ${COMING_SOON_LABEL}`
                   : "Attach a photo or PDF"
               }
-              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5 text-muted-foreground/50 hover:text-muted-foreground hover:bg-white/4"
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5 text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted"
             >
               {processing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Paperclip className="w-4 h-4"/>}
             </button>
@@ -608,7 +608,7 @@ function InputBar({
           value={text} onChange={e => setText(e.target.value)} onKeyDown={onKey}
           placeholder={pendingImages.length ? "Add a note (optional)â€¦" : "Ask Nova anythingâ€¦"}
           rows={1} disabled={disabled}
-          className="flex-1 bg-transparent text-sm text-white placeholder:text-muted-foreground outline-none resize-none py-1.5 leading-relaxed"
+          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none resize-none py-1.5 leading-relaxed"
           style={{ maxHeight:120 }}
         />
 
@@ -621,7 +621,7 @@ function InputBar({
                 ? `Voice â€” ${COMING_SOON_LABEL}`
                 : "Voice"
             }
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-white/4 transition-all shrink-0 mb-0.5"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground/50 hover:text-muted-foreground hover:bg-muted transition-all shrink-0 mb-0.5"
           >
             <Mic className="w-4 h-4"/>
           </button>
@@ -633,7 +633,7 @@ function InputBar({
           className={cn(
             "w-8 h-8 rounded-xl flex items-center justify-center transition-all shrink-0 mb-0.5",
             (text.trim() || pendingImages.length > 0) && !disabled && !processing
-              ? "bg-[#3b5bdb] text-white hover:bg-blue-500"
+              ? "bg-[#3b5bdb] text-foreground hover:bg-blue-500"
               : "text-muted-foreground/40 cursor-not-allowed"
           )}>
           <Send className="w-4 h-4"/>
@@ -1067,7 +1067,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
 
       {/* â”€â”€ Sidebar (desktop always visible, mobile overlay) â”€â”€ */}
       <div className={cn(
-        "shrink-0 border-r border-white/5 transition-all duration-300 overflow-hidden",
+        "shrink-0 border-r border-border transition-all duration-300 overflow-hidden",
         "hidden lg:block",
         "w-64"
       )}>
@@ -1097,8 +1097,8 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
         {/* Conversation header */}
-        <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-white/5">
-          <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all lg:hidden">
+        <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border">
+          <button onClick={() => setSidebarOpen(true)} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all lg:hidden">
             <ChevronLeft className="w-4 h-4"/>
           </button>
 
@@ -1106,10 +1106,10 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           {renaming === activeId ? (
             <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
               onBlur={commitRename} onKeyDown={e => e.key==="Enter" && commitRename()}
-              className="flex-1 bg-transparent text-sm font-semibold text-white outline-none border-b border-[#3b5bdb]/40 pb-0.5"/>
+              className="flex-1 bg-transparent text-sm font-semibold text-foreground outline-none border-b border-[#3b5bdb]/40 pb-0.5"/>
           ) : (
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-white truncate">
+              <div className="text-sm font-semibold text-foreground truncate">
                 {active?.title ?? "New Conversation"}
               </div>
               {active && (
@@ -1125,24 +1125,24 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
           <div className="flex items-center gap-1 shrink-0">
             {active && <>
               <button onClick={() => startRename(active.id)} title="Rename"
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all">
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
                 <Edit3 className="w-3.5 h-3.5"/>
               </button>
               <button onClick={() => pinConvo(active.id)} title={active.pinned?"Unpin":"Pin"}
                 className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                  active.pinned ? "text-blue-400 bg-blue-400/10" : "text-muted-foreground hover:text-white hover:bg-white/6"
+                  active.pinned ? "text-blue-400 bg-blue-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}>
                 <Pin className="w-3.5 h-3.5"/>
               </button>
               <button onClick={() => starConvo(active.id)} title={active.starred?"Unstar":"Star"}
                 className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                  active.starred ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground hover:text-white hover:bg-white/6"
+                  active.starred ? "text-amber-400 bg-amber-400/10" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}>
                 <Star className={cn("w-3.5 h-3.5", active.starred && "fill-amber-400")}/>
               </button>
             </>}
             <button onClick={newConversation} title="New conversation"
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/6 transition-all">
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
               <Plus className="w-3.5 h-3.5"/>
             </button>
           </div>
@@ -1188,7 +1188,7 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
         </div>
 
         {/* Input area */}
-        <div className="shrink-0 px-4 pb-4 pt-2 border-t border-white/5 max-w-3xl mx-auto w-full">
+        <div className="shrink-0 px-4 pb-4 pt-2 border-t border-border max-w-3xl mx-auto w-full">
           <InputBar
             onSend={sendMessage}
             onVoiceUnavailable={() => {

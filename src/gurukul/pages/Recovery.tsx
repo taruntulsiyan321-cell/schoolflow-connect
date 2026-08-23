@@ -186,24 +186,24 @@ function TopicCard({ topic, onStart, starting }: { topic: RecoveryTopic; onStart
               : "Practice this concept"}
           </button>
           <button onClick={() => setExpanded(e => !e)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground bg-white/5 hover:bg-white/10 transition-all">
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground bg-muted hover:bg-secondary transition-all">
             <Brain className="w-3 h-3 text-violet-400"/>
             Insight {expanded ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
           </button>
         </div>
 
         {expanded && (
-          <div className="mt-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/15 text-xs text-[#a0a0b0] leading-relaxed space-y-2">
+          <div className="mt-3 p-3 rounded-xl bg-violet-500/5 border border-violet-500/15 text-xs text-muted-foreground leading-relaxed space-y-2">
             <div className="flex items-center gap-1.5">
               <Brain className="w-3.5 h-3.5 text-violet-400"/>
               <span className="text-violet-400 font-semibold text-[10px] uppercase tracking-wider">Recovery insight</span>
             </div>
             <p>{topic.aiReason}</p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <Link to="/student/practice" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-[#4b9fd4] hover:bg-white/10">Practice</Link>
-              <Link to="/student/revision" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-[#c08a3a] hover:bg-white/10">Revision</Link>
-              <Link to="/student/aicoach" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-violet-400 hover:bg-white/10">Ask Nova</Link>
-              <Link to="/student/mistakes" className="px-2 py-1 rounded-lg bg-white/5 text-[10px] font-bold text-rose-400 hover:bg-white/10">Mistake Book</Link>
+              <Link to="/student/practice" className="px-2 py-1 rounded-lg bg-muted text-[10px] font-bold text-primary hover:bg-secondary">Practice</Link>
+              <Link to="/student/revision" className="px-2 py-1 rounded-lg bg-muted text-[10px] font-bold text-warning hover:bg-secondary">Revision</Link>
+              <Link to="/student/aicoach" className="px-2 py-1 rounded-lg bg-muted text-[10px] font-bold text-violet-500 hover:bg-secondary">Ask Nova</Link>
+              <Link to="/student/mistakes" className="px-2 py-1 rounded-lg bg-muted text-[10px] font-bold text-rose-500 hover:bg-secondary">Mistake Book</Link>
             </div>
           </div>
         )}
@@ -217,7 +217,7 @@ function RecoverySession({ topic, onBack }: { topic: RecoveryTopic; onBack: () =
     <div className="space-y-5">
       <GlassCard className="p-8 text-center">
         <RefreshCw className="w-8 h-8 text-muted-foreground mx-auto mb-3"/>
-        <p className="text-sm font-semibold text-white mb-1">Open live recovery</p>
+        <p className="text-sm font-semibold text-foreground mb-1">Open live recovery</p>
         <p className="text-xs text-muted-foreground mb-4">
           Recovery drills load from your assigned concepts. Practice, Revision, or Nova can help meanwhile.
         </p>
@@ -241,7 +241,7 @@ function RecoverySession({ topic, onBack }: { topic: RecoveryTopic; onBack: () =
             Ask Nova
           </Link>
           <button onClick={onBack}
-            className="px-4 py-2 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
+            className="px-4 py-2 rounded-xl bg-muted border border-border text-muted-foreground text-sm font-semibold hover:bg-secondary transition-all">
             Back
           </button>
         </div>
@@ -294,7 +294,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
             </div>
           </div>
         </div>
-        <div className="text-lg font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>
+        <div className="text-lg font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>
           {displayConcept(topic.concept)}
         </div>
         <p className="text-sm text-muted-foreground">
@@ -304,10 +304,10 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
         <div className="grid grid-cols-3 gap-3 mt-5">
           {[
             { label:"Score",    value:`${score}%`,            color },
-            { label:"Previous", value:`${topic.mastery}%`,   color:"#78788c" },
+            { label:"Previous", value:`${topic.mastery}%`,   color:"hsl(var(--muted-foreground))" },
             { label:"Change",   value: score >= topic.mastery ? `+${score - topic.mastery}%` : `${score - topic.mastery}%`, color: score > topic.mastery ? "#4aa87a" : "#cc5069" },
           ].map(s => (
-            <div key={s.label} className="p-3 rounded-xl bg-muted border border-white/8">
+            <div key={s.label} className="p-3 rounded-xl bg-muted border border-border">
               <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
               <div className="text-[10px] text-muted-foreground mt-0.5">{s.label}</div>
             </div>
@@ -323,7 +323,7 @@ function SessionResults({ topic, score, setPage, onBack }: { topic: RecoveryTopi
           </button>
         )}
         <button onClick={onBack}
-          className="w-full py-3 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
+          className="w-full py-3 rounded-xl bg-muted border border-border text-muted-foreground text-sm font-semibold hover:bg-secondary transition-all">
           Back to Recovery Hub
         </button>
       </div>
@@ -631,7 +631,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                 type="button"
                 onClick={() => startSession(item.topic)}
                 disabled={startingId === item.topic.id}
-                className="p-3 rounded-xl border bg-white/2 hover:bg-muted transition-all text-left group disabled:opacity-50"
+                className="p-3 rounded-xl border bg-muted/30 hover:bg-muted transition-all text-left group disabled:opacity-50"
                 style={{borderColor:`${m.color}25`}}
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -639,7 +639,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                     style={{background:m.color}}>{i+1}</span>
                   <SubjectBadge subject={item.subject}/>
                 </div>
-                <p className="text-xs text-white font-semibold leading-snug mb-2">{item.task}</p>
+                <p className="text-xs text-foreground font-semibold leading-snug mb-2">{item.task}</p>
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                   <Clock className="w-3 h-3"/>{item.time}
                 </div>
@@ -681,14 +681,14 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
         <div className="relative flex-1 min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search topics..."
-            className="w-full pl-8 pr-3 py-2 rounded-xl bg-white/5 border border-border text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-rose-500/40"/>
+            className="w-full pl-8 pr-3 py-2 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-rose-500/40"/>
         </div>
         <div className="flex items-center gap-1.5">
           <Filter className="w-3.5 h-3.5 text-muted-foreground"/>
           {(["all","high","medium","low"] as const).map(p => (
             <button key={p} onClick={() => setPriority(p)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                priority === p ? "bg-rose-500/20 border border-rose-500/40 text-rose-300" : "bg-white/5 border border-border text-muted-foreground hover:bg-white/10")}>
+                priority === p ? "bg-rose-500/20 border border-rose-500/40 text-rose-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
               {p === "all" ? "All" : p}
             </button>
           ))}
@@ -697,7 +697,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
           {(["all","practice","tests","battleground"] as const).map(src => (
             <button key={src} onClick={() => setSourceFilter(src)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                sourceFilter === src ? "bg-white/15 border border-white/25 text-foreground" : "bg-white/5 border border-border text-muted-foreground hover:bg-white/10")}>
+                sourceFilter === src ? "bg-secondary border border-border text-foreground" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
               {src === "all" ? "All Sources" : SOURCE_LABELS[src]}
             </button>
           ))}
@@ -725,7 +725,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Recovery History */}
       <div>
         <button onClick={() => setShowHistory(h => !h)}
-          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-white transition-colors mb-3 group">
+          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors mb-3 group">
           <History className="w-3.5 h-3.5 group-hover:text-foreground"/>
           Recovery History {showHistory ? <ChevronDown className="w-3.5 h-3.5"/> : <ChevronRight className="w-3.5 h-3.5"/>}
         </button>
@@ -774,7 +774,7 @@ export default function Recovery({ setPage }: { setPage?: (p: PageKey) => void }
                         teacherAssigned: false,
                       });
                     }}
-                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-white transition-all"
+                    className="p-1.5 rounded-lg bg-muted hover:bg-secondary text-muted-foreground hover:text-foreground transition-all"
                   >
                     <RotateCcw className="w-3.5 h-3.5"/>
                   </button>

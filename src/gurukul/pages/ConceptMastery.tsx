@@ -27,7 +27,7 @@ export default function ConceptMastery() {
           <div key={s.label} className="p-4 rounded-2xl border border-border/70 bg-[#0e1322]/70 text-center">
             <div className="flex justify-center mb-1" style={{ color: s.color }}>{s.icon}</div>
             <div className="text-2xl font-black tabular-nums" style={{ color: s.color, fontFamily: "var(--font-display)" }}>{s.value}</div>
-            <div className="text-[11px] text-[#6b7a99] mt-0.5">{s.label}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
@@ -37,7 +37,7 @@ export default function ConceptMastery() {
         {["all", ...subjects.map((s) => s.name)].map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={cn("shrink-0 px-3 py-1.5 rounded-full text-xs font-medium capitalize transition-all",
-              filter === f ? "bg-[#3b82f6] text-foreground" : "border border-border text-[#6b7a99] hover:border-white/25 hover:text-foreground")}>
+              filter === f ? "bg-[#3b82f6] text-foreground" : "border border-border text-muted-foreground hover:border-border hover:text-foreground")}>
             {f}
           </button>
         ))}
@@ -52,7 +52,7 @@ export default function ConceptMastery() {
             const subCol = subjectColor[c.subject] ?? "#6b7a99";
             const statusLabel = c.mastery >= 80 ? "Doing well" : c.mastery >= 60 ? "In progress" : "Needs work";
             return (
-              <div key={c.id} className="flex items-center gap-3 p-4 rounded-xl border border-border/70 bg-white/2 hover:border-border transition-colors">
+              <div key={c.id} className="flex items-center gap-3 p-4 rounded-xl border border-border/70 bg-muted/30 hover:border-border transition-colors">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${col}15`, color: col }}>
                   {c.mastery >= 80 ? <CheckCircle2 className="w-4 h-4" /> : c.mastery >= 60 ? <Target className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
                 </div>
@@ -61,12 +61,12 @@ export default function ConceptMastery() {
                     <span className="text-sm font-semibold text-foreground">{c.concept}</span>
                     <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded-full font-semibold" style={{ color: col, background: `${col}12` }}>{statusLabel}</span>
                   </div>
-                  <div className="text-[11px] text-[#6b7a99] mb-1.5" style={{ color: subCol }}>{c.subject} Â· {c.practiced} questions done Â· Last: {c.lastPracticed}</div>
+                  <div className="text-[11px] text-muted-foreground mb-1.5" style={{ color: subCol }}>{c.subject} Â· {c.practiced} questions done Â· Last: {c.lastPracticed}</div>
                   <ProgressBar value={c.mastery} color={col} height="h-1.5" />
                 </div>
                 <div className="text-right shrink-0">
                   <div className="text-lg font-black tabular-nums" style={{ color: col }}>{c.mastery}%</div>
-                  {c.mistakes > 0 && <div className="text-[11px] text-[#6b7a99]">{c.mistakes} mistakes</div>}
+                  {c.mistakes > 0 && <div className="text-[11px] text-muted-foreground">{c.mistakes} mistakes</div>}
                 </div>
               </div>
             );

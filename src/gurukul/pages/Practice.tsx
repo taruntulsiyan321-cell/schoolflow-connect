@@ -18,6 +18,7 @@ import {
 import { resolvePracticeSessionStats, formatSessionXp } from "@/lib/practiceSessionStats";
 import type { AcademicTermRef } from "@/academic/services/practiceService";
 import { GlassCard, ProgressBar, SubjectBadge, DifficultyBadge, cn } from "@/gurukul/components/shared";
+import { withAlpha } from "@/lib/colorAlpha";
 import { MathText } from "@/components/MathText";
 import {
   BookOpen, Clock, Target,
@@ -57,20 +58,20 @@ interface Mode {
 }
 
 const SUBJECT_COLORS: Record<string, string> = {
-  Mathematics: "#3b5bdb",
-  Math: "#3b5bdb",
-  Accountancy: "#4aa87a",
-  "Business Studies": "#c08a3a",
-  Economics: "#6882e8",
-  Physics: "#4b9fd4",
-  Chemistry: "#6882e8",
-  Biology: "#4aa87a",
-  English: "#c08a3a",
-  Hindi: "#cc5069",
-  Science: "#4b9fd4",
-  "Social Science": "#c08a3a",
+  Mathematics: "hsl(var(--primary))",
+  Math: "hsl(var(--primary))",
+  Accountancy: "hsl(var(--success))",
+  "Business Studies": "hsl(var(--warning))",
+  Economics: "hsl(var(--primary-glow))",
+  Physics: "hsl(var(--info))",
+  Chemistry: "hsl(var(--primary-glow))",
+  Biology: "hsl(var(--success))",
+  English: "hsl(var(--warning))",
+  Hindi: "hsl(var(--destructive))",
+  Science: "hsl(var(--info))",
+  "Social Science": "hsl(var(--warning))",
 };
-const FALLBACK_COLORS = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
+const FALLBACK_COLORS = ["hsl(var(--primary))", "hsl(var(--info))", "hsl(var(--primary-glow))", "hsl(var(--success))", "hsl(var(--warning))"];
 
 function subjectColor(name: string, index: number) {
   return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
@@ -163,23 +164,23 @@ function formatDuration(startIso: string, endIso: string) {
 // used is untouched and still serves teacher-assigned tests elsewhere.
 const MODES: Mode[] = [
   { key:"subject",    label:"Subject Practice",       desc:"Practice questions from a subject of your choice",
-    icon:<BookOpen className="w-5 h-5"/>,   color:"#3b5bdb", cat:"content",  badge:"By subject" },
+    icon:<BookOpen className="w-5 h-5"/>,   color:"hsl(var(--primary))", cat:"content",  badge:"By subject" },
   { key:"chapter",    label:"Chapter Practice",       desc:"Focus on a specific chapter to reinforce concepts",
-    icon:<Layers className="w-5 h-5"/>,     color:"#4b9fd4", cat:"content",  badge:"Chapter" },
+    icon:<Layers className="w-5 h-5"/>,     color:"hsl(var(--info))", cat:"content",  badge:"Chapter" },
   { key:"topic",      label:"Topic Practice",         desc:"Drill down to a precise concept or sub-topic",
-    icon:<Target className="w-5 h-5"/>,     color:"#6882e8", cat:"content",  badge:"By topic" },
+    icon:<Target className="w-5 h-5"/>,     color:"hsl(var(--primary-glow))", cat:"content",  badge:"By topic" },
   { key:"custom",     label:"Custom Practice",        desc:"Choose difficulty and either a question count or a time limit",
-    icon:<BarChart2 className="w-5 h-5"/>,  color:"#6882e8", cat:"type",    badge:"Your rules" },
+    icon:<BarChart2 className="w-5 h-5"/>,  color:"hsl(var(--primary-glow))", cat:"type",    badge:"Your rules" },
   { key:"pyq",        label:"Previous Year Questions",desc:"Board and competitive exam questions from past years",
-    icon:<FileText className="w-5 h-5"/>,   color:"#cc5069", cat:"source",  badge:"Past papers" },
+    icon:<FileText className="w-5 h-5"/>,   color:"hsl(var(--destructive))", cat:"source",  badge:"Past papers" },
   { key:"weak",       label:"Weak Areas Practice",    desc:"Auto-generated from concepts where your confidence is below 60%",
-    icon:<TrendingDown className="w-5 h-5"/>, color:"#cc5069", cat:"targeted", badge:"Weak areas", instant:true, hot:true },
+    icon:<TrendingDown className="w-5 h-5"/>, color:"hsl(var(--destructive))", cat:"targeted", badge:"Weak areas", instant:true, hot:true },
   { key:"incorrect",  label:"Incorrect Questions",    desc:"Reattempt questions you got wrong in previous sessions",
-    icon:<XCircle className="w-5 h-5"/>,    color:"#cc5069", cat:"targeted", badge:"Retry wrong", instant:true },
+    icon:<XCircle className="w-5 h-5"/>,    color:"hsl(var(--destructive))", cat:"targeted", badge:"Retry wrong", instant:true },
   { key:"skipped",    label:"Skipped Questions",      desc:"Solve questions you chose to skip earlier",
-    icon:<SkipForward className="w-5 h-5"/>, color:"#c08a3a", cat:"targeted", badge:"Skipped", instant:true },
+    icon:<SkipForward className="w-5 h-5"/>, color:"hsl(var(--warning))", cat:"targeted", badge:"Skipped", instant:true },
   { key:"bookmarked", label:"Bookmarked Questions",   desc:"Questions you bookmarked â€” they stay until you remove them",
-    icon:<BookMarked className="w-5 h-5"/>, color:"#4b9fd4", cat:"targeted", badge:"Bookmarked", instant:true },
+    icon:<BookMarked className="w-5 h-5"/>, color:"hsl(var(--info))", cat:"targeted", badge:"Bookmarked", instant:true },
 ];
 
 const CATS: { key: Cat; label: string }[] = [
@@ -234,17 +235,17 @@ function mapSessionToHistoryRow(row: PracticeSessionRow): HistoryRow {
 }
 
 const DIFFICULTIES = [
-  { key:"easy",   label:"Easy",   color:"#4aa87a", desc:"Foundation level â€” build confidence" },
-  { key:"medium", label:"Medium", color:"#c08a3a", desc:"Board exam level â€” solid preparation" },
-  { key:"hard",   label:"Hard",   color:"#cc5069", desc:"Competitive level â€” push your limits" },
-  { key:"mixed",  label:"Mixed",  color:"#6882e8", desc:"Varied â€” best for overall practice" },
+  { key:"easy",   label:"Easy",   color:"hsl(var(--success))", desc:"Foundation level â€” build confidence" },
+  { key:"medium", label:"Medium", color:"hsl(var(--warning))", desc:"Board exam level â€” solid preparation" },
+  { key:"hard",   label:"Hard",   color:"hsl(var(--destructive))", desc:"Competitive level â€” push your limits" },
+  { key:"mixed",  label:"Mixed",  color:"hsl(var(--primary-glow))", desc:"Varied â€” best for overall practice" },
 ];
 
 // â”€â”€ Shared components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Tag({ children, color }: { children: React.ReactNode; color: string }) {
   return (
     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-      style={{ color, background:`${color}15`, border:`1px solid ${color}25` }}>
+      style={{ color, background:`${withAlpha(color, 0.08)}`, border:`1px solid ${withAlpha(color, 0.15)}` }}>
       {children}
     </span>
   );
@@ -252,12 +253,12 @@ function Tag({ children, color }: { children: React.ReactNode; color: string }) 
 
 function StatusTag({ status }: { status: string }) {
   const map: Record<string, { label:string; color:string }> = {
-    completed:    { label:"Completed",   color:"#4aa87a" },
-    incomplete:   { label:"Incomplete",  color:"#c08a3a" },
-    "in-progress":{ label:"In Progress", color:"#4b9fd4" },
-    "not-started":{ label:"Not Started", color:"#78788c" },
+    completed:    { label:"Completed",   color:"hsl(var(--success))" },
+    incomplete:   { label:"Incomplete",  color:"hsl(var(--warning))" },
+    "in-progress":{ label:"In Progress", color:"hsl(var(--info))" },
+    "not-started":{ label:"Not Started", color:"hsl(var(--muted-foreground))" },
   };
-  const s = map[status] ?? { label:status, color:"#78788c" };
+  const s = map[status] ?? { label:status, color:"hsl(var(--muted-foreground))" };
   return <Tag color={s.color}>{s.label}</Tag>;
 }
 
@@ -328,17 +329,17 @@ function Hub({
           </p>
         </div>
         {streak > 0 && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#c08a3a]/10 border border-[#c08a3a]/20">
-            <Flame className="w-4 h-4 text-[#c08a3a]"/>
-            <span className="text-xs font-bold text-[#c08a3a]">{streak}-day streak</span>
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-warning/10 border border-warning/20">
+            <Flame className="w-4 h-4 text-warning"/>
+            <span className="text-xs font-bold text-warning">{streak}-day streak</span>
           </div>
         )}
       </div>
 
       {incomplete.length > 0 && (
-        <GlassCard className="p-4 border-[#c08a3a]/25">
+        <GlassCard className="p-4 border-warning/25">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-1 h-4 rounded-full bg-[#c08a3a]"/>
+            <div className="w-1 h-4 rounded-full bg-warning"/>
             <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Resume session</span>
           </div>
           <div className="space-y-2">
@@ -347,18 +348,18 @@ function Hub({
                 key={s.id}
                 type="button"
                 onClick={() => onResumeSession(s.id)}
-                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-border/70 hover:border-[#c08a3a]/35 hover:bg-muted transition-all text-left"
+                className="group w-full flex items-center gap-3 p-3 rounded-xl border border-border/70 hover:border-warning/35 hover:bg-muted transition-all text-left"
               >
-                <div className="w-8 h-8 rounded-lg bg-[#c08a3a]/15 flex items-center justify-center shrink-0 text-[#c08a3a]">
+                <div className="w-8 h-8 rounded-lg bg-warning/15 flex items-center justify-center shrink-0 text-warning">
                   <RotateCcw className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{s.subject} Â· {s.chapter !== "â€”" ? s.chapter : s.practiceType}</div>
+                  <div className=”text-xs font-bold text-foreground truncate”>{s.subject} Â· {s.chapter !== “â€”” ? s.chapter : s.practiceType}</div>
                   <div className="text-[10px] text-muted-foreground mt-0.5">
                     {s.practiceType} Â· {s.attempted}/{s.qs || "?"} answered Â· {s.date}
                   </div>
                 </div>
-                <span className="text-[11px] font-semibold text-[#c08a3a] flex items-center gap-1 shrink-0">
+                <span className="text-[11px] font-semibold text-warning flex items-center gap-1 shrink-0">
                   Continue <ChevronRight className="w-3 h-3"/>
                 </span>
               </button>
@@ -370,7 +371,7 @@ function Hub({
       {hot.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-1 h-4 rounded-full bg-[#c08a3a]"/>
+            <div className="w-1 h-4 rounded-full bg-warning"/>
             <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Quick Start</span>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -395,7 +396,7 @@ function Hub({
               <button key={c.key} type="button" onClick={() => setCat(c.key)}
                 className={cn(
                   "px-3 py-1.5 rounded-full text-[11px] font-bold transition-all",
-                  cat === c.key ? "bg-white/12 text-foreground" : "text-muted-foreground hover:text-white hover:bg-muted"
+                  cat === c.key ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}>
                 {c.label}
               </button>
@@ -407,7 +408,7 @@ function Hub({
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search modesâ€¦"
-              className="pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-border w-full sm:w-48"
+              className="pl-9 pr-3 py-2 rounded-xl bg-muted border border-border/70 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border w-full sm:w-48"
             />
           </div>
         </div>
@@ -418,15 +419,15 @@ function Hub({
               className="group text-left p-4 rounded-2xl border border-border/70 hover:border-border hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 active:scale-[0.99]">
               <div className="flex items-start gap-2 mb-2">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ background:`${m.color}15`, color:m.color }}>
+                  style={{ background:`${withAlpha(m.color, 0.08)}`, color:m.color }}>
                   {m.icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-white truncate">{m.label}</div>
+                  <div className="text-sm font-bold text-foreground truncate">{m.label}</div>
                 </div>
                 {m.instant && (
                   <span className="shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded-full mt-0.5"
-                    style={{ color:m.color, background:`${m.color}15`, border:`1px solid ${m.color}20` }}>
+                    style={{ color:m.color, background:`${withAlpha(m.color, 0.08)}`, border:`1px solid ${withAlpha(m.color, 0.13)}` }}>
                     INSTANT
                   </span>
                 )}
@@ -455,14 +456,14 @@ function Hub({
         <GlassCard className="p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="w-1 h-4 rounded-full bg-[#4b9fd4]"/>
+              <div className="w-1 h-4 rounded-full bg-info"/>
               <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Saved Sessions</span>
             </div>
             <button
               type="button"
               disabled={savingLatest}
               onClick={onSaveLatest}
-              className="flex items-center gap-1 text-[10px] text-[#3b5bdb] hover:text-blue-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 text-[10px] text-primary hover:text-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Save className="w-3 h-3"/> {savingLatest ? "Savingâ€¦" : "Save latest result"}
             </button>
@@ -477,17 +478,17 @@ function Hub({
                 key={s.id}
                 type="button"
                 onClick={() => onOpenSession(s.id)}
-                className="group w-full flex items-start gap-3 p-3 rounded-xl border border-white/5 hover:border-white/12 hover:bg-muted transition-all text-left"
+                className="group w-full flex items-start gap-3 p-3 rounded-xl border border-border hover:border-border/80 hover:bg-muted transition-all text-left"
               >
-                <div className="w-8 h-8 rounded-lg bg-[#4b9fd4]/10 flex items-center justify-center shrink-0 text-[#4b9fd4]">
+                <div className="w-8 h-8 rounded-lg bg-info/10 flex items-center justify-center shrink-0 text-info">
                   <Save className="w-3.5 h-3.5"/>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{s.subject} Â· {s.chapter}</div>
+                  <div className="text-xs font-bold text-foreground truncate">{s.subject} Â· {s.chapter}</div>
                   <div className="text-[10px] text-muted-foreground truncate mt-0.5">{s.practiceType} Â· {s.pct}% Â· {s.attempted} Qs Â· {s.xpLabel} XP</div>
                   <div className="text-[10px] text-muted-foreground/60 mt-0.5">{s.date}</div>
                 </div>
-                <Play className="w-3.5 h-3.5 text-muted-foreground group-hover:text-[#4b9fd4] transition-colors shrink-0 mt-1"/>
+                <Play className="w-3.5 h-3.5 text-muted-foreground group-hover:text-info transition-colors shrink-0 mt-1"/>
               </button>
             ))}
           </div>
@@ -496,7 +497,7 @@ function Hub({
         <GlassCard className="p-5">
           <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
-              <div className="w-1 h-4 rounded-full bg-[#6882e8]"/>
+              <div className="w-1 h-4 rounded-full bg-primaryGlow"/>
               <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Practice History</span>
             </div>
             <button
@@ -504,7 +505,7 @@ function Hub({
               onClick={() => setShowFilters((v) => !v)}
               className={cn(
                 "flex items-center gap-1 text-[10px] px-2 py-1 rounded-lg border transition-colors",
-                showFilters ? "border-[#6882e8]/40 text-[#6882e8]" : "border-border text-muted-foreground hover:text-foreground"
+                showFilters ? "border-primaryGlow/40 text-primaryGlow" : "border-border text-muted-foreground hover:text-foreground"
               )}
             >
               <Filter className="w-3 h-3"/> Filters
@@ -519,7 +520,7 @@ function Hub({
                   value={historyFilters.search}
                   onChange={(e) => onHistoryFilters({ search: e.target.value })}
                   placeholder="Search subject, chapter, typeâ€¦"
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white placeholder:text-muted-foreground focus:outline-none focus:border-border"
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-muted border border-border/70 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-border"
                 />
                 <div className="mt-1.5 text-[10px] text-muted-foreground/70">
                   Showing your most recent 100 sessions
@@ -528,7 +529,7 @@ function Hub({
               <select
                 value={historyFilters.subject}
                 onChange={(e) => onHistoryFilters({ subject: e.target.value })}
-                className="px-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-muted border border-border/70 text-xs text-foreground focus:outline-none"
               >
                 <option value="">All subjects</option>
                 {subjects.map((s) => (
@@ -538,7 +539,7 @@ function Hub({
               <select
                 value={historyFilters.practiceType}
                 onChange={(e) => onHistoryFilters({ practiceType: e.target.value })}
-                className="px-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white focus:outline-none"
+                className="px-3 py-2 rounded-xl bg-muted border border-border/70 text-xs text-foreground focus:outline-none"
               >
                 <option value="">All practice types</option>
                 {MODES.map((m) => (
@@ -549,7 +550,7 @@ function Hub({
                 type="date"
                 value={historyFilters.date}
                 onChange={(e) => onHistoryFilters({ date: e.target.value })}
-                className="sm:col-span-2 px-3 py-2 rounded-xl bg-white/5 border border-border/70 text-xs text-white focus:outline-none"
+                className="sm:col-span-2 px-3 py-2 rounded-xl bg-muted border border-border/70 text-xs text-foreground focus:outline-none"
               />
             </div>
           )}
@@ -564,17 +565,17 @@ function Hub({
                 key={h.id}
                 type="button"
                 onClick={() => onOpenSession(h.id)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-border hover:bg-white/[0.02] transition-all text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-border hover:border-border hover:bg-muted transition-all text-left"
               >
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                  style={{ background:`${h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069"}15`, color:h.pct>=75?"#4aa87a":h.pct>=55?"#c08a3a":"#cc5069" }}>
+                  style={{ background:`${withAlpha(h.pct>=75?"hsl(var(--success))":h.pct>=55?"hsl(var(--warning))":"hsl(var(--destructive))", 0.08)}`, color:h.pct>=75?"hsl(var(--success))":h.pct>=55?"hsl(var(--warning))":"hsl(var(--destructive))" }}>
                   <span className="text-xs font-black">{h.pct}%</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-white truncate">{h.chapter !== "â€”" ? h.chapter : h.practiceType}</span>
+                    <span className="text-xs font-semibold text-foreground truncate">{h.chapter !== "â€”" ? h.chapter : h.practiceType}</span>
                     <StatusTag status={h.status}/>
-                    {h.saved && <Tag color="#4b9fd4">Saved</Tag>}
+                    {h.saved && <Tag color="hsl(var(--info))">Saved</Tag>}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <span className="text-[10px] text-muted-foreground">{h.subject}</span>
@@ -587,7 +588,7 @@ function Hub({
                     <span className="text-[10px] text-muted-foreground/40">Â·</span>
                     <span className="text-[10px] text-muted-foreground">{h.time}</span>
                     <span className="text-[10px] text-muted-foreground/40">Â·</span>
-                    <span className="text-[10px] text-[#c08a3a]">{h.xpLabel} XP</span>
+                    <span className="text-[10px] text-warning">{h.xpLabel} XP</span>
                   </div>
                 </div>
                 <div className="text-[10px] text-muted-foreground shrink-0 text-right hidden sm:block">{h.date}</div>
@@ -746,7 +747,7 @@ function ConfigView({
                     "p-4 rounded-2xl border text-left transition-all",
                     selDifficulty === d.key ? "scale-[1.02]" : "border-border/70 hover:border-border"
                   )}
-                  style={selDifficulty === d.key ? { borderColor:`${d.color}40`, background:`${d.color}10` } : {}}>
+                  style={selDifficulty === d.key ? { borderColor:`${withAlpha(d.color, 0.25)}`, background:`${withAlpha(d.color, 0.06)}` } : {}}>
                   <div className="text-sm font-black mb-1" style={{ color:selDifficulty===d.key?d.color:"white" }}>{d.label}</div>
                   <div className="text-[11px] text-muted-foreground">{d.desc}</div>
                 </button>
@@ -771,7 +772,7 @@ function ConfigView({
                     "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
                     goalType === g.key ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                   )}
-                  style={goalType === g.key ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}
+                  style={goalType === g.key ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}
                 >
                   {g.label}
                 </button>
@@ -787,7 +788,7 @@ function ConfigView({
                       "px-5 py-3 rounded-xl text-sm font-black border transition-all",
                       qCount === n ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                     )}
-                    style={qCount === n ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
+                    style={qCount === n ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}>
                     {n} questions
                   </button>
                 ))}
@@ -800,7 +801,7 @@ function ConfigView({
                       "px-5 py-3 rounded-xl text-sm font-black border transition-all",
                       timeLimitMin === t ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                     )}
-                    style={timeLimitMin === t ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
+                    style={timeLimitMin === t ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}>
                     {t} min
                   </button>
                 ))}
@@ -835,7 +836,7 @@ function ConfigView({
                   "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
                   pyqYear === null ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                 )}
-                style={pyqYear === null ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
+                style={pyqYear === null ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}>
                 All years
               </button>
               {years.map(y => (
@@ -844,7 +845,7 @@ function ConfigView({
                     "px-4 py-2 rounded-xl text-sm font-bold border transition-all",
                     pyqYear === y ? "border-transparent" : "border-border/70 text-muted-foreground hover:border-border",
                   )}
-                  style={pyqYear === y ? { background:`${mode.color}18`, color:mode.color, borderColor:`${mode.color}40` } : {}}>
+                  style={pyqYear === y ? { background:`${withAlpha(mode.color, 0.09)}`, color:mode.color, borderColor:`${withAlpha(mode.color, 0.25)}` } : {}}>
                   {y}
                 </button>
               ))}
@@ -892,7 +893,7 @@ function ConfigView({
                   <button key={d.key} onClick={() => setSelDifficulty(d.key)}
                     className={cn(
                       "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                      selDifficulty === d.key ? "text-white shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
+                      selDifficulty === d.key ? "text-foreground shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
                     )}
                     style={selDifficulty === d.key ? { background:d.color } : {}}>
                     {d.label}
@@ -960,7 +961,7 @@ function EmptyConfig({
       <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">{body}</p>
       {actionLabel && onAction && (
         <button type="button" onClick={onAction}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#3b5bdb] hover:text-blue-300">
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline">
           {actionLabel} <ChevronRight className="w-3 h-3"/>
         </button>
       )}
@@ -989,7 +990,7 @@ function OptionChips({
             <button type="button" onClick={() => onSelect(null)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
+                selected === null ? "bg-primary text-primary-foreground shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
               )}>Any</button>
           )}
           {options.map((opt) => (
@@ -999,7 +1000,7 @@ function OptionChips({
               onClick={() => onSelect(opt.id)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all max-w-full truncate",
-                selected === opt.id ? "bg-[#3b5bdb] text-white shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
+                selected === opt.id ? "bg-primary text-primary-foreground shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
               )}
               title={opt.displayName}
             >
@@ -1018,14 +1019,14 @@ function ConfigShell({ mode, onBack, children }: {
 }) {
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors">
+      <button onClick={onBack} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
         <ArrowLeft className="w-4 h-4"/> Back to Practice
       </button>
 
       <GlassCard className="p-6">
         <div className="flex items-center gap-4 mb-6">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-            style={{ background:`${mode.color}18`, color:mode.color }}>
+            style={{ background:`${withAlpha(mode.color, 0.09)}`, color:mode.color }}>
             {mode.icon}
           </div>
           <div>
@@ -1063,16 +1064,16 @@ function SubjectPicker({
             <button type="button" onClick={() => onSelect(null)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === null ? "bg-[#3b5bdb] text-white shadow-lg shadow-blue-500/20" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
+                selected === null ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
               )}>All</button>
           )}
           {subjects.map(s => (
             <button key={s.id} type="button" onClick={() => onSelect(s.name)}
               className={cn(
                 "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all",
-                selected === s.name ? "text-white shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
+                selected === s.name ? "text-foreground shadow-lg" : "border border-border/70 text-muted-foreground hover:border-border hover:text-foreground"
               )}
-              style={selected===s.name ? { background:s.color, boxShadow:`0 4px 14px ${s.color}40` } : {}}>
+              style={selected===s.name ? { background:s.color, boxShadow:`0 4px 14px ${withAlpha(s.color, 0.25)}` } : {}}>
               {displaySubject(s.name) || s.name}
             </button>
           ))}
@@ -1105,10 +1106,10 @@ function StartButton({ color, disabled=false, onStart, label="Start Practice" }:
   return (
     <button onClick={onStart} disabled={disabled}
       className={cn(
-        "w-full mt-6 py-3.5 rounded-2xl font-black text-sm text-white flex items-center justify-center gap-2 transition-all",
-        disabled ? "opacity-30 cursor-not-allowed bg-white/10" : "hover:opacity-90 hover:scale-[1.02] active:scale-[0.99]"
+        "w-full mt-6 py-3.5 rounded-2xl font-black text-sm text-foreground flex items-center justify-center gap-2 transition-all",
+        disabled ? "opacity-30 cursor-not-allowed bg-muted" : "hover:opacity-90 hover:scale-[1.02] active:scale-[0.99]"
       )}
-      style={disabled ? {} : { background:`linear-gradient(135deg,${color},${color}cc)`, boxShadow:`0 8px 24px ${color}30` }}>
+      style={disabled ? {} : { background:`linear-gradient(135deg,${color},${withAlpha(color, 0.8)})`, boxShadow:`0 8px 24px ${withAlpha(color, 0.19)}` }}>
       <Play className="w-4 h-4"/> {label}
     </button>
   );
@@ -1762,11 +1763,11 @@ function Session({
   if (loadError) {
     return (
       <div className="max-w-2xl mx-auto text-center py-16 space-y-4">
-        <AlertCircle className="w-10 h-10 text-rose-400 mx-auto"/>
+        <AlertCircle className="w-10 h-10 text-destructive mx-auto"/>
         <div className="text-lg font-bold text-foreground">Could not start practice</div>
         <p className="text-sm text-muted-foreground">{loadError}</p>
         <button onClick={onBack}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-white hover:border-border transition-all">
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-all">
           <ArrowLeft className="w-4 h-4"/> Back to Practice
         </button>
       </div>
@@ -1799,13 +1800,13 @@ function Session({
             <button
               type="button"
               onClick={() => onNavigate("recovery")}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#4aa87a]/40 text-sm text-[#4aa87a] hover:bg-[#4aa87a]/10 transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-success/40 text-sm text-success hover:bg-success/10 transition-all"
             >
               Open Recovery
             </button>
           )}
           <button onClick={onBack}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-white hover:border-border transition-all">
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-all">
             <ArrowLeft className="w-4 h-4"/> Back to Practice
           </button>
         </div>
@@ -1826,7 +1827,7 @@ function Session({
               {timed && (
                 <div className={cn(
                   "flex items-center gap-1.5 text-sm font-black tabular-nums px-3 py-1 rounded-xl",
-                  timeLeft < 30 ? "text-rose-400 bg-rose-400/10" : "text-[#4b9fd4] bg-[#4b9fd4]/10"
+                  timeLeft < 30 ? "text-destructive bg-destructive/10" : "text-info bg-info/10"
                 )}>
                   <Clock className="w-3.5 h-3.5"/>{mm}:{ss}
                 </div>
@@ -1834,7 +1835,7 @@ function Session({
               <span className="text-xs text-muted-foreground">{correct}/{attempted} correct</span>
             </div>
           </div>
-          <ProgressBar value={priorCount + idx} max={Math.max(displayTotal, 1)} color="#3b5bdb" height="h-1"/>
+          <ProgressBar value={priorCount + idx} max={Math.max(displayTotal, 1)} color="hsl(var(--primary))" height="h-1"/>
         </div>
       </div>
 
@@ -1849,13 +1850,13 @@ function Session({
           <div className="flex items-center gap-2 shrink-0">
             <button onClick={toggleBookmark} title="Flag for this session (not saved to Mistake Book)"
               className={cn("w-7 h-7 rounded-lg flex items-center justify-center transition-all",
-                bookmarked.includes(idx) ? "text-[#4b9fd4] bg-[#4b9fd4]/15" : "text-muted-foreground hover:text-white hover:bg-white/8"
+                bookmarked.includes(idx) ? "text-info bg-info/15" : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}>
               <Bookmark className="w-3.5 h-3.5"/>
             </button>
           </div>
         </div>
-        <div className="text-base font-semibold text-white leading-relaxed">
+        <div className="text-base font-semibold text-foreground leading-relaxed">
           <MathText block text={q.question} />
         </div>
       </GlassCard>
@@ -1865,21 +1866,21 @@ function Session({
         {q.options.map((opt, i) => {
           const isChosen = chosen === i;
           const isCorrect = i === q.correct;
-          let bg = "border-border/70 text-[#a0a0b0] hover:border-border hover:text-white hover:bg-white/4";
+          let bg = "border-border/70 text-muted-foreground hover:border-border hover:text-foreground hover:bg-muted";
           if (phase === "fb") {
-            if (isCorrect)              bg = "border-emerald-400/40 bg-emerald-400/10 text-emerald-300";
-            else if (isChosen && !isRight) bg = "border-rose-400/40 bg-rose-400/10 text-rose-300";
-            else                        bg = "border-white/4 text-muted-foreground opacity-60";
+            if (isCorrect)              bg = "border-success/40 bg-success/10 text-success";
+            else if (isChosen && !isRight) bg = "border-destructive/40 bg-destructive/10 text-destructive";
+            else                        bg = "border-border text-muted-foreground opacity-60";
           }
           return (
             <button key={i} onClick={() => phase === "q" && answer(i)} disabled={phase === "fb" || finishing}
               className={cn("w-full p-4 rounded-2xl border text-left text-sm font-medium transition-all duration-150 flex items-center gap-3", bg)}>
-              <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 bg-white/8">
+              <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 bg-muted">
                 {String.fromCharCode(65+i)}
               </span>
               <span className="flex-1"><MathText text={opt} /></span>
-              {phase === "fb" && isCorrect && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0"/>}
-              {phase === "fb" && isChosen && !isRight && <XCircle className="w-4 h-4 text-rose-400 shrink-0"/>}
+              {phase === "fb" && isCorrect && <CheckCircle2 className="w-4 h-4 text-success shrink-0"/>}
+              {phase === "fb" && isChosen && !isRight && <XCircle className="w-4 h-4 text-destructive shrink-0"/>}
             </button>
           );
         })}
@@ -1887,10 +1888,10 @@ function Session({
 
       {/* Hint (question phase â€” recorded as hint_used on attempt) */}
       {phase === "q" && q.explanation && hintRevealed && (
-        <GlassCard className="p-4 border-[#c08a3a]/25">
+        <GlassCard className="p-4 border-warning/25">
           <div className="flex items-start gap-2">
-            <Lightbulb className="w-4 h-4 text-[#c08a3a] shrink-0 mt-0.5"/>
-            <div className="text-sm text-[#a0a0b0] leading-relaxed">
+            <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
+            <div className="text-sm text-muted-foreground leading-relaxed">
               <span className="font-semibold text-foreground">Hint: </span>
               <MathText text={hintPreview(q.explanation)} />
             </div>
@@ -1902,8 +1903,8 @@ function Session({
       {phase === "fb" && q.explanation && (
         <GlassCard className="p-4 border-blue-500/20">
           <div className="flex items-start gap-2">
-            <Lightbulb className="w-4 h-4 text-[#c08a3a] shrink-0 mt-0.5"/>
-            <div className="text-sm text-[#a0a0b0] leading-relaxed">
+            <Lightbulb className="w-4 h-4 text-warning shrink-0 mt-0.5"/>
+            <div className="text-sm text-muted-foreground leading-relaxed">
               <span className="font-semibold text-foreground">Explanation: </span>
               <MathText text={q.explanation} />
             </div>
@@ -1915,24 +1916,24 @@ function Session({
       <div className="flex items-center gap-3">
         {phase === "q" && (
           <button onClick={() => skip()} disabled={finishing}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-white hover:border-border transition-all">
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-foreground hover:border-border transition-all">
             <SkipForward className="w-3.5 h-3.5"/> Skip
           </button>
         )}
         {phase === "q" && q.explanation && !hintRevealed && (
           <button onClick={revealHint} disabled={finishing}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-[#c08a3a]/30 text-sm text-[#c08a3a] hover:bg-[#c08a3a]/10 transition-all">
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-warning/30 text-sm text-warning hover:bg-warning/10 transition-all">
             <Lightbulb className="w-3.5 h-3.5"/> Hint
           </button>
         )}
         {phase === "fb" && (
           <button onClick={next} disabled={finishing}
-            className="flex-1 py-3 rounded-2xl bg-[#3b5bdb] hover:bg-blue-500 text-white font-bold text-sm transition-all flex items-center justify-center gap-2">
+            className="flex-1 py-3 rounded-2xl bg-primary hover:opacity-90 text-primary-foreground font-bold text-sm transition-all flex items-center justify-center gap-2">
             {idx+1 >= qs.length ? "See Results" : "Next Question"} <ChevronRight className="w-4 h-4"/>
           </button>
         )}
         <button onClick={() => void finish()} disabled={finishing}
-          className="px-4 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-rose-400 hover:border-rose-400/20 transition-all">
+          className="px-4 py-2.5 rounded-xl border border-border/70 text-sm text-muted-foreground hover:text-destructive hover:border-destructive/20 transition-all">
           {finishing ? "Savingâ€¦" : "End Session"}
         </button>
       </div>
@@ -1978,7 +1979,7 @@ function Summary({ results, onRetry, onHub, onRetryIncorrect }: {
   });
   const wrong = stats.wrongCount;
   const pct = stats.accuracy;
-  const color = pct >= 80 ? "#4aa87a" : pct >= 60 ? "#c08a3a" : "#cc5069";
+  const color = pct >= 80 ? "hsl(var(--success))" : pct >= 60 ? "hsl(var(--warning))" : "hsl(var(--destructive))";
   const emoji = pct >= 90 ? "ðŸ†" : pct >= 75 ? "ðŸŽ¯" : pct >= 60 ? "ðŸ“ˆ" : "ðŸ’ª";
   const xpFormatted = formatSessionXp(stats.xpEarned, stats.xpFromDb);
   const xpLabel = xpFormatted === "â€”" ? null : `+${xpFormatted} XP`;
@@ -1990,19 +1991,19 @@ return (
         <div className="text-5xl font-black tabular-nums mb-1" style={{color,fontFamily:"var(--font-display)"}}>{pct}%</div>
         <div className="text-muted-foreground text-sm mb-6">{stats.correctCount} correct out of {stats.questionCount}</div>
         {xpLabel && (
-          <div className="text-sm font-bold text-[#c08a3a] mb-4 tabular-nums">
+          <div className="text-sm font-bold text-warning mb-4 tabular-nums">
             {xpLabel}
           </div>
         )}
 
         <div className="grid grid-cols-4 gap-3 mb-6">
           {[
-            { label:"Correct",    value:stats.correctCount,    color:"#4aa87a" },
-            { label:"Wrong",      value:wrong, color:"#cc5069" },
-            { label:"Skipped",    value:stats.skippedCount,    color:"#c08a3a" },
-            { label:"Flagged", value:bookmarked, color:"#4b9fd4" },
+            { label:"Correct",    value:stats.correctCount,    color:"hsl(var(--success))" },
+            { label:"Wrong",      value:wrong, color:"hsl(var(--destructive))" },
+            { label:"Skipped",    value:stats.skippedCount,    color:"hsl(var(--warning))" },
+            { label:"Flagged", value:bookmarked, color:"hsl(var(--info))" },
           ].map(s => (
-            <div key={s.label} className="bg-white/4 rounded-xl p-2.5 border border-white/5">
+            <div key={s.label} className="bg-muted rounded-xl p-2.5 border border-border">
               <div className="text-xl font-black tabular-nums" style={{color:s.color}}>{s.value}</div>
               <div className="text-[9px] uppercase tracking-wider text-muted-foreground mt-0.5">{s.label}</div>
             </div>
@@ -2011,18 +2012,18 @@ return (
 
         <div className="space-y-2.5">
           <button onClick={onRetry}
-            className="w-full py-3 rounded-2xl font-bold text-sm text-white flex items-center justify-center gap-2 transition-all hover:opacity-90"
-            style={{ background:`linear-gradient(135deg,#3b5bdb,#4b9fd4)`, boxShadow:"0 8px 24px rgba(59,130,246,0.3)" }}>
+            className="w-full py-3 rounded-2xl font-bold text-sm text-foreground flex items-center justify-center gap-2 transition-all hover:opacity-90"
+            style={{ background:`linear-gradient(135deg,hsl(var(--primary)),hsl(var(--info)))`, boxShadow:`0 8px 24px ${withAlpha("hsl(var(--primary))", 0.3)}` }}>
             <RotateCcw className="w-4 h-4"/> Retry Same Mode
           </button>
           {wrong > 0 && (
             <button onClick={onRetryIncorrect}
-              className="w-full py-3 rounded-2xl border border-rose-400/30 text-rose-400 font-semibold text-sm hover:bg-rose-400/8 transition-all flex items-center justify-center gap-2">
+              className="w-full py-3 rounded-2xl border border-destructive/30 text-destructive font-semibold text-sm hover:bg-destructive/8 transition-all flex items-center justify-center gap-2">
               <XCircle className="w-4 h-4"/> Practice {wrong} incorrect question{wrong!==1?"s":""}
             </button>
           )}
           <button onClick={onHub}
-            className="w-full py-3 rounded-2xl border border-border/70 text-muted-foreground font-semibold text-sm hover:text-white hover:border-border transition-all">
+            className="w-full py-3 rounded-2xl border border-border/70 text-muted-foreground font-semibold text-sm hover:text-foreground hover:border-border transition-all">
             Back to Practice Hub
           </button>
         </div>
@@ -2368,7 +2369,7 @@ export default function Practice({ setPage }: { setPage?: (p: PageKey) => void }
   return (
     <>
       {classUnresolved && (
-        <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 px-4 py-3 text-sm text-amber-100/90">
+        <div className="mb-4 rounded-2xl border border-warning/25 bg-warning/10 px-4 py-3 text-sm text-warning">
           {classUnresolvedMessage}
         </div>
       )}

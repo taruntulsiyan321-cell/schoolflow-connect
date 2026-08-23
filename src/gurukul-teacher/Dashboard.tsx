@@ -66,7 +66,7 @@ function QuickAction({
       >
         {icon}
       </div>
-      <div className="text-[10px] font-semibold text-muted-foreground group-hover:text-white transition-all leading-tight">
+      <div className="text-[10px] font-semibold text-muted-foreground group-hover:text-foreground transition-all leading-tight">
         {label}
       </div>
     </button>
@@ -105,7 +105,7 @@ function AttentionCard({
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-xl font-black text-white tabular-nums">{value}</div>
+        <div className="text-xl font-black text-foreground tabular-nums">{value}</div>
         <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{label}</div>
         {hint && <div className="text-[9px] text-muted-foreground mt-0.5">{hint}</div>}
       </div>
@@ -320,7 +320,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
             ? ` Â· ${classNames.slice(0, 4).join(", ")}${classNames.length > 4 ? "â€¦" : ""}`
             : ""}
         </div>
-        {error && <div className="text-xs text-[#cc5069] mt-2">{error}</div>}
+        {error && <div className="text-xs text-destructive mt-2">{error}</div>}
       </div>
 
       <div>
@@ -455,7 +455,7 @@ export default function TeacherHome({ setPage }: { setPage: (p: TeacherPageKey) 
           "w-full p-4 rounded-2xl border border-border/70 bg-surface text-left hover:border-[#3b5bdb]/40",
         )}
       >
-        <div className="text-xs font-bold text-white flex items-center gap-2">
+        <div className="text-xs font-bold text-foreground flex items-center gap-2">
           <Calendar className="w-4 h-4 text-[#3b5bdb]" /> Open My Classes
         </div>
         <div className="text-[10px] text-muted-foreground mt-1">

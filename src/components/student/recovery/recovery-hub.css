@@ -10,7 +10,7 @@
 
 .recovery-hub .rh-hero {
   background: #17657a;
-  box-shadow: 0 24px 48px -12px rgba(0, 51, 36, 0.4);
+  box-shadow: 0 24px 48px -12px rgba(20, 37, 45, 0.24);
 }
 
 .recovery-hub .rh-hero-glow {
@@ -18,25 +18,25 @@
 }
 
 .recovery-hub .rh-card {
-  background: #ffff;
-  border: 1px solid rgba(0, 51, 36, 0.08);
-  box-shadow: 0 4px 24px -6px rgba(0, 51, 36, 0.08);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: var(--shadow-card);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .recovery-hub .rh-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.14);
+  box-shadow: var(--shadow-elevated);
 }
 
 .recovery-hub .rh-coach {
-  background: #f0f7;
-  border: 1px solid rgba(59, 130, 246, 0.12);
-  box-shadow: 0 8px 32px -8px rgba(59, 130, 246, 0.1);
+  background: hsl(var(--info) / 0.08);
+  border: 1px solid hsl(var(--info) / 0.2);
+  box-shadow: var(--shadow-card);
 }
 
 .recovery-hub .rh-task {
-  background: #ffff;
+  background: hsl(var(--card));
   border: 1px solid rgba(232, 196, 104, 0.2);
 }
 
@@ -46,12 +46,12 @@
 }
 
 .recovery-hub .rh-forecast {
-  background: #0033;
-  box-shadow: 0 16px 40px -10px rgba(0, 51, 36, 0.35);
+  background: hsl(var(--primary));
+  box-shadow: var(--shadow-elevated);
 }
 
 .recovery-hub .rh-journey-line {
-  background: #97d3;
+  background: hsl(var(--primary-glow) / 0.45);
 }
 
 .recovery-hub .rh-heat-strong {

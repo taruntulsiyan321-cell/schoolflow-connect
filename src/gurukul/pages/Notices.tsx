@@ -15,7 +15,7 @@ const PRIORITY_STYLES: Record<
   AnnouncementPriority,
   { label: string; color: string; bg: string }
 > = {
-  normal: { label: "Normal", color: "#78788c", bg: "rgba(120,120,140,0.15)" },
+  normal: { label: "Normal", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted))" },
   important: { label: "Important", color: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
   urgent: { label: "Urgent", color: "#cc5069", bg: "rgba(204,80,105,0.15)" },
 };
@@ -182,7 +182,7 @@ export default function Notices() {
                 <button
                   type="button"
                   onClick={() => setSelected(null)}
-                  className="text-muted-foreground hover:text-white text-xs"
+                  className="text-muted-foreground hover:text-foreground text-xs"
                 >
                   âœ•
                 </button>

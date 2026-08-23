@@ -67,7 +67,7 @@ export default function ParentNotifications() {
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white outline-none"
+          className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none"
         >
           <option value="all">All Types</option>
           {types.map((t) => (
@@ -122,7 +122,7 @@ export default function ParentNotifications() {
                       </span>
                       {!n.read && <div className="w-1.5 h-1.5 rounded-full bg-[#3b5bdb]" />}
                     </div>
-                    <div className="text-xs font-semibold text-white mt-1">{n.title}</div>
+                    <div className="text-xs font-semibold text-foreground mt-1">{n.title}</div>
                     {n.body && <div className="text-[10px] text-muted-foreground mt-0.5">{n.body}</div>}
                     <div className="text-[9px] text-muted-foreground mt-1">{when}</div>
                   </div>

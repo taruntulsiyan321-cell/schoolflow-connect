@@ -251,7 +251,7 @@ function XPBar({ xp, level }: { xp: number; level: number }) {
         <span className="text-[11px] text-muted-foreground">Level {level}</span>
         <span className="text-[11px] text-muted-foreground">{xp % 1000} / 1000 XP</span>
       </div>
-      <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
         <div
           className="h-full rounded-full"
           style={{
@@ -284,7 +284,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
         <div key={p.name} className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
           <span className="text-[#a0aec0]">{p.name}:</span>
-          <span className="text-white font-semibold">{p.value}</span>
+          <span className="text-foreground font-semibold">{p.value}</span>
         </div>
       ))}
     </div>
@@ -311,7 +311,7 @@ export default function AnalyticsPage() {
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] flex items-center justify-center">
               <BarChart2 className="w-4 h-4 text-foreground" />
             </div>
-            <span className="text-sm font-semibold text-white tracking-tight">Analytics Studio</span>
+            <span className="text-sm font-semibold text-foreground tracking-tight">Analytics Studio</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 bg-amber-400/10 border border-amber-400/20 rounded-full px-3 py-1">
@@ -346,7 +346,7 @@ export default function AnalyticsPage() {
                   <span className="text-[10px] text-purple-400 font-semibold">Rank #{student.rank} / {student.totalStudents}</span>
                 </div>
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-black text-foreground leading-tight tracking-tight">
                 Hi, {student.name.split(" ")[0]} ðŸ‘‹
               </h1>
               <p className="text-muted-foreground mt-1 text-sm">{student.class} Â· Last updated just now</p>
@@ -357,7 +357,7 @@ export default function AnalyticsPage() {
                   { label: "Attendance", value: `${student.attendance}%`, color: "#4aa87a" },
                   { label: "Level", value: `Lv.${student.level}`, color: "#6882e8" },
                 ].map((m) => (
-                  <div key={m.label} className="bg-white/4 rounded-xl px-3 py-2.5 border border-white/5">
+                  <div key={m.label} className="bg-muted rounded-xl px-3 py-2.5 border border-border">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{m.label}</div>
                     <div className="mt-0.5 text-xl font-black tabular-nums" style={{ color: m.color }}>{m.value}</div>
                   </div>
@@ -392,7 +392,7 @@ export default function AnalyticsPage() {
         </GlassCard>
 
         {/* â”€â”€ Tab Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        <div className="flex gap-1 bg-white/4 border border-border/70 rounded-xl p-1 w-fit">
+        <div className="flex gap-1 bg-muted border border-border/70 rounded-xl p-1 w-fit">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -400,7 +400,7 @@ export default function AnalyticsPage() {
               className={cn(
                 "px-4 py-1.5 rounded-lg text-sm transition-all duration-200",
                 activeTab === t.key
-                  ? "bg-[#3b5bdb] text-white shadow-lg shadow-[#3b5bdb]/20"
+                  ? "bg-[#3b5bdb] text-foreground shadow-lg shadow-[#3b5bdb]/20"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -459,7 +459,7 @@ export default function AnalyticsPage() {
                   <Brain className="w-4 h-4 text-foreground" />
                 </div>
                 <div>
-                  <div className="text-white font-semibold text-sm">Nova Â· Your Academic AI</div>
+                  <div className="text-foreground font-semibold text-sm">Nova Â· Your Academic AI</div>
                   <div className="text-muted-foreground text-xs mt-0.5">Analysing your last 7 sessionsâ€¦</div>
                 </div>
                 <div className="ml-auto flex items-center gap-1 text-purple-400">
@@ -471,7 +471,7 @@ export default function AnalyticsPage() {
                 {aiInsights.map((line, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 p-3 rounded-xl bg-muted border border-white/5 hover:border-purple-400/20 transition-colors"
+                    className="flex items-start gap-3 p-3 rounded-xl bg-muted border border-border hover:border-purple-400/20 transition-colors"
                   >
                     <div className="w-5 h-5 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0 mt-0.5">
                       <span className="text-[10px] font-bold text-purple-400">{i + 1}</span>
@@ -491,7 +491,7 @@ export default function AnalyticsPage() {
                   return (
                     <div
                       key={i}
-                      className="flex items-center gap-4 p-3 rounded-xl bg-muted border border-white/5 hover:border-border transition-colors group"
+                      className="flex items-center gap-4 p-3 rounded-xl bg-muted border border-border hover:border-border transition-colors group"
                     >
                       <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold"
@@ -529,7 +529,7 @@ export default function AnalyticsPage() {
                     </div>
                     <MiniRing score={s.accuracy} />
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-700"
                       style={{
@@ -586,7 +586,7 @@ export default function AnalyticsPage() {
                     <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-emerald-400/5 border border-emerald-400/10 hover:border-emerald-400/25 transition-colors">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-white truncate">{c.concept}</div>
+                        <div className="text-sm font-semibold text-foreground truncate">{c.concept}</div>
                         <div className="text-[11px] text-muted-foreground">{c.subject}</div>
                       </div>
                       <div className="text-sm font-bold text-emerald-400 shrink-0">{c.score}%</div>
@@ -603,7 +603,7 @@ export default function AnalyticsPage() {
                     <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-amber-400/5 border border-amber-400/10 hover:border-amber-400/25 transition-colors group cursor-pointer">
                       <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-white truncate">{c.concept}</div>
+                        <div className="text-sm font-semibold text-foreground truncate">{c.concept}</div>
                         <div className="text-[11px] text-muted-foreground">{c.subject} Â· {c.mistakes} mistakes</div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
@@ -743,7 +743,7 @@ export default function AnalyticsPage() {
                       "flex items-center gap-3 p-3 rounded-xl border transition-colors",
                       p.you
                         ? "bg-blue-500/10 border-blue-500/25"
-                        : "bg-muted border-white/5 hover:border-border"
+                        : "bg-muted border-border hover:border-border"
                     )}
                   >
                     <div
@@ -780,7 +780,7 @@ export default function AnalyticsPage() {
           ].map((a) => (
             <button
               key={a.label}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-white/5 hover:bg-white/8 hover:border-border text-sm text-[#a0aec0] hover:text-white transition-all duration-200"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-muted hover:bg-muted/80 hover:border-border text-sm text-[#a0aec0] hover:text-foreground transition-all duration-200"
               style={{ "--hover-shadow": `0 0 20px ${a.color}30` } as React.CSSProperties}
             >
               <span style={{ color: a.color }}>{a.icon}</span>

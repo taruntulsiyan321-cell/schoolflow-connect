@@ -10,7 +10,7 @@
 
 .practice-hub .ph-hero {
   background: #17657a;
-  box-shadow: 0 24px 48px -12px rgba(0, 51, 36, 0.35);
+  box-shadow: 0 24px 48px -12px rgba(20, 37, 45, 0.24);
 }
 
 .practice-hub .ph-hero-glow {
@@ -18,46 +18,45 @@
 }
 
 .practice-hub .ph-card {
-  background: #ffff;
-  border: 1px solid rgba(0, 51, 36, 0.08);
-  box-shadow: 0 4px 24px -6px rgba(0, 51, 36, 0.08);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: var(--shadow-card);
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .practice-hub .ph-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 32px -8px rgba(0, 51, 36, 0.14);
-  border-color: rgba(151, 211, 184, 0.5);
+  box-shadow: var(--shadow-elevated);
+  border-color: hsl(var(--primary) / 0.3);
 }
 
 .practice-hub .ph-mode-card {
-  background: #ffff;
+  background: hsl(var(--card));
 }
 
 .practice-hub .ph-quick-start {
-  background: #defa;
-  border: 2px solid rgba(151, 211, 184, 0.45);
-  box-shadow: 0 12px 40px -10px rgba(0, 51, 36, 0.15);
+  background: hsl(var(--secondary));
+  border: 2px solid hsl(var(--primary) / 0.28);
+  box-shadow: var(--shadow-elevated);
 }
 
 .practice-hub .ph-ai-card {
-  background: #f0f7;
-  border: 1px solid rgba(59, 130, 246, 0.15);
-  box-shadow: 0 8px 32px -8px rgba(59, 130, 246, 0.12);
+  background: hsl(var(--info) / 0.08);
+  border: 1px solid hsl(var(--info) / 0.2);
+  box-shadow: var(--shadow-card);
 }
 
 .practice-hub .ph-summary {
-  background: #0033;
-  box-shadow: 0 12px 40px -8px rgba(0, 51, 36, 0.3);
+  background: hsl(var(--primary));
+  box-shadow: var(--shadow-elevated);
 }
 
 .practice-hub .ph-illustration {
-  background: rgba(178, 240, 212, 0.4),
-    rgba(232, 196, 104, 0.25);
+  background: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--warning) / 0.16));
 }
 
 .practice-hub .ph-subject-active {
   ring: 2px;
-  border-color: rgba(0, 51, 36, 0.25);
-  box-shadow: 0 8px 24px -6px rgba(0, 51, 36, 0.15);
+  border-color: hsl(var(--primary) / 0.3);
+  box-shadow: var(--shadow-card);
 }

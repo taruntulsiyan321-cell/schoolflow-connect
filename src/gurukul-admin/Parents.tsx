@@ -141,7 +141,7 @@ function ParentForm({
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className={cn(
-                "bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50",
+                "bg-muted border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3b5bdb]/50",
                 errors.fullName ? "border-[#cc5069]/50" : "border-border",
               )}
             />
@@ -155,7 +155,7 @@ function ParentForm({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className={cn(
-                "bg-white/5 border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50",
+                "bg-muted border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3b5bdb]/50",
                 errors.email ? "border-[#cc5069]/50" : "border-border",
               )}
             />
@@ -167,7 +167,7 @@ function ParentForm({
               id="parent-phone"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
+              className="bg-muted border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3b5bdb]/50"
             />
           </div>
           <div className="col-span-2 flex flex-col gap-2">
@@ -202,7 +202,7 @@ function ParentForm({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-white bg-white/5 hover:bg-white/10 transition-all"
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 transition-all"
           >
             Cancel
           </button>
@@ -210,7 +210,7 @@ function ParentForm({
             type="button"
             disabled={saving}
             onClick={() => void handleSave()}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all disabled:opacity-50"
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all disabled:opacity-50"
           >
             {saving ? "Savingâ€¦" : parent ? "Save Changes" : "Add Parent"}
           </button>
@@ -241,7 +241,7 @@ function ParentDetail({
               {parent.userId ? "Portal linked" : "No login linked"}
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-white shrink-0">
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -290,7 +290,7 @@ function ParentDetail({
           <button
             type="button"
             onClick={onEdit}
-            className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all"
+            className="w-full py-2.5 rounded-xl text-sm font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all"
           >
             Edit Parent
           </button>
@@ -470,13 +470,13 @@ export default function ParentManagement() {
               setPage(1);
             }}
             placeholder="Search parentsâ€¦"
-            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
+            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <button
           type="button"
           onClick={() => setEditParent("new")}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all"
         >
           <Plus className="w-3.5 h-3.5" /> Add Parent
         </button>
@@ -503,7 +503,7 @@ export default function ParentManagement() {
           </thead>
           <tbody className="divide-y divide-white/5">
             {paged.map((p) => (
-              <tr key={p.id} className="hover:bg-white/2 transition-colors group">
+              <tr key={p.id} className="hover:bg-muted transition-colors group">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <InitialsAvatar name={p.fullName} size="sm" />
@@ -520,7 +520,7 @@ export default function ParentManagement() {
                       "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full",
                       p.userId
                         ? "bg-[#4aa87a]/15 text-[#4aa87a]"
-                        : "bg-white/5 text-muted-foreground",
+                        : "bg-muted text-muted-foreground",
                     )}
                   >
                     <Link2 className="w-2.5 h-2.5" />
@@ -548,21 +548,21 @@ export default function ParentManagement() {
                     <button
                       type="button"
                       onClick={() => setDetail(p)}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
+                      className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
                     >
                       <Eye className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditParent(p)}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
+                      className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(p.id)}
-                      className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-muted-foreground hover:text-[#cc5069] transition-all"
+                      className="w-7 h-7 rounded-lg bg-muted hover:bg-[#cc5069]/20 flex items-center justify-center text-muted-foreground hover:text-[#cc5069] transition-all"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -585,7 +585,7 @@ export default function ParentManagement() {
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground disabled:opacity-30 transition-all"
+              className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground disabled:opacity-30 transition-all"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
@@ -596,7 +596,7 @@ export default function ParentManagement() {
               type="button"
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
-              className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground disabled:opacity-30 transition-all"
+              className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground disabled:opacity-30 transition-all"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -634,7 +634,7 @@ export default function ParentManagement() {
               <button
                 type="button"
                 onClick={() => setConfirmDelete(null)}
-                className="px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5"
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted"
               >
                 Cancel
               </button>
@@ -642,7 +642,7 @@ export default function ParentManagement() {
                 type="button"
                 disabled={deleting}
                 onClick={() => void handleDelete(confirmDelete)}
-                className="px-3 py-2 rounded-xl text-xs font-semibold text-white bg-[#cc5069] disabled:opacity-50"
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-[#cc5069] disabled:opacity-50"
               >
                 {deleting ? "Deletingâ€¦" : "Delete"}
               </button>

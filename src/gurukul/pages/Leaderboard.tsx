@@ -114,7 +114,7 @@ export default function Leaderboard() {
   }
 
   if (error) {
-    return <div className="text-center text-sm text-[#cc5069] py-16">{error}</div>;
+    return <div className="text-center text-sm text-destructive py-16">{error}</div>;
   }
 
   return (
@@ -156,7 +156,7 @@ export default function Leaderboard() {
               key={p.userId}
               className={cn(
                 "flex items-center gap-3 p-3 rounded-xl border transition-colors",
-                p.you ? "border-blue-500/30 bg-blue-500/8" : "border-border/70 hover:border-white/12",
+                p.you ? "border-blue-500/30 bg-blue-500/8" : "border-border/70 hover:border-border",
               )}
             >
               <div className="w-7 h-7 flex items-center justify-center shrink-0">
@@ -190,7 +190,7 @@ export default function Leaderboard() {
                 </div>
               </div>
               <div className="text-right shrink-0 text-[11px] text-muted-foreground">
-                <div className="flex items-center gap-1 justify-end text-white font-bold">
+                <div className="flex items-center gap-1 justify-end text-foreground font-bold">
                   <Zap className="w-3 h-3 text-amber-400" />
                   {p.value} XP
                 </div>

@@ -10,6 +10,7 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { MessageService, useAcademicLive } from "@/academic";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
 import { cn, XPBar, EASE_OUT, springSnappy, springSoft } from "./shared";
+import { withAlpha } from "@/lib/colorAlpha";
 import {
   Home, BookOpen, Brain, Swords, Library,
   BarChart2, RefreshCw, RotateCcw, AlertCircle,
@@ -33,7 +34,7 @@ const sidebarNav: NavEntry[] = [
   { type:"link", key:"chat",         label:"Chat",         icon:<MessageCircle className="w-4 h-4"/> },
 
   {
-    type:"group", hubKey:"learninghub", label:"Learning", color:"#3b5bdb",
+    type:"group", hubKey:"learninghub", label:"Learning", color:"hsl(var(--primary))",
     icon:<GraduationCap className="w-4 h-4"/>,
     items:[
       { key:"analysis",       label:"Analysis",     icon:<BarChart2 className="w-3.5 h-3.5"/> },
@@ -44,7 +45,7 @@ const sidebarNav: NavEntry[] = [
   },
 
   {
-    type:"group", hubKey:"classhub", label:"Class", color:"#4aa87a",
+    type:"group", hubKey:"classhub", label:"Class", color:"hsl(var(--success))",
     icon:<FlaskConical className="w-4 h-4"/>,
     items:[
       { key:"timetable",   label:"Timetable",   icon:<Clock className="w-3.5 h-3.5"/> },
@@ -214,9 +215,9 @@ export default function Layout({
         whileTap={reduceMotion ? undefined : { scale: 0.97 }}
         className={cn(
           "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-all duration-150 border border-transparent",
-          !active && "text-muted-foreground hover:text-white hover:bg-muted"
+          !active && "text-muted-foreground hover:text-foreground hover:bg-muted"
         )}
-        style={active ? { background:`${color}18`, borderColor:`${color}30`, color } : undefined}
+        style={active ? { background:`${withAlpha(color, 0.09)}`, borderColor:`${withAlpha(color, 0.19)}`, color } : undefined}
         title={collapsed ? item.label : undefined}>
         <span className="shrink-0" style={active ? {color} : undefined}>{item.icon}</span>
         {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
@@ -242,7 +243,7 @@ export default function Layout({
         whileTap={reduceMotion ? undefined : { scale: 0.98 }}
         className={cn(
           "relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-colors duration-150",
-          active ? "text-foreground" : "text-muted-foreground hover:text-white hover:bg-muted",
+          active ? "text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted",
           collapsed && "justify-center px-2"
         )}
         title={collapsed ? entry.label : undefined}>
@@ -256,14 +257,14 @@ export default function Layout({
         <span className="relative z-10 shrink-0">
           {entry.icon}
           {showChatBadge && collapsed && (
-            <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center">
               {unreadMsg > 9 ? "9+" : unreadMsg}
             </span>
           )}
         </span>
         {!collapsed && <span className="relative z-10 truncate flex-1">{entry.label}</span>}
         {showChatBadge && !collapsed && (
-          <span className="relative z-10 min-w-[16px] h-4 px-1 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center shrink-0">
+          <span className="relative z-10 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center shrink-0">
             {unreadMsg > 9 ? "9+" : unreadMsg}
           </span>
         )}
@@ -331,7 +332,7 @@ export default function Layout({
               transition={{ duration: 0.2, ease: EASE_OUT }}
               className="overflow-hidden">
               <div className={collapsed ? "space-y-0.5 mt-0.5" : "ml-3 pl-3 border-l mt-0.5 mb-1 space-y-0.5"}
-                style={collapsed ? undefined : {borderColor:`${entry.color}25`}}>
+                style={collapsed ? undefined : {borderColor:`${withAlpha(entry.color, 0.15)}`}}>
                 {entry.items.map(item => <SubLink key={item.key} item={item} color={entry.color}/>)}
               </div>
             </motion.div>
@@ -399,7 +400,7 @@ export default function Layout({
       <div className="px-2 py-3 border-t border-border shrink-0">
         <button
           onClick={() => setCollapsed(c => !c)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:text-white hover:bg-muted transition-all text-xs">
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all text-xs">
           {collapsed ? <ChevronRight className="w-4 h-4"/> : <><ChevronLeft className="w-4 h-4"/><span>Collapse</span></>}
         </button>
       </div>
@@ -480,16 +481,16 @@ export default function Layout({
             {/* Right badges */}
             <div className="flex items-center gap-2">
               {/* Streak */}
-              <div className="hidden sm:flex items-center gap-1.5 bg-amber-400/10 border border-amber-400/20 rounded-full px-2.5 py-1">
-                <Flame className="w-3 h-3 text-amber-400"/>
-                <span className="text-xs font-bold text-amber-400">
+              <div className="hidden sm:flex items-center gap-1.5 bg-warning/10 border border-warning/20 rounded-full px-2.5 py-1">
+                <Flame className="w-3 h-3 text-warning"/>
+                <span className="text-xs font-bold text-warning">
                   {showXpChrome ? `${student.streak}d` : "â€”"}
                 </span>
               </div>
               {/* XP */}
-              <div className="hidden sm:flex items-center gap-1.5 bg-[#3b5bdb]/10 border border-[#3b5bdb]/20 rounded-full px-2.5 py-1">
-                <Zap className="w-3 h-3 text-blue-400"/>
-                <span className="text-xs font-bold text-blue-400">
+              <div className="hidden sm:flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-2.5 py-1">
+                <Zap className="w-3 h-3 text-info"/>
+                <span className="text-xs font-bold text-info">
                   {showXpChrome ? student.xp.toLocaleString() : "â€”"}
                 </span>
               </div>
@@ -509,7 +510,7 @@ export default function Layout({
                       animate={{ scale: 1, opacity: 1 }}
                       exit={reduceMotion ? undefined : { scale: 0, opacity: 0 }}
                       transition={springSnappy}
-                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#cc5069] text-white text-[9px] font-bold flex items-center justify-center">
+                      className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
                       {unread > 9 ? "9+" : unread}
                     </motion.span>
                   )}
@@ -522,7 +523,7 @@ export default function Layout({
                   whileHover={reduceMotion ? undefined : { scale: 1.03 }}
                   whileTap={reduceMotion ? undefined : { scale: 0.96 }}
                   onClick={onOpenAdmin}
-                  className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-[#a5b4fc] border border-border hover:border-[#3b5bdb]/40 hover:bg-[#3b5bdb]/8 rounded-full px-2.5 py-1 transition-all"
+                  className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground hover:text-primaryGlow border border-border hover:border-primary/40 hover:bg-primary/8 rounded-full px-2.5 py-1 transition-all"
                   title="Switch to Admin Panel"
                 >
                   <Settings className="w-3 h-3" />
@@ -599,9 +600,9 @@ export default function Layout({
                             "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium transition-all",
                             page === item.key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                           )}>
-                          <span className={page === item.key ? "text-[#3b5bdb]" : "text-muted-foreground"}>{item.icon}</span>
+                          <span className={page === item.key ? "text-primary" : "text-muted-foreground"}>{item.icon}</span>
                           {item.label}
-                          {page === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#3b5bdb]"/>}
+                          {page === item.key && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"/>}
                         </button>
                       ))}
                       {profileExtraLinks.map(item => (
@@ -620,7 +621,7 @@ export default function Layout({
                     <div className="px-2 py-2 border-t border-border">
                       <button
                         onClick={handleSignOut}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-muted-foreground hover:text-rose-400 hover:bg-rose-400/5 transition-all"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all"
                       >
                         <LogOut className="w-3.5 h-3.5"/>
                         Sign out
@@ -662,7 +663,7 @@ export default function Layout({
                   whileTap={reduceMotion ? undefined : { scale: 0.92 }}
                   className={cn(
                     "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-colors relative",
-                    active ? "text-[#3b5bdb]" : "text-muted-foreground"
+                    active ? "text-primary" : "text-muted-foreground"
                   )}>
                   {active && (
                     <motion.span
@@ -677,7 +678,7 @@ export default function Layout({
                     transition={reduceMotion ? { duration: 0 } : springSnappy}>
                     {item.icon}
                     {showChatBadge && (
-                      <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center">
+                      <span className="absolute -top-1.5 -right-2.5 min-w-[14px] h-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[8px] font-black flex items-center justify-center">
                         {unreadMsg > 9 ? "9+" : unreadMsg}
                       </span>
                     )}
@@ -692,13 +693,13 @@ export default function Layout({
               whileTap={reduceMotion ? undefined : { scale: 0.92 }}
               className={cn(
                 "flex-1 flex flex-col items-center gap-1 py-3 text-[10px] font-semibold transition-colors relative",
-                page === "profile" ? "text-[#3b5bdb]" : "text-muted-foreground"
+                page === "profile" ? "text-primary" : "text-muted-foreground"
               )}>
               {page === "profile" && (
                 <motion.span
                   layoutId="bottomNavDot"
                   transition={reduceMotion ? { duration: 0 } : springSnappy}
-                  className="absolute top-0 w-8 h-0.5 rounded-full bg-[#3b5bdb]"
+                  className="absolute top-0 w-8 h-0.5 rounded-full bg-primary"
                 />
               )}
               <motion.div

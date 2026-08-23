@@ -175,12 +175,12 @@ export default function ParentDashboard({
             className={cn(
               "text-xs font-bold px-3 py-1.5 rounded-xl capitalize",
               attendanceLoading || attendanceUnavailable
-                ? "bg-white/8 text-muted-foreground"
+                ? "bg-muted/80 text-muted-foreground"
                 : todayStatus === "present" || todayStatus === "late"
                   ? "bg-[#3b5bdb]/15 text-[#3b5bdb]"
                   : todayStatus === "absent"
                     ? "bg-[#cc5069]/15 text-[#cc5069]"
-                    : "bg-white/8 text-muted-foreground",
+                    : "bg-muted/80 text-muted-foreground",
             )}
           >
             {attendanceLoading
@@ -228,7 +228,7 @@ export default function ParentDashboard({
 
       <div className="bg-surface border border-border/70 rounded-2xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <div className="text-sm font-bold text-white flex items-center gap-2">
+          <div className="text-sm font-bold text-foreground flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-[#3b5bdb]" /> Academic Performance
           </div>
           <button

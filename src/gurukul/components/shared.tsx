@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
- * Shared motion language for the whole app â€” every animated primitive below
+ * Shared motion language for the whole app — every animated primitive below
  * pulls from these so motion feels like one system, not per-component
  * one-offs. Durations/easing tuned to read as "premium" (quick, soft
  * deceleration) rather than bouncy/toy-like.
@@ -36,12 +36,12 @@ export function GlassCard({ children, className, glow, onClick }: {
 }) {
   const reduceMotion = useReducedMotion();
   const glows: Record<string, string> = {
-    blue:   "border-[#3b5bdb]/20",
-    cyan:   "border-[#4b9fd4]/20",
-    amber:  "border-[#c08a3a]/20",
-    purple: "border-[#6882e8]/20",
-    green:  "border-[#4aa87a]/20",
-    rose:   "border-[#cc5069]/20",
+    blue:   "border-primary/20",
+    cyan:   "border-info/20",
+    amber:  "border-warning/20",
+    purple: "border-accent/20",
+    green:  "border-success/20",
+    rose:   "border-destructive/20",
   };
   return (
     <motion.div
@@ -64,7 +64,7 @@ export function GlassCard({ children, className, glow, onClick }: {
 export function SectionLabel({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <div className={cn("flex items-center gap-2 mb-4", className)}>
-      <div className="w-1 h-4 rounded-full bg-[#3b5bdb]" />
+      <div className="w-1 h-4 rounded-full bg-primary" />
       <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">{children}</span>
     </div>
   );
@@ -72,47 +72,61 @@ export function SectionLabel({ children, className }: { children: ReactNode; cla
 
 import { displaySubject } from "@/lib/academicPresentation";
 
-const SUBJECT_COLORS: Record<string,string> = {
-  Mathematics:"#3b5bdb", Physics:"#4b9fd4", Chemistry:"#6882e8",
-  Biology:"#4aa87a", English:"#c08a3a", Accountancy:"#4aa87a",
-  "Business Studies":"#6882e8", Economics:"#c08a3a", Hindi:"#cc5069",
+const SUBJECT_COLOR_MAP: Record<string, string> = {
+  Mathematics: "var(--color-math)",
+  Physics: "var(--color-physics)",
+  Chemistry: "var(--color-chemistry)",
+  Biology: "var(--color-biology)",
+  English: "var(--color-english)",
+  Accountancy: "var(--color-biology)",
+  "Business Studies": "var(--color-chemistry)",
+  Economics: "var(--color-english)",
+  Hindi: "var(--color-hindi)",
+  Science: "var(--color-physics)",
+  "Social Science": "var(--color-social)",
 };
+
+function getSubjectColorVar(subject: string): string {
+  const label = displaySubject(subject) || subject;
+  return SUBJECT_COLOR_MAP[label] ?? SUBJECT_COLOR_MAP[subject] ?? "var(--color-muted-foreground)";
+}
 
 export function SubjectBadge({ subject, color }: { subject: string; color?: string }) {
   const label = displaySubject(subject);
   if (!label) return null;
-  const c = color ?? SUBJECT_COLORS[label] ?? SUBJECT_COLORS[subject] ?? "#78788c";
+  const colorVar = color ?? getSubjectColorVar(subject);
   return (
     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
-      style={{ color:c, borderColor:`${c}30`, background:`${c}12` }}>
+      style={{ color: `hsl(${colorVar})`, borderColor: `hsl(${colorVar} / 0.3)`, background: `hsl(${colorVar} / 0.07)` }}>
       {label}
     </span>
   );
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string,{label:string;color:string;bg:string}> = {
-    "in-recovery": {label:"In Recovery",  color:"#c08a3a",bg:"#c08a3a15"},
-    "mastered":    {label:"Mastered",     color:"#4aa87a",bg:"#4aa87a15"},
-    "pending":     {label:"Pending",      color:"#cc5069",bg:"#cc506915"},
-    "active":      {label:"Active",       color:"#4b9fd4",bg:"#4b9fd415"},
-    "won":         {label:"Won",          color:"#4aa87a",bg:"#4aa87a15"},
-    "lost":        {label:"Lost",         color:"#cc5069",bg:"#cc506915"},
-    "answered":    {label:"Answered",     color:"#4aa87a",bg:"#4aa87a15"},
-    "submitted":   {label:"Submitted",    color:"#3b5bdb",bg:"#3b5bdb15"},
-    "graded":      {label:"Graded",       color:"#6882e8",bg:"#6882e815"},
-    "in-progress": {label:"In Progress",  color:"#c08a3a",bg:"#c08a3a15"},
-    "not-started": {label:"Not Started",  color:"#78788c",bg:"#78788c15"},
+  const map: Record<string, { label: string; color: string; bg: string }> = {
+    "in-recovery":  { label: "In Recovery",  color: "var(--warning)", bg: "var(--warning) / 0.1" },
+    "mastered":     { label: "Mastered",     color: "var(--success)", bg: "var(--success) / 0.1" },
+    "pending":      { label: "Pending",      color: "var(--destructive)", bg: "var(--destructive) / 0.1" },
+    "active":       { label: "Active",       color: "var(--info)", bg: "var(--info) / 0.1" },
+    "won":          { label: "Won",          color: "var(--success)", bg: "var(--success) / 0.1" },
+    "lost":         { label: "Lost",         color: "var(--destructive)", bg: "var(--destructive) / 0.1" },
+    "answered":     { label: "Answered",     color: "var(--success)", bg: "var(--success) / 0.1" },
+    "submitted":    { label: "Submitted",    color: "var(--primary)", bg: "var(--primary) / 0.1" },
+    "graded":       { label: "Graded",       color: "var(--info)", bg: "var(--info) / 0.1" },
+    "in-progress":  { label: "In Progress",  color: "var(--warning)", bg: "var(--warning) / 0.1" },
+    "not-started":  { label: "Not Started",  color: "var(--muted-foreground)", bg: "var(--muted-foreground) / 0.1" },
   };
-  const s = map[status] ?? {label:status,color:"#78788c",bg:"#78788c15"};
-  return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{color:s.color,background:s.bg}}>{s.label}</span>;
+  const s = map[status] ?? { label: status, color: "var(--muted-foreground)", bg: "var(--muted-foreground) / 0.1" };
+  return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: `hsl(${s.color})`, background: `hsl(${s.bg})` }}>{s.label}</span>;
 }
 
 export function Avatar({ initials, color, size="md" }: { initials:string; color?:string; size?:"sm"|"md"|"lg" }) {
-  const sizes = {sm:"w-7 h-7 text-[10px]", md:"w-9 h-9 text-xs", lg:"w-12 h-12 text-sm"};
+  const sizes = { sm: "w-7 h-7 text-[10px]", md: "w-9 h-9 text-xs", lg: "w-12 h-12 text-sm" };
+  const colorVar = color ?? "var(--primary)";
   return (
-    <motion.div className={cn("rounded-full flex items-center justify-center font-black text-white shrink-0", sizes[size])}
-      style={{background: color ? `linear-gradient(135deg,${color},${color}99)` : "linear-gradient(135deg,#3b5bdb,#6882e8)"}}
+    <motion.div className={cn("rounded-full flex items-center justify-center font-black text-foreground shrink-0", sizes[size])}
+      style={{ background: `linear-gradient(135deg, hsl(${colorVar}), hsl(${colorVar} / 0.6))` }}
       initial={{ scale: 0.6, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       whileHover={{ scale: 1.08 }}
@@ -125,40 +139,43 @@ export function Avatar({ initials, color, size="md" }: { initials:string; color?
 
 export function ProgressRing({ score, size=80, color }: { score:number; size?:number; color?:string }) {
   const reduceMotion = useReducedMotion();
-  const stroke=7, r=(size-stroke)/2, c=2*Math.PI*r;
-  const offset = c - (Math.min(100,Math.max(0,score))/100)*c;
-  const col = color ?? (score>=80?"#4b9fd4":score>=60?"#c08a3a":"#cc5069");
+  const stroke = 7;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c - (Math.min(100, Math.max(0, score)) / 100) * c;
+  const colorVar = color ?? (score >= 80 ? "var(--info)" : score >= 60 ? "var(--warning)" : "var(--destructive)");
   return (
-    <div className="relative inline-flex" style={{width:size,height:size}}>
+    <div className="relative inline-flex" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke}/>
-        <motion.circle cx={size/2} cy={size/2} r={r} fill="none" stroke={col} strokeWidth={stroke}
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke} />
+        <motion.circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`hsl(${colorVar})`} strokeWidth={stroke}
           strokeDasharray={c} strokeLinecap="round"
-          style={{filter:`drop-shadow(0 0 6px ${col})`}}
+          style={{ filter: `drop-shadow(0 0 6px hsl(${colorVar}))` }}
           initial={reduceMotion ? undefined : { strokeDashoffset: c }}
           animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.1, ease: EASE_OUT }}/>
+          transition={{ duration: 1.1, ease: EASE_OUT }} />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <motion.span className="font-black tabular-nums" style={{color:col,fontSize:size*0.22}}
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.4 }}
-        >{score}%</motion.span>
+        <motion.span className="font-black tabular-nums" style={{ color: `hsl(${colorVar})`, fontSize: size * 0.22 }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.4 }}>
+          {score}%
+        </motion.span>
       </div>
     </div>
   );
 }
 
-export function ProgressBar({ value, max=100, color="#3b5bdb", height="h-2" }: {
+export function ProgressBar({ value, max=100, color="var(--primary)", height="h-2" }: {
   value:number; max?:number; color?:string; height?:string;
 }) {
-  const pct = Math.min(100,(value/max)*100);
+  const pct = Math.min(100, (value/max)*100);
   return (
     <div className={cn("w-full rounded-full bg-muted overflow-hidden", height)}>
       <motion.div className="h-full rounded-full"
-        style={{background:color}}
+        style={{ background: `hsl(${color})` }}
         initial={{ width: 0 }}
         animate={{ width: `${pct}%` }}
-        transition={springSoft}/>
+        transition={springSoft} />
     </div>
   );
 }
@@ -177,13 +194,14 @@ export function StatTile({ label, value, color, sub }: { label:string; value:str
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="mt-0.5 text-xl font-black tabular-nums" style={{color:color??"hsl(var(--foreground))"}}>{value}</motion.div>
+        className="mt-0.5 text-xl font-black tabular-nums"
+        style={{ color: color ? `hsl(${color})` : "hsl(var(--foreground))" }}>{value}</motion.div>
       {sub && <div className="text-[10px] text-muted-foreground mt-0.5">{sub}</div>}
     </motion.div>
   );
 }
 
-/** Level progress from ProgressionService â€” mirrors SQL triangular curve when fields omitted. */
+/** Level progress from ProgressionService — mirrors SQL triangular curve when fields omitted. */
 export function XPBar({
   xp,
   level,
@@ -217,10 +235,10 @@ export function XPBar({
       </div>
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
         <motion.div className="h-full rounded-full"
-          style={{background:"linear-gradient(90deg,#3b5bdb,#6882e8)"}}
+          style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary-glow)))" }}
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
-          transition={springSoft}/>
+          transition={springSoft} />
       </div>
     </div>
   );
@@ -238,16 +256,16 @@ export function EmptyState({ icon, title, sub }: { icon:ReactNode; title:string;
         animate={{ scale: 1, opacity: 1 }}
         transition={{ ...springSnappy, delay: 0.05 }}
       >{icon}</motion.div>
-      <div className="text-sm font-semibold text-muted-foreground">{title}</div>
+      <div className="text-sm font-semibold text-foreground">{title}</div>
       {sub && <div className="text-xs text-muted-foreground/70">{sub}</div>}
     </motion.div>
   );
 }
 
-export function Chip({ children, color }: { children:ReactNode; color?:string }) {
+export function Chip({ children, color = "var(--muted-foreground)" }: { children:ReactNode; color?:string }) {
   return (
     <motion.span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full border"
-      style={{color:color??"#78788c",borderColor:`${color??"#78788c"}30`,background:`${color??"#78788c"}10`}}
+      style={{ color: `hsl(${color})`, borderColor: `hsl(${color} / 0.3)`, background: `hsl(${color} / 0.1)` }}
       initial={{ opacity: 0, scale: 0.85 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={springSnappy}
@@ -259,13 +277,25 @@ export function Chip({ children, color }: { children:ReactNode; color?:string })
 
 export function DifficultyBadge({ level }: { level:"easy"|"medium"|"hard"|string|undefined }) {
   if (!level) return null;
-  const map: Record<string,string> = {easy:"#4aa87a",medium:"#c08a3a",hard:"#cc5069"};
-  const color = map[level] ?? "#78788c";
-  return <Chip color={color}>{level.charAt(0).toUpperCase()+level.slice(1)}</Chip>;
+  const map: Record<string, string> = {
+    easy: "var(--success)",
+    medium: "var(--warning)",
+    hard: "var(--destructive)",
+  };
+  const colorVar = map[level] ?? "var(--muted-foreground)";
+  return <Chip color={colorVar}>{level.charAt(0).toUpperCase() + level.slice(1)}</Chip>;
 }
 
-export const subjectColor: Record<string,string> = {
-  Mathematics:"#3b5bdb", Physics:"#4b9fd4", Chemistry:"#6882e8",
-  Biology:"#4aa87a", English:"#c08a3a", Accountancy:"#4aa87a",
-  "Business Studies":"#6882e8", Economics:"#c08a3a", Hindi:"#cc5069",
+export const subjectColor: Record<string, string> = {
+  Mathematics: "var(--color-math)",
+  Physics: "var(--color-physics)",
+  Chemistry: "var(--color-chemistry)",
+  Biology: "var(--color-biology)",
+  English: "var(--color-english)",
+  Accountancy: "var(--color-biology)",
+  "Business Studies": "var(--color-chemistry)",
+  Economics: "var(--color-english)",
+  Hindi: "var(--color-hindi)",
+  Science: "var(--color-physics)",
+  "Social Science": "var(--color-social)",
 };

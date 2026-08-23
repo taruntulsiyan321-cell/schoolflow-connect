@@ -50,10 +50,10 @@ function Field({
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="bg-white/5 border border-[#3b5bdb]/30 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/60 transition-all"
+          className="bg-muted border border-[#3b5bdb]/30 rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-[#3b5bdb]/60 transition-all"
         />
       ) : (
-        <div className="text-sm text-white px-0.5" title={editing && disabled ? disabledHint : undefined}>
+        <div className="text-sm text-foreground px-0.5" title={editing && disabled ? disabledHint : undefined}>
           {value || <span className="text-muted-foreground">Not set</span>}
           {editing && disabled && disabledHint && (
             <span className="block text-[9px] text-[#f59e0b] mt-0.5 font-normal normal-case">{disabledHint}</span>
@@ -236,7 +236,7 @@ export default function TeacherProfile() {
                 setDraft(profile);
                 setEditing(false);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5 hover:bg-white/10 transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80 transition-all"
             >
               <X className="w-3.5 h-3.5" /> Cancel
             </button>
@@ -333,7 +333,7 @@ export default function TeacherProfile() {
             {profile.googleLinked ? (
               <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">Linked</span>
             ) : (
-              <span className="text-[9px] font-bold text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full">Not linked</span>
+              <span className="text-[9px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Not linked</span>
             )}
           </div>
 
@@ -348,7 +348,7 @@ export default function TeacherProfile() {
             {profile.mobileLinked ? (
               <span className="text-[9px] font-bold text-[#10b981] bg-[#10b981]/15 px-2 py-0.5 rounded-full">On file</span>
             ) : (
-              <span className="text-[9px] font-bold text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full">Not set</span>
+              <span className="text-[9px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">Not set</span>
             )}
           </div>
         </div>
@@ -390,7 +390,7 @@ export default function TeacherProfile() {
                   type="password"
                   value={pwdForm[f.key]}
                   onChange={(e) => setPwdForm((p) => ({ ...p, [f.key]: e.target.value }))}
-                  className="bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-[#3b5bdb]/40"
+                  className="bg-muted border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-[#3b5bdb]/40"
                 />
               </div>
             ))}
@@ -401,7 +401,7 @@ export default function TeacherProfile() {
               <button
                 type="button"
                 onClick={() => setChangePwdOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted"
               >
                 Cancel
               </button>

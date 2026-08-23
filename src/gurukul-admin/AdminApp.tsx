@@ -111,7 +111,7 @@ function Sidebar({
         {!mobile && (
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="ml-auto shrink-0 w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
+            className="ml-auto shrink-0 w-6 h-6 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
           >
             {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
           </button>
@@ -138,7 +138,7 @@ function Sidebar({
                     collapsed && !mobile && "justify-center px-2",
                     active
                       ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
-                      : "text-muted-foreground hover:text-white hover:bg-muted border border-transparent"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent"
                   )}
                   title={collapsed && !mobile ? item.label : undefined}
                 >
@@ -149,7 +149,7 @@ function Sidebar({
                       {item.badge && (
                         <span className={cn(
                           "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
-                          active ? "bg-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-white/8 text-muted-foreground"
+                          active ? "bg-[#3b5bdb]/30 text-[#a5b4fc]" : "bg-muted/80 text-muted-foreground"
                         )}>
                           {item.badge}
                         </span>
@@ -238,7 +238,7 @@ export default function AdminApp() {
         <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-border bg-card/95 backdrop-blur-xl">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground hover:text-foreground"
+            className="md:hidden w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
           >
             <Menu className="w-4 h-4" />
           </button>
@@ -246,7 +246,7 @@ export default function AdminApp() {
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xs text-muted-foreground">Admin</span>
             <span className="text-muted-foreground">/</span>
-            <span className="text-sm font-semibold text-white truncate">{ADMIN_PAGE_TITLES[page]}</span>
+            <span className="text-sm font-semibold text-foreground truncate">{ADMIN_PAGE_TITLES[page]}</span>
           </div>
 
           <div className="ml-auto flex items-center gap-3">

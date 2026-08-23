@@ -61,7 +61,7 @@ function RevItemCard({
           <Play className="w-3 h-3"/> Practice topic
         </button>
         <Link to="/student/aicoach"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-border text-violet-300 text-xs font-semibold hover:bg-white/10 transition-all">
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted border border-border text-violet-500 text-xs font-semibold hover:bg-secondary transition-all">
           <Brain className="w-3 h-3"/> Ask Nova
         </Link>
         <Link to="/student/recovery"
@@ -86,7 +86,7 @@ function RevisionSession({ item, onBack }: { item: RevItem; onBack: () => void }
     <div className="space-y-5">
       <GlassCard className="p-8 text-center">
         <RotateCcw className="w-8 h-8 text-violet-400 mx-auto mb-3"/>
-        <p className="text-sm font-semibold text-white mb-1">Revise {displayConcept(item.concept)}</p>
+        <p className="text-sm font-semibold text-foreground mb-1">Revise {displayConcept(item.concept)}</p>
         <p className="text-xs text-muted-foreground mb-4">
           Revision uses live Practice, Recovery, or Nova â€” there is no separate question bank for this hub.
         </p>
@@ -105,12 +105,12 @@ function RevisionSession({ item, onBack }: { item: RevItem; onBack: () => void }
           </Link>
           <Link
             to="/student/aicoach"
-            className="px-4 py-2 rounded-xl bg-white/5 border border-border text-violet-300 text-sm font-semibold"
+            className="px-4 py-2 rounded-xl bg-muted border border-border text-violet-500 text-sm font-semibold"
           >
             Ask Nova
           </Link>
           <button onClick={onBack}
-            className="px-4 py-2 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
+            className="px-4 py-2 rounded-xl bg-muted border border-border text-muted-foreground text-sm font-semibold hover:bg-secondary transition-all">
             Back
           </button>
         </div>
@@ -130,7 +130,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
         <div className="flex justify-center mb-4">
           <div className="relative inline-flex" style={{width:size,height:size}}>
             <svg width={size} height={size} className="-rotate-90">
-              <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke}/>
+              <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke}/>
               <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
                 strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" style={{filter:`drop-shadow(0 0 10px ${color})`}}/>
             </svg>
@@ -139,7 +139,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
             </div>
           </div>
         </div>
-        <div className="text-lg font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>{displayConcept(item.concept)}</div>
+        <div className="text-lg font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>{displayConcept(item.concept)}</div>
         <p className="text-sm text-muted-foreground">{passed ? "Solid revision â€” this concept is strengthening." : "Need more practice. Consider a recovery session."}</p>
       </GlassCard>
       <div className="space-y-2">
@@ -150,7 +150,7 @@ function RevResults({ item, score, setPage, onBack }: { item: RevItem; score: nu
           </button>
         )}
         <button onClick={onBack}
-          className="w-full py-3 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
+          className="w-full py-3 rounded-xl bg-muted border border-border text-muted-foreground text-sm font-semibold hover:bg-secondary transition-all">
           Back to Revision Hub
         </button>
       </div>
@@ -299,8 +299,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
       {/* Quick actions */}
       <div className="grid sm:grid-cols-3 gap-3">
         <div
-          className="p-4 rounded-2xl border border-border/70 bg-white/[0.02] text-left opacity-60"
-          title="Flashcards â€” coming soon"
+          className=”p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60”
+          title=”Flashcards â€” coming soon”
         >
           <Layers className="w-5 h-5 text-muted-foreground mb-2"/>
           <div className="text-sm font-bold text-foreground">Flashcards</div>
@@ -324,8 +324,8 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           </div>
         </button>
         <div
-          className="p-4 rounded-2xl border border-border/70 bg-white/[0.02] text-left opacity-60"
-          title="Revision notes â€” coming soon"
+          className=”p-4 rounded-2xl border border-border/70 bg-muted/30 text-left opacity-60”
+          title=”Revision notes â€” coming soon”
         >
           <FileText className="w-5 h-5 text-muted-foreground mb-2"/>
           <div className="text-sm font-bold text-foreground">My Notes</div>
@@ -371,7 +371,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           {(["all","due","upcoming"] as const).map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={cn("px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all",
-                filter === f ? "bg-violet-500/20 border border-violet-500/40 text-violet-300" : "bg-white/5 border border-border text-muted-foreground hover:bg-white/10")}>
+                filter === f ? "bg-violet-500/20 border border-violet-500/40 text-violet-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
               {f === "due" ? "Due Today" : f}
             </button>
           ))}
@@ -380,7 +380,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
           {subjects.map(s => (
             <button key={s} onClick={() => setSubjectTab(s)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
-                subjectTab === s ? "bg-white/15 border border-white/25 text-foreground" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
+                subjectTab === s ? "bg-secondary border border-border text-foreground" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
               {s}
             </button>
           ))}
@@ -410,7 +410,7 @@ export default function Revision({ setPage }: { setPage?: (p: PageKey) => void }
             <Flame className="w-6 h-6 text-amber-400"/>
           </div>
           <div className="flex-1">
-            <div className="text-sm font-bold text-white mb-0.5">
+            <div className="text-sm font-bold text-foreground mb-0.5">
               {streak > 0 ? `${streak}-day learning streak` : "Start your revision streak"}
             </div>
             <div className="text-xs text-muted-foreground mb-2">

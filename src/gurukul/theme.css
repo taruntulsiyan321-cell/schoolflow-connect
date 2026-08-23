@@ -36,13 +36,41 @@
   --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  /* Compatibility aliases shared with the principal portal. */
-  --bg: hsl(var(--background));
-  --surface: hsl(var(--card));
-  --surface-2: hsl(var(--muted));
-  --text-primary: hsl(var(--foreground));
-  --text-secondary: hsl(var(--muted-foreground));
-  --text-muted: hsl(var(--muted-foreground));
+  /* Semantic color aliases for components */
+  --color-primary: hsl(var(--primary));
+  --color-primary-glow: hsl(var(--primary-glow));
+  --color-secondary: hsl(var(--secondary));
+  --color-accent: hsl(var(--accent));
+  --color-warning: hsl(var(--warning));
+  --color-destructive: hsl(var(--destructive));
+  --color-success: hsl(var(--success));
+  --color-info: hsl(var(--info));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-border: hsl(var(--border));
+  --color-card: hsl(var(--card));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  /* Subject-specific semantic colors */
+  --color-math: hsl(var(--primary));
+  --color-physics: hsl(197 70% 40%);
+  --color-chemistry: hsl(220 60% 45%);
+  --color-biology: hsl(var(--success));
+  --color-english: hsl(var(--warning));
+  --color-hindi: hsl(var(--accent));
+  --color-science: hsl(197 70% 40%);
+  --color-social: hsl(var(--warning));
+  --color-mixed: hsl(220 60% 45%);
+
+  /* Battleground league rank colors */
+  --league-bronze: hsl(30 48% 47%);
+  --league-silver: hsl(212 15% 65%);
+  --league-gold: hsl(38 92% 50%);
+  --league-platinum: hsl(187 85% 53%);
+  --league-diamond: hsl(234 89% 74%);
+
+  /* Legacy color mappings for gradual migration */
   --navy: hsl(var(--card));
   --navy-mid: hsl(var(--muted));
   --indigo: hsl(var(--primary));
@@ -53,6 +81,7 @@
   --rose: hsl(var(--destructive));
   --emerald: hsl(var(--success));
   --coral: hsl(var(--accent));
+  --violet: hsl(260 60% 50%);
 
   min-height: 100vh;
   background: hsl(var(--background));
@@ -60,8 +89,7 @@
   font-family: var(--font-body);
 }
 
-/* The student shell still carries its original dark utility classes. Keep
-   those functional classes, but make the shared light theme authoritative. */
+/* Force light theme backgrounds */
 .gurukul-student > div,
 .gurukul-student [style*="#0d0d0f"],
 .gurukul-student [class*="bg-[#0d0d0f]"] {
@@ -162,3 +190,519 @@
 }
 .gurukul-student ::-webkit-scrollbar { width: 6px; height: 6px; }
 .gurukul-student ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   LIGHT THEME COMPREHENSIVE OVERRIDES
+   Fix all hardcoded dark-theme colors in component JSX
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Text color overrides - convert dark-theme white text to foreground */
+.gurukul-student .text-white,
+.gurukul-student [class*="text-white"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+.gurukul-student .text-\[\#c8d4e8\],
+.gurukul-student .text-\[\#a0a0b0\] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Background overrides - dark backgrounds to light */
+.gurukul-student .bg-\[\#0d0d0f\],
+.gurukul-student .bg-\[\#111827\],
+.gurukul-student .bg-\[\#0f172a\],
+.gurukul-student .bg-background {
+  background-color: hsl(var(--background)) !important;
+}
+
+/* Card and surface backgrounds */
+.gurukul-student .bg-surface,
+.gurukul-student .bg-card {
+  background-color: hsl(var(--card)) !important;
+}
+
+/* Muted backgrounds */
+.gurukul-student .bg-white\/4,
+.gurukul-student .bg-white\/5,
+.gurukul-student .bg-white\/6,
+.gurukul-student .bg-white\/7,
+.gurukul-student .bg-white\/8,
+.gurukul-student .bg-white\/10,
+.gurukul-student .bg-white\/12,
+.gurukul-student .bg-white\/15,
+.gurukul-student [class*="bg-white/"] {
+  background-color: hsl(var(--muted)) !important;
+}
+
+/* Border overrides */
+.gurukul-student .border-white\/5,
+.gurukul-student .border-white\/6,
+.gurukul-student .border-white\/8,
+.gurukul-student .border-white\/10,
+.gurukul-student .border-white\/12,
+.gurukul-student [class*="border-white/"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+/* Hover state backgrounds - ensure they work on light theme */
+.gurukul-student .hover\:bg-white\/4:hover,
+.gurukul-student .hover\:bg-white\/6:hover,
+.gurukul-student .hover\:bg-white\/7:hover,
+.gurukul-student .hover\:bg-white\/8:hover,
+.gurukul-student .hover\:bg-white\/10:hover,
+.gurukul-student [class*="hover:bg-white/"]:hover {
+  background-color: hsl(var(--secondary)) !important;
+}
+
+.gurukul-student .hover\:bg-muted:hover {
+  background-color: hsl(var(--muted)) !important;
+}
+
+/* Hover text - ensure text stays readable on light backgrounds */
+.gurukul-student .hover\:text-white:hover {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Focus states */
+.gurukul-student .focus\:border-\[\#3b5bdb\]\/30:focus {
+  border-color: hsl(var(--primary) / 0.3) !important;
+}
+
+/* Input fields */
+.gurukul-student input,
+.gurukul-student textarea,
+.gurukul-student select {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.gurukul-student input::placeholder,
+.gurukul-student textarea::placeholder {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Fix inline style backgrounds using rgba with white */
+.gurukul-student [style*="rgba(255,255,255,0.0"],
+.gurukul-student [style*="rgba(255,255,255,0.1"] {
+  background-color: hsl(var(--muted)) !important;
+}
+
+/* Fix chart tooltips */
+.gurukul-student .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Premium card styles - ensure they work on light */
+.gurukul-student .premium-card {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+/* Empty state styling */
+.gurukul-student .premium-empty {
+  background: hsl(var(--muted) / 0.5);
+  border-radius: 1rem;
+}
+
+.gurukul-student .premium-empty-icon {
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.75rem;
+}
+
+/* Fix rose/red colored text readability */
+.gurukul-student .text-rose-200,
+.gurukul-student .text-rose-300 {
+  color: hsl(var(--destructive)) !important;
+}
+
+/* Fix emerald/green colored text readability */
+.gurukul-student .text-emerald-200,
+.gurukul-student .text-emerald-300,
+.gurukul-student .text-emerald-400 {
+  color: hsl(var(--success)) !important;
+}
+
+/* Fix violet/purple colored text readability */
+.gurukul-student .text-violet-200,
+.gurukul-student .text-violet-300,
+.gurukul-student .text-violet-400 {
+  color: #6366f1 !important;
+}
+
+/* Fix amber colored text readability */
+.gurukul-student .text-amber-300,
+.gurukul-student .text-amber-400 {
+  color: hsl(var(--warning)) !important;
+}
+
+/* Fix blue colored text readability */
+.gurukul-student .text-blue-300,
+.gurukul-student .text-blue-400 {
+  color: hsl(var(--primary)) !important;
+}
+
+/* Button states */
+.gurukul-student button:disabled {
+  opacity: 0.5;
+}
+
+/* Tab styling */
+.gurukul-student [role="tablist"] button[aria-selected="true"] {
+  border-color: hsl(var(--primary)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.gurukul-student [role="tablist"] button[aria-selected="false"] {
+  border-color: transparent !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Sidebar active state */
+.gurukul-student aside .active,
+.gurukul-student aside [class*="active"] {
+  background: hsl(var(--secondary)) !important;
+  color: hsl(var(--primary)) !important;
+}
+
+/* Fix gradients that use dark colors */
+.gurukul-student [style*="linear-gradient(135deg,#3b5bdb"] {
+  /* Keep gradient but ensure text is readable */
+  color: white !important;
+}
+
+/* Message bubbles - student messages should stay gradient, Nova messages light */
+.gurukul-student .bg-surface\/60 {
+  background-color: hsl(var(--card) / 0.95) !important;
+}
+
+/* Card shadows - refined depth for light theme */
+.gurukul-student .shadow-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PREMIUM REFINEMENTS - Enhanced visual polish
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Enhanced card hover states with subtle glow */
+.gurukul-student .premium-card:hover,
+.gurukul-student [class*="cursor-pointer"]:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Refined button styles with micro-interactions */
+.gurukul-student button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gurukul-student button:active {
+  transform: scale(0.98);
+}
+
+/* Glass card enhancements - subtle backdrop blur effect */
+.gurukul-student [class*="glass"],
+.gurukul-student .glass-card {
+  background: hsl(var(--card) / 0.8) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 8px 16px rgba(0, 0, 0, 0.04);
+  border: 1px solid hsl(var(--border) / 0.8);
+}
+
+/* Enhanced focus rings with glow */
+.gurukul-student *:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+}
+
+.gurukul-student input:focus,
+.gurukul-student textarea:focus,
+.gurukul-student select:focus {
+  border-color: hsl(var(--primary) / 0.5) !important;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
+  outline: none;
+}
+
+/* Refined typography with enhanced readability */
+.gurukul-student h1 {
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.gurukul-student h2 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.gurukul-student h3, .gurukul-student h4 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+/* Enhanced stat tiles with premium feel */
+.gurukul-student [class*="stat-tile"],
+.gurukul-student .stat-card {
+  background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.3) 100%);
+  border: 1px solid hsl(var(--border) / 0.6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gurukul-student [class*="stat-tile"]:hover {
+  border-color: hsl(var(--primary) / 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 0 0 1px hsl(var(--primary) / 0.1);
+}
+
+/* Premium button variants */
+.gurukul-student button[class*="bg-[#3b5bdb]"],
+.gurukul-student button[class*="primary"] {
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.9) 100%);
+  box-shadow: 0 2px 8px hsl(var(--primary) / 0.25), 0 1px 2px rgba(0, 0, 0, 0.1);
+  border: 1px solid hsl(var(--primary) / 0.8);
+}
+
+.gurukul-student button[class*="bg-[#3b5bdb]"]:hover,
+.gurukul-student button[class*="primary"]:hover {
+  background: linear-gradient(135deg, hsl(var(--primary) / 0.95) 0%, hsl(var(--primary) / 0.85) 100%);
+  box-shadow: 0 4px 16px hsl(var(--primary) / 0.35), 0 2px 4px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
+
+/* Refined progress bars with smooth animations */
+.gurukul-student [class*="progress"] {
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gurukul-student [class*="progress-bar"] > div {
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced dividers and separators */
+.gurukul-student hr,
+.gurukul-student .divider {
+  background: linear-gradient(90deg, transparent 0%, hsl(var(--border)) 50%, transparent 100%);
+  height: 1px;
+  border: none;
+}
+
+/* Subtle elevation levels */
+.gurukul-student .elevation-1 {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.gurukul-student .elevation-2 {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05), 0 4px 8px rgba(0, 0, 0, 0.03);
+}
+
+.gurukul-student .elevation-3 {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.06), 0 8px 16px rgba(0, 0, 0, 0.04);
+}
+
+/* Refined badge styles */
+.gurukul-student [class*="badge"],
+.gurukul-student .pill {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid currentColor;
+  opacity: 0.9;
+}
+
+/* Enhanced tooltip styling */
+.gurukul-student .tooltip,
+.gurukul-student [role="tooltip"] {
+  background: hsl(var(--foreground) / 0.95) !important;
+  color: hsl(var(--background)) !important;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+/* Refined chart styling */
+.gurukul-student .recharts-wrapper {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.02));
+}
+
+.gurukul-student .recharts-surface {
+  border-radius: 0.5rem;
+}
+
+/* Enhanced empty states */
+.gurukul-student .premium-empty {
+  background: linear-gradient(135deg, hsl(var(--muted) / 0.5) 0%, hsl(var(--muted) / 0.2) 100%);
+  border: 1px dashed hsl(var(--border));
+}
+
+.gurukul-student .premium-empty-icon {
+  background: hsl(var(--card));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid hsl(var(--border));
+}
+
+/* Smooth page transitions */
+.gurukul-student > main {
+  animation: page-fade-in 0.4s ease-out;
+}
+
+@keyframes page-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced scrollbar styling */
+.gurukul-student ::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+  border-radius: 999px;
+}
+
+.gurukul-student ::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--border) / 1.5);
+}
+
+/* Micro-interaction: scale on hover for interactive icons */
+.gurukul-student button svg,
+.gurukul-student a svg {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gurukul-student button:hover svg,
+.gurukul-student a:hover svg {
+  transform: scale(1.1);
+}
+
+/* Refined skeleton loading states */
+.gurukul-student .skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted) / 0.8) 50%,
+    hsl(var(--muted)) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% {
+    background-position: 200% 0;
+  }
+  50% {
+    background-position: -200% 0;
+  }
+}
+
+/* Chart grid lines */
+.gurukul-student .recharts-cartesian-grid line {
+  stroke: hsl(var(--border)) !important;
+}
+
+/* Fix streak badge styling */
+.gurukul-student .streak {
+  background: hsl(var(--warning) / 0.15) !important;
+  color: hsl(var(--warning)) !important;
+  border: 1px solid hsl(var(--warning) / 0.25) !important;
+}
+
+/* Recharts axis text */
+.gurukul-student .recharts-cartesian-axis-tick-value,
+.gurukul-student .recharts-polar-angle-axis-tick-value {
+  fill: hsl(var(--muted-foreground)) !important;
+  font-size: 11px !important;
+}
+
+/* Recharts tooltip content */
+.gurukul-student .recharts-tooltip-content {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.07) !important;
+}
+
+/* Animation classes */
+.gurukul-student .animate-premium-enter {
+  animation: premium-enter 0.4s ease-out forwards;
+}
+
+@keyframes premium-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.gurukul-student .animate-premium-stagger > * {
+  animation: premium-enter 0.35s ease-out forwards;
+}
+
+.gurukul-student .animate-premium-stagger > *:nth-child(1) { animation-delay: 0s; }
+.gurukul-student .animate-premium-stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.gurukul-student .animate-premium-stagger > *:nth-child(3) { animation-delay: 0.1s; }
+.gurukul-student .animate-premium-stagger > *:nth-child(4) { animation-delay: 0.15s; }
+.gurukul-student .animate-premium-stagger > *:nth-child(5) { animation-delay: 0.2s; }
+.gurukul-student .animate-premium-stagger > *:nth-child(6) { animation-delay: 0.25s; }
+
+/* Semantic utility classes for components to use instead of hardcoded hex */
+.gurukul-student .subject-math { color: hsl(var(--primary)); }
+.gurukul-student .subject-physics { color: hsl(197 70% 40%); }
+.gurukul-student .subject-chemistry { color: hsl(220 60% 45%); }
+.gurukul-student .subject-biology { color: hsl(var(--success)); }
+.gurukul-student .subject-english { color: hsl(var(--warning)); }
+.gurukul-student .subject-hindi { color: hsl(var(--accent)); }
+
+/* Border utilities */
+.gurukul-student .border-primary { border-color: hsl(var(--primary)) !important; }
+.gurukul-student .border-accent { border-color: hsl(var(--accent)) !important; }
+.gurukul-student .border-warning { border-color: hsl(var(--warning)) !important; }
+.gurukul-student .border-destructive { border-color: hsl(var(--destructive)) !important; }
+.gurukul-student .border-success { border-color: hsl(var(--success)) !important; }
+.gurukul-student .border-info { border-color: hsl(var(--info)) !important; }
+
+/* Background utilities */
+.gurukul-student .bg-primary-soft { background: hsl(var(--primary) / 0.1) !important; }
+.gurukul-student .bg-accent-soft { background: hsl(var(--accent) / 0.1) !important; }
+.gurukul-student .bg-warning-soft { background: hsl(var(--warning) / 0.1) !important; }
+.gurukul-student .bg-destructive-soft { background: hsl(var(--destructive) / 0.1) !important; }
+.gurukul-student .bg-success-soft { background: hsl(var(--success) / 0.1) !important; }
+.gurukul-student .bg-info-soft { background: hsl(var(--info) / 0.1) !important; }
+
+/* Text utilities */
+.gurukul-student .text-primary { color: hsl(var(--primary)) !important; }
+.gurukul-student .text-accent { color: hsl(var(--accent)) !important; }
+.gurukul-student .text-warning { color: hsl(var(--warning)) !important; }
+.gurukul-student .text-destructive { color: hsl(var(--destructive)) !important; }
+.gurukul-student .text-success { color: hsl(var(--success)) !important; }
+.gurukul-student .text-info { color: hsl(var(--info)) !important; }
+.gurukul-student .text-muted-foreground { color: hsl(var(--muted-foreground)) !important; }
+.gurukul-student .text-foreground { color: hsl(var(--foreground)) !important; }

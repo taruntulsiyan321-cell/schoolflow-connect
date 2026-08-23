@@ -135,7 +135,7 @@ export default function Tests() {
   }
 
   if (error) {
-    return <div className="text-center text-sm text-[#cc5069] py-16">{error}</div>;
+    return <div className="text-center text-sm text-destructive py-16">{error}</div>;
   }
 
   const showGraded = filter === "all" || filter === "graded";
@@ -149,11 +149,11 @@ export default function Tests() {
           <div className="text-[10px] text-muted-foreground">Exam avg</div>
         </GlassCard>
         <GlassCard className="p-4 text-center">
-          <div className="text-2xl font-black text-[#6882e8]">{testsAvg}%</div>
+          <div className="text-2xl font-black text-primary">{testsAvg}%</div>
           <div className="text-[10px] text-muted-foreground">Tests avg</div>
         </GlassCard>
         <GlassCard className="p-4 text-center">
-          <div className="text-2xl font-black text-[#4aa87a]">{marks.length}</div>
+          <div className="text-2xl font-black text-success">{marks.length}</div>
           <div className="text-[10px] text-muted-foreground">Marked exams</div>
         </GlassCard>
       </div>
@@ -187,11 +187,11 @@ export default function Tests() {
               const max = exam?.maxMarks ?? 100;
               const pct = max ? Math.round((m.marksObtained / max) * 100) : 0;
               const subj = exam?.subject ?? "";
-              const col = subjectColor[displaySubject(subj) || subj] ?? subjectColor[subj] ?? "#78788c";
+              const col = subjectColor[displaySubject(subj) || subj] ?? subjectColor[subj] ?? "hsl(var(--muted-foreground))";
               const typeLabel =
                 EXAM_TYPE_LABELS[exam?.examType ?? ""] ?? exam?.examType ?? null;
               return (
-                <div key={m.id} className="p-4 rounded-xl border border-border/70 bg-white/2">
+                <div key={m.id} className="p-4 rounded-xl border border-border/70 bg-muted/30">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-sm font-semibold text-foreground">{exam?.name ?? "Exam"}</div>
@@ -230,11 +230,11 @@ export default function Tests() {
               return (
                 <div
                   key={t.id}
-                  className="p-4 rounded-xl border border-border/70 bg-white/2 flex items-center gap-3"
+                  className="p-4 rounded-xl border border-border/70 bg-muted/30 flex items-center gap-3"
                 >
                   <Trophy className="w-4 h-4 text-[#c08a3a] shrink-0" />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-white truncate">{t.title}</div>
+                    <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>
                     <div className="text-[11px] text-muted-foreground">
                       {[displaySubject(t.subject), kindLabel].filter(Boolean).join(" Â· ")}
                     </div>

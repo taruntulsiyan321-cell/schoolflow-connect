@@ -34,10 +34,10 @@ export function AccountLinkingPanel({ entityName, entityType, status }: AccountL
       </div>
 
       <div className="space-y-2 opacity-50 pointer-events-none">
-        <div className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold bg-white/5 text-muted-foreground">
+        <div className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold bg-muted text-muted-foreground">
           <Send className="w-3.5 h-3.5" /> Send Activation Invitation
         </div>
-        <div className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold bg-white/5 text-muted-foreground">
+        <div className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold bg-muted text-muted-foreground">
           <Lock className="w-3.5 h-3.5" /> Reset Password
         </div>
       </div>

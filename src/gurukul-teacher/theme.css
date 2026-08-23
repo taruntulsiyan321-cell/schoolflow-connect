@@ -86,3 +86,113 @@
 .gurukul-teacher ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   PREMIUM REFINEMENTS - Enhanced teacher panel polish
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Enhanced card hover with professional depth */
+.gurukul-teacher [class*="cursor-pointer"]:hover,
+.gurukul-teacher button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(20, 37, 45, 0.08), 0 2px 8px rgba(20, 37, 45, 0.05);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Refined button interactions */
+.gurukul-teacher button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gurukul-teacher button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Professional table row hover */
+.gurukul-teacher tr:hover {
+  background: hsl(var(--muted) / 0.5) !important;
+  transition: background-color 0.15s ease;
+}
+
+/* Enhanced focus states */
+.gurukul-teacher *:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+}
+
+.gurukul-teacher input:focus,
+.gurukul-teacher textarea:focus,
+.gurukul-teacher select:focus {
+  border-color: hsl(var(--primary) / 0.5) !important;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
+  outline: none;
+}
+
+/* Refined card backgrounds with subtle depth */
+.gurukul-teacher [class*="bg-surface"]:not(:hover),
+.gurukul-teacher [class*="rounded-2xl"] {
+  box-shadow: 0 1px 3px rgba(20, 37, 45, 0.05), 0 1px 2px rgba(20, 37, 45, 0.03);
+}
+
+/* Enhanced typography hierarchy */
+.gurukul-teacher h1 {
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.gurukul-teacher h2 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.gurukul-teacher h3, .gurukul-teacher h4 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+/* Smooth transitions on interactive elements */
+.gurukul-teacher a,
+.gurukul-teacher input,
+.gurukul-teacher select {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Refined badge styling */
+.gurukul-teacher [class*="badge"],
+.gurukul-teacher [class*="px-1.5"][class*="py-0.5"] {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Enhanced dividers */
+.gurukul-teacher hr {
+  background: linear-gradient(90deg, transparent 0%, hsl(var(--border)) 50%, transparent 100%);
+  height: 1px;
+  border: none;
+}
+
+/* Page fade-in animation */
+.gurukul-teacher > main {
+  animation: page-fade-in 0.35s ease-out;
+}
+
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Icon hover micro-interaction */
+.gurukul-teacher button svg,
+.gurukul-teacher a svg {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gurukul-teacher button:not(:disabled):hover svg,
+.gurukul-teacher a:hover svg {
+  transform: scale(1.08);
+}

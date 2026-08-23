@@ -58,13 +58,13 @@ function ThreadList({
   return (
     <div className="flex flex-col h-full">
       <div className="p-3 border-b border-border/70">
-        <div className="flex items-center gap-2 bg-white/5 border border-border rounded-xl px-3 py-2">
+        <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2">
           <Search className="w-3 h-3 text-muted-foreground shrink-0" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search chatsâ€¦"
-            className="flex-1 bg-transparent text-xs text-white placeholder:text-muted-foreground outline-none"
+            className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
       </div>
@@ -93,9 +93,9 @@ function ThreadList({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <div className="text-xs font-bold text-white truncate">{t.name}</div>
+                  <div className="text-xs font-bold text-foreground truncate">{t.name}</div>
                   {t.unread > 0 && (
-                    <div className="w-4 h-4 rounded-full bg-[#3b5bdb] text-white text-[8px] font-black flex items-center justify-center shrink-0">
+                    <div className="w-4 h-4 rounded-full bg-[#3b5bdb] text-foreground text-[8px] font-black flex items-center justify-center shrink-0">
                       {t.unread > 9 ? "9+" : t.unread}
                     </div>
                   )}
@@ -224,10 +224,10 @@ function ChatView({
                   className={cn(
                     "px-3 py-2 rounded-2xl text-xs leading-relaxed",
                     deleted
-                      ? "bg-white/5 text-muted-foreground italic"
+                      ? "bg-muted text-muted-foreground italic"
                       : isMe
                         ? "bg-gradient-to-br from-[#3b5bdb] to-[#6882e8] text-foreground"
-                        : "bg-white/5 text-[#d0d8f0] border border-white/8",
+                        : "bg-muted text-[#d0d8f0] border border-border",
                   )}
                 >
                   {deleted ? "Message deleted" : m.content}
@@ -299,7 +299,7 @@ function ChatView({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={sending || uploading}
-            className="w-9 h-9 rounded-xl bg-white/5 text-muted-foreground flex items-center justify-center hover:text-white hover:bg-white/10 disabled:opacity-40"
+            className="w-9 h-9 rounded-xl bg-muted text-muted-foreground flex items-center justify-center hover:text-foreground hover:bg-muted/80 disabled:opacity-40"
             title="Attach image or PDF"
           >
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
@@ -315,13 +315,13 @@ function ChatView({
             }}
             rows={2}
             placeholder="Type a messageâ€¦ (Enter to send)"
-            className="flex-1 bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
+            className="flex-1 bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
           />
           <button
             type="button"
             onClick={() => void send()}
             disabled={!input.trim() || sending}
-            className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-white flex items-center justify-center hover:bg-[#6882e8] disabled:opacity-40 transition-all"
+            className="w-9 h-9 rounded-xl bg-[#3b5bdb] text-foreground flex items-center justify-center hover:bg-[#6882e8] disabled:opacity-40 transition-all"
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
@@ -694,7 +694,7 @@ export default function Communication() {
           <div className="relative z-10 bg-surface border border-border rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-sm font-bold text-foreground">Create Group</div>
-              <button type="button" onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-white text-lg">
+              <button type="button" onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground text-lg">
                 Ã—
               </button>
             </div>
@@ -703,7 +703,7 @@ export default function Communication() {
               type="button"
               disabled={createBusy}
               onClick={() => void createTeacherGroup()}
-              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-white/5 hover:bg-white/8 text-left"
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-muted hover:bg-muted/80 text-left"
             >
               <Users className="w-4 h-4 text-[#f59e0b]" />
               <div>

@@ -420,7 +420,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               <InitialsAvatar name={selected.fullName} size="lg" />
             )}
             <div className="flex-1 min-w-0">
-              <div className="text-base font-black text-white truncate">{selected.fullName}</div>
+              <div className="text-base font-black text-foreground truncate">{selected.fullName}</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 Roll {selected.rollNumber ?? "â€”"}
                 {parentContact ? ` Â· Parent ${parentContact}` : ""}
@@ -457,7 +457,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 What you should know
               </div>
               {report.answers.map((line) => (
-                <div key={line} className="text-[12px] text-white leading-snug">
+                <div key={line} className="text-[12px] text-foreground leading-snug">
                   Â· {line}
                 </div>
               ))}
@@ -533,7 +533,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                       key={r.homework.id}
                       className="flex justify-between gap-2 text-[11px]"
                     >
-                      <span className="text-white truncate">{r.homework.title}</span>
+                      <span className="text-foreground truncate">{r.homework.title}</span>
                       <span className="text-[9px] text-[#f59e0b] shrink-0">{r.displayStatus}</span>
                     </div>
                   ))
@@ -600,13 +600,13 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     â€œ{r.body}â€
                   </div>
                 ))}
-                <div className="pt-2 space-y-2 border-t border-white/5">
+                <div className="pt-2 space-y-2 border-t border-border">
                   <textarea
                     value={remarkDraft}
                     onChange={(e) => setRemarkDraft(e.target.value)}
                     rows={2}
                     placeholder="Add a remark for this studentâ€¦"
-                    className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-[11px] text-white placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
+                    className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
                   />
                   <button
                     type="button"
@@ -641,13 +641,13 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             {!(weakSubjects.length > 0 || strongSubjects.length > 0 || remarks.length > 0) && (
               <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
                 <div className="text-xs font-bold text-foreground">Teacher remark</div>
-                <div className="pt-2 space-y-2 border-t border-white/5">
+                <div className="pt-2 space-y-2 border-t border-border">
                   <textarea
                     value={remarkDraft}
                     onChange={(e) => setRemarkDraft(e.target.value)}
                     rows={2}
                     placeholder="Add a remark for this studentâ€¦"
-                    className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-[11px] text-white placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
+                    className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
                   />
                   <button
                     type="button"
@@ -708,13 +708,13 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       <div className="text-[10px] text-muted-foreground">
         Open a student for an academic report â€” who needs help, and why.
       </div>
-      <div className="flex items-center gap-2 bg-white/5 border border-border rounded-xl px-3 py-2">
+      <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2">
         <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name or roll numberâ€¦"
-          className="flex-1 bg-transparent text-xs text-white placeholder:text-muted-foreground outline-none"
+          className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
         />
       </div>
       <div className="text-[10px] text-muted-foreground">{filtered.length} students</div>
@@ -737,7 +737,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 <InitialsAvatar name={s.fullName} />
               )}
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold text-white flex items-center gap-2">
+                <div className="text-xs font-bold text-foreground flex items-center gap-2">
                   {s.fullName}
                   {flag && (
                     <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[#cc5069]/20 text-[#cc5069]">
@@ -1167,7 +1167,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               value={basics.title}
               onChange={(e) => setBasics((f) => ({ ...f, title: e.target.value }))}
               placeholder="Title *"
-              className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             />
             <div className="flex flex-wrap gap-2">
               <select
@@ -1175,7 +1175,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 onChange={(e) =>
                   setBasics((f) => ({ ...f, testKind: e.target.value as TestKind }))
                 }
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               >
                 {TEST_KINDS.map((k) => (
                   <option key={k} value={k}>
@@ -1187,20 +1187,20 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 value={basics.durationMin}
                 onChange={(e) => setBasics((f) => ({ ...f, durationMin: e.target.value }))}
                 placeholder="Duration (min)"
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-28"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-28"
               />
               <input
                 value={basics.maxMarks}
                 onChange={(e) => setBasics((f) => ({ ...f, maxMarks: e.target.value }))}
                 placeholder="Max marks"
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-24"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-24"
               />
             </div>
             <textarea
               value={basics.instructions}
               onChange={(e) => setBasics((f) => ({ ...f, instructions: e.target.value }))}
               placeholder="Instructions"
-              className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[60px]"
+              className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[60px]"
             />
             <div className="flex flex-wrap gap-1">
               {(
@@ -1217,7 +1217,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
                     basics.publishMode === m.key
                       ? "bg-[#3b5bdb] text-foreground"
-                      : "bg-white/5 text-muted-foreground"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {m.label}
@@ -1229,13 +1229,13 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 type="datetime-local"
                 value={basics.scheduledAt}
                 onChange={(e) => setBasics((f) => ({ ...f, scheduledAt: e.target.value }))}
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               />
             )}
             <button
               type="button"
               onClick={goFromBasics}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#3b5bdb]"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-foreground bg-[#3b5bdb]"
             >
               Next: Choose source <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -1294,7 +1294,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     setLibFilters((f) => ({ ...f, [key]: e.target.value }))
                   }
                   placeholder={key.replace(/([A-Z])/g, " $1")}
-                  className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white capitalize"
+                  className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground capitalize"
                 />
               ))}
             </div>
@@ -1352,7 +1352,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 onChange={(e) =>
                   setQForm((f) => ({ ...f, kind: e.target.value as ManualQuestionKind }))
                 }
-                className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               >
                 {MANUAL_QUESTION_KINDS.map((k) => (
                   <option key={k.value} value={k.value}>
@@ -1364,7 +1364,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 value={qForm.question}
                 onChange={(e) => setQForm((f) => ({ ...f, question: e.target.value }))}
                 placeholder="Question text *"
-                className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[50px]"
+                className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[50px]"
               />
               {qForm.kind === "mcq" && (
                 <div className="space-y-2">
@@ -1373,7 +1373,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       type="button"
                       onClick={() => setQForm((f) => ({ ...f, useCsv: false }))}
                       className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        !qForm.useCsv ? "bg-[#3b5bdb] text-foreground" : "bg-white/5 text-muted-foreground"
+                        !qForm.useCsv ? "bg-[#3b5bdb] text-foreground" : "bg-muted text-muted-foreground"
                       }`}
                     >
                       4 options
@@ -1382,7 +1382,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       type="button"
                       onClick={() => setQForm((f) => ({ ...f, useCsv: true }))}
                       className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                        qForm.useCsv ? "bg-[#3b5bdb] text-foreground" : "bg-white/5 text-muted-foreground"
+                        qForm.useCsv ? "bg-[#3b5bdb] text-foreground" : "bg-muted text-muted-foreground"
                       }`}
                     >
                       Comma-separated
@@ -1393,7 +1393,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       value={qForm.optionsCsv}
                       onChange={(e) => setQForm((f) => ({ ...f, optionsCsv: e.target.value }))}
                       placeholder="Options, comma-separated"
-                      className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                      className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
                     />
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
@@ -1403,7 +1403,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                           value={qForm[key]}
                           onChange={(e) => setQForm((f) => ({ ...f, [key]: e.target.value }))}
                           placeholder={`Option ${String.fromCharCode(65 + i)}`}
-                          className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                          className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
                         />
                       ))}
                     </div>
@@ -1414,7 +1414,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 <select
                   value={qForm.correct}
                   onChange={(e) => setQForm((f) => ({ ...f, correct: e.target.value }))}
-                  className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                  className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
                 >
                   <option value="">Correct answer *</option>
                   <option value="True">True</option>
@@ -1431,7 +1431,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                         ? "Correct option text *"
                         : "Correct / model answer"
                   }
-                  className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                  className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
                 />
               )}
               <div className="flex gap-2">
@@ -1439,7 +1439,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   value={qForm.marks}
                   onChange={(e) => setQForm((f) => ({ ...f, marks: e.target.value }))}
                   placeholder="Marks"
-                  className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-24"
+                  className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-24"
                 />
                 <button
                   type="button"
@@ -1461,14 +1461,14 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     <div className="text-[9px] text-[#3b5bdb] font-bold uppercase">
                       {q.kind} Â· {q.marks ?? 1} marks
                     </div>
-                    <div className="text-xs text-white mt-0.5 line-clamp-2">{q.question}</div>
+                    <div className="text-xs text-foreground mt-0.5 line-clamp-2">{q.question}</div>
                   </div>
                   <div className="flex flex-col gap-1">
                     <button
                       type="button"
                       disabled={i === 0}
                       onClick={() => moveQuestion(i, -1)}
-                      className="p-1 rounded bg-white/5 text-muted-foreground disabled:opacity-30"
+                      className="p-1 rounded bg-muted text-muted-foreground disabled:opacity-30"
                     >
                       <ArrowUp className="w-3 h-3" />
                     </button>
@@ -1476,7 +1476,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       type="button"
                       disabled={i === questions.length - 1}
                       onClick={() => moveQuestion(i, 1)}
-                      className="p-1 rounded bg-white/5 text-muted-foreground disabled:opacity-30"
+                      className="p-1 rounded bg-muted text-muted-foreground disabled:opacity-30"
                     >
                       <ArrowDown className="w-3 h-3" />
                     </button>
@@ -1509,7 +1509,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 setError(null);
                 setStep("review");
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#3b5bdb]"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-foreground bg-[#3b5bdb]"
             >
               Next: Review <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -1535,7 +1535,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 setError(null);
                 setStep("review");
               }}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#3b5bdb]"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-foreground bg-[#3b5bdb]"
             >
               Next: Review <ChevronRight className="w-3.5 h-3.5" />
             </button>
@@ -1553,7 +1553,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 {source === "upload" ? ` Â· ${attachments.length} attachment(s)` : ""}
               </div>
               {basics.instructions && (
-                <div className="text-[10px] text-[#a0a0b0] pt-1 border-t border-white/5">
+                <div className="text-[10px] text-[#a0a0b0] pt-1 border-t border-border">
                   {basics.instructions}
                 </div>
               )}
@@ -1580,7 +1580,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 type="button"
                 disabled={saving}
                 onClick={() => void submitBuilder("draft")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 text-white disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-muted/80 text-foreground disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                 Save draft
@@ -1597,7 +1597,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 type="button"
                 disabled={saving}
                 onClick={() => void submitBuilder("now")}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#3b5bdb] text-white disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#3b5bdb] text-foreground disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 Publish
@@ -1643,7 +1643,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
             <div key={t.id} className="p-3 bg-surface border border-border/70 rounded-xl space-y-2">
               <div className="flex justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{t.title}</div>
+                  <div className="text-xs font-bold text-foreground truncate">{t.title}</div>
                   <div className="text-[10px] text-muted-foreground">
                     {TEST_KIND_LABELS[(t.test_kind as TestKind) ?? "class_test"] ?? t.test_kind} Â·{" "}
                     {qCount} Q Â· {marks != null ? `${marks} marks` : "â€” marks"}
@@ -1659,7 +1659,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                         ? "bg-[#6366f1]/15 text-[#6366f1]"
                         : status === "archived"
                           ? "bg-[#46465a]/40 text-muted-foreground"
-                          : "bg-white/10 text-[#a0a0b0]",
+                          : "bg-muted/80 text-[#a0a0b0]",
                   )}
                 >
                   {status}
@@ -1700,7 +1700,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                       setEditInstructions("");
                       setError(null);
                     }}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/10 text-[#a0a0b0] disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-[#a0a0b0] disabled:opacity-50"
                   >
                     Edit
                   </button>
@@ -1710,7 +1710,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     type="button"
                     disabled={saving}
                     onClick={() => void runAction("Archive", () => TestService.archive(ctx, t.id))}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#c08a3a] flex items-center gap-1 disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-[#c08a3a] flex items-center gap-1 disabled:opacity-50"
                   >
                     <Archive className="w-3 h-3" /> Archive
                   </button>
@@ -1735,7 +1735,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     type="datetime-local"
                     value={scheduleAt}
                     onChange={(e) => setScheduleAt(e.target.value)}
-                    className="bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+                    className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
                   />
                   <button
                     type="button"
@@ -1746,7 +1746,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                         setScheduleDraftId(null);
                       })
                     }
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#6366f1] text-white disabled:opacity-50"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#6366f1] text-foreground disabled:opacity-50"
                   >
                     Confirm schedule
                   </button>
@@ -1765,13 +1765,13 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     value={editTitle}
                     onChange={(e) => setEditTitle(e.target.value)}
                     placeholder="Title"
-                    className="w-full bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
+                    className="w-full bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground"
                   />
                   <textarea
                     value={editInstructions}
                     onChange={(e) => setEditInstructions(e.target.value)}
                     placeholder="Update instructions (optional)"
-                    className="w-full bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-white min-h-[50px]"
+                    className="w-full bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground min-h-[50px]"
                   />
                   <div className="flex gap-2">
                     <button
@@ -1788,7 +1788,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                           setEditId(null);
                         })
                       }
-                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb] text-white disabled:opacity-50"
+                      className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#3b5bdb] text-foreground disabled:opacity-50"
                     >
                       Save changes
                     </button>
@@ -2038,7 +2038,7 @@ export function LiveExamsMarksTab({
             {activeExam.name} Â· {activeExam.subject}
           </div>
           {!canEditActive && (
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-white/10 text-[#a0a0b0]">
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-muted/80 text-[#a0a0b0]">
               Read Only
             </span>
           )}
@@ -2067,7 +2067,7 @@ export function LiveExamsMarksTab({
                 key={s.id}
                 className="flex items-center justify-between gap-3 p-3 bg-surface border border-border/70 rounded-xl"
               >
-                <div className="text-xs text-white min-w-0 truncate">
+                <div className="text-xs text-foreground min-w-0 truncate">
                   {s.rollNumber ? `#${s.rollNumber} Â· ` : ""}
                   {s.fullName}
                 </div>
@@ -2078,7 +2078,7 @@ export function LiveExamsMarksTab({
                   onChange={(e) =>
                     setMarksDraft((d) => ({ ...d, [s.id]: e.target.value }))
                   }
-                  className="bg-white/5 border border-border rounded-lg px-2 py-1 text-[11px] text-white w-24 disabled:opacity-50"
+                  className="bg-muted border border-border rounded-lg px-2 py-1 text-[11px] text-foreground w-24 disabled:opacity-50"
                 />
               </div>
             ))}
@@ -2093,7 +2093,7 @@ export function LiveExamsMarksTab({
             type="button"
             disabled={saving}
             onClick={() => void saveMarks()}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-white disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold bg-[#3b5bdb] text-foreground disabled:opacity-50"
           >
             {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
             Save marks
@@ -2138,7 +2138,7 @@ export function LiveExamsMarksTab({
               key={s.id}
               className="flex items-center justify-between gap-2 p-3 bg-surface border border-border/70 rounded-xl"
             >
-              <div className="text-xs text-white font-semibold">{s.subject}</div>
+              <div className="text-xs text-foreground font-semibold">{s.subject}</div>
               <div className="text-[10px] text-muted-foreground">max {s.maxMarks}</div>
             </div>
           ))}
@@ -2206,7 +2206,7 @@ export function LiveExamsMarksTab({
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             placeholder="Exam name * e.g. Unit Test 1"
-            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
           />
           <div className="flex flex-wrap gap-2">
             <label className="text-[10px] text-muted-foreground flex flex-col gap-1">
@@ -2215,7 +2215,7 @@ export function LiveExamsMarksTab({
                 type="date"
                 value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               />
             </label>
             <label className="text-[10px] text-muted-foreground flex flex-col gap-1">
@@ -2224,7 +2224,7 @@ export function LiveExamsMarksTab({
                 type="date"
                 value={form.endDate}
                 onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
               />
             </label>
             <label className="text-[10px] text-muted-foreground flex flex-col gap-1">
@@ -2232,7 +2232,7 @@ export function LiveExamsMarksTab({
               <input
                 value={form.defaultMaxMarks}
                 onChange={(e) => setForm((f) => ({ ...f, defaultMaxMarks: e.target.value }))}
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-24"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-24"
               />
             </label>
           </div>
@@ -2240,7 +2240,7 @@ export function LiveExamsMarksTab({
             value={form.instructions}
             onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))}
             placeholder="Optional instructions"
-            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[50px]"
+            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[50px]"
           />
           <p className="text-[9px] text-muted-foreground">
             Subjects are loaded automatically from Teacherâ€“Classâ€“Subject mapping.
@@ -2329,7 +2329,7 @@ export function LiveExamsMarksTab({
                   <button
                     type="button"
                     onClick={() => openGroupReview(g)}
-                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/10 text-[#a0a0b0]"
+                    className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted/80 text-[#a0a0b0]"
                   >
                     Review / publish
                   </button>
@@ -2385,10 +2385,10 @@ function DecisionSection({
         rows.map((r) => (
           <div
             key={r.id}
-            className="flex justify-between gap-3 text-[11px] py-1.5 border-t border-white/5 first:border-0"
+            className="flex justify-between gap-3 text-[11px] py-1.5 border-t border-border first:border-0"
           >
             <div className="min-w-0">
-              <div className="text-white font-medium truncate">{r.name}</div>
+              <div className="text-foreground font-medium truncate">{r.name}</div>
               <div className="text-[10px] text-muted-foreground mt-0.5">{r.why}</div>
             </div>
             <div className={cn("tabular-nums font-bold shrink-0 self-start", metricClass)}>
@@ -2821,51 +2821,51 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           <div className="flex items-center gap-4 sm:gap-5 min-w-max text-[10px]">
             <div>
               <span className="text-muted-foreground">Attendance </span>
-              <span className="font-bold text-white tabular-nums">
+              <span className="font-bold text-foreground tabular-nums">
                 {Math.round(analytics.avgAttendancePct)}%
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">HW </span>
-              <span className="font-bold text-white tabular-nums">
+              <span className="font-bold text-foreground tabular-nums">
                 {Math.round(analytics.avgHomeworkCompletionPct)}%
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">Test avg </span>
-              <span className="font-bold text-white tabular-nums">
+              <span className="font-bold text-foreground tabular-nums">
                 {Math.round(analytics.avgTestsPct)}%
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">Exam avg </span>
-              <span className="font-bold text-white tabular-nums">
+              <span className="font-bold text-foreground tabular-nums">
                 {Math.round(analytics.avgExamsPct)}%
               </span>
             </div>
             <div>
               <span className="text-muted-foreground">Active HW </span>
-              <span className="font-bold text-white tabular-nums">{activeHomework.length}</span>
+              <span className="font-bold text-foreground tabular-nums">{activeHomework.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Active tests </span>
-              <span className="font-bold text-white tabular-nums">{activeTests.length}</span>
+              <span className="font-bold text-foreground tabular-nums">{activeTests.length}</span>
             </div>
             <div>
               <span className="text-muted-foreground">Upcoming exams </span>
-              <span className="font-bold text-white tabular-nums">{upcomingExams.length}</span>
+              <span className="font-bold text-foreground tabular-nums">{upcomingExams.length}</span>
             </div>
             {progression?.class_engagement && (
               <>
                 <div>
                   <span className="text-muted-foreground">Avg XP </span>
-                  <span className="font-bold text-white tabular-nums">
+                  <span className="font-bold text-foreground tabular-nums">
                     {progression.class_engagement.avg_xp}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Practice rate </span>
-                  <span className="font-bold text-white tabular-nums">
+                  <span className="font-bold text-foreground tabular-nums">
                     {progression.class_engagement.practice_rate}%
                   </span>
                 </div>

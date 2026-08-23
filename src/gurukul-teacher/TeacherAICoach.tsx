@@ -113,7 +113,7 @@ export default function TeacherAICoach() {
             type="button"
             disabled
             title="Coming soon â€” requires the student-panel insight pipeline to be connected first"
-            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5 border border-border cursor-not-allowed"
+            className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted border border-border cursor-not-allowed"
           >
             <Lock className="w-3.5 h-3.5" /> Generate Coaching Report
           </button>

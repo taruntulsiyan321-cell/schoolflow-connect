@@ -114,7 +114,7 @@ export default function Achievements() {
           <div className="text-[11px] text-muted-foreground mt-0.5">Milestones reached</div>
         </div>
         <div className="p-4 rounded-2xl border border-border/70 bg-surface/70 text-center">
-          <div className="text-2xl font-black text-[#6882e8]" style={{ fontFamily: "var(--font-display)" }}>
+          <div className="text-2xl font-black text-primary" style={{ fontFamily: "var(--font-display)" }}>
             {visibleCatalogCount || "â€”"}
           </div>
           <div className="text-[11px] text-muted-foreground mt-0.5">Total in catalog</div>
@@ -144,7 +144,7 @@ export default function Achievements() {
             {achievements.map((a) => (
               <div
                 key={a.code}
-                className="flex items-start gap-3 p-3 rounded-xl border border-border/70 bg-white/2"
+                className="flex items-start gap-3 p-3 rounded-xl border border-border/70 bg-muted/30"
               >
                 <Star className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <div className="min-w-0">
@@ -200,7 +200,7 @@ export default function Achievements() {
                             "text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors",
                             isEquipped
                               ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
-                              : "border-border text-[#a0a0b0] hover:text-white hover:border-white/25",
+                              : "border-border text-muted-foreground hover:text-foreground hover:border-border",
                           )}
                         >
                           {isEquipped ? "Unequip" : "Equip"}
@@ -213,7 +213,7 @@ export default function Achievements() {
                             "text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-colors inline-flex items-center gap-1",
                             isFeatured
                               ? "border-amber-400/40 text-amber-300 bg-amber-400/10"
-                              : "border-border text-[#a0a0b0] hover:text-white hover:border-white/25",
+                              : "border-border text-muted-foreground hover:text-foreground hover:border-border",
                           )}
                         >
                           <Star className={cn("w-3 h-3", isFeatured && "fill-current")} />
@@ -238,13 +238,13 @@ export default function Achievements() {
             {locked.map((a) => {
               const Icon = a.icon;
               return (
-                <div key={a.code} className="flex items-start gap-3 p-4 rounded-xl border border-border/70 bg-white/2">
+                <div key={a.code} className="flex items-start gap-3 p-4 rounded-xl border border-border/70 bg-muted/30">
                   <span className="text-2xl shrink-0 opacity-40">
                     <Icon className="w-6 h-6" />
                   </span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-[#a0a0b0]">{a.label}</span>
+                      <span className="text-sm font-semibold text-muted-foreground">{a.label}</span>
                       <Lock className="w-3 h-3 text-muted-foreground" />
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{a.desc}</div>

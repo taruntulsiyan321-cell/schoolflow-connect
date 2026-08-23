@@ -16,7 +16,7 @@
 .chat-panel .chat-shell {
   background: var(--chat-surface);
   border: 1px solid var(--chat-border);
-  box-shadow: 0 12px 40px -12px rgba(16, 36, 44, 0.45);
+  box-shadow: var(--shadow-elevated);
   backdrop-filter: blur(8px);
 }
 
@@ -40,7 +40,7 @@
 .chat-panel .chat-bubble-theirs {
   background: var(--chat-surface-3);
   border: 1px solid var(--chat-border);
-  color: #c6d5d6;
+  color: var(--chat-text);
   box-shadow: none;
 }
 
@@ -81,7 +81,7 @@
   background: var(--chat-primary);
   color: #fff;
   border: none;
-  box-shadow: 0 10px 28px -8px rgba(16, 36, 44, 0.45);
+  box-shadow: var(--shadow-elevated);
   z-index: 5;
   transition: transform 0.15s ease, filter 0.15s ease;
 }

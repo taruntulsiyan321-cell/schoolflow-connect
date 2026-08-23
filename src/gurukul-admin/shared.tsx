@@ -27,7 +27,7 @@ export function InitialsAvatar({
   const cls = { sm: "w-7 h-7 text-[9px]", md: "w-9 h-9 text-[11px]", lg: "w-14 h-14 text-base" }[size];
   return (
     <div
-      className={cn("rounded-full flex items-center justify-center font-black text-white shrink-0", cls)}
+      className={cn("rounded-full flex items-center justify-center font-black text-foreground shrink-0", cls)}
       style={{ background: `linear-gradient(135deg,${bg},${bg}99)` }}
     >
       {initials}
@@ -76,15 +76,15 @@ export function ConfirmModal({
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
       <div className="relative z-10 bg-surface border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-        <div className="text-white font-bold text-base mb-2">{title}</div>
+        <div className="text-foreground font-bold text-base mb-2">{title}</div>
         <div className="text-muted-foreground text-sm mb-6">{description}</div>
         <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-white bg-white/5 hover:bg-white/10 transition-all">
+          <button onClick={onCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 transition-all">
             Cancel
           </button>
           <button
             onClick={onConfirm}
-            className={cn("px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all", danger ? "bg-[#cc5069] hover:bg-[#b84460]" : "bg-[#3b5bdb] hover:bg-[#2f4fc4]")}
+            className={cn("px-4 py-2 rounded-xl text-sm font-semibold text-foreground transition-all", danger ? "bg-[#cc5069] hover:bg-[#b84460]" : "bg-[#3b5bdb] hover:bg-[#2f4fc4]")}
           >
             {confirmLabel}
           </button>
@@ -126,7 +126,7 @@ export function UndoToast({ state, onClose }: { state: UndoToastState; onClose: 
       className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-2xl border border-border bg-surface min-w-64"
       style={{ borderLeftColor: color, borderLeftWidth: 3 }}
     >
-      <span className="text-white text-sm font-semibold flex-1">{state.message}</span>
+      <span className="text-foreground text-sm font-semibold flex-1">{state.message}</span>
       {state.onUndo && (
         <button
           onClick={() => { state.onUndo!(); onClose(); }}
@@ -136,7 +136,7 @@ export function UndoToast({ state, onClose }: { state: UndoToastState; onClose: 
           Undo{remaining !== null && remaining > 0 ? ` (${remaining}s)` : ""}
         </button>
       )}
-      <button onClick={onClose} className="text-muted-foreground hover:text-white ml-1 text-lg leading-none">Ã—</button>
+      <button onClick={onClose} className="text-muted-foreground hover:text-foreground ml-1 text-lg leading-none">Ã—</button>
     </div>
   );
 }

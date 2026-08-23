@@ -19,7 +19,7 @@ function StatCard({
   icon: React.ReactNode; color: string; delta?: number;
 }) {
   return (
-    <div className="rounded-2xl border border-border/70 bg-surface p-5 flex flex-col gap-3 hover:border-white/12 transition-all">
+    <div className="rounded-2xl border border-border/70 bg-surface p-5 flex flex-col gap-3 hover:border-border transition-all">
       <div className="flex items-start justify-between">
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -47,7 +47,7 @@ function AttendanceBar({ label, value, color }: { label: string; value: number; 
   return (
     <div className="flex items-center gap-3">
       <div className="text-xs text-muted-foreground w-20 shrink-0">{label}</div>
-      <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
         <div className="h-full rounded-full transition-all" style={{ width: `${value}%`, background: color }} />
       </div>
       <div className="text-xs font-bold tabular-nums shrink-0" style={{ color }}>{value}%</div>
@@ -294,7 +294,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
             <button
               key={item.label}
               onClick={item.action}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-muted transition-all group border border-border/70 hover:border-white/12"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl hover:bg-muted transition-all group border border-border/70 hover:border-border"
             >
               <div
                 className="w-7 h-7 rounded-lg flex items-center justify-center transition-all group-hover:scale-110"
@@ -302,7 +302,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
               >
                 {item.icon}
               </div>
-              <span className="text-xs font-semibold text-muted-foreground group-hover:text-white transition-all">
+              <span className="text-xs font-semibold text-muted-foreground group-hover:text-foreground transition-all">
                 {item.label}
               </span>
             </button>
@@ -338,16 +338,16 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           </div>
           {/* Summary totals */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white/4 rounded-xl p-3 text-center">
-              <div className="text-lg font-black text-white tabular-nums">{todayPresent}</div>
+            <div className="bg-muted rounded-xl p-3 text-center">
+              <div className="text-lg font-black text-foreground tabular-nums">{todayPresent}</div>
               <div className="text-[9px] text-[#4aa87a] font-bold uppercase tracking-wide mt-0.5">Present</div>
             </div>
-            <div className="bg-white/4 rounded-xl p-3 text-center">
-              <div className="text-lg font-black text-white tabular-nums">{todayAbsent}</div>
+            <div className="bg-muted rounded-xl p-3 text-center">
+              <div className="text-lg font-black text-foreground tabular-nums">{todayAbsent}</div>
               <div className="text-[9px] text-[#cc5069] font-bold uppercase tracking-wide mt-0.5">Absent</div>
             </div>
-            <div className="bg-white/4 rounded-xl p-3 text-center">
-              <div className="text-lg font-black text-white tabular-nums">{todayPct}%</div>
+            <div className="bg-muted rounded-xl p-3 text-center">
+              <div className="text-lg font-black text-foreground tabular-nums">{todayPct}%</div>
               <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-wide mt-0.5">Rate</div>
             </div>
           </div>
@@ -368,7 +368,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
                   <div className="text-[10px] text-muted-foreground w-20 shrink-0">{cls.name}</div>
                   {cls.submitted ? (
                     <>
-                      <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                         <div className="h-full rounded-full bg-[#3b5bdb]" style={{ width: `${pct}%` }} />
                       </div>
                       <div className="text-[9px] font-bold text-[#3b5bdb] w-8 text-right shrink-0">{pct}%</div>
@@ -376,7 +376,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
                     </>
                   ) : (
                     <>
-                      <div className="flex-1 h-1.5 bg-white/5 rounded-full" />
+                      <div className="flex-1 h-1.5 bg-muted rounded-full" />
                       <div className="text-[9px] font-bold text-muted-foreground w-8 text-right shrink-0">â€”</div>
                       <AlertCircle className="w-3.5 h-3.5 text-[#c08a3a] shrink-0" />
                     </>
@@ -404,7 +404,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
               <div key={s.id} className="flex items-center gap-3">
                 <InitialsAvatar name={s.fullName} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-white truncate">{s.fullName}</div>
+                  <div className="text-xs font-semibold text-foreground truncate">{s.fullName}</div>
                   <div className="text-[10px] text-muted-foreground">{s.classLabel} Â· {s.admissionNumber}</div>
                 </div>
               </div>
@@ -428,7 +428,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
               <div key={t.id} className="flex items-center gap-3">
                 <InitialsAvatar name={t.fullName} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-white truncate">{t.fullName}</div>
+                  <div className="text-xs font-semibold text-foreground truncate">{t.fullName}</div>
                   <div className="text-[10px] text-muted-foreground">{t.department ?? "â€”"} Â· {t.employeeId ?? "â€”"}</div>
                 </div>
               </div>
@@ -441,7 +441,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Activity Log */}
         <div className="lg:col-span-1 bg-surface border border-border/70 rounded-2xl p-5">
-          <div className="text-sm font-bold text-white mb-4">Recent Activity</div>
+          <div className="text-sm font-bold text-foreground mb-4">Recent Activity</div>
           <div className="space-y-3">
             {!loading && activity.length === 0 && (
               <div className="text-[10px] text-muted-foreground">No recent activity.</div>
@@ -463,7 +463,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
 
         {/* Pending Requests */}
         <div className="bg-surface border border-border/70 rounded-2xl p-5">
-          <div className="text-sm font-bold text-white mb-4">Pending Leave Requests</div>
+          <div className="text-sm font-bold text-foreground mb-4">Pending Leave Requests</div>
           <div className="space-y-3">
             {!loading && pendingLeaves.length === 0 && (
               <div className="text-[10px] text-muted-foreground">No pending requests.</div>
@@ -472,7 +472,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
               <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl bg-muted hover:bg-muted transition-all cursor-pointer" onClick={() => setPage("leave_requests")}>
                 <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: priorityColor.medium }} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-semibold text-white capitalize">{r.leave_type}</div>
+                  <div className="text-xs font-semibold text-foreground capitalize">{r.leave_type}</div>
                   <div className="text-[10px] text-muted-foreground">{r.from_date} â†’ {r.to_date}</div>
                 </div>
               </div>

@@ -86,3 +86,58 @@
 .gurukul-principal ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+/* ══════════════════════════════════════════════════════════════════════════════
+   PREMIUM REFINEMENTS - Enhanced principal panel polish
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.gurukul-principal [class*="cursor-pointer"]:hover,
+.gurukul-principal button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(20, 37, 45, 0.08), 0 2px 8px rgba(20, 37, 45, 0.05);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gurukul-principal button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gurukul-principal button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.gurukul-principal *:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px hsl(var(--primary) / 0.1);
+}
+
+.gurukul-principal input:focus,
+.gurukul-principal textarea:focus,
+.gurukul-principal select:focus {
+  border-color: hsl(var(--primary) / 0.5) !important;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
+  outline: none;
+}
+
+.gurukul-principal h1 { font-weight: 800; letter-spacing: -0.025em; line-height: 1.1; }
+.gurukul-principal h2 { font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+.gurukul-principal h3, .gurukul-principal h4 { font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }
+
+.gurukul-principal > main {
+  animation: page-fade-in 0.35s ease-out;
+}
+
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.gurukul-principal button svg,
+.gurukul-principal a svg {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gurukul-principal button:not(:disabled):hover svg,
+.gurukul-principal a:hover svg {
+  transform: scale(1.08);
+}

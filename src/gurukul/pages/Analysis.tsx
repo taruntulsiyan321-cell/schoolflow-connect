@@ -13,6 +13,7 @@ import {
   ArrowUp, ArrowDown, Minus, Printer, Star,
 } from "lucide-react";
 import { cn } from "@/gurukul/components/shared";
+import { withAlpha } from "@/lib/colorAlpha";
 import { useGurukulStudent } from "@/gurukul/StudentContext";
 import { useAnalysisPageData } from "@/hooks/useAnalysisPageData";
 import { useStudentPerformanceCharts } from "@/hooks/useStudentPerformanceCharts";
@@ -43,17 +44,17 @@ import {
 import { preferRealAcademicLabel } from "@/lib/qualityGuards";
 
 const SUBJECT_COLORS: Record<string, string> = {
-  Mathematics: "#3b5bdb",
-  Math: "#3b5bdb",
-  Physics: "#4b9fd4",
-  Chemistry: "#6882e8",
-  Biology: "#4aa87a",
-  English: "#c08a3a",
-  Hindi: "#cc5069",
-  Science: "#4b9fd4",
-  "Social Science": "#c08a3a",
+  Mathematics: "hsl(var(--primary))",
+  Math: "hsl(var(--primary))",
+  Physics: "hsl(var(--info))",
+  Chemistry: "hsl(var(--primary-glow))",
+  Biology: "hsl(var(--success))",
+  English: "hsl(var(--warning))",
+  Hindi: "hsl(var(--destructive))",
+  Science: "hsl(var(--info))",
+  "Social Science": "hsl(var(--warning))",
 };
-const FALLBACK_COLORS = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
+const FALLBACK_COLORS = ["hsl(var(--primary))", "hsl(var(--info))", "hsl(var(--primary-glow))", "hsl(var(--success))", "hsl(var(--warning))"];
 
 function subjectColor(name: string, index: number) {
   return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
@@ -62,9 +63,9 @@ function subjectColor(name: string, index: number) {
 // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function scoreColor(v: number) {
-  if (v >= 80) return "#4b9fd4";
-  if (v >= 65) return "#c08a3a";
-  return "#cc5069";
+  if (v >= 80) return "hsl(var(--info))";
+  if (v >= 65) return "hsl(var(--warning))";
+  return "hsl(var(--destructive))";
 }
 
 const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number; name: string; color: string }[]; label?: string }) => {
@@ -75,8 +76,8 @@ const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: 
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full" style={{ background: p.color }} />
-          <span className="text-[#a0a0b0]">{p.name}:</span>
-          <span className="text-white font-semibold">{p.value}</span>
+          <span className="text-muted-foreground">{p.name}:</span>
+          <span className="text-foreground font-semibold">{p.value}</span>
         </div>
       ))}
     </div>
@@ -399,7 +400,7 @@ export default function Analysis() {
             avgSec: s.avgSec,
           }))
         : stats.avgSec > 0
-          ? [{ name: "Overall", color: "#3b5bdb", avgSec: stats.avgSec }]
+          ? [{ name: "Overall", color: "hsl(var(--primary))", avgSec: stats.avgSec }]
           : [];
     return { speedStats: stats, speedBySubject: bySubject };
   }, [analysis?.recent_sessions, analysis?.totals.avg_sec_per_question]);
@@ -517,7 +518,7 @@ export default function Analysis() {
         label: "Subject needing more practice",
         value: weakest.name,
         sub: `${weakest.accuracy}% accuracy`,
-        color: "#c08a3a",
+        color: "hsl(var(--warning))",
         icon: <Target className="w-4 h-4" />,
       });
     }
@@ -526,7 +527,7 @@ export default function Analysis() {
         label: "Suggested priority today",
         value: displayTopic(weakTopic.topic) || displayChapter(weakTopic.chapter) || displaySubject(weakTopic.subject),
         sub: `${Math.round(weakTopic.accuracy)}% accuracy Â· needs review`,
-        color: "#4b9fd4",
+        color: "hsl(var(--info))",
         icon: <ChevronRight className="w-4 h-4" />,
       });
     }
@@ -535,7 +536,7 @@ export default function Analysis() {
         label: "Most active day recently",
         value: bestDay,
         sub: `${studyActivity.totalHrs}h total study time logged`,
-        color: "#6882e8",
+        color: "hsl(var(--primary-glow))",
         icon: <Calendar className="w-4 h-4" />,
       });
     }
@@ -544,7 +545,7 @@ export default function Analysis() {
         label: "Average time per question",
         value: `${analysis.totals.avg_sec_per_question}s`,
         sub: "Based on your latest practice session",
-        color: "#cc5069",
+        color: "hsl(var(--destructive))",
         icon: <Clock className="w-4 h-4" />,
       });
     }
@@ -569,14 +570,14 @@ export default function Analysis() {
         q: "How am I doing?",
         a: `${overview.accuracy}% accuracy overall`,
         sub: `${rankText} Â· ${streakText}`,
-        color: "#4b9fd4",
+        color: "hsl(var(--info))",
         icon: <TrendingUp className="w-4 h-4" />,
       },
       {
         q: "What should I improve?",
         a: improveText,
         sub: weakCount > 0 ? `${weakCount} topic${weakCount === 1 ? "" : "s"} need attention` : "No weak topics flagged yet",
-        color: "#c08a3a",
+        color: "hsl(var(--warning))",
         icon: <Target className="w-4 h-4" />,
       },
       {
@@ -585,7 +586,7 @@ export default function Analysis() {
         sub: revisionData.dueToday.length > 0
           ? `${revisionData.dueToday.length} revision item${revisionData.dueToday.length === 1 ? "" : "s"} due today`
           : "Check your revision queue",
-        color: "#3b5bdb",
+        color: "hsl(var(--primary))",
         icon: <BookOpen className="w-4 h-4" />,
       },
     ];
@@ -649,7 +650,7 @@ export default function Analysis() {
   return (
     <div className="space-y-6">
       {loadError && (
-        <div className="rounded-xl border border-[#c08a3a]/30 bg-[#c08a3a]/10 px-4 py-2 text-xs text-[#c08a3a]">
+        <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">
           Some analysis data failed to load: {loadError}. Showing available stats as zeros where missing.
         </div>
       )}
@@ -659,13 +660,13 @@ export default function Analysis() {
           <div
             key={item.q}
             className="rounded-2xl border p-4"
-            style={{ borderColor: `${item.color}25`, background: `${item.color}08` }}
+            style={{ borderColor: `${withAlpha(item.color, 0.15)}`, background: `${withAlpha(item.color, 0.03)}` }}
           >
             <div className="flex items-center gap-2 mb-1.5">
               <span style={{ color: item.color }}>{item.icon}</span>
               <span className="text-[10px] uppercase tracking-[0.15em]" style={{ color: item.color }}>{item.q}</span>
             </div>
-            <div className="text-sm font-bold text-white leading-tight">{item.a}</div>
+            <div className="text-sm font-bold text-foreground leading-tight">{item.a}</div>
             <div className="text-[11px] text-muted-foreground mt-0.5">{item.sub}</div>
           </div>
         ))}
@@ -680,7 +681,7 @@ export default function Analysis() {
             className={cn(
               "shrink-0 px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-150 whitespace-nowrap",
               tab === t.key
-                ? "border-[#3b5bdb] text-foreground"
+                ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
@@ -695,14 +696,14 @@ export default function Analysis() {
           {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "Questions solved",   value: overview.totalQuestions.toLocaleString(), color: "#e8eaf0" },
-              { label: "Correct answers",    value: overview.correct.toLocaleString(),        color: "#4b9fd4" },
-              { label: "Incorrect answers",  value: overview.incorrect.toLocaleString(),      color: "#cc5069" },
-              { label: overview.avgScoreIsExam ? "Average score" : "Accuracy", value: `${overview.avgScore}%`, color: "#c08a3a" },
-              { label: "Practice sessions",  value: overview.practiceCompleted,               color: "#e8eaf0" },
-              { label: "Marks recorded",     value: overview.testsCompleted,                  color: "#e8eaf0" },
-              { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "#6882e8" },
-              { label: "Exam readiness",     value: `${overview.examReadiness}%`,             color: "#3b5bdb" },
+              { label: "Questions solved",   value: overview.totalQuestions.toLocaleString(), color: "hsl(var(--foreground))" },
+              { label: "Correct answers",    value: overview.correct.toLocaleString(),        color: "hsl(var(--info))" },
+              { label: "Incorrect answers",  value: overview.incorrect.toLocaleString(),      color: "hsl(var(--destructive))" },
+              { label: overview.avgScoreIsExam ? "Average score" : "Accuracy", value: `${overview.avgScore}%`, color: "hsl(var(--warning))" },
+              { label: "Practice sessions",  value: overview.practiceCompleted,               color: "hsl(var(--foreground))" },
+              { label: "Marks recorded",     value: overview.testsCompleted,                  color: "hsl(var(--foreground))" },
+              { label: "Study hours total",  value: `${overview.studyHours}h`,                color: "hsl(var(--primary-glow))" },
+              { label: "Exam readiness",     value: `${overview.examReadiness}%`,             color: "hsl(var(--primary))" },
             ].map((s) => (
               <Metric key={s.label} label={s.label} value={s.value} color={s.color} />
             ))}
@@ -717,27 +718,27 @@ export default function Analysis() {
                 <AreaChart data={scoreTrend}>
                   <defs>
                     <linearGradient id="an-scGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b5bdb" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b5bdb" stopOpacity={0} />
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="week" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={scoreTrendDomain} tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="week" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={scoreTrendDomain} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="score" name="Score" stroke="#3b5bdb" strokeWidth={2.5} fill="url(#an-scGrad)"
-                    isAnimationActive={false} dot={{ r: 4, fill: "#3b5bdb", strokeWidth: 0 }} activeDot={{ r: 6, fill: "#3b5bdb", stroke: "#0d0d0f", strokeWidth: 2 }} />
+                  <Area type="monotone" dataKey="score" name="Score" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#an-scGrad)"
+                    isAnimationActive={false} dot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 0 }} activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "hsl(var(--card))", strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
             {scoreTrendDelta != null && scoreTrendDelta !== 0 && (
             <div className="flex items-center gap-2 mt-2">
               {scoreTrendDelta > 0 ? (
-                <ArrowUp className="w-3.5 h-3.5 text-emerald-400" />
+                <ArrowUp className="w-3.5 h-3.5 text-success" />
               ) : (
-                <ArrowDown className="w-3.5 h-3.5 text-rose-400" />
+                <ArrowDown className="w-3.5 h-3.5 text-destructive" />
               )}
-              <span className={cn("text-xs font-medium", scoreTrendDelta > 0 ? "text-emerald-400" : "text-rose-400")}>
+              <span className={cn("text-xs font-medium", scoreTrendDelta > 0 ? "text-success" : "text-destructive")}>
                 {scoreTrendDelta > 0 ? "+" : ""}{scoreTrendDelta}% over recent sessions
               </span>
             </div>
@@ -754,12 +755,12 @@ export default function Analysis() {
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weekComparison} barSize={14} barGap={2}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="thisWeek" name="This week" fill="#3b5bdb" radius={[4, 4, 0, 0]} isAnimationActive={false}/>
-                  <Bar dataKey="lastWeek" name="Last week" fill="rgba(255,255,255,0.08)" radius={[4, 4, 0, 0]} isAnimationActive={false}/>
+                  <Bar dataKey="thisWeek" name="This week" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} isAnimationActive={false}/>
+                  <Bar dataKey="lastWeek" name="Last week" fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} isAnimationActive={false}/>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -775,12 +776,12 @@ export default function Analysis() {
             <div className="grid sm:grid-cols-2 gap-3">
               {personalInsights.map((ins) => (
                 <div key={ins.label} className="flex items-start gap-3 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${ins.color}15`, color: ins.color }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: `${withAlpha(ins.color, 0.08)}`, color: ins.color }}>
                     {ins.icon}
                   </div>
                   <div className="min-w-0">
                     <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{ins.label}</div>
-                    <div className="text-sm font-bold text-white mt-0.5">{ins.value}</div>
+                    <div className="text-sm font-bold text-foreground mt-0.5">{ins.value}</div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{ins.sub}</div>
                   </div>
                 </div>
@@ -803,9 +804,9 @@ export default function Analysis() {
               <div className="h-56 mt-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radarData}>
-                    <PolarGrid stroke="rgba(255,255,255,0.06)" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: "#a0a0b0", fontSize: 12, fontWeight: 600 }} />
-                    <Radar name="Score" dataKey="score" stroke="#3b5bdb" fill="#3b5bdb" fillOpacity={0.2} strokeWidth={2.5} isAnimationActive={false}/>
+                    <PolarGrid stroke="hsl(var(--border))" />
+                    <PolarAngleAxis dataKey="subject" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontWeight: 600 }} />
+                    <Radar name="Score" dataKey="score" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.2} strokeWidth={2.5} isAnimationActive={false}/>
                     <Tooltip content={<ChartTooltip />} />
                   </RadarChart>
                 </ResponsiveContainer>
@@ -820,23 +821,23 @@ export default function Analysis() {
               {subjectData.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-6 text-center">No subjects tracked yet</p>
               ) : subjectData.map((s) => (
-                <div key={s.name} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
+                <div key={s.name} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
                   <div className="w-2 h-10 rounded-full shrink-0" style={{ background: s.color }} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-foreground">{displaySubject(s.name) || s.name}</span>
-                      {s.status === "best" && <span className="text-[9px] uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded-full">Best subject</span>}
-                      {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
+                      {s.status === "best" && <span className="text-[9px] uppercase tracking-wider text-success bg-success/10 px-1.5 py-0.5 rounded-full">Best subject</span>}
+                      {s.status === "needs-attention" && <span className="text-[9px] uppercase tracking-wider text-warning bg-warning/10 px-1.5 py-0.5 rounded-full">Needs attention</span>}
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-0.5">{s.questions} questions{s.timeHrs > 0 ? ` Â· ${s.timeHrs}h study time` : ""}{s.rankInClass > 0 ? ` Â· Rank #${s.rankInClass}` : ""}</div>
-                    <div className="h-1 rounded-full bg-white/5 mt-2 overflow-hidden">
+                    <div className="h-1 rounded-full bg-muted mt-2 overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.score}%`, background: s.color }} />
                     </div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-lg font-black tabular-nums" style={{ color: s.color }}>{s.score}%</div>
                     {s.trend != null ? (
-                    <div className={cn("flex items-center gap-0.5 text-[11px] font-medium justify-end", s.trend >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                    <div className={cn("flex items-center gap-0.5 text-[11px] font-medium justify-end", s.trend >= 0 ? "text-success" : "text-destructive")}>
                       {s.trend >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                       {Math.abs(s.trend)}%
                     </div>
@@ -858,19 +859,19 @@ export default function Analysis() {
             <div className="grid sm:grid-cols-2 gap-3">
               {chapterData.map((c) => {
                 const statusLabel: Record<string, { text: string; color: string }> = {
-                  "ready":        { text: "Ready for revision", color: "#4aa87a" },
-                  "practice-more":{ text: "Practice more",      color: "#c08a3a" },
-                  "needs-work":   { text: "Needs attention",    color: "#cc5069" },
+                  "ready":        { text: "Ready for revision", color: "hsl(var(--success))" },
+                  "practice-more":{ text: "Practice more",      color: "hsl(var(--warning))" },
+                  "needs-work":   { text: "Needs attention",    color: "hsl(var(--destructive))" },
                 };
                 const st = statusLabel[c.status];
                 return (
-                  <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
+                  <div key={`${c.subject}-${c.chapter}`} className="p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
                         <div className="text-sm font-semibold text-foreground">{displayChapter(c.chapter)}</div>
                         <div className="text-[11px] mt-0.5" style={{ color: c.color }}>{displaySubject(c.subject)}</div>
                       </div>
-                      <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: `${st.color}12` }}>
+                      <span className="text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ color: st.color, background: `${withAlpha(st.color, 0.07)}` }}>
                         {st.text}
                       </span>
                     </div>
@@ -885,7 +886,7 @@ export default function Analysis() {
                       </div>
                       <div className="text-center">
                         {c.trend != null ? (
-                        <div className={cn("text-sm font-black tabular-nums flex items-center justify-center gap-0.5", c.trend >= 0 ? "text-emerald-400" : "text-rose-400")}>
+                        <div className={cn("text-sm font-black tabular-nums flex items-center justify-center gap-0.5", c.trend >= 0 ? "text-success" : "text-destructive")}>
                           {c.trend >= 0 ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                           {Math.abs(c.trend)}%
                         </div>
@@ -895,7 +896,7 @@ export default function Analysis() {
                         <div className="text-[9px] text-muted-foreground">Change</div>
                       </div>
                     </div>
-                    <div className="h-1 rounded-full bg-white/5 overflow-hidden">
+                    <div className="h-1 rounded-full bg-muted overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${c.completion}%`, background: c.color }} />
                     </div>
                   </div>
@@ -913,9 +914,9 @@ export default function Analysis() {
           {/* Learning journey overview */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: "Topics completed",   value: learningProgress.completed,  color: "#4aa87a", icon: <CheckCircle2 className="w-5 h-5" /> },
-              { label: "Topics in progress", value: learningProgress.inProgress, color: "#3b5bdb", icon: <BookOpen className="w-5 h-5" /> },
-              { label: "Yet to begin",        value: learningProgress.notStarted, color: "#78788c", icon: <Minus className="w-5 h-5" /> },
+              { label: "Topics completed",   value: learningProgress.completed,  color: "hsl(var(--success))", icon: <CheckCircle2 className="w-5 h-5" /> },
+              { label: "Topics in progress", value: learningProgress.inProgress, color: "hsl(var(--primary))", icon: <BookOpen className="w-5 h-5" /> },
+              { label: "Yet to begin",        value: learningProgress.notStarted, color: "hsl(var(--muted-foreground))", icon: <Minus className="w-5 h-5" /> },
             ].map((item) => (
               <div key={item.label} className="p-4 rounded-xl border border-border/70 bg-surface/60 text-center">
                 <div className="flex justify-center mb-2" style={{ color: item.color }}>{item.icon}</div>
@@ -933,13 +934,13 @@ export default function Analysis() {
                 {topicGroups.doing_well.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">No strong topics yet</p>
                 ) : topicGroups.doing_well.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-emerald-400/12 bg-emerald-400/5 hover:border-emerald-400/25 transition-colors">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-success/12 bg-success/5 hover:border-success/25 transition-colors">
+                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
+                      <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
                     </div>
-                    <span className="text-sm font-black text-emerald-400 shrink-0">{t.score}%</span>
+                    <span className="text-sm font-black text-success shrink-0">{t.score}%</span>
                   </div>
                 ))}
               </div>
@@ -952,14 +953,14 @@ export default function Analysis() {
                 {topicGroups.needs_attention.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">No weak topics flagged</p>
                 ) : topicGroups.needs_attention.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-amber-400/12 bg-amber-400/5 hover:border-amber-400/25 transition-colors cursor-pointer">
-                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-warning/12 bg-warning/5 hover:border-warning/25 transition-colors cursor-pointer">
+                    <AlertCircle className="w-4 h-4 text-warning shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
+                      <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}{t.practiceCount > 0 ? ` Â· ${t.practiceCount} questions done` : ""}</div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="text-sm font-black text-amber-400">{t.score}%</div>
+                      <div className="text-sm font-black text-warning">{t.score}%</div>
                       <div className="text-[10px] text-muted-foreground">accuracy</div>
                     </div>
                   </div>
@@ -976,13 +977,13 @@ export default function Analysis() {
                 {topicGroups.improving.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">No improvement trends yet</p>
                 ) : topicGroups.improving.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
-                    <TrendingUp className="w-4 h-4 text-[#3b5bdb] shrink-0" />
+                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
+                    <TrendingUp className="w-4 h-4 text-primary shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-white truncate">{displayTopic(t.topic)}</div>
+                      <div className="text-sm font-semibold text-foreground truncate">{displayTopic(t.topic)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
                     </div>
-                    <span className="text-sm font-black text-emerald-400 shrink-0">+{t.improvement}%</span>
+                    <span className="text-sm font-black text-success shrink-0">+{t.improvement}%</span>
                   </div>
                 ))}
               </div>
@@ -995,10 +996,10 @@ export default function Analysis() {
                 {topicGroups.not_started.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">All tracked topics attempted</p>
                 ) : topicGroups.not_started.map((t) => (
-                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-white/5 bg-white/2">
+                  <div key={t.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted">
                     <Minus className="w-4 h-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-[#a0a0b0] truncate">{displayTopic(t.topic)}</div>
+                      <div className="text-sm font-semibold text-muted-foreground truncate">{displayTopic(t.topic)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(t.subject)}</div>
                     </div>
                     <span className="text-[10px] text-muted-foreground">Not started</span>
@@ -1018,7 +1019,7 @@ export default function Analysis() {
                   <div className="text-[11px] text-muted-foreground">Completed</div>
                 </div>
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
-                  <div className="text-xl font-black text-amber-400">{recoveryProgress.stillPending}</div>
+                  <div className="text-xl font-black text-warning">{recoveryProgress.stillPending}</div>
                   <div className="text-[11px] text-muted-foreground">Still pending</div>
                 </div>
               </div>
@@ -1028,15 +1029,15 @@ export default function Analysis() {
                 ) : recoveryTopics.map((r) => (
                   <div key={r.topic} className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-surface/60">
                     {r.status === "completed"
-                      ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      : <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+                      ? <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                      : <Clock className="w-4 h-4 text-warning shrink-0" />
                     }
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-white truncate">{displayTopic(r.topic)}</div>
+                      <div className="text-sm font-medium text-foreground truncate">{displayTopic(r.topic)}</div>
                       <div className="text-[11px] text-muted-foreground">{displaySubject(r.subject)}</div>
                     </div>
                     {r.status === "completed"
-                      ? <span className="text-xs font-semibold text-emerald-400">+{r.improvement}%</span>
+                      ? <span className="text-xs font-semibold text-success">+{r.improvement}%</span>
                       : <span className="text-[11px] text-muted-foreground">{r.attempts} tries</span>
                     }
                   </div>
@@ -1048,11 +1049,11 @@ export default function Analysis() {
               <SLabel>Revision status</SLabel>
               <div className="grid grid-cols-3 gap-3 mb-3">
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
-                  <div className="text-xl font-black text-emerald-400">{revisionData.completed}</div>
+                  <div className="text-xl font-black text-success">{revisionData.completed}</div>
                   <div className="text-[11px] text-muted-foreground">Done</div>
                 </div>
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
-                  <div className="text-xl font-black text-amber-400">{revisionData.pending}</div>
+                  <div className="text-xl font-black text-warning">{revisionData.pending}</div>
                   <div className="text-[11px] text-muted-foreground">Pending</div>
                 </div>
                 <div className="p-3 rounded-xl border border-border/70 bg-surface/60 text-center">
@@ -1065,10 +1066,10 @@ export default function Analysis() {
                 {revisionData.dueToday.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">Nothing due for revision today</p>
                 ) : revisionData.dueToday.map((topic) => (
-                  <div key={topic} className="flex items-center gap-3 p-3 rounded-xl border border-[#3b5bdb]/20 bg-[#3b5bdb]/5">
-                    <Clock className="w-4 h-4 text-[#3b5bdb] shrink-0" />
+                  <div key={topic} className="flex items-center gap-3 p-3 rounded-xl border border-primary/20 bg-primary/5">
+                    <Clock className="w-4 h-4 text-primary shrink-0" />
                     <span className="text-sm text-foreground">{displayTopic(topic)}</span>
-                    <span className="ml-auto text-[10px] text-[#3b5bdb] font-semibold">Due today</span>
+                    <span className="ml-auto text-[10px] text-primary font-semibold">Due today</span>
                   </div>
                 ))}
               </div>
@@ -1085,10 +1086,10 @@ export default function Analysis() {
             <SLabel>Your practice this week</SLabel>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
-                { label: "Done today",        value: practiceStats.todayTarget > 0 ? `${practiceStats.todayDone}/${practiceStats.todayTarget}` : `${practiceStats.todayDone}`,  color: "#3b5bdb" },
-                { label: "Done this week",    value: practiceStats.weekTarget > 0 ? `${practiceStats.weekDone}/${practiceStats.weekTarget}` : `${practiceStats.weekDone}`,   color: "#4b9fd4" },
-                { label: "Practice streak",   value: `${practiceStats.streakDays} days`,                        color: "#c08a3a" },
-                { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "#4aa87a" },
+                { label: "Done today",        value: practiceStats.todayTarget > 0 ? `${practiceStats.todayDone}/${practiceStats.todayTarget}` : `${practiceStats.todayDone}`,  color: "hsl(var(--primary))" },
+                { label: "Done this week",    value: practiceStats.weekTarget > 0 ? `${practiceStats.weekDone}/${practiceStats.weekTarget}` : `${practiceStats.weekDone}`,   color: "hsl(var(--info))" },
+                { label: "Practice streak",   value: `${practiceStats.streakDays} days`,                        color: "hsl(var(--warning))" },
+                { label: "Consistency",       value: `${practiceStats.consistency}%`,                           color: "hsl(var(--success))" },
               ].map((s) => <Metric key={s.label} label={s.label} value={s.value} color={s.color} />)}
             </div>
           </div>
@@ -1099,13 +1100,13 @@ export default function Analysis() {
             <div className="h-44 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={practiceMonthly} barSize={32}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="month" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
+                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={32} />
                   <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="done" name="Questions" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                     {practiceMonthly.map((_, i) => (
-                      <Cell key={i} fill={i === practiceMonthly.length - 1 ? "#3b5bdb" : "rgba(59,130,246,0.35)"} />
+                      <Cell key={i} fill={i === practiceMonthly.length - 1 ? "hsl(var(--primary))" : withAlpha("hsl(var(--primary))", 0.35)} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -1126,8 +1127,8 @@ export default function Analysis() {
               {testResults.map((t) => {
                 const col = scoreColor(t.score);
                 return (
-                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black" style={{ background: `${col}15`, color: col }}>
+                  <div key={t.name} className="flex items-center gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-sm font-black" style={{ background: `${withAlpha(col, 0.08)}`, color: col }}>
                       {t.score}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1151,12 +1152,12 @@ export default function Analysis() {
             <div className="h-40 mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={testTrend}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis domain={testTrendDomain} tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis domain={testTrendDomain} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Line type="monotone" dataKey="score" name="Score" stroke="#4b9fd4" strokeWidth={2.5}
-                    isAnimationActive={false} dot={{ r: 5, fill: "#4b9fd4", strokeWidth: 0 }} activeDot={{ r: 7, stroke: "#0d0d0f", strokeWidth: 2 }} />
+                  <Line type="monotone" dataKey="score" name="Score" stroke="hsl(var(--info))" strokeWidth={2.5}
+                    isAnimationActive={false} dot={{ r: 5, fill: "hsl(var(--info))", strokeWidth: 0 }} activeDot={{ r: 7, stroke: "hsl(var(--card))", strokeWidth: 2 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -1167,18 +1168,18 @@ export default function Analysis() {
           <div>
             <SLabel>How fast you solve questions</SLabel>
             <div className="grid sm:grid-cols-3 gap-3 mb-4">
-              <Metric label="Average per question"  value={speedStats.avgSec > 0 ? `${speedStats.avgSec}s` : "â€”"}    color="#e8eaf0" />
-              <Metric label="Fastest subject"        value={speedStats.fastestSubject}  color="#4aa87a" sub={speedStats.avgSec > 0 ? `${speedStats.fastestSec}s avg` : undefined} />
-              <Metric label="Takes most time"        value={speedStats.slowestSubject}  color="#c08a3a" sub={speedStats.avgSec > 0 ? `${speedStats.slowestSec}s avg` : undefined} />
+              <Metric label="Average per question"  value={speedStats.avgSec > 0 ? `${speedStats.avgSec}s` : "â€”"}    color="hsl(var(--foreground))" />
+              <Metric label="Fastest subject"        value={speedStats.fastestSubject}  color="hsl(var(--success))" sub={speedStats.avgSec > 0 ? `${speedStats.fastestSec}s avg` : undefined} />
+              <Metric label="Takes most time"        value={speedStats.slowestSubject}  color="hsl(var(--warning))" sub={speedStats.avgSec > 0 ? `${speedStats.slowestSec}s avg` : undefined} />
             </div>
             <Card label="Time per question by subject (seconds)">
               {speedBySubject.length > 0 && speedStats.avgSec > 0 ? (
               <div className="h-40 mt-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={speedBySubject} layout="vertical" barSize={14}>
-                    <CartesianGrid stroke="rgba(255,255,255,0.04)" horizontal={false} />
-                    <XAxis type="number" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis dataKey="name" type="category" tick={{ fill: "#a0a0b0", fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
+                    <CartesianGrid stroke="hsl(var(--border))" horizontal={false} />
+                    <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis dataKey="name" type="category" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
                     <Tooltip content={<ChartTooltip />} />
                     <Bar dataKey="avgSec" name="Seconds" radius={[0, 6, 6, 0]} isAnimationActive={false}>
                       {speedBySubject.map((s, i) => <Cell key={i} fill={s.color} />)}
@@ -1198,10 +1199,10 @@ export default function Analysis() {
       {tab === "activity" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Metric label="Total study time"    value={`${studyActivity.totalHrs}h`}       color="#6882e8" />
-            <Metric label="Average per day"     value={`${studyActivity.avgDailyMin} min`} color="#e8eaf0" />
-            <Metric label="Most active day"     value={studyActivity.bestDay}              color="#c08a3a" />
-            <Metric label="Most productive hour" value={studyActivity.bestHour}            color="#4b9fd4" />
+            <Metric label="Total study time"    value={`${studyActivity.totalHrs}h`}       color="hsl(var(--primary-glow))" />
+            <Metric label="Average per day"     value={`${studyActivity.avgDailyMin} min`} color="hsl(var(--foreground))" />
+            <Metric label="Most active day"     value={studyActivity.bestDay}              color="hsl(var(--warning))" />
+            <Metric label="Most productive hour" value={studyActivity.bestHour}            color="hsl(var(--info))" />
           </div>
 
           {/* Weekly hours */}
@@ -1212,13 +1213,13 @@ export default function Analysis() {
                   data={["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d, i) => ({ day: d, hours: studyActivity.weeklyHrs[i] }))}
                   barSize={28}
                 >
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "#78788c", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                  <CartesianGrid stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                   <Tooltip content={<ChartTooltip />} />
                   <Bar dataKey="hours" name="Hours" radius={[6, 6, 0, 0]} isAnimationActive={false}>
                     {studyActivity.weeklyHrs.map((v, i) => (
-                      <Cell key={i} fill={v === Math.max(...studyActivity.weeklyHrs) ? "#6882e8" : "rgba(167,139,250,0.3)"} />
+                      <Cell key={i} fill={v === Math.max(...studyActivity.weeklyHrs) ? "hsl(var(--primary-glow))" : withAlpha("hsl(var(--primary-glow))", 0.3)} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -1240,7 +1241,7 @@ export default function Analysis() {
                     <div className="w-8 text-[10px] text-muted-foreground shrink-0">{row.week}</div>
                     {row.days.map((cell) => {
                       const intensity = cell.value / 50;
-                      const bg = cell.value === 0 ? "rgba(255,255,255,0.04)" : `rgba(59,130,246,${0.08 + intensity * 0.92})`;
+                      const bg = cell.value === 0 ? "hsl(var(--muted))" : withAlpha("hsl(var(--primary))", 0.08 + intensity * 0.92);
                       return (
                         <div key={cell.day} title={`${cell.value} questions`}
                           className="flex-1 h-8 rounded-lg transition-all hover:scale-110 cursor-default"
@@ -1252,7 +1253,7 @@ export default function Analysis() {
                 <div className="flex items-center gap-2 mt-3 justify-end">
                   <span className="text-[10px] text-muted-foreground">Less</span>
                   {[0.08, 0.3, 0.55, 0.75, 1].map((o) => (
-                    <div key={o} className="w-3 h-3 rounded-sm" style={{ background: `rgba(59,130,246,${o})` }} />
+                    <div key={o} className="w-3 h-3 rounded-sm" style={{ background: withAlpha("hsl(var(--primary))", o) }} />
                   ))}
                   <span className="text-[10px] text-muted-foreground">More</span>
                 </div>
@@ -1273,7 +1274,7 @@ export default function Analysis() {
                     <div className="text-xl font-black text-foreground">{row.thisM}{row.unit}</div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">{row.lastM > 0 ? `vs ${row.lastM}${row.unit} last month` : "No prior month data"}</div>
                     {row.lastM > 0 && (
-                    <div className={cn("flex items-center gap-1 justify-center mt-1 text-xs font-semibold", up ? "text-emerald-400" : diff < 0 ? "text-rose-400" : "text-muted-foreground")}>
+                    <div className={cn("flex items-center gap-1 justify-center mt-1 text-xs font-semibold", up ? "text-success" : diff < 0 ? "text-destructive" : "text-muted-foreground")}>
                       {diff !== 0 && (up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />)}
                       {diff !== 0 ? `${up ? "+" : ""}${pct}%` : "â€”"}
                     </div>
@@ -1296,12 +1297,12 @@ export default function Analysis() {
             ) : (
             <div className="space-y-3">
               {milestones.map((m) => (
-                <div key={m.title} className="flex items-start gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-white/12 transition-colors">
+                <div key={m.title} className="flex items-start gap-4 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border transition-colors">
                   <span className="text-2xl shrink-0 mt-0.5">{m.icon}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-foreground">{m.title}</span>
-                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full">{m.category}</span>
+                      <span className="text-[9px] uppercase tracking-wider text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{m.category}</span>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">{m.desc}</div>
                   </div>
@@ -1327,8 +1328,8 @@ export default function Analysis() {
                       <span className="text-sm font-semibold text-foreground">{m.title}</span>
                       <span className="text-xs text-muted-foreground">{m.progress}/{m.target} {m.unit}</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#3b5bdb,#4b9fd4)" }} />
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: "linear-gradient(90deg,hsl(var(--primary)),hsl(var(--info)))" }} />
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-1">{pct}% complete</div>
                   </div>
@@ -1343,9 +1344,9 @@ export default function Analysis() {
             <SLabel>Download & share your report</SLabel>
             <div className="grid sm:grid-cols-2 gap-3">
               {[
-                { label: "Print / Save as PDF", icon: <Download className="w-4 h-4" />,  color: "#3b5bdb",  desc: "Opens browser print â†’ Save as PDF", action: "pdf" as const },
-                { label: "Copy summary",        icon: <Share2 className="w-4 h-4" />,    color: "#4aa87a",  desc: "Copy text to paste yourself â€” teacher/parent send is coming soon", action: "share" as const },
-                { label: "Print report",        icon: <Printer className="w-4 h-4" />,   color: "#c08a3a",  desc: "Print a physical copy", action: "print" as const },
+                { label: "Print / Save as PDF", icon: <Download className="w-4 h-4" />,  color: "hsl(var(--primary))",  desc: "Opens browser print â†’ Save as PDF", action: "pdf" as const },
+                { label: "Copy summary",        icon: <Share2 className="w-4 h-4" />,    color: "hsl(var(--success))",  desc: "Copy text to paste yourself â€” teacher/parent send is coming soon", action: "share" as const },
+                { label: "Print report",        icon: <Printer className="w-4 h-4" />,   color: "hsl(var(--warning))",  desc: "Print a physical copy", action: "print" as const },
               ].map((r) => (
                 <button
                   key={r.label}
@@ -1382,14 +1383,14 @@ export default function Analysis() {
                   }}
                   className="flex items-center gap-3 p-4 rounded-xl border border-border/70 bg-surface/60 hover:border-border hover:bg-surface transition-all text-left group"
                 >
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform" style={{ background: `${r.color}15`, color: r.color }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform" style={{ background: `${withAlpha(r.color, 0.08)}`, color: r.color }}>
                     {r.icon}
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-foreground">{r.label}</div>
                     <div className="text-[11px] text-muted-foreground">{r.desc}</div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0 group-hover:text-white transition-colors" />
+                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0 group-hover:text-foreground transition-colors" />
                 </button>
               ))}
             </div>
@@ -1414,7 +1415,7 @@ function Card({ label, children }: { label: string; children: React.ReactNode })
 function SLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-0">
-      <div className="w-1 h-3.5 rounded-full bg-[#3b5bdb]" />
+      <div className="w-1 h-3.5 rounded-full bg-primary" />
       <span className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{children}</span>
     </div>
   );
@@ -1424,7 +1425,7 @@ function Metric({ label, value, color, sub }: { label: string; value: string | n
   return (
     <div className="p-4 rounded-xl border border-border/70 bg-surface/60">
       <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground mb-1">{label}</div>
-      <div className="text-2xl font-black tabular-nums leading-none" style={{ color: color ?? "#e8eaf0", fontFamily: "var(--font-display)" }}>{value}</div>
+      <div className="text-2xl font-black tabular-nums leading-none" style={{ color: color ?? "hsl(var(--foreground))", fontFamily: "var(--font-display)" }}>{value}</div>
       {sub && <div className="text-[11px] text-muted-foreground mt-1">{sub}</div>}
     </div>
   );

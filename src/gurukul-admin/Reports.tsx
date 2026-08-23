@@ -183,10 +183,10 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
         ))}
       </div>
       <div className="flex gap-2">
-        <button type="button" onClick={() => exportCSV(reportKey, rows)} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-muted-foreground flex items-center gap-1">
+        <button type="button" onClick={() => exportCSV(reportKey, rows)} className="text-[10px] px-3 py-1.5 rounded-lg bg-muted text-muted-foreground flex items-center gap-1">
           <Download className="w-3 h-3" /> CSV
         </button>
-        <button type="button" onClick={() => printSection(reportKey, document.getElementById("engine-report")?.innerHTML ?? "")} className="text-[10px] px-3 py-1.5 rounded-lg bg-white/5 text-muted-foreground flex items-center gap-1">
+        <button type="button" onClick={() => printSection(reportKey, document.getElementById("engine-report")?.innerHTML ?? "")} className="text-[10px] px-3 py-1.5 rounded-lg bg-muted text-muted-foreground flex items-center gap-1">
           <Printer className="w-3 h-3" /> Print
         </button>
       </div>
@@ -201,7 +201,7 @@ function AcademicEngineReport({ reportKey }: { reportKey: ReportKey }) {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="border-b border-white/5 text-foreground">
+              <tr key={i} className="border-b border-border text-foreground">
                 {Object.values(r).map((v, j) => (
                   <td key={j} className="py-2 pr-3">{v}</td>
                 ))}

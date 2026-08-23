@@ -206,9 +206,9 @@ export default function LearningHub({ setPage }: Props) {
                 style={{background:`${f.color}15`,color:f.color}}>
                 {f.icon}
               </div>
-              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-white group-hover:translate-x-0.5 transition-all"/>
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all"/>
             </div>
-            <div className="text-base font-black text-white mb-1" style={{fontFamily:"var(--font-display)"}}>{f.label}</div>
+            <div className="text-base font-black text-foreground mb-1" style={{fontFamily:"var(--font-display)"}}>{f.label}</div>
             <div className="text-xs text-muted-foreground leading-relaxed mb-4">{f.sub}</div>
             <div className="flex items-baseline gap-1.5">
               <span className="text-xl font-black tabular-nums" style={{color:f.color}}>{f.stat}</span>
@@ -231,7 +231,7 @@ export default function LearningHub({ setPage }: Props) {
             {accuracyTrend.length >= 2 && (
               <span className={cn(
                 "flex items-center gap-1 text-xs font-semibold",
-                trendDelta >= 0 ? "text-emerald-400" : "text-[#cc5069]",
+                trendDelta >= 0 ? "text-emerald-400" : "text-destructive",
               )}>
                 <TrendingUp className={cn("w-3.5 h-3.5", trendDelta < 0 && "rotate-180")}/>
                 {trendDelta >= 0 ? "+" : ""}{trendDelta}% since start
@@ -242,7 +242,7 @@ export default function LearningHub({ setPage }: Props) {
             <div className="h-32">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={accuracyTrend}>
-                  <XAxis dataKey="week" tick={{fill:"#78788c",fontSize:10}} axisLine={false} tickLine={false}/>
+                  <XAxis dataKey="week" tick={{fill:"hsl(var(--muted-foreground))",fontSize:10}} axisLine={false} tickLine={false}/>
                   <Tooltip contentStyle={{background:"#131316",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,fontSize:12}}/>
                   <Line type="monotone" dataKey="score" name="Accuracy" stroke="#4b9fd4" strokeWidth={2.5}
                     isAnimationActive={false} dot={{r:3,fill:"#4b9fd4",strokeWidth:0}} activeDot={{r:5}}/>

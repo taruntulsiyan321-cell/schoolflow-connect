@@ -65,18 +65,18 @@ export function AttachmentList({
         return (
           <div
             key={`${a.url}-${i}`}
-            className="flex items-center gap-2 p-2 rounded-xl bg-black/5 border border-black/8"
+            className="flex items-center gap-2 p-2 rounded-xl bg-muted border border-border"
           >
             {isImage ? (
               <a href={a.url} target="_blank" rel="noreferrer" className="shrink-0">
                 <img
                   src={a.url}
                   alt=""
-                  className="w-10 h-10 rounded-lg object-cover border border-black/10"
+                  className="w-10 h-10 rounded-lg object-cover border border-border"
                 />
               </a>
             ) : (
-              <div className="w-10 h-10 rounded-lg bg-black/5 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
                 <KindIcon kind={kind} />
               </div>
             )}
@@ -90,7 +90,7 @@ export function AttachmentList({
               href={a.url}
               target="_blank"
               rel="noreferrer"
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-black/10"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/80"
               title="Open / download"
             >
               <Download className="w-3.5 h-3.5" />
@@ -99,7 +99,7 @@ export function AttachmentList({
               <button
                 type="button"
                 onClick={() => onRemove(i)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-[#cc5069] hover:bg-[#cc5069]/10"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                 title="Remove"
               >
                 <X className="w-3.5 h-3.5" />
@@ -198,26 +198,26 @@ export function AttachmentComposer({
           onChange={(e) => setLinkName(e.target.value)}
           disabled={disabled}
           placeholder="Link label (optional)"
-          className="flex-1 min-w-[120px] bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground"
+          className="flex-1 min-w-[120px] bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
         />
         <input
           value={linkUrl}
           onChange={(e) => setLinkUrl(e.target.value)}
           disabled={disabled}
           placeholder="https://… paste a link"
-          className="flex-[2] min-w-[160px] bg-black/5 border border-black/10 rounded-xl px-3 py-2 text-xs text-foreground"
+          className="flex-[2] min-w-[160px] bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
         />
         <button
           type="button"
           disabled={disabled || !linkUrl.trim()}
           onClick={addLink}
-          className="flex items-center gap-1 px-3 py-2 rounded-xl text-[10px] font-bold bg-black/10 text-muted-foreground disabled:opacity-40"
+          className="flex items-center gap-1 px-3 py-2 rounded-xl text-[10px] font-bold bg-muted text-muted-foreground disabled:opacity-40"
         >
           <Plus className="w-3 h-3" /> Add link
         </button>
       </div>
 
-      {error && <div className="text-[10px] text-[#cc5069]">{error}</div>}
+      {error && <div className="text-[10px] text-destructive">{error}</div>}
       <AttachmentList
         items={items}
         onRemove={disabled ? undefined : (i) => onChange(items.filter((_, idx) => idx !== i))}

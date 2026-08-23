@@ -53,7 +53,7 @@ function gridToTimetable(grid: Record<string, string>): DaySchedule[] {
         subject,
         teacher: "",
         room: "",
-        color: isBreak ? "#78788c" : (subjectColor[subject] ?? subjectColor[raw] ?? "#78788c"),
+        color: isBreak ? "hsl(var(--muted-foreground))" : (subjectColor[subject] ?? subjectColor[raw] ?? "hsl(var(--muted-foreground))"),
       };
     }),
   }));
@@ -171,7 +171,7 @@ export default function Timetable() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setDayIdx((i) => Math.max(0, i - 1))}
-              className="w-8 h-8 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-white hover:border-white/25 transition-all disabled:opacity-30"
+              className="w-8 h-8 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-all disabled:opacity-30"
               disabled={dayIdx === 0}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -184,8 +184,8 @@ export default function Timetable() {
                   className={cn(
                     "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all",
                     i === dayIdx
-                      ? "bg-[#3b5bdb] text-foreground"
-                      : "text-muted-foreground hover:text-white hover:bg-muted",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted",
                   )}
                 >
                   {d.full.slice(0, 3)}
@@ -194,7 +194,7 @@ export default function Timetable() {
             </div>
             <button
               onClick={() => setDayIdx((i) => Math.min(4, i + 1))}
-              className="w-8 h-8 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-white hover:border-white/25 transition-all disabled:opacity-30"
+              className="w-8 h-8 rounded-xl border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-all disabled:opacity-30"
               disabled={dayIdx === 4}
             >
               <ChevronRight className="w-4 h-4" />
@@ -229,7 +229,7 @@ export default function Timetable() {
                 "flex items-stretch gap-4 rounded-2xl border transition-all duration-200",
                 isCurrent
                   ? "border-[#3b5bdb]/40 bg-[#3b5bdb]/8 shadow-[0_0_24px_rgba(59,130,246,0.12)]"
-                  : "border-white/5 bg-surface/70",
+                  : "border-border bg-surface/70",
                 isBreak && "opacity-50",
               )}
             >

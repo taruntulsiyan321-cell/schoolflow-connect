@@ -53,7 +53,7 @@ function ResolveModal({
     <div className="fixed inset-0 z-modal flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative z-10 bg-surface border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl">
-        <div className="text-sm font-bold text-white mb-1">{cfg.label}</div>
+        <div className="text-sm font-bold text-foreground mb-1">{cfg.label}</div>
         <div className="text-[10px] text-muted-foreground mb-4">
           {request.applicantName} Â· {leaveTypeLabel(request.leaveType)} Â· {request.fromDate}
           {request.fromDate !== request.toDate && ` â†’ ${request.toDate}`} ({request.days}d)
@@ -68,14 +68,14 @@ function ResolveModal({
             onChange={(e) => setRemarks(e.target.value)}
             rows={3}
             placeholder="Add a note for this decisionâ€¦"
-            className="bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white resize-none focus:outline-none focus:border-[#3b5bdb]/50"
+            className="bg-muted border border-border rounded-xl px-3 py-2 text-sm text-foreground resize-none focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <div className="flex gap-3 justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-white bg-white/5 hover:bg-white/10 transition-all"
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 transition-all"
           >
             Cancel
           </button>
@@ -84,7 +84,7 @@ function ResolveModal({
             disabled={busy}
             onClick={() => onConfirm(remarks)}
             className={cn(
-              "px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50",
+              "px-4 py-2 rounded-xl text-sm font-semibold text-foreground transition-all disabled:opacity-50",
               cfg.btnClass,
             )}
           >
@@ -127,7 +127,7 @@ function LeaveDetail({
               </span>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-white shrink-0">
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -146,7 +146,7 @@ function LeaveDetail({
           ].map((row) => (
             <div key={row.label} className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
               <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{row.label}</div>
-              <div className="text-xs text-white capitalize">{row.value}</div>
+              <div className="text-xs text-foreground capitalize">{row.value}</div>
             </div>
           ))}
 
@@ -170,14 +170,14 @@ function LeaveDetail({
             <button
               type="button"
               onClick={() => onAction("approve")}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#4aa87a] hover:bg-[#3d9068] transition-all flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-foreground bg-[#4aa87a] hover:bg-[#3d9068] transition-all flex items-center justify-center gap-2"
             >
               <CheckCircle2 className="w-4 h-4" /> Approve Leave
             </button>
             <button
               type="button"
               onClick={() => onAction("reject")}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-[#cc5069] hover:bg-[#b84460] transition-all flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl text-sm font-semibold text-foreground bg-[#cc5069] hover:bg-[#b84460] transition-all flex items-center justify-center gap-2"
             >
               <XCircle className="w-4 h-4" /> Reject Leave
             </button>
@@ -292,7 +292,7 @@ export default function LeaveRequests() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by applicant or reasonâ€¦"
-            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
+            className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
         <select
@@ -335,7 +335,7 @@ export default function LeaveRequests() {
                 "text-[9px] px-1.5 py-0.5 rounded-full",
                 statusTab === tab.key
                   ? "bg-[#3b5bdb]/20 text-[#a5b4fc]"
-                  : "bg-white/5 text-muted-foreground",
+                  : "bg-muted text-muted-foreground",
               )}
             >
               {tabCounts[tab.key] ?? 0}
@@ -358,7 +358,7 @@ export default function LeaveRequests() {
           return (
             <div
               key={req.id}
-              className="bg-surface border border-border/70 rounded-2xl p-4 hover:border-white/12 transition-all group"
+              className="bg-surface border border-border/70 rounded-2xl p-4 hover:border-border transition-all group"
             >
               <div className="flex items-start gap-4">
                 <InitialsAvatar name={req.applicantName} size="md" />
@@ -371,10 +371,10 @@ export default function LeaveRequests() {
                     >
                       {cfg.label}
                     </span>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-muted-foreground">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                       {leaveTypeLabel(req.leaveType)}
                     </span>
-                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/5 text-muted-foreground capitalize">
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground capitalize">
                       {req.applicantKind}
                     </span>
                   </div>
@@ -403,7 +403,7 @@ export default function LeaveRequests() {
                   <button
                     type="button"
                     onClick={() => setDetail(req)}
-                    className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
+                    className="w-7 h-7 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
@@ -412,14 +412,14 @@ export default function LeaveRequests() {
                       <button
                         type="button"
                         onClick={() => setResolveModal({ request: req, action: "approve" })}
-                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#4aa87a]/20 flex items-center justify-center text-muted-foreground hover:text-[#4aa87a] transition-all"
+                        className="w-7 h-7 rounded-lg bg-muted hover:bg-[#4aa87a]/20 flex items-center justify-center text-muted-foreground hover:text-[#4aa87a] transition-all"
                       >
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       </button>
                       <button
                         type="button"
                         onClick={() => setResolveModal({ request: req, action: "reject" })}
-                        className="w-7 h-7 rounded-lg bg-white/5 hover:bg-[#cc5069]/20 flex items-center justify-center text-muted-foreground hover:text-[#cc5069] transition-all"
+                        className="w-7 h-7 rounded-lg bg-muted hover:bg-[#cc5069]/20 flex items-center justify-center text-muted-foreground hover:text-[#cc5069] transition-all"
                       >
                         <XCircle className="w-3.5 h-3.5" />
                       </button>

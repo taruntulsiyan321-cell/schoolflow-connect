@@ -188,7 +188,7 @@ export default function Leave() {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, leaveType: e.target.value as (typeof leaveTypes)[number] }))
                 }
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white outline-none"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none"
               >
                 {leaveTypes.map((t) => (
                   <option key={t} value={t}>
@@ -204,7 +204,7 @@ export default function Leave() {
                 type="date"
                 value={form.fromDate}
                 onChange={(e) => setForm((p) => ({ ...p, fromDate: e.target.value }))}
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -214,7 +214,7 @@ export default function Leave() {
                 value={form.toDate}
                 min={form.fromDate}
                 onChange={(e) => setForm((p) => ({ ...p, toDate: e.target.value }))}
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40"
               />
             </div>
             <div className="col-span-2 flex flex-col gap-1">
@@ -223,7 +223,7 @@ export default function Leave() {
                 value={form.reason}
                 onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))}
                 rows={3}
-                className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#3b5bdb]/40 resize-none"
+                className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
               />
             </div>
           </div>
@@ -231,7 +231,7 @@ export default function Leave() {
             <button
               type="button"
               onClick={() => setApplying(false)}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-white/5 hover:bg-white/10"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80"
             >
               Cancel
             </button>
@@ -261,7 +261,7 @@ export default function Leave() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="text-xs font-bold text-white capitalize">{r.leaveType} Leave</div>
+                  <div className="text-xs font-bold text-foreground capitalize">{r.leaveType} Leave</div>
                   <span
                     className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize"
                     style={{ background: `${statusColor[r.status]}18`, color: statusColor[r.status] }}

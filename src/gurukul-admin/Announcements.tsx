@@ -199,7 +199,7 @@ export default function AnnouncementManagement() {
                       type="button"
                       disabled={busyId === ann.id}
                       onClick={() => void publish(ann)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] disabled:opacity-50 shrink-0"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#2f4fc4] disabled:opacity-50 shrink-0"
                     >
                       {busyId === ann.id ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -290,7 +290,7 @@ export function LiveAcademicWorkTab({
                       [s.id]: { grade: e.target.value, remarks: g[s.id]?.remarks ?? "" },
                     }))
                   }
-                  className="bg-white/5 border border-border rounded-lg px-2 py-1 text-[11px] text-white w-24"
+                  className="bg-muted border border-border rounded-lg px-2 py-1 text-[11px] text-foreground w-24"
                 />
                 <input
                   placeholder="Remarks"
@@ -301,7 +301,7 @@ export function LiveAcademicWorkTab({
                       [s.id]: { grade: g[s.id]?.grade ?? "", remarks: e.target.value },
                     }))
                   }
-                  className="bg-white/5 border border-border rounded-lg px-2 py-1 text-[11px] text-white flex-1 min-w-[120px]"
+                  className="bg-muted border border-border rounded-lg px-2 py-1 text-[11px] text-foreground flex-1 min-w-[120px]"
                 />
                 <button
                   type="button"
@@ -344,7 +344,7 @@ export function LiveAcademicWorkTab({
               type="button"
               onClick={() => setStatusFilter(s)}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold capitalize ${
-                statusFilter === s ? "bg-white/15 text-foreground" : "bg-white/5 text-muted-foreground"
+                statusFilter === s ? "bg-muted text-foreground" : "bg-muted text-muted-foreground"
               }`}
             >
               {s}
@@ -356,7 +356,7 @@ export function LiveAcademicWorkTab({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Searchâ€¦"
-            className="bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-white w-36"
+            className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground w-36"
           />
           <button
             type="button"
@@ -374,18 +374,18 @@ export function LiveAcademicWorkTab({
             value={form.title}
             onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
             placeholder="Title *"
-            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
           />
           <textarea
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             placeholder="Instructions"
-            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[60px]"
+            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[60px]"
           />
           <select
             value={form.workKind}
             onChange={(e) => setForm((f) => ({ ...f, workKind: e.target.value as WorkKind }))}
-            className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+            className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
           >
             {WORK_KINDS.map((k) => (
               <option key={k} value={k}>
@@ -398,18 +398,18 @@ export function LiveAcademicWorkTab({
               type="date"
               value={form.dueDate}
               onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
-              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             />
             <input
               type="time"
               value={form.dueTime}
               onChange={(e) => setForm((f) => ({ ...f, dueTime: e.target.value }))}
-              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             />
             <select
               value={form.priority}
               onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))}
-              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             >
               <option value="low">Low</option>
               <option value="normal">Normal</option>
@@ -420,7 +420,7 @@ export function LiveAcademicWorkTab({
               value={form.maxMarks}
               onChange={(e) => setForm((f) => ({ ...f, maxMarks: e.target.value }))}
               placeholder="Max marks"
-              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white w-24"
+              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground w-24"
             />
           </div>
           <div className="space-y-1">
@@ -444,7 +444,7 @@ export function LiveAcademicWorkTab({
                 type="button"
                 onClick={() => setPublishMode(m.key)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                  publishMode === m.key ? "bg-[#3b5bdb] text-foreground" : "bg-white/5 text-muted-foreground"
+                  publishMode === m.key ? "bg-[#3b5bdb] text-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {m.label}
@@ -456,7 +456,7 @@ export function LiveAcademicWorkTab({
               type="datetime-local"
               value={form.scheduledPublishAt}
               onChange={(e) => setForm((f) => ({ ...f, scheduledPublishAt: e.target.value }))}
-              className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-foreground"
+              className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground"
             />
           )}
           <div className="flex gap-2">
@@ -522,7 +522,7 @@ export function LiveAcademicWorkTab({
               <button
                 type="button"
                 onClick={() => void openReview(h)}
-                className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#a0a0b0] flex items-center gap-1"
+                className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-[#a0a0b0] flex items-center gap-1"
               >
                 <Eye className="w-3 h-3" /> Submissions
               </button>
@@ -543,7 +543,7 @@ export function LiveAcademicWorkTab({
                   onClick={() =>
                     void runHwAction("Unpublish", () => HomeworkService.unpublish(ctx, h.id))
                   }
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-muted-foreground"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-muted-foreground"
                 >
                   Unpublish
                 </button>
@@ -553,7 +553,7 @@ export function LiveAcademicWorkTab({
                   type="button"
                   disabled={saving}
                   onClick={() => void runHwAction("Archive", () => HomeworkService.archive(ctx, h.id))}
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-[#c08a3a] flex items-center gap-1"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-[#c08a3a] flex items-center gap-1"
                 >
                   <Archive className="w-3 h-3" /> Archive
                 </button>
@@ -565,7 +565,7 @@ export function LiveAcademicWorkTab({
                   onClick={() =>
                     void runHwAction("Duplicate", () => HomeworkService.duplicate(ctx, h.id))
                   }
-                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-white/5 text-muted-foreground flex items-center gap-1"
+                  className="px-2 py-1 rounded-lg text-[10px] font-bold bg-muted text-muted-foreground flex items-center gap-1"
                 >
                   <Copy className="w-3 h-3" /> Duplicate
                 </button>

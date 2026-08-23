@@ -462,7 +462,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
               type="button"
               disabled={creatingGroup}
               onClick={() => void onCreateClassGroup()}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-white/5 hover:bg-white/8 text-white text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
             >
               <Users className="w-3.5 h-3.5 text-teal-400" />
               {creatingGroup ? "Creatingâ€¦" : "Class Group"}
@@ -472,7 +472,7 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 type="button"
                 disabled={creatingGroup}
                 onClick={() => void onCreateTeacherGroup()}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-white/5 hover:bg-white/8 text-white text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-bold px-3.5 py-2.5 disabled:opacity-40 transition-all"
               >
                 <Users className="w-3.5 h-3.5 text-amber-400" />
                 Teacher Group
@@ -510,11 +510,11 @@ export default function ChatPage({ userRole }: { userRole?: string }) {
                 placeholder="Search chatsâ€¦"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 bg-transparent text-xs text-white placeholder:text-muted-foreground outline-none"
+                className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
               />
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto divide-y divide-white/5">
+          <div className="flex-1 overflow-y-auto divide-y divide-border/70">
             {filtered.map((c) => {
               const active = selectedContact && contactKey(selectedContact) === contactKey(c);
               return (

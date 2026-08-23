@@ -133,7 +133,7 @@ function AttendancePanel({
               Class ID Â· {liveClass.classId.slice(0, 8)}â€¦ Â· AttendanceService
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-white shrink-0">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -147,7 +147,7 @@ function AttendancePanel({
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="flex-1 bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#3b5bdb]/50"
+              className="flex-1 bg-muted border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[#3b5bdb]/50"
             />
           </div>
 
@@ -173,7 +173,7 @@ function AttendancePanel({
                   <div className="text-lg font-black text-[#cc5069]">{absentCount}</div>
                   <div className="text-[9px] text-muted-foreground">Absent</div>
                 </div>
-                <div className="p-3 rounded-xl bg-white/5 text-center">
+                <div className="p-3 rounded-xl bg-muted text-center">
                   <div className="text-lg font-black text-muted-foreground">{unmarkedCount}</div>
                   <div className="text-[9px] text-muted-foreground">Unmarked</div>
                 </div>
@@ -202,7 +202,7 @@ function AttendancePanel({
                             }))
                           }
                           className={cn(
-                            "px-2 py-1 rounded-lg text-xs font-bold bg-white/5 border border-border",
+                            "px-2 py-1 rounded-lg text-xs font-bold bg-muted border border-border",
                             status == null ? "text-muted-foreground" : present ? "text-[#4aa87a]" : "text-[#cc5069]",
                           )}
                         >
@@ -290,7 +290,7 @@ function ClassRosterDrawer({
               {liveClass.studentCount} students Â· engine roster
             </div>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-white shrink-0">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -320,7 +320,7 @@ function ClassRosterDrawer({
               <button
                 type="button"
                 onClick={() => setRetryKey((k) => k + 1)}
-                className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white bg-white/5 hover:bg-white/10"
+                className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-foreground bg-muted hover:bg-muted/80"
               >
                 Retry
               </button>
@@ -462,7 +462,7 @@ export default function Classes() {
               <div className="flex gap-2 mt-3">
                 <button
                   onClick={() => setDetail(c)}
-                  className="flex-1 py-2 rounded-xl text-[10px] font-bold text-white bg-white/5 hover:bg-white/10"
+                  className="flex-1 py-2 rounded-xl text-[10px] font-bold text-foreground bg-muted hover:bg-muted/80"
                 >
                   Roster
                 </button>

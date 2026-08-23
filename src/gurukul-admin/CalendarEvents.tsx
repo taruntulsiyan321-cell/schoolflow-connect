@@ -52,7 +52,7 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-const inputCls = "w-full rounded-lg bg-white/5 border border-border px-3 py-2 text-sm text-white placeholder:text-foreground/30 focus:outline-none focus:border-blue-500/60";
+const inputCls = "w-full rounded-lg bg-muted border border-border px-3 py-2 text-sm text-foreground placeholder:text-foreground/30 focus:outline-none focus:border-blue-500/60";
 
 export default function CalendarEventsPage() {
   const { ctx, ready } = useAcademicContext();
@@ -184,7 +184,7 @@ export default function CalendarEventsPage() {
     <div className="p-4 max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-semibold text-white flex items-center gap-2">
+          <h1 className="text-xl font-semibold text-foreground flex items-center gap-2">
             <CalendarDays className="w-5 h-5" /> Academic Calendar
           </h1>
           <p className="text-sm text-foreground/50 mt-0.5">
@@ -193,7 +193,7 @@ export default function CalendarEventsPage() {
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-2"
+          className="flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-foreground text-sm font-medium px-3 py-2"
         >
           <Plus className="w-4 h-4" /> Add event
         </button>
@@ -224,7 +224,7 @@ export default function CalendarEventsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-white font-semibold">{form.id ? "Edit event" : "Add event"}</h2>
+              <h2 className="text-foreground font-semibold">{form.id ? "Edit event" : "Add event"}</h2>
               <button onClick={() => setShowForm(false)} className="text-foreground/40 hover:text-foreground"><X className="w-4 h-4" /></button>
             </div>
             <div className="space-y-3">
@@ -256,7 +256,7 @@ export default function CalendarEventsPage() {
               <button
                 onClick={save}
                 disabled={saving}
-                className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-medium py-2.5 mt-1"
+                className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-foreground text-sm font-medium py-2.5 mt-1"
               >
                 {saving ? "Savingâ€¦" : form.id ? "Save changes" : "Add event"}
               </button>
@@ -287,12 +287,12 @@ function Section({
           <div
             key={e.id}
             className={cn(
-              "flex items-center justify-between gap-3 rounded-xl border border-border bg-white/[0.03] px-4 py-3",
+              "flex items-center justify-between gap-3 rounded-xl border border-border bg-muted px-4 py-3",
               muted && "opacity-50",
             )}
           >
             <button className="flex-1 text-left" onClick={() => onEdit(e)}>
-              <div className="text-sm text-white font-medium">{e.title}</div>
+              <div className="text-sm text-foreground font-medium">{e.title}</div>
               <div className="text-xs text-foreground/40 mt-0.5">
                 {fmtDate(e.startsAt)} Â· {e.eventType} Â· {e.audience === "class" ? classLabel(e.classId) || "class" : e.audience}
               </div>

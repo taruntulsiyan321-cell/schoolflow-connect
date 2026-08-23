@@ -86,19 +86,19 @@ export default function ParentAnnouncements() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <div className="flex items-center gap-2 bg-white/5 border border-border rounded-xl px-3 py-2 flex-1 min-w-40">
+        <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2 flex-1 min-w-40">
           <Search className="w-3.5 h-3.5 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search announcementsâ€¦"
-            className="flex-1 bg-transparent text-xs text-white placeholder:text-muted-foreground outline-none"
+            className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
         <select
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value as typeof priorityFilter)}
-          className="bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white outline-none"
+          className="bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none"
         >
           <option value="all">All Priorities</option>
           <option value="normal">Normal</option>
@@ -156,7 +156,7 @@ export default function ParentAnnouncements() {
               <button
                 type="button"
                 onClick={() => setSelected(null)}
-                className="text-muted-foreground hover:text-white text-xs"
+                className="text-muted-foreground hover:text-foreground text-xs"
               >
                 âœ•
               </button>

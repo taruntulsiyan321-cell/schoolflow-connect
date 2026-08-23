@@ -305,9 +305,9 @@ export default function ClassHub({ setPage }: Props) {
               >
                 {f.icon}
               </div>
-              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-white transition-all mt-0.5" />
+              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-all mt-0.5" />
             </div>
-            <div className="text-sm font-black text-white mb-1">{f.label}</div>
+            <div className="text-sm font-black text-foreground mb-1">{f.label}</div>
             <div className="text-[11px] text-muted-foreground leading-relaxed mb-3">{f.sub}</div>
             <div
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold"
@@ -326,7 +326,7 @@ export default function ClassHub({ setPage }: Props) {
             <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Attendance</span>
             <button
               onClick={() => setPage("attendance")}
-              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors"
+              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-primary transition-colors"
             >
               View â†’
             </button>
@@ -347,12 +347,12 @@ export default function ClassHub({ setPage }: Props) {
             <span className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Homework</span>
             <button
               onClick={() => setPage("assignments")}
-              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors"
+              className="ml-auto text-[10px] text-[#3b5bdb] hover:text-primary transition-colors"
             >
               View â†’
             </button>
           </div>
-          <div className={cn("text-xl font-black text-white mb-1")}>
+          <div className={cn("text-xl font-black text-foreground mb-1")}>
             {hwPending} / {hwTotal} pending
           </div>
           <div className="text-[11px] text-muted-foreground mb-3">HomeworkService Â· {hwPct}% completion</div>

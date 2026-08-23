@@ -17,23 +17,21 @@ import { getBadge } from "@/lib/badges";
 import { dedupeSubjectChartPoints } from "@/lib/qualityGuards";
 import { displaySubject } from "@/lib/academicDisplay";
 
-const SUBJECT_COLORS: Record<string, string> = {
-  Mathematics: "#3b5bdb",
-  Math: "#3b5bdb",
-  Physics: "#4b9fd4",
-  Chemistry: "#6882e8",
-  Biology: "#4aa87a",
-  English: "#c08a3a",
-  Hindi: "#cc5069",
-  Science: "#4b9fd4",
-  "Social Science": "#c08a3a",
+const SUBJECT_COLOR_VARS: Record<string, string> = {
+  Mathematics: "var(--primary)",
+  Math: "var(--primary)",
+  Physics: "var(--color-physics)",
+  Chemistry: "var(--color-chemistry)",
+  Biology: "var(--success)",
+  English: "var(--warning)",
+  Hindi: "var(--accent)",
+  Science: "var(--color-physics)",
+  "Social Science": "var(--warning)",
 };
-const FALLBACK_COLORS = ["#3b5bdb", "#4b9fd4", "#6882e8", "#4aa87a", "#c08a3a"];
+const FALLBACK_COLOR_VARS = ["var(--primary)", "var(--color-physics)", "var(--color-chemistry)", "var(--success)", "var(--warning)"];
 
-const PRACTICE_TARGET = 1;
-
-function subjectColor(name: string, index: number) {
-  return SUBJECT_COLORS[name] ?? FALLBACK_COLORS[index % FALLBACK_COLORS.length];
+function subjectColorVar(name: string, index: number): string {
+  return SUBJECT_COLOR_VARS[name] ?? FALLBACK_COLOR_VARS[index % FALLBACK_COLOR_VARS.length];
 }
 
 function mapWeeklyActivity(dates: { date: string; total: number }[]) {
@@ -117,21 +115,27 @@ function buildMission(snapshot: ReturnType<typeof useStudentAcademicSnapshot>["d
   };
 }
 
+const PRACTICE_TARGET = 1;
+
 function WeeklyRing({ sessions }: { sessions: number }) {
-  const goal=7, pct=Math.min(sessions/goal,1);
-  const size=120, stroke=9, r=(size-stroke)/2, c=2*Math.PI*r;
-  const offset=c-pct*c;
-  const color=pct>=0.85?"#4b9fd4":pct>=0.57?"#c08a3a":"#6882e8";
+  const goal = 7;
+  const pct = Math.min(sessions / goal, 1);
+  const size = 120;
+  const stroke = 9;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c - pct * c;
+  const colorVar = pct >= 0.85 ? "var(--info)" : pct >= 0.57 ? "var(--warning)" : "var(--color-chemistry)";
   return (
-    <div className="relative inline-flex" style={{width:size,height:size}}>
+    <div className="relative inline-flex" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={stroke}/>
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth={stroke} />
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={`hsl(${colorVar})`} strokeWidth={stroke}
           strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-          style={{filter:`drop-shadow(0 0 8px ${color})`,transition:"stroke-dashoffset 1s ease"}}/>
+          style={{ filter: `drop-shadow(0 0 8px hsl(${colorVar}))`, transition: "stroke-dashoffset 1s ease" }} />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-black tabular-nums" style={{color}}>{sessions}</span>
+        <span className="text-2xl font-black tabular-nums" style={{ color: `hsl(${colorVar})` }}>{sessions}</span>
         <span className="text-[10px] text-muted-foreground">/ {goal}</span>
       </div>
     </div>
@@ -173,12 +177,12 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
     const activeKey = mission.nextAction.page === "assignments" ? "practice" : mission.nextAction.page;
 
     const steps = [
-      { key: "practice", label: "Practice", icon: <BookOpen className="w-3.5 h-3.5" />, color: "#3b5bdb", done: practiceDone },
-      { key: "analysis", label: "Analyse", icon: <BarChart2 className="w-3.5 h-3.5" />, color: "#4b9fd4", done: analysisDone },
-      { key: "mistakebook", label: "Weakness", icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "#c08a3a", done: mistakebookDone },
-      { key: "recovery", label: "Recover", icon: <RefreshCw className="w-3.5 h-3.5" />, color: "#cc5069", done: recoveryDone },
-      { key: "revision", label: "Revise", icon: <RotateCcw className="w-3.5 h-3.5" />, color: "#6882e8", done: revisionDone },
-      { key: "aicoach", label: "Coach", icon: <Brain className="w-3.5 h-3.5" />, color: "#4aa87a", done: false },
+      { key: "practice", label: "Practice", icon: <BookOpen className="w-3.5 h-3.5" />, color: "var(--primary)", done: practiceDone },
+      { key: "analysis", label: "Analyse", icon: <BarChart2 className="w-3.5 h-3.5" />, color: "var(--color-physics)", done: analysisDone },
+      { key: "mistakebook", label: "Weakness", icon: <AlertTriangle className="w-3.5 h-3.5" />, color: "var(--warning)", done: mistakebookDone },
+      { key: "recovery", label: "Recover", icon: <RefreshCw className="w-3.5 h-3.5" />, color: "var(--accent)", done: recoveryDone },
+      { key: "revision", label: "Revise", icon: <RotateCcw className="w-3.5 h-3.5" />, color: "var(--color-chemistry)", done: revisionDone },
+      { key: "aicoach", label: "Coach", icon: <Brain className="w-3.5 h-3.5" />, color: "var(--success)", done: false },
     ];
 
     return steps.map((step) => ({
@@ -199,7 +203,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
       return {
         id: name,
         name,
-        color: subjectColor(name, i),
+        color: subjectColorVar(name, i),
         icon: name.charAt(0).toUpperCase(),
         trend: 0,
         attempts: agg.attempts,
@@ -223,27 +227,27 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
     [earned],
   );
 
-  const goalLine = student.goal ? ` Â· Goal: ${student.goal}` : "";
-  const levelLabel = shellReady ? `Lv.${student.level}` : "â€”";
-  const streakLabel = shellReady ? `${student.streak}-day streak` : "â€¦";
+  const goalLine = student.goal ? ` · Goal: ${student.goal}` : "";
+  const levelLabel = shellReady ? `Lv.${student.level}` : "—";
+  const streakLabel = shellReady ? `${student.streak}-day streak` : "…";
 
   if (initialLoading) {
     return (
       <div className="flex items-center justify-center py-24 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading homeâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading home…
       </div>
     );
   }
 
   if (loadError && !hasLiveData) {
     return (
-      <div className="rounded-2xl border border-[#cc5069]/25 bg-[#cc5069]/08 p-6 text-center space-y-3">
+      <div className="rounded-2xl border border-destructive/25 bg-destructive/8 p-6 text-center space-y-3">
         <p className="text-sm font-semibold text-foreground">Could not load home data</p>
         <p className="text-xs text-muted-foreground">{loadError}</p>
         <button
           type="button"
           onClick={() => { void reloadSnap(); void reloadCharts(); }}
-          className="text-xs font-bold text-[#3b5bdb] hover:underline"
+          className="text-xs font-bold text-primary hover:underline"
         >
           Try again
         </button>
@@ -254,7 +258,7 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
   return (
     <div className="space-y-6 premium-page">
       {loadError && (
-        <div className="rounded-xl border border-[#c08a3a]/30 bg-[#c08a3a]/10 px-4 py-2 text-xs text-[#c08a3a]">
+        <div className="rounded-xl border border-warning/30 bg-warning/10 px-4 py-2 text-xs text-warning">
           Some live stats failed to refresh: {loadError}
         </div>
       )}
@@ -268,14 +272,14 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 <Flame className="w-3 h-3 text-amber-400"/><span className="text-[10px] font-bold text-amber-400">{streakLabel}</span>
               </div>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black text-white leading-tight" style={{fontFamily:"var(--font-display)"}}>
+            <h1 className="text-3xl sm:text-4xl font-black text-foreground leading-tight" style={{fontFamily:"var(--font-display)"}}>
               {student.firstName}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">{student.class || (shellReady ? "â€”" : "â€¦")}{goalLine}</p>
+            <p className="text-muted-foreground text-sm mt-1">{student.class || (shellReady ? "—" : "…")}{goalLine}</p>
             <div className="grid grid-cols-3 gap-3 mt-4">
-              <StatTile label="Practice accuracy" value={shellReady ? `${student.accuracy}%` : "â€”"} color="#4b9fd4"/>
-              <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "â€”"} color="#c08a3a"/>
-              <StatTile label="Level" value={levelLabel} color="#6882e8"/>
+              <StatTile label="Practice accuracy" value={shellReady ? `${student.accuracy}%` : "—"} color="var(--info)"/>
+              <StatTile label="Class Rank" value={shellReady && student.rank > 0 ? `#${student.rank}` : "—"} color="var(--warning)"/>
+              <StatTile label="Level" value={levelLabel} color="var(--color-chemistry)"/>
             </div>
             <div className="mt-3">
               <XPBar
@@ -297,15 +301,15 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
       {/* What to do next - premium hover */}
       <GlassCard glow="cyan" className="p-5 premium-card cursor-pointer" onClick={() => setPage(mission.nextAction.page)}>
         <div className="flex items-start gap-4">
-          <div className="w-10 h-10 rounded-xl bg-[#4b9fd4]/10 border border-[#4b9fd4]/20 flex items-center justify-center shrink-0">
-            <RefreshCw className="w-5 h-5 text-[#4b9fd4]"/>
+          <div className="w-10 h-10 rounded-xl bg-info/10 border border-info/20 flex items-center justify-center shrink-0">
+            <RefreshCw className="w-5 h-5 text-info"/>
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] uppercase tracking-[0.15em] text-[#4b9fd4] mb-0.5">What should you do next?</div>
+            <div className="text-[10px] uppercase tracking-[0.15em] text-info mb-0.5">What should you do next?</div>
             <div className="text-base font-bold text-foreground">{mission.nextAction.label}</div>
             <div className="text-sm text-muted-foreground mt-0.5">{mission.nextAction.reason}</div>
           </div>
-          <ArrowRight className="w-5 h-5 text-[#4b9fd4] shrink-0 mt-0.5"/>
+          <ArrowRight className="w-5 h-5 text-info shrink-0 mt-0.5"/>
         </div>
       </GlassCard>
 
@@ -319,12 +323,14 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
                 "flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all duration-200",
                 step.active ? "scale-105" : step.done ? "opacity-80" : "opacity-40"
               )}
-              style={step.done || step.active ? {borderColor:`${step.color}40`,background:`${step.color}10`,color:step.active?step.color:"#a0a0b0"} : {borderColor:"rgba(255,255,255,0.07)",color:"#78788c"}}>
-              <span style={{color:step.active?step.color:step.done?step.color:"#78788c"}}>{step.icon}</span>
+              style={step.done || step.active
+                ? { borderColor: `hsl(${step.color} / 0.4)`, background: `hsl(${step.color} / 0.1)`, color: step.active ? `hsl(${step.color})` : "hsl(var(--muted-foreground))" }
+                : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+              <span style={{ color: step.active ? `hsl(${step.color})` : step.done ? `hsl(${step.color})` : "hsl(var(--muted-foreground))" }}>{step.icon}</span>
               {step.label}
-              {step.done&&!step.active&&<CheckCircle2 className="w-3 h-3" style={{color:step.color}}/>}
-              {step.active&&<span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{background:step.color}}/>}
-              {i<loopSteps.length-1&&<ArrowRight className="w-3 h-3 text-muted-foreground/30 -mr-1"/>}
+              {step.done && !step.active && <CheckCircle2 className="w-3 h-3" style={{ color: `hsl(${step.color})` }} />}
+              {step.active && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: `hsl(${step.color})` }} />}
+              {i < loopSteps.length - 1 && <ArrowRight className="w-3 h-3 text-muted-foreground/30 -mr-1"/>}
             </button>
           ))}
         </div>
@@ -335,16 +341,16 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <SectionLabel>{"Today's Mission"}</SectionLabel>
         <div className="grid sm:grid-cols-3 gap-4 animate-premium-stagger">
           {[
-            {label:"Practice", done:mission.practiceDone, target:mission.practiceTarget, color:"#3b5bdb", icon:<BookOpen className="w-4 h-4"/>, page:"practice" as PageKey},
-            {label:"Recovery", done:mission.recoveryDone, target:mission.recoveryTarget, color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/>, page:"recovery" as PageKey},
-            {label:"Revision", done:mission.revisionDone, target:mission.revisionTarget, color:"#6882e8", icon:<RotateCcw className="w-4 h-4"/>, page:"revision" as PageKey},
+            { label: "Practice", done: mission.practiceDone, target: mission.practiceTarget, color: "var(--primary)", icon: <BookOpen className="w-4 h-4"/>, page: "practice" as PageKey },
+            { label: "Recovery", done: mission.recoveryDone, target: mission.recoveryTarget, color: "var(--accent)", icon: <RefreshCw className="w-4 h-4"/>, page: "recovery" as PageKey },
+            { label: "Revision", done: mission.revisionDone, target: mission.revisionTarget, color: "var(--color-chemistry)", icon: <RotateCcw className="w-4 h-4"/>, page: "revision" as PageKey },
           ].map((m) => (
             <GlassCard key={m.label} className="p-4 cursor-pointer hover:border-border" onClick={() => setPage(m.page)}>
               <div className="flex items-center gap-2 mb-2">
-                <span style={{color:m.color}}>{m.icon}</span>
+                <span style={{ color: `hsl(${m.color})` }}>{m.icon}</span>
                 <span className="text-xs font-semibold text-foreground">{m.label}</span>
               </div>
-              <div className="text-2xl font-black tabular-nums mb-1" style={{color:m.color}}>
+              <div className="text-2xl font-black tabular-nums mb-1" style={{ color: `hsl(${m.color})` }}>
                 {m.done}<span className="text-sm text-muted-foreground font-normal">/{m.target}</span>
               </div>
               <ProgressBar value={m.done} max={m.target} color={m.color}/>
@@ -358,13 +364,13 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <SectionLabel>Quick Actions</SectionLabel>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-premium-stagger">
           {[
-            {label:"Practice",    sub:"Start a session",       icon:<BookOpen className="w-5 h-5"/>,  color:"#3b5bdb", page:"practice" as PageKey},
-            {label:"AI Coach",    sub:"Chat with Nova",        icon:<Brain className="w-5 h-5"/>,    color:"#6882e8", page:"aicoach" as PageKey},
-            {label:"Battleground",sub:"Challenge classmates",  icon:<Swords className="w-5 h-5"/>,   color:"#c08a3a", page:"battleground" as PageKey},
-            {label:"Analysis",    sub:"View insights",       icon:<BarChart2 className="w-5 h-5"/>,color:"#4b9fd4", page:"analysis" as PageKey},
+            { label: "Practice", sub: "Start a session", icon: <BookOpen className="w-5 h-5"/>, color: "var(--primary)", page: "practice" as PageKey },
+            { label: "AI Coach", sub: "Chat with Nova", icon: <Brain className="w-5 h-5"/>, color: "var(--color-chemistry)", page: "aicoach" as PageKey },
+            { label: "Battleground", sub: "Challenge classmates", icon: <Swords className="w-5 h-5"/>, color: "var(--warning)", page: "battleground" as PageKey },
+            { label: "Analysis", sub: "View insights", icon: <BarChart2 className="w-5 h-5"/>, color: "var(--color-physics)", page: "analysis" as PageKey },
           ].map((a) => (
             <GlassCard key={a.label} className="p-4 cursor-pointer hover:border-border group" onClick={() => setPage(a.page)}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{background:`${a.color}15`,color:a.color}}>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ background: `hsl(${a.color} / 0.1)`, color: `hsl(${a.color})` }}>
                 {a.icon}
               </div>
               <div className="text-sm font-semibold text-foreground">{a.label}</div>
@@ -383,14 +389,14 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
               <AreaChart data={weeklyActivity}>
                 <defs>
                   <linearGradient id="dash-actGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b5bdb" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3b5bdb" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="day" tick={{fill:"#78788c",fontSize:10}} axisLine={false} tickLine={false}/>
-                <Tooltip contentStyle={{background:"#ffffff",border:"1px solid #e5e7eb",borderRadius:12,fontSize:12,boxShadow:"0 4px 16px rgba(0,0,0,0.07)"}} labelStyle={{color:"#9ca3af"}}/>
-                <Area type="monotone" dataKey="total" name="Questions" stroke="#3b5bdb" strokeWidth={2} fill="url(#dash-actGrad)"
-                  isAnimationActive={true} animationDuration={800} dot={{r:3,fill:"#3b5bdb",strokeWidth:0}} activeDot={{r:5,fill:"#3b5bdb"}}/>
+                <XAxis dataKey="day" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.07)" }} labelStyle={{ color: "hsl(var(--muted-foreground))" }} />
+                <Area type="monotone" dataKey="total" name="Questions" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#dash-actGrad)"
+                  isAnimationActive={true} animationDuration={800} dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 0 }} activeDot={{ r: 5, fill: "hsl(var(--primary))" }} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -409,24 +415,24 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         {subjects.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 animate-premium-stagger">
             {subjects.map((s, idx) => (
-              <GlassCard key={s.id} className="p-4 premium-card group hover:border-primary/30 cursor-pointer" onClick={() => setPage("practice")} style={{animationDelay: `${idx * 0.04}s`}}>
+              <GlassCard key={s.id} className="p-4 premium-card group hover:border-primary/30 cursor-pointer" onClick={() => setPage("practice")} style={{ animationDelay: `${idx * 0.04}s` }}>
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold shrink-0" style={{background:`${s.color}15`,color:s.color}}>{s.icon}</div>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-bold shrink-0" style={{ background: `hsl(${s.color} / 0.1)`, color: `hsl(${s.color})` }}>{s.icon}</div>
                     <span className="text-sm font-semibold text-foreground">{s.name}</span>
                   </div>
                   {s.trend !== 0 && (
-                    <div className="flex items-center gap-1 text-xs" style={{color:s.trend>=0?"#4aa87a":"#cc5069"}}>
-                      <TrendingUp className={cn("w-3 h-3",s.trend<0&&"rotate-180")}/>
-                      {s.trend>0?"+":""}{s.trend}%
+                    <div className="flex items-center gap-1 text-xs" style={{ color: s.trend >= 0 ? "hsl(var(--success))" : "hsl(var(--destructive))" }}>
+                      <TrendingUp className={cn("w-3 h-3", s.trend < 0 && "rotate-180")} />
+                      {s.trend > 0 ? "+" : ""}{s.trend}%
                     </div>
                   )}
                 </div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-muted-foreground">{s.attempts} attempts</span>
-                  <span className="text-sm font-black tabular-nums" style={{color:s.color}}>{s.accuracy}%</span>
+                  <span className="text-sm font-black tabular-nums" style={{ color: `hsl(${s.color})` }}>{s.accuracy}%</span>
                 </div>
-                <ProgressBar value={s.accuracy} color={s.color}/>
+                <ProgressBar value={s.accuracy} color={s.color} />
               </GlassCard>
             ))}
           </div>
@@ -458,8 +464,8 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
             )) : (
               <p className="text-sm text-muted-foreground text-center py-4">No badges earned yet - keep practicing!</p>
             )}
-            <button onClick={() => setPage("achievements")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors">
-              View all achievements {"->"}
+            <button onClick={() => setPage("achievements")} className="w-full text-center text-xs text-primary hover:text-primary/80 transition-colors">
+              View all achievements {"→"}
             </button>
           </div>
         </GlassCard>
@@ -467,34 +473,30 @@ export default function Dashboard({ setPage }: { setPage: (p: PageKey) => void }
         <GlassCard glow="purple" className="p-5">
           <SectionLabel>Class Leaderboard</SectionLabel>
           <div className="flex flex-col items-center gap-2 py-2">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{background:"linear-gradient(135deg,#c08a3a20,#c08a3a05)",border:"1px solid #c08a3a30"}}>
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, hsl(var(--warning) / 0.2), hsl(var(--warning) / 0.05))", border: "1px solid hsl(var(--warning) / 0.3)" }}>
               <Trophy className="w-7 h-7 text-amber-400"/>
             </div>
             <div className="text-4xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>
-              {shellReady && student.rank > 0 ? `#${student.rank}` : "â€”"}
+              {shellReady && student.rank > 0 ? `#${student.rank}` : "—"}
             </div>
             <div className="text-muted-foreground text-sm">
               {shellReady && student.totalStudents > 0
                 ? `of ${student.totalStudents} students`
                 : shellReady
                   ? "Not ranked yet"
-                  : "Loading rankâ€¦"}
+                  : "Loading rank…"}
             </div>
             {shellReady && student.rank > 0 && (
               <div className="flex items-center gap-1.5 text-emerald-400 text-sm font-semibold">
                 <Star className="w-4 h-4"/>Class rank
               </div>
             )}
-          <button onClick={() => setPage("leaderboard")} className="w-full text-center text-xs text-[#3b5bdb] hover:text-[#a5b4fc] transition-colors mt-2">
-            See full leaderboard {"->"}
-          </button>
+            <button onClick={() => setPage("leaderboard")} className="w-full text-center text-xs text-primary hover:text-primary/80 transition-colors mt-2">
+              See full leaderboard {"→"}
+            </button>
           </div>
         </GlassCard>
       </div>
-      {/* Premium decorative orbs - subtle, no layout shift */}
-      <div className="premium-orb premium-orb--indigo" style={{top: "8%", right: "4%", width: "240px", height: "240px"}} aria-hidden="true" />
-      <div className="premium-orb premium-orb--emerald" style={{bottom: "12%", left: "3%", width: "180px", height: "180px"}} aria-hidden="true" />
-      <div className="premium-orb premium-orb--amber" style={{bottom: "25%", right: "6%", width: "140px", height: "140px"}} aria-hidden="true" />
     </div>
   );
 }

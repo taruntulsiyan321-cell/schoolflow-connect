@@ -291,7 +291,7 @@ export function TeacherAttendanceWorkspace({
             <button
               type="button"
               onClick={() => navigate("/teacher/classes")}
-              className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-white mb-2"
+              className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-foreground mb-2"
             >
               <ChevronLeft className="w-3 h-3" /> My Classes
             </button>
@@ -299,7 +299,7 @@ export function TeacherAttendanceWorkspace({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-base font-black text-foreground">Attendance</h2>
             {!canMark && (
-              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg bg-white/10 text-[#a0a0b0]">
+              <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-lg bg-muted/80 text-[#a0a0b0]">
                 <Eye className="w-3 h-3" /> Read Only
               </span>
             )}
@@ -377,9 +377,9 @@ export function TeacherAttendanceWorkspace({
               className={cn(
                 "text-[10px] font-bold px-2.5 py-1 rounded-lg",
                 saveState === "unsaved" && "bg-[#f59e0b]/20 text-[#f59e0b]",
-                saveState === "draft" && "bg-white/10 text-[#a0a0b0]",
+                saveState === "draft" && "bg-muted/80 text-[#a0a0b0]",
                 saveState === "submitted" && "bg-[#10b981]/15 text-[#10b981]",
-                saveState === "readonly" && "bg-white/10 text-[#a0a0b0]",
+                saveState === "readonly" && "bg-muted/80 text-[#a0a0b0]",
               )}
             >
               {saveState === "unsaved" && "Unsaved Changes"}
@@ -393,7 +393,7 @@ export function TeacherAttendanceWorkspace({
               <button
                 type="button"
                 onClick={markAllPresent}
-                className="px-3 py-2 rounded-xl text-[10px] font-bold bg-white/5 text-muted-foreground hover:text-white hover:bg-white/10"
+                className="px-3 py-2 rounded-xl text-[10px] font-bold bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
               >
                 All Present
               </button>
@@ -407,8 +407,8 @@ export function TeacherAttendanceWorkspace({
                 canMark
                   ? dirty
                     ? "text-black bg-[#3b5bdb] hover:bg-[#6882e8]"
-                    : "text-white bg-[#3b5bdb]/40"
-                  : "text-muted-foreground bg-white/5 opacity-60",
+                    : "text-foreground bg-[#3b5bdb]/40"
+                  : "text-muted-foreground bg-muted opacity-60",
               )}
               title={
                 !canMark
@@ -428,13 +428,13 @@ export function TeacherAttendanceWorkspace({
       )}
 
       <div className="flex flex-wrap gap-2 items-center">
-        <div className="flex items-center gap-2 bg-white/5 border border-border rounded-xl px-3 py-2 flex-1 min-w-[180px]">
+        <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2 flex-1 min-w-[180px]">
           <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name or rollâ€¦"
-            className="flex-1 bg-transparent text-xs text-white placeholder:text-muted-foreground outline-none"
+            className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
         <select
@@ -477,7 +477,7 @@ export function TeacherAttendanceWorkspace({
                   <InitialsAvatar name={s.fullName} size="sm" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-white truncate">{s.fullName}</div>
+                  <div className="text-xs font-bold text-foreground truncate">{s.fullName}</div>
                   <div className="text-[10px] text-muted-foreground">
                     Roll {s.rollNumber ?? "â€”"}
                     {s.admissionNumber ? ` Â· ${s.admissionNumber}` : ""}
@@ -493,7 +493,7 @@ export function TeacherAttendanceWorkspace({
                         "px-3 py-1.5 rounded-lg text-[10px] font-bold min-w-[72px]",
                         isAbsent
                           ? "bg-[#cc5069] text-foreground"
-                          : "bg-white/5 text-muted-foreground hover:bg-[#cc5069]/20 hover:text-[#cc5069]",
+                          : "bg-muted text-muted-foreground hover:bg-[#cc5069]/20 hover:text-[#cc5069]",
                       )}
                     >
                       {isAbsent ? "Absent" : "Mark Absent"}
@@ -507,7 +507,7 @@ export function TeacherAttendanceWorkspace({
                           title={opt.label}
                           className={cn(
                             "w-7 h-7 rounded-lg text-[9px] font-bold transition-all",
-                            status === opt.value ? "text-foreground" : "text-muted-foreground bg-muted hover:bg-white/8",
+                            status === opt.value ? "text-foreground" : "text-muted-foreground bg-muted hover:bg-muted/80",
                           )}
                           style={
                             status === opt.value

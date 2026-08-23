@@ -9,7 +9,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   return (
     <button onClick={onClick}
       className={cn("text-[10px] font-semibold px-3 py-1.5 rounded-xl whitespace-nowrap transition-all",
-        active ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25" : "text-muted-foreground hover:text-white border border-transparent")}>
+        active ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25" : "text-muted-foreground hover:text-foreground border border-transparent")}>
       {children}
     </button>
   );

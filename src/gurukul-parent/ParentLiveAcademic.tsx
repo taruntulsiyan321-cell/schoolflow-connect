@@ -98,7 +98,7 @@ export function ParentLiveHomework({ studentId }: { studentId: string }) {
             </div>
           </div>
           {s?.grade && (
-            <div className="text-[10px] text-white mt-2">Grade: {s.grade}</div>
+            <div className="text-[10px] text-foreground mt-2">Grade: {s.grade}</div>
           )}
           {s?.teacherRemarks && (
             <div className="text-[10px] text-[#4aa87a] mt-1">Remarks: {s.teacherRemarks}</div>
@@ -368,7 +368,7 @@ export function ParentLivePerformance({ studentId }: { studentId: string }) {
             { label: "Streak / Badges", value: `${progression.studyStreak} / ${progression.badges}` },
           ].map((s) => (
             <div key={s.label} className="bg-surface border border-border/70 rounded-2xl p-4 text-center">
-              <div className="text-sm font-black text-white truncate">{s.value}</div>
+              <div className="text-sm font-black text-foreground truncate">{s.value}</div>
               <div className="text-[10px] text-muted-foreground">{s.label}</div>
             </div>
           ))}

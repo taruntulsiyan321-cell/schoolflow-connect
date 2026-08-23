@@ -136,7 +136,7 @@ function Sidebar({
         {!mobile && (
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="ml-auto shrink-0 w-6 h-6 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
+            className="ml-auto shrink-0 w-6 h-6 rounded-lg bg-muted hover:bg-muted/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
           >
             {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
           </button>
@@ -198,7 +198,7 @@ function Sidebar({
                     collapsed && !mobile && "justify-center px-2",
                     active
                       ? "bg-[#3b5bdb]/15 text-[#3b5bdb] border border-[#3b5bdb]/25"
-                      : "text-muted-foreground hover:text-white hover:bg-muted border border-transparent",
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent",
                   )}
                   title={collapsed && !mobile ? item.label : undefined}
                 >
@@ -230,14 +230,14 @@ function Sidebar({
               <span className="text-[11px] font-black text-foreground">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-white truncate">{displayName}</div>
+              <div className="text-xs font-bold text-foreground truncate">{displayName}</div>
               <div className="text-[9px] text-muted-foreground">{children.length} linked children</div>
             </div>
           </div>
           {onSignOut && (
             <button
               onClick={onSignOut}
-              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-muted-foreground hover:text-white hover:bg-muted text-xs font-medium transition-all"
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted text-xs font-medium transition-all"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
@@ -344,7 +344,7 @@ export default function ParentApp() {
         <header className="relative z-40 h-14 shrink-0 flex items-center gap-4 px-4 sm:px-6 border-b border-border bg-card/95 backdrop-blur-xl">
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground hover:text-foreground"
+            className="md:hidden w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground"
           >
             <Menu className="w-4 h-4" />
           </button>
@@ -352,28 +352,28 @@ export default function ParentApp() {
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xs text-muted-foreground">Parent</span>
             <span className="text-muted-foreground">/</span>
-            <span className="text-sm font-semibold text-white truncate">{PARENT_PAGE_TITLES[page]}</span>
+            <span className="text-sm font-semibold text-foreground truncate">{PARENT_PAGE_TITLES[page]}</span>
           </div>
 
           <div className="ml-auto flex items-center gap-3">
             <button
               onClick={() => setPage("notifications")}
-              className="relative w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
+              className="relative w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
             >
               <Bell className="w-4 h-4" />
               {unreadNotif > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#cc5069] rounded-full text-[8px] font-bold text-white flex items-center justify-center">
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#cc5069] rounded-full text-[8px] font-bold text-foreground flex items-center justify-center">
                   {unreadNotif}
                 </span>
               )}
             </button>
             <button
               onClick={() => setPage("messages")}
-              className="relative w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground hover:text-white transition-all"
+              className="relative w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
             >
               <MessageSquare className="w-4 h-4" />
               {unreadMsg > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#3b5bdb] rounded-full text-[8px] font-bold text-white flex items-center justify-center">
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#3b5bdb] rounded-full text-[8px] font-bold text-foreground flex items-center justify-center">
                   {unreadMsg}
                 </span>
               )}

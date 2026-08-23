@@ -135,7 +135,7 @@ export default function Assignments() {
 
   if (loadError) {
     return (
-      <div className="text-center text-sm text-[#cc5069] py-16">{loadError}</div>
+      <div className="text-center text-sm text-destructive py-16">{loadError}</div>
     );
   }
 
@@ -143,7 +143,7 @@ export default function Assignments() {
     <div className="space-y-4">
       <SectionLabel>My Homework</SectionLabel>
       {actionError && (
-        <div className="rounded-xl border border-[#cc5069]/30 bg-[#cc5069]/10 px-3 py-2 text-xs text-[#cc5069]">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {actionError}
         </div>
       )}
@@ -156,7 +156,7 @@ export default function Assignments() {
                 type="button"
                 onClick={() => setFilter(f)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold capitalize ${
-                  filter === f ? "bg-[#3b5bdb] text-foreground" : "bg-white/5 text-muted-foreground"
+                  filter === f ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 {f}
@@ -167,7 +167,7 @@ export default function Assignments() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Searchâ€¦"
-            className="bg-white/5 border border-border rounded-xl px-3 py-1.5 text-[11px] text-white w-36"
+            className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground w-36"
           />
         </div>
 
@@ -188,7 +188,7 @@ export default function Assignments() {
             return (
               <div
                 key={a.id}
-                className={`p-4 rounded-xl border bg-white/2 hover:border-border transition-colors space-y-2 ${
+                className={`p-4 rounded-xl border bg-muted/30 hover:border-border transition-colors space-y-2 ${
                   isReturned ? "border-amber-500/40" : "border-border/70"
                 }`}
               >
@@ -246,7 +246,7 @@ export default function Assignments() {
                     )}
                     {s?.teacherRemarks && (
                       <p
-                        className={`text-[11px] ${isReturned ? "text-amber-400" : "text-[#4aa87a]"}`}
+                        className={`text-[11px] ${isReturned ? "text-amber-500" : "text-success"}`}
                       >
                         Teacher: {s.teacherRemarks}
                       </p>
@@ -265,7 +265,7 @@ export default function Assignments() {
                               ? "Revise notes (optional if attaching files)â€¦"
                               : "Notes (optional if attaching files)"
                           }
-                          className="w-full bg-white/5 border border-border rounded-xl px-3 py-2 text-xs text-white min-h-[70px]"
+                          className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[70px]"
                         />
                         <AttachmentComposer
                           items={attachments}

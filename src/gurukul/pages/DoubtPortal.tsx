@@ -528,7 +528,7 @@ export default function DoubtPortal() {
               ))}
             </select>
             {subjectsError && (
-              <p className="mt-1.5 text-[11px] text-[#cc5069] flex items-start gap-1.5">
+              <p className="mt-1.5 text-[11px] text-destructive flex items-start gap-1.5">
                 <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />
                 {subjectsError}
               </p>
@@ -627,7 +627,7 @@ export default function DoubtPortal() {
             type="button"
             disabled={asking || subjectsLoading || !!subjectsError || !askBody.trim() || !askSubject}
             onClick={() => void submitAsk()}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#3b5bdb] text-white text-sm font-bold py-2.5 disabled:opacity-40"
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold py-2.5 disabled:opacity-40"
           >
             {asking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Post doubt
@@ -795,7 +795,7 @@ export default function DoubtPortal() {
                   type="button"
                   disabled={replying || !replyText.trim()}
                   onClick={() => void submitReply()}
-                  className="ml-auto inline-flex items-center gap-2 rounded-xl bg-[#3b5bdb] text-white text-xs font-bold px-4 py-2 disabled:opacity-40"
+                  className="ml-auto inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold px-4 py-2 disabled:opacity-40"
                 >
                   {replying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   Post answer
@@ -818,12 +818,12 @@ export default function DoubtPortal() {
           <p className="text-xs text-muted-foreground mt-0.5">
             Class feed â€” ask questions and help classmates. First answer marks a doubt solved.
           </p>
-          {error && <p className="text-[10px] text-[#cc5069] mt-1">{error}</p>}
+          {error && <p className="text-[10px] text-destructive mt-1">{error}</p>}
         </div>
         <button
           type="button"
           onClick={() => setView("ask")}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#3b5bdb] text-white text-xs font-bold px-3.5 py-2.5"
+          className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold px-3.5 py-2.5"
         >
           <Plus className="w-3.5 h-3.5" /> Ask a doubt
         </button>
@@ -880,7 +880,7 @@ export default function DoubtPortal() {
       </div>
 
       {subjectsError && (
-        <p className="text-[11px] text-[#cc5069] flex items-center gap-1.5">
+        <p className="text-[11px] text-destructive flex items-center gap-1.5">
           <AlertCircle className="w-3 h-3 shrink-0" />
           Subjects unavailable: {subjectsError}
         </p>

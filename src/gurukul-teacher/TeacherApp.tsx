@@ -99,7 +99,7 @@ function Sidebar({
         </div>
         {(!collapsed || mobile) && (
           <div className="flex-1 min-w-0">
-            <div className="text-xs font-black text-white leading-none">Gurukul</div>
+            <div className="text-xs font-black text-foreground leading-none">Gurukul</div>
             <div className="text-[9px] text-[#3b5bdb] font-semibold mt-0.5">Teacher Panel</div>
           </div>
         )}
@@ -107,7 +107,7 @@ function Sidebar({
           <button
             type="button"
             onClick={() => setCollapsed(!collapsed)}
-            className="w-6 h-6 rounded-lg bg-white/5 text-muted-foreground flex items-center justify-center hover:bg-white/10 hover:text-white transition-all shrink-0"
+            className="w-6 h-6 rounded-lg bg-muted text-muted-foreground flex items-center justify-center hover:bg-muted/80 hover:text-foreground transition-all shrink-0"
           >
             {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
           </button>
@@ -141,7 +141,7 @@ function Sidebar({
                 <>
                   <span className="text-xs font-semibold truncate flex-1">{item.label}</span>
                   {item.key === "communication" && unreadMsg > 0 && (
-                    <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f43f5e] text-white text-[8px] font-black flex items-center justify-center">
+                    <span className="min-w-[16px] h-4 px-1 rounded-full bg-[#f43f5e] text-foreground text-[8px] font-black flex items-center justify-center">
                       {unreadMsg > 9 ? "9+" : unreadMsg}
                     </span>
                   )}
@@ -160,7 +160,7 @@ function Sidebar({
               <span className="text-[11px] font-black text-black">{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-bold text-white truncate">{displayName || "Teacher"}</div>
+              <div className="text-xs font-bold text-foreground truncate">{displayName || "Teacher"}</div>
               <div className="text-[9px] text-muted-foreground truncate">{employeeId || "â€”"}</div>
             </div>
           </div>
@@ -168,7 +168,7 @@ function Sidebar({
             <button
               type="button"
               onClick={onSignOut}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:text-white hover:bg-muted text-xs font-medium transition-all"
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted text-xs font-medium transition-all"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
@@ -262,12 +262,12 @@ export default function TeacherApp() {
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
-              className="md:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted-foreground hover:text-white shrink-0"
+              className="md:hidden w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0"
             >
               <Menu className="w-4 h-4" />
             </button>
             <div className="min-w-0">
-              <div className="text-sm font-black text-white truncate">{TEACHER_PAGE_TITLES[page]}</div>
+              <div className="text-sm font-black text-foreground truncate">{TEACHER_PAGE_TITLES[page]}</div>
               <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
                 {displayName} Â· {employeeId}
               </div>

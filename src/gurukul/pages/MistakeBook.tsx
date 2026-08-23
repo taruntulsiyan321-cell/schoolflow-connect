@@ -197,12 +197,12 @@ function MistakeCard({
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400">Resolved</span>
               )}
             </div>
-            <p className="text-sm font-semibold text-white leading-snug">{mistake.question}</p>
+            <p className="text-sm font-semibold text-foreground leading-snug">{mistake.question}</p>
             <div className="text-[11px] text-muted-foreground mt-1">{displayChapter(mistake.chapter)} Â· {displayTopic(mistake.topic)} Â· {mistake.date}</div>
           </div>
           <button onClick={() => onToggleBookmark(mistake.id)}
             title={mistake.bookmarked ? "Remove device bookmark" : "Save on this device only"}
-            className="shrink-0 p-1.5 rounded-lg hover:bg-white/10 transition-all">
+            className="shrink-0 p-1.5 rounded-lg hover:bg-muted transition-all">
             {mistake.bookmarked
               ? <BookmarkCheck className="w-4 h-4 text-amber-400 fill-amber-400"/>
               : <Bookmark className="w-4 h-4 text-muted-foreground"/>}
@@ -211,7 +211,7 @@ function MistakeCard({
 
         <div className="flex items-center gap-2 mt-3">
           <button onClick={() => setExpanded(e => !e)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/5 border border-border text-xs text-muted-foreground font-semibold hover:bg-white/10 transition-all">
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-muted border border-border text-xs text-muted-foreground font-semibold hover:bg-secondary transition-all">
             <Eye className="w-3 h-3"/> Details {expanded ? <ChevronDown className="w-3 h-3"/> : <ChevronRight className="w-3 h-3"/>}
           </button>
           <button onClick={onRetry}
@@ -258,7 +258,7 @@ function MistakeCard({
                 <div className="text-[10px] font-bold text-violet-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <Brain className="w-3 h-3"/> AI Explanation
                 </div>
-                <p className="text-xs text-[#a0a0b0] leading-relaxed">{mistake.aiExplanation}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{mistake.aiExplanation}</p>
               </div>
             ) : null}
 
@@ -268,7 +268,7 @@ function MistakeCard({
                 <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                   <AlertCircle className="w-3 h-3"/> Why You Got It Wrong
                 </div>
-                <p className="text-xs text-[#a0a0b0] leading-relaxed">{mistake.studentReason}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{mistake.studentReason}</p>
               </div>
             ) : null}
           </div>
@@ -365,10 +365,10 @@ function MistakePractice({
     return (
       <GlassCard className="p-8 text-center">
         <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto mb-3"/>
-        <p className="text-sm font-semibold text-white mb-1">No practice questions available</p>
+        <p className="text-sm font-semibold text-foreground mb-1">No practice questions available</p>
         <p className="text-xs text-muted-foreground">This mistake has no answer options to practice with.</p>
         <button onClick={() => onDone({ score: 0, attempts: [] })}
-          className="mt-4 px-4 py-2 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
+          className="mt-4 px-4 py-2 rounded-xl bg-muted border border-border text-muted-foreground text-sm font-semibold hover:bg-secondary transition-all">
           Back
         </button>
       </GlassCard>
@@ -389,7 +389,7 @@ function MistakePractice({
 
       <div className="flex gap-1.5">
         {questions.map((_, i) => (
-          <div key={i} className={cn("h-1.5 flex-1 rounded-full", i < qi ? "bg-rose-400" : i === qi ? "bg-rose-400/50" : "bg-white/10")}/>
+          <div key={i} className={cn("h-1.5 flex-1 rounded-full", i < qi ? "bg-rose-400" : i === qi ? "bg-rose-400/50" : "bg-muted")}/>
         ))}
       </div>
 
@@ -406,15 +406,15 @@ function MistakePractice({
           </div>
         </div>
 
-        <p className="text-sm font-semibold text-white leading-relaxed mb-5">{q.question}</p>
+        <p className="text-sm font-semibold text-foreground leading-relaxed mb-5">{q.question}</p>
 
         <div className="space-y-2">
           {q.options.map((opt, i) => {
-            let cls = "border-border bg-muted hover:bg-white/7 hover:border-border";
+            let cls = "border-border bg-muted hover:bg-secondary hover:border-border";
             if (selected !== null) {
               if (i === q.correct) cls = "border-emerald-400/50 bg-emerald-400/10";
               else if (i === selected && i !== q.correct) cls = "border-rose-400/50 bg-rose-400/10";
-              else cls = "border-white/5 bg-white/2 opacity-50";
+              else cls = "border-border bg-muted/50 opacity-50";
             }
             return (
               <button key={i} onClick={() => submit(i)}
@@ -427,13 +427,13 @@ function MistakePractice({
         </div>
 
         {selected !== null && q.explanation && (
-          <div className="mt-4 p-3 rounded-xl bg-white/4 border border-white/8 text-xs text-[#a0a0b0] leading-relaxed">
+          <div className="mt-4 p-3 rounded-xl bg-muted border border-border text-xs text-muted-foreground leading-relaxed">
             {q.explanation}
           </div>
         )}
 
         {selected !== null && (
-          <button onClick={next} disabled={busy} className="mt-4 w-full py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-sm font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none">
+          <button onClick={next} disabled={busy} className="mt-4 w-full py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-foreground text-sm font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none">
             {isLast ? "See Results" : "Next Question"} <ArrowRight className="w-4 h-4"/>
           </button>
         )}
@@ -688,7 +688,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             </button>
           )}
           <button onClick={() => setView("list")}
-            className="w-full py-3 rounded-xl bg-white/5 border border-border text-muted-foreground text-sm font-semibold hover:bg-white/10 transition-all">
+            className="w-full py-3 rounded-xl bg-muted border border-border text-muted-foreground text-sm font-semibold hover:bg-secondary transition-all">
             Back to Mistake Book
           </button>
         </div>
@@ -780,7 +780,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         <div className="space-y-3">
           {subjectBreakdown.filter(s => s.count > 0).map(s => (
             <div key={s.subject} className="flex items-center gap-3">
-              <span className="text-xs text-white font-semibold w-24 shrink-0">{s.subject}</span>
+              <span className="text-xs text-foreground font-semibold w-24 shrink-0">{s.subject}</span>
               <div className="flex-1">
                 <ProgressBar value={s.count} max={mistakes.length} color="#cc5069"/>
               </div>
@@ -795,7 +795,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"/>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search questions, topics, chapters..."
-            className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-white/5 border border-border text-sm text-white placeholder-[#78788c] focus:outline-none focus:border-rose-500/40"/>
+            className="w-full pl-8 pr-3 py-2.5 rounded-xl bg-muted border border-border text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-rose-500/40"/>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5">
@@ -803,7 +803,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             {(["date","frequency","subject"] as const).map(s => (
               <button key={s} onClick={() => setSort(s)}
                 className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                  sort === s ? "bg-white/15 border border-white/25 text-foreground" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
+                  sort === s ? "bg-secondary border border-border text-foreground" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
                 {s}
               </button>
             ))}
@@ -813,7 +813,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
             {(["all","unresolved","resolved","bookmarked"] as const).map(f => (
               <button key={f} onClick={() => setFilterResolved(f)}
                 className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                  filterResolved === f ? "bg-rose-500/20 border border-rose-500/40 text-rose-300" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
+                  filterResolved === f ? "bg-rose-500/20 border border-rose-500/40 text-rose-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
                 {f}
               </button>
             ))}
@@ -823,14 +823,14 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           {sources.map(src => (
             <button key={src} onClick={() => setSourceFilter(src)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-all",
-                sourceFilter === src ? "bg-white/15 border border-white/25 text-foreground" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
+                sourceFilter === src ? "bg-secondary border border-border text-foreground" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
               {src === "all" ? "All Sources" : src.charAt(0).toUpperCase() + src.slice(1)}
             </button>
           ))}
           {subjects.map(s => (
             <button key={s} onClick={() => setSubjectFilter(s)}
               className={cn("px-2.5 py-1 rounded-lg text-xs font-semibold transition-all",
-                subjectFilter === s ? "bg-violet-500/20 border border-violet-500/40 text-violet-300" : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10")}>
+                subjectFilter === s ? "bg-violet-500/20 border border-violet-500/40 text-violet-500" : "bg-muted border border-border text-muted-foreground hover:bg-secondary")}>
               {s === "all" ? "All Subjects" : s}
             </button>
           ))}

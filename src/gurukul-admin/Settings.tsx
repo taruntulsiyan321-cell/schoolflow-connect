@@ -135,7 +135,7 @@ export default function Settings() {
     setShowUnsavedWarning(false);
   }
 
-  const inputCls = "bg-white/5 border border-border rounded-xl px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50 w-full";
+  const inputCls = "bg-muted border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50 w-full";
 
   if (loading) {
     return (
@@ -174,14 +174,14 @@ export default function Settings() {
               <div className="flex items-center gap-1.5 text-[10px] text-[#c08a3a]">
                 <AlertTriangle className="w-3 h-3" /> Unsaved changes
               </div>
-              <button onClick={handleCancel} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-white bg-white/5 hover:bg-white/10 transition-all">
+              <button onClick={handleCancel} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 transition-all">
                 <X className="w-3.5 h-3.5" /> Discard
               </button>
             </>
           )}
           <button onClick={() => void handleSave()} disabled={!isDirty || saving}
             className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all",
-              isDirty && !saving ? "text-white bg-[#3b5bdb] hover:bg-[#2f4fc4]" : "text-muted-foreground bg-white/5 cursor-not-allowed")}>
+              isDirty && !saving ? "text-foreground bg-[#3b5bdb] hover:bg-[#2f4fc4]" : "text-muted-foreground bg-muted cursor-not-allowed")}>
             <Save className="w-3.5 h-3.5" />
             {saving ? "Savingâ€¦" : isDirty ? "Save Changes" : "All Saved"}
           </button>
@@ -205,7 +205,7 @@ export default function Settings() {
           <div className="col-span-2">
             <Field label="School Logo URL" hint="Paste a hosted image URL. The logo will appear across the platform.">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-white/5 border border-border flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="w-16 h-16 rounded-2xl bg-muted border border-border flex items-center justify-center shrink-0 overflow-hidden">
                   {form.logoUrl ? (
                     <img src={form.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                   ) : (
@@ -240,10 +240,10 @@ export default function Settings() {
             You have unsaved changes. Save before leaving this page.
           </div>
           <div className="flex gap-3">
-            <button onClick={handleCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-white bg-white/5 hover:bg-white/10 transition-all">
+            <button onClick={handleCancel} className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 transition-all">
               Discard
             </button>
-            <button onClick={() => void handleSave()} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all disabled:opacity-50">
+            <button onClick={() => void handleSave()} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#2f4fc4] transition-all disabled:opacity-50">
               <Save className="w-3.5 h-3.5" /> {saving ? "Savingâ€¦" : "Save Changes"}
             </button>
           </div>
@@ -260,10 +260,10 @@ export default function Settings() {
             </div>
             <div className="text-xs text-muted-foreground mb-5">You have unsaved changes. Discarding will revert all fields to their last saved state.</div>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setShowUnsavedWarning(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-white bg-white/5 hover:bg-white/10 transition-all">
+              <button onClick={() => setShowUnsavedWarning(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 transition-all">
                 Keep Editing
               </button>
-              <button onClick={confirmDiscard} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-[#cc5069] hover:bg-[#b84460] transition-all">
+              <button onClick={confirmDiscard} className="px-4 py-2 rounded-xl text-sm font-semibold text-foreground bg-[#cc5069] hover:bg-[#b84460] transition-all">
                 Discard
               </button>
             </div>

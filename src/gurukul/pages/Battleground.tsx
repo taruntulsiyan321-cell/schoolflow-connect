@@ -33,6 +33,7 @@ import { getNcertChapters, getNcertSubjects, parseClassGrade } from "@/lib/ncert
 import { subjectsForStreamPicker, type AcademicStream } from "@/lib/curriculumScope";
 import { displayChapter, displaySubject, humanizeAcademicLabel } from "@/lib/academicDisplay";
 import { PracticeService, useAcademicContext } from "@/academic";
+import { withAlpha } from "@/lib/colorAlpha";
 import "./battleground-design.css";
 
 /** Fallback subject labels when stream/class cannot be resolved. */
@@ -42,22 +43,22 @@ const SUBJECT_OPTIONS = [
   "Hindi",
 ];
 
-// ── Design tokens (DesignAuthenticationPage) ─────────────────────────────────
+// ── Design tokens (bound to the gurukul-student theme, see theme.css) ───────
 const C = {
-  bg: "#f3f6f6",
-  surface: "#ffffff",
-  surface2: "#e8eff0",
-  border: "#d5e0e2",
-  text: "#14252d",
-  text2: "#52646c",
-  text3: "#7b898f",
-  blue: "#17657a",
-  purple: "#2a7385",
-  gold: "#99661d",
-  green: "#2e7b63",
-  red: "#a94e4d",
-  orange: "#c65d4b",
-  pink: "#c65d4b",
+  bg: "hsl(var(--background))",
+  surface: "hsl(var(--card))",
+  surface2: "hsl(var(--muted))",
+  border: "hsl(var(--border))",
+  text: "hsl(var(--foreground))",
+  text2: "hsl(var(--muted-foreground))",
+  text3: "hsl(var(--muted-foreground) / 0.8)",
+  blue: "hsl(var(--primary))",
+  purple: "hsl(var(--info))",
+  gold: "hsl(var(--warning))",
+  green: "hsl(var(--success))",
+  red: "hsl(var(--destructive))",
+  orange: "hsl(var(--accent))",
+  pink: "hsl(var(--accent))",
 };
 
 type LeagueName = "Bronze" | "Silver" | "Gold" | "Platinum" | "Diamond";
@@ -68,11 +69,11 @@ type Phase = "home" | "create";
 type FeaturedKind = "daily" | "weekly" | "ncert" | "beat_topper" | "teacher";
 
 const LEAGUE_COLOR: Record<LeagueName, string> = {
-  Bronze: "#cd7f32",
-  Silver: "#94a3b8",
-  Gold: "#f59e0b",
-  Platinum: "#22d3ee",
-  Diamond: "#818cf8",
+  Bronze: "hsl(var(--league-bronze))",
+  Silver: "hsl(var(--league-silver))",
+  Gold: "hsl(var(--league-gold))",
+  Platinum: "hsl(var(--league-platinum))",
+  Diamond: "hsl(var(--league-diamond))",
 };
 
 function toLeagueName(l: HelperLeague): LeagueName {
@@ -114,8 +115,8 @@ const FEATURED_META: {
     subject: "Mathematics",
     chapter: "Today's mixed set",
     difficulty: "Medium",
-    gradient: "#f97316",
-    border: "rgba(249,115,22,0.25)",
+    gradient: "hsl(var(--accent))",
+    border: withAlpha("hsl(var(--accent))", 0.25),
   },
   {
     kind: "ncert",
@@ -124,8 +125,8 @@ const FEATURED_META: {
     subject: "Science",
     chapter: "NCERT sprint",
     difficulty: "Hard",
-    gradient: "#3b82f6",
-    border: "rgba(59,130,246,0.25)",
+    gradient: "hsl(var(--primary))",
+    border: withAlpha("hsl(var(--primary))", 0.25),
   },
   {
     kind: "teacher",
@@ -134,8 +135,8 @@ const FEATURED_META: {
     subject: "Class focus",
     chapter: "Assigned challenge",
     difficulty: "Easy",
-    gradient: "#8b5cf6",
-    border: "rgba(139,92,246,0.25)",
+    gradient: "hsl(var(--info))",
+    border: withAlpha("hsl(var(--info))", 0.25),
   },
   {
     kind: "beat_topper",
@@ -144,8 +145,8 @@ const FEATURED_META: {
     subject: "Physics",
     chapter: "Climb the ranks",
     difficulty: "Hard",
-    gradient: "#f59e0b",
-    border: "rgba(245,158,11,0.25)",
+    gradient: "hsl(var(--warning))",
+    border: withAlpha("hsl(var(--warning))", 0.25),
   },
   {
     kind: "weekly",
@@ -154,8 +155,8 @@ const FEATURED_META: {
     subject: "All Subjects",
     chapter: "Mixed — weekly",
     difficulty: "Hard",
-    gradient: "#10b981",
-    border: "rgba(16,185,129,0.25)",
+    gradient: "hsl(var(--success))",
+    border: withAlpha("hsl(var(--success))", 0.25),
   },
 ];
 
@@ -198,14 +199,14 @@ function Avatar({
         height: size,
         borderRadius: "50%",
         background: `${color}`,
-        border: `2px solid ${color}44`,
+        border: `2px solid ${withAlpha(color, 0.27)}`,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontFamily: "Outfit, sans-serif",
+        fontFamily: "var(--font-display)",
         fontWeight: 700,
         fontSize: size * 0.35,
-        color: "#fff",
+        color: "hsl(var(--primary-foreground))",
         flexShrink: 0,
         letterSpacing: "-0.01em",
       }}
@@ -220,14 +221,14 @@ function LeaguePill({ league }: { league: LeagueName }) {
   return (
     <span
       style={{
-        background: `${col}22`,
-        border: `1px solid ${col}55`,
+        background: `${withAlpha(col, 0.13)}`,
+        border: `1px solid ${withAlpha(col, 0.33)}`,
         color: col,
         borderRadius: "100px",
         padding: "2px 10px",
         fontSize: "0.72rem",
         fontWeight: 700,
-        fontFamily: "Outfit, sans-serif",
+        fontFamily: "var(--font-body)",
         letterSpacing: "0.04em",
         textTransform: "uppercase",
       }}
@@ -256,9 +257,9 @@ function DiffBadge({ level }: { level: "Easy" | "Medium" | "Hard" | null }) {
     );
   }
   const map = {
-    Easy: { color: C.green, bg: `${C.green}18` },
-    Medium: { color: C.gold, bg: `${C.gold}18` },
-    Hard: { color: C.red, bg: `${C.red}18` },
+    Easy: { color: C.green, bg: `${withAlpha(C.green, 0.09)}` },
+    Medium: { color: C.gold, bg: `${withAlpha(C.gold, 0.09)}` },
+    Hard: { color: C.red, bg: `${withAlpha(C.red, 0.09)}` },
   };
   const { color, bg } = map[level];
   return (
@@ -266,7 +267,7 @@ function DiffBadge({ level }: { level: "Easy" | "Medium" | "Hard" | null }) {
       style={{
         background: bg,
         color,
-        border: `1px solid ${color}33`,
+        border: `1px solid ${withAlpha(color, 0.2)}`,
         borderRadius: "4px",
         padding: "1px 7px",
         fontSize: "0.7rem",
@@ -307,7 +308,7 @@ function SectionHeader({
       <div>
         <h2
           style={{
-            fontFamily: "Outfit, sans-serif",
+            fontFamily: "var(--font-display)",
             fontWeight: 800,
             fontSize: "1.2rem",
             color: C.text,
@@ -323,7 +324,7 @@ function SectionHeader({
               color: C.text3,
               fontSize: "0.78rem",
               margin: "2px 0 0",
-              fontFamily: "Inter, sans-serif",
+              fontFamily: "var(--font-body)",
             }}
           >
             {subtitle}
@@ -413,7 +414,7 @@ function HeroSection({
           position: "relative",
           overflow: "hidden",
           background: C.surface,
-          border: `1px solid ${C.blue}33`,
+          border: `1px solid ${withAlpha(C.blue, 0.2)}`,
         }}
       >
         <div
@@ -518,7 +519,7 @@ function HeroSection({
                       background: `${C.blue}`,
                       "--xp-w": `${xpPct}%`,
                       width: animated ? `${xpPct}%` : "0%",
-                      boxShadow: `0 0 10px ${C.purple}66`,
+                      boxShadow: `0 0 10px ${withAlpha(C.purple, 0.4)}`,
                     } as CSSProperties
                   }
                 />
@@ -648,7 +649,7 @@ function HeroSection({
               border: "none",
               borderRadius: "8px",
               padding: "5px 14px",
-              color: "#fff",
+              color: "hsl(var(--primary-foreground))",
               fontFamily: "Outfit, sans-serif",
               fontWeight: 700,
               fontSize: "0.75rem",
@@ -687,7 +688,7 @@ function QuickActions({
       label: "Create Challenge",
       desc: "Invite a classmate to battle",
       color: C.blue,
-      grad: `${C.blue}22`,
+      grad: `${withAlpha(C.blue, 0.13)}`,
       border: "rgba(59,130,246,0.3)",
       onClick: onCreate,
     },
@@ -696,7 +697,7 @@ function QuickActions({
       label: "Join Challenge",
       desc: "Enter a battle with a code",
       color: C.purple,
-      grad: `${C.purple}22`,
+      grad: `${withAlpha(C.purple, 0.13)}`,
       border: "rgba(139,92,246,0.3)",
       onClick: onJoin,
     },
@@ -705,7 +706,7 @@ function QuickActions({
       label: "Daily Challenge",
       desc: `Today's challenge — ${dailyXpLabel}`,
       color: C.orange,
-      grad: `${C.orange}22`,
+      grad: `${withAlpha(C.orange, 0.13)}`,
       border: "rgba(249,115,22,0.3)",
       onClick: onDaily,
     },
@@ -714,7 +715,7 @@ function QuickActions({
       label: "Championship",
       desc: "Weekly top tournament",
       color: C.gold,
-      grad: `${C.gold}22`,
+      grad: `${withAlpha(C.gold, 0.13)}`,
       border: "rgba(245,158,11,0.3)",
       onClick: onWeekly,
     },
@@ -877,7 +878,7 @@ function JoinCodeModal({
               border: "none",
               borderRadius: "10px",
               padding: "0.65rem",
-              color: "#fff",
+              color: "hsl(var(--primary-foreground))",
               fontFamily: "Outfit, sans-serif",
               fontWeight: 700,
               cursor: joining ? "wait" : "pointer",
@@ -936,7 +937,7 @@ function FeaturedBattles({
                   fontFamily: "Outfit, sans-serif",
                   fontWeight: 800,
                   fontSize: "0.95rem",
-                  color: "#fff",
+                  color: "hsl(var(--primary-foreground))",
                   letterSpacing: "-0.01em",
                 }}
               >
@@ -994,7 +995,7 @@ function FeaturedBattles({
                     border: "none",
                     borderRadius: "8px",
                     padding: "5px 14px",
-                    color: "#fff",
+                    color: "hsl(var(--primary-foreground))",
                     fontFamily: "Outfit, sans-serif",
                     fontWeight: 700,
                     fontSize: "0.75rem",
@@ -1063,7 +1064,7 @@ function MyBattlesPanel({
               border: "none",
               borderRadius: "8px",
               padding: "5px 14px",
-              color: "#fff",
+              color: "hsl(var(--primary-foreground))",
               fontFamily: "Outfit, sans-serif",
               fontWeight: 700,
               fontSize: "0.75rem",
@@ -1106,7 +1107,7 @@ function MyBattlesPanel({
               {count > 0 && (
                 <span
                   style={{
-                    background: tab === key ? `${C.blue}22` : "rgba(255,255,255,0.06)",
+                    background: tab === key ? `${withAlpha(C.blue, 0.13)}` : "rgba(255,255,255,0.06)",
                     color: tab === key ? C.blue : C.text3,
                     borderRadius: "100px",
                     padding: "0px 6px",
@@ -1205,7 +1206,7 @@ function MyBattlesPanel({
                         border: "none",
                         borderRadius: "7px",
                         padding: "4px 12px",
-                        color: "#fff",
+                        color: "hsl(var(--primary-foreground))",
                         fontFamily: "Outfit, sans-serif",
                         fontWeight: 700,
                         fontSize: "0.72rem",
@@ -1310,7 +1311,7 @@ function LeaderboardPanel({ entries, classLabel }: { entries: DesignLbEntry[]; c
             </div>
           )}
           {entries.slice(0, 10).map((s) => {
-            const rankColors: Record<number, string> = { 1: C.gold, 2: "#94a3b8", 3: "#cd7f32" };
+            const rankColors: Record<number, string> = { 1: C.gold, 2: "hsl(var(--league-silver))", 3: "hsl(var(--league-bronze))" };
             const rankColor = rankColors[s.rank] || C.text3;
             return (
               <div
@@ -1390,7 +1391,7 @@ function BattleHistoryPanel({
             top: "8px",
             bottom: "8px",
             width: "1px",
-            background: `${C.blue}66`,
+            background: `${withAlpha(C.blue, 0.4)}`,
           }}
         />
         {entries.length === 0 && (
@@ -1438,8 +1439,8 @@ function BattleHistoryPanel({
                     width: "36px",
                     height: "36px",
                     borderRadius: "8px",
-                    background: won ? `${C.green}18` : lost ? `${C.red}18` : "rgba(255,255,255,0.06)",
-                    border: `1px solid ${won ? C.green : lost ? C.red : C.border}33`,
+                    background: won ? `${withAlpha(C.green, 0.09)}` : lost ? `${withAlpha(C.red, 0.09)}` : "rgba(255,255,255,0.06)",
+                    border: `1px solid ${withAlpha(won ? C.green : lost ? C.red : C.border, 0.2)}`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1555,7 +1556,7 @@ function AchievementsPanel({ onSeeAll }: { onSeeAll?: () => void }) {
       }),
     [earnedCodes],
   );
-  const rarityColor = { common: "#94a3b8", rare: C.blue, epic: C.purple, legendary: C.gold };
+  const rarityColor = { common: C.text3, rare: C.blue, epic: C.purple, legendary: C.gold };
   const rarityLabel = { common: "Common", rare: "Rare", epic: "Epic", legendary: "Legendary" };
   const unlockedCount = items.filter((a) => a.unlocked).length;
 
@@ -1596,8 +1597,8 @@ function AchievementsPanel({ onSeeAll }: { onSeeAll?: () => void }) {
               key={a.id}
               className="badge-card"
               style={{
-                background: a.unlocked ? `${rc}12` : "rgba(255,255,255,0.03)",
-                border: `1px solid ${a.unlocked ? `${rc}33` : C.border}`,
+                background: a.unlocked ? `${withAlpha(rc, 0.07)}` : "rgba(255,255,255,0.03)",
+                border: `1px solid ${a.unlocked ? `${withAlpha(rc, 0.2)}` : C.border}`,
                 borderRadius: "12px",
                 padding: "0.9rem",
                 textAlign: "center",
@@ -1660,7 +1661,7 @@ function StatisticsPanel({ me }: { me: MeInfo }) {
       color: C.pink,
       sub: me.draws > 0 ? `${me.draws} draw${me.draws === 1 ? "" : "s"}` : "Keep climbing",
     },
-    { label: "Battle Rating", value: me.rating.toLocaleString(), icon: "📊", color: "#22d3ee", sub: "Derived from XP + wins" },
+    { label: "Battle Rating", value: me.rating.toLocaleString(), icon: "📊", color: "hsl(var(--league-platinum))", sub: "Derived from XP + wins" },
     {
       label: "Class Rank",
       value: me.classRank ? `#${me.classRank}` : "—",
@@ -1679,8 +1680,8 @@ function StatisticsPanel({ me }: { me: MeInfo }) {
             key={label}
             className="battle-card"
             style={{
-              background: `${color}0d`,
-              border: `1px solid ${color}22`,
+              background: `${withAlpha(color, 0.05)}`,
+              border: `1px solid ${withAlpha(color, 0.13)}`,
               borderRadius: "12px",
               padding: "0.9rem 1rem",
             }}
@@ -1876,7 +1877,7 @@ function CreateBattleWizard({
                 fontWeight: 800,
                 fontFamily: "Outfit, sans-serif",
                 background: step === s ? C.blue : step > s ? C.green : "rgba(255,255,255,0.08)",
-                color: "#fff",
+                color: "hsl(var(--primary-foreground))",
               }}
             >
               {step > s ? "✓" : s}
@@ -1921,8 +1922,8 @@ function CreateBattleWizard({
                   gap: "0.85rem",
                   padding: "0.9rem 1rem",
                   borderRadius: "12px",
-                  border: `1px solid ${type === t.key ? `${t.color}55` : C.border}`,
-                  background: type === t.key ? `${t.color}14` : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${type === t.key ? `${withAlpha(t.color, 0.33)}` : C.border}`,
+                  background: type === t.key ? `${withAlpha(t.color, 0.08)}` : "rgba(255,255,255,0.03)",
                   cursor: "pointer",
                   textAlign: "left",
                 }}
@@ -1944,7 +1945,7 @@ function CreateBattleWizard({
                 border: "none",
                 borderRadius: "10px",
                 padding: "0.75rem",
-                color: "#fff",
+                color: "hsl(var(--primary-foreground))",
                 fontFamily: "Outfit, sans-serif",
                 fontWeight: 700,
                 cursor: "pointer",
@@ -1993,7 +1994,7 @@ function CreateBattleWizard({
                       padding: "0.5rem",
                       borderRadius: "8px",
                       border: `1px solid ${difficulty === d ? C.blue : C.border}`,
-                      background: difficulty === d ? `${C.blue}22` : "transparent",
+                      background: difficulty === d ? `${withAlpha(C.blue, 0.13)}` : "transparent",
                       color: difficulty === d ? C.blue : C.text2,
                       fontFamily: "Outfit, sans-serif",
                       fontWeight: 700,
@@ -2044,7 +2045,7 @@ function CreateBattleWizard({
                       padding: "0.5rem",
                       borderRadius: "8px",
                       border: `1px solid ${visibility === v ? C.purple : C.border}`,
-                      background: visibility === v ? `${C.purple}22` : "transparent",
+                      background: visibility === v ? `${withAlpha(C.purple, 0.13)}` : "transparent",
                       color: visibility === v ? C.purple : C.text2,
                       fontFamily: "Outfit, sans-serif",
                       fontWeight: 700,
@@ -2086,7 +2087,7 @@ function CreateBattleWizard({
                   border: "none",
                   borderRadius: "10px",
                   padding: "0.7rem",
-                  color: "#fff",
+                  color: "hsl(var(--primary-foreground))",
                   fontFamily: "Outfit, sans-serif",
                   fontWeight: 700,
                   cursor: "pointer",
@@ -2129,7 +2130,7 @@ function CreateBattleWizard({
                         padding: "0.55rem 0.7rem",
                         borderRadius: "10px",
                         border: `1px solid ${opponentUserId === m.user_id ? C.blue : C.border}`,
-                        background: opponentUserId === m.user_id ? `${C.blue}18` : "transparent",
+                        background: opponentUserId === m.user_id ? `${withAlpha(C.blue, 0.09)}` : "transparent",
                         cursor: "pointer",
                         textAlign: "left",
                       }}
@@ -2147,8 +2148,8 @@ function CreateBattleWizard({
             {realCode && (
               <div
                 style={{
-                  background: `${C.gold}12`,
-                  border: `1px solid ${C.gold}33`,
+                  background: `${withAlpha(C.gold, 0.07)}`,
+                  border: `1px solid ${withAlpha(C.gold, 0.2)}`,
                   borderRadius: "12px",
                   padding: "1rem",
                   textAlign: "center",
@@ -2211,7 +2212,7 @@ function CreateBattleWizard({
                   border: "none",
                   borderRadius: "10px",
                   padding: "0.7rem",
-                  color: "#fff",
+                  color: "hsl(var(--primary-foreground))",
                   fontFamily: "Outfit, sans-serif",
                   fontWeight: 700,
                   cursor: creating ? "wait" : "pointer",
@@ -2588,8 +2589,8 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
           <div
             style={{
-              background: `${C.orange}18`,
-              border: `1px solid ${C.orange}33`,
+              background: `${withAlpha(C.orange, 0.09)}`,
+              border: `1px solid ${withAlpha(C.orange, 0.2)}`,
               borderRadius: "100px",
               padding: "4px 12px",
               display: "flex",
@@ -2607,8 +2608,8 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
           <div
             className="sm-hide"
             style={{
-              background: `${C.purple}18`,
-              border: `1px solid ${C.purple}33`,
+              background: `${withAlpha(C.purple, 0.09)}`,
+              border: `1px solid ${withAlpha(C.purple, 0.2)}`,
               borderRadius: "100px",
               padding: "4px 12px",
               display: "flex",
