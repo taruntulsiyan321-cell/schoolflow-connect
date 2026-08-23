@@ -20,8 +20,8 @@
   --surface-2: #e8eff0;
   --border: #d5e0e2;
   --border-subtle: #e7edef;
-  --navy: #10242c;
-  --navy-mid: #193640;
+  --navy: hsl(var(--card));
+  --navy-mid: hsl(var(--muted));
   --indigo: hsl(var(--primary));
   --indigo-light: #d9ecef;
   --indigo-mid: #80cbd0;
@@ -30,8 +30,8 @@
   --rose: hsl(var(--destructive));
   --emerald: hsl(var(--success));
   --coral: hsl(var(--accent));
-  --violet: #5b7b85;
-  --sky: #80cbd0;
+  --violet: hsl(var(--info));
+  --sky: hsl(var(--primary-glow));
   --text-primary: hsl(var(--foreground));
   --text-secondary: hsl(var(--muted-foreground));
   --text-muted: hsl(var(--muted-foreground));
