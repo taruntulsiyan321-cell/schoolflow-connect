@@ -232,7 +232,7 @@ export default function TeacherApp() {
   };
 
   return (
-    <div className="gurukul-teacher dark flex h-screen bg-[#0d0d0f] text-white overflow-hidden">
+    <div className="gurukul-teacher flex h-screen bg-background text-foreground overflow-hidden">
       <div className="hidden md:flex flex-col shrink-0 h-screen">
         <Sidebar
           {...sidebarProps}

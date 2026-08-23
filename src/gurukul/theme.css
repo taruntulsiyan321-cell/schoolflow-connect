@@ -107,7 +107,6 @@
 /* Page tabs use a legacy dark utility vocabulary. Translate it at the student
    boundary so every tab inherits the same light surfaces and readable text. */
 .gurukul-student [class*="bg-white/"],
-.gurukul-student [class*="bg-black/"],
 .gurukul-student [class*="bg-[#0d0d0f]"],
 .gurukul-student [class*="bg-[#111827]"],
 .gurukul-student [class*="bg-[#0f172a]"] {

@@ -302,7 +302,7 @@ export default function ParentApp() {
   };
 
   return (
-    <div className="gurukul-parent dark flex h-screen bg-[#0d0d0f] overflow-hidden">
+    <div className="gurukul-parent flex h-screen bg-background overflow-hidden">
       <div className="hidden md:flex flex-col shrink-0">
         <Sidebar
           page={page}

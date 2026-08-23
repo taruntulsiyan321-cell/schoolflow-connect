@@ -466,6 +466,12 @@
   [class~="bg-[#c08a3a]"] { background-color: hsl(var(--warning)) !important; }
   [class~="text-[#f97316]"] { color: hsl(var(--accent)) !important; }
   [class~="bg-[#f97316]"] { background-color: hsl(var(--accent)) !important; }
+  [class*="bg-[#0d0d0f]"] { background-color: hsl(var(--background)) !important; }
+  [class*="bg-[#0a0a0c]"] { background-color: hsl(var(--card)) !important; }
+  [class*="bg-[#10242c]"] { background-color: hsl(var(--card)) !important; }
+  [class*="bg-[#193640]"] { background-color: hsl(var(--card)) !important; }
+  [style*="#0d0d0f"] { background: hsl(var(--background)) !important; }
+  [style*="#0a0a0c"] { background: hsl(var(--card)) !important; }
 
   [class~="hover:bg-[#3b5bdb]/10"]:hover { background-color: hsl(var(--primary) / 0.10) !important; }
   [class~="hover:bg-[#3b5bdb]/15"]:hover { background-color: hsl(var(--primary) / 0.15) !important; }

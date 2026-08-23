@@ -1,15 +1,15 @@
-/* Gurukul / Wisdom Campus chat — Chalkboard Signal dark surfaces */
+/* Gurukul / Wisdom Campus chat — Chalkboard Signal light surfaces */
 .chat-panel {
   --chat-primary: #17657a;
   --chat-primary-soft: #80cbd0;
-  --chat-surface: #193640;
-  --chat-surface-2: #10242c;
-  --chat-surface-3: #234852;
-  --chat-muted: #9eb1b4;
-  --chat-faint: #6e8589;
-  --chat-border: #48656b;
-  --chat-border-strong: #607d82;
-  --chat-text: #f4f7f5;
+  --chat-surface: #ffffff;
+  --chat-surface-2: #f3f6f6;
+  --chat-surface-3: #e8eff0;
+  --chat-muted: #52646c;
+  --chat-faint: #7b898f;
+  --chat-border: #d5e0e2;
+  --chat-border-strong: #c3d2d5;
+  --chat-text: #14252d;
   font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
