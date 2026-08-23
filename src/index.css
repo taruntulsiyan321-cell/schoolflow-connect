@@ -67,55 +67,21 @@
     --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-    --sidebar-background: 197 47% 12%;
-    --sidebar-foreground: 140 16% 96%;
-    --sidebar-primary: 184 46% 66%;
-    --sidebar-primary-foreground: 197 47% 12%;
-    --sidebar-accent: 193 40% 23%;
-    --sidebar-accent-foreground: 140 16% 96%;
-    --sidebar-border: 190 20% 35%;
-    --sidebar-ring: 184 46% 66%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 199 38% 13%;
+    --sidebar-primary: 193 68% 28%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 188 41% 89%;
+    --sidebar-accent-foreground: 199 38% 13%;
+    --sidebar-border: 189 18% 86%;
+    --sidebar-ring: 193 68% 28%;
   }
 
 
+  /* The product uses one light workspace. Keep legacy dark-mode markup from
+     splitting a panel into unrelated black and white halves. */
   .dark {
-    --background: 197 47% 12%;
-    --foreground: 140 16% 96%;
-    --card: 195 44% 17%;
-    --card-foreground: 140 16% 96%;
-    --popover: 195 44% 17%;
-    --popover-foreground: 140 16% 96%;
-    --primary: 184 46% 66%;
-    --primary-foreground: 197 47% 12%;
-    --primary-glow: 184 46% 66%;
-    --secondary: 191 40% 26%;
-    --secondary-foreground: 140 16% 96%;
-    --primary-soft: 191 40% 26%;
-    --accent: 12 64% 67%;
-    --accent-foreground: 197 47% 12%;
-    --accent-soft: 12 64% 24%;
-    --warning: 38 65% 65%;
-    --warning-foreground: 197 47% 12%;
-    --warning-soft: 38 65% 22%;
-    --muted: 193 40% 23%;
-    --muted-foreground: 188 13% 66%;
-    --surface-2: 193 40% 23%;
-    --destructive: 3 59% 70%;
-    --destructive-foreground: 197 47% 12%;
-    --destructive-soft: 3 59% 24%;
-    --border: 190 20% 35%;
-    --input: 190 20% 35%;
-    --ring: 184 46% 66%;
-    --success: 148 42% 66%;
-    --success-foreground: 197 47% 12%;
-    --success-soft: 148 42% 22%;
-    --info: 184 46% 66%;
-    --info-foreground: 197 47% 12%;
-    --info-soft: 191 40% 26%;
-    --sidebar-background: 197 47% 12%;
-    --sidebar-primary: 184 46% 66%;
-    --sidebar-accent: 193 40% 23%;
-    --sidebar-border: 190 20% 35%;
+    color-scheme: light;
   }
 }
 
@@ -172,6 +138,13 @@
     --portal-surface-muted: hsl(var(--muted));
     --portal-border: hsl(var(--border));
     --portal-shadow: var(--shadow-card);
+    --navy: hsl(var(--card));
+    --navy-mid: hsl(var(--muted));
+    --sidebar-background: hsl(var(--card));
+    --sidebar-foreground: hsl(var(--foreground));
+    --sidebar-accent: hsl(var(--muted));
+    --sidebar-accent-foreground: hsl(var(--foreground));
+    --sidebar-border: hsl(var(--border));
   }
 
   .gurukul-admin main,
@@ -179,6 +152,22 @@
   .gurukul-teacher main,
   .gurukul-principal main {
     background-color: hsl(var(--background));
+  }
+
+  .gurukul-admin aside,
+  .gurukul-parent aside,
+  .gurukul-teacher aside,
+  .gurukul-principal aside {
+    background: hsl(var(--card)) !important;
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border)) !important;
+  }
+
+  .gurukul-admin [style*="background: var(--navy)"],
+  .gurukul-parent [style*="background: var(--navy)"],
+  .gurukul-teacher [style*="background: var(--navy)"],
+  .gurukul-principal [style*="background: var(--navy)"] {
+    background: hsl(var(--card)) !important;
   }
 
   .gurukul-admin [style*="borderRadius"],

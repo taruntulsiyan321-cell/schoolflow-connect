@@ -1,88 +1,112 @@
-﻿/* Gurukul Student â€” Chalkboard Signal light executive theme */
+/* Wisdom Campus / Gurukul student panel — Chalkboard Signal light shell */
 .gurukul-student {
   --background: 180 14% 96%;
   --foreground: 199 38% 13%;
   --card: 0 0% 100%;
   --card-foreground: 199 38% 13%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 199 38% 13%;
   --primary: 193 68% 28%;
   --primary-foreground: 0 0% 100%;
+  --primary-glow: 184 46% 66%;
+  --secondary: 188 41% 89%;
+  --secondary-foreground: 199 38% 13%;
+  --accent: 9 52% 54%;
+  --accent-foreground: 0 0% 100%;
+  --warning: 35 68% 36%;
+  --warning-foreground: 0 0% 100%;
+  --destructive: 1 37% 48%;
+  --destructive-foreground: 0 0% 100%;
   --muted: 188 21% 93%;
   --muted-foreground: 198 8% 52%;
-  --accent: 9 52% 54%;
-  --warning: 35 68% 36%;
-  --destructive: 1 37% 48%;
+  --border: 189 18% 86%;
+  --input: 189 18% 86%;
+  --ring: 193 68% 28%;
+  --radius: 0.875rem;
   --success: 161 46% 33%;
   --info: 192 52% 34%;
-  --ring: 193 68% 28%;
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 199 38% 13%;
+  --sidebar-primary: 193 68% 28%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 188 41% 89%;
+  --sidebar-accent-foreground: 199 38% 13%;
+  --sidebar-border: 189 18% 86%;
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 
-  --bg: #f3f6f6;
-  --surface: #ffffff;
-  --surface-2: #e8eff0;
-  --border: #d5e0e2;
-  --border-subtle: #e7edef;
-  --navy: #10242c;
-  --navy-mid: #193640;
+  /* Compatibility aliases shared with the principal portal. */
+  --bg: hsl(var(--background));
+  --surface: hsl(var(--card));
+  --surface-2: hsl(var(--muted));
+  --text-primary: hsl(var(--foreground));
+  --text-secondary: hsl(var(--muted-foreground));
+  --text-muted: hsl(var(--muted-foreground));
+  --navy: hsl(var(--card));
+  --navy-mid: hsl(var(--muted));
   --indigo: hsl(var(--primary));
-  --indigo-light: #d9ecef;
-  --indigo-mid: #80cbd0;
+  --indigo-light: hsl(var(--secondary));
+  --indigo-mid: hsl(var(--primary-glow));
   --teal: hsl(var(--info));
   --amber: hsl(var(--warning));
   --rose: hsl(var(--destructive));
   --emerald: hsl(var(--success));
   --coral: hsl(var(--accent));
-  --violet: #5b7b85;
-  --sky: #80cbd0;
-  --text-primary: hsl(var(--foreground));
-  --text-secondary: hsl(var(--muted-foreground));
-  --text-muted: hsl(var(--muted-foreground));
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
-  --shadow-sm: 0 1px 3px rgba(20, 37, 45, 0.07), 0 1px 2px rgba(20, 37, 45, 0.05);
-  --shadow: 0 4px 16px rgba(20, 37, 45, 0.09), 0 1px 4px rgba(20, 37, 45, 0.05);
-  --shadow-lg: 0 8px 32px rgba(20, 37, 45, 0.13), 0 2px 8px rgba(20, 37, 45, 0.06);
 
   min-height: 100vh;
-  background: var(--bg);
-  color: var(--text-primary);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-family: var(--font-body);
-  -webkit-font-smoothing: antialiased;
 }
 
-.gurukul-student h1,
-.gurukul-student h2,
-.gurukul-student h3,
-.gurukul-student h4 {
+/* The student shell still carries its original dark utility classes. Keep
+   those functional classes, but make the shared light theme authoritative. */
+.gurukul-student > div,
+.gurukul-student [style*="#0d0d0f"],
+.gurukul-student [class*="bg-[#0d0d0f]"] {
+  background: hsl(var(--background)) !important;
+}
+
+.gurukul-student aside,
+.gurukul-student aside[class*="bg-[#0d0d0f]"],
+.gurukul-student header[class*="bg-[#0d0d0f]"] {
+  background: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+.gurukul-student header {
+  background: hsl(var(--card) / 0.94) !important;
+  border-color: hsl(var(--border)) !important;
+}
+
+.gurukul-student aside [class*="border-white"],
+.gurukul-student header [class*="border-white"] {
+  border-color: hsl(var(--border)) !important;
+}
+
+.gurukul-student aside [class*="text-white"],
+.gurukul-student header [class*="text-white"] {
+  color: hsl(var(--foreground)) !important;
+}
+
+.gurukul-student aside [class*="text-[#78788c]"],
+.gurukul-student header [class*="text-[#78788c]"] {
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.gurukul-student aside [class*="bg-white/5"],
+.gurukul-student header [class*="bg-white/5"] {
+  background: hsl(var(--muted)) !important;
+}
+
+.gurukul-student aside [style*="linear-gradient"] {
+  background: hsl(var(--primary)) !important;
+}
+
+.gurukul-student h1, .gurukul-student h2, .gurukul-student h3, .gurukul-student h4 {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
 }
-
-.gurukul-student button,
-.gurukul-student input,
-.gurukul-student select,
-.gurukul-student textarea {
-  font-family: inherit;
-}
-
-.gurukul-student .font-display {
-  font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
-}
-
-.gurukul-student .font-mono-data {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-}
-
-.gurukul-student ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
-.gurukul-student ::-webkit-scrollbar-track {
-  background: transparent;
-}
-.gurukul-student ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 2px;
-}
-.gurukul-student ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
+.gurukul-student ::-webkit-scrollbar { width: 6px; height: 6px; }
+.gurukul-student ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 999px; }
