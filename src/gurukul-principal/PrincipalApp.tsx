@@ -20,6 +20,7 @@ import {
   PrincipalHomeworkLive,
 } from './PrincipalLiveAcademic'
 import PrincipalMessages from './Messages'
+import PrincipalDashboard from './PrincipalDashboard'
 import LeaveRequests from '../gurukul-admin/LeaveRequests'
 import { InquiriesReport, ComplaintsReport } from '@/pages/shared/OperationalCases'
 import {
@@ -687,7 +688,7 @@ export default function PrincipalApp() {
 
         <div style={{ padding: page === 'messages' ? '28px 32px 0' : '28px 32px' }}>
           <Routes>
-            <Route index element={<DashboardPage />} />
+            <Route index element={<PrincipalDashboard />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="teachers" element={<TeachersPage />} />
             <Route path="students" element={<StudentsPage />} />
