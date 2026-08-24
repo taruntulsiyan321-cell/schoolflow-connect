@@ -1,0 +1,6 @@
+export { AttendanceHero } from './AttendanceHero'
+export { NeedsDecision } from './NeedsDecision'
+export { ClassWatchlist } from './ClassWatchlist'
+export { HomeworkBlock } from './HomeworkBlock'
+export { AcademicsAhead } from './AcademicsAhead'
+export { RecentUploads } from './RecentUploads'
