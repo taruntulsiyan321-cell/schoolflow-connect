@@ -6,19 +6,37 @@ export const CONCEPT_MASTERY_LABEL = "Concept mastery";
 export const STUDY_CONSISTENCY_LABEL = "Study consistency";
 
 /**
- * Product overall accuracy SSOT for Home / Practice / Analysis / Nova / Battleground chrome.
- * Source: `rpc_student_academic_snapshot` → `exam_readiness.accuracy_pct` only.
+ * Practice-only accuracy SSOT, for anything labelled PRACTICE_ACCURACY_LABEL.
+ * Source: `rpc_student_academic_snapshot` → `exam_readiness.practice_accuracy_pct`,
+ * which `_exam_readiness()` computes straight from `question_attempts`.
+ *
+ * Deliberately NOT `accuracy_pct`: that field is a *blend* of DPP accuracy and
+ * practice accuracy (`_acc := (dpp_acc + practice_acc) / 2`), so reading it here
+ * reported a number the student never scored in practice — e.g. 100% DPP + 66.7%
+ * practice surfaced as an "83% practice accuracy" tile. Use
+ * `overallAccuracyFromSnapshot` when the blend is what's actually wanted.
+ *
  * Never average charts subjects, mastery attempt ratios, or battle Q&A counters here.
  * XP / level / study streak remain ProgressionService (`rpc_get_student_progression`).
  */
 export function practiceAccuracyFromSnapshot(snap: AcademicSnapshot | null | undefined): number {
-  const raw = snap?.exam_readiness?.accuracy_pct;
+  const readiness = snap?.exam_readiness;
+  // Fall back to the blend only for snapshots predating practice_accuracy_pct.
+  const raw = readiness?.practice_accuracy_pct ?? readiness?.accuracy_pct;
   if (raw == null || Number.isNaN(Number(raw))) return 0;
   return Math.round(Number(raw));
 }
 
-/** Alias — same SSOT as practiceAccuracyFromSnapshot. */
-export const overallAccuracyFromSnapshot = practiceAccuracyFromSnapshot;
+/**
+ * Blended DPP + practice accuracy — the "overall accuracy" used by Analysis totals
+ * and Battleground chrome. Distinct metric from practiceAccuracyFromSnapshot; these
+ * two were aliased to the same function, which is what mislabelled the practice tiles.
+ */
+export function overallAccuracyFromSnapshot(snap: AcademicSnapshot | null | undefined): number {
+  const raw = snap?.exam_readiness?.accuracy_pct;
+  if (raw == null || Number.isNaN(Number(raw))) return 0;
+  return Math.round(Number(raw));
+}
 
 /** Active study days in the last 14 days. */
 export function studyActiveDaysFromSnapshot(snap: AcademicSnapshot | null | undefined): number {

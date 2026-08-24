@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { useAcademicContext, useAcademicLive } from "@/academic";
 import { useLatestEffect } from "@/hooks/useLatestEffect";
-import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import { overallAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import {
   accuracyFromXp,
@@ -403,7 +403,7 @@ export function useBattlegroundData(enabled = true) {
       const mates = matesRes.data;
 
       setProductAccuracy(
-        practiceAccuracyFromSnapshot(
+        overallAccuracyFromSnapshot(
           (snapRes.error ? null : snapRes.data) as AcademicSnapshot | null,
         ),
       );

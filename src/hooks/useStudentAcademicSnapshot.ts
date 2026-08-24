@@ -30,7 +30,11 @@ export type AcademicSnapshot = {
     label: string;
     tone: string;
     attendance_pct?: number;
+    /** Blended DPP + practice accuracy. NOT practice accuracy on its own. */
     accuracy_pct?: number;
+    /** Practice-only accuracy, straight from question_attempts. */
+    practice_accuracy_pct?: number;
+    dpp_completion_pct?: number;
     active_days_14d?: number;
   };
 };

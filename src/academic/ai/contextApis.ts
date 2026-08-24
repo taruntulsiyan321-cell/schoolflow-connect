@@ -107,15 +107,33 @@ export async function projectAttendanceQuery(
   studentId: string,
 ): Promise<AttendanceQueryProjection> {
   await assertMayAccessStudent(ctx, studentId);
-  const rows = await AttendanceService.listForStudent(ctx, studentId, { limit: 120 });
+  const [rows, profile] = await Promise.all([
+    AttendanceService.listForStudent(ctx, studentId, { limit: 120 }),
+    AcademicProfileService.get(ctx, studentId),
+  ]);
   const counts = { present: 0, absent: 0, late: 0, leave: 0, half_day: 0 };
   for (const r of rows) {
     if (r.status in counts) counts[r.status as keyof typeof counts] += 1;
   }
   const total = rows.length;
-  const attendance_pct = total
-    ? Math.round(((counts.present + counts.late * 0.5 + counts.half_day * 0.5) / total) * 1000) / 10
-    : 0;
+
+  // Attendance % is whatever student_academic_profiles says — the same value the
+  // student's own Attendance page and the Home tile render. Nova must never derive
+  // its own: this projection previously computed
+  //   (present + 0.5*late + 0.5*half_day) / total
+  // while the authoritative SQL (refresh_student_academic_profile, _exam_readiness)
+  // counts present only, so Nova told the student a different number than the app
+  // showed them — 57.1% vs 42.9% on the same 7 records. The recomputation was also
+  // capped at the 120 most recent rows while the profile spans every record.
+  // Only fall back to a local count when no profile row exists yet, and match the
+  // authoritative formula exactly when doing so.
+  const attendance_pct =
+    profile && (profile.attendanceTotal ?? 0) > 0
+      ? profile.attendancePct
+      : total
+        ? Math.round((counts.present / total) * 1000) / 10
+        : 0;
+  const total_marked = profile?.attendanceTotal ?? total;
   const latest = rows[0]?.date ?? null;
   return {
     projection: "StudentAttendanceQuery",
@@ -123,7 +141,7 @@ export async function projectAttendanceQuery(
     studentId,
     schoolId: ctx.schoolId,
     ...counts,
-    total_marked: total,
+    total_marked,
     attendance_pct,
     recent: rows.slice(0, 14).map((r) => ({ date: r.date, status: r.status })),
     ...meta(latest, `att:${studentId}:${total}:${latest ?? "none"}`, total > 0 ? 1 : 0),

@@ -108,6 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         contextRequestId.current += 1;
         setCtx(null);
         bootstrapped.current = null;
+        // Also fires on token expiry, another tab signing out, and server-side
+        // revocation — not just the signOut() button — so the caches have to be
+        // dropped here too or the next user on this device reads them.
+        clearClientAuthCaches();
+        queryClient.clear();
         setLoading(false);
         return;
       }
@@ -146,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     return () => sub.subscription.unsubscribe();
-  }, [applyContext]);
+  }, [applyContext, queryClient]);
 
   const signIn = useCallback(async ({ email, password }: SignInCredentials) => {
     const { error } = await supabase.auth.signInWithPassword({

@@ -53,7 +53,7 @@ export default function Attendance() {
         if (settled.every((s) => s.status === "rejected")) {
           toast({
             title: "Could not load attendance",
-            description: "Showing zeros until Academic Engine responds.",
+            description: "Showing zeros until your attendance records load.",
             variant: "destructive",
           });
         } else if (settled.some((s) => s.status === "rejected")) {
@@ -91,10 +91,32 @@ export default function Attendance() {
   }, [records]);
 
   const col = pct >= 90 ? "#4aa87a" : pct >= 75 ? "#c08a3a" : "#cc5069";
-  const calendarDays = useMemo(
-    () => [...records].sort((a, b) => a.date.localeCompare(b.date)),
-    [records],
-  );
+  // Group by calendar month, newest month first. A flat day-number grid was
+  // ambiguous the moment records spanned a month boundary: only the day-of-month
+  // was rendered, so a 2020-01-02 row sat next to 2026-08-06/07 as "2 6 7" with
+  // nothing on screen distinguishing them. Grouping under an explicit month
+  // heading also makes the "Recent attendance" label honest — it previously
+  // rendered every record ever, not recent ones.
+  const monthGroups = useMemo(() => {
+    const byMonth = new Map<string, typeof records>();
+    for (const r of records) {
+      const key = r.date.slice(0, 7); // YYYY-MM
+      const bucket = byMonth.get(key);
+      if (bucket) bucket.push(r);
+      else byMonth.set(key, [r]);
+    }
+    return [...byMonth.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .slice(0, RECENT_MONTHS)
+      .map(([month, rows]) => ({
+        month,
+        label: new Date(`${month}-01T00:00:00`).toLocaleDateString(undefined, {
+          month: "long",
+          year: "numeric",
+        }),
+        days: [...rows].sort((a, b) => a.date.localeCompare(b.date)),
+      }));
+  }, [records]);
 
   if (!ready || loading) {
     return (
@@ -117,7 +139,7 @@ export default function Attendance() {
       <GlassCard glow={pct >= 90 ? "green" : "amber"} className="p-6 flex items-center gap-6">
         <OverallRing pct={pct} col={col} />
         <div>
-          <div className="text-sm text-muted-foreground mb-0.5">Overall attendance (Academic Engine)</div>
+          <div className="text-sm text-muted-foreground mb-0.5">Overall attendance</div>
           <div className="text-4xl font-black" style={{ color: col, fontFamily: "var(--font-display)" }}>
             {pct}%
           </div>
@@ -162,7 +184,7 @@ export default function Attendance() {
       </GlassCard>
 
       <GlassCard className="p-5">
-        <SectionLabel>Status breakdown (from AttendanceService)</SectionLabel>
+        <SectionLabel>Status breakdown</SectionLabel>
         <div className="space-y-3">
           {Object.entries(byStatus).map(([status, count]) => {
             const share = total ? Math.round((count / Math.max(records.length, 1)) * 100) : 0;

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { clearAppStorage } from "@/lib/clientStorage";
 import type { AuthContextData, AppRole } from "./types";
 
 type AuthContextRow = {
@@ -163,14 +164,5 @@ export async function loadAuthContext(userId: string): Promise<AuthContextData |
 
 /** Clear client-side caches that may hold tenant/user data */
 export function clearClientAuthCaches() {
-  try {
-    const keys = Object.keys(localStorage);
-    for (const key of keys) {
-      if (key.startsWith("gurukul:") || key.startsWith("sf-cache:")) {
-        localStorage.removeItem(key);
-      }
-    }
-  } catch {
-    /* ignore */
-  }
+  clearAppStorage();
 }

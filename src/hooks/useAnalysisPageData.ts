@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ProgressionService, resolveStudentServiceContext, useAcademicLive } from "@/academic";
 import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
-import { practiceAccuracyFromSnapshot } from "@/lib/learningMetrics";
+import { overallAccuracyFromSnapshot } from "@/lib/learningMetrics";
 import type { AcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { toErrorMessage } from "@/lib/presentation";
 
@@ -179,8 +179,9 @@ export function useAnalysisPageData(enabled = true) {
       }
 
       const wrong = Math.max(0, totalAttempts - correct);
-      // Overall accuracy SSOT: academic snapshot exam_readiness — same as Home shell.
-      const accuracy_pct = practiceAccuracyFromSnapshot(
+      // Overall accuracy SSOT: academic snapshot exam_readiness.accuracy_pct (the
+      // DPP + practice blend), not the practice-only figure.
+      const accuracy_pct = overallAccuracyFromSnapshot(
         (snapRes.error ? null : snapRes.data) as AcademicSnapshot | null,
       );
 
