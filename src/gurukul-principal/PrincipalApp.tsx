@@ -689,7 +689,7 @@ export default function PrincipalApp() {
 
         <div style={{ padding: page === 'messages' ? '28px 32px 0' : '28px 32px' }}>
           <Routes>
-            <Route index element={<PrincipalDashboardRedesigned />} />
+            <Route index element={<DashboardPage />} />
             <Route path="analytics" element={<AnalyticsPage />} />
             <Route path="teachers" element={<TeachersPage />} />
             <Route path="students" element={<StudentsPage />} />
