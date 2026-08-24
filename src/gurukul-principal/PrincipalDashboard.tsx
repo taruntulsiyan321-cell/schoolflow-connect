@@ -2,6 +2,9 @@ import { useDashboardDrillDown } from './DashboardDrillDown'
 import { AttendanceHeroBlock } from './dashboard-blocks/AttendanceHeroBlock'
 import { PendingDecisionsBlock } from './dashboard-blocks/PendingDecisionsBlock'
 import { HomeworkCompletionBlock } from './dashboard-blocks/HomeworkCompletionBlock'
+import { UpcomingBlock } from './dashboard-blocks/UpcomingBlock'
+import { NeedsAttentionBlock } from './dashboard-blocks/NeedsAttentionBlock'
+import { ChronicAbsenteesBlock } from './dashboard-blocks/ChronicAbsenteesBlock'
 import { PrincipalClassRollups } from './PrincipalLiveAcademic'
 
 /**
@@ -44,43 +47,20 @@ export default function PrincipalDashboard() {
             <HomeworkCompletionBlock onDrillToClasses={() => drillToClass('homework')} />
           </div>
 
-          {/* D. Upcoming - TODO */}
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-          }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>
-              Upcoming
-            </h2>
-            <p style={{ fontSize: '13px', color: '#9CA3AF' }}>Next exams, events, and marks not uploaded</p>
-          </div>
+          {/* D. Upcoming */}
+          <UpcomingBlock />
 
-          {/* E. Needs Attention - TODO */}
+          {/* E, F - Bottom row in two-column grid */}
           <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))',
+            gap: '24px',
           }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>
-              Needs Attention
-            </h2>
-            <p style={{ fontSize: '13px', color: '#9CA3AF' }}>Auto-computed flags (should be empty most days)</p>
-          </div>
+            {/* E. Needs Attention */}
+            <NeedsAttentionBlock />
 
-          {/* F. Chronic Absentees - TODO */}
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-          }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>
-              Chronic Absentees
-            </h2>
-            <p style={{ fontSize: '13px', color: '#9CA3AF' }}>Students below threshold across the term</p>
+            {/* F. Chronic Absentees */}
+            <ChronicAbsenteesBlock />
           </div>
         </div>
       )}
