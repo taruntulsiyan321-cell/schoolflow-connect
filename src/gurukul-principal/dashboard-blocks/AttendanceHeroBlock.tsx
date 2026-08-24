@@ -202,24 +202,35 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
         )}
       </div>
 
-      {/* Hero Percentage */}
+      {/* Hero Percentage - Clickable */}
       <button
         onClick={onDrillToClasses}
         style={{
-          background: 'none',
+          background: 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 100%)',
           border: 'none',
           cursor: 'pointer',
-          padding: 0,
+          padding: '12px',
           marginBottom: '0',
           width: '100%',
           textAlign: 'left',
+          borderRadius: '8px',
+          transition: 'all 0.2s ease',
+          position: 'relative',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = `linear-gradient(135deg, ${color}08 0%, ${color}15 100%)`
+          e.currentTarget.style.transform = 'scale(1.02)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.5) 100%)'
+          e.currentTarget.style.transform = 'scale(1)'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '8px' }}>
           <div
             className="font-mono-data"
             style={{
-              fontSize: '42px',
+              fontSize: '48px',
               fontWeight: 800,
               color,
               lineHeight: 1,
@@ -227,11 +238,22 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
           >
             {percentage.toFixed(1)}%
           </div>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#1F2937' }}>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
             {presentCount} present
           </div>
+          <div style={{
+            fontSize: '10px',
+            color: '#9CA3AF',
+            fontWeight: 500,
+            marginLeft: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            Click to drill down →
+          </div>
         </div>
-        <div style={{ fontSize: '11px', color: '#6B7280' }}>
+        <div style={{ fontSize: '12px', color: '#6B7280' }}>
           {markedClasses} of {totalClasses} classes marked • {absentCount} absent
         </div>
       </button>

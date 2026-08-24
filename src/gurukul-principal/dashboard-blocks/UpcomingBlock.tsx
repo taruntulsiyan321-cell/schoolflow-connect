@@ -150,37 +150,49 @@ export function UpcomingBlock() {
 
   // Compact collapsed
   if (!expanded) {
+    const hasOverdue = overdueMarks.length > 0
     return (
       <button
         onClick={() => setExpanded(true)}
         style={{
           background: 'white',
           borderRadius: '8px',
-          padding: '12px 16px',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-          border: '2px solid #f3f4f6',
+          padding: '16px 20px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
+          border: hasOverdue ? '2px solid #fef2f2' : '2px solid #f3f4f6',
+          borderLeft: hasOverdue ? '4px solid #f59e0b' : '4px solid #3b82f6',
           width: '100%',
           textAlign: 'left',
           cursor: 'pointer',
-          transition: 'all 0.2s',
+          transition: 'all 0.2s ease',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+          e.currentTarget.style.transform = 'translateY(-2px)'
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(59,130,246,0.15)'
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
+          e.currentTarget.style.transform = 'translateY(0)'
+          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
               UPCOMING
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 600, color: '#1F2937' }}>
-              {upcomingItems.length} exams{overdueMarks.length > 0 && `, ${overdueMarks.length} marks pending`}
+            <div style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937' }}>
+              {upcomingItems.length} exam{upcomingItems.length !== 1 ? 's' : ''} scheduled
             </div>
+            {hasOverdue && (
+              <div style={{ fontSize: '12px', color: '#f59e0b', marginTop: '4px', fontWeight: 500 }}>
+                ⚠ {overdueMarks.length} marks pending upload
+              </div>
+            )}
           </div>
-          <ChevronDown size={18} color="#9CA3AF" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+            <ChevronDown size={20} color="#9CA3AF" />
+            <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 500 }}>Click to expand</div>
+          </div>
         </div>
       </button>
     )

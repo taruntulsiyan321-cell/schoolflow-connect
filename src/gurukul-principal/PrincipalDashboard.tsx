@@ -25,42 +25,58 @@ export default function PrincipalDashboard() {
   const { drillState, drillToClass, drillToStudent, BreadcrumbComponent } = useDashboardDrillDown()
 
   return (
-    <div style={{ padding: '16px 12px', background: '#F8F9FA', minHeight: '100vh', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: '20px 16px', background: '#F8F9FA', minHeight: '100vh', maxWidth: '1400px', margin: '0 auto' }}>
       <BreadcrumbComponent />
 
       {/* School-level view - Six blocks in attention order */}
       {drillState.level === 'school' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {/* A. Today's Attendance - THE HERO */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* A. Today's Attendance - THE HERO (Always visible) */}
           <AttendanceHeroBlock onDrillToClasses={() => drillToClass('attendance')} />
 
-          {/* Two-column grid for remaining blocks (mobile: stack, desktop: 2-col) */}
+          {/* Two-column grid with stable layout */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))',
-            gap: '12px',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '16px',
+            '@media (max-width: 768px)': {
+              gridTemplateColumns: '1fr',
+            }
           }}>
             {/* B. Pending Decisions */}
-            <PendingDecisionsBlock />
+            <div style={{ minHeight: '120px' }}>
+              <PendingDecisionsBlock />
+            </div>
 
             {/* C. Homework Completion */}
-            <HomeworkCompletionBlock onDrillToClasses={() => drillToClass('homework')} />
+            <div style={{ minHeight: '120px' }}>
+              <HomeworkCompletionBlock onDrillToClasses={() => drillToClass('homework')} />
+            </div>
           </div>
 
-          {/* D. Upcoming */}
-          <UpcomingBlock />
+          {/* D. Upcoming - Full width */}
+          <div style={{ minHeight: '120px' }}>
+            <UpcomingBlock />
+          </div>
 
-          {/* E, F - Bottom row in two-column grid */}
+          {/* E, F - Bottom row */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))',
-            gap: '12px',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: '16px',
+            '@media (max-width: 768px)': {
+              gridTemplateColumns: '1fr',
+            }
           }}>
             {/* E. Needs Attention */}
-            <NeedsAttentionBlock />
+            <div style={{ minHeight: '120px' }}>
+              <NeedsAttentionBlock />
+            </div>
 
             {/* F. Chronic Absentees */}
-            <ChronicAbsenteesBlock />
+            <div style={{ minHeight: '120px' }}>
+              <ChronicAbsenteesBlock />
+            </div>
           </div>
         </div>
       )}

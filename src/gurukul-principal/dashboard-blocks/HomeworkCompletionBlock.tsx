@@ -95,35 +95,40 @@ export function HomeworkCompletionBlock({ onDrillToClasses }: HomeworkBlockProps
         style={{
           background: 'white',
           borderRadius: '8px',
-          padding: '12px 16px',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          padding: '16px 20px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
           border: `2px solid ${color}15`,
           borderLeft: `4px solid ${color}`,
           width: '100%',
           textAlign: 'left',
           cursor: 'pointer',
-          transition: 'all 0.2s',
+          transition: 'all 0.2s ease',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+          e.currentTarget.style.transform = 'translateY(-2px)'
+          e.currentTarget.style.boxShadow = `0 4px 12px ${color}30`
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
+          e.currentTarget.style.transform = 'translateY(0)'
+          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>
-              HOMEWORK (7-DAY)
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              HOMEWORK COMPLETION
             </div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-              <div className="font-mono-data" style={{ fontSize: '28px', fontWeight: 700, color }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+              <div className="font-mono-data" style={{ fontSize: '36px', fontWeight: 700, color, lineHeight: 1 }}>
                 {Math.round(schoolRate)}%
               </div>
-              <div style={{ fontSize: '11px', color: '#6B7280' }}>school avg</div>
+              <div style={{ fontSize: '13px', color: '#6B7280', fontWeight: 500 }}>7-day average</div>
             </div>
           </div>
-          <ChevronDown size={18} color="#9CA3AF" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+            <ChevronDown size={20} color="#9CA3AF" />
+            <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 500 }}>Click to expand</div>
+          </div>
         </div>
       </button>
     )

@@ -119,44 +119,54 @@ export function NeedsAttentionBlock() {
         style={{
           background: 'white',
           borderRadius: '8px',
-          padding: '12px 16px',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          padding: '16px 20px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
           border: '2px solid #fef2f2',
           borderLeft: '4px solid #ef4444',
           width: '100%',
           textAlign: 'left',
           cursor: 'pointer',
-          transition: 'all 0.2s',
+          transition: 'all 0.2s ease',
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+          e.currentTarget.style.transform = 'translateY(-2px)'
+          e.currentTarget.style.boxShadow = '0 4px 12px rgba(239,68,68,0.15)'
+          e.currentTarget.style.borderColor = '#fee2e2'
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
+          e.currentTarget.style.transform = 'translateY(0)'
+          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.06)'
+          e.currentTarget.style.borderColor = '#fef2f2'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
             <div style={{
               background: '#ef4444',
               color: 'white',
-              fontSize: '11px',
+              fontSize: '12px',
               fontWeight: 700,
-              padding: '3px 8px',
-              borderRadius: '10px',
+              padding: '4px 10px',
+              borderRadius: '12px',
+              minWidth: '28px',
+              textAlign: 'center',
+              boxShadow: '0 2px 4px rgba(239,68,68,0.3)',
             }}>
               {items.length}
             </div>
-            <div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
                 Needs Attention
               </div>
-              <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '2px' }}>
+              <div style={{ fontSize: '12px', color: '#6B7280' }}>
                 Classes below threshold
               </div>
             </div>
           </div>
-          <ChevronDown size={18} color="#9CA3AF" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+            <ChevronDown size={20} color="#9CA3AF" />
+            <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 500 }}>Click to expand</div>
+          </div>
         </div>
       </button>
     )
