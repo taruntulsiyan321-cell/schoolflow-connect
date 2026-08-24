@@ -161,7 +161,7 @@ function Sidebar({
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold text-foreground truncate">{displayName || "Teacher"}</div>
-              <div className="text-[9px] text-muted-foreground truncate">{employeeId || "â€”"}</div>
+              <div className="text-[9px] text-muted-foreground truncate">{employeeId || "—"}</div>
             </div>
           </div>
           {onSignOut && (
@@ -213,7 +213,7 @@ export default function TeacherApp() {
   }, [ready, ctx, messageLive, page]);
 
   const displayName = identity.name || "Teacher";
-  const employeeId = identity.employeeId || "â€”";
+  const employeeId = identity.employeeId || "—";
   const initials = teacherInitials(displayName, "?");
 
   const handleSignOut = async () => {
@@ -269,7 +269,7 @@ export default function TeacherApp() {
             <div className="min-w-0">
               <div className="text-sm font-black text-foreground truncate">{TEACHER_PAGE_TITLES[page]}</div>
               <div className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                {displayName} Â· {employeeId}
+                {displayName} · {employeeId}
               </div>
             </div>
           </div>

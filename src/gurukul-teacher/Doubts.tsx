@@ -52,7 +52,7 @@ function parseClassLabel(label: string): { className: string; section: string } 
   if (parts.length >= 2) {
     return { className: parts.slice(0, -1).join(" "), section: parts[parts.length - 1] };
   }
-  return { className: label || "â€”", section: "" };
+  return { className: label || "—", section: "" };
 }
 
 function AttachmentChips({ rows }: { rows: DoubtAttachmentRow[] }) {
@@ -130,7 +130,7 @@ export default function Doubts() {
     };
   }, [ready, ctx]);
 
-  // Triage queue â€” rpc_teacher_doubt_dashboard() is already deployed and
+  // Triage queue — rpc_teacher_doubt_dashboard() is already deployed and
   // RLS-scoped; this was the first frontend caller. Independent of the
   // filtered list below, so it loads (and refreshes on realtime doubt
   // events) on its own.
@@ -236,7 +236,7 @@ export default function Doubts() {
   );
 
   // Deterministic urgency (age + visibility) over the already-ranked attention
-  // set from rpc_teacher_doubt_dashboard â€” top 5 shown, highest score first.
+  // set from rpc_teacher_doubt_dashboard — top 5 shown, highest score first.
   const triage = useMemo(
     () =>
       attention
@@ -331,7 +331,7 @@ export default function Doubts() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading doubtsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading doubts…
       </div>
     );
   }
@@ -342,7 +342,7 @@ export default function Doubts() {
         <div>
           <div className="text-sm font-bold text-foreground">Student Doubts</div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {openCount} open Â· only your assigned class + subject
+            {openCount} open · only your assigned class + subject
           </div>
           {error && <div className="text-[10px] text-[#cc5069] mt-1">{error}</div>}
         </div>
@@ -351,7 +351,7 @@ export default function Doubts() {
       {triage.length > 0 && (
         <div className="rounded-2xl border border-[#cc5069]/20 bg-[#cc5069]/5 p-4">
           <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#f0a1b0] mb-3">
-            <Flame className="w-3.5 h-3.5" /> Needs attention â€” oldest / most-viewed unanswered first
+            <Flame className="w-3.5 h-3.5" /> Needs attention — oldest / most-viewed unanswered first
           </div>
           <div className="space-y-2">
             {triage.map(({ row, urgency }) => (
@@ -365,8 +365,8 @@ export default function Doubts() {
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-semibold text-foreground truncate">{row.title || row.body}</div>
                   <div className="text-[9px] text-muted-foreground mt-0.5">
-                    {row.student_name} Â· {row.subject} Â· {urgency.age_hours < 1 ? "just now" : `${Math.round(urgency.age_hours)}h ago`}
-                    {urgency.view_count > 0 ? ` Â· ${urgency.view_count} views` : ""}
+                    {row.student_name} · {row.subject} · {urgency.age_hours < 1 ? "just now" : `${Math.round(urgency.age_hours)}h ago`}
+                    {urgency.view_count > 0 ? ` · ${urgency.view_count} views` : ""}
                   </div>
                 </div>
               </button>
@@ -378,7 +378,7 @@ export default function Doubts() {
       {assignments.length === 0 && (
         <div className="flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-2.5 text-[11px] text-amber-200">
           <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          No classâ€“subject assignments found on your teacher profile. Doubts will stay empty until
+          No class–subject assignments found on your teacher profile. Doubts will stay empty until
           you are mapped in teacher classes.
         </div>
       )}
@@ -389,7 +389,7 @@ export default function Doubts() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search doubtsâ€¦"
+            placeholder="Search doubts…"
             className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
@@ -413,7 +413,7 @@ export default function Doubts() {
           <option value="all">All assignments</option>
           {assignments.map((a) => (
             <option key={`${a.classId}::${a.subject}`} value={`${a.classId}::${a.subject}`}>
-              {a.className} {a.section} Â· {a.subject}
+              {a.className} {a.section} · {a.subject}
             </option>
           ))}
         </select>
@@ -465,7 +465,7 @@ export default function Doubts() {
                       {status}
                     </span>
                     <span className="text-[9px] text-muted-foreground">
-                      {className} {section} Â· {row.subject || "â€”"}
+                      {className} {section} · {row.subject || "—"}
                     </span>
                   </div>
                   <div className="text-[10px] text-[#b0b0c0] mt-1 line-clamp-2 leading-relaxed">
@@ -550,8 +550,8 @@ export default function Doubts() {
                           </div>
                           <AttachmentChips rows={answerAttachments[r.id] ?? []} />
                           <div className="text-[9px] text-muted-foreground mt-1">
-                            {r.author_name} Â· {new Date(r.created_at).toLocaleString("en-IN")}
-                            {row.solved_by_answer_id === r.id ? " Â· first answer" : ""}
+                            {r.author_name} · {new Date(r.created_at).toLocaleString("en-IN")}
+                            {row.solved_by_answer_id === r.id ? " · first answer" : ""}
                           </div>
                         </div>
                       </div>
@@ -566,7 +566,7 @@ export default function Doubts() {
                           setReplyText((p) => ({ ...p, [row.id]: e.target.value }))
                         }
                         rows={2}
-                        placeholder="Type your replyâ€¦ (allowed even after solved)"
+                        placeholder="Type your reply… (allowed even after solved)"
                         className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
                       />
                       <div className="flex flex-wrap items-center gap-2">

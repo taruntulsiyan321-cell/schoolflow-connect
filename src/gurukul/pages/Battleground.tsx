@@ -35,6 +35,7 @@ import { displayChapter, displaySubject, humanizeAcademicLabel } from "@/lib/aca
 import { PracticeService, useAcademicContext } from "@/academic";
 import { withAlpha } from "@/lib/colorAlpha";
 import "./battleground-design.css";
+import { toErrorMessage } from "@/lib/presentation";
 
 /** Fallback subject labels when stream/class cannot be resolved. */
 const SUBJECT_OPTIONS = [
@@ -2374,9 +2375,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
           toast({
             title: "Could not load leaderboard",
             description:
-              err && typeof err === "object" && "message" in err
-                ? String((err as { message: string }).message)
-                : "Try again in a moment",
+              toErrorMessage(err, "Try again in a moment"),
             variant: "destructive",
           });
         }
@@ -2418,7 +2417,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       goBattle(id);
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "message" in e ? String((e as { message: string }).message) : "Could not join";
+        toErrorMessage(e, "Could not join");
       toast({ title: msg, variant: "destructive" });
     } finally {
       setBusy(false);
@@ -2462,9 +2461,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       return { id, battleCode };
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "message" in e
-          ? String((e as { message: string }).message)
-          : "Could not create battle";
+        toErrorMessage(e, "Could not create battle");
       toast({ title: msg, variant: "destructive" });
       throw e;
     } finally {
@@ -2487,9 +2484,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         goBattle(id);
       } catch (e: unknown) {
         const msg =
-          e && typeof e === "object" && "message" in e
-            ? String((e as { message: string }).message)
-            : "Could not accept";
+          toErrorMessage(e, "Could not accept");
         toast({ title: msg, variant: "destructive" });
       } finally {
         setBusy(false);
@@ -2505,9 +2500,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
         goBattle(id);
       } catch (e: unknown) {
         const msg =
-          e && typeof e === "object" && "message" in e
-            ? String((e as { message: string }).message)
-            : "Could not join battle";
+          toErrorMessage(e, "Could not join battle");
         toast({ title: msg, variant: "destructive" });
       } finally {
         setBusy(false);
@@ -2552,9 +2545,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
       goBattle(id);
     } catch (e: unknown) {
       const msg =
-        e && typeof e === "object" && "message" in e
-          ? String((e as { message: string }).message)
-          : "Featured battle unavailable";
+        toErrorMessage(e, "Featured battle unavailable");
       toast({ title: msg, variant: "destructive" });
     } finally {
       setBusy(false);
@@ -2577,7 +2568,7 @@ export default function Battleground({ setPage }: { setPage?: (p: PageKey) => vo
           alignItems: "center",
           justifyContent: "space-between",
           // Was a hardcoded dark-navy bar left over from the pre-light-theme design.
-          // The portal light-theme rules colour this header text dark, so the
+          // The portal's light-theme rules colour this header's text dark, so the
           // navy left "Battleground" and its icons at ~1.2:1 against their own bar.
           background: "hsl(var(--card) / 0.85)",
           backdropFilter: "blur(12px)",

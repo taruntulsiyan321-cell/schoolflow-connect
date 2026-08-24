@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { Sword, Trophy, Sparkles, Users, Clock, ArrowLeft, TrendingUp, ChevronRight, Loader2 } from "lucide-react";
 import { XPRing, BadgeCard, PodiumRow, Countdown } from "@/components/battleground/bg-bits";
-// ArenaHub intentionally not mounted as product home â€” design Battleground is canonical.
+// ArenaHub intentionally not mounted as product home — design Battleground is canonical.
 import "@/components/battleground/battle-arena.css";
 import { FrictionlessChallenge } from "@/components/battleground/FrictionlessChallenge";
 import { BADGES, badgesByGroup, GROUP_LABEL, GROUP_ORDER } from "@/lib/badges";
@@ -68,7 +68,7 @@ function BattlegroundLayout() {
   );
 }
 
-// =================== ARENA (LEGACY â€” not product home) ===================
+// =================== ARENA (LEGACY — not product home) ===================
 /** Design Battleground at /student/battleground is canonical. ArenaHub is isolated. */
 function Arena() {
   return <Navigate to="/student/battleground" replace />;
@@ -91,7 +91,7 @@ function CreateBattle() {
       <Card className="p-5 hero-panel">
         <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-foreground/70"><Sword className="w-3.5 h-3.5" /> Matchmaking</div>
         <h1 className="text-xl font-semibold mt-1 text-foreground">Challenge</h1>
-        <p className="text-sm text-foreground/75 mt-1">Pick a friend, subject, and topic â€” the arena handles the rest.</p>
+        <p className="text-sm text-foreground/75 mt-1">Pick a friend, subject, and topic — the arena handles the rest.</p>
       </Card>
       <FrictionlessChallenge
         classId={student?.class_id}
@@ -127,7 +127,7 @@ export function BattleRoom() {
   const [answerSyncFailed, setAnswerSyncFailed] = useState(false);
   const [revealedCorrectIndex, setRevealedCorrectIndex] = useState<number | null>(null);
   const [finishingBattle, setFinishingBattle] = useState(false);
-  /** correct_index per question, fetched ONLY once the battle is finished â€” never
+  /** correct_index per question, fetched ONLY once the battle is finished — never
    *  merged into `questions` (which is fetched at battle-entry, before answering,
    *  and must never carry correct_index or a client inspecting network traffic
    *  could read the answer key before answering). Safe here because the battle
@@ -147,7 +147,7 @@ export function BattleRoom() {
       try {
         const { data: b, error: battleErr } = await supabase.from("battles").select("*").eq("id", id).maybeSingle();
         if (battleErr) {
-          toast({ title: "Could not load battle", description: battleErr.message, variant: "destructive" });
+          toast({ title: "Could not load battle", description: toErrorMessage(battleErr, "Please try again."), variant: "destructive" });
         }
         const { data: qs, error: qsErr } = await supabase
           .from("battle_questions")
@@ -155,17 +155,17 @@ export function BattleRoom() {
           .eq("battle_id", id)
           .order("order_index");
         if (qsErr) {
-          toast({ title: "Could not load questions", description: qsErr.message, variant: "destructive" });
+          toast({ title: "Could not load questions", description: toErrorMessage(qsErr, "Please try again."), variant: "destructive" });
         }
         // A newer room load (a different battle id) may have started while the
-        // two fetches above were in flight â€” don't let this slower, superseded
+        // two fetches above were in flight — don't let this slower, superseded
         // response paint a different battle's questions/state on top of it.
         if (isStale()) return;
         setBattle(b);
         setQuestions(qs ?? []);
         const { data: existing, error: existingErr } = await supabase.from("battle_participants").select("*").eq("battle_id", id).eq("user_id", user.id).maybeSingle();
         if (existingErr) {
-          toast({ title: "Could not check your participation", description: existingErr.message, variant: "destructive" });
+          toast({ title: "Could not check your participation", description: toErrorMessage(existingErr, "Please try again."), variant: "destructive" });
         }
         if (isStale()) return;
         let pid = existing?.id;
@@ -180,7 +180,7 @@ export function BattleRoom() {
             // check-then-act window. This narrows but cannot fully close the race:
             // two joins within this window can still both pass. Fully closing it
             // needs a server-side guard (DB constraint/trigger or an atomic
-            // count-check-and-insert RPC) â€” not present today.
+            // count-check-and-insert RPC) — not present today.
             if (b?.mode === "duel") {
               const { count } = await supabase
                 .from("battle_participants")
@@ -283,13 +283,13 @@ export function BattleRoom() {
     });
   }, [finished, participantId]);
 
-  // Correct answers, for review only â€” deliberately a separate fetch gated on
+  // Correct answers, for review only — deliberately a separate fetch gated on
   // `finished`, never merged into the live `questions` array (see state comment above).
   useEffect(() => {
     if (!finished || !id) return;
     supabase.from("battle_questions").select("id, correct_index").eq("battle_id", id).then(({ data, error }) => {
       if (error) {
-        toast({ title: "Could not load answer key for review", description: error.message, variant: "destructive" });
+        toast({ title: "Could not load answer key for review", description: toErrorMessage(error, "Please try again."), variant: "destructive" });
         return;
       }
       const m: Record<string, number> = {};
@@ -372,7 +372,7 @@ export function BattleRoom() {
         };
         toast({
           title: "Answer saved, but not scored",
-          description: "Live grading was unavailable for this question â€” it was recorded but not scored. This shouldn't normally happen; try again next question.",
+          description: "Live grading was unavailable for this question — it was recorded but not scored. This shouldn't normally happen; try again next question.",
           variant: "destructive",
         });
       }
@@ -394,7 +394,7 @@ export function BattleRoom() {
       setAnswerSyncFailed(true);
       const msg = toErrorMessage(writeErr, "Network sync had a problem");
       toast({
-        title: "Could not save answer â€” retry before continuing",
+        title: "Could not save answer — retry before continuing",
         description: msg,
         variant: "destructive",
       });
@@ -436,7 +436,7 @@ export function BattleRoom() {
     if (savingAnswer || finishingBattle || answerSyncFailed) return;
     if (qIdx + 1 >= questions.length) {
       if (!participantId) {
-        toast({ title: "Could not finish battle â€” try rejoining the room", variant: "destructive" });
+        toast({ title: "Could not finish battle — try rejoining the room", variant: "destructive" });
         return;
       }
       setFinishingBattle(true);
@@ -488,7 +488,7 @@ export function BattleRoom() {
     setQuestionStart(Date.now());
   };
 
-  if (battleLoading) return <StudentSessionSkeleton label="Loading battleâ€¦" />;
+  if (battleLoading) return <StudentSessionSkeleton label="Loading battle…" />;
   if (!battle) {
     return (
       <Card className="p-8 text-center max-w-md mx-auto space-y-4">
@@ -590,7 +590,7 @@ export function BattleRoom() {
 
   if (!currentQ) return (
     <Card className="p-8 text-center max-w-md mx-auto space-y-4">
-      <p className="text-muted-foreground">No questions in this battle â€” the question bank may be empty for this subject.</p>
+      <p className="text-muted-foreground">No questions in this battle — the question bank may be empty for this subject.</p>
       <div className="flex gap-2 justify-center flex-wrap">
         <Button asChild><Link to="/student/practice/math12">Class 12 Math practice</Link></Button>
         <Button asChild variant="outline"><Link to={BG_BASE}>Back to Arena</Link></Button>
@@ -609,7 +609,7 @@ export function BattleRoom() {
           )}>
             {readyCount === 0 ? "FIGHT!" : readyCount}
           </div>
-          <p className="text-sm text-muted-foreground mt-4">{displaySubject(battle.subject) || "â€”"} Â· {questions.length} questions</p>
+          <p className="text-sm text-muted-foreground mt-4">{displaySubject(battle.subject) || "—"} · {questions.length} questions</p>
         </div>
       </div>
     );
@@ -634,7 +634,7 @@ export function BattleRoom() {
       <Progress value={pct} className={cn("h-2", timeLeft <= 5 && "[&>div]:bg-destructive")} />
 
       <Card className="p-6 border border-border/70 bg-card">
-        <div className="section-label">{displaySubject(battle.subject) || "â€”"}</div>
+        <div className="section-label">{displaySubject(battle.subject) || "—"}</div>
         <MathText block className="text-lg md:text-xl font-semibold mt-2 leading-snug text-foreground" text={currentQ.question} />
       </Card>
 
@@ -670,12 +670,12 @@ export function BattleRoom() {
                 : "text-destructive",
           )}>
             {answerSyncFailed
-              ? "Save failed â€” tap an answer to retry"
+              ? "Save failed — tap an answer to retry"
               : revealedCorrectIndex != null && selected === revealedCorrectIndex
-                ? "âœ“ Correct!"
+                ? "✓ Correct!"
                 : selected === -1
                   ? "â± Time's up"
-                  : "âœ— Wrong"}
+                  : "✗ Wrong"}
           </div>
           {answerSyncFailed ? (
             <Button
@@ -772,7 +772,7 @@ function Achievements() {
         <div className="flex-1 min-w-[220px]">
           <div className="text-[11px] font-medium uppercase tracking-wide text-foreground/70">Achievements</div>
           <h1 className="text-2xl font-semibold mt-1 text-foreground">{earnedCount} / {totalBadges} badges</h1>
-          <div className="text-sm text-foreground/75">{xp.wins} wins Â· {xp.total_battles} battles Â· {xp.study_streak} day study streak</div>
+          <div className="text-sm text-foreground/75">{xp.wins} wins · {xp.total_battles} battles · {xp.study_streak} day study streak</div>
           <div className="mt-3 max-w-sm">
             <div className="h-2 rounded-full bg-white/20 overflow-hidden">
               <div className="h-full rounded-full bg-primary transition-all duration-700" style={{ width: `${pct}%` }} />
@@ -870,7 +870,7 @@ function MyStats() {
           .order("joined_at", { ascending: false })
           .limit(20);
         if (flatErr) {
-          toast({ title: "Could not load battle history", description: flatErr.message, variant: "destructive" });
+          toast({ title: "Could not load battle history", description: toErrorMessage(flatErr, "Please try again."), variant: "destructive" });
           setHistory([]);
         } else {
           const ids = [...new Set((flatParts || []).map((p) => p.battle_id))];
@@ -935,7 +935,7 @@ function MyStats() {
     const totalAnswered = history.reduce((a, h) => a + (h.answered_count || 0), 0);
     const accuracy = totalAnswered ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
     const avgScore = history.length ? Math.round(history.reduce((a, h) => a + (h.score || 0), 0) / history.length) : 0;
-    // last 12 battles oldestâ†’newest as accuracy %
+    // last 12 battles oldest→newest as accuracy %
     const trend = [...history]
       .slice(0, 12)
       .reverse()
@@ -990,7 +990,7 @@ function MyStats() {
               </div>
             ))}
           </div>
-          <div className="text-[11px] text-muted-foreground mt-2 text-center">Per-battle accuracy (oldest â†’ latest)</div>
+          <div className="text-[11px] text-muted-foreground mt-2 text-center">Per-battle accuracy (oldest → latest)</div>
         </Card>
       )}
 
@@ -1007,7 +1007,7 @@ function MyStats() {
             <Card className="p-4 border-l-4 border-warning">
               <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Needs work</div>
               <div className="text-xl font-bold mt-1 text-warning">{displaySubject(weakest.subject)}</div>
-              <div className="text-sm text-muted-foreground">{weakest.overall}% â€” focus here</div>
+              <div className="text-sm text-muted-foreground">{weakest.overall}% — focus here</div>
             </Card>
           )}
         </div>
@@ -1037,7 +1037,7 @@ function MyStats() {
       <Card className="p-5">
         <h2 className="font-bold mb-3 flex items-center gap-2"><Sword className="w-4 h-4" /> Battle History</h2>
         {history.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No battles yet â€” jump into the arena!</p>
+          <p className="text-sm text-muted-foreground">No battles yet — jump into the arena!</p>
         ) : (
           <div className="space-y-2">
             {history.map((h) => (
@@ -1048,12 +1048,12 @@ function MyStats() {
               >
                 <div>
                   <div className="font-semibold text-sm">{h.battles?.title}</div>
-                  <div className="text-xs text-muted-foreground">{displaySubject(h.battles?.subject)}{h.battles?.topic ? ` Â· ${displayTopic(h.battles.topic)}` : ""}</div>
+                  <div className="text-xs text-muted-foreground">{displaySubject(h.battles?.subject)}{h.battles?.topic ? ` · ${displayTopic(h.battles.topic)}` : ""}</div>
                 </div>
                 <div className="text-right">
                   <div className="font-bold tabular-nums">{h.score} pts</div>
-                  <div className="text-[10px] text-muted-foreground">{h.correct_count}/{h.answered_count} correct{h.rank ? ` Â· #${h.rank}` : ""}</div>
-                  <div className="text-[10px] text-primary font-semibold mt-0.5">View report â†’</div>
+                  <div className="text-[10px] text-muted-foreground">{h.correct_count}/{h.answered_count} correct{h.rank ? ` · #${h.rank}` : ""}</div>
+                  <div className="text-[10px] text-primary font-semibold mt-0.5">View report →</div>
                 </div>
               </Link>
             ))}
@@ -1080,7 +1080,7 @@ export default function Battleground() {
     <Routes>
       <Route element={<BattlegroundLayout />}>
         <Route index element={<Arena />} />
-        {/* Nested tabs redirect â€” design Battleground at /student/battleground is canonical. */}
+        {/* Nested tabs redirect — design Battleground at /student/battleground is canonical. */}
         <Route path="create" element={<Navigate to="/student/battleground" replace />} />
         <Route path="progress" element={<Navigate to="/student/battleground" replace />} />
         <Route path="stats" element={<Navigate to="/student/battleground" replace />} />

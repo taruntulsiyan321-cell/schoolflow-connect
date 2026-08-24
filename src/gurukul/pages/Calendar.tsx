@@ -52,7 +52,7 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId, classId]);
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
@@ -209,7 +209,7 @@ export default function Calendar() {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        Loading calendarâ€¦
+        Loading calendar…
       </div>
     );
   }
@@ -388,7 +388,7 @@ export default function Calendar() {
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span style={{ color: meta.color }}>{meta.icon}</span>
                           <span className="text-[10px] text-muted-foreground">{dayStr}</span>
-                          {e.subject && <span className="text-[10px] text-muted-foreground">Â· {displaySubject(e.subject) || e.subject}</span>}
+                          {e.subject && <span className="text-[10px] text-muted-foreground">· {displaySubject(e.subject) || e.subject}</span>}
                         </div>
                       </div>
                     </div>

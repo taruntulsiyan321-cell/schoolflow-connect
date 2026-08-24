@@ -109,7 +109,7 @@ export default function Leaderboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading rankingsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading rankings…
       </div>
     );
   }
@@ -145,7 +145,7 @@ export default function Leaderboard() {
       </div>
 
       <GlassCard className="p-5">
-        <SectionLabel>Class XP Â· Progression Engine</SectionLabel>
+        <SectionLabel>Class XP · Progression Engine</SectionLabel>
         {ranked.length === 0 && (
           <div className="text-xs text-muted-foreground py-8 text-center">
             No class XP rankings yet. Earn XP from practice, homework, and battles to appear here.
@@ -186,7 +186,7 @@ export default function Leaderboard() {
                 <div className="flex items-center gap-3 mt-1">
                   <ProgressBar value={Math.round((p.value / maxXp) * 100)} color="#6882e8" height="h-1" />
                   <span className="text-[11px] text-muted-foreground shrink-0 capitalize">
-                    Lv.{p.level} Â· {p.league}
+                    Lv.{p.level} · {p.league}
                   </span>
                 </div>
               </div>

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 /**
- * Academic Insights â€” Academic Engine only (no richInsights mock).
+ * Academic Insights — Academic Engine only (no richInsights mock).
  */
 export default function AcademicInsights({
   activeChildId,
@@ -21,7 +21,7 @@ export default function AcademicInsights({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loadingâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading…
       </div>
     );
   }
@@ -37,7 +37,7 @@ export default function AcademicInsights({
   if (!child) {
     return (
       <div className="text-sm text-muted-foreground py-16 text-center">
-        No linked children. Academic insights require parentâ€“student mapping.
+        No linked children. Academic insights require parent–student mapping.
       </div>
     );
   }

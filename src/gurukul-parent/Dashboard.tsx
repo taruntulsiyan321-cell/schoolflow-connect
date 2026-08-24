@@ -60,7 +60,7 @@ function QuickStat({
 }
 
 /**
- * Parent Dashboard â€” academic stats from Academic Engine only.
+ * Parent Dashboard — academic stats from Academic Engine only.
  */
 export default function ParentDashboard({
   setPage,
@@ -114,7 +114,7 @@ export default function ParentDashboard({
   if (childrenLoading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading childrenâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading children…
       </div>
     );
   }
@@ -167,7 +167,7 @@ export default function ParentDashboard({
         <div className="flex-1 min-w-0">
           <div className="text-base font-black text-foreground">{liveChild.fullName}</div>
           <div className="text-xs text-muted-foreground mt-0.5">
-            {liveChild.classLabel} Â· Roll {liveChild.rollNumber ?? "â€”"}
+            {liveChild.classLabel} · Roll {liveChild.rollNumber ?? "—"}
           </div>
         </div>
         <div className="text-right shrink-0">
@@ -184,7 +184,7 @@ export default function ParentDashboard({
             )}
           >
             {attendanceLoading
-              ? "Loadingâ€¦"
+              ? "Loading…"
               : attendanceUnavailable
                 ? "Status unavailable"
                 : todayStatus
@@ -197,12 +197,12 @@ export default function ParentDashboard({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickStat
           label="Attendance"
-          value={attendanceLoading ? "â€¦" : attendanceUnavailable ? "â€”" : `${attendancePct}%`}
+          value={attendanceLoading ? "…" : attendanceUnavailable ? "—" : `${attendancePct}%`}
           sub={
             attendanceLoading
-              ? "Loadingâ€¦"
+              ? "Loading…"
               : attendanceUnavailable
-                ? "Unavailable â€” try again later"
+                ? "Unavailable — try again later"
                 : `${presentDays}/${schoolDays} days`
           }
           color="#3b5bdb"
@@ -218,7 +218,7 @@ export default function ParentDashboard({
         <QuickStat
           label="Notifications"
           value={unreadNotifications}
-          sub="unread â€” tap to open"
+          sub="unread — tap to open"
           color={unreadNotifications > 0 ? "#cc5069" : "#78788c"}
           icon={<Bell className="w-5 h-5" />}
           onClick={() => setPage("notifications")}
@@ -250,7 +250,7 @@ export default function ParentDashboard({
         >
           <ClipboardList className="w-4 h-4 text-[#6366f1] mb-2" />
           <div className="text-xs font-bold text-foreground">My Children</div>
-          <div className="text-[10px] text-muted-foreground">Attendance Â· Homework Â· Exams</div>
+          <div className="text-[10px] text-muted-foreground">Attendance · Homework · Exams</div>
         </button>
         <button
           type="button"
@@ -259,7 +259,7 @@ export default function ParentDashboard({
         >
           <BookOpen className="w-4 h-4 text-[#3b5bdb] mb-2" />
           <div className="text-xs font-bold text-foreground">Test Results</div>
-          <div className="text-[10px] text-muted-foreground">MarksService Â· TestService</div>
+          <div className="text-[10px] text-muted-foreground">MarksService · TestService</div>
         </button>
       </div>
     </div>

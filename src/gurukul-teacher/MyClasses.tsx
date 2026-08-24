@@ -48,7 +48,7 @@ function assignedToClassInfo(c: AssignedClass): ClassInfo {
     id: c.id,
     className: c.name,
     section: c.section,
-    subject: c.subject ?? "â€”",
+    subject: c.subject ?? "—",
     isClassTeacher: c.isClassTeacher,
     studentCount: c.studentCount,
     schedule: [],
@@ -98,7 +98,7 @@ function ClassSelector({
   if (classes.length === 0) {
     return (
       <div className="text-xs text-muted-foreground py-2">
-        No classes assigned via Teacherâ€“Classâ€“Subject mapping.
+        No classes assigned via Teacher–Class–Subject mapping.
       </div>
     );
   }
@@ -124,7 +124,7 @@ function ClassSelector({
           >
             {c.section}
           </div>
-          {c.className} {c.section} Â· {c.subject}
+          {c.className} {c.section} · {c.subject}
           {c.isClassTeacher && (
             <span className="text-[8px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-1 py-0.5 rounded-full">
               CT
@@ -137,7 +137,7 @@ function ClassSelector({
 }
 
 /**
- * My Classes â€” Academic Engine only for academic tabs.
+ * My Classes — Academic Engine only for academic tabs.
  * No mock students / homework / tests / assignments.
  */
 export default function MyClasses() {
@@ -188,7 +188,7 @@ export default function MyClasses() {
   if (loadingClasses) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading assigned classesâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading assigned classes…
       </div>
     );
   }
@@ -198,7 +198,7 @@ export default function MyClasses() {
       <div className="space-y-3 py-10 text-center">
         <div className="text-sm text-muted-foreground">
           {classError ??
-            "No classes assigned. Ask admin to create Teacherâ€“Classâ€“Subject mapping."}
+            "No classes assigned. Ask admin to create Teacher–Class–Subject mapping."}
         </div>
       </div>
     );

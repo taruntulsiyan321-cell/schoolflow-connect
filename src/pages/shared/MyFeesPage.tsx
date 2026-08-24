@@ -110,18 +110,18 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70">Fee wallet</p>
-                  <h2 className="mt-1 text-2xl font-black">{pendingAmount > 0 ? `â‚¹${pendingAmount}` : "All clear"}</h2>
+                  <h2 className="mt-1 text-2xl font-black">{pendingAmount > 0 ? `₹${pendingAmount}` : "All clear"}</h2>
                   <p className="mt-1 text-sm text-foreground/75">
                     {pendingAmount > 0 ? "Pending school fee balance" : "No pending dues right now"}
                   </p>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="rounded-2xl border border-border bg-white/10 px-3 py-2">
-                    <p className="text-lg font-black">â‚¹{totalAmount}</p>
+                    <p className="text-lg font-black">₹{totalAmount}</p>
                     <p className="text-[10px] uppercase tracking-wider text-foreground/65">Total</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-white/10 px-3 py-2">
-                    <p className="text-lg font-black">â‚¹{paidAmount}</p>
+                    <p className="text-lg font-black">₹{paidAmount}</p>
                     <p className="text-[10px] uppercase tracking-wider text-foreground/65">Paid</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-white/10 px-3 py-2">
@@ -167,15 +167,15 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-bold">
                             {r.month}
-                            {asParent && <> Â· {r.students?.full_name}</>}
+                            {asParent && <> · {r.students?.full_name}</>}
                           </h3>
                           <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${tone(r.status)}`}>
                             {toEnumLabel(r.status, "fee_status")}
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          Paid â‚¹{r.paid_amount} of â‚¹{r.amount}
-                          {r.due_date && <> Â· Due {new Date(r.due_date).toLocaleDateString()}</>}
+                          Paid ₹{r.paid_amount} of ₹{r.amount}
+                          {r.due_date && <> · Due {new Date(r.due_date).toLocaleDateString()}</>}
                         </div>
                         <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
                           <div
@@ -188,7 +188,7 @@ export default function MyFeesPage({ asParent = false, embedded = false }: { asP
                     <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
                       <div className="text-right">
                         <p className="text-xs text-muted-foreground">Balance</p>
-                        <p className="text-lg font-black">{due > 0 ? `â‚¹${due}` : "â‚¹0"}</p>
+                        <p className="text-lg font-black">{due > 0 ? `₹${due}` : "₹0"}</p>
                       </div>
                       {r.status !== "paid" && (
                         <Button

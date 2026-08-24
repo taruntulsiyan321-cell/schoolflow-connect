@@ -133,7 +133,7 @@ export default function Leave() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading leaveâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading leave…
       </div>
     );
   }
@@ -272,7 +272,7 @@ export default function Leave() {
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <Calendar className="w-2.5 h-2.5" /> {r.fromDate} â†’ {r.toDate}
+                    <Calendar className="w-2.5 h-2.5" /> {r.fromDate} → {r.toDate}
                   </span>
                   <span>
                     {r.days} day{r.days !== 1 ? "s" : ""}

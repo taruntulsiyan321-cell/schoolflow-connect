@@ -16,6 +16,7 @@ import { getNcertSubjects } from "@/lib/ncertSyllabus";
 import { BattleExperienceService, PracticeService, useAcademicContext } from "@/academic";
 import { displaySubject } from "@/lib/academicDisplay";
 import { toErrorMessage } from "@/lib/presentation";
+import { useKeyedResource } from "@/hooks/useKeyedResource";
 
 const DIFFICULTIES = ["easy", "medium", "hard"];
 const FALLBACK = ["Mathematics", "English"];
@@ -29,7 +30,6 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
   const { ctx, ready: academicReady } = useAcademicContext();
   const [stream, setStream] = useState<AcademicStream | null>(null);
   const [classLevel, setClassLevel] = useState<number | null>(null);
-  const [classmates, setClassmates] = useState<Classmate[]>([]);
   const [filter, setFilter] = useState("");
   const subjects = useMemo(
     () => subjectsForStreamPicker(stream, classLevel, getNcertSubjects(classLevel) || FALLBACK),
@@ -64,16 +64,28 @@ export function ChallengeClassmates({ classId }: { classId?: string | null }) {
     if (subjects.length && !subjects.includes(subject)) setSubject(subjects[0]);
   }, [subjects, subject]);
 
-  useEffect(() => {
-    if (!classId) return;
-    supabase.rpc("rpc_classmates").then(({ data }) => {
-      const mates = (data ?? []).map((m: any) => ({
+  // Keyed on the class: switching class must not leave the previous class's
+  // classmates listed as people you can challenge.
+  const classmateQuery = useKeyedResource(
+    [classId, user?.id],
+    async () => {
+      const { data, error } = await supabase.rpc("rpc_classmates");
+      if (error) throw error;
+      type ClassmateRow = {
+        student_id: string;
+        full_name: string;
+        user_id: string;
+        roll_number: string | null;
+        equipped_badge: string | null;
+      };
+      return ((data ?? []) as ClassmateRow[]).map<Classmate>((m) => ({
         id: m.student_id, full_name: m.full_name, user_id: m.user_id,
         roll_number: m.roll_number, equipped_badge: m.equipped_badge,
-      })) as Classmate[];
-      setClassmates(mates);
-    });
-  }, [classId, user]);
+      }));
+    },
+    { errorFallback: "Could not load classmates." },
+  );
+  const classmates = useMemo(() => classmateQuery.data ?? [], [classmateQuery.data]);
 
   const challenge = async (opponent: Classmate) => {
     if (!ctx || !academicReady) {

@@ -152,7 +152,7 @@ export default function CalendarEventsPage() {
           startsAt,
           allDay: form.allDay,
         });
-        toast.success("Event added â€” students will see it via the calendar and Nova");
+        toast.success("Event added — students will see it via the calendar and Nova");
       }
       setShowForm(false);
       await reload();
@@ -178,7 +178,7 @@ export default function CalendarEventsPage() {
     if (!id) return "";
     const c = classes.find((x) => x.id === id);
     if (!c) return "";
-    return c.section ? `${c.name} â€” ${c.section}` : c.name;
+    return c.section ? `${c.name} — ${c.section}` : c.name;
   }
 
   return (
@@ -204,7 +204,7 @@ export default function CalendarEventsPage() {
 
       {loading ? (
         <div className="flex items-center gap-2 text-foreground/50 text-sm py-8 justify-center">
-          <Loader2 className="w-4 h-4 animate-spin" /> Loadingâ€¦
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading…
         </div>
       ) : (
         <>
@@ -248,9 +248,9 @@ export default function CalendarEventsPage() {
               {form.audience === "class" && (
                 <select className={inputCls} value={form.classId}
                   onChange={(e) => setForm((f) => ({ ...f, classId: e.target.value }))}>
-                  <option value="">Pick a classâ€¦</option>
+                  <option value="">Pick a class…</option>
                   {classes.map((c) => (
-                    <option key={c.id} value={c.id}>{c.section ? `${c.name} â€” ${c.section}` : c.name}</option>
+                    <option key={c.id} value={c.id}>{c.section ? `${c.name} — ${c.section}` : c.name}</option>
                   ))}
                 </select>
               )}
@@ -259,7 +259,7 @@ export default function CalendarEventsPage() {
                 disabled={saving}
                 className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-foreground text-sm font-medium py-2.5 mt-1"
               >
-                {saving ? "Savingâ€¦" : form.id ? "Save changes" : "Add event"}
+                {saving ? "Saving…" : form.id ? "Save changes" : "Add event"}
               </button>
             </div>
           </div>
@@ -295,7 +295,7 @@ function Section({
             <button className="flex-1 text-left" onClick={() => onEdit(e)}>
               <div className="text-sm text-foreground font-medium">{e.title}</div>
               <div className="text-xs text-foreground/40 mt-0.5">
-                {fmtDate(e.startsAt)} Â· {e.eventType} Â· {e.audience === "class" ? classLabel(e.classId) || "class" : e.audience}
+                {fmtDate(e.startsAt)} · {e.eventType} · {e.audience === "class" ? classLabel(e.classId) || "class" : e.audience}
               </div>
             </button>
             <button onClick={() => onDelete(e.id)} className="text-foreground/30 hover:text-red-400 shrink-0">

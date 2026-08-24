@@ -42,7 +42,7 @@ export default function LearningHub({ setPage }: Props) {
   const unresolvedErrors = snapshot?.mistake_count ?? 0;
 
   const chartSubjects = charts?.subjects ?? [];
-  // Same SSOT as Home/Practice/Analysis/Nova/Battleground â€” shell profile (snapshot accuracy).
+  // Same SSOT as Home/Practice/Analysis/Nova/Battleground — shell profile (snapshot accuracy).
   const overallAccuracy = Math.round(student.accuracy);
 
   const accuracyTrend = useMemo(() => {
@@ -53,7 +53,7 @@ export default function LearningHub({ setPage }: Props) {
         score: Math.round(p.score_pct),
       }));
     }
-    // No practice_trend â€” do not invent a flat overall-accuracy line on activity days.
+    // No practice_trend — do not invent a flat overall-accuracy line on activity days.
     return [] as { week: string; score: number }[];
   }, [charts?.practice_trend]);
 
@@ -112,7 +112,7 @@ export default function LearningHub({ setPage }: Props) {
       {
         key: "mistakebook" as PageKey,
         label: "Mistake Book",
-        sub: "A log of every error â€” your growth blueprint",
+        sub: "A log of every error — your growth blueprint",
         icon: <AlertCircle className="w-6 h-6"/>,
         color: "#c08a3a",
         glow: "shadow-[0_0_32px_rgba(245,158,11,0.07)]",
@@ -146,7 +146,7 @@ export default function LearningHub({ setPage }: Props) {
   if (loading && !snapshot && !charts) {
     return (
       <div className="flex items-center justify-center py-24 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading learning hubâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading learning hub…
       </div>
     );
   }
@@ -173,7 +173,7 @@ export default function LearningHub({ setPage }: Props) {
           Learning
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Practice â†’ Analyse â†’ Recover â†’ Revise. Your complete growth loop.
+          Practice → Analyse → Recover → Revise. Your complete growth loop.
         </p>
       </div>
 
@@ -250,7 +250,7 @@ export default function LearningHub({ setPage }: Props) {
               </ResponsiveContainer>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground py-8 text-center">No trend data yet â€” practice to build your chart.</p>
+            <p className="text-sm text-muted-foreground py-8 text-center">No trend data yet — practice to build your chart.</p>
           )}
         </GlassCard>
 
@@ -306,7 +306,7 @@ export default function LearningHub({ setPage }: Props) {
                 {step.active && <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{background:step.color}}/>}
                 {step.label}
               </span>
-              {i < arr.length-1 && <span className="text-muted-foreground/30">â†’</span>}
+              {i < arr.length-1 && <span className="text-muted-foreground/30">→</span>}
             </span>
           ))}
         </div>

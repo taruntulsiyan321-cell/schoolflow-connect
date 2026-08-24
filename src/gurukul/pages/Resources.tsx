@@ -9,11 +9,11 @@ import { useInitialLoadGate } from "@/hooks/useInitialLoadGate";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
 
 function formatDate(iso: string | null) {
-  if (!iso) return "â€”";
+  if (!iso) return "—";
   try {
     return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
   } catch {
-    return "â€”";
+    return "—";
   }
 }
 
@@ -28,7 +28,7 @@ export default function Resources() {
   const [q, setQ] = useState("");
   const [rows, setRows] = useState<LearningResourceRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([classId]);
 
   useEffect(() => {
     if (!ready || !ctx) {
@@ -83,7 +83,7 @@ export default function Resources() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search resourcesâ€¦"
+          placeholder="Search resources…"
           className="w-full bg-muted border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50 transition-colors"
         />
       </div>
@@ -92,7 +92,7 @@ export default function Resources() {
         <SectionLabel>Study materials</SectionLabel>
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground text-sm">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading resourcesâ€¦
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading resources…
           </div>
         ) : (
           <div className="space-y-2">

@@ -69,7 +69,7 @@ type LeaveRow = { id: string; leave_type: string; from_date: string; to_date: st
 type NoticeRow = { id: string; title: string; body: string; created_at: string; priority: string | null };
 
 /**
- * Admin dashboard â€” live census + recent rosters + activity from Supabase /
+ * Admin dashboard — live census + recent rosters + activity from Supabase /
  * Academic Engine only. No adminStats / adminStudents mock KPIs.
  */
 export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey) => void }) {
@@ -160,7 +160,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
 
         if (cancelled) return;
 
-        // Every query above only reflects reality if it actually succeeded â€”
+        // Every query above only reflects reality if it actually succeeded —
         // .count / .data default to 0 / [] on error too, which would otherwise
         // render as a confident (wrong) empty dashboard with no indication
         // anything failed server-side.
@@ -281,7 +281,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
 
   return (
     <div className="space-y-6">
-      {/* â”€â”€ Quick Actions (TOP) â”€â”€ */}
+      {/* ── Quick Actions (TOP) ── */}
       <div className="bg-surface border border-border/70 rounded-2xl p-4">
         <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</div>
         <div className="flex flex-wrap gap-2">
@@ -317,7 +317,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
         </div>
       )}
 
-      {/* Stat Cards â€” live census counts */}
+      {/* Stat Cards — live census counts */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard label="Total Students" value={counts.students} icon={<GraduationCap className="w-5 h-5" />} color="#3b5bdb" />
         <StatCard label="Total Teachers" value={counts.teachers} icon={<Users className="w-5 h-5" />} color="#4b9fd4" />
@@ -356,7 +356,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
           <div className="space-y-2">
             {loading && (
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground py-2">
-                <Loader2 className="w-3 h-3 animate-spin" /> Loading AttendanceServiceâ€¦
+                <Loader2 className="w-3 h-3 animate-spin" /> Loading AttendanceService…
               </div>
             )}
             {!loading && classRows.length === 0 && (
@@ -378,7 +378,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
                   ) : (
                     <>
                       <div className="flex-1 h-1.5 bg-muted rounded-full" />
-                      <div className="text-[9px] font-bold text-muted-foreground w-8 text-right shrink-0">â€”</div>
+                      <div className="text-[9px] font-bold text-muted-foreground w-8 text-right shrink-0">—</div>
                       <AlertCircle className="w-3.5 h-3.5 text-[#c08a3a] shrink-0" />
                     </>
                   )}
@@ -406,7 +406,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
                 <InitialsAvatar name={s.fullName} size="sm" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-foreground truncate">{s.fullName}</div>
-                  <div className="text-[10px] text-muted-foreground">{s.classLabel} Â· {s.admissionNumber}</div>
+                  <div className="text-[10px] text-muted-foreground">{s.classLabel} · {s.admissionNumber}</div>
                 </div>
               </div>
             ))}
@@ -430,7 +430,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
                 <InitialsAvatar name={t.fullName} size="sm" />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-foreground truncate">{t.fullName}</div>
-                  <div className="text-[10px] text-muted-foreground">{t.department ?? "â€”"} Â· {t.employeeId ?? "â€”"}</div>
+                  <div className="text-[10px] text-muted-foreground">{t.department ?? "—"} · {t.employeeId ?? "—"}</div>
                 </div>
               </div>
             ))}
@@ -474,7 +474,7 @@ export default function AdminDashboard({ setPage }: { setPage: (p: AdminPageKey)
                 <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: priorityColor.medium }} />
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-semibold text-foreground capitalize">{r.leave_type}</div>
-                  <div className="text-[10px] text-muted-foreground">{r.from_date} â†’ {r.to_date}</div>
+                  <div className="text-[10px] text-muted-foreground">{r.from_date} → {r.to_date}</div>
                 </div>
               </div>
             ))}

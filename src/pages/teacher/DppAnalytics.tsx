@@ -87,7 +87,7 @@ export default function DppAnalytics() {
   const hardest = [...qStats].sort((a, b) => a.accuracy - b.accuracy).slice(0, 3);
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading DPP analyticsâ€¦</p>;
+    return <p className="text-muted-foreground">Loading DPP analytics…</p>;
   }
 
   if (error) {
@@ -124,8 +124,8 @@ export default function DppAnalytics() {
         <div className="relative z-10 grid lg:grid-cols-[1.1fr_0.9fr] gap-5">
           <div>
             <div className="tp-kicker mb-4">Practice Intelligence</div>
-            <h1 className="tp-display text-3xl sm:text-4xl">Analytics Â· {dpp.title}</h1>
-            <p className="text-sm text-foreground/75 mt-2">{dpp.subject} Â· {dpp.question_count} questions Â· DPP mastery snapshot</p>
+            <h1 className="tp-display text-3xl sm:text-4xl">Analytics · {dpp.title}</h1>
+            <p className="text-sm text-foreground/75 mt-2">{dpp.subject} · {dpp.question_count} questions · DPP mastery snapshot</p>
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-2xl bg-white/12 border border-border p-3 text-center">
@@ -207,7 +207,7 @@ export default function DppAnalytics() {
               <span>{a.students?.full_name ?? "Student"}</span>
               <span className="text-xs text-muted-foreground">
                 {a.status === "submitted"
-                  ? `${Number(a.score).toFixed(1)} / ${Number(a.max_score).toFixed(0)} Â· ${Math.round(a.time_spent_sec / 60)}m`
+                  ? `${Number(a.score).toFixed(1)} / ${Number(a.max_score).toFixed(0)} · ${Math.round(a.time_spent_sec / 60)}m`
                   : "In progress"}
               </span>
             </div>

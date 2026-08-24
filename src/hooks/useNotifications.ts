@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import { toErrorMessage } from "@/lib/presentation";
 
 export type AppNotification = {
   id: string;
@@ -38,7 +39,7 @@ export function useNotifications() {
       setError(loadError.message || "Could not load notifications");
       toast({
         title: "Could not load notifications",
-        description: loadError.message || "Showing an empty inbox until the server responds.",
+        description: toErrorMessage(loadError, "Showing an empty inbox until the server responds."),
         variant: "destructive",
       });
     } else {
@@ -77,7 +78,7 @@ export function useNotifications() {
       if (error) {
         toast({
           title: "Could not mark notification as read",
-          description: error.message || "Please try again.",
+          description: toErrorMessage(error, "Please try again."),
           variant: "destructive",
         });
         await reload();
@@ -98,7 +99,7 @@ export function useNotifications() {
     if (error) {
       toast({
         title: "Could not mark all notifications as read",
-        description: error.message || "Please try again.",
+        description: toErrorMessage(error, "Please try again."),
         variant: "destructive",
       });
       await reload();
@@ -113,7 +114,7 @@ export function useNotifications() {
       if (error) {
         toast({
           title: "Could not delete notification",
-          description: error.message || "Please try again.",
+          description: toErrorMessage(error, "Please try again."),
           variant: "destructive",
         });
         await reload();

@@ -37,7 +37,7 @@ function Field({
   onChange: (v: string) => void;
   type?: string;
   /** True when this field cannot actually be saved right now (e.g. unlinked
-   * teacher record) â€” shown read-only with an explanation instead of
+   * teacher record) — shown read-only with an explanation instead of
    * silently accepting edits that will be dropped on save. */
   disabled?: boolean;
   disabledHint?: string;
@@ -138,7 +138,7 @@ export default function TeacherProfile() {
           .eq("id", identity.teacherRowId);
         if (tErr) {
           // The profiles update above already committed, so this is a partial
-          // save, not a no-op â€” tell the user plainly instead of implying
+          // save, not a no-op — tell the user plainly instead of implying
           // nothing was saved, so they know to retry.
           await identity.reload();
           toast.error(
@@ -179,7 +179,7 @@ export default function TeacherProfile() {
   if (identity.loading || !profile || !draft) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading profileâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…
       </div>
     );
   }
@@ -210,11 +210,11 @@ export default function TeacherProfile() {
             {profile.subjects.length ? `${profile.subjects.join(" & ")} Teacher` : "Teacher"}
           </div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            {profile.employeeId} Â· {profile.department}
+            {profile.employeeId} · {profile.department}
           </div>
           {profile.isClassTeacher && (
             <span className="inline-block mt-1 text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/10 px-2 py-0.5 rounded-full">
-              Class Teacher â€” {profile.classTeacherOf?.className} {profile.classTeacherOf?.section}
+              Class Teacher — {profile.classTeacherOf?.className} {profile.classTeacherOf?.section}
             </span>
           )}
         </div>
@@ -265,7 +265,7 @@ export default function TeacherProfile() {
             onChange={(v) => d("email", v)}
             type="email"
             disabled={!identity.teacherRowId}
-            disabledHint="Can't save â€” account isn't linked to a teacher record. Ask admin to link it."
+            disabledHint="Can't save — account isn't linked to a teacher record. Ask admin to link it."
           />
           <Field
             label="Phone Number"
@@ -281,7 +281,7 @@ export default function TeacherProfile() {
               editing={editing}
               onChange={(v) => d("address", v)}
               disabled={!identity.teacherRowId}
-              disabledHint="Can't save â€” account isn't linked to a teacher record. Ask admin to link it."
+              disabledHint="Can't save — account isn't linked to a teacher record. Ask admin to link it."
             />
           </div>
         </div>
@@ -290,16 +290,16 @@ export default function TeacherProfile() {
       <Section title="Professional Information" icon={<Briefcase className="w-4 h-4" />}>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Department" value={profile.department} editing={false} onChange={() => {}} />
-          <Field label="Subjects" value={profile.subjects.join(", ") || "â€”"} editing={false} onChange={() => {}} />
+          <Field label="Subjects" value={profile.subjects.join(", ") || "—"} editing={false} onChange={() => {}} />
           <Field
             label="Qualification"
             value={editing ? draft.qualification : profile.qualification}
             editing={editing}
             onChange={(v) => d("qualification", v)}
             disabled={!identity.teacherRowId}
-            disabledHint="Can't save â€” account isn't linked to a teacher record. Ask admin to link it."
+            disabledHint="Can't save — account isn't linked to a teacher record. Ask admin to link it."
           />
-          <Field label="Joined Date" value={profile.joinedDate || "â€”"} editing={false} onChange={() => {}} />
+          <Field label="Joined Date" value={profile.joinedDate || "—"} editing={false} onChange={() => {}} />
           <div className="col-span-2">
             <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Role</div>
             <div className="text-sm text-foreground">
@@ -412,7 +412,7 @@ export default function TeacherProfile() {
                 disabled={!pwdForm.next || pwdForm.next !== pwdForm.confirm || pwdSaving}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all"
               >
-                {pwdSaving ? "Savingâ€¦" : "Change Password"}
+                {pwdSaving ? "Saving…" : "Change Password"}
               </button>
             </div>
           </div>

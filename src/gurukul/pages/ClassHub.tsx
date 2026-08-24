@@ -72,7 +72,7 @@ function MiniRing({ pct, color }: { pct: number; color: string }) {
 }
 
 /**
- * Class Hub â€” Academic Engine for attendance / homework / exams / tests.
+ * Class Hub — Academic Engine for attendance / homework / exams / tests.
  * Navigation chrome only for non-academic modules (timetable, resources, etc.).
  */
 export default function ClassHub({ setPage }: Props) {
@@ -85,7 +85,7 @@ export default function ClassHub({ setPage }: Props) {
   const [hwTotal, setHwTotal] = useState(0);
   const [hwPct, setHwPct] = useState(0);
   const [loading, setLoading] = useState(true);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId]);
 
   useEffect(() => {
     if (!ready || !ctx || !studentId) {
@@ -251,7 +251,7 @@ export default function ClassHub({ setPage }: Props) {
   if (showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading class hubâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading class hub…
       </div>
     );
   }
@@ -272,7 +272,7 @@ export default function ClassHub({ setPage }: Props) {
           Class
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Academic stats from the Academic Engine â€” schedule & resources are navigation only.
+          Academic stats from the Academic Engine — schedule & resources are navigation only.
         </p>
       </div>
 
@@ -329,7 +329,7 @@ export default function ClassHub({ setPage }: Props) {
               onClick={() => setPage("attendance")}
               className="ml-auto text-[10px] text-[#3b5bdb] hover:text-primary transition-colors"
             >
-              View â†’
+              View →
             </button>
           </div>
           <div className="flex items-center gap-3 mb-4">
@@ -350,13 +350,13 @@ export default function ClassHub({ setPage }: Props) {
               onClick={() => setPage("assignments")}
               className="ml-auto text-[10px] text-[#3b5bdb] hover:text-primary transition-colors"
             >
-              View â†’
+              View →
             </button>
           </div>
           <div className={cn("text-xl font-black text-foreground mb-1")}>
             {hwPending} / {hwTotal} pending
           </div>
-          <div className="text-[11px] text-muted-foreground mb-3">HomeworkService Â· {hwPct}% completion</div>
+          <div className="text-[11px] text-muted-foreground mb-3">HomeworkService · {hwPct}% completion</div>
           <ProgressBar value={hwPct} color="#c08a3a" height="h-1.5" />
         </GlassCard>
       </div>

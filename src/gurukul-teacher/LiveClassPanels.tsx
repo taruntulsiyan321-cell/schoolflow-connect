@@ -46,6 +46,7 @@ import type { ExamRecord, MarksRecord } from "@/academic/repository/marksReposit
 import type { HomeworkAttachmentMeta } from "@/academic/repository/homeworkRepository";
 import { AttachmentComposer, AttachmentList } from "./AttachmentUI";
 import { toEnumLabel, toErrorMessage } from "@/lib/presentation";
+import { useResetOnIdentityChange } from "@/hooks/useInitialLoadGate";
 
 export {
   LiveHomeworkTab,
@@ -134,9 +135,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
   >([]);
   const [profile, setProfile] = useState<StudentAcademicProfile | null>(null);
 
-  useEffect(() => {
-    loadedRef.current = false;
-  }, [classId]);
+  useResetOnIdentityChange(loadedRef, classId);
 
   useEffect(() => {
     if (!ready || !ctx || !classId) return;
@@ -175,7 +174,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         setError(
           profilesOk
             ? null
-            : "Academic profiles failed to load â€” student percentages shown as â€”.",
+            : "Academic profiles failed to load — student percentages shown as —.",
         );
         loadedRef.current = true;
       } catch (e) {
@@ -235,7 +234,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         }
         if (settled[4].status === "fulfilled") setProfile(settled[4].value);
         else setProfile(null);
-        if (errors.length) setDetailError(errors.join(" Â· "));
+        if (errors.length) setDetailError(errors.join(" · "));
       } catch (e) {
         if (!cancelled) setDetailError(errMsg(e, "Failed to load student detail"));
       } finally {
@@ -336,7 +335,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
       const academic = testsAvg && examsAvg ? (testsAvg + examsAvg) / 2 : testsAvg || examsAvg;
       if (academic >= 75) answers.push("Performing well in tests/exams");
       else if (academic >= 40) answers.push("Academic scores need improvement");
-      else answers.push("Struggling in assessments â€” intervention recommended");
+      else answers.push("Struggling in assessments — intervention recommended");
     } else {
       answers.push("Not enough test/exam marks yet to judge academic level");
     }
@@ -361,7 +360,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         verdict = "Performing well";
         color = "#10b981";
       } else if (avg >= 60) {
-        verdict = "Stable â€” watch closely";
+        verdict = "Stable — watch closely";
         color = "#3b5bdb";
       } else if (avg >= 40) {
         verdict = "Needs support";
@@ -369,7 +368,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         intervention = true;
         actions.push("Plan a short check-in this week");
       } else {
-        verdict = "At risk â€” intervene";
+        verdict = "At risk — intervene";
         color = "#cc5069";
         intervention = true;
         actions.push("Escalate with class teacher / parent meeting");
@@ -381,7 +380,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     }
 
     if (!actions.length && verdict === "Performing well") {
-      actions.push("Keep encouraging â€” no urgent action");
+      actions.push("Keep encouraging — no urgent action");
     }
 
     return { verdict, color, answers, actions, intervention };
@@ -394,14 +393,14 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
     attendanceConcern,
   ]);
 
-  if (loading) return <Loading label="Loading rosterâ€¦" />;
+  if (loading) return <Loading label="Loading roster…" />;
   if (error && rows.length === 0) {
     return <div className="text-xs text-[#cc5069] py-8 text-center">{error}</div>;
   }
 
   if (selected) {
     const parentContact =
-      [selected.parentName, selected.parentMobile].filter(Boolean).join(" Â· ") || null;
+      [selected.parentName, selected.parentMobile].filter(Boolean).join(" · ") || null;
 
     return (
       <div className="space-y-5">
@@ -423,8 +422,8 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
             <div className="flex-1 min-w-0">
               <div className="text-base font-black text-foreground truncate">{selected.fullName}</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                Roll {selected.rollNumber ?? "â€”"}
-                {parentContact ? ` Â· Parent ${parentContact}` : ""}
+                Roll {selected.rollNumber ?? "—"}
+                {parentContact ? ` · Parent ${parentContact}` : ""}
               </div>
             </div>
           </div>
@@ -450,7 +449,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         )}
 
         {detailLoading ? (
-          <Loading label="Building academic reportâ€¦" />
+          <Loading label="Building academic report…" />
         ) : (
           <>
             <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
@@ -459,7 +458,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               </div>
               {report.answers.map((line) => (
                 <div key={line} className="text-[12px] text-foreground leading-snug">
-                  Â· {line}
+                  · {line}
                 </div>
               ))}
             </div>
@@ -470,7 +469,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               </div>
               {report.actions.map((line) => (
                 <div key={line} className="text-[12px] text-[#f59e0b] leading-snug">
-                  â†’ {line}
+                  → {line}
                 </div>
               ))}
             </div>
@@ -479,14 +478,14 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               {[
                 {
                   label: "Attendance",
-                  value: selected.attendancePct == null ? "â€”" : `${selected.attendancePct}%`,
+                  value: selected.attendancePct == null ? "—" : `${selected.attendancePct}%`,
                   warn: selected.attendancePct != null && selected.attendancePct < 75,
                 },
                 {
                   label: "Homework",
                   value:
                     selected.homeworkCompletionPct == null
-                      ? "â€”"
+                      ? "—"
                       : `${selected.homeworkCompletionPct}%`,
                   warn:
                     selected.homeworkCompletionPct != null && selected.homeworkCompletionPct < 50,
@@ -498,7 +497,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 },
                 {
                   label: "Tests / Exams",
-                  value: `${selected.testsAvgPct ?? "â€”"} / ${selected.examsAvgPct ?? "â€”"}`,
+                  value: `${selected.testsAvgPct ?? "—"} / ${selected.examsAvgPct ?? "—"}`,
                   warn:
                     (selected.testsAvgPct != null &&
                       selected.testsAvgPct > 0 &&
@@ -527,7 +526,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
               <div className="bg-surface border border-border/70 rounded-2xl p-4 space-y-2">
                 <div className="text-xs font-bold text-foreground">Pending homework</div>
                 {pendingHomework.length === 0 ? (
-                  <div className="text-[10px] text-muted-foreground">Caught up â€” nothing pending</div>
+                  <div className="text-[10px] text-muted-foreground">Caught up — nothing pending</div>
                 ) : (
                   pendingHomework.slice(0, 6).map((r) => (
                     <div
@@ -598,7 +597,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                 )}
                 {remarks.slice(0, 4).map((r) => (
                   <div key={r.id} className="text-[11px] text-[#a0a0b0]">
-                    â€œ{r.body}â€
+                    “{r.body}”
                   </div>
                 ))}
                 <div className="pt-2 space-y-2 border-t border-border">
@@ -606,7 +605,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     value={remarkDraft}
                     onChange={(e) => setRemarkDraft(e.target.value)}
                     rows={2}
-                    placeholder="Add a remark for this studentâ€¦"
+                    placeholder="Add a remark for this student…"
                     className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
                   />
                   <button
@@ -633,7 +632,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     }}
                     className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-[#3b5bdb] text-black disabled:opacity-40"
                   >
-                    {remarkSaving ? "Savingâ€¦" : "Save remark"}
+                    {remarkSaving ? "Saving…" : "Save remark"}
                   </button>
                 </div>
               </div>
@@ -647,7 +646,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     value={remarkDraft}
                     onChange={(e) => setRemarkDraft(e.target.value)}
                     rows={2}
-                    placeholder="Add a remark for this studentâ€¦"
+                    placeholder="Add a remark for this student…"
                     className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-[11px] text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none"
                   />
                   <button
@@ -674,7 +673,7 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                     }}
                     className="text-[10px] font-bold px-3 py-1.5 rounded-lg bg-[#3b5bdb] text-black disabled:opacity-40"
                   >
-                    {remarkSaving ? "Savingâ€¦" : "Save remark"}
+                    {remarkSaving ? "Saving…" : "Save remark"}
                   </button>
                 </div>
               </div>
@@ -707,14 +706,14 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
         </div>
       )}
       <div className="text-[10px] text-muted-foreground">
-        Open a student for an academic report â€” who needs help, and why.
+        Open a student for an academic report — who needs help, and why.
       </div>
       <div className="flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2">
         <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by name or roll numberâ€¦"
+          placeholder="Search by name or roll number…"
           className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
         />
       </div>
@@ -747,9 +746,9 @@ export function LiveStudentsTab({ classId }: { classId: string }) {
                   )}
                 </div>
                 <div className="text-[10px] text-muted-foreground mt-0.5">
-                  Roll {s.rollNumber ?? "â€”"} Â· Att{" "}
-                  {s.attendancePct == null ? "â€”" : `${s.attendancePct}%`} Â· HW{" "}
-                  {s.homeworkCompletionPct == null ? "â€”" : `${s.homeworkCompletionPct}%`}
+                  Roll {s.rollNumber ?? "—"} · Att{" "}
+                  {s.attendancePct == null ? "—" : `${s.attendancePct}%`} · HW{" "}
+                  {s.homeworkCompletionPct == null ? "—" : `${s.homeworkCompletionPct}%`}
                 </div>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
@@ -857,8 +856,8 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     }
   };
 
+  useResetOnIdentityChange(loadedRef, classId);
   useEffect(() => {
-    loadedRef.current = false;
     if (!ready || !ctx) return;
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1040,7 +1039,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     if ((source === "manual" || source === "library") && questions.length === 0) {
       setError(
         source === "library"
-          ? "Question library has no content yet â€” pick Manual or Upload, or add questions once the library is filled"
+          ? "Question library has no content yet — pick Manual or Upload, or add questions once the library is filled"
           : "Add at least one question, or switch source",
       );
       setStep(source);
@@ -1117,16 +1116,16 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
     }
   };
 
-  if (loading) return <Loading label="Loading testsâ€¦" />;
+  if (loading) return <Loading label="Loading tests…" />;
 
   if (builderOpen) {
     const stepLabel: Record<BuilderStep, string> = {
-      basics: "A Â· Basics",
-      source: "B Â· Source",
-      library: "C Â· Library",
-      manual: "C Â· Manual questions",
-      upload: "C Â· Upload paper",
-      review: "D Â· Review & Publish",
+      basics: "A · Basics",
+      source: "B · Source",
+      library: "C · Library",
+      manual: "C · Manual questions",
+      upload: "C · Upload paper",
+      review: "D · Review & Publish",
     };
 
     return (
@@ -1300,7 +1299,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               ))}
             </div>
             {libLoading ? (
-              <Loading label="Loading libraryâ€¦" />
+              <Loading label="Loading library…" />
             ) : libItems.length > 0 ? (
               <div className="space-y-2">
                 {libItems.map((item) => (
@@ -1316,7 +1315,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
               <div className="bg-surface border border-dashed border-border rounded-2xl p-6 text-center space-y-3">
                 <BookOpen className="w-8 h-8 text-muted-foreground mx-auto" />
                 <div className="text-xs text-[#a0a0b0]">
-                  Library coming soon â€” NCERT content will be added later. Use Manual or Upload for
+                  Library coming soon — NCERT content will be added later. Use Manual or Upload for
                   now.
                 </div>
                 <button
@@ -1460,7 +1459,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-[9px] text-[#3b5bdb] font-bold uppercase">
-                      {q.kind} Â· {q.marks ?? 1} marks
+                      {q.kind} · {q.marks ?? 1} marks
                     </div>
                     <div className="text-xs text-foreground mt-0.5 line-clamp-2">{q.question}</div>
                   </div>
@@ -1522,7 +1521,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
             <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
               <div className="text-[10px] font-bold text-foreground">Upload question paper</div>
               <div className="text-[10px] text-muted-foreground">
-                PDF, images, Word, Excel, PowerPoint, or links â€” same upload experience as Homework.
+                PDF, images, Word, Excel, PowerPoint, or links — same upload experience as Homework.
               </div>
               <AttachmentComposer items={attachments} onChange={setAttachments} disabled={saving} />
             </div>
@@ -1548,10 +1547,10 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
             <div className="bg-surface border border-border rounded-2xl p-4 space-y-2 text-xs">
               <div className="text-sm font-bold text-foreground">{basics.title || "Untitled"}</div>
               <div className="text-muted-foreground">
-                {TEST_KIND_LABELS[basics.testKind]} Â· {durationMin} min
-                {basics.maxMarks ? ` Â· max ${basics.maxMarks}` : ""}
-                {source === "manual" ? ` Â· ${questions.length} questions Â· ${questionMarksTotal} marks` : ""}
-                {source === "upload" ? ` Â· ${attachments.length} attachment(s)` : ""}
+                {TEST_KIND_LABELS[basics.testKind]} · {durationMin} min
+                {basics.maxMarks ? ` · max ${basics.maxMarks}` : ""}
+                {source === "manual" ? ` · ${questions.length} questions · ${questionMarksTotal} marks` : ""}
+                {source === "upload" ? ` · ${attachments.length} attachment(s)` : ""}
               </div>
               {basics.instructions && (
                 <div className="text-[10px] text-[#a0a0b0] pt-1 border-t border-border">
@@ -1565,7 +1564,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                   : source === "upload"
                     ? "Uploaded paper"
                     : "Library"}{" "}
-                Â· Preferred:{" "}
+                · Preferred:{" "}
                 {basics.publishMode === "now"
                   ? "Publish now"
                   : basics.publishMode === "schedule"
@@ -1646,9 +1645,9 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-foreground truncate">{t.title}</div>
                   <div className="text-[10px] text-muted-foreground">
-                    {TEST_KIND_LABELS[(t.test_kind as TestKind) ?? "class_test"] ?? t.test_kind} Â·{" "}
-                    {qCount} Q Â· {marks != null ? `${marks} marks` : "â€” marks"}
-                    {t.duration_sec ? ` Â· ${Math.round(t.duration_sec / 60)} min` : ""}
+                    {TEST_KIND_LABELS[(t.test_kind as TestKind) ?? "class_test"] ?? t.test_kind} ·{" "}
+                    {qCount} Q · {marks != null ? `${marks} marks` : "— marks"}
+                    {t.duration_sec ? ` · ${Math.round(t.duration_sec / 60)} min` : ""}
                   </div>
                 </div>
                 <span
@@ -1721,7 +1720,7 @@ export function LiveTestsTab({ classId, subject }: { classId: string; subject: s
                     type="button"
                     disabled={saving}
                     onClick={() => {
-                      if (!window.confirm(`Delete â€œ${t.title ?? "this test"}â€?`)) return;
+                      if (!window.confirm(`Delete “${t.title ?? "this test"}”?`)) return;
                       void runAction("Delete", () => TestService.remove(ctx, t.id));
                     }}
                     className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[#cc5069]/15 text-[#cc5069] flex items-center gap-1 disabled:opacity-50"
@@ -1868,8 +1867,8 @@ export function LiveExamsMarksTab({
     }
   };
 
+  useResetOnIdentityChange(loadedRef, classId);
   useEffect(() => {
-    loadedRef.current = false;
     if (!ready || !ctx) return;
     void reload();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1986,7 +1985,7 @@ export function LiveExamsMarksTab({
     setError(null);
     try {
       await MarksService.finalizeMarks(ctx, examId);
-      showFlash("Exam finalized â€” marks locked");
+      showFlash("Exam finalized — marks locked");
       setActiveGroup(null);
       await reload();
     } catch (e) {
@@ -2012,7 +2011,7 @@ export function LiveExamsMarksTab({
     }
   };
 
-  if (loading) return <Loading label="Loading examsâ€¦" />;
+  if (loading) return <Loading label="Loading exams…" />;
 
   if (activeExam) {
     return (
@@ -2036,7 +2035,7 @@ export function LiveExamsMarksTab({
         )}
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-sm font-bold text-foreground">
-            {activeExam.name} Â· {activeExam.subject}
+            {activeExam.name} · {activeExam.subject}
           </div>
           {!canEditActive && (
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-lg bg-muted/80 text-[#a0a0b0]">
@@ -2056,11 +2055,11 @@ export function LiveExamsMarksTab({
         </div>
         <div className="text-[10px] text-muted-foreground">
           Max {activeExam.maxMarks}
-          {activeExam.passingMarks != null ? ` Â· pass ${activeExam.passingMarks}` : ""}
+          {activeExam.passingMarks != null ? ` · pass ${activeExam.passingMarks}` : ""}
         </div>
 
         {marksLoading ? (
-          <Loading label="Loading rosterâ€¦" />
+          <Loading label="Loading roster…" />
         ) : (
           <div className="space-y-2">
             {roster.map((s) => (
@@ -2069,7 +2068,7 @@ export function LiveExamsMarksTab({
                 className="flex items-center justify-between gap-3 p-3 bg-surface border border-border/70 rounded-xl"
               >
                 <div className="text-xs text-foreground min-w-0 truncate">
-                  {s.rollNumber ? `#${s.rollNumber} Â· ` : ""}
+                  {s.rollNumber ? `#${s.rollNumber} · ` : ""}
                   {s.fullName}
                 </div>
                 <input
@@ -2127,11 +2126,11 @@ export function LiveExamsMarksTab({
         )}
         <div className="text-sm font-bold text-foreground">{activeGroup.name}</div>
         <div className="text-[10px] text-muted-foreground">
-          {activeGroup.startDate ?? "â€”"}
+          {activeGroup.startDate ?? "—"}
           {activeGroup.endDate && activeGroup.endDate !== activeGroup.startDate
-            ? ` â†’ ${activeGroup.endDate}`
+            ? ` → ${activeGroup.endDate}`
             : ""}{" "}
-          Â· {activeGroup.subjects.length} subjects
+          · {activeGroup.subjects.length} subjects
         </div>
         <div className="space-y-2">
           {activeGroup.subjects.map((s) => (
@@ -2177,7 +2176,7 @@ export function LiveExamsMarksTab({
         <div>
           <div className="text-sm font-bold text-foreground">Exams & Marks</div>
           <div className="text-[10px] text-muted-foreground mt-0.5">
-            One exam per class Â· subject teachers enter their own marks
+            One exam per class · subject teachers enter their own marks
           </div>
         </div>
         {isClassTeacher && (
@@ -2244,7 +2243,7 @@ export function LiveExamsMarksTab({
             className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[50px]"
           />
           <p className="text-[9px] text-muted-foreground">
-            Subjects are loaded automatically from Teacherâ€“Classâ€“Subject mapping.
+            Subjects are loaded automatically from Teacher–Class–Subject mapping.
           </p>
           <button
             type="button"
@@ -2268,7 +2267,7 @@ export function LiveExamsMarksTab({
             >
               <div>
                 <div className="text-xs font-bold text-foreground">{e.name}</div>
-                <div className="text-[10px] text-muted-foreground">{e.subject} Â· max {e.maxMarks}</div>
+                <div className="text-[10px] text-muted-foreground">{e.subject} · max {e.maxMarks}</div>
               </div>
               <button
                 type="button"
@@ -2295,8 +2294,8 @@ export function LiveExamsMarksTab({
                 <div>
                   <div className="text-xs font-bold text-foreground">{g.name}</div>
                   <div className="text-[10px] text-muted-foreground">
-                    {g.startDate ?? "â€”"}
-                    {g.endDate && g.endDate !== g.startDate ? ` â†’ ${g.endDate}` : ""} Â·{" "}
+                    {g.startDate ?? "—"}
+                    {g.endDate && g.endDate !== g.startDate ? ` → ${g.endDate}` : ""} ·{" "}
                     {g.subjects.map((s) => s.subject).join(", ")}
                   </div>
                 </div>
@@ -2342,7 +2341,7 @@ export function LiveExamsMarksTab({
         {groups.length === 0 && (
           <div className="text-xs text-muted-foreground">
             {isClassTeacher
-              ? "No exams yet. Create a class exam â€” subjects are added automatically."
+              ? "No exams yet. Create a class exam — subjects are added automatically."
               : "No exams yet. The class teacher creates exams for this class."}
           </div>
         )}
@@ -2427,9 +2426,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
   const [error, setError] = useState<string | null>(null);
   const loadedRef = useRef(false);
 
-  useEffect(() => {
-    loadedRef.current = false;
-  }, [classId]);
+  useResetOnIdentityChange(loadedRef, classId);
 
   useEffect(() => {
     if (!ready || !ctx) return;
@@ -2484,7 +2481,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         if (settled[5].status === "rejected") errs.push(errMsg(settled[5].reason, "Exams"));
         if (settled[6].status === "rejected") errs.push(errMsg(settled[6].reason, "Pending marks"));
         if (settled[7].status === "rejected") errs.push(errMsg(settled[7].reason, "Progression"));
-        setError(errs.length ? errs.join(" Â· ") : null);
+        setError(errs.length ? errs.join(" · ") : null);
         loadedRef.current = true;
       } catch (e) {
         if (!cancelled) setError(errMsg(e, "Failed to load insights"));
@@ -2637,7 +2634,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         parts.push(`tests ${Math.round(p.testsAvgPct)}%`);
       if (p.examsAvgPct > 0 && p.examsAvgPct < 40)
         parts.push(`exams ${Math.round(p.examsAvgPct)}%`);
-      push(p, parts.join(" Â· ") || "Low avg", "Average under 40%");
+      push(p, parts.join(" · ") || "Low avg", "Average under 40%");
     }
     return rows.slice(0, 10);
   }, [lowAttendance, pendingHwStudents, lowAverages, nameById]);
@@ -2649,7 +2646,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         id: `hw-low-${h.id}`,
         name: h.title || "Homework",
         metric: `${Math.round(h.completionPct)}%`,
-        why: `${h.pending} pending Â· ${h.submitted}/${h.totalStudents} submitted`,
+        why: `${h.pending} pending · ${h.submitted}/${h.totalStudents} submitted`,
       });
     }
     for (const h of lateHomework) {
@@ -2666,7 +2663,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         id: `test-${t.id}`,
         name: t.title || "Test",
         metric: resolveTestStatus(t),
-        why: "Draft/scheduled â€” needs publish",
+        why: "Draft/scheduled — needs publish",
       });
     }
     for (const e of examsAwaitingMarks.slice(0, 5)) {
@@ -2693,7 +2690,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
       rows.push({
         id: `perf-${p.studentId}`,
         name: displayName(p.studentId),
-        metric: `T ${Math.round(p.testsAvgPct)}% Â· E ${Math.round(p.examsAvgPct)}%`,
+        metric: `T ${Math.round(p.testsAvgPct)}% · E ${Math.round(p.examsAvgPct)}%`,
         why: "Top test/exam performer",
       });
     }
@@ -2720,7 +2717,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         id: `att-${p.studentId}`,
         name: displayName(p.studentId),
         metric: `${Math.round(p.attendancePct)}% att`,
-        why: "Near-perfect attendance (â‰¥95%)",
+        why: "Near-perfect attendance (≥95%)",
       });
     }
     return rows.slice(0, 10);
@@ -2761,10 +2758,10 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           flags.length >= 2
             ? `Consecutive concerns: ${flags.join(", ")}`
             : flags[0] === "low attendance"
-              ? `Lowest attendance Â· ${Math.round(p.attendancePct)}%`
+              ? `Lowest attendance · ${Math.round(p.attendancePct)}%`
               : flags[0] === "missing homework"
-                ? `HW ${Math.round(p.homeworkCompletionPct)}% Â· missing work`
-                : `Low averages Â· T ${Math.round(p.testsAvgPct)}% Â· E ${Math.round(p.examsAvgPct)}%`,
+                ? `HW ${Math.round(p.homeworkCompletionPct)}% · missing work`
+                : `Low averages · T ${Math.round(p.testsAvgPct)}% · E ${Math.round(p.examsAvgPct)}%`,
       }));
   }, [profiles, nameById]);
 
@@ -2791,7 +2788,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
     examsAwaitingMarks,
   ]);
 
-  if (loading) return <Loading label="Loading decision dashboardâ€¦" />;
+  if (loading) return <Loading label="Loading decision dashboard…" />;
   if (!analytics && profiles.length === 0) {
     return (
       <div className="text-xs text-[#cc5069] py-8 text-center">
@@ -2812,7 +2809,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         <div className="text-sm font-bold text-foreground">Teacher decision dashboard</div>
         <div className="text-[10px] text-muted-foreground mt-0.5">
           {focusSummary.students === 0 && focusSummary.items === 0
-            ? "Today's focus: none â€” class looks healthy"
+            ? "Today's focus: none — class looks healthy"
             : `Today's focus: ${focusSummary.students} student${focusSummary.students === 1 ? "" : "s"} and ${focusSummary.items} work item${focusSummary.items === 1 ? "" : "s"} need action`}
         </div>
       </div>
@@ -2884,7 +2881,7 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
             rows={(progression.top_xp ?? []).slice(0, 8).map((r) => ({
               id: r.student_id,
               name: r.full_name,
-              metric: `${r.xp} XP Â· L${r.level}`,
+              metric: `${r.xp} XP · L${r.level}`,
               why: `${r.league} league`,
             }))}
             empty="No XP data yet"
@@ -2931,14 +2928,14 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
         title="Needs attention today"
         question="Who should I check on before the day ends?"
         rows={needsAttentionRows}
-        empty="None â€” class looks healthy"
+        empty="None — class looks healthy"
       />
 
       <DecisionSection
         title="Academic work creating problems"
         question="Which homework, tests, or exams need my action?"
         rows={workProblemRows}
-        empty="None â€” work pipeline looks clear"
+        empty="None — work pipeline looks clear"
         metricClass="text-[#f59e0b]"
       />
 
@@ -2947,14 +2944,14 @@ export function LiveInsightsTab({ classId }: { classId: string }) {
           title="Doing well"
           question="Who can I reinforce or use as peer models?"
           rows={doingWellRows}
-          empty="None yet â€” not enough positive signals"
+          empty="None yet — not enough positive signals"
           metricClass="text-[#10b981]"
         />
         <DecisionSection
           title="Require intervention"
           question="Who has stacked risks that need a conversation?"
           rows={interventionRows}
-          empty="None â€” no stacked concerns"
+          empty="None — no stacked concerns"
         />
       </div>
     </div>

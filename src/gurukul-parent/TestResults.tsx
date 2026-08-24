@@ -4,7 +4,7 @@ import { cn } from "./shared";
 import { Loader2 } from "lucide-react";
 
 /**
- * Test Results â€” MarksService + TestService (no mock testResultsByChild).
+ * Test Results — MarksService + TestService (no mock testResultsByChild).
  */
 export default function TestResults({
   activeChildId,
@@ -19,7 +19,7 @@ export default function TestResults({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loadingâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading…
       </div>
     );
   }

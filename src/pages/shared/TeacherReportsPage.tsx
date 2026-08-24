@@ -314,7 +314,7 @@ export default function TeacherReportsPage() {
       )}
 
       {loading ? (
-        <p className="text-muted-foreground text-center py-8">Generating reportâ€¦</p>
+        <p className="text-muted-foreground text-center py-8">Generating report…</p>
       ) : report ? (
         <>
           <div className="grid sm:grid-cols-2 xl:grid-cols-6 gap-4">
@@ -338,7 +338,7 @@ export default function TeacherReportsPage() {
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="tp-row"><b>Homework completion:</b> {report.homeworkCompletion}%</div>
                 <div className="tp-row"><b>Battle accuracy:</b> {report.avgBattleAccuracy}%</div>
-                <div className="tp-row"><b>Fee due:</b> â‚¹{report.totalFeeDue}</div>
+                <div className="tp-row"><b>Fee due:</b> ₹{report.totalFeeDue}</div>
                 <div className="tp-row"><b>At-risk learners:</b> {report.atRisk.length}</div>
               </div>
             </Card>
@@ -368,7 +368,7 @@ export default function TeacherReportsPage() {
                       <span className="font-semibold text-sm">{s.full_name}</span>
                       <Badge variant="destructive" className="rounded-full">Risk {s.riskScore}</Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Att {s.attPct}% Â· Marks {s.avgPct}% Â· Mastery {s.avgMastery}% Â· Recovery {s.pendingRecovery}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Att {s.attPct}% · Marks {s.avgPct}% · Mastery {s.avgMastery}% · Recovery {s.pendingRecovery}</p>
                   </div>
                 ))}
                 {report.atRisk.length === 0 && <p className="text-sm text-muted-foreground">No major risk flags.</p>}
@@ -401,7 +401,7 @@ export default function TeacherReportsPage() {
                       <span className="font-semibold text-sm">{concept.label}</span>
                       <span className="text-xs font-bold text-warning">{concept.students} students</span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{concept.subject} Â· avg mastery {concept.avg}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">{concept.subject} · avg mastery {concept.avg}%</p>
                   </div>
                 ))}
                 {report.weakConcepts.length === 0 && <p className="text-sm text-muted-foreground">No concept mastery gaps found yet.</p>}
@@ -463,7 +463,7 @@ export default function TeacherReportsPage() {
                 <div className="flex items-center justify-between gap-3 mb-3">
                 <div className="min-w-0">
                   <div className="text-sm font-medium truncate">{s.full_name}</div>
-                  <div className="text-xs text-muted-foreground">Roll {s.roll_number || "â€”"} Â· Risk score {s.riskScore}</div>
+                  <div className="text-xs text-muted-foreground">Roll {s.roll_number || "—"} · Risk score {s.riskScore}</div>
                 </div>
                 <div className="flex gap-2 shrink-0">
                   <Badge variant="outline" className={`text-xs ${s.attPct >= 75 ? "" : "bg-warning/10 text-warning border-warning/30"}`}>

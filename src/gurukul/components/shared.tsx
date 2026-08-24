@@ -1,4 +1,4 @@
-﻿import type { ReactNode } from "react";
+﻿import type { CSSProperties, ReactNode } from "react";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { motion, AnimatePresence, useReducedMotion, type Variants } from "framer-motion";
@@ -29,10 +29,12 @@ export const staggerContainer: Variants = {
   visible: { transition: { staggerChildren: 0.045, delayChildren: 0.02 } },
 };
 
-export function GlassCard({ children, className, glow, onClick }: {
+export function GlassCard({ children, className, glow, onClick, style }: {
   children: ReactNode; className?: string;
   glow?: "blue"|"cyan"|"amber"|"purple"|"green"|"rose";
   onClick?: () => void;
+  /** Callers use this for stagger delays; forwarded to the motion element. */
+  style?: CSSProperties;
 }) {
   const reduceMotion = useReducedMotion();
   const glows: Record<string, string> = {
@@ -46,6 +48,7 @@ export function GlassCard({ children, className, glow, onClick }: {
   return (
     <motion.div
       onClick={onClick}
+      style={style}
       className={cn(
         "rounded-2xl border bg-card/95 shadow-card backdrop-blur-sm",
         glow ? glows[glow] : "border-border/70",

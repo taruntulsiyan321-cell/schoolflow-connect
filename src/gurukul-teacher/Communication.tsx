@@ -64,7 +64,7 @@ function ThreadList({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search chatsâ€¦"
+            placeholder="Search chats…"
             className="flex-1 bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
           />
         </div>
@@ -108,7 +108,7 @@ function ThreadList({
                       ? "Teacher Group"
                       : t.role}
                 </div>
-                <div className="text-[10px] text-muted-foreground truncate mt-0.5">{t.lastMessage || "â€”"}</div>
+                <div className="text-[10px] text-muted-foreground truncate mt-0.5">{t.lastMessage || "—"}</div>
               </div>
               <div className="text-[8px] text-muted-foreground shrink-0 mt-0.5">{formatTime(t.lastTime)}</div>
             </button>
@@ -282,7 +282,7 @@ function ChatView({
           <Reply className="w-3 h-3" />
           <span className="truncate flex-1">Replying to: {replyTo.content.slice(0, 80)}</span>
           <button type="button" onClick={() => setReplyTo(null)} className="text-foreground">
-            Ã—
+            ×
           </button>
         </div>
       )}
@@ -315,7 +315,7 @@ function ChatView({
               }
             }}
             rows={2}
-            placeholder="Type a messageâ€¦ (Enter to send)"
+            placeholder="Type a message… (Enter to send)"
             className="flex-1 bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:border-[#3b5bdb]/40 resize-none transition-all"
           />
           <button
@@ -346,7 +346,7 @@ export default function Communication() {
   const [showNewDm, setShowNewDm] = useState(false);
   const [createBusy, setCreateBusy] = useState(false);
   const [startingChat, setStartingChat] = useState(false);
-  /** True after first contacts fetch â€” liveTick must not flip back to full-page loading. */
+  /** True after first contacts fetch — liveTick must not flip back to full-page loading. */
   const contactsLoadedRef = useRef(false);
 
   const selected = useMemo(
@@ -629,7 +629,7 @@ export default function Communication() {
   if (loading && !contactsLoadedRef.current) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-sm gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading messagesâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading messages…
       </div>
     );
   }
@@ -696,7 +696,7 @@ export default function Communication() {
             <div className="flex items-center justify-between">
               <div className="text-sm font-bold text-foreground">Create Group</div>
               <button type="button" onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground text-lg">
-                Ã—
+                ×
               </button>
             </div>
             <p className="text-[10px] text-muted-foreground">Only Class Group and Teacher Group are supported.</p>
@@ -728,7 +728,7 @@ export default function Communication() {
                   <Users className="w-3.5 h-3.5 text-[#0ea5a0]" />
                   <span className="text-[11px] text-foreground">
                     {c.name}
-                    {c.section ? `-${c.section}` : ""} {c.subject ? `Â· ${c.subject}` : ""}
+                    {c.section ? `-${c.section}` : ""} {c.subject ? `· ${c.subject}` : ""}
                   </span>
                 </button>
               ))}

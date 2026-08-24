@@ -55,7 +55,7 @@ function parseOptions(raw: unknown): string[] {
   return [];
 }
 
-/** Returns null (unknown) when the stored answer is missing/malformed â€” never
+/** Returns null (unknown) when the stored answer is missing/malformed — never
  *  fabricates option A as a guess, since that would misrepresent the actual
  *  correct/chosen answer to the student. */
 function answerIndex(raw: { correct_index?: number; indexes?: number[] } | null): number | null {
@@ -76,7 +76,7 @@ function formatMistakeDate(iso: string): string {
   try {
     return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
-    return "â€”";
+    return "—";
   }
 }
 
@@ -105,8 +105,8 @@ function mapRowToMistake(row: MistakeRow, bookmarked: boolean): Mistake {
     correct: answerIndex(row.correct_answer),
     chosen: studentIndex(row.student_answer),
     subject: row.subject,
-    chapter: displayChapter(row.chapter) || "â€”",
-    topic: displayTopic(row.concept ?? row.topic) || "â€”",
+    chapter: displayChapter(row.chapter) || "—",
+    topic: displayTopic(row.concept ?? row.topic) || "—",
     chapterRaw,
     conceptRaw,
     difficulty: parseDifficulty(row.difficulty),
@@ -167,7 +167,7 @@ function FreqBadge({ freq }: { freq: number }) {
   const color = freq >= 4 ? "#cc5069" : freq >= 3 ? "#c08a3a" : "#6882e8";
   return (
     <span className="text-[10px] font-black px-2 py-0.5 rounded-full" style={{color,background:`${color}15`}}>
-      Ã—{freq}
+      ×{freq}
     </span>
   );
 }
@@ -199,7 +199,7 @@ function MistakeCard({
               )}
             </div>
             <p className="text-sm font-semibold text-foreground leading-snug">{mistake.question}</p>
-            <div className="text-[11px] text-muted-foreground mt-1">{displayChapter(mistake.chapter)} Â· {displayTopic(mistake.topic)} Â· {mistake.date}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">{displayChapter(mistake.chapter)} · {displayTopic(mistake.topic)} · {mistake.date}</div>
           </div>
           <button onClick={() => onToggleBookmark(mistake.id)}
             title={mistake.bookmarked ? "Remove device bookmark" : "Save on this device only"}
@@ -222,7 +222,7 @@ function MistakeCard({
           {!mistake.resolved && (
             <button onClick={onAddRecovery} disabled={addingRecovery}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-500/15 border border-rose-500/25 text-rose-300 text-xs font-bold hover:bg-rose-500/25 transition-all disabled:opacity-50">
-              <RefreshCw className="w-3 h-3"/> {addingRecovery ? "Addingâ€¦" : "Add to Recovery"}
+              <RefreshCw className="w-3 h-3"/> {addingRecovery ? "Adding…" : "Add to Recovery"}
             </button>
           )}
         </div>
@@ -263,7 +263,7 @@ function MistakeCard({
               </div>
             ) : null}
 
-            {/* Why you got it wrong â€” only when stored */}
+            {/* Why you got it wrong — only when stored */}
             {mistake.studentReason ? (
               <div className="p-3 rounded-xl bg-amber-500/8 border border-amber-500/20">
                 <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
@@ -323,7 +323,7 @@ function MistakePractice({
   const [answers, setAnswers] = useState<(number|null)[]>([]);
   const [showExp, setShowExp] = useState(false);
   // Guards the final "See Results" tap from firing the completion write twice
-  // on a double-click â€” a ref for a synchronous, re-render-independent check
+  // on a double-click — a ref for a synchronous, re-render-independent check
   // plus `busy` state to actually disable the button in the DOM.
   const busyRef = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -347,7 +347,7 @@ function MistakePractice({
         questionText: qq.question,
         options: qq.options,
         selectedIndex: typeof newAnswers[i] === "number" ? (newAnswers[i] as number) : -1,
-        // Unknown correct answer (malformed/missing source data) â€” NaN never
+        // Unknown correct answer (malformed/missing source data) — NaN never
         // equals a real selectedIndex, so this is graded as not-correct rather
         // than fabricating option A as the right answer.
         correctIndex: qq.correct ?? Number.NaN,
@@ -400,7 +400,7 @@ function MistakePractice({
           <div className="flex items-center gap-2">
             {q.frequency >= 2 && (
               <span className="text-[10px] font-bold text-rose-400 bg-rose-400/10 px-2 py-0.5 rounded-full">
-                You've missed this {q.frequency}Ã— before
+                You've missed this {q.frequency}× before
               </span>
             )}
             {q.difficulty ? <DifficultyBadge level={q.difficulty}/> : null}
@@ -451,7 +451,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const [rows, setRows] = useState<MistakeRow[]>([]);
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([user?.id]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<"date"|"frequency"|"subject">("date");
@@ -597,7 +597,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       setToast(
         assignmentId
           ? `"${m.topic || m.chapter}" queued for Recovery`
-          : `Could not create recovery for "${m.topic || m.chapter}" â€” try Practice`,
+          : `Could not create recovery for "${m.topic || m.chapter}" — try Practice`,
       );
       setTimeout(() => {
         if (assignmentId) setPage?.("recovery");
@@ -627,7 +627,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         );
       }
       if (!result.persisted) {
-        setToast("Could not save retry attempts â€” mastery not updated");
+        setToast("Could not save retry attempts — mastery not updated");
       }
     } catch (e) {
       console.warn("mistake retry:", e instanceof Error ? e.message : e);
@@ -679,7 +679,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
               </div>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">{passed ? "Great progress on your mistakes!" : "Keep practicing these â€” consistency is key."}</p>
+          <p className="text-sm text-muted-foreground">{passed ? "Great progress on your mistakes!" : "Keep practicing these — consistency is key."}</p>
         </GlassCard>
         <div className="space-y-2">
           {!passed && (
@@ -740,7 +740,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
         <div>
           <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Learning Workflow</div>
           <h1 className="text-3xl font-black text-foreground" style={{fontFamily:"var(--font-display)"}}>Mistake Book</h1>
-          <p className="text-muted-foreground text-sm mt-1">Every mistake you've made â€” automatically collected and explained.</p>
+          <p className="text-muted-foreground text-sm mt-1">Every mistake you've made — automatically collected and explained.</p>
         </div>
         <button
           type="button"
@@ -761,7 +761,7 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
           { label:"Total Mistakes",  value:mistakes.length, color:"#cc5069", icon:<AlertCircle className="w-4 h-4"/> },
           { label:"Unresolved",      value:unresolved,      color:"#c08a3a", icon:<XCircle className="w-4 h-4"/> },
           { label:"Saved here",      value:bookmarked,      color:"#c08a3a", icon:<Bookmark className="w-4 h-4 fill-amber-400"/> },
-          { label:"Repeated Ã—3+",   value:repeated,        color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/> },
+          { label:"Repeated ×3+",   value:repeated,        color:"#cc5069", icon:<RefreshCw className="w-4 h-4"/> },
         ].map(s => (
           <GlassCard key={s.label} className="p-4">
             <div className="flex items-center gap-2 mb-2" style={{color:s.color}}>{s.icon}

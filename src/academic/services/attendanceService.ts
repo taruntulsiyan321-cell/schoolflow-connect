@@ -343,6 +343,12 @@ export interface ParentChildRow {
   classLabel: string;
   photoUrl: string | null;
   rollNumber: string | null;
+  /**
+   * The identifier a school actually uses with parents. The row id is a
+   * database UUID and must never be shown — the parent Children page
+   * printed it under "Student ID".
+   */
+  admissionNumber: string | null;
 }
 
 async function listChildrenForParent(
@@ -354,7 +360,7 @@ async function listChildrenForParent(
 
   const { data: direct, error: dErr } = await client
     .from("students")
-    .select("id, full_name, class_id, photo_url, roll_number, classes(name, section)")
+    .select("id, full_name, class_id, photo_url, roll_number, admission_number, classes(name, section)")
     .eq("school_id", schoolId)
     .eq("parent_user_id", parentUserId);
   throwIfError(dErr, "Failed to list children");
@@ -371,7 +377,7 @@ async function listChildrenForParent(
   if (parentRow?.id) {
     const { data: links, error: lErr } = await client
       .from("parent_students")
-      .select("student_id, students(id, full_name, class_id, photo_url, roll_number, classes(name, section))")
+      .select("student_id, students(id, full_name, class_id, photo_url, roll_number, admission_number, classes(name, section))")
       .eq("school_id", schoolId)
       .eq("parent_id", parentRow.id);
     throwIfError(lErr, "Failed to list parent_students");
@@ -386,6 +392,7 @@ async function listChildrenForParent(
     class_id: string | null;
     photo_url?: string | null;
     roll_number?: string | null;
+    admission_number?: string | null;
     classes?: { name: string; section: string } | null;
   }) => {
     const cls = s.classes;
@@ -396,6 +403,7 @@ async function listChildrenForParent(
       classLabel: cls ? `Class ${cls.name}-${cls.section}` : "Unassigned",
       photoUrl: s.photo_url ?? null,
       rollNumber: s.roll_number ?? null,
+      admissionNumber: s.admission_number ?? null,
     });
   };
 

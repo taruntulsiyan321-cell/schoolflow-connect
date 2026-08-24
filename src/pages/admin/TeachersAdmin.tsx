@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui-bits";
 import { classLabel } from "@/lib/utils";
 import { normalizePhone } from "@/lib/phone";
 import { useAcademicContext } from "@/academic/hooks/useAcademicContext";
+import { toErrorMessage } from "@/lib/presentation";
 
 const EMPTY = {
   full_name: "", subject: "", mobile: "", email: "",
@@ -49,12 +50,12 @@ export default function TeachersAdmin() {
     subject: string,
   ): Promise<{ ok: boolean; stage?: "delete" | "insert"; message?: string }> => {
     const { error: delError } = await supabase.from("teacher_classes").delete().eq("teacher_id", teacherId);
-    if (delError) return { ok: false, stage: "delete", message: delError.message };
+    if (delError) return { ok: false, stage: "delete", message: toErrorMessage(delError, "Please try again.") };
     if (classIds.length) {
       const { error: insError } = await supabase
         .from("teacher_classes")
         .insert(classIds.map(cid => ({ teacher_id: teacherId, class_id: cid, subject: subject || null })));
-      if (insError) return { ok: false, stage: "insert", message: insError.message };
+      if (insError) return { ok: false, stage: "insert", message: toErrorMessage(insError, "Please try again.") };
     }
     return { ok: true };
   };

@@ -59,7 +59,7 @@ type ParentRow = {
 };
 
 /**
- * Parent profile â€” live auth profile + parents row. Password via Supabase Auth.
+ * Parent profile — live auth profile + parents row. Password via Supabase Auth.
  * No fake Google/link success toasts.
  */
 export default function ParentProfile() {
@@ -228,7 +228,7 @@ export default function ParentProfile() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading profileâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading profile…
       </div>
     );
   }
@@ -257,7 +257,7 @@ export default function ParentProfile() {
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-base font-black text-foreground">{displayName || "Parent"}</div>
-          <div className="text-[10px] text-muted-foreground">{email || "â€”"}</div>
+          <div className="text-[10px] text-muted-foreground">{email || "—"}</div>
         </div>
         {!editing ? (
           <button
@@ -283,7 +283,7 @@ export default function ParentProfile() {
               disabled={saving}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#6882e8] transition-all disabled:opacity-40"
             >
-              <Save className="w-3.5 h-3.5" /> {saving ? "Savingâ€¦" : "Save"}
+              <Save className="w-3.5 h-3.5" /> {saving ? "Saving…" : "Save"}
             </button>
           </div>
         )}
@@ -316,7 +316,7 @@ export default function ParentProfile() {
         </div>
         {!parentRow && (
           <p className="text-[10px] text-[#c08a3a] mt-3">
-            No parent record linked to this account â€” contact the school admin to link your profile.
+            No parent record linked to this account — contact the school admin to link your profile.
           </p>
         )}
       </Section>
@@ -329,7 +329,7 @@ export default function ParentProfile() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-foreground">Signed-in account</div>
-              <div className="text-[10px] text-muted-foreground">{email || "â€”"}</div>
+              <div className="text-[10px] text-muted-foreground">{email || "—"}</div>
             </div>
             <span className="text-[9px] font-bold text-[#3b5bdb] bg-[#3b5bdb]/15 px-2 py-0.5 rounded-full">
               Active
@@ -401,7 +401,7 @@ export default function ParentProfile() {
                 disabled={pwdSaving || !pwdForm.next || pwdForm.next !== pwdForm.confirm}
                 className="px-4 py-2 rounded-xl text-xs font-semibold text-foreground bg-[#3b5bdb] hover:bg-[#6882e8] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
               >
-                {pwdSaving ? "Updatingâ€¦" : "Change Password"}
+                {pwdSaving ? "Updating…" : "Change Password"}
               </button>
             </div>
           </div>

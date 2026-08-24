@@ -15,7 +15,7 @@ function subjectAccent(raw: string): string {
 }
 
 /**
- * Student Assignments â€” HomeworkService list / submit / feedback (no mock).
+ * Student Assignments — HomeworkService list / submit / feedback (no mock).
  */
 export default function Assignments() {
   const { ctx, ready, studentId } = useAcademicContext();
@@ -121,7 +121,7 @@ export default function Assignments() {
   if (!ready || loading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading assignmentsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading assignments…
       </div>
     );
   }
@@ -167,7 +167,7 @@ export default function Assignments() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Searchâ€¦"
+            placeholder="Search…"
             className="bg-muted border border-border rounded-xl px-3 py-1.5 text-[11px] text-foreground w-36"
           />
         </div>
@@ -221,7 +221,7 @@ export default function Assignments() {
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <SubjectBadge subject={a.subject} color={col} />
-                      <span className="text-[11px] text-muted-foreground">Due {a.dueDate ?? "â€”"}</span>
+                      <span className="text-[11px] text-muted-foreground">Due {a.dueDate ?? "—"}</span>
                       {s?.submittedAt && (
                         <span className="text-[10px] text-muted-foreground">
                           Submitted {new Date(s.submittedAt).toLocaleString()}
@@ -263,7 +263,7 @@ export default function Assignments() {
                           onChange={(e) => setContent(e.target.value)}
                           placeholder={
                             isReturned
-                              ? "Revise notes (optional if attaching files)â€¦"
+                              ? "Revise notes (optional if attaching files)…"
                               : "Notes (optional if attaching files)"
                           }
                           className="w-full bg-muted border border-border rounded-xl px-3 py-2 text-xs text-foreground min-h-[70px]"

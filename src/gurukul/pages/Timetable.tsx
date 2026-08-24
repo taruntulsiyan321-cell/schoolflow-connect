@@ -17,13 +17,13 @@ const DAY_MAP = [
 ] as const;
 
 const SUBJECT_ICONS: Record<string, string> = {
-  Mathematics: "âˆ‘",
-  Physics: "âš¡",
-  Chemistry: "âš—",
-  Biology: "ðŸ§¬",
+  Mathematics: "∑",
+  Physics: "⚡",
+  Chemistry: "⚗",
+  Biology: "🧬",
   English: "âœ",
-  "Physics Lab": "âš¡",
-  "Chemistry Lab": "âš—",
+  "Physics Lab": "⚡",
+  "Chemistry Lab": "⚗",
 };
 
 const TODAY_IDX = Math.min(new Date().getDay() - 1, 4);
@@ -61,7 +61,7 @@ function gridToTimetable(grid: Record<string, string>): DaySchedule[] {
 }
 
 /**
- * Student Timetable â€” TimetableService (class_timetables) only.
+ * Student Timetable — TimetableService (class_timetables) only.
  * No invented periods / teachers.
  */
 export default function Timetable() {
@@ -71,7 +71,7 @@ export default function Timetable() {
   const [timetable, setTimetable] = useState<DaySchedule[]>([]);
   const [classLabel, setClassLabel] = useState("");
   const [loading, setLoading] = useState(true);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([classId]);
   const [hasTimetable, setHasTimetable] = useState(false);
 
   useEffect(() => {
@@ -128,7 +128,7 @@ export default function Timetable() {
   );
 
   function getCurrentPeriod() {
-    // Period rows are labeled "Period N" without wall-clock times â€” do not invent a NOW slot.
+    // Period rows are labeled "Period N" without wall-clock times — do not invent a NOW slot.
     return -1;
   }
   const currentPeriodIdx = getCurrentPeriod();
@@ -137,7 +137,7 @@ export default function Timetable() {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin mr-2" />
-        Loading timetableâ€¦
+        Loading timetable…
       </div>
     );
   }
@@ -274,7 +274,7 @@ export default function Timetable() {
                       className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0"
                       style={{ background: `${period.color}15` }}
                     >
-                      {SUBJECT_ICONS[period.subject] ?? "ðŸ“–"}
+                      {SUBJECT_ICONS[period.subject] ?? "📖"}
                     </div>
                   )}
                 </div>

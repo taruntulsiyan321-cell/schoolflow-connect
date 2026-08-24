@@ -20,7 +20,7 @@ import { GlassCard, SectionLabel, SubjectBadge, subjectColor, cn } from "@/guruk
 import { toErrorMessage } from "@/lib/presentation";
 
 /**
- * Student Tests â€” MarksService + TestService + AnalyticsService (no mock catalogs).
+ * Student Tests — MarksService + TestService + AnalyticsService (no mock catalogs).
  */
 export default function Tests() {
   const { ctx, ready, studentId, classId } = useAcademicContext();
@@ -34,7 +34,7 @@ export default function Tests() {
   const [testsAvg, setTestsAvg] = useState(0);
   const [filter, setFilter] = useState<"all" | "graded" | "upcoming">("all");
   const [loading, setLoading] = useState(true);
-  const { beginLoading, endLoading, showLoading } = useInitialLoadGate();
+  const { beginLoading, endLoading, showLoading } = useInitialLoadGate([studentId, classId]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function Tests() {
   if (!ready || showLoading(loading)) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading testsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading tests…
       </div>
     );
   }
@@ -237,7 +237,7 @@ export default function Tests() {
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-semibold text-foreground truncate">{t.title}</div>
                     <div className="text-[11px] text-muted-foreground">
-                      {[displaySubject(t.subject), kindLabel].filter(Boolean).join(" Â· ")}
+                      {[displaySubject(t.subject), kindLabel].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                   {t.published ? (

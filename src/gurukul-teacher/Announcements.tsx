@@ -103,7 +103,7 @@ function AnnouncementForm({
         {form.status === "scheduled" && (
           <div className="col-span-2 flex items-center gap-2 px-3 py-2 rounded-xl bg-[#f59e0b]/10 text-[#f59e0b] text-[10px] font-semibold">
             <Clock className="w-3.5 h-3.5 shrink-0" />
-            Scheduled publishing isn&apos;t available yet â€” this was saved before the feature existed and will stay as-is until you change it. Switch to Draft or Publish Now to update it.
+            Scheduled publishing isn&apos;t available yet — this was saved before the feature existed and will stay as-is until you change it. Switch to Draft or Publish Now to update it.
           </div>
         )}
 
@@ -118,7 +118,7 @@ function AnnouncementForm({
         <button type="button" onClick={onCancel} className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground bg-muted hover:bg-muted/80">Cancel</button>
         <button type="button" onClick={() => onSave(form)} disabled={!form.title || !form.body || !form.classId || saving}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
-          <Save className="w-3.5 h-3.5" /> {saving ? "Savingâ€¦" : form.status === "draft" ? "Save Draft" : form.status === "scheduled" ? "Schedule" : "Publish"}
+          <Save className="w-3.5 h-3.5" /> {saving ? "Saving…" : form.status === "draft" ? "Save Draft" : form.status === "scheduled" ? "Schedule" : "Publish"}
         </button>
       </div>
     </div>
@@ -239,7 +239,7 @@ export default function Announcements() {
       <div className="flex items-center justify-between">
         <div>
           <div className="text-sm font-bold text-foreground">Announcements</div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">Only for your assigned classes â€” not school-wide</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Only for your assigned classes — not school-wide</div>
         </div>
         <button type="button" onClick={() => setCreating(true)} disabled={!classes.length}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-black bg-[#3b5bdb] hover:bg-[#d97706] disabled:opacity-40 transition-all">
@@ -264,7 +264,7 @@ export default function Announcements() {
       )}
 
       {loading ? (
-        <div className="text-center py-12 text-xs text-muted-foreground">Loading announcementsâ€¦</div>
+        <div className="text-center py-12 text-xs text-muted-foreground">Loading announcements…</div>
       ) : (
         <div className="space-y-3">
           {items.map((a) => (
@@ -310,7 +310,7 @@ export default function Announcements() {
           {items.length === 0 && !creating && (
             <div className="text-center py-12 text-xs text-muted-foreground">
               {classes.length === 0
-                ? "No assigned classes yet â€” announcements appear once you teach a class."
+                ? "No assigned classes yet — announcements appear once you teach a class."
                 : "No announcements yet. Create your first announcement."}
             </div>
           )}

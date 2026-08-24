@@ -56,19 +56,19 @@ function ResolveModal({
       <div className="relative z-10 bg-surface border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl">
         <div className="text-sm font-bold text-foreground mb-1">{cfg.label}</div>
         <div className="text-[10px] text-muted-foreground mb-4">
-          {request.applicantName} Â· {leaveTypeLabel(request.leaveType)} Â· {request.fromDate}
-          {request.fromDate !== request.toDate && ` â†’ ${request.toDate}`} ({request.days}d)
+          {request.applicantName} · {leaveTypeLabel(request.leaveType)} · {request.fromDate}
+          {request.fromDate !== request.toDate && ` → ${request.toDate}`} ({request.days}d)
         </div>
         <div className="flex flex-col gap-1 mb-5">
           <label htmlFor="leave-resolve-remarks" className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-            Remarks (optional â€” stored on audit event)
+            Remarks (optional — stored on audit event)
           </label>
           <textarea
             id="leave-resolve-remarks"
             value={remarks}
             onChange={(e) => setRemarks(e.target.value)}
             rows={3}
-            placeholder="Add a note for this decisionâ€¦"
+            placeholder="Add a note for this decision…"
             className="bg-muted border border-border rounded-xl px-3 py-2 text-sm text-foreground resize-none focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
@@ -89,7 +89,7 @@ function ResolveModal({
               cfg.btnClass,
             )}
           >
-            {busy ? "Savingâ€¦" : cfg.label}
+            {busy ? "Saving…" : cfg.label}
           </button>
         </div>
       </div>
@@ -153,7 +153,7 @@ function LeaveDetail({
 
           <div className="flex flex-col gap-1 p-3 rounded-xl bg-muted">
             <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Reason</div>
-            <div className="text-xs text-[#c8c8d4] leading-relaxed">{request.reason || "â€”"}</div>
+            <div className="text-xs text-[#c8c8d4] leading-relaxed">{request.reason || "—"}</div>
           </div>
 
           {request.reviewedAt && (
@@ -190,7 +190,7 @@ function LeaveDetail({
 }
 
 /**
- * Admin Leave Requests â€” LeaveService.listForSchool / review only.
+ * Admin Leave Requests — LeaveService.listForSchool / review only.
  * No local-only approve toasts; empty when none.
  */
 export default function LeaveRequests() {
@@ -275,7 +275,7 @@ export default function LeaveRequests() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin" /> Loading leave requestsâ€¦
+        <Loader2 className="w-4 h-4 animate-spin" /> Loading leave requests…
       </div>
     );
   }
@@ -292,7 +292,7 @@ export default function LeaveRequests() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by applicant or reasonâ€¦"
+            placeholder="Search by applicant or reason…"
             className="w-full bg-surface border border-border/70 rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[#3b5bdb]/50"
           />
         </div>
@@ -350,7 +350,7 @@ export default function LeaveRequests() {
           <div className="flex flex-col items-center gap-3 py-16 bg-surface border border-border/70 rounded-2xl">
             <Calendar className="w-8 h-8 text-muted-foreground" />
             <div className="text-sm text-muted-foreground">No leave requests found</div>
-            <div className="text-[10px] text-muted-foreground">LeaveService Â· school-scoped</div>
+            <div className="text-[10px] text-muted-foreground">LeaveService · school-scoped</div>
           </div>
         )}
 
@@ -380,12 +380,12 @@ export default function LeaveRequests() {
                     </span>
                   </div>
                   <div className="text-[10px] text-muted-foreground mb-1">
-                    {req.department ?? "â€”"}
+                    {req.department ?? "—"}
                   </div>
                   <div className="flex items-center gap-4 text-[10px] text-muted-foreground mb-2">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" /> {req.fromDate}
-                      {req.fromDate !== req.toDate ? ` â†’ ${req.toDate}` : ""}
+                      {req.fromDate !== req.toDate ? ` → ${req.toDate}` : ""}
                     </span>
                     <span>
                       {req.days} day{req.days > 1 ? "s" : ""}
@@ -397,7 +397,7 @@ export default function LeaveRequests() {
                       })}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground line-clamp-1">{req.reason || "â€”"}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-1">{req.reason || "—"}</div>
                 </div>
 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
