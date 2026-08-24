@@ -1,18 +1,13 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
-import { Clock, CheckCircle, XCircle, MessageCircle } from 'lucide-react'
+import { Clock, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react'
 
 /**
- * Pending Decisions Block (§5.B)
+ * Pending Decisions Block (§5.B) - COMPACT VERSION
  *
- * Four queues merged and sorted by age (oldest first):
- * - Leave requests (approve/reject INLINE with reason)
- * - Complaints
- * - Inquiries
- * - Unread message replies
- *
- * Collapses to one calm line when all empty.
+ * Collapsed by default: shows compact summary
+ * Expand to see full list and take actions
  */
 
 interface PendingItem {
@@ -22,7 +17,6 @@ interface PendingItem {
   who: string
   waitingDays: number
   createdAt: string
-  // For leaves
   studentName?: string
   startDate?: string
   endDate?: string
@@ -36,6 +30,7 @@ export function PendingDecisionsBlock() {
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState<{ [id: string]: string }>({})
   const [showRejectField, setShowRejectField] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState(false)
 
   const load = async () => {
     if (!school?.id) return
@@ -44,7 +39,6 @@ export function PendingDecisionsBlock() {
     const allItems: PendingItem[] = []
 
     try {
-      // 1. Leave requests
       const { data: leaves } = await supabase
         .from('leave_requests')
         .select('id, created_at, student_id, start_date, end_date, reason, students(full_name)')
@@ -67,7 +61,6 @@ export function PendingDecisionsBlock() {
         })
       })
 
-      // 2. Complaints
       const { data: complaints } = await supabase
         .from('school_complaints')
         .select('id, created_at, complainant_name, subject')
@@ -86,7 +79,6 @@ export function PendingDecisionsBlock() {
         })
       })
 
-      // 3. Inquiries
       const { data: inquiries } = await supabase
         .from('school_inquiries')
         .select('id, created_at, contact_name, grade_interest')
@@ -105,11 +97,7 @@ export function PendingDecisionsBlock() {
         })
       })
 
-      // TODO: 4. Unread message replies
-
-      // Sort by age (oldest first)
       allItems.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-
       setItems(allItems)
     } finally {
       setLoading(false)
@@ -131,8 +119,6 @@ export function PendingDecisionsBlock() {
           decided_at: new Date().toISOString(),
         })
         .eq('id', id)
-
-      // Remove from list immediately
       setItems(items.filter(i => i.id !== id))
     } catch (error) {
       console.error('Failed to approve leave:', error)
@@ -159,8 +145,6 @@ export function PendingDecisionsBlock() {
           decided_at: new Date().toISOString(),
         })
         .eq('id', id)
-
-      // Remove from list immediately
       setItems(items.filter(i => i.id !== id))
       setShowRejectField(null)
       setRejectReason({ ...rejectReason, [id]: '' })
@@ -175,136 +159,193 @@ export function PendingDecisionsBlock() {
     return (
       <div style={{
         background: 'white',
-        borderRadius: '12px',
-        padding: '24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        borderRadius: '8px',
+        padding: '12px 16px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>
-          Pending Decisions
-        </h2>
-        <div className="animate-pulse" style={{ color: '#9CA3AF' }}>Loading...</div>
+        <div className="animate-pulse" style={{ fontSize: '13px', color: '#9CA3AF' }}>Loading...</div>
       </div>
     )
   }
 
-  // Empty state - collapse to one calm line
+  // Empty state
   if (items.length === 0) {
     return (
       <div style={{
         background: 'white',
-        borderRadius: '12px',
-        padding: '20px 24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        borderRadius: '8px',
+        padding: '12px 16px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
         border: '1px solid #d1fae5',
       }}>
-        <div style={{ fontSize: '14px', fontWeight: 600, color: '#10b981', textAlign: 'center' }}>
+        <div style={{ fontSize: '13px', fontWeight: 600, color: '#10b981' }}>
           ✓ Nothing pending
         </div>
       </div>
     )
   }
 
+  // Compact collapsed state
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        style={{
+          background: 'white',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          border: '2px solid #fef2f2',
+          borderLeft: '4px solid #ef4444',
+          width: '100%',
+          textAlign: 'left',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              background: '#ef4444',
+              color: 'white',
+              fontSize: '11px',
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: '10px',
+              minWidth: '22px',
+              textAlign: 'center',
+            }}>
+              {items.length}
+            </div>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
+                Pending Decisions
+              </div>
+              <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '2px' }}>
+                {items.filter(i => i.type === 'leave').length} leaves, {items.filter(i => i.type === 'complaint').length} complaints, {items.filter(i => i.type === 'inquiry').length} inquiries
+              </div>
+            </div>
+          </div>
+          <ChevronDown size={18} color="#9CA3AF" />
+        </div>
+      </button>
+    )
+  }
+
+  // Expanded state
   return (
     <div style={{
       background: 'white',
-      borderRadius: '12px',
-      padding: '24px',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+      borderRadius: '8px',
+      padding: '16px',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      border: '2px solid #fef2f2',
+      borderLeft: '4px solid #ef4444',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937' }}>
-          Pending Decisions
-        </h2>
-        <div style={{
-          background: '#ef4444',
-          color: 'white',
-          fontSize: '12px',
-          fontWeight: 700,
-          padding: '4px 10px',
-          borderRadius: '12px',
-          minWidth: '24px',
-          textAlign: 'center',
-        }}>
-          {items.length}
+      <button
+        onClick={() => setExpanded(false)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          marginBottom: '12px',
+          padding: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            background: '#ef4444',
+            color: 'white',
+            fontSize: '11px',
+            fontWeight: 700,
+            padding: '3px 8px',
+            borderRadius: '10px',
+          }}>
+            {items.length}
+          </div>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937', margin: 0 }}>
+            Pending Decisions
+          </h3>
         </div>
-      </div>
+        <ChevronUp size={18} color="#9CA3AF" />
+      </button>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {items.map((item) => (
           <div
             key={item.id}
             style={{
-              padding: '16px',
+              padding: '10px',
               background: '#F9FAFB',
-              borderRadius: '8px',
+              borderRadius: '6px',
               borderLeft: `3px solid ${item.waitingDays > 2 ? '#ef4444' : '#f59e0b'}`,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
-                  {item.title}
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, color: '#1F2937' }}>
+                  {item.title} • {item.who}
                 </div>
-                <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '2px' }}>
-                  {item.who}
-                </div>
+                {item.type === 'leave' && (
+                  <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '2px' }}>
+                    {item.startDate} to {item.endDate}
+                  </div>
+                )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#9CA3AF' }}>
-                <Clock size={12} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', color: '#9CA3AF', flexShrink: 0, marginLeft: '8px' }}>
+                <Clock size={10} />
                 {item.waitingDays}d
               </div>
             </div>
 
-            {/* Leave request - show details and actions */}
             {item.type === 'leave' && (
               <>
-                <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '12px' }}>
-                  {item.startDate} to {item.endDate} • {item.reason}
-                </div>
+                {showRejectField === item.id && (
+                  <input
+                    type="text"
+                    placeholder="Reason for rejection"
+                    value={rejectReason[item.id] || ''}
+                    onChange={(e) => setRejectReason({ ...rejectReason, [item.id]: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px',
+                      border: '1px solid #D1D5DB',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      marginBottom: '6px',
+                    }}
+                    autoFocus
+                  />
+                )}
 
-                {showRejectField === item.id ? (
-                  <div style={{ marginBottom: '8px' }}>
-                    <input
-                      type="text"
-                      placeholder="Reason for rejection"
-                      value={rejectReason[item.id] || ''}
-                      onChange={(e) => setRejectReason({ ...rejectReason, [item.id]: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        border: '1px solid #D1D5DB',
-                        borderRadius: '6px',
-                        fontSize: '13px',
-                        marginBottom: '8px',
-                      }}
-                      autoFocus
-                    />
-                  </div>
-                ) : null}
-
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
                   <button
                     onClick={() => approveLeave(item.id)}
                     disabled={processingId === item.id}
                     style={{
                       flex: 1,
-                      padding: '8px 16px',
+                      padding: '6px 12px',
                       background: '#10b981',
                       color: 'white',
                       border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '13px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
                       fontWeight: 600,
                       cursor: processingId === item.id ? 'not-allowed' : 'pointer',
                       opacity: processingId === item.id ? 0.6 : 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
                     }}
                   >
-                    <CheckCircle size={14} />
-                    Approve
+                    ✓ Approve
                   </button>
 
                   {showRejectField === item.id ? (
@@ -314,18 +355,17 @@ export function PendingDecisionsBlock() {
                         disabled={processingId === item.id}
                         style={{
                           flex: 1,
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           background: '#ef4444',
                           color: 'white',
                           border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '13px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
                           fontWeight: 600,
                           cursor: processingId === item.id ? 'not-allowed' : 'pointer',
-                          opacity: processingId === item.id ? 0.6 : 1,
                         }}
                       >
-                        Confirm Reject
+                        Confirm
                       </button>
                       <button
                         onClick={() => {
@@ -333,12 +373,12 @@ export function PendingDecisionsBlock() {
                           setRejectReason({ ...rejectReason, [item.id]: '' })
                         }}
                         style={{
-                          padding: '8px 16px',
+                          padding: '6px 12px',
                           background: '#F3F4F6',
                           color: '#6B7280',
                           border: 'none',
-                          borderRadius: '6px',
-                          fontSize: '13px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
                           fontWeight: 600,
                           cursor: 'pointer',
                         }}
@@ -351,44 +391,38 @@ export function PendingDecisionsBlock() {
                       onClick={() => setShowRejectField(item.id)}
                       style={{
                         flex: 1,
-                        padding: '8px 16px',
+                        padding: '6px 12px',
                         background: '#F3F4F6',
                         color: '#1F2937',
                         border: '1px solid #D1D5DB',
-                        borderRadius: '6px',
-                        fontSize: '13px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
                         fontWeight: 600,
                         cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
                       }}
                     >
-                      <XCircle size={14} />
-                      Reject
+                      × Reject
                     </button>
                   )}
                 </div>
               </>
             )}
 
-            {/* Other types - show view button */}
             {item.type !== 'leave' && (
               <button
                 style={{
-                  padding: '8px 16px',
+                  padding: '6px 12px',
                   background: '#3b82f6',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '13px',
+                  borderRadius: '4px',
+                  fontSize: '11px',
                   fontWeight: 600,
                   cursor: 'pointer',
                   width: '100%',
                 }}
               >
-                View {item.type}
+                View
               </button>
             )}
           </div>
