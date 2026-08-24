@@ -233,39 +233,63 @@ export function UpcomingBlock() {
             <div style={{ fontSize: '10px', fontWeight: 600, color: '#6B7280', marginBottom: '6px', textTransform: 'uppercase' }}>
               Next Exams
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {upcomingItems.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: '8px',
-                    background: '#F9FAFB',
-                    borderRadius: '6px',
-                    borderLeft: `3px solid ${item.daysAway <= 3 ? '#f59e0b' : '#3b82f6'}`,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F2937' }}>
-                        {item.className}{item.section && `-${item.section}`} • {item.subject}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {upcomingItems.map((item) => {
+                const isUrgent = item.daysAway <= 3
+                const color = isUrgent ? '#f59e0b' : '#3b82f6'
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => console.log('View exam:', item.id)}
+                    style={{
+                      padding: '12px',
+                      background: '#F9FAFB',
+                      borderRadius: '8px',
+                      borderLeft: `4px solid ${color}`,
+                      border: 'none',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      width: '100%',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = `${color}10`
+                      e.currentTarget.style.transform = 'translateX(4px)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#F9FAFB'
+                      e.currentTarget.style.transform = 'translateX(0)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
+                          {item.className}{item.section && `-${item.section}`} • {item.subject}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                          {new Date(item.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </div>
                       </div>
-                      <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px' }}>
-                        {new Date(item.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                        <div style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color,
+                          background: isUrgent ? '#fef3c7' : '#dbeafe',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                        }}>
+                          {item.daysAway === 0 ? 'TODAY' : item.daysAway === 1 ? 'TOMORROW' : `${item.daysAway} DAYS`}
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 500 }}>
+                          Click to view →
+                        </div>
                       </div>
                     </div>
-                    <div style={{
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      color: item.daysAway <= 3 ? '#f59e0b' : '#6B7280',
-                      background: item.daysAway <= 3 ? '#fef3c7' : '#F3F4F6',
-                      padding: '3px 6px',
-                      borderRadius: '3px',
-                    }}>
-                      {item.daysAway === 0 ? 'Today' : item.daysAway === 1 ? 'Tomorrow' : `${item.daysAway}d`}
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -275,38 +299,57 @@ export function UpcomingBlock() {
             <div style={{ fontSize: '10px', fontWeight: 600, color: '#ef4444', marginBottom: '6px', textTransform: 'uppercase' }}>
               Marks Not Uploaded
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {overdueMarks.map((item) => (
-                <div
+                <button
                   key={item.id}
+                  onClick={() => console.log('Upload marks for:', item.id)}
                   style={{
-                    padding: '8px',
+                    padding: '12px',
                     background: '#fef2f2',
-                    borderRadius: '6px',
-                    borderLeft: '3px solid #ef4444',
+                    borderRadius: '8px',
+                    borderLeft: '4px solid #ef4444',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    width: '100%',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#fee2e2'
+                    e.currentTarget.style.transform = 'translateX(4px)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#fef2f2'
+                    e.currentTarget.style.transform = 'translateX(0)'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F2937' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
                         {item.className}{item.section && `-${item.section}`}
                       </div>
-                      <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px' }}>
+                      <div style={{ fontSize: '12px', color: '#6B7280' }}>
                         {item.examName}
                       </div>
                     </div>
-                    <div style={{
-                      fontSize: '10px',
-                      fontWeight: 600,
-                      color: '#ef4444',
-                      background: '#fee2e2',
-                      padding: '3px 6px',
-                      borderRadius: '3px',
-                    }}>
-                      {item.daysOverdue}d overdue
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                      <div style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#ef4444',
+                        background: '#fee2e2',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                      }}>
+                        {item.daysOverdue}D OVERDUE
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 500 }}>
+                        Click to upload →
+                      </div>
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>

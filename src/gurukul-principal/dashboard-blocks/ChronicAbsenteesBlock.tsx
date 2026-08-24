@@ -218,7 +218,7 @@ export function ChronicAbsenteesBlock() {
         <ChevronUp size={18} color="#9CA3AF" />
       </button>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {students.map((student) => {
           const color = student.attendancePct < 50 ? '#dc2626' : student.attendancePct < 65 ? '#ef4444' : '#f59e0b'
 
@@ -227,41 +227,55 @@ export function ChronicAbsenteesBlock() {
               key={student.studentId}
               onClick={() => console.log('View student:', student.studentId)}
               style={{
-                padding: '8px',
+                padding: '12px',
                 background: '#F9FAFB',
-                borderRadius: '6px',
-                borderLeft: `3px solid ${color}`,
+                borderRadius: '8px',
+                borderLeft: `4px solid ${color}`,
                 border: 'none',
                 cursor: 'pointer',
                 textAlign: 'left',
                 width: '100%',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${color}10`
+                e.currentTarget.style.transform = 'translateX(4px)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#F9FAFB'
+                e.currentTarget.style.transform = 'translateX(0)'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{
-                  width: '24px',
-                  height: '24px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '50%',
-                  background: `${color}15`,
+                  background: `${color}20`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
                 }}>
-                  <UserX size={12} color={color} />
+                  <UserX size={18} color={color} />
                 </div>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F2937' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
                     {student.studentName}
                   </div>
-                  <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '1px' }}>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>
                     {student.className}{student.section && `-${student.section}`}
                   </div>
                 </div>
 
-                <div className="font-mono-data" style={{ fontSize: '14px', fontWeight: 700, color }}>
-                  {student.attendancePct.toFixed(1)}%
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                  <div className="font-mono-data" style={{ fontSize: '18px', fontWeight: 700, color }}>
+                    {student.attendancePct.toFixed(1)}%
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 500 }}>
+                    View profile →
+                  </div>
                 </div>
               </div>
             </button>

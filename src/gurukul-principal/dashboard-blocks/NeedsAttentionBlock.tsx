@@ -214,45 +214,133 @@ export function NeedsAttentionBlock() {
         <ChevronUp size={18} color="#9CA3AF" />
       </button>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {items.map((item) => (
           <div
             key={item.id}
             style={{
-              padding: '8px',
               background: '#F9FAFB',
-              borderRadius: '6px',
+              borderRadius: '8px',
               borderLeft: '3px solid #ef4444',
+              overflow: 'hidden',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <AlertCircle size={14} color="#ef4444" style={{ flexShrink: 0 }} />
-
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F2937' }}>
-                  {item.className}{item.section && `-${item.section}`}
-                </div>
-                <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '1px' }}>
-                  {item.reason}
-                </div>
-              </div>
-
-              <div style={{ fontSize: '12px', fontWeight: 700, color: '#ef4444', marginRight: '8px' }}>
-                {item.value}
-              </div>
-
-              <button
-                onClick={() => dismissItem(item.id)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '2px',
+            <button
+              onClick={() => console.log('View class:', item.className)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#fee2e2'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  background: '#fee2e2',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <AlertCircle size={16} color="#ef4444" />
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
+                    {item.className}{item.section && `-${item.section}`}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                    {item.reason}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444' }}>
+                    {item.value}
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 500 }}>
+                    Click to view →
+                  </div>
+                </div>
+              </div>
+            </button>
+
+            <div style={{
+              padding: '0 12px 12px 12px',
+              display: 'flex',
+              gap: '8px',
+            }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  dismissItem(item.id)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  background: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: '#6B7280',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f3f4f6'
+                  e.currentTarget.style.borderColor = '#d1d5db'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white'
+                  e.currentTarget.style.borderColor = '#e5e7eb'
                 }}
               >
-                <X size={14} color="#9CA3AF" />
+                <X size={14} />
+                Dismiss
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  console.log('Take action for:', item.className)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '8px 12px',
+                  background: '#ef4444',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'white',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#dc2626'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#ef4444'
+                }}
+              >
+                Take Action
               </button>
             </div>
           </div>
