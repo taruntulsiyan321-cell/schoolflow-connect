@@ -42,12 +42,33 @@ function Empty({ message }: { message: string }) {
   return <div style={{ padding: "24px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 12 }}>{message}</div>;
 }
 
-function StatBlock({ label, value, color }: { label: string; value: string | number; color: string }) {
+function StatBlock({ label, value, color, onClick }: { label: string; value: string | number; color: string; onClick?: () => void }) {
+  const Container = onClick ? 'button' : 'div'
   return (
-    <div style={{ padding: "14px 16px", background: "var(--bg)", borderRadius: 10, border: "1px solid var(--border-subtle)" }}>
+    <Container
+      onClick={onClick}
+      style={{
+        padding: "14px 16px",
+        background: "var(--bg)",
+        borderRadius: 10,
+        border: "1px solid var(--border-subtle)",
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'all 0.2s ease',
+        width: '100%',
+        textAlign: 'left',
+      }}
+      onMouseEnter={onClick ? (e: any) => {
+        e.currentTarget.style.transform = 'translateY(-2px)'
+        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'
+      } : undefined}
+      onMouseLeave={onClick ? (e: any) => {
+        e.currentTarget.style.transform = 'translateY(0)'
+        e.currentTarget.style.boxShadow = 'none'
+      } : undefined}
+    >
       <div className="font-mono-data" style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
       <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{label}</div>
-    </div>
+    </Container>
   );
 }
 
@@ -62,7 +83,7 @@ const thStyle: React.CSSProperties = {
  * Health brief is built client-side from the same school aggregate (no extra fetch) via
  * the EIE-aware buildSchoolHealthBrief — see src/academic/ai/schoolHealthBrief.ts.
  */
-export function PrincipalSchoolOverview() {
+export function PrincipalSchoolOverview({ onDrillDown }: { onDrillDown?: (metric: 'attendance' | 'homework' | 'tests' | 'exams') => void }) {
   const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive([
     "attendance",
@@ -139,11 +160,31 @@ export function PrincipalSchoolOverview() {
             theme it renders ~1.7:1 against --bg and the number is effectively invisible.
             Every sibling stat uses a saturated token, so this one was the odd one out. */}
         <StatBlock label="Classes" value={school.classCount} color="var(--coral)" />
-        <StatBlock label="Attendance Today" value={`${today?.overallDayRatePct ?? 0}%`} color="var(--emerald)" />
+        <StatBlock
+          label="Attendance Today"
+          value={`${today?.overallDayRatePct ?? 0}%`}
+          color="var(--emerald)"
+          onClick={onDrillDown ? () => onDrillDown('attendance') : undefined}
+        />
         <StatBlock label="Profile Avg Attendance" value={`${Math.round(school.avgAttendancePct)}%`} color="var(--emerald)" />
-        <StatBlock label="Avg Exams" value={`${Math.round(school.avgExamsPct)}%`} color="var(--rose)" />
-        <StatBlock label="Avg Homework" value={`${Math.round(school.avgHomeworkCompletionPct)}%`} color="var(--amber)" />
-        <StatBlock label="Avg Tests" value={`${Math.round(school.avgTestsPct)}%`} color="var(--indigo)" />
+        <StatBlock
+          label="Avg Exams"
+          value={`${Math.round(school.avgExamsPct)}%`}
+          color="var(--rose)"
+          onClick={onDrillDown ? () => onDrillDown('exams') : undefined}
+        />
+        <StatBlock
+          label="Avg Homework"
+          value={`${Math.round(school.avgHomeworkCompletionPct)}%`}
+          color="var(--amber)"
+          onClick={onDrillDown ? () => onDrillDown('homework') : undefined}
+        />
+        <StatBlock
+          label="Avg Tests"
+          value={`${Math.round(school.avgTestsPct)}%`}
+          color="var(--indigo)"
+          onClick={onDrillDown ? () => onDrillDown('tests') : undefined}
+        />
       </div>
       {brief && brief.status === "ready" && (
         <div style={{
@@ -165,7 +206,13 @@ export function PrincipalSchoolOverview() {
 /**
  * Per-class rollups table — AnalyticsService.classRollups (computed in the engine, not in React).
  */
-export function PrincipalClassRollups() {
+export function PrincipalClassRollups({
+  onClassClick,
+  focusMetric,
+}: {
+  onClassClick?: (classId: string, className: string) => void;
+  focusMetric?: 'attendance' | 'homework' | 'tests' | 'exams';
+}) {
   const { ctx, ready, settled } = useAcademicContext();
   const liveVersion = useAcademicLive([
     "attendance",
@@ -253,9 +300,24 @@ export function PrincipalClassRollups() {
                   : r.attendance.band === "elevated" || r.homework.band === "elevated"
                   ? "elevated"
                   : "low";
+              const className = `${c.className}${c.section ? `-${c.section}` : ""}`;
               return (
-                <tr key={c.classId} style={{ background: i % 2 === 0 ? "transparent" : "var(--bg)" }}>
-                  <td style={{ padding: "12px 14px", fontWeight: 700, fontSize: 13 }}>{c.className}{c.section ? `-${c.section}` : ""}</td>
+                <tr
+                  key={c.classId}
+                  onClick={onClassClick ? () => onClassClick(c.classId, className) : undefined}
+                  style={{
+                    background: i % 2 === 0 ? "transparent" : "var(--bg)",
+                    cursor: onClassClick ? 'pointer' : 'default',
+                    transition: 'background 0.2s ease',
+                  }}
+                  onMouseEnter={onClassClick ? (e) => {
+                    e.currentTarget.style.background = 'rgba(59,91,219,0.05)';
+                  } : undefined}
+                  onMouseLeave={onClassClick ? (e) => {
+                    e.currentTarget.style.background = i % 2 === 0 ? "transparent" : "var(--bg)";
+                  } : undefined}
+                >
+                  <td style={{ padding: "12px 14px", fontWeight: 700, fontSize: 13 }}>{className}</td>
                   <td style={{ padding: "12px 14px", fontSize: 12 }} className="font-mono-data">{c.studentCount}</td>
                   <td
                     style={{

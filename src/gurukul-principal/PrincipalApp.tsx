@@ -22,6 +22,7 @@ import {
 import PrincipalMessages from './Messages'
 import PrincipalDashboard from './PrincipalDashboard'
 import PrincipalDashboardRedesigned from './PrincipalDashboardRedesigned'
+import { useDashboardDrillDown } from './DashboardDrillDown'
 import LeaveRequests from '../gurukul-admin/LeaveRequests'
 import { InquiriesReport, ComplaintsReport } from '@/pages/shared/OperationalCases'
 import {
@@ -119,12 +120,61 @@ const navItems: { icon: React.ElementType; key: PrincipalPageKey }[] = [
 // ── PAGE: Dashboard ───────────────────────────────────────────────────────────
 
 function DashboardPage() {
+  const {
+    drillState,
+    drillToClass,
+    drillToStudent,
+    navigateToLevel,
+    BreadcrumbComponent,
+  } = useDashboardDrillDown()
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="Real-time school statistics and health overview">School Overview</SectionTitle>
-      <Card><PrincipalSchoolOverview /></Card>
-      <SectionTitle sub="Performance metrics across all classes">Class Performance</SectionTitle>
-      <Card><PrincipalClassRollups /></Card>
+      <BreadcrumbComponent />
+
+      {/* School-level view */}
+      {drillState.level === 'school' && (
+        <>
+          <SectionTitle sub="Real-time school statistics and health overview">School Overview</SectionTitle>
+          <Card>
+            <PrincipalSchoolOverview onDrillDown={drillToClass} />
+          </Card>
+          <SectionTitle sub="Performance metrics across all classes">Class Performance</SectionTitle>
+          <Card>
+            <PrincipalClassRollups onClassClick={drillToStudent} />
+          </Card>
+        </>
+      )}
+
+      {/* Class-level drill-down */}
+      {drillState.level === 'class' && drillState.metric && (
+        <>
+          <SectionTitle sub={`${drillState.metric.charAt(0).toUpperCase()}${drillState.metric.slice(1)} breakdown by class`}>
+            Class-wise {drillState.metric.charAt(0).toUpperCase()}{drillState.metric.slice(1)}
+          </SectionTitle>
+          <Card>
+            <PrincipalClassRollups
+              focusMetric={drillState.metric}
+              onClassClick={drillToStudent}
+            />
+          </Card>
+        </>
+      )}
+
+      {/* Student-level drill-down */}
+      {drillState.level === 'student' && drillState.classId && (
+        <>
+          <SectionTitle sub={`${drillState.metric} details for ${drillState.className}`}>
+            Student Details
+          </SectionTitle>
+          <Card>
+            {/* TODO: Create component to show individual students */}
+            <div style={{ padding: 20, color: 'var(--text-muted)' }}>
+              Student-level details for {drillState.className} will be shown here
+            </div>
+          </Card>
+        </>
+      )}
     </div>
   )
 }
