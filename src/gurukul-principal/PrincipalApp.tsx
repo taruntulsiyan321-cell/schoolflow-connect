@@ -119,9 +119,9 @@ const navItems: { icon: React.ElementType; key: PrincipalPageKey }[] = [
 function DashboardPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="AnalyticsService · AttendanceService · EIE health brief">School Overview</SectionTitle>
+      <SectionTitle sub="Real-time school statistics and health overview">School Overview</SectionTitle>
       <Card><PrincipalSchoolOverview /></Card>
-      <SectionTitle sub="Per-class averages from AnalyticsService.classRollups">Class Performance</SectionTitle>
+      <SectionTitle sub="Performance metrics across all classes">Class Performance</SectionTitle>
       <Card><PrincipalClassRollups /></Card>
     </div>
   )
@@ -130,13 +130,13 @@ function DashboardPage() {
 function AnalyticsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="Academic Engine analytics — no mock charts">Academic Analytics</SectionTitle>
+      <SectionTitle sub="Comprehensive academic performance insights">Academic Analytics</SectionTitle>
       <Card><PrincipalSchoolOverview /></Card>
       <SectionTitle>Class Rollups</SectionTitle>
       <Card><PrincipalClassRollups /></Card>
       <SectionTitle>Student Rankings</SectionTitle>
       <Card><PrincipalStudentRankings /></Card>
-      <SectionTitle sub="AnalyticsService.homeworkSchool">Homework</SectionTitle>
+      <SectionTitle sub="Homework completion across all classes">Homework</SectionTitle>
       <Card><PrincipalHomeworkLive /></Card>
     </div>
   )
@@ -145,7 +145,7 @@ function AnalyticsPage() {
 function TeachersPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="AnalyticsService.forTeacher · live directory — empty when no assignments">Teachers</SectionTitle>
+      <SectionTitle sub="Teacher directory and performance metrics">Teachers</SectionTitle>
       <Card><PrincipalTeachersLive /></Card>
     </div>
   )
@@ -154,7 +154,7 @@ function TeachersPage() {
 function StudentsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="Rankings from AcademicProfileService.listForSchool">Students</SectionTitle>
+      <SectionTitle sub="Top and bottom performers by exams and attendance">Students</SectionTitle>
       <Card><PrincipalStudentRankings /></Card>
     </div>
   )
@@ -163,7 +163,7 @@ function StudentsPage() {
 function ExaminationsPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="Exam / test averages from AnalyticsService (no mock exam schedule stats)">Examinations & Tests</SectionTitle>
+      <SectionTitle sub="Exam and test performance across the school">Examinations & Tests</SectionTitle>
       <Card><PrincipalSchoolOverview /></Card>
       <SectionTitle>Class exam & test rollups</SectionTitle>
       <Card><PrincipalClassRollups /></Card>
@@ -174,7 +174,7 @@ function ExaminationsPage() {
 function AttendancePage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="AttendanceService.summarizeSchoolDate">Attendance</SectionTitle>
+      <SectionTitle sub="Daily attendance summary for the school">Attendance</SectionTitle>
       <Card><PrincipalAttendanceLive /></Card>
     </div>
   )
@@ -237,7 +237,7 @@ function AnnouncementsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <SectionTitle sub="AnnouncementService.listForSchool — live notices only">Announcements</SectionTitle>
+      <SectionTitle sub="Manage and publish school-wide announcements">Announcements</SectionTitle>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
         {[

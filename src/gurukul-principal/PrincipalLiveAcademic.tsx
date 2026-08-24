@@ -158,7 +158,6 @@ export function PrincipalSchoolOverview() {
           </ul>
         </div>
       )}
-      <p style={{ fontSize: 10, color: "var(--text-muted)" }}>AnalyticsService.forSchool · AttendanceService.summarizeSchoolDate · buildSchoolHealthBrief (EIE)</p>
     </div>
   );
 }
@@ -278,7 +277,6 @@ export function PrincipalClassRollups() {
         </table>
         {rows.length === 0 && <Empty message="No classes found." />}
       </div>
-      <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 8 }}>AnalyticsService.classRollups · risk bands via EIE (src/academic/eie)</p>
     </div>
   );
 }
@@ -432,7 +430,6 @@ export function PrincipalStudentRankings() {
           </div>
         </div>
       )}
-      <p style={{ fontSize: 10, color: "var(--text-muted)" }}>AcademicProfileService.listForSchool · students (name lookup only)</p>
     </div>
   );
 }
@@ -537,7 +534,6 @@ export function PrincipalAttendanceLive() {
       ) : (
         <Empty message="No attendance data for this date." />
       )}
-      <p style={{ fontSize: 10, color: "var(--text-muted)" }}>AttendanceService.summarizeSchoolDate</p>
     </div>
   );
 }
@@ -695,9 +691,6 @@ export function PrincipalTeachersLive() {
           </table>
         </div>
       )}
-      <p style={{ fontSize: 10, color: "var(--text-muted)" }}>
-        AnalyticsService.forTeacher - assigned class profile averages (empty when no assignments)
-      </p>
     </div>
   );
 }
@@ -781,7 +774,6 @@ export function PrincipalHomeworkLive() {
         </table>
         {summary.classes.length === 0 && <Empty message="No class homework yet." />}
       </div>
-      <p style={{ fontSize: 10, color: "var(--text-muted)" }}>AnalyticsService.homeworkSchool</p>
     </div>
   );
 }
