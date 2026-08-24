@@ -58,7 +58,6 @@ export type RecoveryCompletionReport = {
   achievements: { id: string; label: string; description: string; earned: boolean }[];
 };
 
-const SUCCESS_HISTORY_KEY = "recovery-success-history";
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, Math.round(n)));
@@ -97,21 +96,26 @@ function relatedConcepts(
   });
 }
 
-export function appendSuccessHistory(entry: SuccessHistoryItem): void {
+export function appendSuccessHistory(
+  storageKey: string | null,
+  entry: SuccessHistoryItem,
+): void {
+  if (!storageKey) return;
   try {
-    const raw = localStorage.getItem(SUCCESS_HISTORY_KEY);
+    const raw = localStorage.getItem(storageKey);
     const list: SuccessHistoryItem[] = raw ? JSON.parse(raw) : [];
     const filtered = list.filter((e) => e.topic !== entry.topic);
     filtered.unshift(entry);
-    localStorage.setItem(SUCCESS_HISTORY_KEY, JSON.stringify(filtered.slice(0, 8)));
+    localStorage.setItem(storageKey, JSON.stringify(filtered.slice(0, 8)));
   } catch {
     /* ignore */
   }
 }
 
-export function readSuccessHistory(): SuccessHistoryItem[] {
+export function readSuccessHistory(storageKey: string | null): SuccessHistoryItem[] {
+  if (!storageKey) return [];
   try {
-    const raw = localStorage.getItem(SUCCESS_HISTORY_KEY);
+    const raw = localStorage.getItem(storageKey);
     return raw ? (JSON.parse(raw) as SuccessHistoryItem[]) : [];
   } catch {
     return [];
@@ -124,8 +128,9 @@ export function buildRecoveryCompletionReport(opts: {
   snapshot: AcademicSnapshot | null;
   weakConcepts?: { concept: string; mastery_score?: number }[];
   nextWeakConcept?: string;
+  successHistoryKey: string | null;
 }): RecoveryCompletionReport {
-  const { state, mastery, snapshot, weakConcepts = [], nextWeakConcept } = opts;
+  const { state, mastery, snapshot, weakConcepts = [], nextWeakConcept, successHistoryKey } = opts;
   const attempts = state.attempts;
   const total = attempts.length;
   const correct = attempts.filter((a) => a.isCorrect).length;
@@ -157,7 +162,7 @@ export function buildRecoveryCompletionReport(opts: {
     gain: 0,
     completedAt,
   };
-  const priorHistory = readSuccessHistory().filter((h) => h.topic !== concept);
+  const priorHistory = readSuccessHistory(successHistoryKey).filter((h) => h.topic !== concept);
   const successHistory = [historyEntry, ...priorHistory].slice(0, 5);
 
   const nextRecovery =

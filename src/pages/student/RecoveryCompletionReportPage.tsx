@@ -12,6 +12,7 @@ import { useAcademicContext } from "@/academic";
 import { DecisionEngineService } from "@/academic/services/decisionEngineService";
 import { DECISION_ENGINE_FEATURE_FLAGS } from "@/lib/productFeatureFlags";
 import { buildRecoveryCompletionReport, appendSuccessHistory } from "@/lib/recoveryCompletionReport";
+import { recoverySuccessHistoryKey } from "@/lib/clientStorage";
 import { readRecoveryResultState } from "@/lib/recoverySessionSnapshot";
 
 export default function RecoveryCompletionReportPage() {
@@ -21,6 +22,10 @@ export default function RecoveryCompletionReportPage() {
   const { data: snapshot, loading: snapLoading } = useStudentAcademicSnapshot();
   const { data: recoveryZone, loading: zoneLoading } = useRecoveryZone();
   const { ctx, ready: academicReady } = useAcademicContext();
+  const successHistoryKey = recoverySuccessHistoryKey({
+    userId: ctx?.userId,
+    schoolId: ctx?.schoolId,
+  });
 
   // Decision Engine Slice 1 swap-in for the "next weak concept" suggestion
   // -- reuses the same weakAreasV2 flag already live for Practice.tsx (one
@@ -77,19 +82,20 @@ export default function RecoveryCompletionReportPage() {
       snapshot,
       weakConcepts,
       nextWeakConcept: nextWeak,
+      successHistoryKey,
     });
-  }, [localState, mastery, snapshot, weakConcepts]);
+  }, [localState, mastery, snapshot, weakConcepts, successHistoryKey]);
 
   const historySaved = useRef(false);
   useEffect(() => {
     if (!report || historySaved.current) return;
     historySaved.current = true;
-    appendSuccessHistory({
+    appendSuccessHistory(successHistoryKey, {
       topic: report.concept,
       gain: report.hero.masteryAfter - report.hero.masteryBefore,
       completedAt: report.completedAt,
     });
-  }, [report]);
+  }, [report, successHistoryKey]);
 
   if (!id) {
     return (

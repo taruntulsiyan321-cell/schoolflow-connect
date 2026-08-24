@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { classLabel } from "@/lib/utils";
 import { toErrorMessage } from "@/lib/presentation";
+import { appSettingsKey } from "@/lib/clientStorage";
 
 /* ============================================================
    USERS DIRECTORY (admin)
@@ -582,7 +583,8 @@ export function AppSettingsPage() {
       const { data, error } = await supabase.from("app_settings").select("*").eq("school_id", ctx.schoolId).maybeSingle();
       if (error) {
         // Fall back to any locally cached settings if the table is unavailable.
-        const s = localStorage.getItem("app-settings");
+        const cacheKey = appSettingsKey(ctx.schoolId);
+        const s = cacheKey ? localStorage.getItem(cacheKey) : null;
         if (s) setSettings(JSON.parse(s));
       } else if (data) {
         const d = data;
@@ -618,7 +620,8 @@ export function AppSettingsPage() {
     );
     setSaving(false);
     if (error) return toast.error(error.message);
-    localStorage.setItem("app-settings", JSON.stringify(settings));
+    const cacheKey = appSettingsKey(ctx.schoolId);
+    if (cacheKey) localStorage.setItem(cacheKey, JSON.stringify(settings));
     toast.success("Settings saved");
   };
 

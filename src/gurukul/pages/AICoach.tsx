@@ -26,6 +26,7 @@ import {
 import { WEAK_CONCEPT_THRESHOLD } from "@/academic/eie/masteryBands";
 import { NovaMarkdown } from "@/components/NovaMarkdown";
 import { useAuth } from "@/auth";
+import { novaConversationsKey } from "@/lib/clientStorage";
 import { useStudentAcademicSnapshot } from "@/hooks/useStudentAcademicSnapshot";
 import { useRecoveryZone } from "@/hooks/useRecoveryZone";
 import {
@@ -61,7 +62,6 @@ interface Conversation {
   questionContext?: NovaQuestionContext;
 }
 
-const CONVO_STORAGE_KEY = "gurukul.nova.convos.v1";
 
 // ── Honest empty conversation list (never seed demo chats) ────────────────────
 const EMPTY_CONVOS: Conversation[] = [];
@@ -84,9 +84,10 @@ const SUGGESTIONS = [
   { icon:<AlertCircle className="w-4 h-4"/>,    text:"How am I doing in attendance and marks?",color:"#c08a3a" },
 ];
 
-function loadStoredConvos(): Conversation[] {
+function loadStoredConvos(key: string | null): Conversation[] {
+  if (!key) return EMPTY_CONVOS;
   try {
-    const raw = localStorage.getItem(CONVO_STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return EMPTY_CONVOS;
     const parsed = JSON.parse(raw) as Conversation[];
     return Array.isArray(parsed) ? parsed : EMPTY_CONVOS;
@@ -725,7 +726,8 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     [novaChips],
   );
 
-  const [convos,     setConvos]     = useState<Conversation[]>(() => loadStoredConvos());
+  const convoStorageKey = novaConversationsKey({ userId: user?.id, schoolId: schoolId ?? undefined });
+  const [convos,     setConvos]     = useState<Conversation[]>(EMPTY_CONVOS);
   const [activeId,   setActiveId]   = useState<string|null>(null);
   const [sidebarOpen,setSidebarOpen]= useState(false);
   const [renaming,   setRenaming]   = useState<string|null>(null);
@@ -787,13 +789,20 @@ export default function AICoach({ setPage }: { setPage?: (p: PageKey) => void })
     };
   }, []);
 
+  // Load only once identity is known, so a conversation list is never read or
+  // written under a key that isn't this user's.
   useEffect(() => {
+    setConvos(loadStoredConvos(convoStorageKey));
+  }, [convoStorageKey]);
+
+  useEffect(() => {
+    if (!convoStorageKey) return;
     try {
-      localStorage.setItem(CONVO_STORAGE_KEY, JSON.stringify(convos.slice(0, 40)));
+      localStorage.setItem(convoStorageKey, JSON.stringify(convos.slice(0, 40)));
     } catch {
       /* ignore quota */
     }
-  }, [convos]);
+  }, [convos, convoStorageKey]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior:"smooth" });

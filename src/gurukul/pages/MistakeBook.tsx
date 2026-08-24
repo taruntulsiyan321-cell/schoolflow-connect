@@ -2,6 +2,7 @@
 import type { PageKey } from "@/gurukul/nav";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { mistakeBookmarksKey } from "@/lib/clientStorage";
 import { PracticeService, useAcademicContext, useAcademicLive } from "@/academic";
 import { isSubjectAllowedForScope, type AcademicStream } from "@/lib/curriculumScope";
 import { assignRecoveryOnMistake } from "@/lib/assignRecoveryOnMistake";
@@ -445,6 +446,7 @@ function MistakePractice({
 export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => void }) {
   const { user } = useAuth();
   const { ctx, ready: academicReady } = useAcademicContext();
+  const bookmarksKey = mistakeBookmarksKey({ userId: user?.id, schoolId: ctx?.schoolId ?? undefined });
   const [view, setView] = useState<MBView>("list");
   const [practiceIds, setPracticeIds] = useState<string[]>([]);
   const [practiceScore, setPracticeScore] = useState(0);
@@ -465,18 +467,18 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
   const liveVersion = useAcademicLive(["profile", "xp"]);
 
   useEffect(() => {
-    if (!user?.id || typeof localStorage === "undefined") {
+    if (!bookmarksKey || typeof localStorage === "undefined") {
       setBookmarks(new Set());
       return;
     }
     try {
-      const raw = localStorage.getItem(`gurukul.mistake.bookmarks.${user.id}`);
+      const raw = localStorage.getItem(bookmarksKey);
       const arr = raw ? (JSON.parse(raw) as string[]) : [];
       setBookmarks(new Set(Array.isArray(arr) ? arr : []));
     } catch {
       setBookmarks(new Set());
     }
-  }, [user?.id]);
+  }, [bookmarksKey]);
 
   useEffect(() => {
     if (!ctx || !academicReady) return;
@@ -570,8 +572,8 @@ export default function MistakeBook({ setPage }: { setPage?: (p: PageKey) => voi
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      if (user?.id && typeof localStorage !== "undefined") {
-        localStorage.setItem(`gurukul.mistake.bookmarks.${user.id}`, JSON.stringify([...next]));
+      if (bookmarksKey && typeof localStorage !== "undefined") {
+        localStorage.setItem(bookmarksKey, JSON.stringify([...next]));
       }
       return next;
     });
