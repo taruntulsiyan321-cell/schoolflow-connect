@@ -177,25 +177,25 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
   return (
     <div style={{
       background: 'white',
-      borderRadius: '12px',
+      borderRadius: '8px',
       border: `2px solid ${color}15`,
-      borderLeft: `6px solid ${color}`,
-      padding: '32px 24px',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+      borderLeft: `4px solid ${color}`,
+      padding: '16px',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <div style={{ fontSize: '14px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           TODAY'S ATTENDANCE
         </div>
         {isProvisional && (
           <div style={{
-            fontSize: '11px',
+            fontSize: '9px',
             fontWeight: 600,
             color: '#f59e0b',
             background: '#fef3c7',
-            padding: '4px 8px',
-            borderRadius: '4px',
+            padding: '2px 6px',
+            borderRadius: '3px',
           }}>
             PROVISIONAL
           </div>
@@ -210,31 +210,29 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
           border: 'none',
           cursor: 'pointer',
           padding: 0,
-          marginBottom: '16px',
+          marginBottom: '0',
           width: '100%',
           textAlign: 'left',
         }}
       >
-        <div
-          className="font-mono-data"
-          style={{
-            fontSize: '56px',
-            fontWeight: 800,
-            color,
-            lineHeight: 1,
-            marginBottom: '8px',
-          }}
-        >
-          {percentage.toFixed(1)}%
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', marginBottom: '8px' }}>
+          <div
+            className="font-mono-data"
+            style={{
+              fontSize: '42px',
+              fontWeight: 800,
+              color,
+              lineHeight: 1,
+            }}
+          >
+            {percentage.toFixed(1)}%
+          </div>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#1F2937' }}>
+            {presentCount} present
+          </div>
         </div>
-        <div style={{ fontSize: '15px', fontWeight: 600, color: '#1F2937', marginBottom: '4px' }}>
-          {presentCount} present
-        </div>
-        <div style={{ fontSize: '13px', color: '#6B7280' }}>
-          across {markedClasses} of {totalClasses} classes marked
-        </div>
-        <div style={{ fontSize: '13px', color: '#ef4444', marginTop: '4px', fontWeight: 600 }}>
-          {absentCount} students absent
+        <div style={{ fontSize: '11px', color: '#6B7280' }}>
+          {markedClasses} of {totalClasses} classes marked • {absentCount} absent
         </div>
       </button>
 
@@ -268,53 +266,53 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
       {/* Unmarked Classes - INSIDE THE HERO */}
       {unmarked.length > 0 && (
         <div style={{
-          marginTop: '20px',
-          padding: '16px',
+          marginTop: '12px',
+          padding: '10px',
           background: '#fef2f2',
           border: '1px solid #fecaca',
-          borderRadius: '8px',
+          borderRadius: '6px',
         }}>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626', marginBottom: '12px' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#dc2626', marginBottom: '8px' }}>
             {unmarked.length} class{unmarked.length !== 1 ? 'es' : ''} not yet marked
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {unmarked.map((cls) => (
               <div
                 key={cls.classId}
                 style={{
                   background: 'white',
-                  padding: '12px',
-                  borderRadius: '6px',
+                  padding: '8px',
+                  borderRadius: '4px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                 }}
               >
                 <div>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F2937' }}>
                     {cls.className}{cls.section && `-${cls.section}`}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
+                  <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '1px' }}>
                     {cls.teacherName}
                   </div>
                 </div>
                 <button
                   onClick={() => messageTeacher(cls.teacherId, `${cls.className}${cls.section ? `-${cls.section}` : ''}`)}
                   style={{
-                    padding: '6px 12px',
+                    padding: '4px 8px',
                     background: '#3b82f6',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
+                    borderRadius: '4px',
+                    fontSize: '10px',
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px',
+                    gap: '3px',
                   }}
                 >
-                  <MessageSquare size={14} />
+                  <MessageSquare size={12} />
                   Message
                 </button>
               </div>
@@ -326,15 +324,15 @@ export function AttendanceHeroBlock({ onDrillToClasses }: AttendanceHeroProps) {
       {/* All marked - calm state */}
       {unmarked.length === 0 && markedClasses === totalClasses && (
         <div style={{
-          marginTop: '16px',
-          padding: '12px',
+          marginTop: '12px',
+          padding: '8px',
           background: '#f0fdf4',
           border: '1px solid #bbf7d0',
-          borderRadius: '8px',
+          borderRadius: '6px',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#16a34a' }}>
-            ✓ All {totalClasses} classes marked attendance
+          <div style={{ fontSize: '11px', fontWeight: 600, color: '#16a34a' }}>
+            ✓ All {totalClasses} classes marked
           </div>
         </div>
       )}

@@ -1,29 +1,13 @@
 import { useState, useEffect } from 'react'
 import { AnalyticsService, useAcademicLive } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
-import { BookOpen, TrendingDown, TrendingUp } from 'lucide-react'
-
-/**
- * Homework Completion Block (§5.C)
- *
- * Formula (§3):
- * Class rate = completions ÷ students assigned, for homework with
- *              due date in last 7 days (past due only)
- * School rate = total completions ÷ total assignments, same window
- *
- * Shows school rate + spread (lowest to highest class)
- * Principal cares about the class at the bottom
- *
- * Drill-down: School → Class-wise → Students (with missed-while-absent separate)
- */
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 interface ClassHomework {
   classId: string
   className: string
   section: string
   rate: number
-  completions: number
-  total: number
 }
 
 interface HomeworkBlockProps {
@@ -35,12 +19,10 @@ export function HomeworkCompletionBlock({ onDrillToClasses }: HomeworkBlockProps
   const liveVersion = useAcademicLive(['homework'])
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
+  const [expanded, setExpanded] = useState(false)
   const [schoolRate, setSchoolRate] = useState(0)
   const [lowestClass, setLowestClass] = useState<ClassHomework | null>(null)
   const [highestClass, setHighestClass] = useState<ClassHomework | null>(null)
-  const [classCount, setClassCount] = useState(0)
 
   useEffect(() => {
     if (!settled || !ctx) return
@@ -49,11 +31,8 @@ export function HomeworkCompletionBlock({ onDrillToClasses }: HomeworkBlockProps
 
     ;(async () => {
       setLoading(true)
-      setError(null)
 
       try {
-        // TODO: Implement 7-day window calculation
-        // For now using aggregate from AnalyticsService
         const [school, classRollups] = await Promise.all([
           AnalyticsService.forSchool(ctx),
           AnalyticsService.classRollups(ctx),
@@ -61,41 +40,28 @@ export function HomeworkCompletionBlock({ onDrillToClasses }: HomeworkBlockProps
 
         if (cancelled) return
 
-        // Use school average (TODO: implement proper 7-day window)
         setSchoolRate(school.avgHomeworkCompletionPct)
 
-        // Find spread
         if (classRollups.length > 0) {
           const sorted = [...classRollups].sort((a, b) => a.avgHomeworkCompletionPct - b.avgHomeworkCompletionPct)
 
-          const lowest = sorted[0]
-          const highest = sorted[sorted.length - 1]
-
           setLowestClass({
-            classId: lowest.classId,
-            className: lowest.className,
-            section: lowest.section || '',
-            rate: lowest.avgHomeworkCompletionPct,
-            completions: 0, // TODO: Get from actual data
-            total: lowest.studentCount,
+            classId: sorted[0].classId,
+            className: sorted[0].className,
+            section: sorted[0].section || '',
+            rate: sorted[0].avgHomeworkCompletionPct,
           })
 
           setHighestClass({
-            classId: highest.classId,
-            className: highest.className,
-            section: highest.section || '',
-            rate: highest.avgHomeworkCompletionPct,
-            completions: 0,
-            total: highest.studentCount,
+            classId: sorted[sorted.length - 1].classId,
+            className: sorted[sorted.length - 1].className,
+            section: sorted[sorted.length - 1].section || '',
+            rate: sorted[sorted.length - 1].avgHomeworkCompletionPct,
           })
-
-          setClassCount(classRollups.length)
         }
 
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load homework data')
-        }
+      } catch (error) {
+        console.error('Failed to load homework data:', error)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -110,151 +76,144 @@ export function HomeworkCompletionBlock({ onDrillToClasses }: HomeworkBlockProps
     return (
       <div style={{
         background: 'white',
-        borderRadius: '12px',
-        padding: '24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        borderRadius: '8px',
+        padding: '12px 16px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>
-          Homework Completion
-        </h2>
-        <div className="animate-pulse" style={{ color: '#9CA3AF' }}>Loading...</div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        padding: '24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-      }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>
-          Homework Completion
-        </h2>
-        <p style={{ fontSize: '14px', color: '#ef4444' }}>{error}</p>
+        <div className="animate-pulse" style={{ fontSize: '13px', color: '#9CA3AF' }}>Loading...</div>
       </div>
     )
   }
 
   const color = schoolRate >= 75 ? '#10b981' : schoolRate >= 60 ? '#f59e0b' : '#ef4444'
 
+  // Compact collapsed state
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        style={{
+          background: 'white',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          border: `2px solid ${color}15`,
+          borderLeft: `4px solid ${color}`,
+          width: '100%',
+          textAlign: 'left',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>
+              HOMEWORK (7-DAY)
+            </div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <div className="font-mono-data" style={{ fontSize: '28px', fontWeight: 700, color }}>
+                {Math.round(schoolRate)}%
+              </div>
+              <div style={{ fontSize: '11px', color: '#6B7280' }}>school avg</div>
+            </div>
+          </div>
+          <ChevronDown size={18} color="#9CA3AF" />
+        </div>
+      </button>
+    )
+  }
+
+  // Expanded state
   return (
     <div style={{
       background: 'white',
-      borderRadius: '12px',
+      borderRadius: '8px',
+      padding: '16px',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       border: `2px solid ${color}15`,
-      borderLeft: `6px solid ${color}`,
-      padding: '24px',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+      borderLeft: `4px solid ${color}`,
     }}>
-      {/* Header */}
-      <div style={{ fontSize: '14px', fontWeight: 600, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
-        HOMEWORK COMPLETION
-      </div>
-
-      {/* School Rate */}
       <button
-        onClick={onDrillToClasses}
+        onClick={() => setExpanded(false)}
         style={{
-          background: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          background: 'transparent',
           border: 'none',
           cursor: 'pointer',
+          marginBottom: '12px',
           padding: 0,
-          marginBottom: '16px',
-          width: '100%',
-          textAlign: 'left',
         }}
       >
-        <div
-          className="font-mono-data"
-          style={{
-            fontSize: '48px',
-            fontWeight: 800,
-            color,
-            lineHeight: 1,
-            marginBottom: '8px',
-          }}
-        >
-          {Math.round(schoolRate)}%
+        <div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: '#6B7280', marginBottom: '4px' }}>
+            HOMEWORK COMPLETION (7-DAY)
+          </div>
+          <div className="font-mono-data" style={{ fontSize: '28px', fontWeight: 700, color }}>
+            {Math.round(schoolRate)}%
+          </div>
         </div>
-        <div style={{ fontSize: '14px', color: '#6B7280' }}>
-          School average (7-day window)
-        </div>
+        <ChevronUp size={18} color="#9CA3AF" />
       </button>
 
-      {/* Spread - Show lowest and highest */}
+      {/* Spread */}
       {lowestClass && highestClass && (
-        <div style={{
-          marginTop: '16px',
-          padding: '16px',
-          background: '#F9FAFB',
-          borderRadius: '8px',
-        }}>
-          <div style={{ fontSize: '12px', fontWeight: 600, color: '#6B7280', marginBottom: '12px', textTransform: 'uppercase' }}>
-            Spread across {classCount} classes
-          </div>
-
-          {/* Lowest */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '6px',
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <button
+            onClick={onDrillToClasses}
+            style={{
+              padding: '8px',
               background: '#fef2f2',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <TrendingDown size={16} color="#ef4444" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#1F2937' }}>
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              textAlign: 'left',
+              width: '100%',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F2937' }}>
                 {lowestClass.className}{lowestClass.section && `-${lowestClass.section}`}
               </div>
-              <div style={{ fontSize: '11px', color: '#6B7280' }}>Lowest</div>
+              <div className="font-mono-data" style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444' }}>
+                {Math.round(lowestClass.rate)}%
+              </div>
             </div>
-            <div className="font-mono-data" style={{ fontSize: '20px', fontWeight: 700, color: '#ef4444' }}>
-              {Math.round(lowestClass.rate)}%
-            </div>
-          </div>
+            <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px' }}>Lowest</div>
+          </button>
 
-          {/* Highest */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '6px',
+          <button
+            onClick={onDrillToClasses}
+            style={{
+              padding: '8px',
               background: '#f0fdf4',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              <TrendingUp size={16} color="#10b981" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#1F2937' }}>
+              borderRadius: '6px',
+              border: 'none',
+              cursor: 'pointer',
+              textAlign: 'left',
+              width: '100%',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F2937' }}>
                 {highestClass.className}{highestClass.section && `-${highestClass.section}`}
               </div>
-              <div style={{ fontSize: '11px', color: '#6B7280' }}>Highest</div>
+              <div className="font-mono-data" style={{ fontSize: '16px', fontWeight: 700, color: '#10b981' }}>
+                {Math.round(highestClass.rate)}%
+              </div>
             </div>
-            <div className="font-mono-data" style={{ fontSize: '20px', fontWeight: 700, color: '#10b981' }}>
-              {Math.round(highestClass.rate)}%
-            </div>
-          </div>
+            <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '2px' }}>Highest</div>
+          </button>
         </div>
       )}
-
-      {/* Note about window */}
-      <div style={{
-        marginTop: '12px',
-        fontSize: '11px',
-        color: '#9CA3AF',
-        fontStyle: 'italic',
-      }}>
-        Only counts homework past its due date in the last 7 days
-      </div>
     </div>
   )
 }

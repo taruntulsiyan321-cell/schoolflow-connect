@@ -25,12 +25,12 @@ export default function PrincipalDashboard() {
   const { drillState, drillToClass, drillToStudent, BreadcrumbComponent } = useDashboardDrillDown()
 
   return (
-    <div style={{ padding: '32px 24px', background: '#F8F9FA', minHeight: '100vh', maxWidth: '1400px', margin: '0 auto' }}>
+    <div style={{ padding: '16px 12px', background: '#F8F9FA', minHeight: '100vh', maxWidth: '1400px', margin: '0 auto' }}>
       <BreadcrumbComponent />
 
       {/* School-level view - Six blocks in attention order */}
       {drillState.level === 'school' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* A. Today's Attendance - THE HERO */}
           <AttendanceHeroBlock onDrillToClasses={() => drillToClass('attendance')} />
 
@@ -38,7 +38,7 @@ export default function PrincipalDashboard() {
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))',
-            gap: '24px',
+            gap: '12px',
           }}>
             {/* B. Pending Decisions */}
             <PendingDecisionsBlock />
@@ -54,7 +54,7 @@ export default function PrincipalDashboard() {
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))',
-            gap: '24px',
+            gap: '12px',
           }}>
             {/* E. Needs Attention */}
             <NeedsAttentionBlock />

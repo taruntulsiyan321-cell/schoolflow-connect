@@ -1,21 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { useAuth } from '@/hooks/useAuth'
-import { AnalyticsService } from '@/academic'
 import { useAcademicContext } from '@/academic/hooks/useAcademicContext'
-import { UserX, ExternalLink } from 'lucide-react'
-
-/**
- * Chronic Absentees Block (§5.F)
- *
- * The only block that looks past today - shows students below
- * threshold across the term (typically < 75% attendance).
- *
- * Shows: Student name, class, attendance percentage
- * Taps through to student profile
- * Sorted by lowest attendance first
- * Limit to top 10 worst cases
- */
+import { UserX, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface ChronicAbsentee {
   studentId: string
@@ -23,8 +10,6 @@ interface ChronicAbsentee {
   className: string
   section: string
   attendancePct: number
-  totalDays: number
-  presentDays: number
 }
 
 const CHRONIC_THRESHOLD = 75
@@ -33,6 +18,7 @@ export function ChronicAbsenteesBlock() {
   const { school } = useAuth()
   const { ctx, settled } = useAcademicContext()
   const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState(false)
   const [students, setStudents] = useState<ChronicAbsentee[]>([])
 
   useEffect(() => {
@@ -44,7 +30,6 @@ export function ChronicAbsenteesBlock() {
       setLoading(true)
 
       try {
-        // Get all students with their attendance data
         const { data: studentData } = await supabase
           .from('students')
           .select(`
@@ -55,32 +40,25 @@ export function ChronicAbsenteesBlock() {
           `)
           .eq('school_id', school.id)
           .eq('status', 'active')
+          .limit(50)
 
         if (cancelled) return
 
         const chronicList: ChronicAbsentee[] = []
 
-        // For each student, compute their term attendance
-        // TODO: Use actual attendance aggregation from AnalyticsService
-        // For now, we'll use a placeholder calculation
-
         for (const student of studentData || []) {
-          // Get student's attendance records
           const { data: attendanceRecords } = await supabase
             .from('attendance')
-            .select('status, date')
+            .select('status')
             .eq('student_id', student.id)
-            .order('date', { ascending: false })
-            .limit(100) // Look at last 100 days
+            .limit(50)
 
           if (cancelled) return
 
           if (attendanceRecords && attendanceRecords.length > 0) {
-            const totalDays = attendanceRecords.length
             const presentDays = attendanceRecords.filter(r => r.status === 'present').length
-            const attendancePct = (presentDays / totalDays) * 100
+            const attendancePct = (presentDays / attendanceRecords.length) * 100
 
-            // Only include if below threshold
             if (attendancePct < CHRONIC_THRESHOLD) {
               chronicList.push({
                 studentId: student.id,
@@ -88,16 +66,13 @@ export function ChronicAbsenteesBlock() {
                 className: student.classes?.class_name || 'Unknown',
                 section: student.classes?.section || '',
                 attendancePct,
-                totalDays,
-                presentDays,
               })
             }
           }
         }
 
-        // Sort by lowest attendance first and limit to 10
         chronicList.sort((a, b) => a.attendancePct - b.attendancePct)
-        setStudents(chronicList.slice(0, 10))
+        setStudents(chronicList.slice(0, 5))
 
       } catch (error) {
         console.error('Failed to load chronic absentees:', error)
@@ -111,106 +86,151 @@ export function ChronicAbsenteesBlock() {
     }
   }, [school?.id, settled, ctx])
 
-  const viewStudentProfile = (studentId: string) => {
-    // TODO: Navigate to student profile or open modal
-    console.log('View student profile:', studentId)
-  }
-
   if (loading) {
     return (
       <div style={{
         background: 'white',
-        borderRadius: '12px',
-        padding: '24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        borderRadius: '8px',
+        padding: '12px 16px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
       }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937', marginBottom: '16px' }}>
-          Chronic Absentees
-        </h2>
-        <div className="animate-pulse" style={{ color: '#9CA3AF' }}>Loading...</div>
+        <div className="animate-pulse" style={{ fontSize: '13px', color: '#9CA3AF' }}>Loading...</div>
       </div>
     )
   }
 
-  // Empty state - good news
   if (students.length === 0) {
     return (
       <div style={{
         background: 'white',
-        borderRadius: '12px',
-        padding: '20px 24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+        borderRadius: '8px',
+        padding: '12px 16px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
         border: '1px solid #d1fae5',
       }}>
-        <div style={{ fontSize: '14px', fontWeight: 600, color: '#10b981', textAlign: 'center' }}>
-          ✓ No students below {CHRONIC_THRESHOLD}% attendance threshold
+        <div style={{ fontSize: '13px', fontWeight: 600, color: '#10b981' }}>
+          ✓ No chronic absentees
         </div>
       </div>
     )
   }
 
+  // Compact
+  if (!expanded) {
+    return (
+      <button
+        onClick={() => setExpanded(true)}
+        style={{
+          background: 'white',
+          borderRadius: '8px',
+          padding: '12px 16px',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          border: '2px solid #fef2f2',
+          borderLeft: '4px solid #dc2626',
+          width: '100%',
+          textAlign: 'left',
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{
+              background: '#dc2626',
+              color: 'white',
+              fontSize: '11px',
+              fontWeight: 700,
+              padding: '3px 8px',
+              borderRadius: '10px',
+            }}>
+              {students.length}
+            </div>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
+                Chronic Absentees
+              </div>
+              <div style={{ fontSize: '11px', color: '#6B7280', marginTop: '2px' }}>
+                Below {CHRONIC_THRESHOLD}% attendance
+              </div>
+            </div>
+          </div>
+          <ChevronDown size={18} color="#9CA3AF" />
+        </div>
+      </button>
+    )
+  }
+
+  // Expanded
   return (
     <div style={{
       background: 'white',
-      borderRadius: '12px',
-      padding: '24px',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
-      border: '2px solid #fef2f215',
-      borderLeft: '6px solid #dc2626',
+      borderRadius: '8px',
+      padding: '16px',
+      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+      border: '2px solid #fef2f2',
+      borderLeft: '4px solid #dc2626',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-        <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1F2937' }}>
+      <button
+        onClick={() => setExpanded(false)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          marginBottom: '12px',
+          padding: 0,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            background: '#dc2626',
+            color: 'white',
+            fontSize: '11px',
+            fontWeight: 700,
+            padding: '3px 8px',
+            borderRadius: '10px',
+          }}>
+            {students.length}
+          </div>
+          <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937', margin: 0 }}>
             Chronic Absentees
-          </h2>
-          <p style={{ fontSize: '12px', color: '#6B7280', marginTop: '4px' }}>
-            Students below {CHRONIC_THRESHOLD}% attendance across the term
-          </p>
+          </h3>
         </div>
-        <div style={{
-          background: '#dc2626',
-          color: 'white',
-          fontSize: '12px',
-          fontWeight: 700,
-          padding: '4px 10px',
-          borderRadius: '12px',
-          minWidth: '24px',
-          textAlign: 'center',
-        }}>
-          {students.length}
-        </div>
-      </div>
+        <ChevronUp size={18} color="#9CA3AF" />
+      </button>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         {students.map((student) => {
           const color = student.attendancePct < 50 ? '#dc2626' : student.attendancePct < 65 ? '#ef4444' : '#f59e0b'
 
           return (
             <button
               key={student.studentId}
-              onClick={() => viewStudentProfile(student.studentId)}
+              onClick={() => console.log('View student:', student.studentId)}
               style={{
-                padding: '12px',
+                padding: '8px',
                 background: '#F9FAFB',
-                borderRadius: '8px',
+                borderRadius: '6px',
                 borderLeft: `3px solid ${color}`,
                 border: 'none',
                 cursor: 'pointer',
                 textAlign: 'left',
                 width: '100%',
-                transition: 'background 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#F3F4F6'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#F9FAFB'
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{
-                  width: '32px',
-                  height: '32px',
+                  width: '24px',
+                  height: '24px',
                   borderRadius: '50%',
                   background: `${color}15`,
                   display: 'flex',
@@ -218,46 +238,26 @@ export function ChronicAbsenteesBlock() {
                   justifyContent: 'center',
                   flexShrink: 0,
                 }}>
-                  <UserX size={16} color={color} />
+                  <UserX size={12} color={color} />
                 </div>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#1F2937' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#1F2937' }}>
                     {student.studentName}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#6B7280', marginTop: '2px' }}>
-                    {student.className}{student.section && `-${student.section}`} • {student.presentDays}/{student.totalDays} days
+                  <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '1px' }}>
+                    {student.className}{student.section && `-${student.section}`}
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <div style={{
-                    fontSize: '18px',
-                    fontWeight: 700,
-                    color,
-                    fontFamily: 'monospace',
-                  }}>
-                    {student.attendancePct.toFixed(1)}%
-                  </div>
-                  <ExternalLink size={14} color="#9CA3AF" />
+                <div className="font-mono-data" style={{ fontSize: '14px', fontWeight: 700, color }}>
+                  {student.attendancePct.toFixed(1)}%
                 </div>
               </div>
             </button>
           )
         })}
       </div>
-
-      {students.length === 10 && (
-        <div style={{
-          marginTop: '12px',
-          fontSize: '11px',
-          color: '#9CA3AF',
-          fontStyle: 'italic',
-          textAlign: 'center',
-        }}>
-          Showing top 10 students • More may exist below threshold
-        </div>
-      )}
     </div>
   )
 }
